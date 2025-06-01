@@ -1,4 +1,5 @@
 yay -S --noconfirm \
-  nvim mise docker \
+  nvim luarocks tree-sitter-cli \
+  mise docker \
   lazygit lazydocker \
   github-cli
