@@ -1,3 +1,5 @@
+yay -Sy --noconfirm ttf-font-awesome
+
 mkdir -p ~/.local/share/fonts
 
 cd /tmp
