@@ -4,6 +4,7 @@ yay -S --noconfirm --needed \
   lazygit lazydocker
 
 # Install LazyVim
+rm -rf ~/.config/nvim
 git clone https://github.com/LazyVim/starter ~/.config/nvim
 rm -rf ~/.config/nvim/.git
 
