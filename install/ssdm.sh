@@ -1,4 +1,4 @@
-sudo pacman -Sy \
+sudo pacman -Sy --noconfirm \
   sddm-kcm \
   qt6-base qt6-svg qt6-virtualkeyboard qt6-multimedia
 
@@ -22,4 +22,3 @@ InputMethod=qtvirtualkeyboard
 EOF
 
 sudo systemctl enable sddm.service
-sudo systemctl start sddm.service
