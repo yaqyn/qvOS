@@ -4,8 +4,13 @@ cp -R ~/.local/share/omarchy/config/* ~/.config/
 # Use default bashrc from Omarchy
 echo "source ~/.local/share/omarchy/default/bash/rc" >~/.bashrc
 
-# Start Hyprland on first session
-echo "[[ -z $DISPLAY && $(tty) == /dev/tty1 ]] && exec Hyprland" >~/.bash_profile
+# Login directly as user, rely on disk encryption + hyprlock for security
+sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
+sudo tee /etc/systemd/system/getty@tty1.service.d/override.conf >/dev/null <<EOF
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin $USER --noclear %I \$TERM
+EOF
 
 # Set common git aliases
 git config --global alias.co checkout
