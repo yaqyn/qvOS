@@ -6,3 +6,7 @@ trap 'echo "Omarchy installation failed! You can retry by running: source ~/.loc
 
 # Install everything
 for f in ~/.local/share/omarchy/install/*.sh; do source "$f"; done
+
+# Reboot
+echo "Rebooting for all settings to apply..."
+reboot
