@@ -1,4 +1,4 @@
-yay -S --noconfirm docker
+yay -S --noconfirm --needed docker
 
 # Give this user privileged Docker access
 # sudo usermod -aG docker ${USER}

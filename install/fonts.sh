@@ -1,4 +1,4 @@
-yay -Sy --noconfirm ttf-font-awesome
+yay -Sy --noconfirm --needed ttf-font-awesome
 
 mkdir -p ~/.local/share/fonts
 

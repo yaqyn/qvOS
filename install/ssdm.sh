@@ -1,4 +1,4 @@
-sudo pacman -Sy --noconfirm \
+sudo pacman -Sy --noconfirm --needed \
   sddm-kcm \
   qt6-base qt6-svg qt6-virtualkeyboard qt6-multimedia
 
