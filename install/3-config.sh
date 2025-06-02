@@ -4,6 +4,9 @@ cp -R ~/.local/share/omarchy/config/* ~/.config/
 # Use default bashrc from Omarchy
 echo "source ~/.local/share/omarchy/default/bash/rc" >~/.bashrc
 
+# Start Hyprland on first session
+echo "[[ -z $DISPLAY && $(tty) == /dev/tty1 ]] && exec Hyprland" >~/.bash_profile
+
 # Set common git aliases
 git config --global alias.co checkout
 git config --global alias.br branch
