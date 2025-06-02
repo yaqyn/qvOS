@@ -2,4 +2,4 @@
 for f in ~/.local/share/omarchy/install/*.sh; do source "$f"; done
 
 echo "Reboot for all settings to apply..."
-gum "Reboot to apply all settings?" && reboot
+gum confirm "Reboot to apply all settings?" && reboot
