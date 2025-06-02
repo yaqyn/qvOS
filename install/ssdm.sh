@@ -11,14 +11,4 @@ Type=Application
 DesktopNames=Hyprland
 EOF
 
-# sudo tee /etc/ssdm.conf >/dev/null <<EOF
-# [Theme]
-# Current=This
-# EOF
-
-sudo tee /etc/ssdm.conf.d/virtualkbd.conf >/dev/null <<EOF
-[General]
-InputMethod=qtvirtualkeyboard
-EOF
-
 sudo systemctl enable sddm.service
