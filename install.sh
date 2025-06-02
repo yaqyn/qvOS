@@ -5,4 +5,10 @@ set -e
 trap 'echo "Omarchy installation failed! You can retry by running: source ~/.local/share/omarchy/install.sh"' ERR
 
 # Install everything
-source ~/.local/share/omarchy/install/all.sh
+for f in ~/.local/share/omarchy/install/*.sh; do source "$f"; done
+
+# Copy over Omarchy configs
+cp -R ~/.local/share/omarchy/config/* ~/.config/
+
+# Use default bashrc from Omarchy
+echo "source ~/.local/share/omarchy/default/bash/rc" >~/.bashrc
