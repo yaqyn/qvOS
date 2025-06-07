@@ -5,12 +5,18 @@
 }
 
 .notification {
-  border-radius: 0px; /* Square corners */
+  border-radius: 0px;
   padding: 14px;
   color: #cdd6f4;
   background-color: #1a1b26;
   border: 2px solid #313244;
-  margin: 10px;
+  margin: 20px;
+}
+
+.icon,
+.app-icon,
+.image {
+  margin-right: 8px;
 }
 
 .title {
