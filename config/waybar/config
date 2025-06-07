@@ -57,7 +57,7 @@
     "clock": {
       "tooltip-format": "{calendar}",
       "format-alt": "  {:%a, %d %b %Y}",
-      "format": "{:%H:%M %A}"
+      "format": "{:%A %H:%M}"
     },
     "network": {
       "format-wifi" : "{bandwidthDownBytes:>6} {icon}",
