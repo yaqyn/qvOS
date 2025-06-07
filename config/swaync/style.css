@@ -1,7 +1,7 @@
 * {
   all: unset;
-  font-family: CaskaydiaMono Nerd Font;
-  font-size: 12px;
+  font-family: Liberation Sans;
+  font-size: 14px;
 }
 
 .notification {
@@ -11,14 +11,6 @@
   background-color: #1a1b26;
   border: 2px solid #313244;
   margin: 10px;
-}
-
-.image,
-.icon,
-.app-icon {
-  min-height: 16px;
-  min-width: 16px;
-  margin-right: 8px;
 }
 
 .title {
