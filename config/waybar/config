@@ -60,7 +60,7 @@
       "format": "{:%A %H:%M}"
     },
     "network": {
-      "format-wifi" : "{bandwidthDownBytes:>6} {icon}",
+      "format-wifi" : "{bandwidthDownBytes} {icon}",
       "format-icons": ["󰤯","󰤟","󰤢","󰤥","󰤨"],
       "format-ethernet": "󰀂",
       "format-alt" : "󱛇",
