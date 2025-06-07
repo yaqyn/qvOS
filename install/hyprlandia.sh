@@ -1,7 +1,10 @@
 yay -S --noconfirm --needed \
   hyprland hyprpaper hyprshot hyprlock hypridle hyprpolkitagent hyprland-qtutils \
   waybar swaync \
-  xdg-desktop-portal-hyprland
+  xdg-desktop-portal-hyprland xdg-desktop-portal xdg-desktop-portal-gnome
+
+# Prefer dark mode everything
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 
 # Start Hyprland on first session
 echo "[[ -z \$DISPLAY && \$(tty) == /dev/tty1 ]] && exec Hyprland" >~/.bash_profile
