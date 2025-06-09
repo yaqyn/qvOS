@@ -57,7 +57,7 @@
       "tooltip-format-wifi": "{icon} {essid}\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
       "tooltip-format-ethernet": "󰀂  {ifname}\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
       "tooltip-format-disconnected": "Disconnected",
-      "interval": 5,
+      "interval": 3,
       "nospacing": 1,
     },
     "battery": {
