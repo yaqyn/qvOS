@@ -1,6 +1,6 @@
 yay -S --noconfirm --needed \
-  hyprland hyprpaper hyprshot hyprlock hypridle hyprpolkitagent hyprland-qtutils \
-  waybar swaync \
+  hyprland hyprshot hyprlock hypridle hyprpolkitagent hyprland-qtutils \
+  waybar swaync swaybg \
   xdg-desktop-portal-hyprland xdg-desktop-portal xdg-desktop-portal-gnome
 
 # Start Hyprland on first session
