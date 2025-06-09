@@ -1,6 +1,9 @@
 # Copy over Omarchy configs
 cp -R ~/.local/share/omarchy/config/* ~/.config/
 
+# Copy over Omarchy applications
+cp -R ~/.local/share/omarchy/applications/* ~/.local/share/applications/
+
 # Use default bashrc from Omarchy
 echo "source ~/.local/share/omarchy/default/bash/rc" >~/.bashrc
 
