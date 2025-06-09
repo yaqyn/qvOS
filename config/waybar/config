@@ -45,9 +45,9 @@
       "on-click": "alacritty -e btop"
     },
     "clock": {
-      "tooltip-format": "{calendar}",
-      "format-alt": "  {:%a, %d %b %Y}",
-      "format": "{:%A %H:%M}"
+      "format": "{:%A %H:%M}",
+      "format-alt": "{:%d %B %Y}",
+      "tooltip": false
     },
     "network": {
       "format-wifi" : "{bandwidthDownBytes} {icon}",
