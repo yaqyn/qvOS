@@ -1,11 +1,11 @@
 window#waybar #custom-prayerbar {
-  min-width: 78px;
-  padding: 0 8px;
+  min-width: 70px;
+  padding: 0 4px 0 8px;
 }
 
 window#waybar #custom-qv-clock,
 window#waybar .prayer-clock-item,
 window#waybar #custom-qv-clock.prayer-clock-item {
   margin-left: 0;
-  padding: 0 0 0 2px;
+  padding: 0;
 }
