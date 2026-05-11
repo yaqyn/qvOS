@@ -5,7 +5,7 @@
   "spacing": 0,
   "height": 26,
   "modules-left": ["custom/omarchy", "hyprland/workspaces"],
-  "modules-center": ["clock", "custom/weather", "custom/update", "custom/voxtype", "custom/screenrecording-indicator", "custom/idle-indicator", "custom/notification-silencing-indicator"],
+  "modules-center": ["group/prayer-clock", "custom/update", "custom/voxtype", "custom/screenrecording-indicator", "custom/idle-indicator", "custom/notification-silencing-indicator"],
   "modules-right": [
     "group/tray-expander",
     "bluetooth",
@@ -65,6 +65,30 @@
     "format-alt": "{:L%d %B W%V %Y}",
     "tooltip": false,
     "on-click-right": "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select"
+  },
+  "custom/prayerbar": {
+    "format": "{}",
+    "tooltip": true,
+    "interval": 60,
+    "signal": 11,
+    "exec": "$OMARCHY_PATH/qv/scripts/waybar/prayerbar.sh",
+    "return-type": "json"
+  },
+  "custom/qv-clock": {
+    "format": "{}",
+    "tooltip": true,
+    "interval": 60,
+    "signal": 12,
+    "exec": "$OMARCHY_PATH/qv/scripts/waybar/clock.sh",
+    "return-type": "json"
+  },
+  "group/prayer-clock": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 600,
+      "children-class": "prayer-clock-item"
+    },
+    "modules": ["custom/prayerbar", "custom/qv-clock"]
   },
   "custom/weather": {
     "exec": "$OMARCHY_PATH/default/waybar/weather.sh",

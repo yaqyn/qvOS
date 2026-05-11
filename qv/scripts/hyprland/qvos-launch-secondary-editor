@@ -1,0 +1,190 @@
+#!/bin/bash
+set -euo pipefail
+
+EDITORS=(
+  $'Neovim\tnvim\tnvim.desktop\tneovim omarchy-nvim'
+  $'Code\tcode\tcode.desktop\tvisual-studio-code-bin code'
+  $'Code OSS\tcode-oss\tcode-oss.desktop\tcode'
+  $'VSCodium\tcodium\tcodium.desktop\tvscodium-bin vscodium'
+  $'Cursor\tcursor\tcursor.desktop\tcursor-bin cursor'
+  $'Zed\tzed\tdev.zed.Zed.desktop\tzed zed-preview-bin zed-bin'
+  $'Helix\thx\tqvos-hx.desktop\thelix'
+  $'Micro\tmicro\tqvos-micro.desktop\tmicro'
+  $'Vim\tvim\tqvos-vim.desktop\tvim'
+  $'Kate\tkate\torg.kde.kate.desktop\tkate'
+  $'Geany\tgeany\tgeany.desktop\tgeany'
+  $'GNOME Text Editor\tgnome-text-editor\torg.gnome.TextEditor.desktop\tgnome-text-editor'
+  $'Sublime Text\tsubl\tsublime_text.desktop\tsublime-text-4 sublime-text'
+)
+
+notify() {
+  notify-send "$@" >/dev/null 2>&1 || true
+}
+
+current_location() {
+  if [[ -n "${1:-}" && -d "${1/#\~/$HOME}" ]]; then
+    printf '%s\n' "${1/#\~/$HOME}"
+    return 0
+  fi
+
+  if [[ -x "$HOME/.local/share/qvos/hyprland/qvos-active-location" ]]; then
+    "$HOME/.local/share/qvos/hyprland/qvos-active-location"
+  else
+    printf '%s\n' "$HOME"
+  fi
+}
+
+primary_editor() {
+  local env_line
+
+  if [[ -n "${EDITOR:-${VISUAL:-}}" ]]; then
+    printf '%s\n' "${EDITOR:-${VISUAL:-}}"
+    return 0
+  fi
+
+  env_line="$(systemctl --user show-environment 2>/dev/null | sed -n 's/^EDITOR=//p' | head -1 || true)"
+  if [[ -n $env_line ]]; then
+    printf '%s\n' "$env_line"
+    return 0
+  fi
+
+  sed -n 's/^export EDITOR=//p' "$HOME/.config/uwsm/default" 2>/dev/null | head -1
+}
+
+is_neovim() {
+  local cmd="$1"
+
+  case "$(basename "$cmd")" in
+  nvim | neovim) return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
+editor_command_aliases() {
+  local cmd="$1"
+
+  case "$cmd" in
+  nvim) printf '%s\n' nvim ;;
+  code) printf '%s\n' code ;;
+  code-oss) printf '%s\n' code-oss ;;
+  codium) printf '%s\n' codium vscodium ;;
+  cursor) printf '%s\n' cursor cursor-bin ;;
+  zed) printf '%s\n' zed zeditor ;;
+  hx) printf '%s\n' hx helix ;;
+  micro) printf '%s\n' micro ;;
+  vim) printf '%s\n' vim ;;
+  kate) printf '%s\n' kate ;;
+  geany) printf '%s\n' geany ;;
+  gnome-text-editor) printf '%s\n' gnome-text-editor ;;
+  subl) printf '%s\n' subl subl3 sublime_text ;;
+  *) printf '%s\n' "$cmd" ;;
+  esac
+}
+
+resolve_editor_command() {
+  local cmd="$1"
+  local candidate
+
+  while IFS= read -r candidate; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done < <(editor_command_aliases "$cmd")
+
+  return 1
+}
+
+editor_record_by_cmd() {
+  local selected_cmd="$1"
+  local record cmd
+
+  for record in "${EDITORS[@]}"; do
+    IFS=$'\t' read -r _ cmd _ _ <<<"$record"
+    if [[ $cmd == "$selected_cmd" ]]; then
+      printf '%s\n' "$record"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+primary_matches_candidate() {
+  local primary="$1"
+  local cmd="$2"
+  local alias primary_base
+
+  primary_base="$(basename "$primary")"
+  while IFS= read -r alias; do
+    [[ $primary_base == "$alias" ]] && return 0
+  done < <(editor_command_aliases "$cmd")
+
+  return 1
+}
+
+fallback_record() {
+  local primary="$1"
+  local cmd
+
+  if ! is_neovim "$primary"; then
+    for cmd in nvim code code-oss cursor codium zed hx micro vim kate geany gnome-text-editor subl; do
+      primary_matches_candidate "$primary" "$cmd" && continue
+      if resolve_editor_command "$cmd" >/dev/null; then
+        editor_record_by_cmd "$cmd"
+        return 0
+      fi
+    done
+
+    editor_record_by_cmd nvim
+    return 0
+  fi
+
+  for cmd in code code-oss cursor codium zed hx micro vim kate geany gnome-text-editor subl; do
+    primary_matches_candidate "$primary" "$cmd" && continue
+    if resolve_editor_command "$cmd" >/dev/null; then
+      editor_record_by_cmd "$cmd"
+      return 0
+    fi
+  done
+
+  editor_record_by_cmd code
+}
+
+secondary_record() {
+  fallback_record "$(primary_editor)"
+}
+
+launch_editor() {
+  local cmd="$1"
+  local location="$2"
+
+  if command -v omarchy-launch-editor >/dev/null 2>&1; then
+    exec env EDITOR="$cmd" VISUAL="$cmd" omarchy-launch-editor "$location"
+  fi
+
+  case "$cmd" in
+  nvim | vim | nano | micro | hx | helix | fresh)
+    exec uwsm-app -- xdg-terminal-exec --dir="$location" -e "$cmd" .
+    ;;
+  code | code-oss | codium | vscodium)
+    exec setsid uwsm-app -- "$cmd" --new-window "$location"
+    ;;
+  *)
+    exec setsid uwsm-app -- "$cmd" "$location"
+    ;;
+  esac
+}
+
+location="$(current_location "${1:-}")"
+[[ -d $location ]] || location="$HOME"
+
+record="$(secondary_record)"
+IFS=$'\t' read -r name cmd _desktop packages <<<"$record"
+
+if resolved_cmd="$(resolve_editor_command "$cmd")"; then
+  launch_editor "$resolved_cmd" "$location"
+fi
+
+notify -u critical "Secondary editor" "$name is not installed. Run: omarchy-pkg-add ${packages%% *}"
+exit 1

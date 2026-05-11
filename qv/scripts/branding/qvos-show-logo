@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Show the qvOS logo.
+
+set -euo pipefail
+
+clear 2>/dev/null || true
+
+if [[ -f "$HOME/.config/omarchy/branding/about-fastfetch.ansi" ]]; then
+  cat "$HOME/.config/omarchy/branding/about-fastfetch.ansi"
+elif [[ -f "$HOME/.local/share/omarchy/logo.txt" ]]; then
+  printf '\033[31m'
+  cat "$HOME/.local/share/omarchy/logo.txt"
+  printf '\033[0m'
+fi
+
+printf '\n'

@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+menu_dir="${HOME}/.local/share/qvos/hyprland"
+
+notify() {
+  notify-send "$@" >/dev/null 2>&1 || true
+}
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify -u critical "Defaults" "omarchy-launch-walker was not found"
+  exit 1
+fi
+
+selected="$(
+  printf '%s\n' \
+    "Default browser" \
+    "Default editor" |
+    omarchy-launch-walker --dmenu --width 520 --minheight 1 --maxheight 260 -p "Defaults..."
+)"
+
+case "$selected" in
+"Default browser")
+  exec "$menu_dir/qvos-browser-default-menu"
+  ;;
+"Default editor")
+  exec "$menu_dir/qvos-editor-default-menu"
+  ;;
+"")
+  exit 0
+  ;;
+*)
+  notify -u critical "Defaults" "Unknown defaults target: $selected"
+  exit 1
+  ;;
+esac

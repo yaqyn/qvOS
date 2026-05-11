@@ -1,0 +1,372 @@
+#!/bin/bash
+set -euo pipefail
+
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/qvos"
+uwsm_default="$HOME/.config/uwsm/default"
+mimeapps="$HOME/.config/mimeapps.list"
+backup_stamp="$(date +%Y%m%d_%H%M%S)"
+
+EDITORS=(
+  $'Code OSS\tcode-oss\tcode-oss.desktop\tcode'
+  $'Code\tcode\tcode.desktop\tvisual-studio-code-bin code'
+  $'Neovim\tnvim\tnvim.desktop\tneovim omarchy-nvim'
+  $'VSCodium\tcodium\tcodium.desktop\tvscodium-bin vscodium'
+  $'Zed\tzed\tdev.zed.Zed.desktop\tzed zed-preview-bin zed-bin'
+  $'Helix\thx\tqvos-hx.desktop\thelix'
+  $'Micro\tmicro\tqvos-micro.desktop\tmicro'
+  $'Vim\tvim\tqvos-vim.desktop\tvim'
+  $'Kate\tkate\torg.kde.kate.desktop\tkate'
+  $'Geany\tgeany\tgeany.desktop\tgeany'
+  $'GNOME Text Editor\tgnome-text-editor\torg.gnome.TextEditor.desktop\tgnome-text-editor'
+  $'Sublime Text\tsubl\tsublime_text.desktop\tsublime-text-4 sublime-text'
+  $'Cursor\tcursor\tcursor.desktop\tcursor-bin cursor'
+)
+
+TEXT_MIMES=(
+  text/plain
+  text/english
+  text/x-makefile
+  text/x-c++hdr
+  text/x-c++src
+  text/x-chdr
+  text/x-csrc
+  text/x-java
+  text/x-moc
+  text/x-pascal
+  text/x-tcl
+  text/x-tex
+  application/x-shellscript
+  text/x-c
+  text/x-c++
+  application/xml
+  text/xml
+)
+
+backup_file() {
+  local path="$1"
+  local backup
+
+  [[ -f $path ]] || return 0
+
+  for backup in "$path".qvos.*.bak "$path.qvos-backup"; do
+    [[ -f $backup ]] || continue
+    cmp -s "$path" "$backup" && return 0
+  done
+
+  cp "$path" "$path.qvos.$backup_stamp.bak"
+}
+
+notify() {
+  notify-send "$@" >/dev/null 2>&1 || true
+}
+
+launch_install_terminal() {
+  local name="$1"
+  local cmd="$2"
+
+  exec uwsm-app -- xdg-terminal-exec \
+    --app-id=org.qvos.defaults-installer \
+    --title="Install $name" \
+    "$0" __install "$cmd"
+}
+
+desktop_exists() {
+  local desktop="$1"
+
+  [[ -f "$HOME/.local/share/applications/$desktop" || -f "/usr/share/applications/$desktop" || -f "/usr/local/share/applications/$desktop" ]]
+}
+
+editor_command_aliases() {
+  local cmd="$1"
+
+  case "$cmd" in
+  code-oss) printf '%s\n' code-oss ;;
+  code) printf '%s\n' code ;;
+  nvim) printf '%s\n' nvim ;;
+  codium) printf '%s\n' codium vscodium ;;
+  zed) printf '%s\n' zed zeditor ;;
+  hx) printf '%s\n' hx helix ;;
+  micro) printf '%s\n' micro ;;
+  vim) printf '%s\n' vim ;;
+  kate) printf '%s\n' kate ;;
+  geany) printf '%s\n' geany ;;
+  gnome-text-editor) printf '%s\n' gnome-text-editor ;;
+  subl) printf '%s\n' subl subl3 sublime_text ;;
+  cursor) printf '%s\n' cursor cursor-bin ;;
+  *) printf '%s\n' "$cmd" ;;
+  esac
+}
+
+resolve_editor_command() {
+  local cmd="$1"
+  local candidate
+
+  while IFS= read -r candidate; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done < <(editor_command_aliases "$cmd")
+
+  return 1
+}
+
+ensure_terminal_desktop() {
+  local cmd="$1"
+  local desktop="$2"
+  local name="$3"
+  local path="$HOME/.local/share/applications/$desktop"
+
+  [[ "$desktop" == qvos-* ]] || return 0
+  install -d "$(dirname "$path")"
+  cat >"$path" <<EOF
+[Desktop Entry]
+Name=$name
+Exec=xdg-terminal-exec -e $cmd %F
+Terminal=false
+Type=Application
+MimeType=text/plain;text/english;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;application/xml;text/xml;
+Categories=Utility;TextEditor;Development;
+EOF
+}
+
+ensure_code_desktop() {
+  local cmd="$1"
+  local desktop="$2"
+  local path="$HOME/.local/share/applications/$desktop"
+
+  [[ $cmd == "code" && $desktop == "code.desktop" ]] || return 0
+  desktop_exists "$desktop" && return 0
+
+  install -d "$(dirname "$path")"
+  backup_file "$path"
+
+  {
+    printf '[Desktop Entry]\n'
+    printf 'Name=Code\n'
+    printf 'Comment=Code Editing. Redefined.\n'
+    printf 'GenericName=Text Editor\n'
+    printf 'Exec=code %%F\n'
+    printf 'Icon=visual-studio-code\n'
+    printf 'Type=Application\n'
+    printf 'StartupNotify=false\n'
+    printf 'StartupWMClass=Code\n'
+    printf 'Categories=TextEditor;Development;IDE;\n'
+    printf 'MimeType='
+    printf '%s;' "${TEXT_MIMES[@]}"
+    printf '\n'
+    printf 'Actions=new-empty-window;\n'
+    printf 'Keywords=vscode;\n\n'
+    printf '[Desktop Action new-empty-window]\n'
+    printf 'Name=New Empty Window\n'
+    printf 'Exec=code --new-window %%F\n'
+    printf 'Icon=visual-studio-code\n'
+  } >"$path"
+
+  chmod +x "$path"
+}
+
+set_editor_env() {
+  local cmd="$1"
+
+  install -d "$(dirname "$uwsm_default")"
+  backup_file "$uwsm_default"
+
+  if [[ ! -f "$uwsm_default" ]]; then
+    printf 'export TERMINAL=xdg-terminal-exec\nexport EDITOR=%s\n' "$cmd" >"$uwsm_default"
+  fi
+
+  set_export "$uwsm_default" EDITOR "$cmd"
+  set_export "$uwsm_default" VISUAL "$cmd"
+  set_export "$uwsm_default" SUDO_EDITOR "$cmd"
+
+  systemctl --user set-environment "EDITOR=$cmd" "VISUAL=$cmd" "SUDO_EDITOR=$cmd" >/dev/null 2>&1 || true
+  dbus-update-activation-environment --systemd "EDITOR=$cmd" "VISUAL=$cmd" "SUDO_EDITOR=$cmd" >/dev/null 2>&1 || true
+  hyprctl keyword env "EDITOR,$cmd" >/dev/null 2>&1 || true
+  hyprctl keyword env "VISUAL,$cmd" >/dev/null 2>&1 || true
+  hyprctl keyword env "SUDO_EDITOR,$cmd" >/dev/null 2>&1 || true
+  git config --global core.editor "$cmd" >/dev/null 2>&1 || true
+}
+
+set_export() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  local tmp
+
+  tmp="$(mktemp "$file.tmp.XXXXXX")"
+  awk -v key="$key" -v value="$value" '
+    BEGIN { done = 0 }
+    $0 ~ "^export " key "=" {
+      print "export " key "=" value
+      done = 1
+      next
+    }
+    { print }
+    END {
+      if (!done) print "export " key "=" value
+    }
+  ' "$file" >"$tmp"
+  mv "$tmp" "$file"
+}
+
+set_text_mime_defaults() {
+  local desktop="$1"
+  local mime
+
+  backup_file "$mimeapps"
+  for mime in "${TEXT_MIMES[@]}"; do
+    xdg-mime default "$desktop" "$mime"
+  done
+}
+
+install_package() {
+  local packages="$1"
+  local package_name
+
+  for package_name in $packages; do
+    if command -v omarchy-pkg-add >/dev/null 2>&1; then
+      omarchy-pkg-add "$package_name" && return 0
+    fi
+
+    if command -v omarchy-pkg-aur-add >/dev/null 2>&1; then
+      omarchy-pkg-aur-add "$package_name" && return 0
+    elif command -v yay >/dev/null 2>&1; then
+      yay -S --needed --noconfirm "$package_name" && return 0
+    fi
+
+    if command -v pacman >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+      sudo -n pacman -S --needed --noconfirm "$package_name" && return 0
+    fi
+  done
+
+  return 1
+}
+
+editor_record_by_name() {
+  local selected="$1"
+  local record name
+
+  for record in "${EDITORS[@]}"; do
+    IFS=$'\t' read -r name _ _ _ <<<"$record"
+    if [[ "$name" == "$selected" ]]; then
+      printf '%s\n' "$record"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+editor_record_by_cmd() {
+  local selected_cmd="$1"
+  local record cmd
+
+  for record in "${EDITORS[@]}"; do
+    IFS=$'\t' read -r _ cmd _ _ <<<"$record"
+    if [[ "$cmd" == "$selected_cmd" ]]; then
+      printf '%s\n' "$record"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+apply_editor() {
+  local name="$1"
+  local cmd="$2"
+  local desktop="$3"
+
+  ensure_code_desktop "$cmd" "$desktop"
+  ensure_terminal_desktop "$cmd" "$desktop" "$name"
+  set_editor_env "$cmd"
+  if desktop_exists "$desktop"; then
+    set_text_mime_defaults "$desktop"
+  fi
+
+  notify "Default editor" "$name is now the qvOS default. New launches use it now."
+}
+
+install_and_apply() {
+  local name="$1"
+  local cmd="$2"
+  local desktop="$3"
+  local packages="$4"
+  local resolved_cmd
+
+  printf 'Installing %s...\n\n' "$name"
+  if ! install_package "$packages"; then
+    notify -u critical "Default editor" "Could not install $name"
+    printf '\nCould not install %s.\n' "$name" >&2
+    sleep 3
+    exit 1
+  fi
+
+  if ! resolved_cmd="$(resolve_editor_command "$cmd")"; then
+    notify -u critical "Default editor" "$name installed, but no known command was found"
+    printf '\n%s installed, but no known command was found.\n' "$name" >&2
+    sleep 3
+    exit 1
+  fi
+
+  apply_editor "$name" "$resolved_cmd" "$desktop"
+  printf '\n%s is now the default editor.\nRestart only if an already-running app keeps the old EDITOR.\n' "$name"
+  sleep 3
+}
+
+menu_rows() {
+  local record name cmd desktop packages
+
+  for record in "${EDITORS[@]}"; do
+    IFS=$'\t' read -r name cmd desktop packages <<<"$record"
+    printf '%s\n' "$name"
+  done
+}
+
+choose_editor() {
+  local selected
+
+  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+    notify -u critical "Default editor" "omarchy-launch-walker was not found"
+    exit 1
+  fi
+
+  selected="$(
+    menu_rows |
+      omarchy-launch-walker --dmenu --width 520 --minheight 1 --maxheight 520 -p "Default editor..."
+  )"
+
+  [[ -n "$selected" ]] || exit 0
+  printf '%s\n' "$selected"
+}
+
+install -d "$cache_dir"
+
+case "${1:-}" in
+__apply)
+  record="$(editor_record_by_cmd "${2:-}")" || exit 1
+  IFS=$'\t' read -r name cmd desktop packages <<<"$record"
+  resolved_cmd="$(resolve_editor_command "$cmd")" || {
+    notify -u critical "Default editor" "$name was not found"
+    exit 1
+  }
+  apply_editor "$name" "$resolved_cmd" "$desktop"
+  ;;
+__install)
+  record="$(editor_record_by_cmd "${2:-}")" || exit 1
+  IFS=$'\t' read -r name cmd desktop packages <<<"$record"
+  install_and_apply "$name" "$cmd" "$desktop" "$packages"
+  ;;
+*)
+  selected="$(choose_editor)"
+  record="$(editor_record_by_name "$selected")" || exit 1
+  IFS=$'\t' read -r name cmd desktop packages <<<"$record"
+
+  if resolved_cmd="$(resolve_editor_command "$cmd")"; then
+    apply_editor "$name" "$resolved_cmd" "$desktop"
+  else
+    launch_install_terminal "$name" "$cmd"
+  fi
+  ;;
+esac

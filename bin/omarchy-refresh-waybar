@@ -5,4 +5,12 @@
 
 omarchy-refresh-config waybar/config.jsonc
 omarchy-refresh-config waybar/style.css
+
+if [[ -d "$OMARCHY_PATH/config/waybar/qv" ]]; then
+  while IFS= read -r -d '' config; do
+    config=${config#"$OMARCHY_PATH/config/"}
+    omarchy-refresh-config "$config"
+  done < <(find "$OMARCHY_PATH/config/waybar/qv" -type f -print0 | sort -z)
+fi
+
 omarchy-restart-waybar

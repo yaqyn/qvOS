@@ -1,0 +1,81 @@
+#!/bin/bash
+set -euo pipefail
+
+search_root="${QVOS_PROJECT_ROOT:-$HOME}"
+editor="${EDITOR:-${VISUAL:-}}"
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify-send -u critical "Project picker" "omarchy-launch-walker was not found"
+  exit 1
+fi
+
+display_path() {
+  local path="$1"
+  local shown base
+
+  if [[ "$path" == "$HOME" ]]; then
+    printf '~  Home\n'
+    return
+  fi
+
+  base="$(basename "$path")"
+  shown="${path/#$HOME/~}"
+  printf '%s  %s\n' "$base" "$shown"
+}
+
+selected_path() {
+  local line path
+
+  IFS= read -r line || return 0
+  [[ -n "$line" ]] || return 0
+  if [[ "$line" == "~  Home" ]]; then
+    printf '%s\n' "$HOME"
+    return 0
+  fi
+
+  path="${line#*  }"
+  printf '%s\n' "${path/#\~/$HOME}"
+}
+
+project="$(
+  find "$search_root" -xdev -maxdepth 5 \
+    -path "$HOME/.cache" -prune -o \
+    -path "$HOME/.local" -prune -o \
+    -path "$HOME/.mozilla" -prune -o \
+    -path "$HOME/.config" -prune -o \
+    -path "$HOME/.*" -prune -o \
+    -path '*/.git' -prune -o \
+    -path '*/node_modules' -prune -o \
+    -path '*/.venv' -prune -o \
+    -path '*/vendor' -prune -o \
+    -type d -print 2>/dev/null |
+    while IFS= read -r path; do
+      display_path "$path"
+    done |
+    sort -f -k1,1 |
+    omarchy-launch-walker --dmenu --width 760 --minheight 1 --maxheight 630 -p "Project..." |
+    selected_path
+)"
+
+[[ -n "${project:-}" ]] || exit 0
+
+if command -v omarchy-launch-editor >/dev/null 2>&1; then
+  exec env EDITOR="$editor" omarchy-launch-editor "$project"
+fi
+
+if [[ -z $editor ]]; then
+  notify-send -u critical "Project picker" "No default editor is configured"
+  exit 1
+fi
+
+case "$editor" in
+nvim | vim | nano | micro | hx | helix | fresh)
+  exec uwsm-app -- xdg-terminal-exec --dir="$project" -e "$editor" .
+  ;;
+code | code-oss | codium | vscodium)
+  exec setsid uwsm-app -- "$editor" --new-window "$project"
+  ;;
+*)
+  exec setsid uwsm-app -- "$editor" "$project"
+  ;;
+esac

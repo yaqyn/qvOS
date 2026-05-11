@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify-send -u critical "Default note" "omarchy-launch-walker was not found" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+notes_menu="$HOME/.local/share/qvos/hyprland/qvos-notes-team-menu"
+items_file="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/notes-team-menu.tsv"
+default_file="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/default-note.tsv"
+
+if [[ -x "$notes_menu" ]]; then
+  "$notes_menu" __ensure
+fi
+
+if [[ ! -f "$items_file" ]]; then
+  install -d "$(dirname "$items_file")"
+  printf 'Obsidian\tapp\tobsidian\n' >"$items_file"
+fi
+
+choice="$(
+  cut -f1 "$items_file" |
+    omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 420 -p "Default note..."
+)"
+
+[[ -n "$choice" ]] || exit 0
+record="$(awk -F '\t' -v name="$choice" '$1 == name { print; exit }' "$items_file")"
+[[ -n "$record" ]] || exit 0
+
+install -d "$(dirname "$default_file")"
+printf '%s\n' "$record" >"$default_file"
+notify-send "Default note" "$choice is now SUPER ALT N" >/dev/null 2>&1 || true

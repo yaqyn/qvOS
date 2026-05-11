@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+app="${1:-}"
+
+if [[ -z "$app" ]]; then
+  printf 'Usage: qvos-launch-tui-here <command>\n' >&2
+  exit 1
+fi
+
+cwd_for_active_window() {
+  ~/.local/share/qvos/hyprland/qvos-active-location
+}
+
+cwd="$(cwd_for_active_window)"
+[[ -d "$cwd" ]] || cwd="$HOME"
+
+if [[ "$app" == "nvim" ]]; then
+  # shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
+  exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$app" bash -lc 'cd "$1" || exit; exec nvim .' qvos "$cwd"
+fi
+
+# shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
+exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$app" bash -lc 'cd "$1" || exit; shift; exec "$@"' qvos "$cwd" "$app"

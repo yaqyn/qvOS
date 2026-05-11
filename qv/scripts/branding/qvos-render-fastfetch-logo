@@ -1,0 +1,93 @@
+#!/bin/bash
+set -euo pipefail
+
+source_file="${1:-}"
+
+if [[ -z "$source_file" || ! -f "$source_file" ]]; then
+  printf 'Usage: qvos-render-fastfetch-logo <plain-logo.txt>\n' >&2
+  exit 2
+fi
+
+awk '
+  {
+    lines[NR] = $0
+    if (length($0) > max_width) max_width = length($0)
+  }
+
+  function is_logo_char(char) {
+    return char == "q" || char == "v" || char == "O" || char == "S"
+  }
+
+  function is_repeated_logo_char(line, column, char, before, after) {
+    if (char != "q" && char != "v") return 0
+
+    before = column > 1 ? substr(line, column - 1, 1) : ""
+    after = column < length(line) ? substr(line, column + 1, 1) : ""
+
+    return before == char || after == char
+  }
+
+  function is_qvos_label(line, column) {
+    return substr(line, column, 4) == "qvOS" || \
+      substr(line, column - 1, 4) == "qvOS" || \
+      substr(line, column - 2, 4) == "qvOS" || \
+      substr(line, column - 3, 4) == "qvOS"
+  }
+
+  function is_logo_region(line, column, char) {
+    return is_logo_char(char) && \
+      (is_repeated_logo_char(line, column, char) || is_qvos_label(line, column))
+  }
+
+  function is_qvos_leading_dash(line, column, rest) {
+    rest = substr(line, column)
+    return rest ~ /^—+qvOS/ || rest ~ /^-+qvOS/
+  }
+
+  function logo_color(row, column, ratio) {
+    ratio = (row + column - 2) / (NR + max_width - 2)
+
+    if (ratio < 0.18) return 196
+    if (ratio < 0.36) return 160
+    if (ratio < 0.54) return 124
+    if (ratio < 0.72) return 88
+    return 52
+  }
+
+  function gray_color(row, column, char, seed) {
+    if (char == " " || char == "") return 0
+
+    seed = (row * 17 + column * 11 + length(char) * 7) % 10
+
+    if (char == "—" || char == "-") {
+      if (seed < 5) return 240
+      if (seed < 8) return 243
+      return 246
+    }
+
+    if (seed < 2) return 238
+    if (seed < 5) return 242
+    if (seed < 8) return 245
+    return 248
+  }
+
+  END {
+    for (row = 1; row <= NR; row++) {
+      line = lines[row]
+      for (column = 1; column <= length(line); column++) {
+        char = substr(line, column, 1)
+
+        if (char == " ") {
+          printf "%s", char
+        } else if (is_logo_region(line, column, char)) {
+          printf "\033[38;5;%sm%s", logo_color(row, column), char
+        } else if (is_qvos_leading_dash(line, column)) {
+          printf "\033[38;5;%sm%s", logo_color(row, column), char
+        } else {
+          printf "\033[38;5;%sm%s", gray_color(row, column, char), char
+        }
+      }
+      printf "\033[0m\n"
+    }
+  }
+' "$source_file"

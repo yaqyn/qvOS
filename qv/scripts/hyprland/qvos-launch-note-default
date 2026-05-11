@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+notes_file="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/notes-team-menu.tsv"
+default_file="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/default-note.tsv"
+
+ensure_default_note() {
+  install -d "$(dirname "$default_file")"
+  if [[ -f "$default_file" ]]; then
+    return
+  fi
+
+  if [[ -f "$notes_file" ]] && awk -F '\t' '$1 == "Obsidian" { found = 1 } END { exit !found }' "$notes_file"; then
+    awk -F '\t' '$1 == "Obsidian" { print; exit }' "$notes_file" >"$default_file"
+  else
+    printf 'Obsidian\tapp\tobsidian\n' >"$default_file"
+  fi
+}
+
+ensure_default_note
+IFS=$'\t' read -r _name second third <"$default_file"
+kind="${third:+$second}"
+target="${third:-$second}"
+[[ -n "$kind" ]] || kind="url"
+
+case "$kind" in
+app) exec setsid gtk-launch "$target" ;;
+*) exec omarchy-launch-webapp "$target" ;;
+esac

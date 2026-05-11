@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Launch the qvOS screensaver with a fixed small terminal font.
+
+if ! omarchy-cmd-present tte; then
+  exit 1
+fi
+
+pgrep -f org.omarchy.screensaver >/dev/null && exit 0
+
+if omarchy-toggle-enabled screensaver-off && [[ ${1:-} != "force" ]]; then
+  exit 1
+fi
+
+walker -q >/dev/null 2>&1 || true
+
+terminal=$(xdg-terminal-exec --print-id 2>/dev/null || true)
+qvos_dir="$HOME/.local/share/qvos/screensaver"
+qvos_bin="$HOME/.local/share/qvos/bin"
+
+launch_terminal() {
+  if command -v uwsm-app >/dev/null 2>&1; then
+    uwsm-app -- "$@" &
+  else
+    "$@" &
+  fi
+}
+
+case $terminal in
+*Alacritty*)
+  launch_terminal \
+    alacritty --class=org.omarchy.screensaver \
+    --config-file "$qvos_dir/alacritty.toml" \
+    -e "$qvos_bin/qvos-screensaver"
+  ;;
+*ghostty*)
+  launch_terminal \
+    ghostty --class=org.omarchy.screensaver \
+    --config-file="$HOME/.local/share/omarchy/default/ghostty/screensaver" \
+    --font-size=14 \
+    -e "$qvos_bin/qvos-screensaver"
+  ;;
+*kitty*)
+  launch_terminal \
+    kitty --class=org.omarchy.screensaver \
+    --override font_size=14 \
+    --override window_padding_width=0 \
+    -e "$qvos_bin/qvos-screensaver"
+  ;;
+*)
+  notify-send -u low "Screensaver only runs in Alacritty, Ghostty, or Kitty"
+  ;;
+esac

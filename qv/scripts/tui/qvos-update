@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "qvos-update started"
+sleep 1
+echo "qvos-update progress: step 1"
+sleep 1
+echo "qvos-update complete"

@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "qvos-build started"
+sleep 1
+echo "qvos-build progress: step 1"
+sleep 1
+echo "qvos-build complete"

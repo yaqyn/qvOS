@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+direction="${1:-}"
+
+current_workspace() {
+  hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .activeWorkspace.id'
+}
+
+workspace="$(current_workspace)"
+if [[ ! $workspace =~ ^[0-9]+$ ]]; then
+  notify-send -u critical "Workspace" "Could not detect the focused workspace" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+case "$direction" in
+next)
+  target=$((workspace + 1))
+  ;;
+prev)
+  target=$((workspace - 1))
+  if ((target < 1)); then
+    target=1
+  fi
+  ;;
+*)
+  printf 'Usage: qvos-move-window-workspace [next|prev]\n' >&2
+  exit 2
+  ;;
+esac
+
+hyprctl dispatch movetoworkspace "$target"

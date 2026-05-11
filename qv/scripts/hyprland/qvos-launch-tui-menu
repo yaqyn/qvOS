@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+app="${1:-}"
+label="${2:-$app}"
+search_root="${QVOS_PROJECT_ROOT:-$HOME}"
+
+if [[ -z "$app" ]]; then
+  printf 'Usage: qvos-launch-tui-menu <command> [label]\n' >&2
+  exit 2
+fi
+
+if ! command -v xdg-terminal-exec >/dev/null 2>&1; then
+  notify-send -u critical "$label" "xdg-terminal-exec was not found"
+  exit 1
+fi
+
+exec uwsm-app -- xdg-terminal-exec \
+  --app-id=org.qvos.folder-picker \
+  --title="qvOS Folder Picker" \
+  ~/.local/share/qvos/hyprland/qvos-folder-fzf-picker "$app" "$label" "$search_root"

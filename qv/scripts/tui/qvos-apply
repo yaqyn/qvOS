@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "qvos-apply started"
+sleep 1
+echo "qvos-apply progress: step 1"
+sleep 1
+echo "qvos-apply complete"

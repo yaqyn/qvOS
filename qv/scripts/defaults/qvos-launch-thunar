@@ -1,0 +1,41 @@
+#!/bin/bash
+set -euo pipefail
+
+plugin_source_dir="/usr/lib/thunarx-3"
+launcher_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+plugin_runtime_dir="$launcher_dir/thunarx-3"
+
+refresh_thunarx_plugins() {
+  local plugin plugin_name
+
+  [[ -d $plugin_source_dir ]] || return 0
+
+  install -d "$plugin_runtime_dir"
+  rm -f -- "$plugin_runtime_dir"/*.so
+
+  for plugin in "$plugin_source_dir"/*.so; do
+    [[ -e $plugin ]] || continue
+    plugin_name="${plugin##*/}"
+    [[ $plugin_name == "thunar-wallpaper-plugin.so" ]] && continue
+    ln -sf -- "$plugin" "$plugin_runtime_dir/$plugin_name"
+  done
+}
+
+if [[ ${1:-} == "--qvos-refresh-plugins" ]]; then
+  refresh_thunarx_plugins
+  exit 0
+fi
+
+refresh_thunarx_plugins || true
+export THUNARX_DIRS="$plugin_runtime_dir"
+
+if command -v thunar >/dev/null 2>&1; then
+  exec thunar "$@"
+fi
+
+if command -v Thunar >/dev/null 2>&1; then
+  exec Thunar "$@"
+fi
+
+printf 'qvOS Defaults: Thunar is not installed.\n' >&2
+exit 1

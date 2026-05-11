@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# omarchy:summary=Launch the qvOS screensaver.
+# omarchy:args=[force]
+
+exec "$HOME/.local/share/qvos/bin/qvos-launch-screensaver" "$@"

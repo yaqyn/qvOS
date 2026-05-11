@@ -96,6 +96,14 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 When making visual changes, such as Waybar styles or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
 
+# Upstream Sync Conflicts
+
+When syncing from upstream Omarchy, qvOS customizations should not silently block new upstream features.
+
+If a merge conflict happens because upstream added or changed a feature in an area qvOS customizes, prefer integrating the upstream feature into the qvOS customization instead of dropping it. Keep the qvOS design/behavior, but preserve the new upstream capability when practical.
+
+Only omit an upstream feature when it is clearly incompatible, broken, unsafe, or intentionally not part of qvOS. In that case, state the reason explicitly.
+
 # Refresh Pattern
 
 To copy a default config to user config with automatic backup:

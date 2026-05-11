@@ -1,0 +1,282 @@
+#!/bin/bash
+set -euo pipefail
+
+active_window_json() {
+  hyprctl activewindow -j 2>/dev/null || printf '{}\n'
+}
+
+json_field() {
+  local field="$1"
+  jq -r --arg field "$field" '.[$field] // empty' 2>/dev/null || true
+}
+
+descendant_pids() {
+  local roots="$1"
+  local next pid child
+
+  while [[ -n "$roots" ]]; do
+    next=""
+    for pid in $roots; do
+      while IFS= read -r child; do
+        [[ -n "$child" ]] || continue
+        printf '%s\n' "$child"
+        next="${next:+$next }$child"
+      done < <(pgrep -P "$pid" 2>/dev/null || true)
+    done
+    roots="$next"
+  done
+}
+
+terminal_cwd() {
+  local pid="$1"
+  local child cwd best
+
+  [[ -n "$pid" ]] || return 1
+
+  best=""
+  while IFS= read -r child; do
+    cwd="$(readlink -f "/proc/$child/cwd" 2>/dev/null || true)"
+    [[ -d "$cwd" ]] || continue
+    best="$cwd"
+  done < <(descendant_pids "$pid")
+
+  [[ -n "$best" ]] || best="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+  [[ -d "$best" ]] || return 1
+  printf '%s\n' "$best"
+}
+
+find_named_folder() {
+  local name="$1"
+  local candidate
+
+  for candidate in \
+    "$HOME/$name" \
+    "$HOME/Documents/$name" \
+    "$HOME/Downloads/$name" \
+    "$HOME/Projects/$name" \
+    "$HOME/Desktop/$name"; do
+    if [[ -d "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+decode_file_uri() {
+  local uri="$1"
+  local path
+
+  [[ "$uri" == file://* ]] || return 1
+  path="${uri#file://}"
+  path="${path%%\?*}"
+  path="${path%%#*}"
+  path="${path//+/ }"
+  printf '%b\n' "${path//%/\\x}"
+}
+
+maybe_print_dir() {
+  local path="$1"
+
+  [[ -n "$path" ]] || return 1
+  path="${path/#\~/$HOME}"
+  if [[ "$path" == file://* ]]; then
+    path="$(decode_file_uri "$path" || true)"
+  fi
+  if [[ -f "$path" ]]; then
+    path="$(dirname -- "$path")"
+  fi
+  [[ -d "$path" ]] || return 1
+  printf '%s\n' "$path"
+}
+
+code_workspace_from_process() {
+  local pid="$1"
+  local proc arg previous path
+  local pids=()
+
+  [[ -n "$pid" ]] || return 1
+  pids+=("$pid")
+  while IFS= read -r proc; do
+    [[ -n "$proc" ]] && pids+=("$proc")
+  done < <(descendant_pids "$pid")
+
+  for proc in "${pids[@]}"; do
+    [[ -r "/proc/$proc/cmdline" ]] || continue
+    previous=""
+    while IFS= read -r -d '' arg; do
+      case "$previous" in
+      --folder-uri | --file-uri)
+        maybe_print_dir "$arg" && return 0
+        ;;
+      esac
+
+      case "$arg" in
+      --folder-uri=* | --file-uri=*)
+        path="${arg#*=}"
+        maybe_print_dir "$path" && return 0
+        ;;
+      file://*)
+        maybe_print_dir "$arg" && return 0
+        ;;
+      "$HOME" | "$HOME"/*)
+        maybe_print_dir "$arg" && return 0
+        ;;
+      esac
+
+      previous="$arg"
+    done <"/proc/$proc/cmdline"
+  done
+
+  return 1
+}
+
+code_workspace_from_storage() {
+  local name="$1"
+  local config_dir json uri path best best_mtime mtime
+
+  [[ -n "$name" ]] || return 1
+  best=""
+  best_mtime=0
+
+  for config_dir in \
+    "$HOME/.config/Code - OSS" \
+    "$HOME/.config/Code" \
+    "$HOME/.config/VSCodium" \
+    "$HOME/.config/Codium"; do
+    [[ -d "$config_dir/User/workspaceStorage" ]] || continue
+    while IFS= read -r json; do
+      uri="$(sed -n 's/.*"folder"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$json" 2>/dev/null | head -n 1)"
+      [[ -n "$uri" ]] || continue
+      path="$(decode_file_uri "$uri" 2>/dev/null || true)"
+      [[ -d "$path" ]] || continue
+      [[ "$(basename "$path")" == "$name" ]] || continue
+      mtime="$(stat -c %Y "$json" 2>/dev/null || printf 0)"
+      if ((mtime >= best_mtime)); then
+        best="$path"
+        best_mtime="$mtime"
+      fi
+    done < <(find "$config_dir/User/workspaceStorage" -mindepth 2 -maxdepth 2 -name workspace.json 2>/dev/null)
+  done
+
+  [[ -n "$best" ]] || return 1
+  printf '%s\n' "$best"
+}
+
+code_title_cwd() {
+  local title="$1"
+  local name
+
+  title_path "$title" && return 0
+
+  name="$title"
+  name="${name% - Code - OSS}"
+  name="${name% - Visual Studio Code}"
+  name="${name% - VSCodium}"
+  name="${name% - Codium}"
+  name="${name% - Code}"
+  name="${name##* - }"
+  name="${name#"${name%%[![:space:]]*}"}"
+  name="${name%"${name##*[![:space:]]}"}"
+  name="${name#● }"
+
+  find_named_folder "$name" && return 0
+  code_workspace_from_storage "$name" && return 0
+  return 1
+}
+
+title_path() {
+  local title="$1"
+  local path candidate best
+
+  path="${title% - Thunar}"
+  path="${path#"${path%%[![:space:]]*}"}"
+  path="${path%"${path##*[![:space:]]}"}"
+  path="${path/#\~/$HOME}"
+
+  if [[ "$path" == "/" ]]; then
+    printf '/\n'
+    return 0
+  fi
+
+  if [[ "$path" == "$HOME" || "$path" == "$HOME/"* ]]; then
+    path="${path%/}"
+    if [[ -d "$path" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  fi
+
+  best=""
+  while [[ "$path" =~ (/[^[:space:]]+) ]]; do
+    candidate="${BASH_REMATCH[1]}"
+    path="${path#*"${candidate}"}"
+
+    candidate="${candidate%/}"
+    candidate="${candidate%%\"*}"
+    candidate="${candidate%%\'*}"
+    candidate="${candidate%%\)*}"
+    candidate="${candidate%%\]*}"
+    candidate="${candidate%%\}*}"
+
+    if [[ -d "$candidate" ]]; then
+      if [[ -z "$best" || "${#candidate}" -gt "${#best}" ]]; then
+        best="$candidate"
+      fi
+    fi
+  done
+
+  if [[ -n "$best" && "$best" != "/" ]]; then
+    printf '%s\n' "$best"
+    return 0
+  fi
+
+  return 1
+}
+
+thunar_title_cwd() {
+  local title="$1"
+  local name
+
+  title_path "$title" && return 0
+
+  name="${title% - Thunar}"
+  name="${name#"${name%%[![:space:]]*}"}"
+  name="${name%"${name##*[![:space:]]}"}"
+
+  case "$name" in
+  "" | "Home")
+    printf '%s\n' "$HOME"
+    ;;
+  "$(basename "$HOME")")
+    printf '%s\n' "$HOME"
+    ;;
+  "File System" | "/")
+    printf '/\n'
+    ;;
+  *)
+    find_named_folder "$name"
+    ;;
+  esac
+}
+
+main() {
+  local window class title pid location
+
+  window="$(active_window_json)"
+  class="$(printf '%s\n' "$window" | json_field class | tr '[:upper:]' '[:lower:]')"
+  title="$(printf '%s\n' "$window" | json_field title)"
+  pid="$(printf '%s\n' "$window" | json_field pid)"
+
+  case "$class" in
+  *thunar*) location="$(thunar_title_cwd "$title" || terminal_cwd "$pid" || true)" ;;
+  *vscode* | *codium* | *code*) location="$(code_workspace_from_process "$pid" || code_title_cwd "$title" || terminal_cwd "$pid" || true)" ;;
+  *) location="$(terminal_cwd "$pid" || omarchy-cmd-terminal-cwd 2>/dev/null || true)" ;;
+  esac
+
+  [[ -d "${location:-}" ]] || location="$HOME"
+  printf '%s\n' "$location"
+}
+
+main "$@"

@@ -1,0 +1,89 @@
+#!/bin/bash
+set -euo pipefail
+
+state_dir="${XDG_CACHE_HOME:-$HOME/.cache}/qvos"
+state_file="$state_dir/current-project"
+search_root="${QVOS_PROJECT_ROOT:-$HOME}"
+action="${1:-set}"
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify-send -u critical "Current project" "omarchy-launch-walker was not found"
+  exit 1
+fi
+
+project_name() {
+  basename "$1"
+}
+
+display_path() {
+  local path="$1"
+  local shown base
+
+  if [[ "$path" == "$HOME" ]]; then
+    printf '~  Home\n'
+    return
+  fi
+
+  base="$(basename "$path")"
+  shown="${path/#$HOME/~}"
+  printf '%s  %s\n' "$base" "$shown"
+}
+
+selected_path() {
+  local line path
+
+  IFS= read -r line || return 0
+  [[ -n "$line" ]] || return 0
+  if [[ "$line" == "~  Home" ]]; then
+    printf '%s\n' "$HOME"
+    return 0
+  fi
+
+  path="${line#*  }"
+  printf '%s\n' "${path/#\~/$HOME}"
+}
+
+set_project() {
+  local project
+
+  project="$(
+    find "$search_root" -xdev -maxdepth 5 \
+      -path "$HOME/.cache" -prune -o \
+      -path "$HOME/.local" -prune -o \
+      -path "$HOME/.mozilla" -prune -o \
+      -path "$HOME/.config" -prune -o \
+      -path "$HOME/.*" -prune -o \
+      -path '*/.git' -prune -o \
+      -path '*/node_modules' -prune -o \
+      -path '*/.venv' -prune -o \
+      -path '*/vendor' -prune -o \
+      -type d -print 2>/dev/null |
+      while IFS= read -r path; do
+        display_path "$path"
+      done |
+      sort -f -k1,1 |
+      omarchy-launch-walker --dmenu --width 760 --minheight 1 --maxheight 630 -p "Current project..." |
+      selected_path
+  )"
+
+  [[ -n "${project:-}" ]] || exit 0
+  [[ -d "$project" ]] || exit 1
+
+  install -d "$state_dir"
+  printf '%s\n' "$project" >"$state_file"
+  notify-send "Project is active" "$(project_name "$project")"
+}
+
+clear_project() {
+  rm -f "$state_file"
+  notify-send "Project cleared"
+}
+
+case "$action" in
+set) set_project ;;
+clear) clear_project ;;
+*)
+  printf 'Usage: qvos-current-project [set|clear]\n' >&2
+  exit 1
+  ;;
+esac

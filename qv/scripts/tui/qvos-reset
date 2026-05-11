@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "qvos-reset started"
+sleep 1
+echo "qvos-reset progress: step 1"
+sleep 1
+echo "qvos-reset complete"

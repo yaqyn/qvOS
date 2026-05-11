@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify-send -u critical "AI chats" "omarchy-launch-walker was not found"
+  exit 1
+fi
+
+items="$(
+  cat <<'MENU'
+ChatGPT	https://chatgpt.com
+Claude	https://claude.ai
+Gemini	https://gemini.google.com
+Grok	https://grok.com
+Copilot	https://copilot.microsoft.com
+Perplexity	https://www.perplexity.ai
+Poe	https://poe.com
+DeepSeek	https://chat.deepseek.com
+Z.ai	https://chat.z.ai
+Qwen	https://chat.qwen.ai
+Kimi	https://www.kimi.com
+Mistral	https://chat.mistral.ai/chat
+Meta	https://www.meta.ai
+HuggingChat	https://huggingface.co/chat
+Duck	https://duck.ai
+You	https://you.com
+Phind	https://www.phind.com
+Router	https://openrouter.ai/chat
+Venice	https://venice.ai/chat
+Character	https://character.ai
+Pi	https://pi.ai/talk
+Brave	https://search.brave.com/ai
+NotebookLM	https://notebooklm.google.com
+MENU
+)"
+
+choice="$(
+  printf '%s\n' "$items" |
+    cut -f1 |
+    omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 620 -p "AI chats..."
+)"
+
+[[ -n "${choice:-}" ]] || exit 0
+
+url="$(awk -F '\t' -v name="$choice" '$1 == name { print $2; exit }' <<<"$items")"
+[[ -n "$url" ]] || exit 0
+
+exec omarchy-launch-webapp "$url"

@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+
+exec ~/.local/share/qvos/hyprland/qvos-launch-tui-menu claude "Claude Code"

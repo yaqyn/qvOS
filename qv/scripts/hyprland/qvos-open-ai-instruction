@@ -1,0 +1,34 @@
+#!/bin/bash
+set -euo pipefail
+
+tool="${1:-}"
+
+case "$tool" in
+claude)
+  file="$HOME/.claude/CLAUDE.md"
+  title="Claude Code"
+  ;;
+codex)
+  file="$HOME/.codex/AGENTS.md"
+  title="Codex"
+  ;;
+gemini)
+  file="$HOME/.gemini/GEMINI.md"
+  title="Gemini"
+  ;;
+opencode)
+  file="$HOME/.config/opencode/AGENTS.md"
+  title="OpenCode"
+  ;;
+*)
+  notify-send -u critical "AI instructions" "Unknown tool: ${tool:-empty}" >/dev/null 2>&1 || true
+  exit 2
+  ;;
+esac
+
+install -d "$(dirname "$file")"
+if [[ ! -f "$file" ]]; then
+  printf '# %s Instructions\n\n' "$title" >"$file"
+fi
+
+exec omarchy-launch-editor "$file"

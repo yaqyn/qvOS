@@ -8,4 +8,14 @@ omarchy-refresh-config hypr/input.conf
 omarchy-refresh-config hypr/looknfeel.conf
 omarchy-refresh-config hypr/hyprland.conf
 omarchy-refresh-config hypr/monitors.conf
+
+omarchy-refresh-config hypr/qv.conf
+
+if [[ -d "$OMARCHY_PATH/config/hypr/qv" ]]; then
+  while IFS= read -r -d '' config; do
+    config=${config#"$OMARCHY_PATH/config/"}
+    omarchy-refresh-config "$config"
+  done < <(find "$OMARCHY_PATH/config/hypr/qv" -type f -print0 | sort -z)
+fi
+
 bash "$OMARCHY_PATH/install/config/detect-keyboard-layout.sh"

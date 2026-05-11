@@ -1,0 +1,341 @@
+#!/bin/bash
+set -euo pipefail
+
+app="${1:-terminal}"
+label="${2:-$app}"
+search_root="${3:-${QVOS_PROJECT_ROOT:-$HOME}}"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/qvos"
+index_key="${search_root//[^A-Za-z0-9._-]/_}"
+folder_index="$cache_dir/folder-index-$index_key"
+folder_index_map="$folder_index.map"
+favorites_file="$cache_dir/folder-favorites"
+mode_file="$cache_dir/folder-picker-mode-$index_key"
+
+install -d "$cache_dir"
+
+for required in fzf hyprctl; do
+  if ! command -v "$required" >/dev/null 2>&1; then
+    notify-send -u critical "$label" "$required was not found" >/dev/null 2>&1 || true
+    exit 1
+  fi
+done
+
+folder_indexer() {
+  if [[ -x "$HOME/.local/share/qvos/hyprland/qvos-folder-index" ]]; then
+    printf '%s\n' "$HOME/.local/share/qvos/hyprland/qvos-folder-index"
+  else
+    printf '%s\n' "qvos-folder-index"
+  fi
+}
+
+build_folder_index() {
+  local indexer tmp tmp_map
+
+  indexer="$(folder_indexer)"
+  tmp="$(mktemp "$folder_index.tmp.XXXXXX")"
+  tmp_map="$(mktemp "$folder_index_map.tmp.XXXXXX")"
+  if ! QVOS_FOLDER_MAP="$tmp_map" "$indexer" "$search_root" >"$tmp"; then
+    rm -f -- "$tmp" "$tmp_map"
+    return 1
+  fi
+  mv "$tmp" "$folder_index"
+  mv "$tmp_map" "$folder_index_map"
+}
+
+is_favorite() {
+  local path="$1"
+
+  [[ -f "$favorites_file" ]] && grep -Fxq -- "$path" "$favorites_file"
+}
+
+toggle_favorite() {
+  local path="$1"
+  local tmp
+
+  [[ -n "${path:-}" ]] || exit 0
+  install -d "$cache_dir"
+  tmp="$favorites_file.tmp.$$"
+
+  if is_favorite "$path"; then
+    grep -Fvx -- "$path" "$favorites_file" >"$tmp" || true
+    mv "$tmp" "$favorites_file"
+  else
+    {
+      [[ -f "$favorites_file" ]] && cat "$favorites_file"
+      printf '%s\n' "$path"
+    } | sort -u >"$tmp"
+    mv "$tmp" "$favorites_file"
+  fi
+}
+
+picker_rows() {
+  local mode="${1:-all}"
+
+  awk -F '\t' -v mode="$mode" -v home="$HOME" -v fav_file="$favorites_file" '
+    BEGIN {
+      OFS = "\t"
+      while ((getline favorite < fav_file) > 0) {
+        if (favorite != "") favorites[favorite] = 1
+      }
+      close(fav_file)
+      if (mode != "favorites" || (home in favorites)) emit(home, 1)
+    }
+    {
+      path = $2
+      if (path == "") next
+      if (path == home) next
+      if (mode == "favorites" && !(path in favorites)) next
+
+      emit(path, 0)
+    }
+    function emit(path, force_top, relative, parts) {
+      if (path == home) {
+        marker = "  "
+        if (path in favorites) marker = "* "
+        printf "%s\t%s\t%-34s  %s\t%s\n", "00 00000", "~ home", marker "~", "~", path
+        return
+      }
+
+      folder = path
+      sub(/^.*\//, "", folder)
+      if (folder == "") folder = "/"
+
+      display_path = path
+      if (path == home) {
+        display_path = "~"
+      } else if (substr(path, 1, length(home) + 1) == home "/") {
+        display_path = "~" substr(path, length(home) + 1)
+      }
+
+      domain = folder
+      if (substr(path, 1, length(home) + 1) == home "/") {
+        relative = substr(path, length(home) + 2)
+        split(relative, parts, "/")
+        domain = parts[1]
+      }
+      if (domain == "") domain = folder
+
+      display = folder
+      if (domain != folder) display = domain " - " folder
+
+      marker = "  "
+      if (path in favorites) marker = "* "
+
+      sort_key = sprintf("%02d %s %05d %s %s", domain_rank(domain), domain, length(display_path), display, display_path)
+      search_text = folder " " domain " " display_path
+      printf "%s\t%s\t%-34s  %s\t%s\n", sort_key, search_text, marker display, display_path, path
+    }
+    function domain_rank(domain) {
+      if (domain == "Documents") return 0
+      if (domain == "Downloads") return 1
+      if (domain == "Projects") return 2
+      if (domain == "Desktop") return 3
+      if (domain == "Work") return 4
+      if (domain == ".config") return 20
+      if (domain == ".local") return 21
+      if (domain == ".codex") return 22
+      if (domain == ".vscode" || domain == ".vscode-oss") return 23
+      if (domain == ".cargo") return 24
+      if (domain ~ /^\./) return 30
+      return 10
+    }
+  ' "$folder_index_map" |
+    sort -f -t $'\t' -k1,1 |
+    cut -f2-
+}
+
+current_mode() {
+  local mode
+
+  mode="$(cat "$mode_file" 2>/dev/null || true)"
+  case "$mode" in
+  all | favorites) printf '%s\n' "$mode" ;;
+  *) printf 'all\n' ;;
+  esac
+}
+
+toggle_mode() {
+  local mode
+
+  mode="$(current_mode)"
+  if [[ "$mode" == "favorites" ]]; then
+    printf 'all' >"$mode_file"
+    printf 'all\n'
+  else
+    printf 'favorites' >"$mode_file"
+    printf 'favorites\n'
+  fi
+}
+
+case "${app:-}" in
+__rows)
+  folder_index_map="$label"
+  mode="${3:-all}"
+  search_root="${4:-$HOME}"
+  picker_rows "$mode"
+  exit 0
+  ;;
+__current-rows)
+  folder_index_map="$label"
+  search_root="${3:-$HOME}"
+  picker_rows "$(current_mode)"
+  exit 0
+  ;;
+__toggle-rows)
+  folder_index_map="$label"
+  search_root="${3:-$HOME}"
+  picker_rows "$(toggle_mode)"
+  exit 0
+  ;;
+__refresh-rows)
+  folder_index_map="$label"
+  search_root="${3:-$HOME}"
+  build_folder_index
+  picker_rows "$(current_mode)"
+  exit 0
+  ;;
+__toggle-favorite)
+  toggle_favorite "${2:-}"
+  exit 0
+  ;;
+esac
+
+tmux_session_name() {
+  local cwd="$1"
+  local location base name index
+
+  location="$(basename "$cwd")"
+  [[ -n "$location" && "$location" != "/" ]] || location="root"
+  [[ "$cwd" == "$HOME" ]] && location="home"
+  location="${location//:/-}"
+
+  base="$location tmux"
+  index=1
+  name="$base $index"
+  while tmux has-session -t "$name" 2>/dev/null; do
+    index=$((index + 1))
+    name="$base $index"
+  done
+
+  printf '%s\n' "$name"
+}
+
+schedule_tmux_auto_save() {
+  local session="$1"
+  local save_script="$HOME/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+
+  (
+    sleep 60
+    tmux has-session -t "$session" 2>/dev/null || exit 0
+    [[ -x "$save_script" ]] || exit 0
+    tmux run-shell "$save_script"
+    notify-send "Tmux saved" "$session survived 1 minute"
+  ) >/dev/null 2>&1 &
+}
+
+launch_target() {
+  local cwd="$1" editor_cmd session
+
+  cwd="${cwd/#\~/$HOME}"
+  [[ -d "$cwd" ]] || cwd="$HOME"
+
+  case "$app" in
+  editor)
+    if command -v omarchy-launch-editor >/dev/null 2>&1; then
+      exec env EDITOR="${EDITOR:-${VISUAL:-}}" omarchy-launch-editor "$cwd"
+    fi
+
+    editor_cmd="${EDITOR:-${VISUAL:-}}"
+    if [[ -z $editor_cmd ]]; then
+      notify-send -u critical "$label" "No default editor is configured"
+      exit 1
+    fi
+
+    case "$editor_cmd" in
+    nvim | vim | nano | micro | hx | helix | fresh)
+      hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
+      cd "$cwd"
+      exec "$editor_cmd" .
+      ;;
+    code | code-oss | codium | vscodium)
+      exec setsid uwsm-app -- "$editor_cmd" --new-window "$cwd"
+      ;;
+    *)
+      exec setsid uwsm-app -- "$editor_cmd" "$cwd"
+      ;;
+    esac
+    ;;
+  terminal)
+    hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
+    cd "$cwd"
+    exec "${SHELL:-bash}"
+    ;;
+  nvim)
+    hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
+    cd "$cwd"
+    exec nvim .
+    ;;
+  tmux)
+    if ! command -v tmux >/dev/null 2>&1; then
+      notify-send -u critical "$label" "tmux was not found" >/dev/null 2>&1 || true
+      exit 1
+    fi
+    hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
+    session="$(tmux_session_name "$cwd")"
+    schedule_tmux_auto_save "$session"
+    cd "$cwd"
+    exec tmux new -s "$session"
+    ;;
+  *)
+    if ! command -v "$app" >/dev/null 2>&1; then
+      notify-send -u critical "$label" "$app was not found"
+      exit 1
+    fi
+    hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
+    cd "$cwd"
+    exec "$app"
+    ;;
+  esac
+}
+
+[[ -s "$folder_index_map" ]] || build_folder_index
+printf 'all' >"$mode_file"
+
+# shellcheck disable=SC2016
+selected="$(
+  "$0" __rows "$folder_index_map" all "$search_root" |
+    fzf \
+      --delimiter=$'\t' \
+      --nth=1 \
+      --with-nth=2 \
+      --accept-nth=1,3 \
+      --tiebreak=begin,length,index \
+      --no-sort \
+      --ansi \
+      --style=minimal \
+      --layout=reverse \
+      --height=100% \
+      --border=none \
+      --padding=0,0 \
+      --margin=0 \
+      --info=inline-right \
+      --highlight-line \
+      --cycle \
+      --prompt="Open $label > " \
+      --pointer=">" \
+      --marker="+" \
+      --tabstop=2 \
+      --no-hscroll \
+      --header=$'Name                              Location\nCtrl-F Fav | Tab Switch | Ctrl-R Refresh' \
+      --color='fg:#c8c8c8,bg:#080808,hl:#b33838,fg+:#f0f0f0,bg+:#101010,hl+:#ff4040,prompt:#d33a3a,pointer:#d33a3a,marker:#d33a3a,header:#8a8a8a,info:#777777,separator:#303030,gutter:#080808' \
+      --bind="ctrl-f:execute-silent('$0' __toggle-favorite {3})+reload('$0' __current-rows '$folder_index_map' '$search_root')+first" \
+      --bind="tab:reload('$0' __toggle-rows '$folder_index_map' '$search_root')+first" \
+      --bind='change:transform:[[ -z "$FZF_QUERY" ]] && printf first || true' \
+      --bind="ctrl-r:reload('$0' __refresh-rows '$folder_index_map' '$search_root')+first"
+)"
+
+[[ -n "${selected:-}" ]] || exit 0
+
+path="${selected#*$'\t'}"
+
+launch_target "$path"

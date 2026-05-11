@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+url=""
+
+if command -v gh >/dev/null 2>&1; then
+  url="$(gh api user --jq .html_url 2>/dev/null || true)"
+fi
+
+if [[ -z "$url" ]]; then
+  user="$(git config --global github.user 2>/dev/null || true)"
+  [[ -n "$user" ]] && url="https://github.com/$user"
+fi
+
+exec omarchy-launch-webapp "${url:-https://github.com}"

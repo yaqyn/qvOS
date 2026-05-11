@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+
+args=("$@")
+browser=""
+browser_candidates=()
+
+if [[ -n "${QVOS_DEV_BROWSER:-}" ]]; then
+  browser_candidates+=("$QVOS_DEV_BROWSER")
+fi
+
+browser_candidates+=(
+  chromium
+  chromium-browser
+  google-chrome
+  google-chrome-stable
+  brave
+  brave-browser
+  microsoft-edge
+  microsoft-edge-stable
+  opera
+  vivaldi
+  vivaldi-stable
+  helium
+)
+
+if ((${#args[@]})) && [[ ${args[0]} == "private" || ${args[0]} == "--private" || ${args[0]} == "incognito" ]]; then
+  args=(--incognito "${args[@]:1}")
+fi
+
+for candidate in "${browser_candidates[@]}"; do
+  [[ -n $candidate ]] || continue
+  if command -v "$candidate" >/dev/null 2>&1; then
+    browser="$candidate"
+    break
+  fi
+done
+
+if [[ -z $browser ]]; then
+  notify-send -u critical "Chromium" "No Chromium-compatible development browser is installed. Run: omarchy-pkg-add chromium" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+case "$browser" in
+microsoft-edge | microsoft-edge-stable)
+  if ((${#args[@]})) && [[ ${args[0]} == "--incognito" ]]; then
+    args=(--inprivate "${args[@]:1}")
+  fi
+  ;;
+esac
+
+exec setsid uwsm-app -- "$browser" "${args[@]}"

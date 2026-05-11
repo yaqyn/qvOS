@@ -1,0 +1,266 @@
+#!/bin/bash
+set -euo pipefail
+
+if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+  notify-send -u critical "Favorites" "omarchy-launch-walker was not found"
+  exit 1
+fi
+
+favorites_file="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/favorites.tsv"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/qvos"
+lookup_file="$cache_dir/favorites-apps.tsv"
+
+ensure_favorites_file() {
+  install -d "$(dirname "$favorites_file")"
+  touch "$favorites_file"
+}
+
+menu() {
+  local prompt="$1"
+  local options="$2"
+
+  printf '%s\n' "$options" |
+    omarchy-launch-walker --dmenu --width 520 --minheight 1 --maxheight 520 -p "$prompt..."
+}
+
+desktop_id_from_file() {
+  local file="$1"
+  local base
+
+  base="$(basename "$file")"
+  printf '%s\n' "${base%.desktop}"
+}
+
+desktop_name_from_file() {
+  local file="$1"
+
+  awk -F= '
+    /^\[Desktop Entry\]/ { entry = 1; next }
+    /^\[/ && entry { exit }
+    entry && /^Name=/ { print substr($0, 6); exit }
+  ' "$file"
+}
+
+desktop_icon_from_file() {
+  local file="$1"
+
+  awk -F= '
+    /^\[Desktop Entry\]/ { entry = 1; next }
+    /^\[/ && entry { exit }
+    entry && /^Icon=/ { print substr($0, 6); exit }
+  ' "$file"
+}
+
+desktop_is_visible() {
+  local file="$1"
+
+  ! grep -Eq '^(NoDisplay|Hidden)=true$' "$file"
+}
+
+app_glyph() {
+  local name="$1"
+  local icon="$2"
+  local key
+
+  key="$(printf '%s %s' "$name" "$icon" | tr '[:upper:]' '[:lower:]')"
+
+  case "$key" in
+  *brave*) printf '󰖟' ;;
+  *firefox*) printf '󰈹' ;;
+  *chrom* | *browser*) printf '󰖟' ;;
+  *vscode* | *code*) printf '󰨞' ;;
+  *terminal* | *alacritty* | *kitty*) printf '' ;;
+  *thunar* | *file* | *folder*) printf '' ;;
+  *discord*) printf '󰙯' ;;
+  *telegram*) printf '' ;;
+  *whatsapp*) printf '󰖣' ;;
+  *signal*) printf '󰭹' ;;
+  *obsidian*) printf '󰠮' ;;
+  *github*) printf '' ;;
+  *bitwarden* | *vault* | *password*) printf '' ;;
+  *proton* | *mail*) printf '󰇮' ;;
+  *spotify* | *music*) printf '󰓇' ;;
+  *settings* | *preferences*) printf '' ;;
+  *calculator*) printf '' ;;
+  *) printf '󰀻' ;;
+  esac
+}
+
+build_desktop_lookup() {
+  local dir file id name icon glyph
+
+  install -d "$cache_dir"
+  : >"$lookup_file"
+
+  for dir in "$HOME/.local/share/applications" /usr/local/share/applications /usr/share/applications; do
+    [[ -d "$dir" ]] || continue
+
+    while IFS= read -r file; do
+      desktop_is_visible "$file" || continue
+      id="$(desktop_id_from_file "$file")"
+      name="$(desktop_name_from_file "$file")"
+      icon="$(desktop_icon_from_file "$file")"
+      [[ -n "$id" && -n "$name" ]] || continue
+      glyph="$(app_glyph "$name" "$icon")"
+      printf '%s  %s\t%s\n' "$glyph" "$name" "$id"
+    done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print 2>/dev/null)
+  done | awk -F '\t' '!seen[$1]++' | sort -f >"$lookup_file"
+}
+
+desktop_app_names() {
+  cut -f1 "$lookup_file"
+}
+
+desktop_app_id() {
+  local name="$1"
+
+  awk -F '\t' -v name="$name" '$1 == name { print $2; exit }' "$lookup_file"
+}
+
+desktop_id_exists() {
+  local id="$1"
+  local dir
+
+  for dir in "$HOME/.local/share/applications" /usr/local/share/applications /usr/share/applications; do
+    [[ -f "$dir/$id.desktop" ]] && return 0
+  done
+
+  return 1
+}
+
+prune_stale_apps() {
+  local changed kind target
+
+  [[ -f "$favorites_file" ]] || return 0
+  changed=0
+  : >"$favorites_file.tmp"
+
+  while IFS=$'\t' read -r name second third; do
+    [[ -n "${name:-}" ]] || continue
+    kind="${third:+$second}"
+    target="${third:-$second}"
+    [[ -n "$kind" ]] || kind="app"
+
+    if [[ "$kind" == "app" ]] && ! desktop_id_exists "$target"; then
+      changed=1
+      continue
+    fi
+
+    if [[ -n "${third:-}" ]]; then
+      printf '%s\t%s\t%s\n' "$name" "$kind" "$target" >>"$favorites_file.tmp"
+    else
+      printf '%s\t%s\n' "$name" "$target" >>"$favorites_file.tmp"
+    fi
+  done <"$favorites_file"
+
+  mv "$favorites_file.tmp" "$favorites_file"
+  [[ "$changed" -eq 0 ]] || notify-send "Favorites" "Removed uninstalled apps"
+}
+
+favorite_names() {
+  cut -f1 "$favorites_file"
+}
+
+favorite_id() {
+  local name="$1"
+
+  awk -F '\t' -v name="$name" '$1 == name { print (NF >= 3 ? $3 : $2); exit }' "$favorites_file"
+}
+
+favorite_kind() {
+  local name="$1"
+
+  awk -F '\t' -v name="$name" '$1 == name { print (NF >= 3 ? $2 : "app"); exit }' "$favorites_file"
+}
+
+write_favorite() {
+  local name="$1"
+  local kind="$2"
+  local target="$3"
+
+  grep -v -F "$(printf '%s\t' "$name")" "$favorites_file" >"$favorites_file.tmp" || true
+  mv "$favorites_file.tmp" "$favorites_file"
+  printf '%s\t%s\t%s\n' "$name" "$kind" "$target" >>"$favorites_file"
+  notify-send "Favorites" "Added $name"
+}
+
+add_app() {
+  local selected name id
+
+  build_desktop_lookup
+  selected="$(menu "Add app" "$(desktop_app_names)")"
+  [[ -n "$selected" ]] || exit 0
+
+  name="$selected"
+  id="$(desktop_app_id "$name")"
+  [[ -n "$id" ]] || {
+    notify-send -u critical "Favorites" "Could not resolve selected app"
+    exit 1
+  }
+
+  write_favorite "$name" app "$id"
+}
+
+add_url() {
+  local name url
+
+  name="$(menu "Name" "")"
+  [[ -n "$name" ]] || exit 0
+
+  url="$(menu "URL" "")"
+  [[ "$url" == http://* || "$url" == https://* ]] || {
+    notify-send -u critical "Favorites" "URL must start with http:// or https://"
+    exit 1
+  }
+
+  write_favorite "$name" url "$url"
+}
+
+add_item() {
+  local source
+
+  source="$(menu "Add favorite" "Choose app
+New URL")"
+
+  case "$source" in
+  "Choose app") add_app ;;
+  "New URL") add_url ;;
+  esac
+}
+
+remove_item() {
+  local name
+
+  name="$(menu "Remove favorite" "$(favorite_names)")"
+  [[ -n "$name" ]] || exit 0
+
+  grep -v -F "$(printf '%s\t' "$name")" "$favorites_file" >"$favorites_file.tmp" || true
+  mv "$favorites_file.tmp" "$favorites_file"
+  notify-send "Favorites" "Removed $name"
+}
+
+ensure_favorites_file
+prune_stale_apps
+
+choice="$(
+  {
+    favorite_names
+    printf '%s\n' "+ Add item" "- Remove item"
+  } | omarchy-launch-walker --dmenu --width 520 --minheight 1 --maxheight 520 -p "Favorites..."
+)"
+
+case "$choice" in
+"+ Add item") add_item ;;
+"- Remove item") remove_item ;;
+"")
+  exit 0
+  ;;
+*)
+  id="$(favorite_id "$choice")"
+  [[ -n "$id" ]] || exit 0
+  case "$(favorite_kind "$choice")" in
+  url) exec omarchy-launch-webapp "$id" ;;
+  *) exec setsid gtk-launch "$id" ;;
+  esac
+  ;;
+esac

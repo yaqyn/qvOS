@@ -1,0 +1,233 @@
+#!/bin/bash
+set -euo pipefail
+
+BROWSERS=(
+  $'LibreWolf\tlibrewolf\tlibrewolf.desktop\tlibrewolf'
+  $'Firefox\tfirefox\tfirefox.desktop\tfirefox'
+  $'Brave\tbrave\tbrave-browser.desktop brave.desktop\tbrave-bin brave'
+  $'Google Chrome\tgoogle-chrome\tgoogle-chrome.desktop google-chrome-stable.desktop\tgoogle-chrome'
+  $'Chromium\tchromium\tchromium.desktop chromium-browser.desktop\tchromium'
+  $'Microsoft Edge\tmicrosoft-edge\tmicrosoft-edge.desktop microsoft-edge-stable.desktop\tmicrosoft-edge-stable-bin microsoft-edge-stable'
+  $'Vivaldi\tvivaldi\tvivaldi-stable.desktop vivaldi.desktop\tvivaldi'
+  $'Opera\topera\topera.desktop\topera'
+)
+
+notify() {
+  notify-send "$@" >/dev/null 2>&1 || true
+}
+
+launch_install_terminal() {
+  local name="$1"
+  local cmd="$2"
+
+  exec uwsm-app -- xdg-terminal-exec \
+    --app-id=org.qvos.defaults-installer \
+    --title="Install $name" \
+    "$0" __install "$cmd"
+}
+
+browser_command_aliases() {
+  local cmd="$1"
+
+  case "$cmd" in
+  librewolf) printf '%s\n' librewolf ;;
+  firefox) printf '%s\n' firefox ;;
+  brave) printf '%s\n' brave brave-browser ;;
+  google-chrome) printf '%s\n' google-chrome google-chrome-stable ;;
+  chromium) printf '%s\n' chromium chromium-browser ;;
+  microsoft-edge) printf '%s\n' microsoft-edge microsoft-edge-stable ;;
+  vivaldi) printf '%s\n' vivaldi vivaldi-stable ;;
+  opera) printf '%s\n' opera ;;
+  *) printf '%s\n' "$cmd" ;;
+  esac
+}
+
+resolve_browser_command() {
+  local cmd="$1"
+  local candidate
+
+  while IFS= read -r candidate; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done < <(browser_command_aliases "$cmd")
+
+  return 1
+}
+
+first_desktop_file() {
+  local desktop_file
+
+  for desktop_file in "$@"; do
+    if [[ -f "$HOME/.local/share/applications/$desktop_file" || -f "/usr/share/applications/$desktop_file" || -f "/usr/local/share/applications/$desktop_file" ]]; then
+      printf '%s\n' "$desktop_file"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+install_package() {
+  local packages="$1"
+  local package_name
+
+  for package_name in $packages; do
+    if command -v omarchy-pkg-add >/dev/null 2>&1; then
+      omarchy-pkg-add "$package_name" && return 0
+    fi
+
+    if command -v omarchy-pkg-aur-add >/dev/null 2>&1; then
+      omarchy-pkg-aur-add "$package_name" && return 0
+    elif command -v yay >/dev/null 2>&1; then
+      yay -S --needed --noconfirm "$package_name" && return 0
+    fi
+
+    if command -v pacman >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+      sudo -n pacman -S --needed --noconfirm "$package_name" && return 0
+    fi
+  done
+
+  return 1
+}
+
+browser_record_by_name() {
+  local selected="$1"
+  local record name
+
+  for record in "${BROWSERS[@]}"; do
+    IFS=$'\t' read -r name _ _ _ <<<"$record"
+    if [[ $name == "$selected" ]]; then
+      printf '%s\n' "$record"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+browser_record_by_cmd() {
+  local selected_cmd="$1"
+  local record cmd
+
+  for record in "${BROWSERS[@]}"; do
+    IFS=$'\t' read -r _ cmd _ _ <<<"$record"
+    if [[ $cmd == "$selected_cmd" ]]; then
+      printf '%s\n' "$record"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+xdg_mime_default() {
+  if command -v xdg-mime >/dev/null 2>&1; then
+    xdg-mime default "$@"
+  fi
+}
+
+apply_browser() {
+  local name="$1"
+  local desktops="$2"
+  local desktop
+  local desktop_candidates
+
+  read -r -a desktop_candidates <<<"$desktops"
+  desktop="$(first_desktop_file "${desktop_candidates[@]}")" || {
+    notify -u critical "Default browser" "$name is installed, but its desktop file was not found"
+    exit 1
+  }
+
+  if command -v xdg-settings >/dev/null 2>&1; then
+    xdg-settings set default-web-browser "$desktop"
+  fi
+
+  xdg_mime_default "$desktop" text/html
+  xdg_mime_default "$desktop" x-scheme-handler/http
+  xdg_mime_default "$desktop" x-scheme-handler/https
+  xdg_mime_default "$desktop" x-scheme-handler/about
+  xdg_mime_default "$desktop" x-scheme-handler/unknown
+
+  notify "Default browser" "$name is now the default browser."
+}
+
+browser_desktop_available() {
+  local desktops="$1"
+  local desktop_candidates
+
+  read -r -a desktop_candidates <<<"$desktops"
+  first_desktop_file "${desktop_candidates[@]}" >/dev/null
+}
+
+install_and_apply() {
+  local name="$1"
+  local cmd="$2"
+  local desktops="$3"
+  local packages="$4"
+
+  printf 'Installing %s...\n\n' "$name"
+  if ! install_package "$packages"; then
+    notify -u critical "Default browser" "Could not install $name"
+    printf '\nCould not install %s.\n' "$name" >&2
+    sleep 3
+    exit 1
+  fi
+
+  if ! resolve_browser_command "$cmd" >/dev/null; then
+    notify -u critical "Default browser" "$name installed, but no known command was found"
+    printf '\n%s installed, but no known command was found.\n' "$name" >&2
+    sleep 3
+    exit 1
+  fi
+
+  apply_browser "$name" "$desktops"
+  printf '\n%s is now the default browser.\n' "$name"
+  sleep 3
+}
+
+menu_rows() {
+  local record name
+
+  for record in "${BROWSERS[@]}"; do
+    IFS=$'\t' read -r name _ _ _ <<<"$record"
+    printf '%s\n' "$name"
+  done
+}
+
+choose_browser() {
+  local selected
+
+  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+    notify -u critical "Default browser" "omarchy-launch-walker was not found"
+    exit 1
+  fi
+
+  selected="$(
+    menu_rows |
+      omarchy-launch-walker --dmenu --width 520 --minheight 1 --maxheight 420 -p "Default browser..."
+  )"
+
+  [[ -n $selected ]] || exit 0
+  printf '%s\n' "$selected"
+}
+
+case "${1:-}" in
+__install)
+  record="$(browser_record_by_cmd "${2:-}")" || exit 1
+  IFS=$'\t' read -r name cmd desktops packages <<<"$record"
+  install_and_apply "$name" "$cmd" "$desktops" "$packages"
+  ;;
+*)
+  selected="$(choose_browser)"
+  record="$(browser_record_by_name "$selected")" || exit 1
+  IFS=$'\t' read -r name cmd desktops packages <<<"$record"
+
+  if resolve_browser_command "$cmd" >/dev/null && browser_desktop_available "$desktops"; then
+    apply_browser "$name" "$desktops"
+  else
+    launch_install_terminal "$name" "$cmd"
+  fi
+  ;;
+esac

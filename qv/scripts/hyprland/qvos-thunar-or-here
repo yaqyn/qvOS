@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+mode="${1:-}"
+
+case "$mode" in
+terminal)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-terminal-here terminal)
+  ;;
+codex)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-tui-here codex)
+  ;;
+claude)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-tui-here claude)
+  ;;
+gemini)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-tui-here gemini)
+  ;;
+opencode)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-tui-here opencode)
+  ;;
+editor)
+  fallback=(~/.local/share/qvos/hyprland/qvos-launch-editor-here)
+  ;;
+*)
+  printf 'Usage: qvos-thunar-or-here <terminal|codex|claude|gemini|opencode|editor>\n' >&2
+  exit 2
+  ;;
+esac
+
+exec "${fallback[@]}"
