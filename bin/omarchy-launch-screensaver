@@ -21,7 +21,7 @@ focused=$(omarchy-hyprland-monitor-focused)
 terminal=$(xdg-terminal-exec --print-id)
 
 for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
-  hyprctl dispatch focusmonitor $m
+  hyprctl dispatch focusmonitor "$m"
 
   case $terminal in
   *Alacritty*)
@@ -34,7 +34,7 @@ for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
     hyprctl dispatch exec -- \
       ghostty --class=org.omarchy.screensaver \
       --config-file=~/.local/share/omarchy/default/ghostty/screensaver \
-      --font-size=18 \
+      --font-size=14 \
       -e omarchy-screensaver
     ;;
   *foot*)
@@ -46,7 +46,7 @@ for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
   *kitty*)
     hyprctl dispatch exec -- \
       kitty --class=org.omarchy.screensaver \
-      --override font_size=18 \
+      --override font_size=14 \
       --override window_padding_width=0 \
       -e omarchy-screensaver
     ;;
@@ -56,4 +56,4 @@ for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
   esac
 done
 
-hyprctl dispatch focusmonitor $focused
+hyprctl dispatch focusmonitor "$focused"

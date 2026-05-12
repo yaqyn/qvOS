@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# omarchy:summary=Run the Omarchy screensaver using random effects from TTE.
+# omarchy:summary=Run the qvOS screensaver using colored TTE effects.
 
-screensaver_in_focus() {
-  hyprctl activewindow -j | jq -e '.class == "org.omarchy.screensaver"' >/dev/null 2>&1
-}
+# Run the qvOS-colored TTE screensaver.
+
+screen_text="$HOME/.config/omarchy/branding/screensaver.txt"
 
 exit_screensaver() {
   hyprctl keyword cursor:invisible false &>/dev/null || true
@@ -13,23 +13,169 @@ exit_screensaver() {
   exit 0
 }
 
-# Exit the screensaver on signals and input from keyboard and mouse
 trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
 
-printf '\033]11;rgb:00/00/00\007'  # Set background color to black
+if [[ ! -f "$screen_text" ]]; then
+  notify-send -u normal "qvOS screensaver branding is not installed"
+  exit 1
+fi
+
+run_qvos_effect() {
+  local common=(
+    tte
+    -i "$screen_text"
+    --frame-rate 144
+    --canvas-width 0
+    --canvas-height 0
+    --reuse-canvas
+    --anchor-canvas c
+    --anchor-text c
+    --terminal-background-color 000000
+    --existing-color-handling ignore
+    --no-eol
+    --no-restore-cursor
+  )
+
+  local mono_dim=(060606 0a0a0a 101010 161616 1c1c1c 242424 2c2c2c 343434 404040 4c4c4c)
+  local mono_light=(4c4c4c 5a5a5a 686868 787878 8a8a8a a0a0a0 b8b8b8 d0d0d0)
+  local red=(520000 650000 7a0000 8a0000)
+  local mono_red=(060606 0a0a0a 101010 161616 1c1c1c 242424 2c2c2c 343434 404040 4c4c4c 5a5a5a 686868 787878 8a8a8a a0a0a0 b8b8b8 650000)
+  local rain_palette=(0a0a0a 101010 161616 1c1c1c 242424 2c2c2c 343434 404040 4c4c4c 5a5a5a 686868 787878)
+  local final=(--final-gradient-stops d00000 b80000 8a0000 650000 --final-gradient-steps 12 --final-gradient-direction vertical)
+  local final_slow=(--final-gradient-stops d00000 b80000 8a0000 650000 --final-gradient-steps 12 --final-gradient-frames 2 --final-gradient-direction vertical)
+
+  case ${QVOS_SCREENSAVER_EFFECT_INDEX:-$((RANDOM % 15))} in
+  0)
+    "${common[@]}" rings \
+      --ring-colors "${mono_dim[@]}" "${red[@]}" \
+      --ring-gap 0.1 \
+      --spin-duration 140 \
+      --spin-speed 0.5-1.4 \
+      --disperse-duration 140 \
+      --spin-disperse-cycles 3 \
+      "${final[@]}"
+    ;;
+  1)
+    "${common[@]}" rain \
+      --rain-symbols o . , '*' '|' \
+      --rain-colors "${rain_palette[@]}" \
+      --movement-speed 0.28-0.65 \
+      --movement-easing linear \
+      "${final[@]}"
+    ;;
+  2)
+    "${common[@]}" matrix \
+      --highlight-color a0a0a0 \
+      --rain-color-gradient "${mono_red[@]}" \
+      --rain-symbols 0 1 q v O S + - . '|' _ \
+      --rain-fall-delay-range 2-9 \
+      --rain-column-delay-range 2-7 \
+      --rain-time 7 \
+      --symbol-swap-chance 0.004 \
+      --color-swap-chance 0.001 \
+      --resolve-delay 3 \
+      --final-gradient-stops e02020 b00000 8a0000 650000 \
+      --final-gradient-steps 18 \
+      --final-gradient-frames 3 \
+      --final-gradient-direction vertical
+    ;;
+  3)
+    "${common[@]}" decrypt \
+      --typing-speed 2 \
+      --ciphertext-colors "${mono_red[@]}" \
+      "${final[@]}"
+    ;;
+  4)
+    "${common[@]}" sweep \
+      --sweep-symbols █ ▓ ▒ ░ \
+      --first-sweep-direction column_right_to_left \
+      --second-sweep-direction column_left_to_right \
+      "${final[@]}"
+    ;;
+  5)
+    "${common[@]}" spray \
+      --spray-position center \
+      --spray-volume 0.01 \
+      --movement-speed-range 0.7-1.4 \
+      --movement-easing out_expo \
+      "${final[@]}"
+    ;;
+  6)
+    "${common[@]}" binarypath \
+      --binary-colors "${mono_red[@]}" \
+      "${final[@]}"
+    ;;
+  7)
+    "${common[@]}" blackhole \
+      --blackhole-color 000000 \
+      --star-colors "${mono_light[@]}" "${red[@]}" \
+      "${final[@]}"
+    ;;
+  8)
+    "${common[@]}" burn \
+      --starting-color 303030 \
+      --burn-colors "${mono_dim[@]}" "${red[@]}" \
+      "${final[@]}"
+    ;;
+  9)
+    "${common[@]}" errorcorrect \
+      --error-color 7a0000 \
+      --correct-color 8c8c8c \
+      "${final[@]}"
+    ;;
+  10)
+    "${common[@]}" laseretch \
+      --cool-gradient-stops "${mono_dim[@]}" \
+      --laser-gradient-stops 686868 a0a0a0 650000 \
+      --spark-gradient-stops "${mono_light[@]}" "${red[@]}" \
+      "${final_slow[@]}"
+    ;;
+  11)
+    "${common[@]}" overflow \
+      --overflow-gradient-stops "${mono_red[@]}" \
+      "${final[@]}"
+    ;;
+  12)
+    "${common[@]}" smoke \
+      --starting-color 444444 \
+      --smoke-symbols ░ ▒ ▓ ▒ ░ \
+      --smoke-gradient-stops "${mono_dim[@]}" "${red[@]}" \
+      "${final[@]}"
+    ;;
+  13)
+    "${common[@]}" thunderstorm \
+      --lightning-color 707070 \
+      --glowing-text-color 8a0000 \
+      --text-glow-time 7 \
+      --raindrop-symbols . , '|' \
+      --spark-symbols . '*' + \
+      --spark-glow-color b80000 \
+      --spark-glow-time 14 \
+      "${final_slow[@]}"
+    ;;
+  14)
+    "${common[@]}" waves \
+      --wave-symbols ▁ ▂ ▃ ▄ ▅ ▆ ▇ █ ▇ ▆ ▅ ▄ ▃ ▂ ▁ \
+      --wave-gradient-stops "${mono_red[@]}" \
+      --wave-gradient-steps 8 \
+      "${final[@]}"
+    ;;
+  esac
+}
+
+printf '\033]11;rgb:00/00/00\007'
 
 hyprctl keyword cursor:invisible true &>/dev/null
 
-tty=$(tty 2>/dev/null)
-
 while true; do
-  tte -i ~/.config/omarchy/branding/screensaver.txt \
-    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
-    --random-effect --no-eol --no-restore-cursor &
+  run_qvos_effect &
+  effect_pid=$!
 
-  while pgrep -t "${tty#/dev/}" -x tte >/dev/null; do
-    if read -n1 -t 1 || ! screensaver_in_focus; then
+  while kill -0 "$effect_pid" 2>/dev/null; do
+    if read -r -n1 -t 1; then
       exit_screensaver
     fi
   done
+
+  wait "$effect_pid" 2>/dev/null
 done

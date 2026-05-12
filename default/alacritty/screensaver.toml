@@ -1,11 +1,18 @@
 [colors.primary]
 background = "0x000000"
+foreground = "0xb8b8b8"
 
 [colors.cursor]
 cursor = "0x000000"
 
 [font]
-size = 18.0
+size = 14.0
+
+[font.normal]
+family = "JetBrainsMono Nerd Font"
+style = "Regular"
 
 [window]
 opacity = 1.0
+padding = { x = 0, y = 0 }
+decorations = "None"
