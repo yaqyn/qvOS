@@ -1,0 +1,332 @@
+#!/bin/bash
+set -euo pipefail
+
+app_id="org.qvos.codex-sidebar"
+workspace="qvos-codex-sidebar"
+workspace_target="special:$workspace"
+title="qvOS Codex Sidebar"
+qvos_hyprland_dir="$HOME/.local/share/qvos/hyprland"
+sidebar_width=720
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/qvos"
+watcher_pid_file="$runtime_dir/codex-sidebar-geometry.pid"
+watcher_state_file="$runtime_dir/codex-sidebar-geometry.state"
+corner_pid_file="$runtime_dir/codex-sidebar-corner.pid"
+corner_state_file="$runtime_dir/codex-sidebar-corner.state"
+corner_ready_file="$runtime_dir/codex-sidebar-corner.ready"
+
+notify_error() {
+  notify-send -u critical "Codex sidebar" "$1" >/dev/null 2>&1 || true
+}
+
+clients_json() {
+  hyprctl clients -j 2>/dev/null || printf '[]\n'
+}
+
+sidebar_addresses() {
+  clients_json | jq -r --arg class "$app_id" '.[] | select(.class == $class) | .address' 2>/dev/null || true
+}
+
+first_sidebar_address() {
+  clients_json | jq -r --arg class "$app_id" 'map(select(.class == $class))[0].address // empty' 2>/dev/null || true
+}
+
+client_exists() {
+  local address="$1"
+
+  clients_json | jq -e --arg address "$address" '.[] | select(.address == $address)' >/dev/null 2>&1
+}
+
+active_location() {
+  local location
+
+  if [[ -x $qvos_hyprland_dir/qvos-active-location ]]; then
+    location="$("$qvos_hyprland_dir/qvos-active-location" 2>/dev/null || true)"
+  else
+    location="$(qvos-active-location 2>/dev/null || true)"
+  fi
+
+  [[ -d $location ]] || location="$HOME"
+  printf '%s\n' "$location"
+}
+
+resolve_location() {
+  local path="${1:-}"
+
+  if [[ -z $path ]]; then
+    path="$(active_location)"
+  fi
+
+  path="${path/#\~/$HOME}"
+  if [[ -f $path ]]; then
+    path="$(dirname -- "$path")"
+  fi
+  [[ -d $path ]] || path="$HOME"
+
+  printf '%s\n' "$path"
+}
+
+sidebar_visible() {
+  hyprctl monitors -j 2>/dev/null |
+    jq -e --arg workspace "$workspace_target" '.[] | select(.specialWorkspace.name == $workspace)' >/dev/null 2>&1
+}
+
+show_sidebar() {
+  if ! sidebar_visible; then
+    hyprctl dispatch togglespecialworkspace "$workspace" >/dev/null
+  fi
+}
+
+position_sidebar() {
+  local address="$1"
+  local monitor_x monitor_y monitor_w monitor_h reserved_left reserved_top reserved_right reserved_bottom
+  local width height x y
+
+  if ! read -r monitor_x monitor_y monitor_w monitor_h reserved_left reserved_top reserved_right reserved_bottom < <(
+    hyprctl monitors -j 2>/dev/null |
+      jq -r --arg workspace "$workspace_target" '
+        ([.[] | select(.specialWorkspace.name == $workspace)] + [.[] | select(.focused == true)])[0] |
+        .transform as $transform |
+        .scale as $scale |
+        if $transform == 1 or $transform == 3 then
+          [(.x | floor), (.y | floor), (.height / $scale | floor), (.width / $scale | floor), (.reserved[0] // 0), (.reserved[1] // 0), (.reserved[2] // 0), (.reserved[3] // 0)]
+        else
+          [(.x | floor), (.y | floor), (.width / $scale | floor), (.height / $scale | floor), (.reserved[0] // 0), (.reserved[1] // 0), (.reserved[2] // 0), (.reserved[3] // 0)]
+        end |
+        @tsv
+      ' |
+      head -n 1
+  ); then
+    return 0
+  fi
+
+  if [[ -z ${monitor_w:-} || -z ${monitor_h:-} ]]; then
+    return 0
+  fi
+
+  ((reserved_left >= 0)) || reserved_left=0
+  ((reserved_top >= 0)) || reserved_top=0
+  ((reserved_right >= 0)) || reserved_right=0
+  ((reserved_bottom >= 0)) || reserved_bottom=0
+
+  width="$sidebar_width"
+  if ((monitor_w - reserved_left - reserved_right < width)); then
+    width=$((monitor_w - reserved_left - reserved_right))
+  fi
+  height=$((monitor_h - reserved_top - reserved_bottom))
+  if ((width < 1 || height < 1)); then
+    return 0
+  fi
+  x=$((monitor_x + reserved_left))
+  y=$((monitor_y + reserved_top))
+
+  hyprctl dispatch resizewindowpixel exact "$width" "$height,address:$address" >/dev/null 2>&1 || true
+  hyprctl dispatch movewindowpixel exact "$x" "$y,address:$address" >/dev/null 2>&1 || true
+  hyprctl dispatch setprop "address:$address" border_size 0 >/dev/null 2>&1 || true
+}
+
+watch_sidebar_geometry() {
+  local address="$1"
+
+  while client_exists "$address"; do
+    position_sidebar "$address"
+    sleep 0.5
+  done
+
+  rm -f -- "$watcher_pid_file" "$watcher_state_file"
+}
+
+ensure_geometry_watcher() {
+  local address="$1"
+  local watcher_pid watcher_address
+
+  install -d "$runtime_dir"
+  watcher_pid=""
+  watcher_address=""
+  if [[ -f $watcher_state_file ]]; then
+    read -r watcher_pid watcher_address <"$watcher_state_file" || true
+  fi
+
+  if [[ -n $watcher_pid && $watcher_address == "$address" ]] && kill -0 "$watcher_pid" 2>/dev/null; then
+    return 0
+  fi
+  if [[ -n $watcher_pid ]]; then
+    kill "$watcher_pid" 2>/dev/null || true
+  fi
+
+  watch_sidebar_geometry "$address" >/dev/null 2>&1 &
+  printf '%s\n' "$!" >"$watcher_pid_file"
+  printf '%s\t%s\n' "$!" "$address" >"$watcher_state_file"
+}
+
+ensure_corner_cap() {
+  local corner_pid corner_command corner_process_pattern pid
+
+  corner_command="$qvos_hyprland_dir/qvos-codex-sidebar-corner"
+  corner_process_pattern="$qvos_hyprland_dir/qvos-codex-sidebar-corner.py"
+  [[ -x $corner_command ]] || return 0
+
+  install -d "$runtime_dir"
+  corner_pid=""
+  if [[ -f $corner_pid_file ]]; then
+    read -r corner_pid <"$corner_pid_file" || true
+  fi
+
+  if [[ -n $corner_pid ]] && kill -0 "$corner_pid" 2>/dev/null; then
+    while IFS= read -r pid; do
+      [[ -n $pid && $pid != "$corner_pid" ]] || continue
+      kill "$pid" 2>/dev/null || true
+    done < <(pgrep -f "$corner_process_pattern" || true)
+    return 0
+  fi
+
+  while IFS= read -r pid; do
+    [[ -n $pid ]] || continue
+    kill "$pid" 2>/dev/null || true
+  done < <(pgrep -f "$corner_process_pattern" || true)
+
+  rm -f -- "$corner_ready_file"
+  setsid "$corner_command" >/dev/null 2>&1 &
+  printf '%s\n' "$!" >"$corner_pid_file"
+}
+
+set_corner_state() {
+  local state="$1"
+
+  install -d "$runtime_dir"
+  printf '%s\t%s\n' "$state" "$(date +%s%N)" >"$corner_state_file"
+}
+
+wait_for_sidebar() {
+  local address attempt
+
+  for ((attempt = 0; attempt < 50; attempt++)); do
+    address="$(first_sidebar_address)"
+    if [[ -n $address ]]; then
+      printf '%s\n' "$address"
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  return 1
+}
+
+wait_until_closed() {
+  local attempt
+
+  for ((attempt = 0; attempt < 50; attempt++)); do
+    if [[ -z $(first_sidebar_address) ]]; then
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  return 1
+}
+
+close_sidebar() {
+  local address
+
+  if [[ -n $(first_sidebar_address) ]]; then
+    ensure_corner_cap
+    set_corner_state hide
+  fi
+
+  while IFS= read -r address; do
+    [[ -n $address ]] || continue
+    hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
+  done < <(sidebar_addresses)
+
+  if ! wait_until_closed; then
+    notify_error "Existing sidebar did not close"
+    return 1
+  fi
+}
+
+launch_sidebar() {
+  local cwd="$1"
+  local required
+
+  for required in jq hyprctl uwsm-app xdg-terminal-exec codex; do
+    if ! command -v "$required" >/dev/null 2>&1; then
+      notify_error "$required was not found"
+      return 1
+    fi
+  done
+
+  # shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
+  setsid uwsm-app -- xdg-terminal-exec \
+    --app-id="$app_id" \
+    --title="$title" \
+    bash -lc 'cd "$1" || exit; exec ~/.local/share/qvos/hyprland/qvos-ai-cli-run codex' qvos "$cwd" >/dev/null 2>&1 &
+}
+
+start_sidebar() {
+  local cwd address
+
+  cwd="$(resolve_location "${1:-}")"
+  launch_sidebar "$cwd" || return 1
+  ensure_corner_cap
+  show_sidebar
+  set_corner_state show
+
+  if address="$(wait_for_sidebar)"; then
+    show_sidebar
+    position_sidebar "$address"
+    ensure_geometry_watcher "$address"
+    ensure_corner_cap
+    hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  notify_error "Sidebar did not appear"
+  return 1
+}
+
+toggle_sidebar() {
+  local address
+
+  address="$(first_sidebar_address)"
+  if [[ -n $address ]]; then
+    if sidebar_visible; then
+      ensure_corner_cap
+      set_corner_state hide
+      hyprctl dispatch togglespecialworkspace "$workspace" >/dev/null
+    else
+      ensure_corner_cap
+      hyprctl dispatch togglespecialworkspace "$workspace" >/dev/null
+      set_corner_state show
+      sleep 0.1
+      position_sidebar "$address"
+      ensure_geometry_watcher "$address"
+      ensure_corner_cap
+      hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+    fi
+  else
+    start_sidebar
+  fi
+}
+
+pick_location() {
+  exec "$qvos_hyprland_dir/qvos-launch-tui-menu" codex-sidebar "Codex Sidebar"
+}
+
+mode="${1:-toggle}"
+shift || true
+
+case "$mode" in
+toggle)
+  toggle_sidebar
+  ;;
+new)
+  close_sidebar
+  start_sidebar "${1:-}"
+  ;;
+pick)
+  pick_location
+  ;;
+*)
+  printf 'Usage: qvos-codex-sidebar [toggle|new [path]|pick]\n' >&2
+  exit 2
+  ;;
+esac

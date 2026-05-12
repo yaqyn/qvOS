@@ -1,0 +1,344 @@
+#!/bin/bash
+
+set -eEo pipefail
+
+allow_downloads=false
+no_cache=false
+prepare_only=false
+omarchy_mirror="${QVOS_OMARCHY_MIRROR:-stable}"
+
+usage() {
+  echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--dev|--rc]"
+  echo
+  echo "Environment:"
+  echo "  QVOS_SOURCE_REPO       qvOS git repository or local git path"
+  echo "  QVOS_SOURCE_REF        qvOS branch, tag, or commit"
+  echo "  QVOS_OMARCHY_ISO_REPO  omarchy-iso repository or local path"
+  echo "  QVOS_OMARCHY_ISO_REF   omarchy-iso branch, tag, or commit"
+}
+
+env_enabled() {
+  local name="$1"
+  local value="${!name:-}"
+
+  case $value in
+  1 | true | TRUE | yes | YES | on | ON)
+    return 0
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+while (( $# > 0 )); do
+  case $1 in
+  --allow-downloads)
+    allow_downloads=true
+    ;;
+  --no-cache)
+    no_cache=true
+    ;;
+  --prepare-only)
+    prepare_only=true
+    ;;
+  --dev)
+    omarchy_mirror=edge
+    ;;
+  --rc)
+    omarchy_mirror=rc
+    ;;
+  --no-boot-offer)
+    # Kept for compatibility with omarchy-iso flags; qvos-build never boots automatically.
+    ;;
+  --help | -h)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+if env_enabled QVOS_BUILD_PREPARE_ONLY; then
+  prepare_only=true
+fi
+
+if [[ $allow_downloads == "false" && $prepare_only == "false" ]]; then
+  echo "qvos-build downloads packages and runs the omarchy-iso Docker builder." >&2
+  echo "Re-run with --allow-downloads when you are ready." >&2
+  exit 1
+fi
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+tui_dir=$(cd -- "$script_dir/.." && pwd)
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/qvos/iso"
+mkdir -p "$cache_root"
+stage_root=$(mktemp -d "$cache_root/stage.XXXXXX")
+release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
+omarchy_iso_repo="${QVOS_OMARCHY_ISO_REPO:-https://github.com/omacom-io/omarchy-iso.git}"
+omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"
+docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
+
+cleanup() {
+  rm -rf "$stage_root"
+}
+trap cleanup EXIT
+
+require_command() {
+  local name="$1"
+
+  if ! command -v "$name" >/dev/null 2>&1; then
+    echo "qvos-build requires $name" >&2
+    exit 1
+  fi
+}
+
+detect_context_git_root() {
+  local candidate
+  local candidates=(
+    "${OMARCHY_PATH:-}"
+    "$tui_dir/../.."
+    "$HOME/.local/share/omarchy"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -n $candidate && -d $candidate/.git ]]; then
+      cd -- "$candidate" && pwd
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+default_qvos_source_repo() {
+  local context_root="$1"
+  local remote_url=""
+
+  if [[ -n $context_root ]]; then
+    remote_url=$(git -C "$context_root" remote get-url origin 2>/dev/null || true)
+  fi
+
+  if [[ -n $remote_url ]]; then
+    echo "$remote_url"
+  else
+    echo "https://github.com/yaqyn/qv.git"
+  fi
+}
+
+default_qvos_source_ref() {
+  local context_root="$1"
+  local branch=""
+
+  if [[ -n $context_root ]]; then
+    branch=$(git -C "$context_root" branch --show-current 2>/dev/null || true)
+  fi
+
+  if [[ -n $branch ]]; then
+    echo "$branch"
+  else
+    echo "OS"
+  fi
+}
+
+copy_tree() {
+  local source="$1"
+  local target="$2"
+
+  mkdir -p "$target"
+  tar \
+    --exclude=.git \
+    --exclude=release \
+    -C "$source" \
+    -cf - . | tar -C "$target" -xf -
+}
+
+checkout_git_ref() {
+  local target="$1"
+  local ref="$2"
+
+  if [[ $ref == "HEAD" ]]; then
+    git -C "$target" checkout -q HEAD
+  elif git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$ref"; then
+    git -C "$target" checkout -q -B "$ref" "origin/$ref"
+  elif git -C "$target" show-ref --verify --quiet "refs/tags/$ref"; then
+    git -C "$target" checkout -q "tags/$ref"
+  else
+    git -C "$target" fetch --tags origin "$ref"
+    git -C "$target" checkout -q FETCH_HEAD
+  fi
+}
+
+clone_git_source() {
+  local repo="$1"
+  local ref="$2"
+  local target="$3"
+
+  git clone --no-checkout "$repo" "$target"
+  checkout_git_ref "$target" "$ref"
+}
+
+stage_omarchy_iso() {
+  local target="$1"
+
+  if [[ -d $omarchy_iso_repo ]]; then
+    echo "qvOS ISO progress: fresh-cloning ISO builder source local"
+    copy_tree "$omarchy_iso_repo" "$target"
+  else
+    echo "qvOS ISO progress: fresh-cloning ISO builder source $omarchy_iso_ref"
+    clone_git_source "$omarchy_iso_repo" "$omarchy_iso_ref" "$target"
+  fi
+
+  if [[ $prepare_only == "true" ]]; then
+    echo "qvOS ISO progress: skipping build-tool submodules for prepare-only"
+  else
+    echo "qvOS ISO progress: preparing build tools"
+    git -C "$target" submodule update --init --recursive --jobs=8
+  fi
+}
+
+stage_qvos_source() {
+  local target="$1"
+
+  echo "qvOS ISO progress: fresh-cloning qvOS source $qvos_source_ref"
+  clone_git_source "$qvos_source_repo" "$qvos_source_ref" "$target"
+}
+
+validate_qvos_source() {
+  local target="$1"
+  local missing=false
+
+  echo "qvOS ISO progress: validating qvOS payload"
+
+  if [[ ! -d $target/.git ]]; then
+    echo "qvos-build staged qvOS source is missing .git metadata" >&2
+    missing=true
+  fi
+  if [[ ! -d $target/qv/tui ]]; then
+    echo "qvos-build staged qvOS source is missing qv/tui" >&2
+    missing=true
+  fi
+  if [[ ! -d $target/install ]]; then
+    echo "qvos-build staged qvOS source is missing install/" >&2
+    missing=true
+  fi
+  if [[ ! -f $target/qv/iso/omarchy-iso-qvos-tui.patch ]]; then
+    echo "qvos-build staged qvOS source is missing qv/iso/omarchy-iso-qvos-tui.patch" >&2
+    missing=true
+  fi
+
+  if [[ $missing == "true" ]]; then
+    return 1
+  fi
+}
+
+patch_omarchy_iso() {
+  local iso_root="$1"
+  local qvos_source="$2"
+  local patch_file="$qvos_source/qv/iso/omarchy-iso-qvos-tui.patch"
+
+  echo "qvOS ISO progress: patching staged ISO installer"
+  patch -d "$iso_root" -p0 <"$patch_file"
+}
+
+run_iso_builder() {
+  local iso_root="$1"
+  local staged_qvos="$2"
+  local out_dir="$3"
+  local docker_args=(
+    --rm
+    --privileged
+    -e "OMARCHY_INSTALLER_REPO=basecamp/omarchy"
+    -e "OMARCHY_INSTALLER_REF=master"
+    -e "OMARCHY_MIRROR=$omarchy_mirror"
+    -e "HOST_UID=$(id -u)"
+    -e "HOST_GID=$(id -g)"
+    -v "$out_dir:/out/"
+    -v "$iso_root/archiso:/archiso:ro"
+    -v "$iso_root/builder:/builder:ro"
+    -v "$iso_root/configs:/configs:ro"
+    -v "$staged_qvos:/omarchy:ro"
+  )
+
+  if [[ ! -d $iso_root/archiso/configs/releng ]]; then
+    echo "qvos-build could not find the omarchy-iso archiso submodule" >&2
+    echo "Re-run without --prepare-only, or check QVOS_OMARCHY_ISO_REPO." >&2
+    return 1
+  fi
+
+  if [[ $no_cache == "false" ]]; then
+    echo "qvOS ISO progress: preparing build cache"
+    docker_args+=(
+      -v qvos-iso-pacman-cache:/var/cache/pacman/pkg
+      -v qvos-iso-tool-cache:/var/cache/qvos
+    )
+  fi
+
+  echo "qvOS ISO progress: starting build container"
+  docker run "${docker_args[@]}" "$docker_image" /builder/build-iso.sh
+}
+
+publish_release_artifact() {
+  local out_dir="$1"
+  local latest_iso
+  local target_iso
+
+  latest_iso=""
+  if [[ -d $out_dir ]]; then
+    latest_iso=$(
+      find "$out_dir" -maxdepth 1 -type f -name "*.iso" -printf "%T@ %p\n" |
+        sort -nr |
+        awk 'NR == 1 { $1 = ""; sub(/^ /, ""); print }'
+    )
+  fi
+  if [[ -z $latest_iso ]]; then
+    echo "qvos-build did not find an ISO artifact" >&2
+    return 1
+  fi
+
+  mkdir -p "$release_dir"
+  target_iso="$release_dir/$(basename "$latest_iso" | sed 's/^omarchy/qvos/')"
+  mv -f "$latest_iso" "$target_iso"
+
+  echo "qvOS ISO release dir: $release_dir"
+  echo "qvOS ISO artifact: $target_iso"
+}
+
+require_command git
+require_command patch
+require_command tar
+if [[ $prepare_only == "false" ]]; then
+  require_command docker
+fi
+
+qvos_context_root=$(detect_context_git_root || true)
+qvos_source_repo="${QVOS_SOURCE_REPO:-$(default_qvos_source_repo "$qvos_context_root")}"
+qvos_source_ref="${QVOS_SOURCE_REF:-$(default_qvos_source_ref "$qvos_context_root")}"
+
+echo "qvOS ISO preflight: stage $stage_root"
+mkdir -p "$release_dir"
+
+staged_qvos="$stage_root/qvOS"
+staged_iso="$stage_root/omarchy-iso"
+stage_out="$stage_root/out"
+mkdir -p "$stage_out"
+
+echo "qvOS ISO progress: stage ready"
+stage_qvos_source "$staged_qvos"
+validate_qvos_source "$staged_qvos"
+stage_omarchy_iso "$staged_iso"
+patch_omarchy_iso "$staged_iso" "$staged_qvos"
+
+if [[ $prepare_only == "true" ]]; then
+  echo "qvOS ISO prepare-only complete"
+  exit 0
+fi
+
+run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"
+publish_release_artifact "$stage_out"
+echo "qvOS ISO build complete"

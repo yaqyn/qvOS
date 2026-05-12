@@ -1,0 +1,195 @@
+--- configs/airootfs/root/.automated_script.sh
++++ configs/airootfs/root/.automated_script.sh
+@@ -11,24 +11,56 @@
+
+ run_configurator() {
+   set_tokyo_night_colors
+-  ./configurator
++  if command -v qvos-tui >/dev/null 2>&1; then
++    qvos-tui --iso-installer
++  else
++    ./configurator
++  fi
+   export OMARCHY_USER="$(jq -r '.users[0].username' user_credentials.json)"
+ }
+
++start_qvos_iso_progress() {
++  if command -v qvos-tui >/dev/null 2>&1; then
++    qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
++    qvos_iso_progress_pid=$!
++  else
++    start_log_output
++  fi
++}
++
++stop_qvos_iso_progress() {
++  if [[ -n ${qvos_iso_progress_pid:-} ]]; then
++    kill "$qvos_iso_progress_pid" 2>/dev/null || true
++    wait "$qvos_iso_progress_pid" 2>/dev/null || true
++    unset qvos_iso_progress_pid
++    clear
++  else
++    stop_log_output
++  fi
++}
++
+ install_arch() {
+-  clear_logo
+-  gum style --foreground 3 --padding "1 0 0 $PADDING_LEFT" "Installing..."
+-  echo
++  if ! command -v qvos-tui >/dev/null 2>&1; then
++    clear_logo
++    gum style --foreground 3 --padding "1 0 0 $PADDING_LEFT" "Installing..."
++    echo
++  fi
+
+   touch /var/log/omarchy-install.log
+
+-  start_log_output
++  start_qvos_iso_progress
+
+   # Set CURRENT_SCRIPT for the trap to display better when nothing is returned for some reason
++  local install_status
+   CURRENT_SCRIPT="install_base_system"
++  set +e
+   install_base_system > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >>/var/log/omarchy-install.log) 2>&1
++  install_status=$?
+   unset CURRENT_SCRIPT
+-  stop_log_output
++  set -e
++
++  stop_qvos_iso_progress
++  return "$install_status"
+ }
+
+ install_omarchy() {
+--- configs/profiledef.sh
++++ configs/profiledef.sh
+@@ -23,4 +23,5 @@
+   ["/root/configurator"]="0:0:755"
+   ["/var/cache/omarchy/mirror/offline/"]="0:0:775"
+   ["/usr/local/bin/omarchy-upload-log"]="0:0:755"
++  ["/usr/local/bin/qvos-tui"]="0:0:755"
+ )
+--- builder/build-iso.sh
++++ builder/build-iso.sh
+@@ -5,7 +5,7 @@
+ # Note that these are packages installed to the Arch container used to build the ISO.
+ pacman-key --init
+ pacman --noconfirm -Sy archlinux-keyring
+-pacman --noconfirm -Sy archiso git sudo base-devel jq grub
++pacman --noconfirm -Sy archiso git sudo base-devel jq grub go
+
+ # Pre-import the omarchy signing key so pacman can verify packages without a keyserver lookup
+ pacman-key --add /builder/omarchy.gpg
+@@ -43,6 +43,20 @@
+   git clone -b $OMARCHY_INSTALLER_REF https://github.com/$OMARCHY_INSTALLER_REPO.git "$build_cache_dir/airootfs/root/omarchy"
+ fi
+
++# Build qvOS boot/install TUI from the staged installer source.
++if [[ -d "$build_cache_dir/airootfs/root/omarchy/qv/tui" ]]; then
++  echo "qvOS ISO progress: staging qvOS TUI installer"
++  export GOMODCACHE="${GOMODCACHE:-/var/cache/qvos/go/pkg/mod}"
++  export GOCACHE="${GOCACHE:-/var/cache/qvos/go/build}"
++  mkdir -p "$GOMODCACHE" "$GOCACHE"
++  (
++    cd "$build_cache_dir/airootfs/root/omarchy/qv/tui"
++    go build -trimpath -ldflags="-s -w" -o qvos-tui .
++  )
++  mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
++  install -m 0755 "$build_cache_dir/airootfs/root/omarchy/qv/tui/qvos-tui" "$build_cache_dir/airootfs/usr/local/bin/qvos-tui"
++fi
++
+ # Make log uploader available in the ISO too
+ mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
+ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
+@@ -53,39 +67,71 @@
+
+ # Download and verify Node.js binary for offline installation
+ NODE_DIST_URL="https://nodejs.org/dist/latest"
++node_cache_dir="/var/cache/qvos/node"
++mkdir -p "$node_cache_dir"
+
+ # Get checksums and parse filename and SHA
+ NODE_SHASUMS=$(curl -fsSL "$NODE_DIST_URL/SHASUMS256.txt")
+ NODE_FILENAME=$(echo "$NODE_SHASUMS" | grep "linux-x64.tar.gz" | awk '{print $2}')
+ NODE_SHA=$(echo "$NODE_SHASUMS" | grep "linux-x64.tar.gz" | awk '{print $1}')
++NODE_TARBALL="$node_cache_dir/$NODE_FILENAME"
+
+-# Download the tarball
+-curl -fsSL "$NODE_DIST_URL/$NODE_FILENAME" -o "/tmp/$NODE_FILENAME"
+-
+-# Verify SHA256 checksum
+-echo "$NODE_SHA /tmp/$NODE_FILENAME" | sha256sum -c - || {
++if [[ ! -f $NODE_TARBALL ]] || ! echo "$NODE_SHA $NODE_TARBALL" | sha256sum -c -; then
++  echo "qvOS ISO progress: caching node runtime"
++  curl -fsSL "$NODE_DIST_URL/$NODE_FILENAME" -o "$NODE_TARBALL.tmp"
++  echo "$NODE_SHA $NODE_TARBALL.tmp" | sha256sum -c - || {
+     echo "ERROR: Node.js checksum verification failed!"
++    rm -f "$NODE_TARBALL.tmp"
+     exit 1
+-}
++  }
++  mv -f "$NODE_TARBALL.tmp" "$NODE_TARBALL"
++fi
+
+-# Copy to ISO
+ mkdir -p "$build_cache_dir/airootfs/opt/packages/"
+-cp "/tmp/$NODE_FILENAME" "$build_cache_dir/airootfs/opt/packages/"
++cp "$NODE_TARBALL" "$build_cache_dir/airootfs/opt/packages/"
+
+ # Add our additional packages to packages.x86_64
+ arch_packages=(linux-t2 git gum jq openssl plymouth tzupdate omarchy-keyring lvm2 cryptsetup parted)
+ printf '%s\n' "${arch_packages[@]}" >>"$build_cache_dir/packages.x86_64"
+
+-# Build list of all the packages needed for the offline mirror
+-all_packages=($(cat "$build_cache_dir/packages.x86_64"))
+-all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages" | grep -v '^$'))
+-all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages" | grep -v '^$'))
+-all_packages+=($(grep -v '^#' /builder/archinstall.packages | grep -v '^$'))
+-
+-# Download all the packages to the offline mirror inside the ISO
+-mkdir -p /tmp/offlinedb
+-pacman --config /configs/pacman-online-${OMARCHY_MIRROR}.conf --noconfirm -Syw "${all_packages[@]}" --cachedir $offline_mirror_dir/ --dbpath /tmp/offlinedb
+-repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "$offline_mirror_dir/"*.pkg.tar.zst
++# Build list of all the packages needed for the offline mirror
++mapfile -t all_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$build_cache_dir/packages.x86_64")
++mapfile -t omarchy_base_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages")
++mapfile -t omarchy_other_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages")
++mapfile -t archinstall_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' /builder/archinstall.packages)
++all_packages+=("${omarchy_base_packages[@]}" "${omarchy_other_packages[@]}" "${archinstall_packages[@]}")
++
++# Download packages into the reusable host cache, then copy only this build's
++# resolved package files into the offline mirror inside the ISO filesystem.
++package_cache_dir="/var/cache/pacman/pkg"
++offline_db_dir=$(mktemp -d /tmp/offlinedb.XXXXXX)
++rm -rf "$offline_mirror_dir"
++mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
++
++echo "qvOS ISO progress: resolving package set"
++pacman --config "/configs/pacman-online-${OMARCHY_MIRROR}.conf" --noconfirm -Syw "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir"
++
++mapfile -t offline_package_urls < <(
++  pacman --config "/configs/pacman-online-${OMARCHY_MIRROR}.conf" --noconfirm -Sp "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir"
++)
++for package_url in "${offline_package_urls[@]}"; do
++  package_file="${package_url##*/}"
++  [[ $package_file == *.pkg.tar.* ]] || continue
++  if [[ ! -f $package_cache_dir/$package_file ]]; then
++    echo "ERROR: package $package_file was not downloaded to $package_cache_dir"
++    exit 1
++  fi
++  cp "$package_cache_dir/$package_file" "$offline_mirror_dir/"
++done
++
++mapfile -t offline_packages < <(find "$offline_mirror_dir" -maxdepth 1 -type f -name "*.pkg.tar.*" ! -name "*.sig" | sort)
++if (( ${#offline_packages[@]} == 0 )); then
++  echo "ERROR: offline package mirror is empty"
++  exit 1
++fi
++
++echo "qvOS ISO progress: indexing package mirror ${#offline_packages[@]}/${#offline_packages[@]}"
++repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "${offline_packages[@]}"
+
+ # Create a symlink to the offline mirror instead of duplicating it.
+ # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,

@@ -338,6 +338,9 @@ launch_target() {
     cd "$cwd"
     exec tmux new -s "$session"
     ;;
+  codex-sidebar)
+    exec ~/.local/share/qvos/hyprland/qvos-codex-sidebar new "$cwd"
+    ;;
   codex | claude | gemini | opencode)
     if ! command -v "$app" >/dev/null 2>&1; then
       notify-send -u critical "$label" "$app was not found"

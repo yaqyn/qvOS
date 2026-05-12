@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+port="${1:-}"
+
+if [[ -z $port ]]; then
+  if ! command -v omarchy-menu-input >/dev/null 2>&1; then
+    notify-send -u critical "Localhost" "omarchy-menu-input was not found"
+    exit 1
+  fi
+
+  port="$(omarchy-menu-input "Localhost port" --width 360)"
+fi
+
+port="${port//[[:space:]]/}"
+if [[ -z $port ]]; then
+  exit 0
+fi
+
+if [[ ! $port =~ ^[0-9]+$ ]]; then
+  notify-send -u critical "Localhost" "Enter digits only"
+  exit 1
+fi
+
+exec omarchy-launch-webapp "http://localhost:$port"

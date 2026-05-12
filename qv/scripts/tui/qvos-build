@@ -1,6 +1,6 @@
 #!/bin/bash
-echo "qvos-build started"
-sleep 1
-echo "qvos-build progress: step 1"
-sleep 1
-echo "qvos-build complete"
+
+set -e
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$script_dir/../../tui/bin/qvos-build" "$@"

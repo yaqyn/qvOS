@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# omarchy:summary=Launch the qvOS terminal UI
+# omarchy:group=launch
+# omarchy:name=qvos-tui
+# omarchy:args=[args...]
+
+set -e
+
+export OMARCHY_PATH="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+
+tui="$HOME/.local/share/qvos/tui/qvos-tui"
+
+if [[ ! -x $tui ]]; then
+  echo "qvOS TUI is not installed at $tui"
+  exit 1
+fi
+
+export QVOS_INSTALL_SCRIPT="${QVOS_INSTALL_SCRIPT:-$HOME/.local/share/qvos/tui/bin/qvos-apply}"
+export QVOS_UPDATE_SCRIPT="${QVOS_UPDATE_SCRIPT:-$HOME/.local/share/qvos/tui/bin/qvos-update}"
+export QVOS_REVERT_SCRIPT="${QVOS_REVERT_SCRIPT:-$HOME/.local/share/qvos/tui/bin/qvos-reset}"
+export QVOS_BUILD_SCRIPT="${QVOS_BUILD_SCRIPT:-$HOME/.local/share/qvos/tui/bin/qvos-build}"
+
+exec "$tui" "$@"
