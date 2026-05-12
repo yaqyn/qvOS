@@ -1,8 +1,12 @@
 @define-color foreground #d0d0d0;
 @define-color bright #e6e6e6;
-@define-color background #080808;
+@define-color background #090909;
 @define-color accent #d00000;
 @define-color muted #707070;
+
+window#waybar {
+  opacity: 0.92;
+}
 
 #custom-omarchy {
   color: @muted;

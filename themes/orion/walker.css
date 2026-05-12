@@ -1,22 +1,32 @@
-@define-color selected-text #d00000;
-@define-color text #d0d0d0;
-@define-color base #000000;
-@define-color border #000000;
-@define-color foreground #d0d0d0;
-@define-color background #000000;
+@define-color selected-text #ffffff;
+@define-color text #b8b8b8;
+@define-color base #090909;
+@define-color border #242424;
+@define-color foreground #b8b8b8;
+@define-color background #090909;
+@define-color selection-line #d00000;
 
 .box-wrapper.box-wrapper {
-  background: alpha(#000000, 0.56);
-  border: none;
+  background: #090909;
+  border: 1px solid @border;
+}
+
+child .item-box.item-box {
+  background: transparent;
+  border-left: 2px solid transparent;
 }
 
 child:selected .item-box.item-box {
   background: transparent;
-  border: none;
+  border-left-color: @selection-line;
 }
 
 child:selected .item-box * {
-  color: #d00000;
+  color: @selected-text;
+}
+
+child:selected {
+  background: transparent;
 }
 
 child:hover .item-box.item-box {
@@ -25,11 +35,11 @@ child:hover .item-box.item-box {
 
 .search-container.search-container,
 .keybind-hints.keybind-hints {
-  background: transparent;
+  background: #090909;
   border: none;
 }
 
 .input:focus,
 .input:active {
-  color: #d0d0d0;
+  color: @foreground;
 }
