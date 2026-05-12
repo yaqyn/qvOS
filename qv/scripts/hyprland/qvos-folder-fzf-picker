@@ -42,10 +42,67 @@ build_folder_index() {
   mv "$tmp_map" "$folder_index_map"
 }
 
+set_folder_index_map() {
+  folder_index_map="$1"
+  folder_index="${folder_index_map%.map}"
+}
+
+prune_missing_favorites() {
+  local path tmp
+
+  [[ -f "$favorites_file" ]] || return 0
+
+  tmp="$(mktemp "$favorites_file.tmp.XXXXXX")"
+  while IFS= read -r path; do
+    [[ -n "$path" && -d "$path" ]] || continue
+    printf '%s\n' "$path"
+  done <"$favorites_file" | sort -u >"$tmp"
+  mv "$tmp" "$favorites_file"
+}
+
+prune_folder_index() {
+  local display path tmp tmp_map
+
+  [[ -f "$folder_index_map" ]] || return 0
+
+  tmp="$(mktemp "$folder_index.tmp.XXXXXX")"
+  tmp_map="$(mktemp "$folder_index_map.tmp.XXXXXX")"
+  while IFS=$'\t' read -r display path; do
+    [[ -n "$display" && -n "$path" && -d "$path" ]] || continue
+    printf '%s\n' "$display" >>"$tmp"
+    printf '%s\t%s\n' "$display" "$path" >>"$tmp_map"
+  done <"$folder_index_map"
+
+  if [[ -s "$tmp_map" ]]; then
+    mv "$tmp" "$folder_index"
+    mv "$tmp_map" "$folder_index_map"
+  else
+    rm -f -- "$tmp" "$tmp_map" "$folder_index" "$folder_index_map"
+  fi
+}
+
+prepare_folder_index() {
+  [[ -s "$folder_index_map" ]] || build_folder_index
+  prune_missing_favorites
+  prune_folder_index
+  [[ -s "$folder_index_map" ]] || build_folder_index
+}
+
 is_favorite() {
   local path="$1"
 
   [[ -f "$favorites_file" ]] && grep -Fxq -- "$path" "$favorites_file"
+}
+
+remove_favorite() {
+  local path="$1"
+  local tmp
+
+  [[ -f "$favorites_file" ]] || return 0
+
+  tmp="$(mktemp "$favorites_file.tmp.XXXXXX")"
+  grep -Fvx -- "$path" "$favorites_file" >"$tmp" || true
+  mv "$tmp" "$favorites_file"
 }
 
 toggle_favorite() {
@@ -53,6 +110,11 @@ toggle_favorite() {
   local tmp
 
   [[ -n "${path:-}" ]] || exit 0
+  if [[ ! -d "$path" ]]; then
+    remove_favorite "$path"
+    exit 0
+  fi
+
   install -d "$cache_dir"
   tmp="$favorites_file.tmp.$$"
 
@@ -169,28 +231,32 @@ toggle_mode() {
 
 case "${app:-}" in
 __rows)
-  folder_index_map="$label"
+  set_folder_index_map "$label"
   mode="${3:-all}"
   search_root="${4:-$HOME}"
+  prepare_folder_index
   picker_rows "$mode"
   exit 0
   ;;
 __current-rows)
-  folder_index_map="$label"
+  set_folder_index_map "$label"
   search_root="${3:-$HOME}"
+  prepare_folder_index
   picker_rows "$(current_mode)"
   exit 0
   ;;
 __toggle-rows)
-  folder_index_map="$label"
+  set_folder_index_map "$label"
   search_root="${3:-$HOME}"
+  prepare_folder_index
   picker_rows "$(toggle_mode)"
   exit 0
   ;;
 __refresh-rows)
-  folder_index_map="$label"
+  set_folder_index_map "$label"
   search_root="${3:-$HOME}"
   build_folder_index
+  prune_missing_favorites
   picker_rows "$(current_mode)"
   exit 0
   ;;
@@ -293,7 +359,7 @@ launch_target() {
   esac
 }
 
-[[ -s "$folder_index_map" ]] || build_folder_index
+prepare_folder_index
 printf 'all' >"$mode_file"
 
 # shellcheck disable=SC2016
