@@ -43,6 +43,7 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 
 # Tools
+alias qv='omarchy'
 alias c='opencode'
 alias cx='printf "\033[2J\033[3J\033[H" && claude --permission-mode bypassPermissions'
 alias d='docker'
