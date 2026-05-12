@@ -212,25 +212,12 @@ tmux_session_name() {
   base="$location tmux"
   index=1
   name="$base $index"
-  while tmux has-session -t "$name" 2>/dev/null; do
+  while tmux has-session -t "=$name" 2>/dev/null; do
     index=$((index + 1))
     name="$base $index"
   done
 
   printf '%s\n' "$name"
-}
-
-schedule_tmux_auto_save() {
-  local session="$1"
-  local save_script="$HOME/.tmux/plugins/tmux-resurrect/scripts/save.sh"
-
-  (
-    sleep 60
-    tmux has-session -t "$session" 2>/dev/null || exit 0
-    [[ -x "$save_script" ]] || exit 0
-    tmux run-shell "$save_script"
-    notify-send "Tmux saved" "$session survived 1 minute"
-  ) >/dev/null 2>&1 &
 }
 
 launch_target() {
@@ -282,7 +269,6 @@ launch_target() {
     fi
     hyprctl dispatch togglefloating active >/dev/null 2>&1 || true
     session="$(tmux_session_name "$cwd")"
-    schedule_tmux_auto_save "$session"
     cd "$cwd"
     exec tmux new -s "$session"
     ;;

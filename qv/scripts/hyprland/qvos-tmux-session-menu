@@ -15,15 +15,80 @@ current_dir() {
   omarchy-cmd-terminal-cwd 2>/dev/null || printf '%s\n' "$HOME"
 }
 
+internal_session() {
+  [[ $1 == "qvos-restore" ]]
+}
+
+normalize_session_name() {
+  local name="$1"
+
+  name="${name//$'\n'/ }"
+  name="${name//$'\t'/ }"
+  name="${name//:/-}"
+  printf '%s\n' "$name" | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//'
+}
+
+exact_session_exists() {
+  local session="$1"
+
+  tmux has-session -t "=$session" 2>/dev/null
+}
+
+next_session_name() {
+  local base="$1"
+  local name index
+
+  name="$base"
+  index=2
+  while exact_session_exists "$name"; do
+    name="$base $index"
+    index=$((index + 1))
+  done
+
+  printf '%s\n' "$name"
+}
+
+suggested_session_name() {
+  local cwd="${1:-$(current_dir)}"
+  local location
+
+  location="$(basename "$cwd")"
+  [[ -n "$location" && "$location" != "/" ]] || location="root"
+  [[ "$cwd" == "$HOME" ]] && location="home"
+  location="${location//:/-}"
+
+  next_session_name "$location tmux"
+}
+
+prompt_session_name() {
+  local prompt="$1"
+  local default="$2"
+
+  printf '%s\n' "$default" |
+    omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 120 -p "$prompt"
+}
+
+attach_named_session() {
+  local session="$1"
+
+  exec uwsm-app -- xdg-terminal-exec tmux attach -t "=$session"
+}
+
+create_named_session() {
+  local session="$1"
+  local cwd="$2"
+
+  remember_renamed "$session"
+  exec uwsm-app -- xdg-terminal-exec --dir="$cwd" tmux new -s "$session"
+}
+
 restore_sessions_if_needed() {
   if ! tmux has-session 2>/dev/null; then
     tmux new-session -d -s qvos-restore
     tmux source-file "${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf" >/dev/null 2>&1 || true
     tmux run-shell "$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh" >/dev/null 2>&1 || true
     sleep 1
-    if [[ "$(tmux list-sessions -F '#S' 2>/dev/null | wc -l)" -gt 1 ]]; then
-      tmux kill-session -t qvos-restore 2>/dev/null || true
-    fi
+    tmux kill-session -t =qvos-restore 2>/dev/null || true
   fi
 }
 
@@ -31,13 +96,21 @@ current_session() {
   local session
 
   restore_sessions_if_needed
-  session="$(tmux list-sessions -F '#{session_activity}	#{session_name}' 2>/dev/null | sort -rn -k1,1 | head -n1 | cut -f2-)"
+  session="$(
+    {
+      tmux list-sessions -F '#{session_activity}	#{session_name}' 2>/dev/null || true
+    } |
+      awk -F '\t' '$2 != "qvos-restore"' |
+      sort -rn -k1,1 |
+      head -n1 |
+      cut -f2-
+  )"
   if [[ -z "${session:-}" ]]; then
     notify-send "Tmux" "No running sessions"
     exit 0
   fi
 
-  exec uwsm-app -- xdg-terminal-exec tmux attach -t "$session"
+  attach_named_session "$session"
 }
 
 attach_session() {
@@ -47,19 +120,16 @@ attach_session() {
 
   sessions="$(session_lines)"
 
-  if [[ -z "$sessions" ]]; then
-    notify-send "Tmux" "No running sessions"
-    exit 0
-  fi
-
   choice="$(
     {
-      printf '%s\n' "$sessions"
+      [[ -n "$sessions" ]] && printf '%s\n' "$sessions"
       printf 'Rename\n'
+      printf 'Duplicate\n'
       printf 'Favourite\n'
       printf 'Remove\n'
-      printf 'Clear\n'
-      printf 'Save\n'
+      printf 'Clear non-favourites\n'
+      printf 'Save all\n'
+      printf 'Save as...\n'
       printf '+ New\n'
     } |
       omarchy-launch-walker --dmenu --width 640 --minheight 1 --maxheight 420 -p "Tmux..."
@@ -69,27 +139,36 @@ attach_session() {
 
   case "$choice" in
   Rename) rename_session ;;
+  Duplicate) duplicate_session ;;
   Favourite) favorite_session ;;
   Remove) remove_session ;;
-  Clear) clear_except_favorites ;;
-  Save) save_session ;;
+  "Clear non-favourites") clear_except_favorites ;;
+  "Save all") save_all ;;
+  "Save as...") save_as_session ;;
   "+ New") new_session ;;
   esac
 
   session="$(session_from_line "$choice")"
+  session="$(normalize_session_name "$session")"
   [[ -n "${session:-}" ]] || exit 0
-  exec uwsm-app -- xdg-terminal-exec tmux attach -t "$session"
+
+  if exact_session_exists "$session"; then
+    attach_named_session "$session"
+  fi
+
+  create_named_session "$session" "$(current_dir)"
 }
 
 session_lines() {
   local records favorites renamed name activity _windows stamp display
 
-  records="$(tmux list-sessions -F '#{session_activity}	#{session_name}	#{session_windows}' 2>/dev/null | sort -rn -k1,1)"
+  records="$(tmux list-sessions -F '#{session_activity}	#{session_name}	#{session_windows}' 2>/dev/null | sort -rn -k1,1 || true)"
   favorites="$(favorite_names)"
   renamed="$(renamed_names)"
 
   while IFS=$'\t' read -r activity name _windows; do
     [[ -n "${name:-}" ]] || continue
+    internal_session "$name" && continue
     if grep -Fqx "$name" <<<"$favorites"; then
       stamp="$(date -d "@$activity" '+%Y-%m-%d %H:%M')"
       display="$name"
@@ -100,6 +179,7 @@ session_lines() {
 
   while IFS=$'\t' read -r activity name _windows; do
     [[ -n "${name:-}" ]] || continue
+    internal_session "$name" && continue
     if ! grep -Fqx "$name" <<<"$favorites"; then
       stamp="$(date -d "@$activity" '+%Y-%m-%d %H:%M')"
       display="$name"
@@ -134,25 +214,41 @@ rename_session() {
   [[ -n "${session:-}" ]] || exit 0
 
   new_name="$(
-    printf '%s\n' "$session" |
-      omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 120 -p "New name..."
+    prompt_session_name "New name..." "$session"
   )"
+  new_name="$(normalize_session_name "$new_name")"
   [[ -n "${new_name:-}" ]] || exit 0
 
-  tmux rename-session -t "$session" "$new_name"
+  if [[ "$new_name" != "$session" ]] && exact_session_exists "$new_name"; then
+    notify-send -u critical "Tmux" "$new_name already exists"
+    exit 1
+  fi
+
+  tmux rename-session -t "=$session" "$new_name"
   replace_favorite "$session" "$new_name"
   replace_renamed "$session" "$new_name"
   notify-send "Tmux" "Renamed $session to $new_name"
+  exit 0
 }
 
 choose_session() {
   local prompt="$1"
+  local line session
 
-  session_lines |
-    omarchy-launch-walker --dmenu --width 640 --minheight 1 --maxheight 420 -p "$prompt..." |
-    while IFS= read -r line; do
-      session_from_line "$line"
-    done
+  line="$(
+    session_lines |
+      omarchy-launch-walker --dmenu --width 640 --minheight 1 --maxheight 420 -p "$prompt..."
+  )"
+  [[ -n "${line:-}" ]] || exit 0
+
+  session="$(session_from_line "$line")"
+  session="$(normalize_session_name "$session")"
+  if ! exact_session_exists "$session"; then
+    notify-send -u critical "Tmux" "$session is not a running session"
+    exit 1
+  fi
+
+  printf '%s\n' "$session"
 }
 
 favorite_session() {
@@ -168,6 +264,7 @@ favorite_session() {
   } | sort -u >"$favorites_file.tmp"
   mv "$favorites_file.tmp" "$favorites_file"
   notify-send "Tmux" "Favorited $session"
+  exit 0
 }
 
 remove_session() {
@@ -176,9 +273,11 @@ remove_session() {
   session="$(choose_session "Remove")"
   [[ -n "${session:-}" ]] || exit 0
 
-  tmux kill-session -t "$session"
+  tmux kill-session -t "=$session"
   remove_favorite "$session"
+  remove_renamed "$session"
   notify-send "Tmux" "Removed $session"
+  exit 0
 }
 
 clear_except_favorites() {
@@ -189,17 +288,32 @@ clear_except_favorites() {
 
   while IFS= read -r session; do
     [[ -n "$session" ]] || continue
+    internal_session "$session" && continue
     if ! grep -Fqx "$session" <<<"$favorites"; then
-      tmux kill-session -t "$session" 2>/dev/null || true
+      tmux kill-session -t "=$session" 2>/dev/null || true
+      remove_favorite "$session"
+      remove_renamed "$session"
       killed=$((killed + 1))
     fi
   done < <(tmux list-sessions -F '#S' 2>/dev/null)
 
   notify-send "Tmux" "Cleared $killed non-favourite sessions"
+  exit 0
 }
 
-save_session() {
-  exec ~/.local/share/qvos/hyprland/qvos-tmux-save-now
+save_command() {
+  local command="$HOME/.local/share/qvos/hyprland/qvos-tmux-save-now"
+
+  [[ -x "$command" ]] || command="qvos-tmux-save-now"
+  printf '%s\n' "$command"
+}
+
+save_all() {
+  exec "$(save_command)" quick
+}
+
+save_as_session() {
+  exec "$(save_command)"
 }
 
 replace_favorite() {
@@ -219,6 +333,14 @@ remove_favorite() {
   mv "$favorites_file.tmp" "$favorites_file"
 }
 
+remove_renamed() {
+  local name="$1"
+
+  [[ -f "$renamed_file" ]] || return 0
+  grep -Fvx "$name" "$renamed_file" >"$renamed_file.tmp" || true
+  mv "$renamed_file.tmp" "$renamed_file"
+}
+
 replace_renamed() {
   local old_name="$1"
   local new_name="$2"
@@ -231,38 +353,100 @@ replace_renamed() {
   mv "$renamed_file.tmp" "$renamed_file"
 }
 
-new_session() {
-  local cwd location base name index
+remember_renamed() {
+  local name="$1"
 
-  cwd="$(current_dir)"
-  location="$(basename "$cwd")"
-  [[ -n "$location" && "$location" != "/" ]] || location="root"
-  [[ "$cwd" == "$HOME" ]] && location="home"
-  location="${location//:/-}"
-
-  base="$location tmux"
-  index=1
-  name="$base $index"
-  while tmux has-session -t "$name" 2>/dev/null; do
-    index=$((index + 1))
-    name="$base $index"
-  done
-
-  schedule_auto_save "$name"
-  exec uwsm-app -- xdg-terminal-exec --dir="$cwd" tmux new -s "$name"
+  install -d "$config_dir"
+  {
+    renamed_names
+    printf '%s\n' "$name"
+  } | sort -u >"$renamed_file.tmp"
+  mv "$renamed_file.tmp" "$renamed_file"
 }
 
-schedule_auto_save() {
-  local session="$1"
-  local save_script="$HOME/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+duplicate_window_panes() {
+  local source_window="$1"
+  local target_window="$2"
+  local pane_index pane_path first
 
-  (
-    sleep 60
-    tmux has-session -t "$session" 2>/dev/null || exit 0
-    [[ -x "$save_script" ]] || exit 0
-    tmux run-shell "$save_script"
-    notify-send "Tmux saved" "$session survived 1 minute"
-  ) >/dev/null 2>&1 &
+  first=true
+  while IFS=$'\t' read -r pane_index pane_path; do
+    [[ -n "${pane_index:-}" ]] || continue
+    if [[ "$first" == true ]]; then
+      first=false
+      continue
+    fi
+
+    pane_path="${pane_path:-$HOME}"
+    tmux split-window -d -t "$target_window" -c "$pane_path" >/dev/null
+  done < <(tmux list-panes -t "$source_window" -F '#{pane_index}	#{pane_current_path}' | sort -n -k1,1)
+
+  tmux select-layout -t "$target_window" tiled >/dev/null 2>&1 || true
+}
+
+duplicate_session_layout() {
+  local source="$1"
+  local target="$2"
+  local win_index win_name win_active first_path target_window active_target first
+
+  first=true
+  active_target=""
+  while IFS=$'\t' read -r win_index win_name win_active first_path; do
+    [[ -n "${win_index:-}" ]] || continue
+    first_path="${first_path:-$HOME}"
+    win_name="${win_name:-window}"
+
+    if [[ "$first" == true ]]; then
+      tmux new-session -d -s "$target" -n "$win_name" -c "$first_path"
+      target_window="$(tmux list-windows -t "=$target" -F '#{window_id}' | head -n1)"
+      first=false
+    else
+      target_window="$(tmux new-window -d -P -F '#{window_id}' -t "=$target" -n "$win_name" -c "$first_path")"
+    fi
+
+    duplicate_window_panes "=$source:$win_index" "$target_window"
+    if [[ "$win_active" == "1" ]]; then
+      active_target="$target_window"
+    fi
+  done < <(tmux list-windows -t "=$source" -F '#{window_index}	#{window_name}	#{window_active}	#{pane_current_path}')
+
+  [[ -n "$active_target" ]] && tmux select-window -t "$active_target" >/dev/null 2>&1
+}
+
+duplicate_session() {
+  local source target
+
+  source="$(choose_session "Duplicate")"
+  [[ -n "${source:-}" ]] || exit 0
+
+  target="$(prompt_session_name "Duplicate as..." "$(next_session_name "$source copy")")"
+  target="$(normalize_session_name "$target")"
+  [[ -n "${target:-}" ]] || exit 0
+
+  if exact_session_exists "$target"; then
+    notify-send -u critical "Tmux" "$target already exists"
+    exit 1
+  fi
+
+  duplicate_session_layout "$source" "$target"
+  remember_renamed "$target"
+  notify-send "Tmux" "Duplicated $source as $target"
+  attach_named_session "$target"
+}
+
+new_session() {
+  local cwd name
+
+  cwd="$(current_dir)"
+  name="$(prompt_session_name "New session..." "$(suggested_session_name "$cwd")")"
+  name="$(normalize_session_name "$name")"
+  [[ -n "${name:-}" ]] || exit 0
+
+  if exact_session_exists "$name"; then
+    attach_named_session "$name"
+  fi
+
+  create_named_session "$name" "$cwd"
 }
 
 case "$mode" in

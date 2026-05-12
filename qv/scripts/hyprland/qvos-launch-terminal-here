@@ -20,9 +20,7 @@ tmux)
         tmux source-file "${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf" >/dev/null 2>&1 || true
         tmux run-shell "$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh" >/dev/null 2>&1 || true
         sleep 1
-        if [ "$(tmux list-sessions -F "#S" 2>/dev/null | wc -l)" -gt 1 ]; then
-          tmux kill-session -t qvos-restore 2>/dev/null || true
-        fi
+        tmux kill-session -t =qvos-restore 2>/dev/null || true
       fi
       tmux attach || tmux new -s Work
     '
