@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# omarchy:summary=Set the default editor for $EDITOR
-# omarchy:args=[code|cursor|zed|sublime_text|helix|vim|emacs|nvim]
+# omarchy:summary=Set the default editor for $EDITOR, $VISUAL, and $SUDO_EDITOR
+# omarchy:args=[code-oss|code|cursor|zed|sublime_text|helix|vim|emacs|nvim]
 # omarchy:examples=omarchy default editor | omarchy default editor code | omarchy default editor helix
 
 if (($# == 0)); then
@@ -10,6 +10,7 @@ if (($# == 0)); then
 fi
 
 case "$1" in
+code-oss) editor="code-oss"; name="Code OSS"; glyph="" ;;
 code) editor="code"; name="VSCode"; glyph="" ;;
 cursor) editor="cursor"; name="Cursor"; glyph="" ;;
 zed | zeditor) editor="zeditor"; name="Zed"; glyph="" ;;
@@ -19,12 +20,25 @@ vim) editor="vim"; name="Vim"; glyph="" ;;
 emacs) editor="emacs"; name="Emacs"; glyph="" ;;
 nvim) editor="nvim"; name="Neovim"; glyph="" ;;
 *)
-  echo "Usage: omarchy-default-editor <code|cursor|zed|sublime_text|helix|vim|emacs|nvim>"
+  echo "Usage: omarchy-default-editor <code-oss|code|cursor|zed|sublime_text|helix|vim|emacs|nvim>"
   exit 1
   ;;
 esac
 
 sed -i "s/^export EDITOR=.*/export EDITOR=$editor/" ~/.config/uwsm/default
+if grep -q '^export VISUAL=' ~/.config/uwsm/default; then
+  sed -i "s/^export VISUAL=.*/export VISUAL=$editor/" ~/.config/uwsm/default
+else
+  printf 'export VISUAL=%s\n' "$editor" >>~/.config/uwsm/default
+fi
+
+if grep -q '^export SUDO_EDITOR=' ~/.config/uwsm/default; then
+  sed -i "s/^export SUDO_EDITOR=.*/export SUDO_EDITOR=$editor/" ~/.config/uwsm/default
+else
+  printf 'export SUDO_EDITOR=%s\n' "$editor" >>~/.config/uwsm/default
+fi
 
 export EDITOR="$editor"
+export VISUAL="$editor"
+export SUDO_EDITOR="$editor"
 notify-send -u low "$glyph    $name is now the default editor" "      Effective after logging out"

@@ -3,8 +3,10 @@
 # Install other terminals via Install > Terminal
 export TERMINAL=xdg-terminal-exec
 
-# Use code for VSCode
-export EDITOR=nvim
+# Prefer Code OSS, then VS Code, then Neovim
+export EDITOR=code-oss
+export VISUAL=code-oss
+export SUDO_EDITOR=code-oss
 
 # Use a custom directory for screenshots (remember to make the directory!)
 # export OMARCHY_SCREENSHOT_DIR="$HOME/Pictures/Screenshots"

@@ -1,9 +1,31 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the default editor as determined by $EDITOR (set via ~/.config/uwsm/default) (or nvim if missing).
+# omarchy:summary=Launch the default editor, falling back from Code OSS to VS Code to Neovim.
 # omarchy:args=<path>
 
-omarchy-cmd-present "$EDITOR" || EDITOR=nvim
+requested_editor="${EDITOR:-${VISUAL:-}}"
+
+editor_candidates() {
+  case "$requested_editor" in
+  "" | code | code-oss)
+    printf '%s\n' code-oss code nvim
+    ;;
+  *)
+    printf '%s\n' "$requested_editor"
+    printf '%s\n' code-oss code nvim
+    ;;
+  esac
+}
+
+while IFS= read -r editor; do
+  [[ -n "$editor" ]] || continue
+  if omarchy-cmd-present "$editor"; then
+    EDITOR="$editor"
+    break
+  fi
+done < <(editor_candidates)
+
+EDITOR="${EDITOR:-nvim}"
 
 case "$EDITOR" in
 nvim | vim | nano | micro | hx | helix | fresh)

@@ -23,23 +23,54 @@ EDITORS=(
 )
 
 TEXT_MIMES=(
-  text/plain
+  application/ecmascript
+  application/javascript
+  application/json
+  application/ld+json
+  application/sql
+  application/toml
+  application/x-desktop
+  application/x-shellscript
+  application/xml
+  application/x-yaml
+  text/css
+  text/csv
+  text/ecmascript
   text/english
-  text/x-makefile
+  text/html
+  text/javascript
+  text/markdown
+  text/plain
+  text/tab-separated-values
+  text/x-c
+  text/x-c++
   text/x-c++hdr
   text/x-c++src
   text/x-chdr
+  text/x-cmake
   text/x-csrc
+  text/x-go
   text/x-java
+  text/x-lua
+  text/x-makefile
+  text/x-markdown
+  text/x-meson
   text/x-moc
   text/x-pascal
+  text/x-perl
+  text/x-php
+  text/x-python
+  text/x-readme
+  text/x-ruby
+  text/x-rust
+  text/x-rustsrc
+  text/x-sql
   text/x-tcl
   text/x-tex
-  application/x-shellscript
-  text/x-c
-  text/x-c++
-  application/xml
+  text/x-toml
+  text/x-yaml
   text/xml
+  text/yaml
 )
 
 backup_file() {
@@ -125,7 +156,7 @@ Name=$name
 Exec=xdg-terminal-exec -e $cmd %F
 Terminal=false
 Type=Application
-MimeType=text/plain;text/english;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;application/xml;text/xml;
+MimeType=$(printf '%s;' "${TEXT_MIMES[@]}")
 Categories=Utility;TextEditor;Development;
 EOF
 }
@@ -133,24 +164,40 @@ EOF
 ensure_code_desktop() {
   local cmd="$1"
   local desktop="$2"
+  local name exec_command icon startup_wm_class
   local path="$HOME/.local/share/applications/$desktop"
 
-  [[ $cmd == "code" && $desktop == "code.desktop" ]] || return 0
-  desktop_exists "$desktop" && return 0
+  case "$cmd:$desktop" in
+  code-oss:code-oss.desktop)
+    name="Code - OSS"
+    exec_command="code-oss"
+    icon="com.visualstudio.code.oss"
+    startup_wm_class="code-oss"
+    ;;
+  code:code.desktop)
+    name="Code"
+    exec_command="code"
+    icon="visual-studio-code"
+    startup_wm_class="Code"
+    ;;
+  *)
+    return 0
+    ;;
+  esac
 
   install -d "$(dirname "$path")"
   backup_file "$path"
 
   {
     printf '[Desktop Entry]\n'
-    printf 'Name=Code\n'
+    printf 'Name=%s\n' "$name"
     printf 'Comment=Code Editing. Redefined.\n'
     printf 'GenericName=Text Editor\n'
-    printf 'Exec=code %%F\n'
-    printf 'Icon=visual-studio-code\n'
+    printf 'Exec=%s %%F\n' "$exec_command"
+    printf 'Icon=%s\n' "$icon"
     printf 'Type=Application\n'
     printf 'StartupNotify=false\n'
-    printf 'StartupWMClass=Code\n'
+    printf 'StartupWMClass=%s\n' "$startup_wm_class"
     printf 'Categories=TextEditor;Development;IDE;\n'
     printf 'MimeType='
     printf '%s;' "${TEXT_MIMES[@]}"
@@ -159,8 +206,8 @@ ensure_code_desktop() {
     printf 'Keywords=vscode;\n\n'
     printf '[Desktop Action new-empty-window]\n'
     printf 'Name=New Empty Window\n'
-    printf 'Exec=code --new-window %%F\n'
-    printf 'Icon=visual-studio-code\n'
+    printf 'Exec=%s --new-window %%F\n' "$exec_command"
+    printf 'Icon=%s\n' "$icon"
   } >"$path"
 
   chmod +x "$path"
@@ -288,6 +335,23 @@ apply_editor() {
   notify "Default editor" "$name is now the qvOS default. New launches use it now."
 }
 
+apply_preferred_editor() {
+  local preferred record name cmd desktop _packages resolved_cmd
+
+  for preferred in code-oss code nvim; do
+    record="$(editor_record_by_cmd "$preferred")" || continue
+    IFS=$'\t' read -r name cmd desktop _packages <<<"$record"
+    if resolved_cmd="$(resolve_editor_command "$cmd")"; then
+      apply_editor "$name" "$resolved_cmd" "$desktop"
+      printf '%s\n' "$resolved_cmd"
+      return 0
+    fi
+  done
+
+  notify -u critical "Default editor" "No supported editor was found"
+  return 1
+}
+
 install_and_apply() {
   local name="$1"
   local cmd="$2"
@@ -344,6 +408,9 @@ choose_editor() {
 install -d "$cache_dir"
 
 case "${1:-}" in
+__apply-preferred)
+  apply_preferred_editor >/dev/null
+  ;;
 __apply)
   record="$(editor_record_by_cmd "${2:-}")" || exit 1
   IFS=$'\t' read -r name cmd desktop packages <<<"$record"

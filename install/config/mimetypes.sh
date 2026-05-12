@@ -40,21 +40,65 @@ xdg-mime default mpv.desktop application/ogg
 # Use Hey for mailto: links
 xdg-mime default HEY.desktop x-scheme-handler/mailto
 
-# Open text files with nvim
-xdg-mime default nvim.desktop text/plain
-xdg-mime default nvim.desktop text/english
-xdg-mime default nvim.desktop text/x-makefile
-xdg-mime default nvim.desktop text/x-c++hdr
-xdg-mime default nvim.desktop text/x-c++src
-xdg-mime default nvim.desktop text/x-chdr
-xdg-mime default nvim.desktop text/x-csrc
-xdg-mime default nvim.desktop text/x-java
-xdg-mime default nvim.desktop text/x-moc
-xdg-mime default nvim.desktop text/x-pascal
-xdg-mime default nvim.desktop text/x-tcl
-xdg-mime default nvim.desktop text/x-tex
-xdg-mime default nvim.desktop application/x-shellscript
-xdg-mime default nvim.desktop text/x-c
-xdg-mime default nvim.desktop text/x-c++
-xdg-mime default nvim.desktop application/xml
-xdg-mime default nvim.desktop text/xml
+# Open editable text/source/config files with Code OSS, then VS Code, then Neovim
+editor_desktop=nvim.desktop
+if command -v code-oss >/dev/null 2>&1; then
+  editor_desktop=code-oss.desktop
+elif command -v code >/dev/null 2>&1; then
+  editor_desktop=code.desktop
+fi
+
+editor_mimes=(
+  application/ecmascript
+  application/javascript
+  application/json
+  application/ld+json
+  application/sql
+  application/toml
+  application/x-desktop
+  application/x-shellscript
+  application/xml
+  application/x-yaml
+  text/css
+  text/csv
+  text/ecmascript
+  text/english
+  text/html
+  text/javascript
+  text/markdown
+  text/plain
+  text/tab-separated-values
+  text/x-c
+  text/x-c++
+  text/x-c++hdr
+  text/x-c++src
+  text/x-chdr
+  text/x-cmake
+  text/x-csrc
+  text/x-go
+  text/x-java
+  text/x-lua
+  text/x-makefile
+  text/x-markdown
+  text/x-meson
+  text/x-moc
+  text/x-pascal
+  text/x-perl
+  text/x-php
+  text/x-python
+  text/x-readme
+  text/x-ruby
+  text/x-rust
+  text/x-rustsrc
+  text/x-sql
+  text/x-tcl
+  text/x-tex
+  text/x-toml
+  text/x-yaml
+  text/xml
+  text/yaml
+)
+
+for mime in "${editor_mimes[@]}"; do
+  xdg-mime default "$editor_desktop" "$mime"
+done
