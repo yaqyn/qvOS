@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>Terminal</name>
+	<submenu></submenu>
+	<unique-id>qvos-terminal-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path terminal %f</command>
+	<description>Open terminal in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>Codex</name>
+	<submenu>Open Here</submenu>
+	<unique-id>qvos-codex-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path codex %f</command>
+	<description>Open Codex in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>Claude Code</name>
+	<submenu>Open Here</submenu>
+	<unique-id>qvos-claude-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path claude %f</command>
+	<description>Open Claude Code in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>Gemini</name>
+	<submenu>Open Here</submenu>
+	<unique-id>qvos-gemini-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path gemini %f</command>
+	<description>Open Gemini in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>utilities-terminal</icon>
+	<name>OpenCode</name>
+	<submenu>Open Here</submenu>
+	<unique-id>qvos-opencode-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path opencode %f</command>
+	<description>Open OpenCode in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>accessories-text-editor</icon>
+	<name>Editor</name>
+	<submenu>Open Here</submenu>
+	<unique-id>qvos-editor-here</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-thunar-launch-path editor %f</command>
+	<description>Open editor in this folder.</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+</action>
+<action>
+	<icon>preferences-desktop-wallpaper</icon>
+	<name>Set as Background</name>
+	<submenu></submenu>
+	<unique-id>qvos-set-background</unique-id>
+	<command>/home/qv/.local/share/qvos/hyprland/qvos-set-background %f</command>
+	<description>Set this image as the current qvOS background.</description>
+	<range></range>
+	<patterns>*.avif;*.bmp;*.gif;*.jpeg;*.jpg;*.png;*.webp</patterns>
+	<startup-notify/>
+	<image-files/>
+</action>
+</actions>

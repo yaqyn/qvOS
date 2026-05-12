@@ -1,0 +1,43 @@
+@define-color accent_color #b00000;
+@define-color accent_fg_color #141414;
+@define-color accent_bg_color #b00000;
+@define-color window_bg_color #141414;
+@define-color window_fg_color #d0d0d0;
+@define-color headerbar_bg_color #181818;
+@define-color headerbar_fg_color #d0d0d0;
+@define-color popover_bg_color #1a1a1a;
+@define-color popover_fg_color #d0d0d0;
+@define-color view_bg_color #101010;
+@define-color view_fg_color #d0d0d0;
+@define-color card_bg_color #1c1c1c;
+@define-color card_fg_color #d0d0d0;
+@define-color sidebar_bg_color @window_bg_color;
+@define-color sidebar_fg_color @window_fg_color;
+@define-color sidebar_border_color @window_bg_color;
+@define-color sidebar_backdrop_color @window_bg_color;
+@define-color theme_selected_bg_color alpha(@accent_color, 0.16);
+@define-color theme_selected_fg_color @window_fg_color;
+
+menu,
+menuitem,
+popover,
+popover contents {
+  background-color: @popover_bg_color;
+  color: @popover_fg_color;
+  border-color: #2a2a2a;
+}
+
+menuitem:hover,
+menuitem:selected,
+popover modelbutton:hover,
+popover modelbutton:selected {
+  background-color: alpha(#d0d0d0, 0.10);
+  color: #e6e6e6;
+}
+
+menuitem:disabled,
+popover modelbutton:disabled {
+  color: #707070;
+}
+
+@import "thunar.css";
