@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+app="${1:-}"
+shift || true
+
+case "$app" in
+codex)
+  exec codex --dangerously-bypass-approvals-and-sandbox "$@"
+  ;;
+claude)
+  exec claude --dangerously-skip-permissions "$@"
+  ;;
+gemini)
+  exec gemini --yolo "$@"
+  ;;
+opencode)
+  exec opencode run --interactive --dangerously-skip-permissions "$@"
+  ;;
+*)
+  printf 'Usage: qvos-ai-cli-run <codex|claude|gemini|opencode> [args...]\n' >&2
+  exit 2
+  ;;
+esac

@@ -59,7 +59,7 @@ editor)
   ;;
 codex | claude | gemini | opencode)
   # shellcheck disable=SC2016
-  exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$mode" bash -lc 'cd "$1" || exit; exec "$2"' qvos "$path" "$mode"
+  exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$mode" bash -lc 'cd "$1" || exit; exec ~/.local/share/qvos/hyprland/qvos-ai-cli-run "$2"' qvos "$path" "$mode"
   ;;
 *)
   printf 'Usage: qvos-thunar-launch-path <terminal|editor|codex|claude|gemini|opencode> <path>\n' >&2

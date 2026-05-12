@@ -20,5 +20,12 @@ if [[ "$app" == "nvim" ]]; then
   exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$app" bash -lc 'cd "$1" || exit; exec nvim .' qvos "$cwd"
 fi
 
+case "$app" in
+codex | claude | gemini | opencode)
+  # shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
+  exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$app" bash -lc 'cd "$1" || exit; exec ~/.local/share/qvos/hyprland/qvos-ai-cli-run "$2"' qvos "$cwd" "$app"
+  ;;
+esac
+
 # shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
 exec setsid uwsm-app -- xdg-terminal-exec --app-id="org.qvos.$app" bash -lc 'cd "$1" || exit; shift; exec "$@"' qvos "$cwd" "$app"
