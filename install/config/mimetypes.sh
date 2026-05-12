@@ -2,7 +2,7 @@ omarchy-refresh-applications
 update-desktop-database ~/.local/share/applications
 
 # Open directories in file manager
-xdg-mime default org.gnome.Nautilus.desktop inode/directory
+xdg-mime default thunar.desktop inode/directory
 
 # Open all images with imv
 xdg-mime default imv.desktop image/png
