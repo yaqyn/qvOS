@@ -4,7 +4,7 @@
 @define-color border #242424;
 @define-color foreground #858585;
 @define-color background #090909;
-@define-color selection-line #d00000;
+@define-color selection-line transparent;
 
 .box-wrapper.box-wrapper {
   background: #090909;
