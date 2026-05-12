@@ -143,3 +143,49 @@ if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep
   sed -i 's/fingerprint:enabled = .*/fingerprint:enabled = false/' ~/.config/hypr/hyprlock.conf
 fi
 ```
+
+# Clean Commit And qvsync Workflow
+
+When the user asks to commit current work and run `qvsync`, use this clean
+workflow:
+
+- Treat `qvsync` as the git alias `git qvsync`; inspect `.git/qvsync` before
+  first use in a session if its behavior is relevant.
+- Confirm the branch is `OS` and inspect `git status --short --branch` before
+  staging.
+- Verify the repo identity is exactly
+  `Abdulrahman M. Yaqin <Hi@Yaqin.dev>` before committing.
+- Run the narrow checks for the touched files before staging. For mixed
+  shell/config/Go changes, prefer:
+  - `bash -n` on changed shell scripts
+  - `shellcheck` on changed shell scripts
+  - `gofmt` on changed Go files
+  - `go test -count=1 ./...`
+  - `go build -trimpath -o /tmp/qvos-tui-test .` for Go command packages so no
+    build binary lands in the repo
+  - `bash test/omarchy-cli-test.sh` when command metadata or `bin/` routes are
+    touched
+  - `hyprctl reload && hyprctl configerrors` for Hyprland config changes
+  - `git diff --check`
+- Apply user-facing desktop changes to the running system before runtime checks:
+  - For changed files under `config/`, back up the live target first, then copy
+    the exact repo file to the matching `~/.config/...` path. Example:
+    `cp ~/.config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf.bak.$(date +%s)`
+    then
+    `install -m 0644 config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf`.
+  - For qvOS helper scripts under `qv/scripts/` or `qv/tui/`, apply the repo
+    payload with the install script pattern:
+    `OMARCHY_PATH=$PWD bash -c 'source install/config/qvos-scripts.sh'`.
+  - After applying, run the relevant live reload/check command, such as
+    `hyprctl reload && hyprctl configerrors`, `omarchy restart waybar`, or a
+    direct launcher/script smoke test.
+- Stage with `git add -A`, then run `git diff --cached --check` and inspect
+  `git diff --cached --stat` before committing.
+- Remove generated artifacts such as `__pycache__/`, `*.pyc`, and local Go
+  build binaries from the index and worktree before commit. Add a narrow
+  `.gitignore` entry only when the artifact is a repeatable local build output.
+- Commit all staged changes with a clear human commit message and no agent
+  attribution.
+- Run `git qvsync` only after the commit leaves the worktree clean.
+- Report the commit SHA, qvsync result, checks that ran, checks skipped, and the
+  final `git status --short --branch` state.

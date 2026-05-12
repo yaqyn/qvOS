@@ -7,13 +7,20 @@ window#waybar #workspaces button {
   color: @foreground;
   opacity: 0.9;
   font-weight: 400;
-  transition: color 180ms ease, opacity 180ms ease;
+  transition: color 180ms ease, opacity 180ms ease, text-shadow 180ms ease;
 }
 
 window#waybar #workspaces button.empty {
   color: @muted;
   opacity: 0.35;
   font-weight: 400;
+}
+
+window#waybar #workspaces button.urgent {
+  color: #d00000;
+  opacity: 1;
+  font-weight: 700;
+  text-shadow: 0 0 6px #d00000, 0 0 14px rgba(208, 0, 0, 0.75);
 }
 
 window#waybar #workspaces button.active {
