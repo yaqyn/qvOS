@@ -51,7 +51,7 @@ sed -i \
   "$staging_dir/omarchy.script"
 
 for asset in bullet.png entry.png lock.png progress_bar.png; do
-  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex","#$text_hex" "$staging_dir/$asset"
+  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex,#$text_hex" "$staging_dir/$asset"
 done
 
 sudo cp -a "$staging_dir/." "$theme_dir/"
@@ -69,7 +69,9 @@ sddm_template="$HOME/.local/share/omarchy/default/sddm/omarchy/Main.qml"
 
 sed \
   -e "s/#1a1b26/#$bg_hex/g" \
+  -e "s/#090909/#$bg_hex/g" \
   -e "s/#ffffff/#$text_hex/g" \
+  -e "s/#d0d0d0/#$text_hex/g" \
   "$sddm_template" | sudo tee "$sddm_dir/Main.qml" >/dev/null
 
 sudo cp "$logo_path" "$sddm_dir/logo.png"
@@ -77,7 +79,7 @@ for asset in bullet.png entry.png lock.png; do
   sudo cp "$staging_dir/$asset" "$sddm_dir/$asset"
 done
 for asset in entry lock; do
-  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e","#f7768e" "$staging_dir/$asset-failed.png"
+  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e,#f7768e" "$staging_dir/$asset-failed.png"
   sudo cp "$staging_dir/$asset-failed.png" "$sddm_dir/$asset-failed.png"
 done
 sudo rm -f "$sddm_dir/logo.svg"

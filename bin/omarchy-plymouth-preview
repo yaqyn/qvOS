@@ -39,7 +39,7 @@ find ~/.local/share/omarchy/default/plymouth -maxdepth 1 -type f -exec cp -t "$s
 cp "$logo_path" "$staging_dir/logo.png"
 
 for asset in bullet.png entry.png lock.png; do
-  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex","#$text_hex" "$staging_dir/$asset"
+  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex,#$text_hex" "$staging_dir/$asset"
 done
 
 canvas_w=1920
@@ -63,13 +63,13 @@ bullet_y=$(( entry_y + entry_h/2 - 4 ))
 bullet_args=()
 for i in 0 1 2 3; do
   bx=$(( entry_x + 20 + i * 12 ))
-  bullet_args+=( '(' "$staging_dir/bullet.png" -resize 7x7 ')' -geometry +${bx}+${bullet_y} -composite )
+  bullet_args+=( '(' "$staging_dir/bullet.png" -resize 7x7 ')' -geometry "+${bx}+${bullet_y}" -composite )
 done
 
 magick -size ${canvas_w}x${canvas_h} "xc:#$bg_hex" \
   "$staging_dir/logo.png" -geometry +${logo_x}+${logo_y} -composite \
   "$staging_dir/entry.png" -geometry +${entry_x}+${entry_y} -composite \
-  \( "$staging_dir/lock.png" -resize ${lock_w}x${lock_h} \) -geometry +${lock_x}+${lock_y} -composite \
+  \( "$staging_dir/lock.png" -resize "${lock_w}x${lock_h}" \) -geometry +${lock_x}+${lock_y} -composite \
   "${bullet_args[@]}" \
   "$output_path"
 

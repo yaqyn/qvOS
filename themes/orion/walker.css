@@ -1,0 +1,35 @@
+@define-color selected-text #d00000;
+@define-color text #d0d0d0;
+@define-color base #000000;
+@define-color border #000000;
+@define-color foreground #d0d0d0;
+@define-color background #000000;
+
+.box-wrapper.box-wrapper {
+  background: alpha(#000000, 0.56);
+  border: none;
+}
+
+child:selected .item-box.item-box {
+  background: transparent;
+  border: none;
+}
+
+child:selected .item-box * {
+  color: #d00000;
+}
+
+child:hover .item-box.item-box {
+  background: transparent;
+}
+
+.search-container.search-container,
+.keybind-hints.keybind-hints {
+  background: transparent;
+  border: none;
+}
+
+.input:focus,
+.input:active {
+  color: #d0d0d0;
+}

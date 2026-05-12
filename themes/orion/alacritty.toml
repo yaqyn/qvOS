@@ -1,0 +1,32 @@
+# Orion Alacritty theme
+
+[colors]
+draw_bold_text_with_bright_colors = true
+
+[colors.primary]
+background = '#080808'
+foreground = '#d0d0d0'
+
+[colors.cursor]
+text = 'CellBackground'
+cursor = 'CellForeground'
+
+[colors.normal]
+black = '#121212'
+red = '#b00000'
+green = '#707070'
+yellow = '#8a8a8a'
+blue = '#a0a0a0'
+magenta = '#b8b8b8'
+cyan = '#909090'
+white = '#c8c8c8'
+
+[colors.bright]
+black = '#404040'
+red = '#d00000'
+green = '#9a9a9a'
+yellow = '#b0b0b0'
+blue = '#c6c6c6'
+magenta = '#dddddd'
+cyan = '#a8a8a8'
+white = '#e6e6e6'

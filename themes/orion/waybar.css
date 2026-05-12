@@ -1,0 +1,69 @@
+@define-color foreground #d0d0d0;
+@define-color bright #e6e6e6;
+@define-color background #080808;
+@define-color accent #d00000;
+@define-color muted #707070;
+
+#custom-omarchy {
+  color: @muted;
+  opacity: 0.45;
+}
+
+window#waybar #custom-update,
+window#waybar #custom-screenrecording-indicator.active,
+window#waybar #custom-idle-indicator.active,
+window#waybar #custom-notification-silencing-indicator.active,
+window#waybar #custom-voxtype.recording {
+  color: @accent;
+}
+
+window#waybar #custom-prayerbar {
+  color: @foreground;
+  transition: color 180ms ease;
+}
+
+window#waybar #custom-prayerbar.missing {
+  color: @muted;
+}
+
+window#waybar #custom-prayerbar:hover {
+  color: @bright;
+}
+
+window#waybar #custom-qvos-clock,
+window#waybar .prayer-clock-item,
+window#waybar #custom-qvos-clock.prayer-clock-item {
+  color: @foreground;
+  opacity: 0.8;
+}
+
+window#waybar #custom-screenrecording-indicator,
+window#waybar #custom-idle-indicator,
+window#waybar #custom-notification-silencing-indicator,
+window#waybar #custom-voxtype {
+  color: @muted;
+}
+
+window#waybar .modules-right > widget > *,
+window#waybar #network,
+window#waybar #bluetooth,
+window#waybar #pulseaudio,
+window#waybar #cpu,
+window#waybar #battery,
+window#waybar #custom-notifications,
+window#waybar #tray {
+  color: @foreground;
+  opacity: 0.5;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+window#waybar #bluetooth:hover,
+window#waybar #network:hover,
+window#waybar #pulseaudio:hover,
+window#waybar #cpu:hover,
+window#waybar #battery:hover,
+window#waybar #custom-notifications:hover,
+window#waybar #tray:hover {
+  color: @bright;
+  opacity: 1;
+}

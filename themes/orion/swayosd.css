@@ -1,0 +1,5 @@
+@define-color background-color alpha(#000000, 0.56);
+@define-color border-color transparent;
+@define-color label #a8a8a8;
+@define-color image #a8a8a8;
+@define-color progress #8f0000;

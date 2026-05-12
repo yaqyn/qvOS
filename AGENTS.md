@@ -75,6 +75,12 @@ Install stage files follow this pattern:
 
 Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflight/package-helper contexts where the helper commands may not be available yet or where direct package-manager behavior is the point of the script.
 
+# Simplicity
+
+Keep changes simple. Prefer plain edits to existing files, lists, and config over new mechanisms, helpers, generated layers, or abstractions.
+
+Only add new plumbing when the simple path is clearly too brittle or repetitive, and state that reason before editing.
+
 # Helper Commands
 
 Use these instead of raw shell commands:

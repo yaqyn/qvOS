@@ -23,6 +23,14 @@ EOF
 # Ensure VSC's own auto-update feature is turned off
 printf '{\n  "update.mode": "none"\n}\n' > ~/.config/Code/User/settings.json
 
+# Install local Orion theme before applying the current Omarchy theme.
+orion_vscode_extension_dir="$OMARCHY_PATH/themes/orion/vscode/extension"
+orion_vscode_extension_version=$(jq -r .version "$orion_vscode_extension_dir/package.json" 2>/dev/null)
+orion_vscode_extension="$orion_vscode_extension_dir/orion-theme-$orion_vscode_extension_version.vsix"
+if [[ -f $orion_vscode_extension ]]; then
+  code --install-extension "$orion_vscode_extension" --force
+fi
+
 # Apply Omarchy theme to VSCode
 omarchy-theme-set-vscode
 

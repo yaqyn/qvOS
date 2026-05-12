@@ -1,0 +1,33 @@
+{
+  "name": "orion-theme",
+  "displayName": "Orion",
+  "description": "Orion grayscale and red accent theme for VS Code.",
+  "version": "0.1.0",
+  "publisher": "qv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yaqyn/qv.git",
+    "directory": "themes/orion/vscode/extension"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "themes/orion-color-theme.json"
+  ],
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Orion",
+        "uiTheme": "vs-dark",
+        "path": "./themes/orion-color-theme.json"
+      }
+    ]
+  }
+}

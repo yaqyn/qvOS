@@ -1,9 +1,9 @@
 # Omarchy core package list installed via install/packaging/base.sh
 # This file is also used by the ISO builder when determining needs
 
-1password-beta
-1password-cli
-aether
+# 1password-beta
+# 1password-cli
+# aether
 alacritty
 alsa-utils
 asdcontrol
@@ -17,7 +17,8 @@ btop
 chromium
 clang
 claude-code
-cliamp
+# cliamp
+curl
 cups
 cups-browsed
 cups-filters
@@ -64,7 +65,7 @@ inetutils
 inxi
 iwd
 jq
-kdenlive
+# kdenlive
 kernel-modules-hook
 kvantum-qt5
 lazydocker
@@ -73,9 +74,9 @@ less
 libsecret
 libyaml
 libqalculate
-libreoffice-fresh
+# libreoffice-fresh
 llvm
-localsend
+# localsend
 luarocks
 mako
 man-db
@@ -90,18 +91,20 @@ noto-fonts-cjk
 noto-fonts-emoji
 nss-mdns
 nvim
-obs-studio
+# obs-studio
 obsidian
 omarchy-nvim
 omarchy-walker
 pamixer
-pinta
+papirus-icon-theme
+# pinta
 playerctl
 plocate
 plymouth
 polkit-gnome
 postgresql-libs
 power-profiles-daemon
+pv
 python-gobject
 python-poetry-core
 python-terminaltexteffects
@@ -111,10 +114,11 @@ ruby
 rust
 satty
 sddm
-signal-desktop
+# signal-desktop
 slurp
-spotify
+# spotify
 socat
+sox
 starship
 sushi
 swaybg
@@ -122,13 +126,14 @@ swayosd
 system-config-printer
 tesseract
 tesseract-data-eng
+thunar
 tldr
 tree-sitter-cli
 tmux
 tobi-try
 ttf-ia-writer
 ttf-jetbrains-mono-nerd
-typora
+# typora
 tzupdate
 ufw
 ufw-docker
@@ -146,7 +151,7 @@ xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
 xdg-terminal-exec
 xmlstarlet
-xournalpp
+# xournalpp
 yaru-icon-theme
 yay
 zoxide
