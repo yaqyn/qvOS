@@ -1,5 +1,6 @@
 gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark"
 gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"
-gsettings set org.gnome.desktop.interface icon-theme "Yaru-blue"
-
-sudo gtk-update-icon-cache /usr/share/icons/Yaru
+gsettings set org.gnome.desktop.interface accent-color "red"
+gsettings set org.gnome.desktop.interface gtk-color-scheme "bg_color:#141414;fg_color:#d0d0d0;base_color:#101010;text_color:#d0d0d0;selected_bg_color:#b00000;selected_fg_color:#d0d0d0;tooltip_bg_color:#1a1a1a;tooltip_fg_color:#d0d0d0"
+gsettings set org.gnome.desktop.interface cursor-theme "default"
+gsettings set org.gnome.desktop.interface icon-theme "qv-Papirus-Dark"
