@@ -1,8 +1,8 @@
 @define-color selected-text #ffffff;
-@define-color text #b8b8b8;
+@define-color text #858585;
 @define-color base #090909;
 @define-color border #242424;
-@define-color foreground #b8b8b8;
+@define-color foreground #858585;
 @define-color background #090909;
 @define-color selection-line #d00000;
 
@@ -25,6 +25,8 @@ child:selected .item-box * {
   color: @selected-text;
 }
 
+.box-wrapper child:selected,
+.box-wrapper child:selected > *,
 child:selected {
   background: transparent;
 }
