@@ -7,5 +7,5 @@ set -e
 # Reinstall the Omarchy configuration directory from the git source.
 
 git clone --depth=1 --branch master "https://github.com/basecamp/omarchy.git" ~/.local/share/omarchy-new >/dev/null
-mv $OMARCHY_PATH ~/.local/share/omarchy-old
-mv ~/.local/share/omarchy-new $OMARCHY_PATH
+mv "$OMARCHY_PATH" ~/.local/share/omarchy-old
+mv ~/.local/share/omarchy-new "$OMARCHY_PATH"
