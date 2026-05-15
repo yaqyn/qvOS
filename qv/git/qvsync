@@ -1,0 +1,513 @@
+#!/bin/bash
+set -u
+
+os_branch="OS"
+upstream_ref="refs/remotes/upstream/master"
+origin_master_ref="refs/remotes/origin/master"
+origin_os_ref="refs/remotes/origin/$os_branch"
+local_master_ref="refs/heads/master"
+active_backup=""
+lock_dir=$(git rev-parse --git-path qvsync.lock)
+git_fetch_timeout="${QVSYNC_GIT_FETCH_TIMEOUT:-30}"
+git_push_timeout="${QVSYNC_GIT_PUSH_TIMEOUT:-180}"
+origin_git_available=1
+upstream_git_available=1
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repo_root" || exit 1
+
+acquire_lock() {
+  local lock_pid=""
+
+  if mkdir "$lock_dir" 2>/dev/null; then
+    printf "%s\n" "$$" >"$lock_dir/pid"
+    trap 'rm -rf "$lock_dir"' EXIT
+    return
+  fi
+
+  if [[ -r $lock_dir/pid ]]; then
+    read -r lock_pid <"$lock_dir/pid"
+  fi
+
+  if [[ $lock_pid =~ ^[0-9]+$ ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
+    printf "Removing stale qvsync lock from pid %s.\n" "$lock_pid" >&2
+    rm -rf "$lock_dir"
+    if mkdir "$lock_dir" 2>/dev/null; then
+      printf "%s\n" "$$" >"$lock_dir/pid"
+      trap 'rm -rf "$lock_dir"' EXIT
+      return
+    fi
+  fi
+
+  printf "Refusing: another qvsync appears to be running.\n" >&2
+  printf "Lock directory: %s\n" "$lock_dir" >&2
+  if [[ -n $lock_pid ]]; then
+    printf "Lock pid: %s\n" "$lock_pid" >&2
+    if [[ $lock_pid =~ ^[0-9]+$ ]] && ps -p "$lock_pid" -o pid=,comm= >/dev/null 2>&1; then
+      printf "Lock process: %s\n" "$(ps -p "$lock_pid" -o pid=,comm=)" >&2
+    fi
+  fi
+  printf "If no qvsync is running, remove the stale lock and retry: rm -rf %s\n" "$lock_dir" >&2
+  exit 1
+}
+
+print_ref() {
+  local label=$1
+  local ref=$2
+  local sha
+  local subject
+
+  if git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+    sha=$(git rev-parse --short=12 "$ref")
+    subject=$(git log -1 --format=%s "$ref")
+    printf "%s: %s -> %s %s\n" "$label" "$ref" "$sha" "$subject" >&2
+  else
+    printf "%s: %s -> missing\n" "$label" "$ref" >&2
+  fi
+}
+
+print_remote() {
+  local remote=$1
+  local fetch_url
+  local push_url
+
+  fetch_url=$(git remote get-url "$remote" 2>/dev/null || printf "<missing>")
+  push_url=$(git remote get-url --push "$remote" 2>/dev/null || printf "<missing>")
+  printf "%s fetch URL: %s\n" "$remote" "$fetch_url" >&2
+  printf "%s push URL: %s\n" "$remote" "$push_url" >&2
+}
+
+print_commit_list() {
+  local title=$1
+  local range=$2
+  local count=$3
+
+  printf "%s:\n" "$title" >&2
+  if (( count == 0 )); then
+    printf "  (none)\n" >&2
+    return
+  fi
+
+  git log --oneline --decorate --max-count=10 "$range" >&2
+  if (( count > 10 )); then
+    printf "  ... %d more\n" "$((count - 10))" >&2
+  fi
+}
+
+describe_divergence() {
+  local left_label=$1
+  local left_ref=$2
+  local right_label=$3
+  local right_ref=$4
+  local left_only
+  local right_only
+
+  read -r left_only right_only < <(git rev-list --left-right --count "$left_ref"..."$right_ref")
+
+  print_ref "$left_label" "$left_ref"
+  print_ref "$right_label" "$right_ref"
+  printf "%s-only commits: %s; %s-only commits: %s\n" \
+    "$left_label" "$left_only" "$right_label" "$right_only" >&2
+  print_commit_list "$left_label-only commits" "$right_ref..$left_ref" "$left_only"
+  print_commit_list "$right_label-only commits" "$left_ref..$right_ref" "$right_only"
+  printf "Inspect with: git log --oneline --decorate --left-right %s...%s\n" "$left_ref" "$right_ref" >&2
+}
+
+git_remote() {
+  local timeout_seconds=$1
+
+  shift
+  timeout "$timeout_seconds" \
+    git \
+    -c http.version=HTTP/1.1 \
+    -c http.lowSpeedLimit=1 \
+    -c http.lowSpeedTime=30 \
+    "$@"
+}
+
+git_fetch() {
+  git_remote "$git_fetch_timeout" fetch "$@"
+}
+
+git_ls_remote() {
+  git_remote "$git_fetch_timeout" ls-remote "$@"
+}
+
+git_push() {
+  git_remote "$git_push_timeout" push "$@"
+}
+
+github_remote_repo() {
+  local remote=$1
+  local url
+  local repo
+
+  url=$(git remote get-url "$remote" 2>/dev/null) || return 1
+  case $url in
+    https://github.com/*)
+      repo=${url#https://github.com/}
+      ;;
+    git@github.com:*)
+      repo=${url#git@github.com:}
+      ;;
+    ssh://git@github.com/*)
+      repo=${url#ssh://git@github.com/}
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  repo=${repo%.git}
+  [[ $repo == */* ]] || return 1
+  printf "%s\n" "$repo"
+}
+
+github_origin_repo() {
+  github_remote_repo origin
+}
+
+gh_remote_ref_sha() {
+  local remote=$1
+  local branch=$2
+  local repo
+
+  command -v gh >/dev/null || return 1
+  repo=$(github_remote_repo "$remote") || return 1
+  gh api "repos/$repo/git/ref/heads/$branch" --jq .object.sha 2>/dev/null
+}
+
+gh_origin_ref_sha() {
+  local branch=$1
+
+  gh_remote_ref_sha origin "$branch"
+}
+
+refresh_upstream_ref() {
+  local branch=$1
+  local target_ref=$2
+  local sha
+
+  if sha=$(gh_remote_ref_sha upstream "$branch"); then
+    if git cat-file -e "$sha^{commit}" 2>/dev/null; then
+      git update-ref "$target_ref" "$sha"
+      return
+    fi
+
+    printf "GitHub API found upstream/%s at %s, but that commit is not present locally.\n" "$branch" "$sha" >&2
+  fi
+
+  if (( upstream_git_available == 1 )) && git_fetch --prune upstream "+refs/heads/$branch:$target_ref"; then
+    return
+  fi
+
+  upstream_git_available=0
+  printf "upstream/%s fetch failed; trying GitHub API ref refresh.\n" "$branch" >&2
+  sha=$(gh_remote_ref_sha upstream "$branch") || return 1
+  if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+    printf "GitHub API found upstream/%s at %s, but that commit is not present locally.\n" "$branch" "$sha" >&2
+    return 1
+  fi
+
+  git update-ref "$target_ref" "$sha"
+}
+
+origin_tracking_ref() {
+  local branch=$1
+
+  case $branch in
+    master)
+      printf "%s\n" "$origin_master_ref"
+      ;;
+    "$os_branch")
+      printf "%s\n" "$origin_os_ref"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+set_origin_tracking_ref() {
+  local branch=$1
+  local sha=$2
+  local target_ref
+
+  target_ref=$(origin_tracking_ref "$branch") || return 0
+  git cat-file -e "$sha^{commit}" 2>/dev/null || return 1
+  git update-ref "$target_ref" "$sha"
+}
+
+refresh_origin_ref() {
+  local branch=$1
+  local target_ref=$2
+  local sha
+
+  if sha=$(gh_origin_ref_sha "$branch"); then
+    if git cat-file -e "$sha^{commit}" 2>/dev/null; then
+      git update-ref "$target_ref" "$sha"
+      return
+    fi
+
+    printf "GitHub API found origin/%s at %s, but that commit is not present locally.\n" "$branch" "$sha" >&2
+  fi
+
+  if (( origin_git_available == 1 )) && git_fetch --prune origin "+refs/heads/$branch:$target_ref"; then
+    return
+  fi
+
+  origin_git_available=0
+  printf "origin/%s fetch failed; trying GitHub API ref refresh.\n" "$branch" >&2
+  sha=$(gh_origin_ref_sha "$branch") || return 1
+  if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
+    printf "GitHub API found origin/%s at %s, but that commit is not present locally.\n" "$branch" "$sha" >&2
+    return 1
+  fi
+
+  git update-ref "$target_ref" "$sha"
+}
+
+push_origin_ref() {
+  local source_ref=$1
+  local branch=$2
+  local repo
+  local sha
+
+  repo=$(github_origin_repo 2>/dev/null || true)
+  sha=$(git rev-parse --verify "$source_ref^{commit}") || return 1
+
+  if [[ -n $repo ]] && command -v gh >/dev/null &&
+    gh api -X PATCH "repos/$repo/git/refs/heads/$branch" -f "sha=$sha" -F force=false --silent 2>/dev/null; then
+    set_origin_tracking_ref "$branch" "$sha" || true
+    return
+  fi
+
+  if git_push origin "$source_ref:refs/heads/$branch"; then
+    set_origin_tracking_ref "$branch" "$sha" || true
+    return
+  fi
+
+  printf "origin/%s push failed; trying GitHub API ref update.\n" "$branch" >&2
+  command -v gh >/dev/null || return 1
+  repo=$(github_origin_repo) || return 1
+  gh api -X PATCH "repos/$repo/git/refs/heads/$branch" -f "sha=$sha" -F force=false --silent || return 1
+  set_origin_tracking_ref "$branch" "$sha" || true
+}
+
+die_fetch() {
+  local remote=$1
+  local branch=$2
+  local target_ref=$3
+
+  printf "Refusing: failed to fetch %s/%s.\n" "$remote" "$branch" >&2
+  print_remote "$remote"
+  print_ref "Existing local target" "$target_ref"
+  printf "Command that failed: git fetch --prune %s +refs/heads/%s:%s\n" "$remote" "$branch" "$target_ref" >&2
+  exit 1
+}
+
+die_origin_os_push() {
+  printf "Refusing: failed to push %s to origin/%s.\n" "$os_branch" "$os_branch" >&2
+  print_remote origin
+  print_ref "Local $os_branch" "HEAD"
+  print_ref "Remote-tracking origin/$os_branch before push" "$origin_os_ref"
+  printf "Command that failed: git push origin %s:refs/heads/%s\n" "$os_branch" "$os_branch" >&2
+
+  if [[ -n $active_backup ]]; then
+    printf "A sync merge may already exist locally but was not pushed.\n" >&2
+    print_ref "Backup before sync merge" "$active_backup"
+    printf "Inspect local-only sync work with: git log --oneline --decorate origin/%s..HEAD\n" "$os_branch" >&2
+  fi
+
+  if refresh_origin_ref "$os_branch" "$origin_os_ref" >/dev/null 2>&1; then
+    printf "Remote origin/%s after refresh:\n" "$os_branch" >&2
+    describe_divergence "origin/$os_branch" "$origin_os_ref" "$os_branch" "HEAD"
+  else
+    printf "Could not refresh origin/%s after the failed push.\n" "$os_branch" >&2
+  fi
+
+  exit 1
+}
+
+push_os() {
+  if (( origin_os_exists == 1 )) && ! git merge-base --is-ancestor "$origin_os_ref" HEAD; then
+    printf "Refusing: origin/%s contains commits that local %s does not have.\n" "$os_branch" "$os_branch" >&2
+    describe_divergence "origin/$os_branch" "$origin_os_ref" "$os_branch" "HEAD"
+    printf "This protects remote OS work from being overwritten. Inspect or merge origin/%s before retrying.\n" "$os_branch" >&2
+    exit 1
+  fi
+
+  if (( origin_os_exists == 0 )); then
+    printf "origin/%s does not exist yet; creating it on origin.\n" "$os_branch"
+  fi
+
+  push_origin_ref "$os_branch" "$os_branch" || die_origin_os_push
+  refresh_origin_ref "$os_branch" "$origin_os_ref" >/dev/null 2>&1 || true
+}
+
+acquire_lock
+
+branch=$(git symbolic-ref --quiet --short HEAD) || {
+  printf "Refusing: detached HEAD. Switch to %s first.\n" "$os_branch" >&2
+  print_ref "Current HEAD" "HEAD"
+  printf "Expected command: git switch %s\n" "$os_branch" >&2
+  exit 1
+}
+
+if [[ $branch != "$os_branch" ]]; then
+  printf "Refusing: qvsync must run from %s. Current branch is %s.\n" "$os_branch" "$branch" >&2
+  print_ref "Current branch" "HEAD"
+  print_ref "Expected branch" "refs/heads/$os_branch"
+  printf "Expected command: git switch %s\n" "$os_branch" >&2
+  exit 1
+fi
+
+dirty=$(git status --porcelain=v1 --untracked-files=all)
+if [[ -n $dirty ]]; then
+  printf "Refusing: uncommitted changes on %s.\n" "$branch" >&2
+  print_ref "Current branch" "HEAD"
+  printf "Changed paths:\n" >&2
+  printf "%s\n" "$dirty" >&2
+  printf "Inspect with: git status --short --branch\n" >&2
+  printf "Clear the worktree by committing, stashing, or removing those changes before retrying.\n" >&2
+  exit 1
+fi
+
+upstream_push=$(git remote get-url --push upstream 2>/dev/null || true)
+if [[ $upstream_push != "DISABLED" ]]; then
+  printf "Refusing: upstream push URL is not disabled.\n" >&2
+  print_remote upstream
+  printf "Expected upstream push URL: DISABLED\n" >&2
+  printf "Fix with: git remote set-url --push upstream DISABLED\n" >&2
+  exit 1
+fi
+
+refresh_upstream_ref master "$upstream_ref" || die_fetch upstream master "$upstream_ref"
+refresh_origin_ref master "$origin_master_ref" || die_fetch origin master "$origin_master_ref"
+
+origin_os_exists=0
+if (( origin_git_available == 1 )) && ! origin_os_remote=$(git_ls_remote --heads origin "$os_branch"); then
+  origin_git_available=0
+  printf "origin/%s inspect failed; trying GitHub API ref refresh.\n" "$os_branch" >&2
+  if origin_os_sha=$(gh_origin_ref_sha "$os_branch"); then
+    origin_os_remote="$origin_os_sha refs/heads/$os_branch"
+  else
+    printf "Refusing: failed to inspect origin/%s.\n" "$os_branch" >&2
+    print_remote origin
+    printf "Command that failed: git ls-remote --heads origin %s\n" "$os_branch" >&2
+    exit 1
+  fi
+elif (( origin_git_available == 0 )); then
+  if origin_os_sha=$(gh_origin_ref_sha "$os_branch"); then
+    origin_os_remote="$origin_os_sha refs/heads/$os_branch"
+  else
+    printf "Refusing: failed to inspect origin/%s.\n" "$os_branch" >&2
+    print_remote origin
+    printf "Command that failed: gh api repos/<origin>/git/ref/heads/%s\n" "$os_branch" >&2
+    exit 1
+  fi
+fi
+
+if [[ -n $origin_os_remote ]]; then
+  origin_os_exists=1
+  refresh_origin_ref "$os_branch" "$origin_os_ref" || die_fetch origin "$os_branch" "$origin_os_ref"
+fi
+
+if ! git merge-base --is-ancestor "$origin_master_ref" "$upstream_ref"; then
+  printf "Refusing: origin/master is not a pure ancestor of upstream/master.\n" >&2
+  describe_divergence "origin/master" "$origin_master_ref" "upstream/master" "$upstream_ref"
+  printf "This protects qv master from silently losing custom commits.\n" >&2
+  exit 1
+fi
+
+if git rev-parse --verify --quiet "$local_master_ref^{commit}" >/dev/null &&
+  ! git merge-base --is-ancestor "$local_master_ref" "$upstream_ref"; then
+  printf "Refusing: local master is not a pure ancestor of upstream/master.\n" >&2
+  describe_divergence "local master" "$local_master_ref" "upstream/master" "$upstream_ref"
+  printf "Inspect local master before qvsync moves it.\n" >&2
+  exit 1
+fi
+
+git branch -f master "$upstream_ref" >/dev/null || {
+  printf "Refusing: failed to move local master to upstream/master.\n" >&2
+  print_ref "Local master" "$local_master_ref"
+  print_ref "Upstream master" "$upstream_ref"
+  printf "This can happen if master is checked out in another worktree.\n" >&2
+  exit 1
+}
+
+git branch --set-upstream-to=origin/master master >/dev/null || {
+  printf "Refusing: failed to set local master upstream to origin/master.\n" >&2
+  print_ref "Local master" "$local_master_ref"
+  print_ref "Origin master" "$origin_master_ref"
+  exit 1
+}
+
+if [[ $(git rev-parse "$origin_master_ref") != $(git rev-parse "$upstream_ref") ]]; then
+  printf "Updating origin/master from upstream/master.\n"
+  print_ref "Origin master before push" "$origin_master_ref"
+  print_ref "Upstream master" "$upstream_ref"
+
+  if ! push_origin_ref "$upstream_ref" master; then
+    printf "Refusing: failed to update origin/master from upstream/master.\n" >&2
+    print_remote origin
+    print_ref "Origin master before refresh" "$origin_master_ref"
+    print_ref "Upstream master" "$upstream_ref"
+    printf "Command that failed: git push origin %s:refs/heads/master\n" "$upstream_ref" >&2
+
+    if refresh_origin_ref master "$origin_master_ref" >/dev/null 2>&1; then
+      printf "origin/master after refresh:\n" >&2
+      describe_divergence "origin/master" "$origin_master_ref" "upstream/master" "$upstream_ref"
+    else
+      printf "Could not refresh origin/master after the failed push.\n" >&2
+    fi
+
+    exit 1
+  fi
+
+  refresh_origin_ref master "$origin_master_ref" >/dev/null || die_fetch origin master "$origin_master_ref"
+else
+  printf "origin/master already matches upstream/master.\n"
+fi
+
+if git merge-base --is-ancestor "$upstream_ref" HEAD; then
+  printf "%s already contains upstream/master.\n" "$os_branch"
+  push_os
+  exit 0
+fi
+
+backup="backup/qvsync-$os_branch-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short=12 HEAD)"
+git branch "$backup" HEAD || {
+  printf "Refusing: failed to create backup branch before merge.\n" >&2
+  print_ref "Current $os_branch" "HEAD"
+  printf "Backup branch name: %s\n" "$backup" >&2
+  exit 1
+}
+active_backup=$backup
+
+printf "Created backup branch %s at %s.\n" "$backup" "$(git rev-parse --short=12 HEAD)"
+print_ref "Merging upstream master" "$upstream_ref"
+
+if git merge --no-edit upstream/master; then
+  push_os
+  printf "Synced %s with upstream/master and pushed origin/%s.\n" "$os_branch" "$os_branch"
+  exit 0
+fi
+
+printf "Sync stopped: merge failed while merging upstream/master into %s.\n" "$os_branch" >&2
+print_ref "Current $os_branch before conflict resolution" "HEAD"
+print_ref "Upstream master" "$upstream_ref"
+printf "Backup branch: %s\n" "$backup" >&2
+
+if git diff --quiet --diff-filter=U --; then
+  printf "No unmerged files detected. Current status:\n" >&2
+else
+  printf "Conflicted files:\n" >&2
+  git diff --name-status --diff-filter=U >&2
+  printf "Current status:\n" >&2
+fi
+
+git status --short --branch >&2
+printf "Inspect with: git status --short --branch && git diff\n" >&2
+printf "Recovery options: resolve and commit the merge, or run git merge --abort. Backup branch remains at %s.\n" "$backup" >&2
+exit 1

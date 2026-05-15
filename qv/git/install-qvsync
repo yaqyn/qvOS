@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+qvsync_path=$(git rev-parse --git-path qvsync)
+qvsync_source="$repo_root/qv/git/qvsync"
+
+if [[ ! -x $qvsync_source ]]; then
+  printf "Refusing: qvsync source is missing or not executable: %s\n" "$qvsync_source" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$qvsync_path")"
+cat >"$qvsync_path" <<'SCRIPT'
+#!/bin/bash
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+exec "$repo_root/qv/git/qvsync" "$@"
+SCRIPT
+chmod 0755 "$qvsync_path"
+
+# shellcheck disable=SC2016
+git config alias.qvsync '!bash "$(git rev-parse --git-path qvsync)"'
+
+if git show-ref --verify --quiet refs/remotes/origin/OS; then
+  git remote set-head origin OS >/dev/null 2>&1 || true
+fi
+
+printf "Installed git qvsync from %s\n" "$qvsync_source"

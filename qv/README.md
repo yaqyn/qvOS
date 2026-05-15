@@ -9,5 +9,6 @@ Expected layout:
 ```text
 qv/
   scripts/    Private helper scripts used by qvOS config.
+  git/        Private git helper source and installers.
   assets/     qvOS-only source assets.
 ```
