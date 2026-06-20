@@ -1,3 +1,8 @@
+window#waybar {
+  background-color: @background;
+  opacity: 1;
+}
+
 window#waybar #custom-prayerbar {
   min-width: 70px;
   padding: 0 4px 0 8px;
@@ -30,8 +35,10 @@ window#waybar #workspaces button.active {
 }
 
 window#waybar #custom-qv-clock,
+window#waybar #custom-qvos-clock,
 window#waybar .prayer-clock-item,
-window#waybar #custom-qv-clock.prayer-clock-item {
+window#waybar #custom-qv-clock.prayer-clock-item,
+window#waybar #custom-qvos-clock.prayer-clock-item {
   margin-left: 0;
   padding: 0;
 }

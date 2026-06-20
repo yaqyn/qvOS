@@ -4,10 +4,6 @@
 @define-color accent #d00000;
 @define-color muted #707070;
 
-window#waybar {
-  opacity: 0.92;
-}
-
 #custom-omarchy {
   color: @muted;
   opacity: 0.45;
@@ -34,8 +30,10 @@ window#waybar #custom-prayerbar:hover {
   color: @bright;
 }
 
+window#waybar #custom-qv-clock,
 window#waybar #custom-qvos-clock,
 window#waybar .prayer-clock-item,
+window#waybar #custom-qv-clock.prayer-clock-item,
 window#waybar #custom-qvos-clock.prayer-clock-item {
   color: @foreground;
   opacity: 0.8;
