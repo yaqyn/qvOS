@@ -15,6 +15,12 @@ xdg-mime default imv.desktop image/tiff
 # Open PDFs with the Document Viewer
 xdg-mime default org.gnome.Evince.desktop application/pdf
 
+# Open and manage archives with Engrampa
+xdg-mime default engrampa.desktop application/x-compressed-tar
+xdg-mime default engrampa.desktop application/x-tar
+xdg-mime default engrampa.desktop application/x-zip
+xdg-mime default engrampa.desktop application/zip
+
 # Use Chromium as the default browser
 xdg-settings set default-web-browser chromium.desktop
 xdg-mime default chromium.desktop x-scheme-handler/http
