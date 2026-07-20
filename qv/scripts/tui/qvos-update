@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -e
-
-echo "qvos-update not implemented yet" >&2
-exit 1

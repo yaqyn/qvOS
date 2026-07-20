@@ -8,6 +8,13 @@
 - Shebangs must use `#!/bin/bash` consistently (never `#!/usr/bin/env bash`)
 - Scripts under `install/` and `migrations/` may be sourced and intentionally omit shebangs
 
+# qvOS Module Identity
+
+- Module wordmarks use `qv` as the consistent family signature in locally bundled Montserrat ExtraBold 800.
+- The module name is the expressive part of the identity. Give it distinctive, appropriately licensed typography or original lettering that fits the module's purpose.
+- Bundle fonts with the project. Never load fonts through runtime APIs, CDNs, or online font services.
+- Use existing product marks only as visual direction; do not copy proprietary logos or lettering.
+
 # Command Naming
 
 All commands start with `omarchy-`. Prefixes indicate purpose.
@@ -98,6 +105,25 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `default/themed/*.tpl` - templates with `{{ variable }}` placeholders for theme colors
 - `themes/*/colors.toml` - theme color definitions (accent, background, foreground, color0-15)
 
+# qvOS Keybinding Workflow
+
+`config/hypr/qv/bindings.conf` is authoritative. Everything declared there is
+qvOS-owned, including custom controls such as Workspace G.
+
+- Before changing a binding, inspect that file and the complete live map with
+  `omarchy menu keybindings --print`. If the key is occupied, report its action
+  and owner, then wait for confirmation before replacing it. Use `unbind` when
+  overriding an existing binding.
+- Letter keys use two families: Family One is `SUPER` with optional Shift/Ctrl;
+  Family Two adds Alt with the same Shift/Ctrl variants.
+- Binding lists show only qvOS-owned scripts, apps, web apps, and controls by
+  default. Use separate family tables with a checkmark column and `—` for free
+  slots; list non-letter families separately and include a concise script index.
+  Mention inherited bindings only for conflicts or when explicitly requested.
+- After edits, check duplicates and executable targets, apply and compare the
+  live file, reload Hyprland, require no config errors, and show the updated
+  qvOS-only inventory.
+
 # Visual Changes
 
 When making visual changes, such as Waybar styles or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
@@ -154,7 +180,7 @@ workflow:
 - Confirm the branch is `OS` and inspect `git status --short --branch` before
   staging.
 - Verify the repo identity is exactly
-  `Abdulrahman M. Yaqin <Hi@Yaqin.dev>` before committing.
+  `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>` before committing.
 - Run the narrow checks for the touched files before staging. For mixed
   shell/config/Go changes, prefer:
   - `bash -n` on changed shell scripts
@@ -165,6 +191,8 @@ workflow:
     build binary lands in the repo
   - `bash test/omarchy-cli-test.sh` when command metadata or `bin/` routes are
     touched
+  - the qvOS keybinding conflict, duplicate, and target checks above when
+    `config/hypr/qv/bindings.conf` changes
   - `hyprctl reload && hyprctl configerrors` for Hyprland config changes
   - `git diff --check`
 - Apply user-facing desktop changes to the running system before runtime checks:

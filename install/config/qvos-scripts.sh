@@ -1,16 +1,30 @@
 # shellcheck shell=bash
 
-# Install qvOS-owned helper scripts and optional TUI payloads.
+# Install qvOS-owned desktop helpers.
 mkdir -p "$HOME/.local/share/qvos"
 
+# Keep the custom TUI as ISO/build tooling instead of installing a second
+# desktop control surface. qvPLAY owns its own development wiring.
+rm -rf -- "$HOME/.local/share/qvos/tui"
+rm -f -- "$HOME/.local/share/qvos/home-dev"
+
 if [[ -d $OMARCHY_PATH/qv/scripts ]]; then
-  find "$OMARCHY_PATH/qv/scripts" -mindepth 1 -maxdepth 1 ! -name "tui" -exec cp -R {} "$HOME/.local/share/qvos/" \;
-  find "$HOME/.local/share/qvos" -type f ! -name "README.md" -exec chmod +x {} \;
+  # Replace binding helpers so removed commands cannot survive an update.
+  rm -rf -- "$HOME/.local/share/qvos/hyprland"
+  find "$OMARCHY_PATH/qv/scripts" -mindepth 1 -maxdepth 1 ! -name "screensaver" ! -name "tui" -exec cp -a {} "$HOME/.local/share/qvos/" \;
 fi
 
-if [[ -d $OMARCHY_PATH/qv/tui ]]; then
-  rm -rf "$HOME/.local/share/qvos/tui"
-  mkdir -p "$HOME/.local/share/qvos/tui"
-  cp -R "$OMARCHY_PATH/qv/tui/." "$HOME/.local/share/qvos/tui/"
-  find "$HOME/.local/share/qvos/tui" -type f \( -path "*/bin/*" -o -name "qvos-tui" \) -exec chmod +x {} \;
+screensaver_source="$OMARCHY_PATH/qv/scripts/screensaver"
+if [[ -d $screensaver_source ]]; then
+  qvos_bin="$HOME/.local/share/qvos/bin"
+  qvos_screensaver="$HOME/.local/share/qvos/screensaver"
+  local_bin="$HOME/.local/bin"
+
+  rm -rf -- "$qvos_screensaver"
+  install -d "$qvos_bin" "$qvos_screensaver" "$local_bin"
+  install -m 0644 "$screensaver_source/alacritty.toml" "$qvos_screensaver/alacritty.toml"
+  for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
+    install -m 0755 "$screensaver_source/$command_name" "$qvos_bin/$command_name"
+    ln -sfn "$qvos_bin/$command_name" "$local_bin/$command_name"
+  done
 fi

@@ -12,6 +12,5 @@ qv/scripts/
   defaults/
   hyprland/
   screensaver/
-  tui/
   waybar/
 ```

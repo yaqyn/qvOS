@@ -2,37 +2,37 @@
 set -euo pipefail
 
 mode="${1:-terminal}"
-search_root="${QVOS_PROJECT_ROOT:-$HOME}"
-
-current_location() {
-  QVOS_LOCATION_SEARCH_ROOT="$search_root" ~/.local/share/qvos/hyprland/qvos-active-location
-}
-
-location="$(current_location)"
-[[ -d "$location" ]] || location="$HOME"
+if (($# > 0)); then
+  shift
+fi
 
 case "$mode" in
-tmux)
-  # shellcheck disable=SC2016 # Expanded by the inner bash -lc, not this launcher.
-  exec uwsm-app -- xdg-terminal-exec --dir="$location" bash -lc '
-      if ! tmux has-session 2>/dev/null; then
-        tmux new-session -d -s qvos-restore
-        tmux source-file "${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf" >/dev/null 2>&1 || true
-        tmux run-shell "$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh" >/dev/null 2>&1 || true
-        sleep 1
-        tmux kill-session -t =qvos-restore 2>/dev/null || true
-      fi
-      tmux attach || tmux new -s Work
-    '
+terminal | root | codex | codex-yolo) ;;
+*)
+  printf 'Usage: qvos-launch-terminal-here [terminal|root|codex|codex-yolo] [path]\n' >&2
+  exit 2
   ;;
+esac
+
+if (($# > 1)); then
+  printf 'Usage: qvos-launch-terminal-here [terminal|root|codex|codex-yolo] [path]\n' >&2
+  exit 2
+fi
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+location="$("$script_dir/qvos-active-location" "$@")"
+
+case "$mode" in
 terminal)
   exec uwsm-app -- xdg-terminal-exec --dir="$location"
   ;;
 root)
-  exec uwsm-app -- xdg-terminal-exec --dir="$location" sudo -i
+  exec uwsm-app -- xdg-terminal-exec --dir="$location" sudo -s
   ;;
-*)
-  printf 'Usage: qvos-launch-terminal-here [terminal|tmux|root]\n' >&2
-  exit 1
+codex)
+  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex" --dir="$location" codex
+  ;;
+codex-yolo)
+  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex YOLO" --dir="$location" codex --yolo
   ;;
 esac

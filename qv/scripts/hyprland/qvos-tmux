@@ -1,0 +1,1182 @@
+#!/bin/bash
+set -euo pipefail
+
+# Manage persistent tmux sessions from saved qvOS recipes.
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/qvos/tmux"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/tmux"
+recipes_file="$config_dir/sessions.json"
+last_file="$state_dir/last-session"
+lock_file="$state_dir/manager.lock"
+
+notify_error() {
+  printf 'qvos-tmux: %s\n' "$1" >&2
+  command -v notify-send >/dev/null 2>&1 && notify-send -u critical "qvOS tmux" "$1" >/dev/null 2>&1 || true
+}
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    notify_error "$1 is not installed"
+    exit 1
+  fi
+}
+
+validate_recipes() {
+  jq -e '
+    .version == 2 and
+    (.sessions | type == "array") and
+    (([.sessions[].name] | length) == ([.sessions[].name] | unique | length)) and
+    all(.sessions[];
+      (.name | type == "string" and length > 0) and
+      (.cwd | type == "string" and length > 0) and
+      (.windows | type == "array" and length > 0) and
+      (.active_window as $active_window |
+        ($active_window | type == "number") and
+        ($active_window | floor == $active_window) and
+        $active_window >= 0 and
+        $active_window < (.windows | length)) and
+      all(.windows[];
+        (.name | type == "string" and length > 0) and
+        (.layout | type == "string") and
+        (.zoomed | type == "boolean") and
+        (.panes | type == "array" and length > 0) and
+        (.active_pane as $active_pane |
+          ($active_pane | type == "number") and
+          ($active_pane | floor == $active_pane) and
+          $active_pane >= 0 and
+          $active_pane < (.panes | length)) and
+        all(.panes[];
+          (.cwd | type == "string" and length > 0) and
+          (.command | type == "string")
+        )
+      )
+    )
+  ' "$1" >/dev/null 2>&1
+}
+
+migrate_recipes() {
+  local version updated
+
+  version="$(jq -r '.version // 0' "$recipes_file" 2>/dev/null || printf '0\n')"
+  [[ $version == "1" ]] || return 0
+
+  updated="$(jq -c '
+    {
+      version: 2,
+      sessions: [.sessions[] | {
+        name,
+        cwd,
+        active_window: 0,
+        windows: [.windows[] | {
+          name,
+          layout: "",
+          zoomed: false,
+          active_pane: 0,
+          panes: [{cwd, command}]
+        }]
+      }]
+    }
+  ' "$recipes_file")"
+  store_recipes "$updated"
+}
+
+initialize_storage() {
+  install -d -m 0700 "$config_dir" "$state_dir"
+
+  if [[ ! -f $recipes_file ]]; then
+    (umask 077 && printf '{"version":2,"sessions":[]}\n' >"$recipes_file")
+  fi
+  chmod 0600 "$recipes_file"
+
+  lock_state
+  migrate_recipes
+  unlock_state
+
+  if ! validate_recipes "$recipes_file"; then
+    notify_error "Invalid recipes file: $recipes_file"
+    exit 1
+  fi
+}
+
+lock_state() {
+  exec 9>"$lock_file"
+  flock 9
+}
+
+unlock_state() {
+  flock -u 9
+  exec 9>&-
+}
+
+store_recipes() {
+  local json="$1"
+  local temporary
+
+  temporary="$(mktemp "$config_dir/.sessions.XXXXXX")"
+  if ! printf '%s\n' "$json" >"$temporary" || ! validate_recipes "$temporary"; then
+    unlink "$temporary"
+    notify_error "Could not save tmux recipes"
+    return 1
+  fi
+
+  chmod 0600 "$temporary"
+  mv "$temporary" "$recipes_file"
+}
+
+read_last_session() {
+  [[ -f $last_file ]] || return 0
+  IFS= read -r last_session <"$last_file" || true
+  printf '%s\n' "${last_session:-}"
+}
+
+write_last_session() {
+  local name="$1"
+  local temporary
+
+  temporary="$(mktemp "$state_dir/.last-session.XXXXXX")"
+  printf '%s\n' "$name" >"$temporary"
+  chmod 0600 "$temporary"
+  mv "$temporary" "$last_file"
+}
+
+clear_last_session() {
+  if [[ -f $last_file ]]; then
+    unlink "$last_file"
+  fi
+}
+
+recipe_exists() {
+  jq -e --arg name "$1" '.sessions[] | select(.name == $name)' "$recipes_file" >/dev/null
+}
+
+recipe_json() {
+  jq -ce --arg name "$1" '.sessions[] | select(.name == $name)' "$recipes_file"
+}
+
+session_running() {
+  tmux has-session -t "=$1" 2>/dev/null
+}
+
+session_id_for_name() {
+  local wanted="$1"
+  local session_id session_name
+
+  while IFS=$'\t' read -r session_id session_name; do
+    if [[ $session_name == "$wanted" ]]; then
+      printf '%s\n' "$session_id"
+      return 0
+    fi
+  done < <(tmux list-sessions -F $'#{session_id}\t#{session_name}' 2>/dev/null || true)
+  return 1
+}
+
+normalize_input() {
+  local value="$1"
+
+  value="${value//$'\n'/ }"
+  value="${value//$'\t'/ }"
+  printf '%s\n' "$value" | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//'
+}
+
+valid_session_name() {
+  local name="$1"
+
+  [[ -n $name && $name != *:* && $name != *.* ]]
+}
+
+resolve_directory() {
+  local directory="$1"
+
+  case $directory in
+  \~) directory="$HOME" ;;
+  \~/*) directory="$HOME/${directory#\~/}" ;;
+  esac
+
+  [[ -d $directory ]] || return 1
+  (cd -- "$directory" && pwd -P)
+}
+
+resolve_window_directory() {
+  local base="$1"
+  local directory="$2"
+
+  case $directory in
+  "" | ".") directory="$base" ;;
+  \~ | \~/* | /*) ;;
+  *) directory="$base/$directory" ;;
+  esac
+  resolve_directory "$directory"
+}
+
+upsert_recipe() {
+  local recipe="$1"
+  local updated
+
+  lock_state
+  updated="$({
+    jq -c --argjson recipe "$recipe" '
+      .sessions = ([.sessions[] | select(.name != $recipe.name)] + [$recipe])
+    ' "$recipes_file"
+  })"
+  store_recipes "$updated"
+  unlock_state
+}
+
+send_startup_command() {
+  local pane_id="$1"
+  local command="$2"
+
+  [[ -n $command ]] || return 0
+  tmux send-keys -t "$pane_id" -l -- "$command"
+  tmux send-keys -t "$pane_id" Enter
+}
+
+create_recipe_session() {
+  local recipe="$1"
+  local name cwd record session_id="" window_id pane_id pane_cwd pane_command layout
+  local window window_name active_window active_pane zoomed window_index pane_index
+  local -a windows panes pane_ids window_ids=()
+
+  name="$(jq -r '.name' <<<"$recipe")"
+  cwd="$(jq -r '.cwd' <<<"$recipe")"
+  if [[ ! -d $cwd ]]; then
+    notify_error "$name directory does not exist: $cwd"
+    return 1
+  fi
+
+  mapfile -t windows < <(jq -c '.windows[]' <<<"$recipe")
+  active_window="$(jq -r '.active_window' <<<"$recipe")"
+
+  for window_index in "${!windows[@]}"; do
+    window="${windows[$window_index]}"
+    window_name="$(jq -r '.name' <<<"$window")"
+    mapfile -t panes < <(jq -c '.panes[]' <<<"$window")
+    if ! pane_cwd="$(resolve_window_directory "$cwd" "$(jq -r '.cwd' <<<"${panes[0]}")")"; then
+      [[ -n $session_id ]] && tmux kill-session -t "$session_id" 2>/dev/null || true
+      notify_error "$window_name pane 1 directory does not exist"
+      return 1
+    fi
+
+    if ((window_index == 0)); then
+      if ! record="$(tmux new-session -d -P -F $'#{session_id}\t#{window_id}\t#{pane_id}' -s "$name" -n "$window_name" -c "$pane_cwd")"; then
+        notify_error "Could not create $name"
+        return 1
+      fi
+      IFS=$'\t' read -r session_id window_id pane_id <<<"$record"
+      if ! tmux set-option -t "$session_id" @qvos-managed 1 >/dev/null; then
+        tmux kill-session -t "$session_id" 2>/dev/null || true
+        notify_error "Could not initialize $name"
+        return 1
+      fi
+    elif ! record="$(tmux new-window -d -P -F $'#{window_id}\t#{pane_id}' -t "$session_id" -n "$window_name" -c "$pane_cwd")"; then
+      tmux kill-session -t "$session_id" 2>/dev/null || true
+      notify_error "Could not initialize $name"
+      return 1
+    else
+      IFS=$'\t' read -r window_id pane_id <<<"$record"
+    fi
+
+    window_ids+=("$window_id")
+    pane_ids=("$pane_id")
+    for pane_index in "${!panes[@]}"; do
+      ((pane_index == 0)) && continue
+      if ! pane_cwd="$(resolve_window_directory "$cwd" "$(jq -r '.cwd' <<<"${panes[$pane_index]}")")"; then
+        tmux kill-session -t "$session_id" 2>/dev/null || true
+        notify_error "$window_name pane $((pane_index + 1)) directory does not exist"
+        return 1
+      fi
+      if ! pane_id="$(tmux split-window -d -P -F '#{pane_id}' -t "${pane_ids[$((pane_index - 1))]}" -c "$pane_cwd")"; then
+        tmux kill-session -t "$session_id" 2>/dev/null || true
+        notify_error "Could not restore panes for $window_name"
+        return 1
+      fi
+      pane_ids+=("$pane_id")
+    done
+
+    layout="$(jq -r '.layout' <<<"$window")"
+    if [[ -n $layout ]] && ! tmux select-layout -t "$window_id" "$layout" >/dev/null; then
+      tmux kill-session -t "$session_id" 2>/dev/null || true
+      notify_error "Could not restore the saved layout for $window_name"
+      return 1
+    fi
+
+    active_pane="$(jq -r '.active_pane' <<<"$window")"
+    tmux select-pane -t "${pane_ids[$active_pane]}" >/dev/null
+    zoomed="$(jq -r '.zoomed' <<<"$window")"
+    [[ $zoomed == "true" ]] && tmux resize-pane -Z -t "${pane_ids[$active_pane]}" >/dev/null
+
+    for pane_index in "${!panes[@]}"; do
+      pane_command="$(jq -r '.command' <<<"${panes[$pane_index]}")"
+      if ! tmux set-option -p -t "${pane_ids[$pane_index]}" @qvos-command "$pane_command" >/dev/null ||
+        ! send_startup_command "${pane_ids[$pane_index]}" "$pane_command"; then
+        tmux kill-session -t "$session_id" 2>/dev/null || true
+        notify_error "Could not start $window_name pane $((pane_index + 1))"
+        return 1
+      fi
+    done
+  done
+
+  tmux select-window -t "${window_ids[$active_window]}" >/dev/null
+}
+
+ensure_session() {
+  local name="$1"
+  local recipe
+
+  lock_state
+  if session_running "$name"; then
+    write_last_session "$name"
+    unlock_state
+    return 0
+  fi
+
+  if ! recipe="$(recipe_json "$name")"; then
+    unlock_state
+    notify_error "No saved recipe named $name"
+    return 1
+  fi
+
+  if ! create_recipe_session "$recipe"; then
+    unlock_state
+    return 1
+  fi
+
+  write_last_session "$name"
+  unlock_state
+}
+
+open_session() {
+  local name="$1"
+
+  ensure_session "$name"
+  tile_manager_terminal
+  exec tmux attach-session -t "=$name"
+}
+
+tile_manager_terminal() {
+  local active_class
+
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] || return 0
+  active_class="$(hyprctl activewindow -j 2>/dev/null | jq -r '.class // ""')"
+  [[ $active_class == "org.qvos.tmux-manager" ]] || return 0
+  hyprctl dispatch settiled >/dev/null
+}
+
+process_command_line() {
+  local pid="$1"
+  local argument escaped command_line="" argument_index=0
+
+  [[ -r /proc/$pid/cmdline ]] || return 0
+  while IFS= read -r -d '' argument; do
+    if ((argument_index == 0)) && [[ $argument == */node_modules/.bin/* ]]; then
+      argument="${argument##*/}"
+    fi
+    printf -v escaped '%q' "$argument"
+    if [[ -n $command_line ]]; then
+      command_line+=" "
+    fi
+    command_line+="$escaped"
+    argument_index=$((argument_index + 1))
+  done <"/proc/$pid/cmdline"
+  printf '%s\n' "$command_line"
+}
+
+detect_pane_command() {
+  local pane_id="$1"
+  local pane_pid foreground_group foreground_pid command_line
+
+  if command_line="$(tmux show-options -p -v -t "$pane_id" @qvos-command 2>/dev/null)"; then
+    printf '%s\n' "$command_line"
+    return 0
+  fi
+
+  pane_pid="$(tmux display-message -p -t "$pane_id" '#{pane_pid}')"
+  foreground_group="$(ps -o tpgid= -p "$pane_pid" 2>/dev/null | tr -d '[:space:]')"
+  if [[ ! $foreground_group =~ ^[0-9]+$ ]] || ((foreground_group <= 0 || foreground_group == pane_pid)); then
+    printf '\n'
+    return 0
+  fi
+
+  foreground_pid="$foreground_group"
+  if [[ ! -r /proc/$foreground_pid/cmdline ]]; then
+    foreground_pid="$(ps -eo pid=,pgid= --no-headers | awk -v group="$foreground_group" '$2 == group { print $1; exit }')"
+  fi
+  command_line="$(process_command_line "$foreground_pid")"
+  printf '%s\n' "$command_line"
+}
+
+capture_session_recipe() {
+  local name="$1"
+  local cwd window_id window_name layout zoomed pane_id pane_cwd pane_command
+  local window_active pane_active window_index pane_index active_window=0 active_pane
+  local windows_json='[]' panes_json window recipe
+  local -a window_ids pane_ids
+
+  if ! session_running "$name"; then
+    notify_error "$name is not running"
+    return 1
+  fi
+
+  mapfile -t window_ids < <(tmux list-windows -t "=$name" -F '#{window_id}')
+  ((${#window_ids[@]} > 0)) || return 1
+  cwd="$(tmux display-message -p -t "${window_ids[0]}" '#{pane_current_path}')"
+  [[ -d $cwd ]] || cwd="$HOME"
+
+  for window_index in "${!window_ids[@]}"; do
+    window_id="${window_ids[$window_index]}"
+    window_name="$(tmux display-message -p -t "$window_id" '#{window_name}')"
+    layout="$(tmux display-message -p -t "$window_id" '#{window_layout}')"
+    zoomed="$(tmux display-message -p -t "$window_id" '#{window_zoomed_flag}')"
+    window_active="$(tmux display-message -p -t "$window_id" '#{window_active}')"
+    [[ $window_active == "1" ]] && active_window="$window_index"
+
+    mapfile -t pane_ids < <(tmux list-panes -t "$window_id" -F '#{pane_id}')
+    panes_json='[]'
+    active_pane=0
+    for pane_index in "${!pane_ids[@]}"; do
+      pane_id="${pane_ids[$pane_index]}"
+      pane_cwd="$(tmux display-message -p -t "$pane_id" '#{pane_current_path}')"
+      [[ -d $pane_cwd ]] || pane_cwd="$cwd"
+      pane_command="$(detect_pane_command "$pane_id")"
+      pane_active="$(tmux display-message -p -t "$pane_id" '#{pane_active}')"
+      [[ $pane_active == "1" ]] && active_pane="$pane_index"
+      panes_json="$(jq -c \
+        --arg cwd "$pane_cwd" \
+        --arg command "$pane_command" \
+        '. + [{cwd: $cwd, command: $command}]' <<<"$panes_json")"
+    done
+
+    window="$(jq -cn \
+      --arg name "$window_name" \
+      --arg layout "$layout" \
+      --argjson zoomed "$([[ $zoomed == "1" ]] && printf 'true' || printf 'false')" \
+      --argjson active_pane "$active_pane" \
+      --argjson panes "$panes_json" \
+      '{name: $name, layout: $layout, zoomed: $zoomed, active_pane: $active_pane, panes: $panes}')"
+    windows_json="$(jq -c --argjson window "$window" '. + [$window]' <<<"$windows_json")"
+  done
+
+  recipe="$(jq -cn \
+    --arg name "$name" \
+    --arg cwd "$cwd" \
+    --argjson active_window "$active_window" \
+    --argjson windows "$windows_json" \
+    '{name: $name, cwd: $cwd, active_window: $active_window, windows: $windows}')"
+  printf '%s\n' "$recipe"
+}
+
+tag_running_session() {
+  local name="$1"
+  local recipe="$2"
+  local session_id window_index pane_index pane_command
+  local -a window_ids pane_ids
+
+  session_running "$name" || return 0
+  session_id="$(session_id_for_name "$name")"
+  tmux set-option -t "$session_id" @qvos-managed 1 >/dev/null
+  mapfile -t window_ids < <(tmux list-windows -t "$session_id" -F '#{window_id}')
+  ((${#window_ids[@]} == $(jq '.windows | length' <<<"$recipe"))) || return 0
+
+  for window_index in "${!window_ids[@]}"; do
+    mapfile -t pane_ids < <(tmux list-panes -t "${window_ids[$window_index]}" -F '#{pane_id}')
+    ((${#pane_ids[@]} == $(jq ".windows[$window_index].panes | length" <<<"$recipe"))) || continue
+    for pane_index in "${!pane_ids[@]}"; do
+      pane_command="$(jq -r ".windows[$window_index].panes[$pane_index].command" <<<"$recipe")"
+      tmux set-option -p -t "${pane_ids[$pane_index]}" @qvos-command "$pane_command" >/dev/null
+    done
+  done
+}
+
+save_running_recipe() {
+  local name="$1"
+  local recipe="${2:-}"
+
+  [[ -n $recipe ]] || recipe="$(capture_session_recipe "$name")"
+  upsert_recipe "$recipe"
+  tag_running_session "$name" "$recipe"
+  write_last_session "$name"
+}
+
+create_blank_session() {
+  local name="$1"
+  local cwd="$2"
+  local session_id
+
+  name="$(normalize_input "$name")"
+  if ! valid_session_name "$name"; then
+    notify_error "Session names cannot be empty or contain dots or colons"
+    return 1
+  fi
+  if ! cwd="$(resolve_directory "$cwd")"; then
+    notify_error "Directory does not exist: $cwd"
+    return 1
+  fi
+
+  lock_state
+  if recipe_exists "$name" || session_running "$name"; then
+    unlock_state
+    notify_error "$name already exists"
+    return 1
+  fi
+  if ! session_id="$(tmux new-session -d -P -F '#{session_id}' -s "$name" -n shell -c "$cwd")" ||
+    ! tmux set-option -t "$session_id" @qvos-managed 1 >/dev/null; then
+    [[ -n ${session_id:-} ]] && tmux kill-session -t "$session_id" 2>/dev/null || true
+    unlock_state
+    notify_error "Could not create $name"
+    return 1
+  fi
+  write_last_session "$name"
+  unlock_state
+}
+
+parse_command_sheet() {
+  local recipe="$1"
+  local sheet="$2"
+  local line label command window_index pane_index index
+  local -a expected lines
+
+  parse_error=""
+  reviewed_recipe="$recipe"
+  mapfile -t expected < <(jq -r '
+    .windows | to_entries[] as $window |
+    $window.value.panes | to_entries[] |
+    "\($window.key + 1).\(.key + 1)"
+  ' <<<"$recipe")
+  mapfile -t lines <<<"$sheet"
+  if ((${#lines[@]} != ${#expected[@]})); then
+    parse_error="Keep one startup-command line for every pane"
+    return 1
+  fi
+
+  for index in "${!expected[@]}"; do
+    line="${lines[$index]%$'\r'}"
+    if [[ $line != *\|* ]]; then
+      parse_error="Keep the separator after pane ${expected[$index]}"
+      return 1
+    fi
+    label="$(normalize_input "${line%%|*}")"
+    if [[ $label != "${expected[$index]}" ]]; then
+      parse_error="Keep pane labels in their original order"
+      return 1
+    fi
+    command="$(normalize_input "${line#*|}")"
+    window_index="${label%%.*}"
+    pane_index="${label#*.}"
+    reviewed_recipe="$(jq -c \
+      --argjson window "$((window_index - 1))" \
+      --argjson pane "$((pane_index - 1))" \
+      --arg command "$command" \
+      '.windows[$window].panes[$pane].command = $command' <<<"$reviewed_recipe")"
+  done
+}
+
+review_recipe_commands() {
+  local recipe="$1"
+  local sheet edited window_map heading
+
+  sheet="$(jq -r '
+    .windows | to_entries[] as $window |
+    $window.value.panes | to_entries[] |
+    "\($window.key + 1).\(.key + 1) | \(.value.command)"
+  ' <<<"$recipe")"
+
+  while true; do
+    ui_layout 28
+    clear
+    ui_print_top_margin
+    window_map="$(jq -r '.windows | to_entries[] | "Alt+\(.key + 1)  \(.value.name)  ·  \(.value.panes | length) panes"' <<<"$recipe")"
+    heading="$(gum join --vertical \
+      "$(gum style --foreground "$ui_accent" --bold "STARTUP / COMMANDS")" \
+      "$(gum style --foreground "$ui_muted" "Run once when rebuilding a stopped session.")" \
+      "" \
+      "$(gum style --foreground "$ui_text" "$window_map")")"
+    gum style \
+      --border rounded \
+      --border-foreground "$ui_border" \
+      --padding "1 2" \
+      --width "$ui_width" \
+      --margin "0 $ui_left" \
+      "$heading"
+    printf '\n'
+    edited="$(gum write \
+      --header "Format: window.pane | startup command" \
+      --value "$sheet" \
+      --width "$ui_columns" \
+      --height 12 \
+      --show-line-numbers \
+      --no-show-help \
+      --padding "0 $((ui_left + 2))" \
+      --base.foreground "$ui_text" \
+      --header.foreground "$ui_muted" \
+      --line-number.foreground "$ui_muted" \
+      --cursor-line-number.foreground "$ui_accent" \
+      --cursor.foreground "$ui_accent")" || return 1
+    sheet="$edited"
+    if parse_command_sheet "$recipe" "$sheet"; then
+      return 0
+    fi
+    ui_error "$parse_error"
+  done
+}
+
+rename_session() {
+  local old_name="$1"
+  local new_name="$2"
+  local last_session temporary="" running=false saved=false
+
+  new_name="$(normalize_input "$new_name")"
+  if ! valid_session_name "$new_name"; then
+    notify_error "Session names cannot be empty or contain dots or colons"
+    return 1
+  fi
+  if ! recipe_exists "$old_name" && ! session_running "$old_name"; then
+    notify_error "No session named $old_name"
+    return 1
+  fi
+  if [[ $old_name != "$new_name" ]] && { recipe_exists "$new_name" || session_running "$new_name"; }; then
+    notify_error "$new_name already exists"
+    return 1
+  fi
+  [[ $old_name != "$new_name" ]] || return 0
+
+  lock_state
+  if recipe_exists "$old_name"; then
+    saved=true
+    temporary="$(mktemp "$config_dir/.sessions.XXXXXX")"
+    if ! jq -c --arg old "$old_name" --arg new "$new_name" '
+      (.sessions[] | select(.name == $old).name) = $new
+    ' "$recipes_file" >"$temporary" || ! validate_recipes "$temporary"; then
+      unlink "$temporary"
+      unlock_state
+      notify_error "Could not rename $old_name"
+      return 1
+    fi
+  fi
+
+  if session_running "$old_name"; then
+    running=true
+    if ! tmux rename-session -t "=$old_name" "$new_name"; then
+      [[ -n $temporary ]] && unlink "$temporary"
+      unlock_state
+      notify_error "Could not rename running session $old_name"
+      return 1
+    fi
+  fi
+
+  if [[ $saved == true ]]; then
+    chmod 0600 "$temporary"
+  fi
+  if [[ $saved == true ]] && ! mv "$temporary" "$recipes_file"; then
+    [[ $running == true ]] && tmux rename-session -t "=$new_name" "$old_name" 2>/dev/null || true
+    unlock_state
+    notify_error "Could not save renamed recipe"
+    return 1
+  fi
+
+  last_session="$(read_last_session)"
+  [[ $last_session == "$old_name" ]] && write_last_session "$new_name"
+  unlock_state
+}
+
+stop_session() {
+  local name="$1"
+
+  if session_running "$name"; then
+    tmux kill-session -t "=$name"
+  fi
+}
+
+delete_recipe() {
+  local name="$1"
+  local updated last_session
+
+  if ! recipe_exists "$name"; then
+    notify_error "No saved recipe named $name"
+    return 1
+  fi
+
+  lock_state
+  stop_session "$name"
+  updated="$(jq -c --arg name "$name" '.sessions |= map(select(.name != $name))' "$recipes_file")"
+  store_recipes "$updated"
+  last_session="$(read_last_session)"
+  [[ $last_session == "$name" ]] && clear_last_session
+  unlock_state
+}
+
+ui_accent=9
+ui_border=240
+ui_muted=245
+ui_text=252
+
+ui_error() {
+  ui_layout 8
+  gum style \
+    --foreground "$ui_accent" \
+    --border rounded \
+    --border-foreground "$ui_border" \
+    --padding "1 2" \
+    --width "$ui_width" \
+    --margin "1 $ui_left" \
+    "$1" >&2
+  sleep 1
+}
+
+ui_layout() {
+  local content_rows="${1:-24}"
+  local columns rows
+
+  if ! read -r rows columns < <(stty --file=/dev/tty size 2>/dev/null) ||
+    [[ ! $columns =~ ^[0-9]+$ || ! $rows =~ ^[0-9]+$ ]]; then
+    columns="$(tput cols 2>/dev/null || printf '80\n')"
+    rows="$(tput lines 2>/dev/null || printf '30\n')"
+  fi
+  [[ $columns =~ ^[0-9]+$ ]] || columns=80
+  [[ $rows =~ ^[0-9]+$ ]] || rows=30
+  ui_columns="$columns"
+  ui_rows="$rows"
+
+  if ((columns > 76)); then
+    ui_width=72
+  elif ((columns > 12)); then
+    ui_width=$((columns - 4))
+  else
+    ui_width="$columns"
+  fi
+  ui_left=$(((columns - ui_width) / 2))
+  ui_top=$(((rows - content_rows) / 2))
+  if ((ui_left < 0)); then
+    ui_left=0
+  fi
+  if ((ui_top < 1)); then
+    ui_top=1
+  fi
+}
+
+ui_print_top_margin() {
+  local row
+
+  for ((row = 0; row < ui_top; row++)); do
+    printf '\n'
+  done
+}
+
+ui_choose() {
+  local header="$1"
+  local choice display_choice max_width block_left selected=0 key sequence response_key tty_fd tty_state redraw=true
+  local status_text status_left index
+  local -a choices display_choices
+
+  ui_layout
+  mapfile -t choices
+  max_width="${#header}"
+  for choice in "${choices[@]}"; do
+    display_choice="${choice//$'\t'/  }"
+    display_choices+=("$display_choice")
+    if ((${#display_choice} > max_width)); then
+      max_width="${#display_choice}"
+    fi
+  done
+  block_left=$(((ui_columns - max_width - 2) / 2))
+  if ((block_left < 0)); then
+    block_left=0
+  fi
+
+  if ! { exec {tty_fd}<>/dev/tty; } 2>/dev/null; then
+    gum choose \
+      --height 10 \
+      --cursor "▌ " \
+      --no-show-help \
+      --padding "0 $block_left" \
+      --cursor.foreground "$ui_accent" \
+      --header.foreground "$ui_muted" \
+      --item.foreground "$ui_text" \
+      --header "${header^^}" \
+      "${choices[@]}"
+    return
+  fi
+
+  tty_state="$(stty -g <&"$tty_fd")"
+  stty -echo -icanon min 1 time 0 <&"$tty_fd"
+  trap 'stty "$tty_state" <&"$tty_fd" 2>/dev/null || true; printf "\033[?25h" >&"$tty_fd"; exit 130' INT TERM HUP
+
+  status_text="● ${ui_running_count:-0} RUNNING   ○ ${ui_saved_count:-0} SAVED   ◌ ${ui_unsaved_count:-0} UNSAVED"
+  status_left=$(((ui_columns - ${#status_text}) / 2 + 1))
+  if ((status_left < 1)); then
+    status_left=1
+  fi
+
+  printf '\033[?25l\033[s' >&"$tty_fd"
+  while true; do
+    if [[ $redraw == true ]]; then
+      printf '\033[u\033[J\033[?25l' >&"$tty_fd"
+      printf '%*s\033[38;5;%sm%s\033[0m\n\n' "$block_left" "" "$ui_muted" "${header^^}" >&"$tty_fd"
+      for index in "${!display_choices[@]}"; do
+        if ((index == selected)); then
+          printf '%*s\033[38;5;%sm▌ %s\033[0m\n' "$block_left" "" "$ui_accent" "${display_choices[$index]}" >&"$tty_fd"
+        else
+          printf '%*s  \033[38;5;%sm%s\033[0m\n' "$block_left" "" "$ui_text" "${display_choices[$index]}" >&"$tty_fd"
+        fi
+      done
+      printf '\033[%d;%dH\033[38;5;%sm● %s RUNNING\033[0m\033[38;5;%sm   ○ %s SAVED   ◌ %s UNSAVED\033[0m' \
+        "$((ui_rows - 2))" \
+        "$status_left" \
+        "$ui_accent" \
+        "${ui_running_count:-0}" \
+        "$ui_muted" \
+        "${ui_saved_count:-0}" \
+        "${ui_unsaved_count:-0}" >&"$tty_fd"
+      redraw=false
+    fi
+
+    if ! IFS= read -r -N1 key <&"$tty_fd"; then
+      trap - INT TERM HUP
+      stty "$tty_state" <&"$tty_fd" 2>/dev/null || true
+      printf '\033[u\033[J\033[?25h' >&"$tty_fd"
+      exec {tty_fd}>&-
+      return 1
+    fi
+    case $key in
+    $'\n' | $'\r') break ;;
+    k)
+      if ((selected > 0)); then
+        ((selected -= 1))
+        redraw=true
+      fi
+      ;;
+    j)
+      if ((selected + 1 < ${#choices[@]})); then
+        ((selected += 1))
+        redraw=true
+      fi
+      ;;
+    $'\033')
+      sequence=""
+      IFS= read -r -N2 -t 0.05 sequence <&"$tty_fd" || true
+      case $sequence in
+      "[A")
+        if ((selected > 0)); then
+          ((selected -= 1))
+          redraw=true
+        fi
+        ;;
+      "[B")
+        if ((selected + 1 < ${#choices[@]})); then
+          ((selected += 1))
+          redraw=true
+        fi
+        ;;
+      "]"*)
+        while IFS= read -r -N1 -t 0.05 response_key <&"$tty_fd"; do
+          [[ $response_key == $'\a' ]] && break
+          if [[ $response_key == $'\033' ]]; then
+            IFS= read -r -N1 -t 0.05 response_key <&"$tty_fd" || true
+            break
+          fi
+        done
+        ;;
+      "")
+        trap - INT TERM HUP
+        stty "$tty_state" <&"$tty_fd" 2>/dev/null || true
+        printf '\033[u\033[J\033[?25h' >&"$tty_fd"
+        exec {tty_fd}>&-
+        return 1
+        ;;
+      *) ;;
+      esac
+      ;;
+    esac
+  done
+
+  trap - INT TERM HUP
+  stty "$tty_state" <&"$tty_fd" 2>/dev/null || true
+  printf '\033[u\033[J\033[?25h' >&"$tty_fd"
+  exec {tty_fd}>&-
+  printf '%s\n' "${choices[$selected]}"
+}
+
+ui_input() {
+  local header="$1"
+  local value="${2:-}"
+  local placeholder="${3:-}"
+
+  ui_layout 8
+  gum input \
+    --header "$header" \
+    --value "$value" \
+    --placeholder "$placeholder" \
+    --char-limit 0 \
+    --width "$ui_columns" \
+    --padding "1 $ui_left" \
+    --prompt "› " \
+    --prompt.foreground "$ui_accent" \
+    --cursor.foreground "$ui_accent" \
+    --header.foreground "$ui_muted"
+}
+
+ui_confirm() {
+  local prompt="$1"
+  local affirmative="$2"
+  local negative="$3"
+  local default_choice="${4:-false}"
+  local -a options
+
+  ui_layout 8
+  options=(
+    --affirmative "$affirmative"
+    --negative "$negative"
+    --padding "1 $ui_left"
+    --prompt.foreground "$ui_text"
+    --selected.foreground 0
+    --selected.background "$ui_accent"
+    --unselected.foreground "$ui_text"
+    --unselected.background "$ui_border"
+  )
+  [[ $default_choice == "true" ]] && options+=(--default)
+  gum confirm "$prompt" "${options[@]}"
+}
+
+all_session_names() {
+  local name
+  local -A seen=()
+
+  while IFS= read -r name; do
+    [[ -n $name && -z ${seen[$name]:-} ]] || continue
+    seen["$name"]=1
+    printf '%s\n' "$name"
+  done < <({
+    jq -r '.sessions[].name' "$recipes_file"
+    tmux list-sessions -F '#{session_name}' 2>/dev/null || true
+  })
+}
+
+session_status() {
+  local name="$1"
+
+  if session_running "$name"; then
+    if recipe_exists "$name"; then
+      printf '● RUNNING\n'
+    else
+      printf '◌ UNSAVED\n'
+    fi
+  else
+    printf '○ SAVED\n'
+  fi
+}
+
+render_dashboard() {
+  local name
+  local running_count=0 saved_count=0 unsaved_count=0
+
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    if session_running "$name"; then
+      if recipe_exists "$name"; then
+        ((running_count += 1))
+      else
+        ((unsaved_count += 1))
+      fi
+    else
+      ((saved_count += 1))
+    fi
+  done < <(all_session_names)
+
+  ui_layout 14
+  ui_running_count="$running_count"
+  ui_saved_count="$saved_count"
+  ui_unsaved_count="$unsaved_count"
+  clear
+  ui_print_top_margin
+}
+
+choose_session() {
+  local prompt="$1"
+  local mode="${2:-all}"
+  local last_session name status marker choice
+  local -a choices=()
+
+  last_session="$(read_last_session)"
+  while IFS= read -r name; do
+    [[ -n $name ]] || continue
+    case $mode in
+    running) session_running "$name" || continue ;;
+    saved) recipe_exists "$name" || continue ;;
+    esac
+    status="$(session_status "$name")"
+    marker=" "
+    [[ $name == "$last_session" ]] && marker="★"
+    choices+=("$marker $status"$'\t'"$name")
+  done < <(all_session_names)
+
+  if ((${#choices[@]} == 0)); then
+    case $mode in
+    running) ui_error "No tmux sessions are running" ;;
+    saved) ui_error "No sessions are saved" ;;
+    *) ui_error "No tmux sessions exist" ;;
+    esac
+    return 1
+  fi
+
+  choice="$(printf '%s\n' "${choices[@]}" | ui_choose "$prompt")" || return 1
+  [[ -n $choice ]] || return 1
+  printf '%s\n' "${choice#*$'\t'}"
+}
+
+prompt_directory() {
+  local current="$1"
+  local directory
+
+  directory="$(ui_input "Working directory" "$current")" || return 1
+  directory="$(normalize_input "$directory")"
+  if ! directory="$(resolve_directory "$directory")"; then
+    ui_error "Directory does not exist"
+    return 1
+  fi
+  printf '%s\n' "$directory"
+}
+
+new_session_wizard() {
+  local directory
+
+  new_session_name="$(ui_input "Session name" "" "HyperQuote")" || return 1
+  new_session_name="$(normalize_input "$new_session_name")"
+  if ! valid_session_name "$new_session_name"; then
+    ui_error "Session names cannot be empty or contain dots or colons"
+    return 1
+  fi
+  directory="$(prompt_directory "$PWD")" || return 1
+  create_blank_session "$new_session_name" "$directory"
+}
+
+run_manager() {
+  local action session new_name recipe
+
+  require_command gum
+  printf '\033]0;qvOS tmux\007'
+  while true; do
+    render_dashboard
+    action="$(printf '%s\n' "Open session" "New session" "Save current layout" "Edit startup commands" "Rename session" "Stop session" "Delete saved session" "Quit" | ui_choose "What do you want to do?")" || exit 0
+
+    case $action in
+    "Open session")
+      session="$(choose_session "Open session")" || continue
+      open_session "$session"
+      ;;
+    "New session")
+      if new_session_wizard; then
+        open_session "$new_session_name"
+      fi
+      ;;
+    "Save current layout")
+      session="$(choose_session "Save current layout" running)" || continue
+      recipe="$(capture_session_recipe "$session")" || { ui_error "Could not capture $session"; continue; }
+      review_recipe_commands "$recipe" || continue
+      if ui_confirm "Save the current $session layout?" "Save" "Cancel" true; then
+        save_running_recipe "$session" "$reviewed_recipe"
+      fi
+      ;;
+    "Edit startup commands")
+      session="$(choose_session "Edit startup commands" saved)" || continue
+      recipe="$(recipe_json "$session")"
+      review_recipe_commands "$recipe" || continue
+      if ui_confirm "Save commands for the next $session rebuild?" "Save" "Cancel" true; then
+        upsert_recipe "$reviewed_recipe"
+        tag_running_session "$session" "$reviewed_recipe"
+      fi
+      ;;
+    "Rename session")
+      session="$(choose_session "Rename session")" || continue
+      new_name="$(ui_input "New session name" "$session")" || continue
+      rename_session "$session" "$new_name" || ui_error "Rename failed"
+      ;;
+    "Stop session")
+      session="$(choose_session "Stop session" running)" || continue
+      if ui_confirm "Stop $session and its running commands?" "Stop" "Keep running"; then
+        stop_session "$session"
+      fi
+      ;;
+    "Delete saved session")
+      session="$(choose_session "Delete saved session" saved)" || continue
+      if ui_confirm "Delete $session? Its running session will stop." "Delete" "Keep"; then
+        delete_recipe "$session"
+      fi
+      ;;
+    Quit) exit 0 ;;
+    esac
+  done
+}
+
+open_last_session() {
+  local name
+
+  name="$(read_last_session)"
+  if [[ -n $name ]] && { session_running "$name" || recipe_exists "$name"; }; then
+    open_session "$name"
+  fi
+
+  name="$({
+    tmux list-sessions -F $'#{session_activity}\t#{session_name}' 2>/dev/null || true
+  } | sort -rn -k1,1 | head -n 1 | cut -f2-)"
+  if [[ -n $name ]]; then
+    write_last_session "$name"
+    exec tmux attach-session -t "=$name"
+  fi
+
+  clear_last_session
+  run_manager
+}
+
+usage() {
+  printf 'Usage: qvos-tmux [manager|last|new <session> [directory]|open <session>|ensure <session>|rename <old> <new>|stop <session>|delete <session>]\n' >&2
+}
+
+main() {
+  require_command tmux
+  require_command jq
+  require_command flock
+  initialize_storage
+
+  case "${1:-manager}" in
+  manager)
+    (($# <= 1)) || { usage; exit 2; }
+    run_manager
+    ;;
+  last)
+    (($# == 1)) || { usage; exit 2; }
+    open_last_session
+    ;;
+  new)
+    (($# == 2 || $# == 3)) || { usage; exit 2; }
+    create_blank_session "$2" "${3:-$PWD}"
+    ;;
+  open)
+    (($# == 2)) || { usage; exit 2; }
+    open_session "$2"
+    ;;
+  ensure)
+    (($# == 2)) || { usage; exit 2; }
+    ensure_session "$2"
+    ;;
+  rename)
+    (($# == 3)) || { usage; exit 2; }
+    rename_session "$2" "$3"
+    ;;
+  stop)
+    (($# == 2)) || { usage; exit 2; }
+    stop_session "$2"
+    ;;
+  delete)
+    (($# == 2)) || { usage; exit 2; }
+    delete_recipe "$2"
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

@@ -16,7 +16,7 @@ brightnessctl
 btop
 chromium
 clang
-claude-code
+# Disabled personal AI package: claude-code
 # cliamp
 curl
 cups
@@ -44,7 +44,6 @@ fontconfig
 fzf
 github-cli
 gnome-calculator
-gnome-keyring
 gnome-themes-extra
 grim
 gpu-screen-recorder
