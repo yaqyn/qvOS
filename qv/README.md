@@ -8,7 +8,8 @@ Expected layout:
 
 ```text
 qv/
-  scripts/    Private helper scripts used by qvOS config.
   git/        Private git helper source and installers.
-  assets/     qvOS-only source assets.
+  iso/        ISO integration patches.
+  scripts/    Private helpers used by qvOS config.
+  tui/        qvOS apply, reset, build, update, and ISO tooling.
 ```

@@ -93,13 +93,13 @@ pass "Thunar actions route files through the shared location resolver"
 
 QVOS_TEST_ACTIVE_WINDOW="$(jq -cn --arg title "$canonical_project - Thunar" '{class: "thunar", title: $title, pid: 0}')"
 export QVOS_TEST_ACTIVE_WINDOW
-run_with_mocks "$script_dir/qvos-thunar-or-here" terminal
-[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project" ]] || fail "active Thunar route"
+actual="$(run_with_mocks "$script_dir/qvos-active-location")"
+[[ $actual == "$canonical_project" ]] || fail "active Thunar location"
 
 QVOS_TEST_ACTIVE_WINDOW="$(jq -cn --arg title "$canonical_project - Code - OSS" '{class: "code-oss", title: $title, pid: 0}')"
 export QVOS_TEST_ACTIVE_WINDOW
-run_with_mocks "$script_dir/qvos-thunar-or-here" editor
-[[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "active Code route"
+actual="$(run_with_mocks "$script_dir/qvos-active-location")"
+[[ $actual == "$canonical_project" ]] || fail "active Code location"
 pass "active Thunar and Code windows resolve their full-path titles"
 
 set +e
