@@ -120,3 +120,28 @@ pass "existing qvOS defaults migrate while custom editor choices stay intact"
 theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
 [[ $theme_list != *"Sirius"* ]] || fail "obsolete Sirius theme"
 pass "obsolete Sirius theme stays out of the catalog"
+
+OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "single default Style entries"
+local root = arg[1]
+
+dofile(root .. "/default/elephant/omarchy_themes.lua")
+local themes = GetEntries()
+assert(#themes == 1)
+assert(themes[1].Text == "Orion  ")
+assert(themes[1].Preview == root .. "/themes/orion/preview.png")
+assert(themes[1].Actions.activate == "omarchy-theme-set orion")
+
+dofile(root .. "/default/elephant/omarchy_unlocks.lua")
+local unlocks = GetEntries()
+assert(#unlocks == 1)
+assert(unlocks[1].Text == "Default  ")
+assert(unlocks[1].Preview == root .. "/default/plymouth/preview-unlock.png")
+assert(
+  unlocks[1].Actions.activate
+    == "omarchy-launch-floating-terminal-with-presentation 'omarchy-plymouth-reset'"
+)
+LUA
+pass "Style exposes only the Orion theme and Default unlock"
+
+grep -qx 'omarchy-theme-set "Orion"' "$root/install/config/theme.sh" || fail "fresh install theme"
+pass "fresh installs default to Orion"
