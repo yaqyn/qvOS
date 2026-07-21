@@ -127,7 +127,7 @@ default_qvos_source_repo() {
   if [[ -n $remote_url ]]; then
     echo "$remote_url"
   else
-    echo "https://github.com/yaqyn/qv.git"
+    echo "https://github.com/Yaqyn-qvOS/qvOS.git"
   fi
 }
 

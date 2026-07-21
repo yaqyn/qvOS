@@ -1,4 +1,4 @@
-module github.com/yaqyn/qvOS
+module github.com/Yaqyn-qvOS/qvOS
 
 go 1.26.2
 
