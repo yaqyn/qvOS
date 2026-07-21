@@ -18,6 +18,7 @@ chromium
 clang
 # Disabled personal AI package: claude-code
 # cliamp
+code
 curl
 cups
 cups-browsed

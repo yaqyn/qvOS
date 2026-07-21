@@ -93,7 +93,11 @@ show_learn_menu() {
 }
 
 show_trigger_menu() {
-  case $(menu "Trigger" "󰔛  Reminder\n  Capture\n󰧸  Transcode\n  Share\n󰔎  Toggle\n  Hardware") in
+  local options="󰔛  Reminder\n  Capture\n󰧸  Transcode"
+  omarchy-cmd-present localsend && options="$options\n  Share"
+  options="$options\n󰔎  Toggle\n  Hardware"
+
+  case $(menu "Trigger" "$options") in
   *Reminder*) show_reminder_menu ;;
   *Capture*) show_capture_menu ;;
   *Transcode*) omarchy-transcode || back_to show_trigger_menu ;;
@@ -195,6 +199,12 @@ show_screenrecord_menu() {
 }
 
 show_share_menu() {
+  if omarchy-cmd-missing localsend; then
+    notify-send "LocalSend is not installed" -t 2000
+    back_to show_trigger_menu
+    return
+  fi
+
   case $(menu "Share" "  Clipboard\n  File \n  Folder") in
   *Clipboard*) omarchy-menu-share clipboard ;;
   *File*) terminal bash -c "omarchy-menu-share file" ;;
