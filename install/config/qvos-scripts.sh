@@ -4,9 +4,8 @@
 mkdir -p "$HOME/.local/share/qvos"
 
 # Keep the custom TUI as ISO/build tooling instead of installing a second
-# desktop control surface. qvPLAY owns its own development wiring.
+# desktop control surface.
 rm -rf -- "$HOME/.local/share/qvos/tui"
-rm -f -- "$HOME/.local/share/qvos/home-dev"
 
 if [[ -d $OMARCHY_PATH/qv/scripts ]]; then
   # Replace binding helpers so removed commands cannot survive an update.
