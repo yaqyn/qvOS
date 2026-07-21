@@ -83,7 +83,7 @@ var sections = []section{
 	{
 		name: "ABOUT",
 		items: []item{
-			{"00", "YAQIN", "Creator"},
+			{"00", "YAQYN", "Creator"},
 			{"01", "EMAIL", "Contact"},
 			{"02", "TOOLS", "Credits"},
 		},
