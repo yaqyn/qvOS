@@ -45,6 +45,7 @@ fontconfig
 fzf
 github-cli
 gnome-calculator
+gnome-keyring
 gnome-themes-extra
 grim
 gpu-screen-recorder

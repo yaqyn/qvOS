@@ -26,6 +26,17 @@ editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$S
 [[ $editor_env == $'code\ncode\ncode' ]] || fail "editor environment contract"
 pass "Code OSS is installed and owns all editor variables"
 
+grep -qx 'gnome-keyring' "$root/install/omarchy-base.packages" || fail "desktop keyring package contract"
+grep -Fqx "run_logged \"\$OMARCHY_INSTALL/login/default-keyring.sh\"" "$root/install/login/all.sh" || fail "default keyring setup contract"
+grep -Fq "pam_gnome_keyring\\.so/d" "$root/install/login/sddm.sh" || fail "SDDM keyring setup contract"
+if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; then
+  fail "retired keyring removal migration"
+fi
+pass "desktop keyring support stays complete"
+
+grep -Fq 'ping -c 1 9.9.9.9' "$root/bin/omarchy-debug" || fail "Quad9 diagnostic probe"
+pass "diagnostics follow the qvOS Quad9 policy"
+
 if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/default/bash/aliases"; then
   fail "disabled AI aliases"
 fi

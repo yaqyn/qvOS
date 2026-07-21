@@ -3,9 +3,19 @@
 # Install qvOS-owned desktop helpers.
 mkdir -p "$HOME/.local/share/qvos"
 
-# Keep the custom TUI as ISO/build tooling instead of installing a second
-# desktop control surface.
-rm -rf -- "$HOME/.local/share/qvos/tui"
+# Remove payloads from retired standalone qvOS installers and desktop apps.
+rm -rf -- \
+  "$HOME/.local/share/qvos/domains" \
+  "$HOME/.local/share/qvos/source" \
+  "$HOME/.local/share/qvos/tui"
+rm -f -- \
+  "$HOME/.local/share/qvos/README.md" \
+  "$HOME/.local/share/qvos/VERSION" \
+  "$HOME/.local/share/qvos/bin/omarchy-qvos-doctor" \
+  "$HOME/.local/share/qvos/bin/omarchy-qvos-reconcile" \
+  "$HOME/.local/share/qvos/bin/omarchy-qvos-update" \
+  "$HOME/.local/share/qvos/bin/qvos-show-logo" \
+  "$HOME/.local/share/qvos/home-dev"
 
 if [[ -d $OMARCHY_PATH/qv/scripts ]]; then
   # Replace binding helpers so removed commands cannot survive an update.

@@ -18,8 +18,12 @@ fail() {
   exit 1
 }
 
-install -d "$test_root/.local/share/qvos/hyprland" "$test_root/.local/share/qvos/screensaver" "$test_root/.local/share/qvos/tui" "$test_root/.local/share/qvos/waybar"
+install -d "$test_root/.local/share/qvos/bin" "$test_root/.local/share/qvos/domains" "$test_root/.local/share/qvos/hyprland" "$test_root/.local/share/qvos/screensaver" "$test_root/.local/share/qvos/source" "$test_root/.local/share/qvos/tui" "$test_root/.local/share/qvos/waybar"
 touch "$test_root/.local/share/qvos/hyprland/removed-helper" "$test_root/.local/share/qvos/screensaver/removed-launcher"
+touch "$test_root/.local/share/qvos/README.md" "$test_root/.local/share/qvos/VERSION"
+touch "$test_root/.local/share/qvos/bin/omarchy-qvos-doctor" "$test_root/.local/share/qvos/bin/omarchy-qvos-reconcile" "$test_root/.local/share/qvos/bin/omarchy-qvos-update" "$test_root/.local/share/qvos/bin/qvos-show-logo"
+touch "$test_root/.local/share/qvos/domains/retired-domain" "$test_root/.local/share/qvos/source/retired-runtime"
+ln -s "$root/qv/apps/home" "$test_root/.local/share/qvos/home-dev"
 touch "$test_root/.local/share/qvos/tui/retired-runtime-copy"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
 
@@ -29,8 +33,16 @@ HOME="$test_root" OMARCHY_PATH="$root" bash -c 'source "$1"' _ "$root/install/co
 [[ ! -e $test_root/.local/share/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"
 pass "stale helper payloads are removed"
 
+[[ ! -e $test_root/.local/share/qvos/home-dev ]] || fail "retired qvPLAY development link cleanup"
+[[ ! -e $test_root/.local/share/qvos/source ]] || fail "retired standalone source cleanup"
+[[ ! -e $test_root/.local/share/qvos/domains ]] || fail "retired standalone domain cleanup"
 [[ ! -e $test_root/.local/share/qvos/tui ]] || fail "retired desktop TUI payload cleanup"
-pass "ISO tooling stays out of the desktop payload"
+cmp -s "$root/qv/scripts/README.md" "$test_root/.local/share/qvos/README.md" || fail "current helper readme replacement"
+[[ ! -e $test_root/.local/share/qvos/VERSION ]] || fail "retired standalone version cleanup"
+for retired_command in omarchy-qvos-doctor omarchy-qvos-reconcile omarchy-qvos-update qvos-show-logo; do
+  [[ ! -e $test_root/.local/share/qvos/bin/$retired_command ]] || fail "retired $retired_command cleanup"
+done
+pass "retired applications and ISO tooling stay out of the desktop payload"
 
 expected_hyprland="$(find "$root/qv/scripts/hyprland" -maxdepth 1 -type f -printf '%f\n' | sort)"
 installed_hyprland="$(find "$test_root/.local/share/qvos/hyprland" -maxdepth 1 -type f -printf '%f\n' | sort)"
