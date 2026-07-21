@@ -58,6 +58,26 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 printf '%s\n' "$*" >>"$QVOS_TEST_PACKAGE_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/omarchy-theme-current" <<'SCRIPT'
+#!/bin/bash
+printf 'Orion\n'
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-theme-set" <<'SCRIPT'
+#!/bin/bash
+printf 'theme %s\n' "$1" >>"$QVOS_TEST_STYLE_LOG"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-plymouth-reset" <<'SCRIPT'
+#!/bin/bash
+printf 'unlock Yaqyn\n' >>"$QVOS_TEST_STYLE_LOG"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-restart-walker" <<'SCRIPT'
+#!/bin/bash
+printf 'restart Walker\n' >>"$QVOS_TEST_STYLE_LOG"
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
 #!/bin/bash
 {
@@ -118,30 +138,57 @@ migrated_custom_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VI
 pass "existing qvOS defaults migrate while custom editor choices stay intact"
 
 theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
-[[ $theme_list != *"Sirius"* ]] || fail "obsolete Sirius theme"
-pass "obsolete Sirius theme stays out of the catalog"
+[[ $theme_list == "Yaqyn" ]] || fail "single bundled theme"
+pass "Yaqyn is the only bundled theme"
 
-OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "single default Style entries"
+HOME="$test_root" OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "single Yaqyn Style entries"
 local root = arg[1]
 
 dofile(root .. "/default/elephant/omarchy_themes.lua")
 local themes = GetEntries()
 assert(#themes == 1)
-assert(themes[1].Text == "Orion  ")
-assert(themes[1].Preview == root .. "/themes/orion/preview.png")
-assert(themes[1].Actions.activate == "omarchy-theme-set orion")
+assert(themes[1].Text == "Yaqyn  ")
+assert(themes[1].Preview == root .. "/themes/yaqyn/preview.png")
+assert(themes[1].Actions.activate == "omarchy-theme-set yaqyn")
 
 dofile(root .. "/default/elephant/omarchy_unlocks.lua")
 local unlocks = GetEntries()
 assert(#unlocks == 1)
-assert(unlocks[1].Text == "Default  ")
+assert(unlocks[1].Text == "Yaqyn  ")
 assert(unlocks[1].Preview == root .. "/default/plymouth/preview-unlock.png")
 assert(
   unlocks[1].Actions.activate
     == "omarchy-launch-floating-terminal-with-presentation 'omarchy-plymouth-reset'"
 )
 LUA
-pass "Style exposes only the Orion theme and Default unlock"
+pass "dynamic Style catalogs resolve to Yaqyn only"
 
-grep -qx 'omarchy-theme-set "Orion"' "$root/install/config/theme.sh" || fail "fresh install theme"
-pass "fresh installs default to Orion"
+grep -qx 'omarchy-theme-set "Yaqyn"' "$root/install/config/theme.sh" || fail "fresh install theme"
+grep -qx 'Name=Yaqyn' "$root/default/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
+grep -qx 'Name=Yaqyn' "$root/default/sddm/omarchy/metadata.desktop" || fail "SDDM theme identity"
+pass "fresh desktop and unlock defaults are named Yaqyn"
+
+if [[ -e $root/themes/yaqyn/unlock.png || -e $root/themes/yaqyn/preview-unlock.png ]]; then
+  fail "theme-specific unlock variant"
+fi
+pass "the unlock catalog has no bundled variants"
+
+style_log="$test_root/style.log"
+install -d \
+  "$migration_home/.config/omarchy/themes/orion" \
+  "$migration_home/.config/omarchy/themes/qvos" \
+  "$migration_home/.config/omarchy/themes/personal"
+QVOS_TEST_STYLE_LOG="$style_log" HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" \
+  bash -c 'source "$1"' _ "$root/migrations/1784659873.sh" >/dev/null
+[[ ! -e $migration_home/.config/omarchy/themes/orion ]] || fail "legacy Orion cleanup"
+[[ ! -e $migration_home/.config/omarchy/themes/qvos ]] || fail "legacy qvOS cleanup"
+[[ -d $migration_home/.config/omarchy/themes/personal ]] || fail "personal theme preservation"
+[[ $(readlink "$migration_home/.config/elephant/menus/omarchy_themes.lua") == "$root/default/elephant/omarchy_themes.lua" ]] || fail "theme provider refresh"
+[[ $(readlink "$migration_home/.config/elephant/menus/omarchy_unlocks.lua") == "$root/default/elephant/omarchy_unlocks.lua" ]] || fail "unlock provider refresh"
+[[ $(<"$style_log") == $'theme Yaqyn\nrestart Walker\nunlock Yaqyn' ]] || fail "Yaqyn migration actions"
+pass "existing qvOS themes migrate to Yaqyn without deleting personal themes"
+
+vsix="$root/themes/yaqyn/vscode/extension/yaqyn-theme-0.1.0.vsix"
+vsix_manifest=$(unzip -p "$vsix" extension/package.json)
+[[ $(jq -r '.name + "|" + .displayName + "|" + .contributes.themes[0].label' <<<"$vsix_manifest") == "yaqyn-theme|Yaqyn|Yaqyn" ]] || fail "Yaqyn VS Code package"
+pass "the bundled VS Code theme is Yaqyn end to end"
