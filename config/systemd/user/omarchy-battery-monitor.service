@@ -1,5 +1,5 @@
 [Unit]
-Description=Omarchy Battery Monitor Check
+Description=qvOS Battery Monitor Check
 After=graphical-session.target
 
 [Service]

@@ -65,6 +65,32 @@ func TestWriteOmarchyInstallerFilesMatchesISOContract(t *testing.T) {
 	}
 }
 
+func TestValidateISOInstallerConfigRequiresEncryption(t *testing.T) {
+	cfg := isoInstallerConfig{
+		Keyboard:            "us",
+		Username:            "qv",
+		Password:            "test-password",
+		PasswordHash:        "$6$hash",
+		Hostname:            "qvOS",
+		Timezone:            "UTC",
+		Disk:                "/dev/sda",
+		DiskSizeBytes:       128 * 1024 * 1024 * 1024,
+		EncryptInstallation: false,
+		Kernel:              "linux",
+	}
+
+	if err := validateISOInstallerConfig(cfg); err == nil || err.Error() != "disk encryption is required" {
+		t.Fatalf("validateISOInstallerConfig() error = %v, want disk encryption is required", err)
+	}
+}
+
+func TestBuildOmarchyDiskLayoutUsesQvOSProductName(t *testing.T) {
+	_, err := buildOmarchyDiskLayout("/dev/sda", 1024*1024*1024)
+	if err == nil || err.Error() != "disk /dev/sda is too small for qvOS layout" {
+		t.Fatalf("buildOmarchyDiskLayout() error = %v, want qvOS layout error", err)
+	}
+}
+
 func TestParseISOProgressLogFromFixture(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("testdata", "iso-install.log"))
 	if err != nil {

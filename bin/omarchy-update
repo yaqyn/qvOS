@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Update Omarchy and system packages
+# omarchy:summary=Update qvOS and system packages
 # omarchy:args=[-y]
 # omarchy:examples=omarchy update | omarchy update -y
 # omarchy:requires-sudo=true

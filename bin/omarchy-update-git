@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# omarchy:summary=Pull the latest Omarchy git changes
+# omarchy:summary=Pull the latest qvOS git changes
 
 set -e
 
-echo -e "\e[32mUpdate Omarchy\e[0m"
+echo -e "\e[32mUpdate qvOS\e[0m"
 
 omarchy-update-time
 

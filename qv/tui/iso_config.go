@@ -97,6 +97,8 @@ func validateISOInstallerConfig(cfg isoInstallerConfig) error {
 		return fmt.Errorf("password is required")
 	case cfg.PasswordHash == "":
 		return fmt.Errorf("password hash is required")
+	case !cfg.EncryptInstallation:
+		return fmt.Errorf("disk encryption is required")
 	case !validISOHostname(cfg.Hostname):
 		return fmt.Errorf("invalid hostname")
 	case cfg.Timezone == "":
@@ -233,7 +235,7 @@ func buildOmarchyDiskLayout(disk string, diskSizeBytes int64) (omarchyDiskLayout
 	mainStart := bootStart + bootSize
 	mainSize := diskSizeRounded - mainStart - gptBackupReserve
 	if mainSize <= 0 {
-		return omarchyDiskLayout{}, fmt.Errorf("disk %s is too small for Omarchy layout", disk)
+		return omarchyDiskLayout{}, fmt.Errorf("disk %s is too small for qvOS layout", disk)
 	}
 
 	return omarchyDiskLayout{
