@@ -1,5 +1,4 @@
 @import "../omarchy/current/theme/waybar.css";
-@import "qv/style.css";
 
 * {
   background-color: @background;

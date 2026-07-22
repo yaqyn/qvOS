@@ -1,0 +1,34 @@
+{
+  "custom/omarchy": {
+    "format": "󱅾"
+  },
+  "hyprland/workspaces": {
+    "format-icons": {
+      "urgent": "󱓻"
+    }
+  },
+  "custom/prayerbar": {
+    "format": "{}",
+    "tooltip": true,
+    "interval": 60,
+    "signal": 11,
+    "exec": "~/.local/share/qvos/waybar/prayerbar.sh",
+    "return-type": "json"
+  },
+  "custom/qv-clock": {
+    "format": "{}",
+    "tooltip": true,
+    "interval": 60,
+    "signal": 12,
+    "exec": "~/.local/share/qvos/waybar/clock.sh",
+    "return-type": "json"
+  },
+  "group/prayer-clock": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 600,
+      "children-class": "prayer-clock-item"
+    },
+    "modules": ["custom/prayerbar", "custom/qv-clock"]
+  }
+}

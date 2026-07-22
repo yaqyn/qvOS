@@ -60,10 +60,8 @@ grep -Fq '󱅾  qvOS' "$root/bin/omarchy-menu" || fail "qvOS update menu icon"
 grep -Fq '*qvOS*) present_terminal omarchy-update ;;' "$root/bin/omarchy-menu" || fail "qvOS update menu route"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
 grep -Fq '"02", "RESET", "Reset to Omarchy"' "$root/qv/tui/main.go" || fail "upstream Omarchy reset identity"
-grep -Fq 'qvOS Menu\n\nSuper + Alt + Space' "$root/config/waybar/config.jsonc" || fail "qvOS Waybar menu tooltip"
-grep -Fq 'qvOS update available' "$root/config/waybar/config.jsonc" || fail "qvOS Waybar update tooltip"
-grep -Fq '"format": "󱅾"' "$root/config/waybar/config.jsonc" || fail "qvOS Waybar icon"
-if grep -Fq '\ue900' "$root/config/waybar/config.jsonc" || grep -Fq '' "$root/bin/omarchy-menu"; then
+grep -Fq '"format": "󱅾"' "$root/config/waybar/qv/overrides.jsonc" || fail "qvOS Waybar noodle icon"
+if grep -Fq '' "$root/bin/omarchy-menu"; then
   fail "retired Omarchy menu glyph"
 fi
 grep -Fq 'Super + Alt + Space for qvOS Menu.' "$root/install/first-run/welcome.sh" || fail "qvOS first-run menu label"

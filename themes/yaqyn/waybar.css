@@ -1,12 +1,24 @@
 @define-color foreground #d0d0d0;
 @define-color bright #e6e6e6;
-@define-color background #090909;
+@define-color background #080808;
 @define-color accent #d00000;
+@define-color attention #f59e0b;
 @define-color muted #707070;
+
+window#waybar {
+  background-color: @background;
+  opacity: 1;
+}
 
 #custom-omarchy {
   color: @muted;
   opacity: 0.45;
+}
+
+window#waybar #workspaces button.urgent,
+window#waybar #workspaces button.urgent label {
+  color: @attention;
+  opacity: 1;
 }
 
 window#waybar #custom-update,
@@ -19,6 +31,8 @@ window#waybar #custom-voxtype.recording {
 
 window#waybar #custom-prayerbar {
   color: @foreground;
+  min-width: 70px;
+  padding: 0 4px 0 8px;
   transition: color 180ms ease;
 }
 
@@ -30,13 +44,12 @@ window#waybar #custom-prayerbar:hover {
   color: @bright;
 }
 
-window#waybar #custom-qv-clock,
-window#waybar #custom-qvos-clock,
 window#waybar .prayer-clock-item,
-window#waybar #custom-qv-clock.prayer-clock-item,
-window#waybar #custom-qvos-clock.prayer-clock-item {
+window#waybar #custom-qv-clock {
   color: @foreground;
+  margin-left: 0;
   opacity: 0.8;
+  padding: 0;
 }
 
 window#waybar #custom-screenrecording-indicator,
