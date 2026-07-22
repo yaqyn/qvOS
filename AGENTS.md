@@ -82,6 +82,18 @@ Install stage files follow this pattern:
 
 Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflight/package-helper contexts where the helper commands may not be available yet or where direct package-manager behavior is the point of the script.
 
+# Fresh Apps
+
+`Install > Fresh` is a hand-curated index of qvOS-owned app integrations not
+already handled by upstream Omarchy.
+
+- Change the catalog only through an explicit qvOS curation decision.
+- Each entry must route to one working `omarchy-install-*` or
+  `omarchy-setup-*` command that owns the complete installation and integration
+  flow; reuse that command everywhere.
+- Keep upstream apps, generic installers, and placeholders out of Fresh.
+- Update the Fresh route test whenever the catalog changes.
+
 # Simplicity
 
 Keep changes simple. Prefer plain edits to existing files, lists, and config over new mechanisms, helpers, generated layers, or abstractions.
