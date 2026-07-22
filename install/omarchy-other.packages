@@ -64,6 +64,9 @@ linux-firmware-marvell
 # Dell laptop support packages
 dell-xps-touchpad-haptics
 
+# Framework laptop support packages
+qmk-hid
+
 # T2 MacBook support packages
 apple-bcm-firmware
 apple-t2-audio-config

@@ -33,6 +33,13 @@ if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; th
   fail "retired keyring removal migration"
 fi
 
+[[ ! -e $root/install/packaging/warp.sh ]] || fail "WARP fresh-install stage"
+grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' "$root/bin/omarchy-setup-dns" || fail "on-demand WARP package contract"
+pass "WARP stays optional and installs only when selected"
+
+grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" || fail "Framework 16 offline package contract"
+pass "conditional hardware packages remain available offline"
+
 keyring_home="$test_root/keyring-home"
 HOME="$keyring_home" bash "$root/install/login/default-keyring.sh"
 keyring_dir="$keyring_home/.local/share/keyrings"
