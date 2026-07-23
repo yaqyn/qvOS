@@ -76,7 +76,7 @@ less
 libsecret
 libyaml
 libqalculate
-# libreoffice-fresh
+libreoffice-fresh
 llvm
 # localsend
 luarocks

@@ -80,9 +80,12 @@ run_with_mocks "$script_dir/qvos-launch-terminal-here" terminal "$project_dir"
 run_with_mocks "$script_dir/qvos-launch-terminal-here" root "$project_dir"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project sudo -s" ]] || fail "root terminal route"
 
+run_with_mocks "$script_dir/qvos-launch-terminal-here" codex-yolo "$project_dir"
+[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex YOLO --dir=$canonical_project codex --yolo" ]] || fail "Codex YOLO route"
+
 run_with_mocks "$script_dir/qvos-launch-editor-here" "$project_dir"
 [[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "editor route"
-pass "terminal, root, and editor launchers preserve location"
+pass "terminal, root, Codex YOLO, and editor launchers preserve location"
 
 run_with_mocks "$script_dir/qvos-thunar-launch-path" terminal "$project_dir/example.txt"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project" ]] || fail "Thunar terminal route"
