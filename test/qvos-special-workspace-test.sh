@@ -88,10 +88,12 @@ fi
 pass "a missing active window cannot change workspace state"
 
 grep -Fqx 'unbind = SUPER CTRL, SPACE' "$bindings" || fail "background picker override"
-grep -Fqx 'unbind = SUPER SHIFT CTRL, SPACE' "$bindings" || fail "theme picker override"
+if grep -Fqx 'unbind = SUPER SHIFT CTRL, SPACE' "$bindings"; then
+  fail "qvOS suppresses the inherited theme menu"
+fi
 grep -Fqx 'bindd = SUPER CTRL, SPACE, Toggle special workspace, togglespecialworkspace, scratchpad' "$bindings" || fail "special workspace toggle binding"
 grep -Fqx 'bindd = SUPER CTRL ALT, SPACE, Move window in or out of special workspace, exec, ~/.local/share/qvos/hyprland/qvos-toggle-special-window' "$bindings" || fail "special window transfer binding"
-if grep -Eq '^bindd = SUPER (CTRL ALT|SHIFT CTRL ALT), S,' "$bindings"; then
+if grep -Eq '^bindd = SUPER[^,]*, S, .*(togglespecialworkspace|qvos-toggle-special-window|movetoworkspacesilent.*special)' "$bindings"; then
   fail "retired special workspace S binding"
 fi
 pass "the Space family owns special workspace controls"
