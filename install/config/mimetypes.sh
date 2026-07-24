@@ -46,13 +46,8 @@ xdg-mime default mpv.desktop application/ogg
 # Use Hey for mailto: links
 xdg-mime default HEY.desktop x-scheme-handler/mailto
 
-# Open editable text/source/config files with Code OSS, then VS Code, then Neovim
+# Open editable text/source/config files with Neovim
 editor_desktop=nvim.desktop
-if command -v code-oss >/dev/null 2>&1; then
-  editor_desktop=code-oss.desktop
-elif command -v code >/dev/null 2>&1; then
-  editor_desktop=code.desktop
-fi
 
 editor_mimes=(
   application/ecmascript

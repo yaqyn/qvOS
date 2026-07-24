@@ -20,11 +20,23 @@ fail() {
   exit 1
 }
 
-grep -qx 'code' "$root/install/omarchy-base.packages" || fail "Code OSS package contract"
+grep -qx 'chromium' "$root/install/omarchy-base.packages" || fail "Chromium package contract"
+grep -qx 'alacritty' "$root/install/omarchy-base.packages" || fail "Alacritty package contract"
+grep -qx 'neovim' "$root/install/omarchy-base.packages" || fail "Neovim package contract"
+grep -qx 'omarchy-nvim' "$root/install/omarchy-base.packages" || fail "qvOS Neovim package contract"
 
 editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$root/config/uwsm/default")
-[[ $editor_env == $'code\ncode\ncode' ]] || fail "editor environment contract"
-pass "Code OSS is installed and owns all editor variables"
+[[ $editor_env == $'nvim\nnvim\nnvim' ]] || fail "editor environment contract"
+
+terminal_desktop=$(grep -vE '^($|#)' "$root/config/xdg-terminals.list" | head -n 1)
+[[ $terminal_desktop == "Alacritty.desktop" ]] || fail "terminal default contract"
+
+grep -Fqx 'xdg-settings set default-web-browser chromium.desktop' "$root/install/config/mimetypes.sh" || fail "browser default contract"
+grep -Fqx 'editor_desktop=nvim.desktop' "$root/install/config/mimetypes.sh" || fail "text MIME default contract"
+if grep -Eq 'editor_desktop=(code|code-oss)\.desktop|command -v (code|code-oss)' "$root/install/config/mimetypes.sh"; then
+  fail "retired Code text MIME preference"
+fi
+pass "Chromium, Alacritty, and Neovim are the qvOS defaults"
 
 grep -qx 'gnome-keyring' "$root/install/omarchy-base.packages" || fail "desktop keyring package contract"
 grep -Fqx "run_logged \"\$OMARCHY_INSTALL/login/default-keyring.sh\"" "$root/install/login/all.sh" || fail "default keyring setup contract"
@@ -127,6 +139,16 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 printf '%s\n' "$*" >>"$QVOS_TEST_PACKAGE_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_bin/omarchy-theme-current" <<'SCRIPT'
 #!/bin/bash
 printf 'Orion\n'
@@ -195,16 +217,22 @@ QVOS_TEST_PACKAGE_LOG="$package_log" HOME="$migration_home" PATH="$test_bin:$roo
 migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
 [[ $migrated_editor_env == $'code\ncode\ncode' ]] || fail "existing editor migration"
 
+HOME="$migration_home" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784904379.sh" >/dev/null
+migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
+[[ $migrated_editor_env == $'nvim\nnvim\nnvim' ]] || fail "Neovim editor migration"
+grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784904379.sh" || fail "qvOS binding refresh migration"
+
 printf '%s\n' \
   'export EDITOR=helix' \
   'export VISUAL=helix' \
   'export SUDO_EDITOR=helix' \
   >"$migration_home/.config/uwsm/default"
 QVOS_TEST_CODE_MISSING=1 QVOS_TEST_PACKAGE_LOG="$package_log" HOME="$migration_home" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784657678.sh" >/dev/null
+HOME="$migration_home" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784904379.sh" >/dev/null
 migrated_custom_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
 [[ $migrated_custom_env == $'helix\nhelix\nhelix' ]] || fail "custom editor migration"
 [[ $(<"$package_log") == "code" ]] || fail "existing Code OSS package migration"
-pass "existing qvOS defaults migrate while custom editor choices stay intact"
+pass "existing qvOS editor defaults migrate to Neovim while custom choices stay intact"
 
 theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
 [[ $theme_list == "Yaqyn" ]] || fail "single bundled theme"

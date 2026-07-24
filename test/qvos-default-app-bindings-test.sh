@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 bindings="$root/config/hypr/qv/bindings.conf"
+legacy_bindings="$root/default/hypr/bindings.conf"
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -21,6 +22,7 @@ assert_binding 'bindd = SUPER, B, Default browser, exec, omarchy-launch-browser'
 assert_binding 'bindd = SUPER SHIFT, B, Private default browser, exec, omarchy-launch-browser --private' "private default browser binding"
 assert_binding 'bindd = SUPER, Z, Default browser, exec, omarchy-launch-browser' "Z default browser binding"
 assert_binding 'bindd = SUPER SHIFT, Z, Private default browser, exec, omarchy-launch-browser --private' "Z private default browser binding"
+assert_binding 'bindd = SUPER CTRL, Z, Default browser, exec, omarchy-launch-browser' "Z alternate default browser binding"
 pass "the B and Z browser families follow the Omarchy default"
 
 assert_binding 'bindd = SUPER CTRL, E, Default editor, exec, omarchy-launch-editor' "default editor binding"
@@ -45,7 +47,9 @@ if grep -Eqi '^bindd = SUPER( SHIFT)?, (backslash|N),' "$bindings"; then
   fail "retired qvOS tmux or editor family"
 fi
 
-if grep -Eqi '^bindd = SUPER( SHIFT)?, (B|Z), .*(brave|chromium|firefox)|^bindd = SUPER( SHIFT)?, (X|RETURN), .*(alacritty|foot|ghostty|kitty)|^bindd = SUPER( SHIFT)? CTRL, E, .*(code|cursor|zeditor|nvim)' "$bindings"; then
+grep -Fqx 'bindd = SUPER, N, Editor, exec, omarchy-launch-editor' "$legacy_bindings" || fail "legacy editor binding"
+
+if grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' "$bindings" "$legacy_bindings"; then
   fail "hardcoded default application"
 fi
-pass "default-app bindings contain no concrete application choice"
+pass "all default-app bindings contain no concrete application choice"

@@ -81,7 +81,7 @@ pass "the D family owns developer destinations"
 
 assert_binding 'bindd = SUPER, Z, Default browser, exec, omarchy-launch-browser' "Z default browser binding"
 assert_binding 'bindd = SUPER SHIFT, Z, Private default browser, exec, omarchy-launch-browser --private' "Z private browser binding"
-assert_binding 'bindd = SUPER CTRL, Z, Chromium, exec, uwsm-app -- chromium' "Chromium binding"
+assert_binding 'bindd = SUPER CTRL, Z, Default browser, exec, omarchy-launch-browser' "dynamic browser binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, Z, Localhost, exec, ~/.local/share/qvos/hyprland/qvos-localhost-open' "Localhost binding"
 assert_binding "bindd = SUPER ALT, Z, Zoom in, exec, hyprctl keyword cursor:zoom_factor \$(hyprctl getoption cursor:zoom_factor -j | jq '.float + 1')" "relocated zoom binding"
 assert_binding 'bindd = SUPER CTRL ALT, Z, Reset zoom, exec, hyprctl keyword cursor:zoom_factor 1' "qvOS reset zoom binding"

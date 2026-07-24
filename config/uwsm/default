@@ -3,8 +3,8 @@
 # Install other terminals via Install > Terminal
 export TERMINAL=xdg-terminal-exec
 
-# Use the Arch Code OSS build
-export EDITOR=code
+# Use Neovim with the qvOS configuration
+export EDITOR=nvim
 export VISUAL="$EDITOR"
 export SUDO_EDITOR="$EDITOR"
 
