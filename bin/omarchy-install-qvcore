@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# omarchy:summary=Install the complete qvCORE profile or one component
+# omarchy:args=[all|brave-origin|warp|codex|proton]
+# omarchy:examples=omarchy install qvcore | omarchy install qvcore codex
+# omarchy:requires-sudo=true
+
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+qvcore_dir="$OMARCHY_PATH/qv/core"
+
+install_component() {
+  local component=$1
+  local component_script="$qvcore_dir/$component.sh"
+
+  if [[ ! -x $component_script ]]; then
+    echo "Missing qvCORE component: $component_script" >&2
+    return 1
+  fi
+
+  "$component_script"
+}
+
+if (($# > 1)); then
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|codex|proton]" >&2
+  exit 1
+fi
+
+case ${1:-all} in
+all)
+  for component in warp brave-origin codex proton; do
+    install_component "$component"
+  done
+  omarchy-install-gaming-steam
+  echo ""
+  echo "qvCORE is ready."
+  ;;
+brave-origin | warp | codex | proton)
+  install_component "$1"
+  ;;
+*)
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|codex|proton]" >&2
+  exit 1
+  ;;
+esac

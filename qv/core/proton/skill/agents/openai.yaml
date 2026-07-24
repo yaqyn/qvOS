@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proton CLI"
+  short_description: "Operate Proton Pass, Drive, and Mail safely"
+  default_prompt: "Use $proton-cli to manage my Proton Pass, Drive, or Mail safely from the terminal."

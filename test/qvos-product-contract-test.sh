@@ -49,6 +49,14 @@ fi
 grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' "$root/bin/omarchy-setup-dns" || fail "on-demand WARP package contract"
 pass "WARP stays optional and installs only when selected"
 
+if grep -Eq '^(brave-origin-beta-bin|cloudflare-warp-nox-bin|codex|codex-cli|pass-cli|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|steam)$' "$root"/install/*.packages ||
+  grep -RqsF '@openai/codex' "$root/install"; then
+  fail "qvCORE application leaked into the base installation"
+fi
+grep -Fqx '  for component in warp brave-origin codex proton; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
+grep -Fqx '  omarchy-install-gaming-steam' "$root/bin/omarchy-install-qvcore" || fail "qvCORE Steam profile"
+pass "qvCORE applications stay outside the base installation"
+
 grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
 

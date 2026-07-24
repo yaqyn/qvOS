@@ -506,8 +506,8 @@ show_setup_system_menu() {
 }
 
 show_install_menu() {
-  case $(menu "Install" "  Fresh\n󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
-  *Fresh*) show_install_fresh_menu ;;
+  case $(menu "Install" "󰏖  qvCORE\n󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
+  *qvCORE*) show_install_qvcore_menu ;;
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
   *Web*) present_terminal omarchy-webapp-install ;;
@@ -525,9 +525,14 @@ show_install_menu() {
   esac
 }
 
-show_install_fresh_menu() {
-  case $(menu "Fresh" "󰖂  WARP") in
-  *WARP*) present_terminal "omarchy-setup-dns WARP" ;;
+show_install_qvcore_menu() {
+  case $(menu "qvCORE" "  Install All\n󰖟  Brave Origin\n󰖂  WARP\n󱚤  Codex\n󰌾  Proton\n  Steam") in
+  *"Install All"*) present_terminal omarchy-install-qvcore ;;
+  *"Brave Origin"*) present_terminal "omarchy-install-qvcore brave-origin" ;;
+  *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
+  *Codex*) present_terminal "omarchy-install-qvcore codex" ;;
+  *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
+  *Steam*) present_terminal omarchy-install-gaming-steam ;;
   *) show_install_menu ;;
   esac
 }
@@ -887,7 +892,7 @@ go_to_menu() {
   *screenrecord*) show_screenrecord_menu ;;
   *setup*) show_setup_menu ;;
   *power*) show_setup_power_menu ;;
-  *fresh*) show_install_fresh_menu ;;
+  *qvcore*) show_install_qvcore_menu ;;
   *install*) show_install_menu ;;
   *remove*) show_remove_menu ;;
   *update*) show_update_menu ;;
