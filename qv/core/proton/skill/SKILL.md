@@ -51,6 +51,12 @@ Before access, run `info --output json` and `test`, then parse
 `vault list --output json` and require exactly one visible vault named
 `Codex Vault`. Stop on broader or different access.
 
+Vault visibility does not prove item visibility. If an expected item is
+missing, compare redacted `share list --output json` and `item list` metadata.
+When the isolated session is healthy and the vault is correctly scoped, report
+the empty or missing grant and ask the user to add or grant the item. Do not
+reauthenticate or broaden access to work around missing content.
+
 On qvOS with no isolated session, have the user run
 `omarchy install qvcore proton` in an interactive terminal. Its authenticated
 wizard first inventories Pass, Drive, Mail Bridge, the Proton account CLI, and
@@ -161,6 +167,12 @@ process without emitting them, then exit and restart the service. Always
 restart it in a cleanup trap. Use the generated Bridge password, never the
 Proton account password.
 
+Bridge can temporarily report an account as locked while its CLI starts or
+syncs. Retry `list` until the account is connected before requesting `info`;
+do not treat the temporary lock as missing authentication. After restarting
+the service, open listeners are necessary but not sufficient: require a
+successful authenticated IMAP `NOOP` before performing mail operations.
+
 Connect only to the reported localhost IMAP/SMTP endpoints. Do not hard-code
 ports and do not expose Bridge beyond loopback. No terminal mail client is
 assumed; use a one-shot `openssl s_client` protocol worker with the reported
@@ -180,10 +192,12 @@ For SMTP:
 
 - Validate the exact From, To, Cc, Bcc, Subject, and attachment list before
   sending.
-- Build RFC-compliant MIME locally in memory, authenticate over the reported
-  TLS mode, and require the final SMTP success response.
+- Build RFC-compliant MIME with a unique Message-ID locally in memory,
+  authenticate over the reported TLS mode, and require the final SMTP success
+  response.
 - Verify the message in Sent after delivery. Do not silently retry ambiguous
-  delivery failures because that can send duplicates.
+  delivery failures because that can send duplicates. Search Sent for the
+  Message-ID first; retry only when the message is proven absent.
 
 Never enable Bridge `--log-imap` or `--log-smtp`; those logs can contain
 decrypted mail. Stop the on-demand service after the task unless another
