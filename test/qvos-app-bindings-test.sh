@@ -49,6 +49,18 @@ assert_binding 'bindd = SUPER ALT, C, X, exec, omarchy-launch-webapp "https://x.
 assert_binding 'bindd = SUPER CTRL ALT, C, Bluesky, exec, omarchy-launch-webapp "https://bsky.app/"' "Bluesky binding"
 pass "the C family owns communication and social apps"
 
+assert_binding 'unbind = SUPER CTRL, R' "inherited Set reminder override"
+assert_binding 'unbind = SUPER SHIFT CTRL, R' "inherited Clear reminders override"
+assert_binding 'unbind = SUPER CTRL ALT, R' "inherited Show reminders override"
+assert_binding 'bindd = SUPER, R, Quran, exec, omarchy-launch-webapp "https://quran.com/"' "Quran binding"
+assert_binding 'bindd = SUPER SHIFT, R, Qirtaas, exec, omarchy-launch-webapp "https://qirtaas.io/dashboard"' "Qirtaas binding"
+assert_binding 'bindd = SUPER CTRL, R, Qayyimental on Telegram, exec, uwsm-app -- Telegram -- "https://t.me/Qayyimental"' "Qayyimental Telegram binding"
+assert_binding 'bindd = SUPER SHIFT CTRL, R, Elm Academy curriculum, exec, omarchy-launch-webapp "https://www.elm-academy.net/ar/%D8%A7%D9%84%D9%85%D9%86%D9%87%D8%AC"' "Elm Academy binding"
+assert_binding 'bindd = SUPER ALT, R, Set reminder, exec, omarchy-menu reminder-set' "Set reminder binding"
+assert_binding 'bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear' "Clear reminders binding"
+assert_binding 'bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show' "Show reminders binding"
+pass "the R family owns Quran destinations and relocated reminders"
+
 if grep -Eq '^(unbind|bind[a-z]*) = SUPER, C,' "$bindings"; then
   fail "qvOS overrides inherited Universal copy"
 fi
