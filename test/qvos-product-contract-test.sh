@@ -221,6 +221,7 @@ HOME="$migration_home" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"'
 migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
 [[ $migrated_editor_env == $'nvim\nnvim\nnvim' ]] || fail "Neovim editor migration"
 grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784904379.sh" || fail "qvOS binding refresh migration"
+grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784906399.sh" || fail "Chromium dev browser migration"
 
 printf '%s\n' \
   'export EDITOR=helix' \

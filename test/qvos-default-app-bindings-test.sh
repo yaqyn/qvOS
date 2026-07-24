@@ -22,8 +22,8 @@ assert_binding 'bindd = SUPER, B, Default browser, exec, omarchy-launch-browser'
 assert_binding 'bindd = SUPER SHIFT, B, Private default browser, exec, omarchy-launch-browser --private' "private default browser binding"
 assert_binding 'bindd = SUPER, Z, Default browser, exec, omarchy-launch-browser' "Z default browser binding"
 assert_binding 'bindd = SUPER SHIFT, Z, Private default browser, exec, omarchy-launch-browser --private' "Z private default browser binding"
-assert_binding 'bindd = SUPER CTRL, Z, Default browser, exec, omarchy-launch-browser' "Z alternate default browser binding"
-pass "the B and Z browser families follow the Omarchy default"
+assert_binding 'bindd = SUPER CTRL, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "Chromium dev browser binding"
+pass "the default and private B/Z routes follow the Omarchy default"
 
 assert_binding 'bindd = SUPER CTRL, E, Default editor, exec, omarchy-launch-editor' "default editor binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, E, Default editor here, exec, ~/.local/share/qvos/hyprland/qvos-launch-editor-here' "contextual default editor binding"
@@ -49,7 +49,9 @@ fi
 
 grep -Fqx 'bindd = SUPER, N, Editor, exec, omarchy-launch-editor' "$legacy_bindings" || fail "legacy editor binding"
 
-if grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' "$bindings" "$legacy_bindings"; then
+if grep -Fvx 'bindd = SUPER CTRL, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "$bindings" |
+  grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' ||
+  grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' "$legacy_bindings"; then
   fail "hardcoded default application"
 fi
-pass "all default-app bindings contain no concrete application choice"
+pass "default-app bindings are dynamic except for the Chromium dev browser"
