@@ -2,7 +2,6 @@
 @define-color bright #e6e6e6;
 @define-color background #080808;
 @define-color accent #d00000;
-@define-color attention #f59e0b;
 @define-color muted #707070;
 
 window#waybar {
@@ -15,9 +14,24 @@ window#waybar {
   opacity: 0.45;
 }
 
+window#waybar #workspaces button {
+  color: @foreground;
+  opacity: 0.55;
+}
+
+window#waybar #workspaces button.empty {
+  color: @muted;
+  opacity: 0.3;
+}
+
+window#waybar #workspaces button.active {
+  color: @bright;
+  opacity: 0.75;
+}
+
 window#waybar #workspaces button.urgent,
 window#waybar #workspaces button.urgent label {
-  color: @attention;
+  color: #ffffff;
   opacity: 1;
 }
 

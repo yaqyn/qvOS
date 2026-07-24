@@ -38,15 +38,28 @@ source_config="$root/config/waybar/config.jsonc"
 live_config="$test_root/.config/waybar/config.jsonc"
 
 cmp -s "$root/config/waybar/style.css" "$test_root/.config/waybar/style.css" || fail "upstream Waybar style"
+workspace_style=$(sed -n '/^window#waybar #workspaces button {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+grep -Fq '  color: @foreground;' <<<"$workspace_style" || fail "normal workspace foreground"
+grep -Fq '  opacity: 0.55;' <<<"$workspace_style" || fail "normal workspace opacity"
+empty_workspace_style=$(sed -n '/^window#waybar #workspaces button\.empty {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+grep -Fq '  color: @muted;' <<<"$empty_workspace_style" || fail "empty workspace muted color"
+grep -Fq '  opacity: 0.3;' <<<"$empty_workspace_style" || fail "empty workspace opacity"
+active_workspace_style=$(sed -n '/^window#waybar #workspaces button\.active {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+grep -Fq '  color: @bright;' <<<"$active_workspace_style" || fail "active workspace bright color"
+grep -Fq '  opacity: 0.75;' <<<"$active_workspace_style" || fail "active workspace opacity"
 grep -Fq 'window#waybar #workspaces button.urgent label {' "$root/themes/yaqyn/waybar.css" || fail "urgent workspace label color"
-grep -Fq '@define-color attention #f59e0b;' "$root/themes/yaqyn/waybar.css" || fail "urgent workspace attention color"
-grep -Fq '  color: @attention;' "$root/themes/yaqyn/waybar.css" || fail "urgent workspace attention style"
+urgent_workspace_style=$(sed -n '/^window#waybar #workspaces button\.urgent,/,/^}/p' "$root/themes/yaqyn/waybar.css")
+grep -Fq '  color: #ffffff;' <<<"$urgent_workspace_style" || fail "urgent workspace pure-white style"
+grep -Fq '  opacity: 1;' <<<"$urgent_workspace_style" || fail "urgent workspace full opacity"
+if grep -Fq '@define-color attention ' "$root/themes/yaqyn/waybar.css"; then
+  fail "separate urgent workspace attention color"
+fi
 
-jq -e '
+jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("clock") == null) and
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."hyprland/workspaces"."format-icons".urgent == "󱓻") and
+  (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
   (."custom/prayerbar".exec == "~/.local/share/qvos/waybar/prayerbar.sh") and
   (."custom/qv-clock".exec == "~/.local/share/qvos/waybar/clock.sh")
@@ -151,10 +164,10 @@ ln -s "$root/bin/omarchy-refresh-waybar" "$test_bin/omarchy-refresh-waybar"
 PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
   bash "$root/install/config/config.sh"
 
-jq -e '
+jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."hyprland/workspaces"."format-icons".urgent == "󱓻")
+  (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"
 if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then
   fail "fresh install Waybar backup"

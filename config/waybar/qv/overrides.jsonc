@@ -2,11 +2,6 @@
   "custom/omarchy": {
     "format": "󱅾"
   },
-  "hyprland/workspaces": {
-    "format-icons": {
-      "urgent": "󱓻"
-    }
-  },
   "custom/prayerbar": {
     "format": "{}",
     "tooltip": true,
