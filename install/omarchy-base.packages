@@ -18,7 +18,7 @@ chromium
 clang
 # Disabled personal AI package: claude-code
 # cliamp
-code
+# code
 curl
 cups
 cups-browsed
@@ -28,7 +28,7 @@ docker
 docker-buildx
 docker-compose
 dosfstools
-dotnet-runtime-9.0
+# dotnet-runtime-9.0
 dust
 evince
 exfatprogs
@@ -76,7 +76,7 @@ less
 libsecret
 libyaml
 libqalculate
-libreoffice-fresh
+# libreoffice-fresh
 llvm
 # localsend
 luarocks
@@ -133,9 +133,9 @@ thunar-archive-plugin
 tldr
 tree-sitter-cli
 tmux
-tobi-try
+# tobi-try
 tumbler
-ttf-ia-writer
+# ttf-ia-writer
 ttf-jetbrains-mono-nerd
 # typora
 tzupdate

@@ -89,9 +89,10 @@ pass "the Z family owns browsers, localhost, and zoom"
 
 assert_binding 'bindd = SUPER ALT, E, Obsidian, exec, uwsm-app -- obsidian' "Obsidian binding"
 assert_binding 'bindd = SUPER SHIFT ALT, E, Standard Notes, exec, omarchy-launch-webapp "https://app.standardnotes.com/"' "Standard Notes binding"
-assert_binding 'bindd = SUPER CTRL ALT, E, LibreOffice, exec, uwsm-app -- libreoffice' "LibreOffice binding"
-assert_binding 'bindd = SUPER SHIFT CTRL ALT, E, LibreOffice Writer, exec, uwsm-app -- libreoffice --writer' "LibreOffice Writer binding"
-grep -qx 'libreoffice-fresh' "$packages" || fail "LibreOffice binding requires the default office package"
+assert_binding 'bindd = SUPER CTRL ALT, E, Google Workspace, exec, omarchy-launch-webapp "https://workspace.google.com/dashboard"' "Google Workspace binding"
+assert_binding 'bindd = SUPER SHIFT CTRL ALT, E, Google Docs, exec, omarchy-launch-webapp "https://docs.google.com/"' "Google Docs binding"
+grep -qx 'obsidian' "$packages" || fail "Obsidian binding requires the default notes package"
+grep -qx '# libreoffice-fresh' "$packages" || fail "LibreOffice must stay disabled in the default package manifest"
 pass "the E Alt family owns notes and office tools"
 
 if grep -Eq '^bindd = SUPER( SHIFT)?, (M|P),|^bindd = SUPER SHIFT, C, Proton' "$bindings" ||
@@ -111,7 +112,7 @@ if grep -Eq '^bindd = SUPER SHIFT, A, (Brave Ask|Lumo),|^bindd = SUPER CTRL, A, 
   fail "retired application or control route"
 fi
 
-if grep -Eq 'Proton Wallet|Codex Docs|Signal|signal-desktop' "$bindings"; then
+if grep -Eq 'Proton Wallet|Codex Docs|Signal|signal-desktop|LibreOffice|uwsm-app -- libreoffice' "$bindings"; then
   fail "retired app action"
 fi
 
