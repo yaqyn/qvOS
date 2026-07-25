@@ -53,7 +53,7 @@ QVOS_TEST_INSTALL_MENU_LOG="$install_menu_log" \
   "$root/bin/omarchy-menu" install
 
 grep -Fqx '󰏖  qvCORE' "$install_menu_log" || fail "qvCORE install-menu entry"
-[[ $(<"$qvcore_menu_log") == $'  Install All\n󰖟  Brave Origin\n󰖂  WARP\n󱚤  Codex\n󰌾  Proton\n  Steam' ]] || fail "qvCORE component list"
+[[ $(<"$qvcore_menu_log") == $'  Install All\n󰖟  Brave Origin\n󰖂  WARP\n󰵮  Development\n󱚤  Codex\n󰌾  Proton\n  Steam' ]] || fail "qvCORE component list"
 [[ $(<"$route_log") == "omarchy-install-qvcore" ]] || fail "complete qvCORE route"
 pass "qvCORE exposes the complete opt-in profile"
 
@@ -75,6 +75,7 @@ run_direct_route() {
 
 run_direct_route "Brave Origin" "omarchy-install-qvcore brave-origin"
 run_direct_route "WARP" "omarchy-install-qvcore warp"
+run_direct_route "Development" "omarchy-install-qvcore dev"
 run_direct_route "Codex" "omarchy-install-qvcore codex"
 run_direct_route "Proton" "omarchy-install-qvcore proton"
 run_direct_route "Steam" "omarchy-install-gaming-steam"

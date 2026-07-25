@@ -27,6 +27,16 @@ ln -s "$root/qv/core/warp.sh" "$test_omarchy_path/qv/core/warp.sh"
 ln -s "$root/qv/core/brave-origin.sh" "$test_omarchy_path/qv/core/brave-origin.sh"
 ln -s "$root/qv/core/codex.sh" "$test_omarchy_path/qv/core/codex.sh"
 
+install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/dev.sh" <<'SCRIPT'
+#!/bin/bash
+if [[ ${QVOS_TEST_DEV_CANCEL:-0} == "1" ]]; then
+  printf 'cancel-dev\n' >>"$QVOS_TEST_ACTION_LOG"
+  echo "Development changes canceled; no components were modified."
+  exit 130
+fi
+printf 'install-dev\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/proton.sh" <<'SCRIPT'
 #!/bin/bash
 printf 'install-proton\n' >>"$QVOS_TEST_ACTION_LOG"
@@ -100,6 +110,7 @@ SCRIPT
 
 run_qvcore() {
   QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_DEV_CANCEL="${QVOS_TEST_DEV_CANCEL:-0}" \
     QVOS_TEST_GH_AUTH="${QVOS_TEST_GH_AUTH:-0}" \
     HOME="$test_root" \
     OMARCHY_PATH="$test_omarchy_path" \
@@ -109,24 +120,39 @@ run_qvcore() {
 
 : >"$action_log"
 run_qvcore >/dev/null
-expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\ninstall-gaming-steam'
+expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\ninstall-gaming-steam'
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
-pass "qvCORE installs WARP, Brave Origin, standalone Codex, Proton, and Steam"
+pass "qvCORE installs WARP, Brave Origin, Development, standalone Codex, Proton, and Steam"
 
 declare -A expected_component_actions=(
   [warp]=$'setup-dns\tWARP'
   [brave-origin]=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin'
+  [dev]=$'install-dev'
   [codex]=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"
   [proton]=$'install-proton'
 )
 
-for component in warp brave-origin codex proton; do
+for component in warp brave-origin dev codex proton; do
   : >"$action_log"
   run_qvcore "$component" >/dev/null
   [[ $(<"$action_log") == "${expected_component_actions[$component]}" ]] || fail "$component component route"
 done
 pass "qvCORE components are independently rerunnable"
+
+: >"$action_log"
+set +e
+cancel_output=$(QVOS_TEST_DEV_CANCEL=1 run_qvcore 2>&1)
+cancel_status=$?
+set -e
+((cancel_status == 130)) || fail "Development cancellation status propagation"
+expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ncancel-dev'
+[[ $(<"$action_log") == "$expected_cancel_actions" ]] ||
+  fail "complete profile stops after Development cancellation"
+if grep -Fq 'qvCORE is ready.' <<<"$cancel_output"; then
+  fail "canceled complete profile reports ready"
+fi
+pass "Development cancellation stops the complete qvCORE profile cleanly"
 
 : >"$action_log"
 QVOS_TEST_GH_AUTH=1 run_qvcore codex >/dev/null

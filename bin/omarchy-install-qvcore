@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # omarchy:summary=Install the complete qvCORE profile or one component
-# omarchy:args=[all|brave-origin|warp|codex|proton]
-# omarchy:examples=omarchy install qvcore | omarchy install qvcore codex
+# omarchy:args=[all|brave-origin|warp|dev|codex|proton]
+# omarchy:examples=omarchy install qvcore | omarchy install qvcore dev
 # omarchy:requires-sudo=true
 
 set -euo pipefail
@@ -23,24 +23,24 @@ install_component() {
 }
 
 if (($# > 1)); then
-  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|codex|proton]" >&2
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|dev|codex|proton]" >&2
   exit 1
 fi
 
 case ${1:-all} in
 all)
-  for component in warp brave-origin codex proton; do
+  for component in warp brave-origin dev codex proton; do
     install_component "$component"
   done
   omarchy-install-gaming-steam
   echo ""
   echo "qvCORE is ready."
   ;;
-brave-origin | warp | codex | proton)
+brave-origin | warp | dev | codex | proton)
   install_component "$1"
   ;;
 *)
-  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|codex|proton]" >&2
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|dev|codex|proton]" >&2
   exit 1
   ;;
 esac

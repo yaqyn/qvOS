@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# omarchy:summary=Display a failure message and wait for the user to close the terminal
+# omarchy:args=[exit-status]
+
+status=${1:-1}
+
+echo
+gum spin \
+  --spinner "globe" \
+  --title "Failed (exit $status). Press any key to close..." \
+  -- bash -c 'read -n 1 -s'

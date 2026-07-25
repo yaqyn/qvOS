@@ -47,7 +47,7 @@ install_php() {
 
 install_node() {
   echo -e "Installing Node.js...\n"
-  mise use --global node
+  mise use --global node@lts
 }
 
 case "$1" in
