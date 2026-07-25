@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 2)); then
+  printf 'Usage: open-here <terminal|editor> <path>\n' >&2
+  exit 2
+fi
+
+mode="$1"
+path="$2"
+helper_dir="$HOME/.local/share/qvos/hyprland"
+
+case "$mode" in
+terminal)
+  exec "$helper_dir/qvos-launch-terminal-here" terminal "$path"
+  ;;
+editor)
+  exec "$helper_dir/qvos-launch-editor-here" "$path"
+  ;;
+*)
+  printf 'Usage: open-here <terminal|editor> <path>\n' >&2
+  exit 2
+  ;;
+esac

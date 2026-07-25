@@ -38,6 +38,11 @@ fi
 printf 'install-dev\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/share.sh" <<'SCRIPT'
+#!/bin/bash
+printf 'install-share\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/proton.sh" <<'SCRIPT'
 #!/bin/bash
 printf 'install-proton\n' >>"$QVOS_TEST_ACTION_LOG"
@@ -157,14 +162,15 @@ expected_steam_packages+=" vulkan-icd-loader lib32-vulkan-icd-loader ocl-icd lib
 expected_steam_packages+=" cups samba lib32-mesa gamescope mangohud lib32-mangohud gamemode lib32-gamemode"
 expected_steam_packages+=" wine goverlay lib32-pipewire-jack"
 expected_steam_actions=$'install-gaming-steam\npackage\t'"$expected_steam_packages"
-expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"$'\ninstall-media'
+expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"$'\ninstall-media'
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
-pass "qvCORE installs WARP, Brave, Devel, standalone Codex, Proton, Steam, and Media"
+pass "qvCORE installs WARP, Brave, Share, Devel, standalone Codex, Proton, Steam, and Media"
 
 declare -A expected_component_actions=(
   [warp]=$'setup-dns\tWARP'
   [brave-origin]=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin'
+  [share]=$'install-share'
   [dev]=$'install-dev'
   [codex]=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"
   [proton]=$'install-proton'
@@ -172,7 +178,7 @@ declare -A expected_component_actions=(
   [media]=$'install-media'
 )
 
-for component in warp brave-origin dev codex proton steam media; do
+for component in warp brave-origin share dev codex proton steam media; do
   : >"$action_log"
   run_qvcore "$component" >/dev/null
   [[ $(<"$action_log") == "${expected_component_actions[$component]}" ]] || fail "$component component route"
@@ -205,7 +211,7 @@ cancel_output=$(QVOS_TEST_DEV_CANCEL=1 run_qvcore 2>&1)
 cancel_status=$?
 set -e
 ((cancel_status == 130)) || fail "Devel cancellation status propagation"
-expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ncancel-dev'
+expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ncancel-dev'
 [[ $(<"$action_log") == "$expected_cancel_actions" ]] ||
   fail "complete profile stops after Devel cancellation"
 if grep -Fq 'qvCORE is ready.' <<<"$cancel_output"; then

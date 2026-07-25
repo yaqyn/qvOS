@@ -9,7 +9,6 @@ Layout:
 ```text
 qv/scripts/
   branding/
-  defaults/
   hyprland/
   screensaver/
   waybar/

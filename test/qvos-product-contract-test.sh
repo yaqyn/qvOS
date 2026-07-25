@@ -49,11 +49,11 @@ fi
 grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' "$root/bin/omarchy-setup-dns" || fail "on-demand WARP package contract"
 pass "WARP stays optional and installs only when selected"
 
-if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared|codex|codex-cli|gitleaks|hurl|infisical|mkcert|osv-scanner|pass-cli|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|semgrep|sentry-cli|sops|steam|supabase)$' "$root"/install/*.packages ||
+if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared|codex|codex-cli|gitleaks|hurl|infisical|localsend|mkcert|osv-scanner|pass-cli|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|semgrep|sentry-cli|sops|steam|supabase)$' "$root"/install/*.packages ||
   grep -RqsF '@openai/codex' "$root/install"; then
   fail "qvCORE application leaked into the base installation"
 fi
-grep -Fqx '  for component in warp brave-origin dev codex proton steam; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
+grep -Fqx '  for component in warp brave-origin share dev codex proton steam media; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
 grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
 pass "qvCORE applications stay outside the base installation"
 

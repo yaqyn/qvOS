@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# == 0)); then
+  printf 'Usage: share <path> [path ...]\n' >&2
+  exit 2
+fi
+
+exec omarchy share file "$@"

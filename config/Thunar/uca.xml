@@ -1,39 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <actions>
 <action>
-	<icon>utilities-terminal</icon>
-	<name>Terminal</name>
-	<submenu></submenu>
-	<unique-id>qvos-terminal-here</unique-id>
-	<command>/bin/bash -c '"$HOME/.local/share/qvos/hyprland/qvos-thunar-launch-path" terminal "$1"' qvos-thunar %f</command>
-	<description>Open terminal in this folder.</description>
-	<range></range>
-	<patterns>*</patterns>
-	<startup-notify/>
-	<directories/>
+  <icon>utilities-terminal</icon>
+  <name>Open Terminal Here</name>
+  <unique-id>qvos-terminal-here</unique-id>
+  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/open-here" terminal "$1"' qvos-thunar %f</command>
+  <description>Open a terminal in this folder.</description>
+  <range></range>
+  <patterns>*</patterns>
+  <startup-notify/>
+  <directories/>
 </action>
 <action>
-	<icon>accessories-text-editor</icon>
-	<name>Editor</name>
-	<submenu>Open Here</submenu>
-	<unique-id>qvos-editor-here</unique-id>
-	<command>/bin/bash -c '"$HOME/.local/share/qvos/hyprland/qvos-thunar-launch-path" editor "$1"' qvos-thunar %f</command>
-	<description>Open editor in this folder.</description>
-	<range></range>
-	<patterns>*</patterns>
-	<startup-notify/>
-	<directories/>
+  <icon>accessories-text-editor</icon>
+  <name>Open Editor Here</name>
+  <unique-id>qvos-editor-here</unique-id>
+  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/open-here" editor "$1"' qvos-thunar %f</command>
+  <description>Open the default editor in this folder.</description>
+  <range></range>
+  <patterns>*</patterns>
+  <startup-notify/>
+  <directories/>
 </action>
 <action>
-	<icon>preferences-desktop-wallpaper</icon>
-	<name>Set as Background</name>
-	<submenu></submenu>
-	<unique-id>qvos-set-background</unique-id>
-	<command>/bin/bash -c '"$HOME/.local/share/qvos/hyprland/qvos-set-background" "$1"' qvos-thunar %f</command>
-	<description>Set this image as the current qvOS background.</description>
-	<range></range>
-	<patterns>*.avif;*.bmp;*.gif;*.jpeg;*.jpg;*.png;*.webp</patterns>
-	<startup-notify/>
-	<image-files/>
+  <icon>preferences-desktop-wallpaper</icon>
+  <name>Set as Background</name>
+  <unique-id>qvos-set-background</unique-id>
+  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/set-background" "$1"' qvos-thunar %f</command>
+  <description>Set this image as the current qvOS background.</description>
+  <range></range>
+  <patterns>*.avif;*.bmp;*.gif;*.jpeg;*.jpg;*.png;*.webp</patterns>
+  <startup-notify/>
+  <image-files/>
 </action>
 </actions>

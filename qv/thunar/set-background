@@ -15,7 +15,7 @@ cmd_present() {
 
 if [[ -z $image ]]; then
   notify-send -u critical "qvOS Background" "No image was selected." >/dev/null 2>&1 || true
-  printf 'Usage: qvos-set-background <image-path>\n' >&2
+  printf 'Usage: set-background <image-path>\n' >&2
   exit 2
 fi
 
@@ -23,7 +23,7 @@ image="${image/#\~/$HOME}"
 
 if [[ ! -f $image ]]; then
   notify-send -u critical "qvOS Background" "Selected path is not a file." >/dev/null 2>&1 || true
-  printf 'qvos-set-background: not a file: %s\n' "$image" >&2
+  printf 'set-background: not a file: %s\n' "$image" >&2
   exit 1
 fi
 
@@ -31,14 +31,14 @@ case "${image,,}" in
 *.avif | *.bmp | *.gif | *.jpeg | *.jpg | *.png | *.webp) ;;
 *)
   notify-send -u critical "qvOS Background" "Selected file is not a supported image." >/dev/null 2>&1 || true
-  printf 'qvos-set-background: unsupported image file: %s\n' "$image" >&2
+  printf 'set-background: unsupported image file: %s\n' "$image" >&2
   exit 1
   ;;
 esac
 
 if ! cmd_present omarchy-theme-bg-set; then
   notify-send -u critical "qvOS Background" "omarchy-theme-bg-set is missing." >/dev/null 2>&1 || true
-  printf 'qvos-set-background: omarchy-theme-bg-set is missing\n' >&2
+  printf 'set-background: omarchy-theme-bg-set is missing\n' >&2
   exit 1
 fi
 

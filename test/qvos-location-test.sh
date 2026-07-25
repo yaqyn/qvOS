@@ -3,10 +3,12 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 script_dir="$root/qv/scripts/hyprland"
+thunar_dir="$root/qv/thunar"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 project_dir="$test_root/project space"
 launch_log="$test_root/launch"
+runtime_root="$test_root/.local/share/qvos"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -22,7 +24,8 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin" "$project_dir/subdir"
+install -d "$test_bin" "$project_dir/subdir" "$runtime_root"
+cp -a "$script_dir" "$runtime_root/hyprland"
 touch "$project_dir/example.txt"
 ln -s "$project_dir" "$test_root/project-link"
 
@@ -50,6 +53,7 @@ SCRIPT
 run_with_mocks() {
   QVOS_TEST_ACTIVE_WINDOW="${QVOS_TEST_ACTIVE_WINDOW:-{}}" \
     QVOS_TEST_LAUNCH_LOG="$launch_log" \
+    HOME="$test_root" \
     PATH="$test_bin:/usr/bin" \
     "$@"
 }
@@ -87,10 +91,10 @@ run_with_mocks "$script_dir/qvos-launch-editor-here" "$project_dir"
 [[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "editor route"
 pass "terminal, root, Codex YOLO, and editor launchers preserve location"
 
-run_with_mocks "$script_dir/qvos-thunar-launch-path" terminal "$project_dir/example.txt"
+run_with_mocks "$thunar_dir/open-here" terminal "$project_dir/example.txt"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project" ]] || fail "Thunar terminal route"
 
-run_with_mocks "$script_dir/qvos-thunar-launch-path" editor "$project_dir/example.txt"
+run_with_mocks "$thunar_dir/open-here" editor "$project_dir/example.txt"
 [[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "Thunar editor route"
 pass "Thunar actions route files through the shared location resolver"
 
@@ -106,7 +110,7 @@ actual="$(run_with_mocks "$script_dir/qvos-active-location")"
 pass "active Thunar and Code windows resolve their full-path titles"
 
 set +e
-run_with_mocks "$script_dir/qvos-thunar-launch-path" removed "$project_dir" >/dev/null 2>&1
+run_with_mocks "$thunar_dir/open-here" removed "$project_dir" >/dev/null 2>&1
 usage_status=$?
 set -e
 ((usage_status == 2)) || fail "removed launcher mode"

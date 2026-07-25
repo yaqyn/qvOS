@@ -11,5 +11,6 @@ qv/
   git/        Private git helper source and installers.
   iso/        ISO integration patches.
   scripts/    Private helpers used by qvOS config.
+  thunar/     Thunar feature entry points.
   tui/        qvOS apply, reset, build, update, and ISO tooling.
 ```

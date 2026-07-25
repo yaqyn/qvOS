@@ -15,12 +15,19 @@ rm -f -- \
   "$HOME/.local/share/qvos/bin/omarchy-qvos-reconcile" \
   "$HOME/.local/share/qvos/bin/omarchy-qvos-update" \
   "$HOME/.local/share/qvos/bin/qvos-show-logo" \
-  "$HOME/.local/share/qvos/home-dev"
+  "$HOME/.local/share/qvos/home-dev" \
+  "$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
 
 if [[ -d $OMARCHY_PATH/qv/scripts ]]; then
   # Replace binding helpers so removed commands cannot survive an update.
   rm -rf -- "$HOME/.local/share/qvos/hyprland"
   find "$OMARCHY_PATH/qv/scripts" -mindepth 1 -maxdepth 1 ! -name "screensaver" ! -name "tui" -exec cp -a {} "$HOME/.local/share/qvos/" \;
+fi
+
+thunar_source="$OMARCHY_PATH/qv/thunar"
+if [[ -d $thunar_source ]]; then
+  rm -rf -- "$HOME/.local/share/qvos/thunar"
+  cp -a "$thunar_source" "$HOME/.local/share/qvos/thunar"
 fi
 
 screensaver_source="$OMARCHY_PATH/qv/scripts/screensaver"

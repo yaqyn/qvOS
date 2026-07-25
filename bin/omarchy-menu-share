@@ -6,6 +6,8 @@
 # omarchy:args=<clipboard|file|folder> [path...]
 # omarchy:examples=omarchy share clipboard | omarchy share file ~/Downloads/example.txt
 
+set -euo pipefail
+
 if omarchy-cmd-missing localsend; then
   echo "LocalSend is not installed"
   exit 1
@@ -16,40 +18,39 @@ if (($# == 0)); then
   exit 1
 fi
 
-MODE="$1"
+mode=$1
 shift
+files=()
 
-if [[ $MODE == "clipboard" ]]; then
-  TEMP_FILE=$(mktemp --suffix=.txt)
-  wl-paste >"$TEMP_FILE"
-  FILES="$TEMP_FILE"
-else
+case $mode in
+clipboard)
+  temp_file=$(mktemp --suffix=.txt)
+  wl-paste >"$temp_file"
+  files=("$temp_file")
+  ;;
+file | folder)
   if (($# > 0)); then
-    FILES="$*"
+    files=("$@")
+  elif [[ $mode == "folder" ]]; then
+    selection=$(find "$HOME" -type d 2>/dev/null | fzf) || exit $?
+    [[ -n $selection ]] || exit 0
+    files=("$selection")
   else
-    if [[ $MODE == "folder" ]]; then
-      # Pick a single folder from home directory
-      FILES=$(find "$HOME" -type d 2>/dev/null | fzf)
-    else
-      # Pick one or more files from home directory
-      FILES=$(find "$HOME" -type f 2>/dev/null | fzf --multi)
-    fi
-    [[ -z $FILES ]] && exit 0
+    mapfile -t files < <(find "$HOME" -type f 2>/dev/null | fzf --multi)
+    ((${#files[@]} > 0)) || exit 0
   fi
-fi
+  ;;
+*)
+  echo "Usage: omarchy-menu-share [clipboard|file|folder]" >&2
+  exit 1
+  ;;
+esac
 
-# Run LocalSend in its own systemd service (detached from terminal)
-# Convert newline-separated files to space-separated arguments
-if [[ $MODE != "clipboard" ]] && echo "$FILES" | grep -q $'\n'; then
-  # Multiple files selected - convert newlines to array
-  readarray -t FILE_ARRAY <<<"$FILES"
-  systemd-run --user --quiet --collect localsend --headless send "${FILE_ARRAY[@]}"
-else
-  # Single file or clipboard mode
-  systemd-run --user --quiet --collect localsend --headless send "$FILES"
-fi
+# Run LocalSend on demand, detached from the terminal.
+systemd-run --user --quiet --collect \
+  localsend --headless send "${files[@]}"
 
-# Note: Temporary file will remain until system cleanup for clipboard mode
-# This ensures the file content is available for the LocalSend GUI
+# Clipboard content stays in its temporary file until system cleanup so the
+# detached LocalSend process can read it.
 
 exit 0
