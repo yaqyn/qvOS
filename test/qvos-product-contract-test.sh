@@ -53,8 +53,8 @@ if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared
   grep -RqsF '@openai/codex' "$root/install"; then
   fail "qvCORE application leaked into the base installation"
 fi
-grep -Fqx '  for component in warp brave-origin dev codex proton; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
-grep -Fqx '  omarchy-install-gaming-steam' "$root/bin/omarchy-install-qvcore" || fail "qvCORE Steam profile"
+grep -Fqx '  for component in warp brave-origin dev codex proton steam; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
+grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
 pass "qvCORE applications stay outside the base installation"
 
 grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" || fail "Framework 16 offline package contract"

@@ -192,6 +192,10 @@ workflow:
   first use in a session if its behavior is relevant.
 - Confirm the branch is `OS` and inspect `git status --short --branch` before
   staging.
+- Before every qvsync, refresh the curated gaming dependency snapshot in
+  `qv/core/steam.sh` and its test against Linutil's current Arch list at
+  `core/tabs/system-setup/gaming-setup.sh`; use current Arch package names and
+  leave GPU-specific drivers to Omarchy's hardware detection.
 - Verify the repo identity is exactly
   `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>` before committing.
 - Run the narrow checks for the touched files before staging. For mixed

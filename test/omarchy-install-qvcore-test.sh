@@ -26,6 +26,7 @@ install -d "$test_bin" "$test_omarchy_path/qv/core"
 ln -s "$root/qv/core/warp.sh" "$test_omarchy_path/qv/core/warp.sh"
 ln -s "$root/qv/core/brave-origin.sh" "$test_omarchy_path/qv/core/brave-origin.sh"
 ln -s "$root/qv/core/codex.sh" "$test_omarchy_path/qv/core/codex.sh"
+ln -s "$root/qv/core/steam.sh" "$test_omarchy_path/qv/core/steam.sh"
 
 install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/dev.sh" <<'SCRIPT'
 #!/bin/bash
@@ -60,6 +61,9 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-install-gaming-steam" <<'SCRIPT'
 #!/bin/bash
 printf 'install-gaming-steam\n' >>"$QVOS_TEST_ACTION_LOG"
+if [[ ${QVOS_TEST_STEAM_FAIL:-0} == "1" ]]; then
+  exit 1
+fi
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-missing" <<'SCRIPT'
@@ -75,6 +79,21 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 #!/bin/bash
 printf 'package\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
+#!/bin/bash
+case ${QVOS_TEST_AUDIO_STACK:-pipewire} in
+pipewire)
+  [[ $1 == "pipewire-jack" ]]
+  ;;
+jack2)
+  [[ $1 == "jack2" ]]
+  ;;
+*)
+  exit 1
+  ;;
+esac
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/curl" <<'SCRIPT'
@@ -110,8 +129,10 @@ SCRIPT
 
 run_qvcore() {
   QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_AUDIO_STACK="${QVOS_TEST_AUDIO_STACK:-pipewire}" \
     QVOS_TEST_DEV_CANCEL="${QVOS_TEST_DEV_CANCEL:-0}" \
     QVOS_TEST_GH_AUTH="${QVOS_TEST_GH_AUTH:-0}" \
+    QVOS_TEST_STEAM_FAIL="${QVOS_TEST_STEAM_FAIL:-0}" \
     HOME="$test_root" \
     OMARCHY_PATH="$test_omarchy_path" \
     PATH="$test_bin:/usr/bin" \
@@ -120,7 +141,18 @@ run_qvcore() {
 
 : >"$action_log"
 run_qvcore >/dev/null
-expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\ninstall-gaming-steam'
+expected_steam_packages="dbus git gnutls lib32-gnutls base-devel gtk3 lib32-gtk3 python-google-auth python-protobuf"
+expected_steam_packages+=" libpulse lib32-libpulse alsa-lib lib32-alsa-lib alsa-utils alsa-plugins lib32-alsa-plugins"
+expected_steam_packages+=" giflib lib32-giflib libpng lib32-libpng libldap lib32-libldap openal lib32-openal"
+expected_steam_packages+=" libxcomposite lib32-libxcomposite libxinerama lib32-libxinerama libgcrypt lib32-libgcrypt"
+expected_steam_packages+=" libgpg-error lib32-libgpg-error ncurses lib32-ncurses mpg123 lib32-mpg123"
+expected_steam_packages+=" libjpeg-turbo lib32-libjpeg-turbo sqlite lib32-sqlite libva lib32-libva"
+expected_steam_packages+=" gst-plugins-base-libs sdl2-compat lib32-sdl2-compat v4l-utils lib32-v4l-utils"
+expected_steam_packages+=" vulkan-icd-loader lib32-vulkan-icd-loader ocl-icd lib32-ocl-icd libxslt lib32-libxslt"
+expected_steam_packages+=" cups samba lib32-mesa gamescope mangohud lib32-mangohud gamemode lib32-gamemode"
+expected_steam_packages+=" wine goverlay lib32-pipewire-jack"
+expected_steam_actions=$'install-gaming-steam\npackage\t'"$expected_steam_packages"
+expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
 pass "qvCORE installs WARP, Brave Origin, Development, standalone Codex, Proton, and Steam"
@@ -131,14 +163,35 @@ declare -A expected_component_actions=(
   [dev]=$'install-dev'
   [codex]=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"
   [proton]=$'install-proton'
+  [steam]="$expected_steam_actions"
 )
 
-for component in warp brave-origin dev codex proton; do
+for component in warp brave-origin dev codex proton steam; do
   : >"$action_log"
   run_qvcore "$component" >/dev/null
   [[ $(<"$action_log") == "${expected_component_actions[$component]}" ]] || fail "$component component route"
 done
 pass "qvCORE components are independently rerunnable"
+
+: >"$action_log"
+QVOS_TEST_AUDIO_STACK=jack2 run_qvcore steam >/dev/null
+expected_jack2_actions=${expected_steam_actions/%lib32-pipewire-jack/lib32-jack2}
+[[ $(<"$action_log") == "$expected_jack2_actions" ]] || fail "Steam JACK2 dependency"
+
+: >"$action_log"
+QVOS_TEST_AUDIO_STACK=none run_qvcore steam >/dev/null
+expected_no_jack_actions=${expected_steam_actions% lib32-pipewire-jack}
+[[ $(<"$action_log") == "$expected_no_jack_actions" ]] || fail "Steam without a JACK provider"
+pass "Steam adds only the matching 32-bit JACK dependency"
+
+: >"$action_log"
+set +e
+QVOS_TEST_STEAM_FAIL=1 run_qvcore steam >/dev/null 2>&1
+steam_failure_status=$?
+set -e
+((steam_failure_status != 0)) || fail "failed Steam installer succeeds"
+[[ $(<"$action_log") == "install-gaming-steam" ]] || fail "dependencies run after Steam failure"
+pass "Steam failure stops before gaming dependency installation"
 
 : >"$action_log"
 set +e
@@ -179,6 +232,9 @@ if grep -Fq '.local/bin/codex' "$root/bin/omarchy-remove-preinstalls"; then
 fi
 pass "Codex is owned only by qvCORE and uses OpenAI's standalone installer"
 
-[[ ! -e $root/qv/core/steam.sh ]] || fail "redundant qvCORE Steam wrapper"
-grep -Fqx '  omarchy-install-gaming-steam' "$command_path" || fail "complete profile Steam route"
-pass "Steam reuses its complete gaming installer without a wrapper"
+[[ -x $root/qv/core/steam.sh ]] || fail "qvCORE Steam component"
+grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "Omarchy Steam delegation"
+if grep -Eq '^[[:space:]]+(lib32-gst-plugins-base-libs|(lib32-)?sdl2|(lib32-)?opencl-icd-loader|(lib32-)?vulkan-radeon)$' "$root/qv/core/steam.sh"; then
+  fail "qvCORE Steam contains an uncurated Linutil package"
+fi
+pass "Steam delegates first, then installs the curated gaming dependencies"

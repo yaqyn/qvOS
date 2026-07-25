@@ -533,7 +533,7 @@ show_install_qvcore_menu() {
   *Development*) present_terminal "omarchy-install-qvcore dev" ;;
   *Codex*) present_terminal "omarchy-install-qvcore codex" ;;
   *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
-  *Steam*) present_terminal omarchy-install-gaming-steam ;;
+  *Steam*) present_terminal "omarchy-install-qvcore steam" ;;
   *) show_install_menu ;;
   esac
 }
