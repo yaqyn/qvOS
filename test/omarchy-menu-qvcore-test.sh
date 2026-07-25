@@ -53,7 +53,7 @@ QVOS_TEST_INSTALL_MENU_LOG="$install_menu_log" \
   "$root/bin/omarchy-menu" install
 
 grep -Fqx '󰏖  qvCORE' "$install_menu_log" || fail "qvCORE install-menu entry"
-[[ $(<"$qvcore_menu_log") == $'  Install All\n󰖟  Brave\n󰖂  WARP\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam' ]] || fail "qvCORE component list"
+[[ $(<"$qvcore_menu_log") == $'  Install All\n󰖟  Brave\n󰖂  WARP\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] || fail "qvCORE component list"
 [[ $(<"$route_log") == "omarchy-install-qvcore" ]] || fail "complete qvCORE route"
 pass "qvCORE exposes the complete opt-in profile"
 
@@ -79,4 +79,5 @@ run_direct_route "Devel" "omarchy-install-qvcore dev"
 run_direct_route "Codex" "omarchy-install-qvcore codex"
 run_direct_route "Proton" "omarchy-install-qvcore proton"
 run_direct_route "Steam" "omarchy-install-qvcore steam"
+run_direct_route "Media" "omarchy-install-qvcore media"
 pass "qvCORE components can be installed independently"
