@@ -230,6 +230,7 @@ migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VI
 [[ $migrated_editor_env == $'nvim\nnvim\nnvim' ]] || fail "Neovim editor migration"
 grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784904379.sh" || fail "qvOS binding refresh migration"
 grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784906399.sh" || fail "Chromium dev browser migration"
+grep -Fqx 'omarchy-refresh-config hypr/qv/bindings.conf' "$root/migrations/1784991051.sh" || fail "prompted website binding migration"
 
 printf '%s\n' \
   'export EDITOR=helix' \

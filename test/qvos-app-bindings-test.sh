@@ -85,7 +85,8 @@ assert_binding 'bindd = SUPER CTRL, Z, Dev browser (Chromium), exec, uwsm-app --
 assert_binding 'bindd = SUPER SHIFT CTRL, Z, Localhost, exec, ~/.local/share/qvos/hyprland/qvos-localhost-open' "Localhost binding"
 assert_binding "bindd = SUPER ALT, Z, Zoom in, exec, hyprctl keyword cursor:zoom_factor \$(hyprctl getoption cursor:zoom_factor -j | jq '.float + 1')" "relocated zoom binding"
 assert_binding 'bindd = SUPER CTRL ALT, Z, Reset zoom, exec, hyprctl keyword cursor:zoom_factor 1' "qvOS reset zoom binding"
-pass "the Z family owns browsers, localhost, and zoom"
+assert_binding 'bindd = SUPER SHIFT CTRL ALT, Z, Open website, exec, ~/.local/share/qvos/hyprland/qvos-website-open' "prompted Omarchy web-app website binding"
+pass "the Z family owns browsers, websites, localhost, and zoom"
 
 assert_binding 'bindd = SUPER ALT, E, Obsidian, exec, uwsm-app -- obsidian' "Obsidian binding"
 assert_binding 'bindd = SUPER SHIFT ALT, E, Standard Notes, exec, omarchy-launch-webapp "https://app.standardnotes.com/"' "Standard Notes binding"
