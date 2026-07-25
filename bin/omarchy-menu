@@ -526,11 +526,11 @@ show_install_menu() {
 }
 
 show_install_qvcore_menu() {
-  case $(menu "qvCORE" "  Install All\n󰖟  Brave Origin\n󰖂  WARP\n󰵮  Development\n󱚤  Codex\n󰌾  Proton\n  Steam") in
+  case $(menu "qvCORE" "  Install All\n󰖟  Brave\n󰖂  WARP\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam") in
   *"Install All"*) present_terminal omarchy-install-qvcore ;;
-  *"Brave Origin"*) present_terminal "omarchy-install-qvcore brave-origin" ;;
+  *Brave*) present_terminal "omarchy-install-qvcore brave-origin" ;;
   *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
-  *Development*) present_terminal "omarchy-install-qvcore dev" ;;
+  *Devel*) present_terminal "omarchy-install-qvcore dev" ;;
   *Codex*) present_terminal "omarchy-install-qvcore codex" ;;
   *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
   *Steam*) present_terminal "omarchy-install-qvcore steam" ;;

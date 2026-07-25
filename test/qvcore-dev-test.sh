@@ -448,11 +448,11 @@ cancel_output=$(printf 'cancel\n' | QVOS_TEST_GH_AUTH=1 run_dev 2>&1)
 cancel_status=$?
 set -e
 ((cancel_status == 130)) || fail "cancellation status"
-grep -Fq 'qvCORE Development inventory: 4/16 ready' <<<"$cancel_output" ||
+grep -Fq 'qvCORE Devel inventory: 4/16 ready' <<<"$cancel_output" ||
   fail "four-component initial inventory"
 grep -Fq 'Outdated: 0' <<<"$cancel_output" || fail "fresh outdated count"
 grep -Fq 'Missing:  12' <<<"$cancel_output" || fail "fresh missing count"
-grep -Fq 'Development changes canceled; no components were modified.' <<<"$cancel_output" ||
+grep -Fq 'Devel changes canceled; no components were modified.' <<<"$cancel_output" ||
   fail "explicit cancellation"
 [[ ! -s $action_log ]] || fail "cancellation performs tool actions"
 if grep -q '^download' "$network_log"; then
@@ -484,9 +484,9 @@ grep -Fq '[01/16] Node.js LTS          ready (24.18.0)' "$install_output" ||
   fail "numbered ready progress"
 grep -Fq '[16/16] Docker + Compose     ready (29.6.2)' "$install_output" ||
   fail "complete numbered progress"
-grep -Fq 'qvCORE Development inventory: 16/16 ready' "$install_output" ||
+grep -Fq 'qvCORE Devel inventory: 16/16 ready' "$install_output" ||
   fail "verified final inventory"
-grep -Fq 'qvCORE Development is ready: 16/16.' "$install_output" ||
+grep -Fq 'qvCORE Devel is ready: 16/16.' "$install_output" ||
   fail "verified completion result"
 
 declare -A expected_versions=(
@@ -517,8 +517,8 @@ pass "qvCORE installs only missing components with verified provider releases"
 installed_hook="$test_home/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 state_file="$test_home/.local/state/qvos/qvcore/dev"
 cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
-  fail "Development update hook"
-[[ -f $state_file ]] || fail "Development opt-in state"
+  fail "Devel update hook"
+[[ -f $state_file ]] || fail "Devel opt-in state"
 grep -Fq 'bun add -d wrangler@latest' "$install_output" ||
   fail "project-local Wrangler guidance"
 grep -Fq 'bun add convex' "$install_output" ||
@@ -542,12 +542,12 @@ current_output=$(
     PATH="$test_home/.local/bin:$test_bin:/usr/bin" \
     bash "$installed_hook"
 )
-grep -Fq 'qvCORE Development inventory: 16/16 ready' <<<"$current_output" ||
+grep -Fq 'qvCORE Devel inventory: 16/16 ready' <<<"$current_output" ||
   fail "current update inventory"
-grep -Fq 'All 16 Development components are current; no changes are needed.' \
+grep -Fq 'All 16 Devel components are current; no changes are needed.' \
   <<<"$current_output" ||
   fail "current update no-op"
-grep -Fq 'qvCORE Development refresh is complete: 16/16 ready.' \
+grep -Fq 'qvCORE Devel refresh is complete: 16/16 ready.' \
   <<<"$current_output" ||
   fail "current update completion"
 [[ ! -s $action_log ]] || fail "current update performs mise actions"
@@ -576,13 +576,13 @@ interrupted_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update 2>&1)
 interrupted_status=$?
 set -e
 ((interrupted_status != 0)) || fail "tampered provider update succeeds"
-grep -Fq 'qvCORE Development inventory: 12/16 ready' <<<"$interrupted_output" ||
+grep -Fq 'qvCORE Devel inventory: 12/16 ready' <<<"$interrupted_output" ||
   fail "partial ready inventory"
 grep -Fq 'Outdated: 2' <<<"$interrupted_output" ||
   fail "partial outdated inventory"
 grep -Fq 'Missing:  2' <<<"$interrupted_output" ||
   fail "partial missing inventory"
-grep -Fq 'qvCORE Development stopped during [5/16] Supabase CLI.' \
+grep -Fq 'qvCORE Devel stopped during [5/16] Supabase CLI.' \
   <<<"$interrupted_output" ||
   fail "interrupted step report"
 grep -Fq 'Completed components were preserved.' <<<"$interrupted_output" ||
@@ -600,7 +600,7 @@ cp "$test_root/supabase-release.json" "$release_root/supabase/cli/release.json"
 : >"$network_log"
 : >"$timeout_log"
 resume_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update)
-grep -Fq 'qvCORE Development inventory: 15/16 ready' <<<"$resume_output" ||
+grep -Fq 'qvCORE Devel inventory: 15/16 ready' <<<"$resume_output" ||
   fail "resumed inventory"
 grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resumed outdated count"
@@ -610,7 +610,7 @@ grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resume downloads more than the remaining component"
 [[ $("$test_home/.local/bin/supabase" --version) == "supabase 1.2.3" ]] ||
   fail "resumed Supabase update"
-grep -Fq 'qvCORE Development refresh is complete: 16/16 ready.' \
+grep -Fq 'qvCORE Devel refresh is complete: 16/16 ready.' \
   <<<"$resume_output" ||
   fail "resumed completion"
 pass "rerun verifies completed work and continues only remaining updates"
@@ -625,7 +625,7 @@ missing_base_output=$(
 missing_base_status=$?
 set -e
 ((missing_base_status != 0)) || fail "missing Docker base succeeds"
-grep -Fq 'qvCORE Development inventory: 15/16 ready' <<<"$missing_base_output" ||
+grep -Fq 'qvCORE Devel inventory: 15/16 ready' <<<"$missing_base_output" ||
   fail "missing base inventory"
 grep -Fq 'Docker + Compose     missing (qvOS base)' <<<"$missing_base_output" ||
   fail "missing base status"
@@ -667,7 +667,7 @@ arm_output=$(
       PATH="$arm_home/.local/bin:$test_bin:/usr/bin" \
       "$test_omarchy_path/qv/core/dev.sh"
 )
-grep -Fq 'qvCORE Development is ready: 16/16.' <<<"$arm_output" ||
+grep -Fq 'qvCORE Devel is ready: 16/16.' <<<"$arm_output" ||
   fail "arm64 verified completion"
 [[ $(grep -c '^download' "$arm_network_log") == "9" ]] ||
   fail "arm64 provider download count"
@@ -699,7 +699,7 @@ if grep -Eq 'bun (add|install).*(-g|--global).*(wrangler|convex)' "$root/qv/core
   fail "project CLI installed globally"
 fi
 if grep -Eq 'gh auth token|Authorization:' "$root/qv/core/dev.sh"; then
-  fail "Development installer exposes GitHub credentials"
+  fail "Devel installer exposes GitHub credentials"
 fi
 grep -Fq 'provider_repository[gitleaks]="gitleaks/gitleaks"' \
   "$root/qv/core/dev.sh" ||
@@ -709,4 +709,4 @@ grep -Fq 'provider_repository[osv-scanner]="google/osv-scanner"' \
   fail "OSV-Scanner provider ownership"
 grep -Fq 'mise x uv@latest --' "$root/qv/core/dev.sh" ||
   fail "Semgrep provider ownership"
-pass "qvCORE Development preserves runtime and credential boundaries"
+pass "qvCORE Devel preserves runtime and credential boundaries"

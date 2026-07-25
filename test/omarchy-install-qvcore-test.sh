@@ -32,7 +32,7 @@ install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/dev.sh" <<'SCRIPT'
 #!/bin/bash
 if [[ ${QVOS_TEST_DEV_CANCEL:-0} == "1" ]]; then
   printf 'cancel-dev\n' >>"$QVOS_TEST_ACTION_LOG"
-  echo "Development changes canceled; no components were modified."
+  echo "Devel changes canceled; no components were modified."
   exit 130
 fi
 printf 'install-dev\n' >>"$QVOS_TEST_ACTION_LOG"
@@ -155,7 +155,7 @@ expected_steam_actions=$'install-gaming-steam\npackage\t'"$expected_steam_packag
 expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
-pass "qvCORE installs WARP, Brave Origin, Development, standalone Codex, Proton, and Steam"
+pass "qvCORE installs WARP, Brave, Devel, standalone Codex, Proton, and Steam"
 
 declare -A expected_component_actions=(
   [warp]=$'setup-dns\tWARP'
@@ -198,14 +198,14 @@ set +e
 cancel_output=$(QVOS_TEST_DEV_CANCEL=1 run_qvcore 2>&1)
 cancel_status=$?
 set -e
-((cancel_status == 130)) || fail "Development cancellation status propagation"
+((cancel_status == 130)) || fail "Devel cancellation status propagation"
 expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ncancel-dev'
 [[ $(<"$action_log") == "$expected_cancel_actions" ]] ||
-  fail "complete profile stops after Development cancellation"
+  fail "complete profile stops after Devel cancellation"
 if grep -Fq 'qvCORE is ready.' <<<"$cancel_output"; then
   fail "canceled complete profile reports ready"
 fi
-pass "Development cancellation stops the complete qvCORE profile cleanly"
+pass "Devel cancellation stops the complete qvCORE profile cleanly"
 
 : >"$action_log"
 QVOS_TEST_GH_AUTH=1 run_qvcore codex >/dev/null

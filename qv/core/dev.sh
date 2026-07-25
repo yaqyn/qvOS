@@ -95,11 +95,11 @@ report_failure() {
 
   trap - ERR
   echo ""
-  echo "qvCORE Development stopped during $failure_context." >&2
+  echo "qvCORE Devel stopped during $failure_context." >&2
   echo "Command failed with exit $status: $failed_command" >&2
   if ((current_step > 0)); then
     echo "Completed components were preserved." >&2
-    echo "Run Development again to verify them and continue from the remaining work." >&2
+    echo "Run Devel again to verify them and continue from the remaining work." >&2
   else
     echo "No component changes were started." >&2
   fi
@@ -115,7 +115,7 @@ require_command() {
   local command=$1
 
   if omarchy-cmd-missing "$command"; then
-    echo "qvCORE Development requires the qvOS base command: $command" >&2
+    echo "qvCORE Devel requires the qvOS base command: $command" >&2
     return 1
   fi
 }
@@ -181,7 +181,7 @@ register_provider_tools() {
     sentry_arch="aarch64"
     ;;
   *)
-    echo "qvCORE Development does not support architecture: $(uname -m)" >&2
+    echo "qvCORE Devel does not support architecture: $(uname -m)" >&2
     return 1
     ;;
   esac
@@ -394,7 +394,7 @@ install_verified_release() {
 resolve_expected_versions() {
   local id
 
-  echo "Checking the latest Development component versions..."
+  echo "Checking the latest Devel component versions..."
 
   mise_expected[node]=$(run_bounded 30s mise latest node@lts)
   mise_expected[bun]=$(run_bounded 30s mise latest bun)
@@ -618,7 +618,7 @@ print_inventory() {
   local id
 
   echo ""
-  echo "qvCORE Development inventory: $ready_count/$total_components ready"
+  echo "qvCORE Devel inventory: $ready_count/$total_components ready"
   echo "  Outdated: $outdated_count"
   echo "  Missing:  $missing_count"
   echo ""
@@ -643,16 +643,16 @@ choose_development_action() {
 
   if ((ready_count == total_components)); then
     echo ""
-    echo "All $total_components Development components are current; no changes are needed."
+    echo "All $total_components Devel components are current; no changes are needed."
     development_action="keep"
     return
   fi
 
   echo ""
   if ((update_only)); then
-    echo "Automatic Development refresh:"
+    echo "Automatic Devel refresh:"
   else
-    echo "Development changes:"
+    echo "Devel changes:"
   fi
   printf '  install %d missing component(s)\n' "$missing_count"
   printf '  update  %d outdated component(s)\n' "$outdated_count"
@@ -677,7 +677,7 @@ choose_development_action() {
       ;;
     c | cancel | n | no)
       development_action="cancel"
-      echo "Development changes canceled; no components were modified."
+      echo "Devel changes canceled; no components were modified."
       return
       ;;
     *)
@@ -764,7 +764,7 @@ apply_component_changes() {
 
 install_update_hook() {
   if [[ ! -f $hook_source ]]; then
-    echo "Missing qvCORE Development update hook: $hook_source" >&2
+    echo "Missing qvCORE Devel update hook: $hook_source" >&2
     return 1
   fi
 
@@ -809,7 +809,7 @@ fi
 
 if [[ $development_action == "install" ]]; then
   echo ""
-  echo "Applying qvCORE Development changes..."
+  echo "Applying qvCORE Devel changes..."
   apply_component_changes
 
   failure_context="final verification"
@@ -818,7 +818,7 @@ if [[ $development_action == "install" ]]; then
 fi
 
 if ((ready_count != total_components)); then
-  echo "qvCORE Development is incomplete." >&2
+  echo "qvCORE Devel is incomplete." >&2
   exit 1
 fi
 
@@ -830,11 +830,11 @@ fi
 
 echo ""
 if ((update_only)); then
-  echo "qvCORE Development refresh is complete: $ready_count/$total_components ready."
+  echo "qvCORE Devel refresh is complete: $ready_count/$total_components ready."
 else
   echo "Project-pinned tools:"
   echo "  bun add -d wrangler@latest && bunx wrangler --version"
   echo "  bun add convex && bunx convex --version"
   echo ""
-  echo "qvCORE Development is ready: $ready_count/$total_components."
+  echo "qvCORE Devel is ready: $ready_count/$total_components."
 fi
