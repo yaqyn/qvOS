@@ -148,9 +148,9 @@ all qvOS policy below this separator.
 - This exception never covers user data, security, upstream compatibility,
   clean-install correctness, or future public architecture. Retire it when
   qvOS reaches another machine or public users.
-- After publishing qvOS changes, directly align and verify this live
-  installation. Do not run the interactive updater or package upgrades unless
-  the task requires them.
+- After each verified local commit, align and verify this live installation
+  directly from the development repository; pushing is not required. Do not run
+  the interactive updater or package upgrades unless the task requires them.
 
 ## qvCORE
 
