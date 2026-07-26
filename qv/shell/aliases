@@ -1,0 +1,6 @@
+# qvOS shell overlay loaded after the original Omarchy aliases.
+
+unalias c cx ic ix icx 2>/dev/null || true
+
+alias qv='omarchy'
+alias cy='codex -s danger-full-access -a never'

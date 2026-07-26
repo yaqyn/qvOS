@@ -5,14 +5,7 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 export OMARCHY_PATH
 restore_config=0
 assume_yes=0
-config_paths=(
-  hypr/qv/bindings.conf
-  hypr/qv/looknfeel.conf
-  hypr/qv/windows.conf
-  omarchy/hooks/post-update.d/qvos-qvcore
-  omarchy/hooks/post-update.d/qvos-waybar-overrides
-  waybar/qv/overrides.jsonc
-)
+config_paths=()
 missing_packages=()
 missing_configs=()
 drifted_configs=()
@@ -32,7 +25,7 @@ for argument in "$@"; do
   esac
 done
 
-for command in git omarchy-pkg-add omarchy-pkg-present omarchy-refresh-config; do
+for command in git omarchy-pkg-add omarchy-pkg-present; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "qvOS repair requires the qvOS base command: $command" >&2
     exit 1
@@ -46,24 +39,39 @@ if [[ $branch != "OS" ]]; then
 fi
 
 required_sources=(
-  install/config/qvos-scripts.sh
-  install/omarchy-base.packages
+  qv/config/files
   qv/core/health.sh
+  qv/install/desktop
+  qv/install/packaging/base.packages
+  qv/config/refresh
 )
-for config_path in "${config_paths[@]}"; do
-  required_sources+=("config/$config_path")
-done
 
 for source_path in "${required_sources[@]}"; do
-  if [[ ! -f $OMARCHY_PATH/$source_path ]]; then
+  if [[ ! -e $OMARCHY_PATH/$source_path ]]; then
     echo "qvOS repair source is missing: $OMARCHY_PATH/$source_path" >&2
     exit 1
   fi
 done
 
+mapfile -t config_paths < <(
+  cd "$OMARCHY_PATH/qv/config/files"
+  find . -type f -printf '%P\n' | sort
+)
+
+if ! enabled_qvcore_count=$(
+  "$OMARCHY_PATH/qv/core/health.sh" enabled-count
+); then
+  echo "qvOS repair could not inspect optional qvCORE setup state." >&2
+  exit 1
+fi
+if [[ ! $enabled_qvcore_count =~ ^[0-9]+$ ]]; then
+  echo "qvOS repair received invalid optional qvCORE setup state." >&2
+  exit 1
+fi
+
 mapfile -t base_packages < <(
   sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-    "$OMARCHY_PATH/install/omarchy-base.packages"
+    "$OMARCHY_PATH/qv/install/packaging/base.packages"
 )
 for package in "${base_packages[@]}"; do
   if ! omarchy-pkg-present "$package"; then
@@ -72,7 +80,7 @@ for package in "${base_packages[@]}"; do
 done
 
 for config_path in "${config_paths[@]}"; do
-  source_config="$OMARCHY_PATH/config/$config_path"
+  source_config="$OMARCHY_PATH/qv/config/files/$config_path"
   user_config="$HOME/.config/$config_path"
 
   if [[ ! -f $user_config ]]; then
@@ -88,7 +96,9 @@ printf '  Missing base packages:       %d\n' "${#missing_packages[@]}"
 printf '  Missing qvOS config files:   %d\n' "${#missing_configs[@]}"
 printf '  Customized qvOS config:      %d\n' "${#drifted_configs[@]}"
 echo "  Desktop runtime:             refresh from tracked qvOS source"
-echo "  Enabled qvCORE integrations: repair through their owners"
+if ((enabled_qvcore_count > 0)); then
+  printf '  Enabled optional setups:     %d qvCORE\n' "$enabled_qvcore_count"
+fi
 
 if ((${#drifted_configs[@]} > 0)); then
   echo ""
@@ -122,27 +132,24 @@ for package in "${missing_packages[@]}"; do
 done
 
 echo "qvOS repair: Runtime"
-bash -c 'source "$1"' _ "$OMARCHY_PATH/install/config/qvos-scripts.sh"
+bash -c 'source "$1"' _ "$OMARCHY_PATH/qv/install/desktop"
 
 echo "qvOS repair: Config"
 restored_hyprland=0
-restored_waybar=0
 for config_path in "${missing_configs[@]}"; do
-  omarchy-refresh-config "$config_path"
+  "$OMARCHY_PATH/qv/config/refresh" "$config_path"
   [[ $config_path == hypr/* ]] && restored_hyprland=1
-  [[ $config_path == waybar/* ]] && restored_waybar=1
 done
 if ((restore_config)); then
   for config_path in "${drifted_configs[@]}"; do
-    omarchy-refresh-config "$config_path"
+    "$OMARCHY_PATH/qv/config/refresh" "$config_path"
     [[ $config_path == hypr/* ]] && restored_hyprland=1
-    [[ $config_path == waybar/* ]] && restored_waybar=1
   done
 fi
 
 for config_path in "${missing_configs[@]}"; do
   if ! cmp -s \
-    "$OMARCHY_PATH/config/$config_path" \
+    "$OMARCHY_PATH/qv/config/files/$config_path" \
     "$HOME/.config/$config_path"; then
     echo "qvOS config repair failed: $config_path" >&2
     exit 1
@@ -151,7 +158,7 @@ done
 if ((restore_config)); then
   for config_path in "${drifted_configs[@]}"; do
     if ! cmp -s \
-      "$OMARCHY_PATH/config/$config_path" \
+      "$OMARCHY_PATH/qv/config/files/$config_path" \
       "$HOME/.config/$config_path"; then
       echo "qvOS config restore failed: $config_path" >&2
       exit 1
@@ -159,9 +166,6 @@ if ((restore_config)); then
   done
 fi
 
-if ((restored_waybar)); then
-  omarchy-refresh-waybar
-fi
 if ((restored_hyprland)); then
   hyprctl reload
   if [[ -n $(hyprctl configerrors) ]]; then
@@ -171,8 +175,10 @@ if ((restored_hyprland)); then
   fi
 fi
 
-echo "qvOS repair: qvCORE"
-omarchy-qvcore-repair-enabled
+if ((enabled_qvcore_count > 0)); then
+  echo "qvOS repair: Enabled optional qvCORE setups"
+  omarchy-qvcore-repair-enabled
+fi
 
 echo "qvOS repair: Complete"
 if ((restore_config == 0 && ${#drifted_configs[@]} > 0)); then

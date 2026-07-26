@@ -1,0 +1,107 @@
+# shellcheck shell=bash
+
+omarchy-refresh-applications
+update-desktop-database ~/.local/share/applications
+
+xdg-mime default thunar.desktop inode/directory
+
+for image_mime in \
+  image/png \
+  image/jpeg \
+  image/gif \
+  image/webp \
+  image/bmp \
+  image/tiff; do
+  xdg-mime default imv.desktop "$image_mime"
+done
+
+xdg-mime default org.gnome.Evince.desktop application/pdf
+
+for archive_mime in \
+  application/x-compressed-tar \
+  application/x-tar \
+  application/x-zip \
+  application/zip; do
+  xdg-mime default engrampa.desktop "$archive_mime"
+done
+
+xdg-settings set default-web-browser chromium.desktop
+xdg-mime default chromium.desktop x-scheme-handler/http
+xdg-mime default chromium.desktop x-scheme-handler/https
+
+for video_mime in \
+  video/mp4 \
+  video/x-msvideo \
+  video/x-matroska \
+  video/x-flv \
+  video/x-ms-wmv \
+  video/mpeg \
+  video/ogg \
+  video/webm \
+  video/quicktime \
+  video/3gpp \
+  video/3gpp2 \
+  video/x-ms-asf \
+  video/x-ogm+ogg \
+  video/x-theora+ogg \
+  application/ogg; do
+  xdg-mime default mpv.desktop "$video_mime"
+done
+
+xdg-mime default HEY.desktop x-scheme-handler/mailto
+
+editor_desktop=nvim.desktop
+editor_mimes=(
+  application/ecmascript
+  application/javascript
+  application/json
+  application/ld+json
+  application/sql
+  application/toml
+  application/x-desktop
+  application/x-shellscript
+  application/xml
+  application/x-yaml
+  text/css
+  text/csv
+  text/ecmascript
+  text/english
+  text/html
+  text/javascript
+  text/markdown
+  text/plain
+  text/tab-separated-values
+  text/x-c
+  text/x-c++
+  text/x-c++hdr
+  text/x-c++src
+  text/x-chdr
+  text/x-cmake
+  text/x-csrc
+  text/x-go
+  text/x-java
+  text/x-lua
+  text/x-makefile
+  text/x-markdown
+  text/x-meson
+  text/x-moc
+  text/x-pascal
+  text/x-perl
+  text/x-php
+  text/x-python
+  text/x-readme
+  text/x-ruby
+  text/x-rust
+  text/x-rustsrc
+  text/x-sql
+  text/x-tcl
+  text/x-tex
+  text/x-toml
+  text/x-yaml
+  text/xml
+  text/yaml
+)
+
+for mime in "${editor_mimes[@]}"; do
+  xdg-mime default "$editor_desktop" "$mime"
+done

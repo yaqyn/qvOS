@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/config/hypr/qv/bindings.conf"
-application_bindings="$root/config/hypr/bindings.conf"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
+application_bindings="$root/qv/config/files/hypr/bindings.conf"
 upstream_sources=(
   "$root/default/hypr/bindings/media.conf"
   "$root/default/hypr/bindings/clipboard.conf"

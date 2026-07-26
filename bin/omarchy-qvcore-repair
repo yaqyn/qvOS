@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Choose one qvCORE component to install or repair
+# omarchy:summary=Check and repair enabled optional qvCORE setups
 # omarchy:group=qvcore
 # omarchy:name=repair
 # omarchy:requires-sudo=true

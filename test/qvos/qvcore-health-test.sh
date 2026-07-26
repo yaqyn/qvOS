@@ -7,7 +7,6 @@ test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 fixture="$test_root/omarchy"
 state="$test_root/state"
-repair_log="$test_root/repair.log"
 lifecycle_log="$test_root/lifecycle.log"
 
 cleanup() {
@@ -26,12 +25,11 @@ fail() {
 
 install -d \
   "$test_bin" \
-  "$fixture/qv/core/dev" \
+  "$fixture/qv/core" \
   "$state/commands" \
-  "$state/packages" \
-  "$test_root/.config/hypr/qv" \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/state/qvos/qvcore"
+touch "$lifecycle_log"
 
 for component in share dev codex proton; do
   install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
@@ -60,81 +58,26 @@ case ${1:-} in
   ;;
 esac
 SCRIPT
-  install -m 0644 /dev/null "$state/ready-$component"
-  install -m 0644 /dev/null \
-    "$test_root/.local/state/qvos/qvcore/$component"
 done
-
-install -m 0755 /dev/stdin "$fixture/qv/core/media.sh" <<'SCRIPT'
-#!/bin/bash
-[[ ${1:-} == "--status" ]] || exit 2
-count=$(<"$QVOS_TEST_HEALTH_STATE/media-count")
-printf 'qvCORE Media inventory: %s/7 ready\n' "$count"
-((count > 0))
-SCRIPT
-printf '7\n' >"$state/media-count"
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
 #!/bin/bash
 [[ -f $QVOS_TEST_HEALTH_STATE/commands/$1 ]]
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
-#!/bin/bash
-[[ -f $QVOS_TEST_HEALTH_STATE/packages/$1 ]]
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-default-browser" <<'SCRIPT'
-#!/bin/bash
-printf 'brave-origin\n'
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/warp-cli" <<'SCRIPT'
-#!/bin/bash
-[[ -f $QVOS_TEST_HEALTH_STATE/warp-registered ]]
-SCRIPT
-
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
 case ${1:-} in
-choose) printf '%s\n' "${QVOS_TEST_HEALTH_CHOICE:-share}" ;;
+choose) printf '%s\n' "${QVOS_TEST_HEALTH_CHOICE:-all}" ;;
 confirm) [[ ${QVOS_TEST_HEALTH_CONFIRM:-1} == "1" ]] ;;
 *) exit 1 ;;
 esac
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-install-qvcore" <<'SCRIPT'
-#!/bin/bash
-printf '%s\n' "$*" >"$QVOS_TEST_HEALTH_REPAIR_LOG"
-SCRIPT
-
-for command in warp-cli localsend codex proton-drive bun supabase; do
-  install -m 0644 /dev/null "$state/commands/$command"
-done
-for package in \
-  brave-origin-beta-bin \
-  steam \
-  gimp \
-  inkscape \
-  krita \
-  kdenlive \
-  obs-studio \
-  audacity \
-  blender; do
-  install -m 0644 /dev/null "$state/packages/$package"
-done
-install -m 0644 /dev/null "$state/warp-registered"
-
-printf '%s\n' 'windowrule = workspace name:G silent, class:^(steam)$' \
-  >"$test_root/.config/hypr/qv/windows.conf"
-printf '%s\n' 'bindd = SUPER CTRL, grave, Steam, exec, steam' \
-  >"$test_root/.config/hypr/qv/bindings.conf"
-
 run_health() {
-  QVOS_TEST_HEALTH_CHOICE="${QVOS_TEST_HEALTH_CHOICE:-share}" \
+  QVOS_TEST_HEALTH_CHOICE="${QVOS_TEST_HEALTH_CHOICE:-all}" \
     QVOS_TEST_HEALTH_CONFIRM="${QVOS_TEST_HEALTH_CONFIRM:-1}" \
     QVOS_TEST_HEALTH_LIFECYCLE_LOG="$lifecycle_log" \
-    QVOS_TEST_HEALTH_REPAIR_LOG="$repair_log" \
     QVOS_TEST_HEALTH_STATE="$state" \
     HOME="$test_root" \
     OMARCHY_PATH="$fixture" \
@@ -142,133 +85,153 @@ run_health() {
     "$health" "$@"
 }
 
+enable_all_setups() {
+  local component
+
+  for component in share dev codex proton; do
+    install -m 0644 /dev/null \
+      "$test_root/.local/state/qvos/qvcore/$component"
+    install -m 0644 /dev/null "$state/ready-$component"
+  done
+  for command in localsend bun codex proton-drive; do
+    install -m 0644 /dev/null "$state/commands/$command"
+  done
+}
+
+install -m 0644 /dev/null "$state/commands/gimp"
+install -m 0644 /dev/null "$state/commands/supabase"
+
+empty_update=$(run_health update)
+[[ -z $empty_update ]] ||
+  fail "unused qvCORE update output"
+[[ ! -s $lifecycle_log ]] ||
+  fail "unused qvCORE update action"
+[[ $(run_health enabled-count) == "0" ]] ||
+  fail "unused qvCORE enabled count"
+grep -Fq 'No qvCORE setups are enabled.' <<<"$(run_health status)" ||
+  fail "unused qvCORE status"
+pass "qvCORE stays silent during qvOS updates when no setup is enabled"
+
+enable_all_setups
 ready_output=$(run_health status)
-grep -Fq 'Ready: 8  Partial: 0  Disabled: 0  Missing: 0' <<<"$ready_output" ||
-  fail "all-ready qvCORE health summary"
-pass "qvCORE health reports every complete component"
-
-rm -f \
-  "$state/ready-share" \
-  "$state/ready-codex" \
-  "$state/commands/codex" \
-  "$state/warp-registered"
-printf '6\n' >"$state/media-count"
-
-drift_output=$(run_health status)
-grep -Fq 'Ready: 5  Partial: 2  Disabled: 1  Missing: 0' <<<"$drift_output" ||
-  fail "mixed qvCORE health summary"
-grep -Fq 'Share          partial' <<<"$drift_output" ||
-  fail "Share drift status"
-grep -Fq 'Codex          disabled' <<<"$drift_output" ||
-  fail "Codex removed status"
-pass "qvCORE health distinguishes missing components from integration drift"
-
-rm -f "$test_root/.local/state/qvos/qvcore/share"
-disabled_output=$(run_health status)
-grep -Fq 'Share          disabled' <<<"$disabled_output" ||
-  fail "Share disabled status"
-grep -Fq 'Ready: 5  Partial: 1  Disabled: 2  Missing: 0' <<<"$disabled_output" ||
-  fail "disabled qvCORE health summary"
-pass "qvCORE health distinguishes intentional disablement from drift"
-
-for state_path in \
-  "$test_root/.local/state/qvos/qvcore/share" \
-  "$state/ready-share" \
-  "$state/ready-codex" \
-  "$state/warp-registered" \
-  "$state/commands/codex"; do
-  install -m 0644 /dev/null "$state_path"
-done
-
-for component in share dev codex proton; do
-  install -m 0644 /dev/null \
-    "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-$component"
-done
-rm -f "$state/ready-share"
-: >"$lifecycle_log"
-update_output=$(run_health update)
-grep -Fq 'qvCORE needs attention:' <<<"$update_output" ||
-  fail "update drift heading"
-grep -Fq 'Share — enabled integration drift' <<<"$update_output" ||
-  fail "update drift detail"
-if grep -Eq 'WARP|Brave|Media|Steam|Codex —|Proton —|Devel —' \
-  <<<"$update_output"; then
-  fail "update prints healthy or untracked qvCORE components"
+grep -Fq 'Enabled qvCORE setups are ready.' <<<"$ready_output" ||
+  fail "enabled qvCORE ready summary"
+if grep -Eq 'WARP|Brave|Steam|Media|Share|Devel|Codex|Proton' \
+  <<<"${ready_output//Enabled qvCORE setups/}"; then
+  fail "healthy qvCORE status prints a catalog"
 fi
+[[ $(run_health enabled-count) == "4" ]] ||
+  fail "enabled qvCORE count"
+pass "qvCORE health summarizes only enabled persistent setups"
+
+rm -f "$state/ready-share"
+set +e
+drift_output=$(run_health status 2>&1)
+drift_status=$?
+set -e
+((drift_status == 1)) ||
+  fail "qvCORE drift status succeeds"
+grep -Fq 'Enabled qvCORE setups need attention:' <<<"$drift_output" ||
+  fail "qvCORE drift heading"
+grep -Fq 'Share — enabled setup integration drift' <<<"$drift_output" ||
+  fail "qvCORE Share drift"
+if grep -Eq 'Devel —|Codex —|Proton —|WARP|Brave|Steam|Media' \
+  <<<"$drift_output"; then
+  fail "qvCORE health prints healthy or unselected setups"
+fi
+pass "qvCORE health reports only actionable enabled setup drift"
+
+: >"$lifecycle_log"
+repair_output=$(run_health repair)
 grep -Fqx $'repair\tshare' "$lifecycle_log" ||
-  fail "update Share repair"
-grep -Fqx $'update\tdev' "$lifecycle_log" ||
-  fail "update Devel refresh"
-grep -Fq 'qvCORE is ready.' <<<"$update_output" ||
-  fail "update ready summary"
-for component in share dev codex proton; do
-  [[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-$component ]] ||
-    fail "$component legacy hook cleanup"
-done
-pass "qvCORE update shows only actionable drift and repairs on confirmation"
+  fail "qvCORE interactive Share repair"
+[[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
+  fail "qvCORE interactive repair touches healthy setups"
+grep -Fq 'Enabled qvCORE setups are ready.' <<<"$repair_output" ||
+  fail "qvCORE interactive repair completion"
+pass "qvCORE repair fixes drift without installing catalog entries"
 
 rm -f "$state/ready-codex"
 : >"$lifecycle_log"
-declined_output=$(QVOS_TEST_HEALTH_CONFIRM=0 run_health update)
-grep -Fq 'Codex — enabled integration drift' <<<"$declined_output" ||
-  fail "declined update drift detail"
-if grep -Fq $'repair\tcodex' "$lifecycle_log"; then
-  fail "declined update repairs Codex"
-fi
-grep -Fq 'qvCORE repair skipped.' <<<"$declined_output" ||
-  fail "declined update guidance"
+set +e
+declined_output=$(QVOS_TEST_HEALTH_CONFIRM=0 run_health repair 2>&1)
+declined_status=$?
+set -e
+((declined_status == 130)) ||
+  fail "declined qvCORE repair status"
+[[ ! -s $lifecycle_log ]] ||
+  fail "declined qvCORE repair action"
+grep -Fq 'qvCORE repair canceled.' <<<"$declined_output" ||
+  fail "declined qvCORE repair result"
 install -m 0644 /dev/null "$state/ready-codex"
-pass "qvCORE update leaves repair under explicit user control"
+pass "qvCORE repair cancellation remains explicit and non-mutating"
 
-QVOS_TEST_HEALTH_CHOICE=share run_health repair >/dev/null
-[[ $(<"$repair_log") == "share" ]] ||
-  fail "qvCORE repair delegates to the existing component route"
-pass "qvCORE repair reuses the independently rerunnable installer"
-
+rm -f "$state/ready-proton"
 : >"$lifecycle_log"
-run_health repair-enabled >/dev/null
-[[ $(grep -c '^repair' "$lifecycle_log") == "4" ]] ||
-  fail "enabled qvCORE repair count"
-for component in share dev codex proton; do
-  grep -Fqx $'repair\t'"$component" "$lifecycle_log" ||
-    fail "$component enabled repair"
+automatic_output=$(run_health repair-enabled)
+grep -Fqx $'repair\tproton' "$lifecycle_log" ||
+  fail "automatic qvCORE Proton repair"
+[[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
+  fail "automatic qvCORE repair touches healthy setups"
+grep -Fq 'Enabled qvCORE setups are ready.' <<<"$automatic_output" ||
+  fail "automatic qvCORE repair completion"
+pass "qvOS repair preserves only affected enabled qvCORE setups"
+
+rm -f "$state/ready-share"
+: >"$lifecycle_log"
+update_output=$(run_health update)
+grep -Fqx $'update\tdev' "$lifecycle_log" ||
+  fail "qvCORE update Devel refresh"
+grep -Fqx $'repair\tshare' "$lifecycle_log" ||
+  fail "qvCORE update Share repair"
+[[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
+  fail "qvCORE update repairs healthy setups"
+grep -Fq 'Share — enabled setup integration drift' <<<"$update_output" ||
+  fail "qvCORE update drift detail"
+grep -Fq 'Enabled qvCORE setups are ready.' <<<"$update_output" ||
+  fail "qvCORE update ready summary"
+pass "qvCORE update refreshes Devel and repairs only actionable drift"
+
+rm -f "$state/commands/localsend"
+: >"$lifecycle_log"
+removed_output=$(run_health update)
+[[ ! -e $test_root/.local/state/qvos/qvcore/share ]] ||
+  fail "removed Share setup remains tracked"
+grep -Fqx $'disable\tshare' "$lifecycle_log" ||
+  fail "removed Share setup retirement"
+if grep -Fq 'need attention' <<<"$removed_output"; then
+  fail "removed Share application reports damage"
+fi
+grep -Fq 'Enabled qvCORE setups are ready.' <<<"$removed_output" ||
+  fail "remaining enabled qvCORE ready summary"
+pass "qvCORE update treats application removal as user intent"
+
+for component in dev codex proton; do
+  rm -f "$test_root/.local/state/qvos/qvcore/$component"
 done
-pass "qvCORE repairs only lifecycle-enabled integrations"
-
 : >"$lifecycle_log"
-QVOS_TEST_HEALTH_CHOICE=all run_health disable >/dev/null
+subset_output=$(run_health update)
+[[ -z $subset_output ]] ||
+  fail "untracked optional application update output"
+[[ ! -s $lifecycle_log ]] ||
+  fail "untracked optional application update action"
+pass "standalone GIMP and Supabase installs create no qvCORE update work"
+
+enable_all_setups
+: >"$lifecycle_log"
+disable_output=$(QVOS_TEST_HEALTH_CHOICE=all run_health disable)
 [[ $(grep -c '^disable' "$lifecycle_log") == "4" ]] ||
   fail "qvCORE disable-all count"
 for component in share dev codex proton; do
   [[ ! -e $test_root/.local/state/qvos/qvcore/$component ]] ||
     fail "$component enabled state remains"
 done
-pass "qvCORE disables every integration while preserving installed components"
-
-install -m 0644 /dev/null \
-  "$test_root/.local/state/qvos/qvcore/share"
-install -m 0644 /dev/null "$state/ready-share"
-rm -f "$state/commands/localsend"
-: >"$lifecycle_log"
-removed_output=$(run_health update)
-[[ ! -e $test_root/.local/state/qvos/qvcore/share ]] ||
-  fail "removed Share application remains enabled"
-grep -Fqx $'disable\tshare' "$lifecycle_log" ||
-  fail "removed Share integration retirement"
-if grep -Fq 'qvCORE needs attention:' <<<"$removed_output"; then
-  fail "removed Share application reports damage"
+grep -Fq 'personal data were preserved' <<<"$disable_output" ||
+  fail "qvCORE disable preservation result"
+if grep -Fq 'qvCORE health' <<<"$disable_output"; then
+  fail "qvCORE disable prints a health catalog"
 fi
-grep -Fq 'qvCORE is ready.' <<<"$removed_output" ||
-  fail "removed Share ready summary"
-pass "qvCORE update treats application removal as user intent"
-
-: >"$lifecycle_log"
-subset_output=$(run_health update)
-[[ ! -s $lifecycle_log ]] ||
-  fail "untracked GIMP or Supabase triggers qvCORE maintenance"
-grep -Fq 'qvCORE is ready.' <<<"$subset_output" ||
-  fail "untracked subset ready summary"
-pass "standalone GIMP and Supabase installs create no qvCORE update work"
+pass "qvCORE disable preserves applications without health inventory noise"
 
 if run_health unknown >/dev/null 2>&1; then
   fail "unknown qvCORE health mode succeeds"

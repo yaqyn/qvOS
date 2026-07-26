@@ -4,21 +4,5 @@
 # omarchy:args=-- <command> [arguments...]
 # omarchy:examples=omarchy system inhibit sleep -- bun run build
 
-set -euo pipefail
-
-if [[ ${1:-} == "--" ]]; then
-  shift
-fi
-if (($# == 0)); then
-  echo "Usage: omarchy system inhibit sleep -- <command> [arguments...]" >&2
-  exit 2
-fi
-
-reason="${QVOS_SLEEP_INHIBIT_REASON:-Development work is active}"
-
-exec systemd-inhibit \
-  --what=sleep \
-  --who=qvOS \
-  --why="$reason" \
-  --mode=block-weak \
-  -- "$@"
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/power/inhibit-sleep" "$@"

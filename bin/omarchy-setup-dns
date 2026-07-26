@@ -1,15 +1,8 @@
 #!/bin/bash
 
-# omarchy:summary=Configure Cloudflare WARP or the system DNS provider
-# omarchy:args=[WARP|Cloudflare|Quad9|None|Custom]
+# omarchy:summary=Configure the system DNS provider
+# omarchy:args=[Cloudflare|Google|DHCP|Custom]
 # omarchy:requires-sudo=true
-
-reload_dns() {
-  # Reloading changed .network files reconfigures matching links without tearing
-  # down the entire network daemon and all connections.
-  sudo networkctl reload
-  sudo systemctl restart systemd-resolved
-}
 
 lock_dns_to_resolved() {
   for file in /etc/systemd/network/*.network; do
@@ -34,92 +27,11 @@ unlock_dns_to_dhcp() {
   done
 }
 
-set_dns_to_dhcp() {
-  sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
-[Resolve]
-FallbackDNS=
-EOF
-  unlock_dns_to_dhcp
-}
-
-deactivate_warp() {
-  omarchy-cmd-missing warp-cli && return
-
-  if systemctl is-active --quiet warp-svc.service; then
-    warp-cli disconnect || true
-  fi
-
-  sudo systemctl disable --now warp-svc.service
-}
-
-ensure_warp_registration() {
-  if warp-cli --json registration show </dev/null &>/dev/null; then
-    return
-  fi
-
-  echo "Cloudflare WARP requires accepting its Terms of Service and Privacy Policy:"
-  echo "- https://www.cloudflare.com/application/terms/"
-  echo "- https://www.cloudflare.com/application/privacypolicy/"
-  gum confirm "Accept Cloudflare WARP terms and register this device?" || return 1
-
-  if warp-cli --accept-tos --json registration show </dev/null &>/dev/null; then
-    return
-  fi
-
-  echo "Registering this device with Cloudflare WARP..."
-  warp-cli --accept-tos registration new >/dev/null
-}
-
-activate_warp() {
-  if omarchy-cmd-missing warp-cli; then
-    echo "Installing Cloudflare WARP..."
-    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1
-  fi
-
-  sudo systemctl enable --now warp-svc.service || return 1
-
-  if ! ensure_warp_registration; then
-    sudo systemctl disable --now warp-svc.service
-    return 1
-  fi
-
-  warp-cli mode warp || return 1
-  set_dns_to_dhcp
-  reload_dns
-  warp-cli connect || return 1
-  warp-cli status
-}
-
 if [[ -z $1 ]]; then
-  dns=$(gum choose --height 7 --header "Select WARP or DNS provider" WARP Cloudflare Quad9 None Custom)
+  dns=$(gum choose --height 6 --header "Select DNS provider" Cloudflare Google DHCP Custom)
 else
   dns=$1
 fi
-
-case "$dns" in
-WARP | Cloudflare | Quad9 | None | DHCP | Custom) ;;
-*)
-  echo "Error: Unknown DNS provider '$dns'." >&2
-  exit 2
-  ;;
-esac
-
-if [[ $dns == "Custom" ]]; then
-  echo "Enter your DNS servers (space-separated, e.g. '192.168.1.1 1.1.1.1'):"
-  read -r dns_servers
-
-  if [[ -z $dns_servers ]]; then
-    echo "Error: No DNS servers provided."
-    exit 1
-  fi
-fi
-
-if [[ $dns == "WARP" ]]; then
-  activate_warp
-  exit $?
-fi
-
-deactivate_warp
 
 case "$dns" in
 Cloudflare)
@@ -132,21 +44,33 @@ EOF
   lock_dns_to_resolved
   ;;
 
-Quad9)
+Google)
   sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
 [Resolve]
-DNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
+DNS=8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google
 FallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
 DNSOverTLS=opportunistic
 EOF
   lock_dns_to_resolved
   ;;
 
-None | DHCP)
-  set_dns_to_dhcp
+DHCP)
+  sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
+[Resolve]
+DNSOverTLS=no
+EOF
+  unlock_dns_to_dhcp
   ;;
 
 Custom)
+  echo "Enter your DNS servers (space-separated, e.g. '192.168.1.1 1.1.1.1'):"
+  read -r dns_servers
+
+  if [[ -z $dns_servers ]]; then
+    echo "Error: No DNS servers provided."
+    exit 1
+  fi
+
   sudo tee /etc/systemd/resolved.conf >/dev/null <<EOF
 [Resolve]
 DNS=$dns_servers
@@ -156,4 +80,4 @@ EOF
   ;;
 esac
 
-reload_dns
+sudo systemctl restart systemd-networkd systemd-resolved

@@ -724,7 +724,7 @@ if grep '^download' "$arm_network_log" |
 fi
 pass "qvCORE selects verified provider assets for arm64"
 
-grep -Fqx '  mise use --global node@lts' "$root/bin/omarchy-install-dev-env" ||
+grep -Fqx '    mise use --global node@lts' "$root/qv/core/dev.sh" ||
   fail "Node LTS compatibility runtime"
 if grep -Eq 'bun (add|install).*(-g|--global).*(wrangler|convex)' "$root/qv/core/dev.sh"; then
   fail "project CLI installed globally"

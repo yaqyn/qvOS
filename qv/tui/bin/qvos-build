@@ -5,7 +5,7 @@ set -eEo pipefail
 allow_downloads=false
 no_cache=false
 prepare_only=false
-omarchy_mirror="${QVOS_OMARCHY_MIRROR:-stable}"
+omarchy_mirror="${QVOS_OMARCHY_MIRROR:-edge}"
 
 usage() {
   echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--dev|--rc]"
@@ -15,6 +15,8 @@ usage() {
   echo "  QVOS_SOURCE_REF        qvOS branch, tag, or commit"
   echo "  QVOS_OMARCHY_ISO_REPO  omarchy-iso repository or local path"
   echo "  QVOS_OMARCHY_ISO_REF   omarchy-iso branch, tag, or commit"
+  echo "  QVOS_ARCH_MIRROR       optional HTTPS Arch mirror root"
+  echo "  QVOS_DOCKER_NETWORK     optional Docker network, such as host"
 }
 
 env_enabled() {
@@ -80,12 +82,27 @@ cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/qvos/iso"
 mkdir -p "$cache_root"
 stage_root=$(mktemp -d "$cache_root/stage.XXXXXX")
 release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
+preserve_stage=false
 omarchy_iso_repo="${QVOS_OMARCHY_ISO_REPO:-https://github.com/omacom-io/omarchy-iso.git}"
 omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"
 docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
+docker_network="${QVOS_DOCKER_NETWORK:-}"
+arch_mirror="${QVOS_ARCH_MIRROR:-}"
+
+if [[ -n $arch_mirror ]]; then
+  if [[ $arch_mirror != https://* ]]; then
+    echo "QVOS_ARCH_MIRROR must use HTTPS" >&2
+    exit 2
+  fi
+  arch_mirror=${arch_mirror%/}
+fi
 
 cleanup() {
-  rm -rf "$stage_root"
+  if [[ $preserve_stage == "true" ]]; then
+    echo "qvOS ISO recovery stage retained: $stage_root" >&2
+  else
+    rm -rf "$stage_root"
+  fi
 }
 trap cleanup EXIT
 
@@ -246,6 +263,47 @@ patch_omarchy_iso() {
   patch -d "$iso_root" -p0 <"$patch_file"
 }
 
+configure_arch_mirror() {
+  local iso_root="$1"
+  local config
+  local temporary
+
+  if [[ -z $arch_mirror ]]; then
+    return 0
+  fi
+
+  echo "qvOS ISO progress: configuring explicit Arch mirror"
+  for config in "$iso_root"/configs/pacman-online-*.conf; do
+    [[ -f $config ]] || continue
+    temporary=$(mktemp "$config.qvos.XXXXXX")
+    awk -v mirror="$arch_mirror" '
+      /^\[(core|extra|multilib)\]$/ {
+        repo = substr($0, 2, length($0) - 2)
+        in_arch_repo = 1
+        print
+        print "Server = " mirror "/" repo "/os/$arch"
+        next
+      }
+      /^\[/ {
+        in_arch_repo = 0
+      }
+      in_arch_repo && (/^Server = / || /^Include = /) {
+        next
+      }
+      /^ParallelDownloads = / {
+        print "ParallelDownloads = 2"
+        print "DisableDownloadTimeout"
+        next
+      }
+      {
+        print
+      }
+    ' "$config" >"$temporary"
+    chmod --reference="$config" "$temporary"
+    mv -f "$temporary" "$config"
+  done
+}
+
 run_iso_builder() {
   local iso_root="$1"
   local staged_qvos="$2"
@@ -264,6 +322,13 @@ run_iso_builder() {
     -v "$iso_root/configs:/configs:ro"
     -v "$staged_qvos:/omarchy:ro"
   )
+
+  if [[ -n $docker_network ]]; then
+    docker_args+=(--network "$docker_network")
+  fi
+  if [[ -n $arch_mirror ]]; then
+    docker_args+=(-e "QVOS_ARCH_MIRROR=$arch_mirror")
+  fi
 
   if [[ ! -d $iso_root/archiso/configs/releng ]]; then
     echo "qvos-build could not find the omarchy-iso archiso submodule" >&2
@@ -286,6 +351,7 @@ run_iso_builder() {
 publish_release_artifact() {
   local out_dir="$1"
   local latest_iso
+  local partial_iso
   local target_iso
 
   latest_iso=""
@@ -303,7 +369,26 @@ publish_release_artifact() {
 
   mkdir -p "$release_dir"
   target_iso="$release_dir/$(basename "$latest_iso" | sed 's/^omarchy/qvos/')"
-  mv -f "$latest_iso" "$target_iso"
+  if ! partial_iso=$(mktemp "$release_dir/.qvos-iso.partial.XXXXXX"); then
+    preserve_stage=true
+    echo "qvos-build could not prepare an atomic release artifact" >&2
+    echo "Built ISO retained at: $latest_iso" >&2
+    return 1
+  fi
+  if ! cp --reflink=auto -- "$latest_iso" "$partial_iso"; then
+    rm -f -- "$partial_iso"
+    preserve_stage=true
+    echo "qvos-build could not copy the ISO into the release directory" >&2
+    echo "Built ISO retained at: $latest_iso" >&2
+    return 1
+  fi
+  if ! mv -f -- "$partial_iso" "$target_iso"; then
+    rm -f -- "$partial_iso"
+    preserve_stage=true
+    echo "qvos-build could not publish the ISO atomically" >&2
+    echo "Built ISO retained at: $latest_iso" >&2
+    return 1
+  fi
 
   echo "qvOS ISO release dir: $release_dir"
   echo "qvOS ISO artifact: $target_iso"
@@ -333,6 +418,7 @@ stage_qvos_source "$staged_qvos"
 validate_qvos_source "$staged_qvos"
 stage_omarchy_iso "$staged_iso"
 patch_omarchy_iso "$staged_iso" "$staged_qvos"
+configure_arch_mirror "$staged_iso"
 
 if [[ $prepare_only == "true" ]]; then
   echo "qvOS ISO prepare-only complete"

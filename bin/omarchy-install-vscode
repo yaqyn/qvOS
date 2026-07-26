@@ -23,13 +23,7 @@ EOF
 # Ensure VSC's own auto-update feature is turned off
 printf '{\n  "update.mode": "none"\n}\n' > ~/.config/Code/User/settings.json
 
-# Install the local Yaqyn theme before applying the current Omarchy theme.
-yaqyn_vscode_extension_dir="$OMARCHY_PATH/themes/yaqyn/vscode/extension"
-yaqyn_vscode_extension_version=$(jq -r .version "$yaqyn_vscode_extension_dir/package.json" 2>/dev/null)
-yaqyn_vscode_extension="$yaqyn_vscode_extension_dir/yaqyn-theme-$yaqyn_vscode_extension_version.vsix"
-if [[ -f $yaqyn_vscode_extension ]]; then
-  code --install-extension "$yaqyn_vscode_extension" --force
-fi
+"$OMARCHY_PATH/qv/theme/install-vscode"
 
 # Apply Omarchy theme to VSCode
 omarchy-theme-set-vscode

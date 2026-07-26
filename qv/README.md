@@ -8,37 +8,69 @@ Expected layout:
 
 ```text
 qv/
+  boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
+  branding/    qvOS terminal and desktop branding.
+  browser/     Secure browser policy ownership.
+  config/      qvOS config helpers and files installed after Omarchy defaults.
   core/        Opt-in qvCORE integration components.
+  diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   git/         Private git helper source and installers.
+  hyprland/    qvOS Hyprland refresh reconciliation.
+  install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
+  launcher/    qvOS Elephant providers.
   maintenance/ qvOS base repair, inherited-extra review, and upstream guards.
+  menu/        qvOS menus installed through Omarchy's extension seam.
+  migrations/  Existing-system qvOS migration implementation.
+  network/     qvOS DNS policy and optional WARP routing.
+  power/       Sleep inhibition and guarded suspend.
+  presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
+  share/       Shared notification and LocalSend request routing.
+  shell/       qvOS shell additions.
+  theme/       The Yaqyn qvOS theme overlay.
   thunar/      Thunar feature entry points.
   tmux/        Persistent tmux session manager.
   tui/         ISO installer, progress UI, and image build tooling.
+  update/      qvOS update preflight and presentation wrapper.
   waybar/      qvOS prayer clock modules.
 ```
 
 qvCORE components marked `# qvcore:lifecycle=1` own four local operations:
-`--status`, `--repair`, `--adopt`, and `--disable`. One base-owned post-update
-hook checks only explicitly enabled component state, delegates repairs to the
-component owner, and ignores optional applications that were never enabled or
-were later removed.
+`--status`, `--repair`, `--adopt`, and `--disable`. One base-owned maintenance
+seam checks only explicitly enabled setup state and delegates to the component
+owner. It stays silent when qvCORE is unused, ignores optional applications
+that were never enabled, and retires setup state when an application is later
+removed.
 
 ## Product lifecycle
 
-qvOS has one supported base: a curated, unbloated Omarchy system. qvCORE adds
-optional applications and integrations without changing base ownership.
+qvOS has one supported base: a solid, unbloated Arch system curated through
+Omarchy. qvCORE is separate and adds optional curated setups without changing
+qvOS identity, readiness, or base ownership.
 
+- `omarchy qvos update` confirms the operation and verifies branch `OS`, then
+  delegates once to the original `omarchy update` implementation. Omarchy owns
+  snapshots, source and package updates, migrations, orphan cleanup, log
+  analysis, and restarts. qvOS and enabled qvCORE reconciliation stay in
+  Omarchy's existing post-update hook seam.
 - `omarchy qvos repair` restores missing base packages, qvOS runtime payloads,
-  missing qvOS config, and enabled qvCORE integrations. Customized qvOS config
-  is preserved unless `--restore-config` is explicitly requested.
+  and missing qvOS config. When optional qvCORE setups are enabled, their
+  owners quietly preserve only those setups after shared runtime repair.
+  Customized qvOS config is preserved unless `--restore-config` is explicitly
+  requested.
+- `omarchy qvcore repair` checks only enabled persistent setups, reports only
+  actionable drift, and never installs an unselected catalog entry.
 - `omarchy qvcore disable` removes only enabled qvOS-owned integration and
   maintenance state. Installed applications, authentication, network choices,
   and personal data remain.
 - `omarchy qvos cleanup inherited` previews a reviewed legacy package catalog.
   Applying cleanup still requires explicit package selection and confirmation.
+- The qvOS TUI exposes Update, Repair, and ISO Build only. ISO Build stages the
+  qvOS source over Omarchy's `main` ISO for its matching `master` installer,
+  adds the qvOS configurator and progress surfaces, and preserves Omarchy's
+  disk-install and post-install orchestration.
 
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
@@ -53,11 +85,13 @@ Keep implementations in `qv/`; touch inherited Omarchy paths only at the seam
 that exposes, installs, or refreshes them:
 
 - `bin/` owns CLI routes and menu handoffs.
-- `config/` and `default/` own user-facing defaults and overlays.
+- `qv/config/files/` owns qvOS config sources; inherited `config/` and
+  `default/` remain upstream-owned.
 - `install/` owns fresh-install payloads; `migrations/` owns existing systems.
 - `test/qvos/*-test.sh` guards qvOS product and integration contracts;
   `test/qvos/run.sh` runs them together with all upstream root tests.
-- `themes/yaqyn/` is the intentionally singular bundled qvOS theme.
+- `qv/theme/yaqyn/` is the qvOS theme overlay; Omarchy's inherited theme
+  catalog remains available.
 
 When one of these seams changes, trace it back to its `qv/` owner and verify
 both the fresh-install and update paths. This keeps qvsync conflicts localized

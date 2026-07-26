@@ -5,14 +5,8 @@
 
 set -e
 
-qvos_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
-qvos_guard="$qvos_root/qv/maintenance/qvos-block-upstream-maintenance"
-if [[ -d $qvos_root/qv && ! -x $qvos_guard ]]; then
-  echo "Blocked on qvOS: the maintenance safety guard is unavailable" >&2
-  exit 1
-elif [[ -x $qvos_guard ]]; then
-  exec "$qvos_guard" "omarchy reinstall git"
-fi
+# shellcheck disable=SC2093
+exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance" "omarchy reinstall git"
 
 # Reinstall the Omarchy configuration directory from the git source.
 

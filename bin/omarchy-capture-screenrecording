@@ -239,23 +239,8 @@ stop_screenrecording() {
     # Generate a preview thumbnail from the first frame
     ffmpeg -y -i "$filename" -ss 00:00:00.1 -vframes 1 -q:v 2 "$preview" -loglevel quiet 2>/dev/null
 
-    (
-      notification_args=(
-        "Screen recording saved"
-        "Open with Super + Alt + , (or choose an action)"
-        -t 10000
-        -i "${preview:-$filename}"
-        -A "default=Open"
-      )
-      omarchy-cmd-present localsend &&
-        notification_args+=(-A "share=Share")
-      ACTION=$(notify-send "${notification_args[@]}")
-      case $ACTION in
-      default) mpv "$filename" ;;
-      share) omarchy-menu-share file "$filename" ;;
-      esac
-      rm -f "$preview"
-    ) &
+    "$OMARCHY_PATH/qv/share/notification" \
+      recording "$filename" "$preview" &
   fi
 
   rm -f "$RECORDING_FILE"

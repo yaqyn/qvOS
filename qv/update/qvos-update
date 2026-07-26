@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+assume_yes=0
+
+usage() {
+  echo "Usage: omarchy-qvos-update [-y]" >&2
+}
+
+if (($# > 1)); then
+  usage
+  exit 2
+fi
+case ${1:-} in
+"") ;;
+-y) assume_yes=1 ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
+if [[ $branch != "OS" ]]; then
+  echo "qvOS update requires the live checkout on branch OS; found '${branch:-none}'." >&2
+  exit 1
+fi
+
+if ((assume_yes == 0)); then
+  gum style --border normal --padding "1 2" \
+    "Ready to update qvOS?" \
+    "" \
+    "• The original Omarchy updater will update qvOS and system packages" \
+    "• You cannot stop the update once it starts" \
+    "• Make sure you're connected to power or have a full battery" \
+    "" \
+    "What's new: https://github.com/Yaqyn-qvOS/qvOS/commits/OS"
+
+  echo
+  if ! gum confirm "Continue with qvOS update?"; then
+    echo "qvOS update cancelled."
+    exit 130
+  fi
+fi
+
+omarchy-update -y
+echo -e "\e[32m\nqvOS update is complete.\e[0m"

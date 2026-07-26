@@ -1,5 +1,4 @@
 run_logged $OMARCHY_INSTALL/config/config.sh
-run_logged $OMARCHY_INSTALL/config/qvos-scripts.sh
 run_logged $OMARCHY_INSTALL/config/theme.sh
 run_logged $OMARCHY_INSTALL/config/branding.sh
 run_logged $OMARCHY_INSTALL/config/git.sh
@@ -17,7 +16,7 @@ run_logged $OMARCHY_INSTALL/config/fix-powerprofilesctl-shebang.sh
 run_logged $OMARCHY_INSTALL/config/docker.sh
 run_logged $OMARCHY_INSTALL/config/mimetypes.sh
 run_logged $OMARCHY_INSTALL/config/user-dirs.sh
-run_logged $OMARCHY_INSTALL/config/nautilus-python.sh
+run_logged "$OMARCHY_PATH/qv/install/config/nautilus-python"
 run_logged $OMARCHY_INSTALL/config/localdb.sh
 run_logged $OMARCHY_INSTALL/config/walker-elephant.sh
 run_logged $OMARCHY_INSTALL/config/fast-shutdown.sh
@@ -72,3 +71,5 @@ run_logged $OMARCHY_INSTALL/config/hardware/fix-surface-keyboard.sh
 run_logged $OMARCHY_INSTALL/config/hardware/fix-yt6801-ethernet-adapter.sh
 run_logged $OMARCHY_INSTALL/config/hardware/fix-synaptic-touchpad.sh
 run_logged $OMARCHY_INSTALL/config/hardware/fix-tuxedo-backlight.sh
+
+run_logged "$OMARCHY_PATH/qv/install/configure"

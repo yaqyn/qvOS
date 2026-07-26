@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+source_dir="$OMARCHY_PATH/qv/theme/yaqyn"
+runtime_dir="$HOME/.local/share/qvos/theme/yaqyn"
+target="$HOME/.config/omarchy/themes/yaqyn"
+
+if [[ ! -d $source_dir ]]; then
+  echo "Missing Yaqyn theme source: $source_dir" >&2
+  exit 1
+fi
+
+if [[ -e $target || -L $target ]]; then
+  target_link=""
+  [[ -L $target ]] && target_link=$(readlink -- "$target")
+  if [[ $target_link == "$runtime_dir" ]]; then
+    rm -f -- "$target"
+  else
+    backup_target="$target.bak.$(date +%s)"
+    backup_index=0
+    while [[ -e $backup_target || -L $backup_target ]]; do
+      ((backup_index += 1))
+      backup_target="$target.bak.$(date +%s).$backup_index"
+    done
+    mv -- "$target" "$backup_target"
+    printf 'Preserved the existing Yaqyn theme as %s.\n' "$backup_target"
+  fi
+fi
+
+rm -rf -- "$runtime_dir"
+mkdir -p \
+  "$(dirname -- "$runtime_dir")" \
+  "$(dirname -- "$target")"
+cp -a "$source_dir" "$runtime_dir"
+ln -s "$runtime_dir" "$target"

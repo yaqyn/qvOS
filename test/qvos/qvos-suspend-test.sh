@@ -99,9 +99,9 @@ install -m 0755 /dev/stdin "$test_bin/sleep" <<'SCRIPT'
 exit 0
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-hypridle" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/omarchy-restart-hypridle" <<'SCRIPT'
 #!/bin/bash
-printf 'refresh-hypridle\n' >>"$QVOS_TEST_COMMAND_LOG"
+printf 'restart-hypridle\n' >>"$QVOS_TEST_COMMAND_LOG"
 SCRIPT
 
 run_guard() {
@@ -116,6 +116,7 @@ run_guard() {
     QVOS_TEST_INHIBITORS="${QVOS_TEST_INHIBITORS:-[]}" \
     XDG_RUNTIME_DIR="$test_root/runtime" \
     HOME="$test_root" \
+    OMARCHY_PATH="$root" \
     PATH="$test_bin:/usr/bin" \
     "$guard" "$@"
 }
@@ -174,6 +175,7 @@ pass "an eligible session requests suspend"
 : >"$command_log"
 QVOS_TEST_COMMAND_LOG="$command_log" \
   QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
+  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$inhibitor" -- printf 'protected\n' >/dev/null
 grep -Fq -- '--why=Codex\ session\ is\ active' "$command_log" ||
@@ -188,13 +190,15 @@ QVOS_TEST_COMMAND_LOG="$command_log" \
   HOME="$test_root" \
   PATH="$test_bin:/usr/bin" \
 bash "$migration" >/dev/null
-grep -Fqx 'refresh-hypridle' "$command_log" ||
+grep -Fqx 'restart-hypridle' "$command_log" ||
   fail "idle migration refresh"
 pass "existing installations receive the guarded idle policy"
 
 failed_install_root="$test_root/failed-install"
-install -d "$failed_install_root/install/config"
-install -m 0644 /dev/stdin "$failed_install_root/install/config/qvos-scripts.sh" <<'SCRIPT'
+install -d "$failed_install_root/qv/install" "$failed_install_root/qv/migrations"
+install -m 0644 "$root/qv/migrations/1785034010.sh" \
+  "$failed_install_root/qv/migrations/1785034010.sh"
+install -m 0644 /dev/stdin "$failed_install_root/qv/install/desktop" <<'SCRIPT'
 return 1
 SCRIPT
 : >"$command_log"
@@ -205,7 +209,7 @@ if QVOS_TEST_COMMAND_LOG="$command_log" \
   bash -c 'source "$1"' _ "$migration" >/dev/null 2>&1; then
   fail "failed payload install accepted"
 fi
-if grep -Fq 'refresh-hypridle' "$command_log"; then
+if grep -Fq 'restart-hypridle' "$command_log"; then
   fail "failed payload install refreshed idle config"
 fi
 pass "migration failure cannot apply a partial idle policy"

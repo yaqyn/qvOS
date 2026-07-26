@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+policy_dir=${1:-}
+if [[ -z $policy_dir || $policy_dir != /* ]]; then
+  echo "Usage: setup-policy <absolute-policy-directory>" >&2
+  exit 2
+fi
+
+sudo install -d -o root -g root -m 0755 "$policy_dir"
+
+case $policy_dir in
+*/policies/managed)
+  policy_group=$(id -gn)
+  sudo touch "$policy_dir/color.json"
+  sudo chown "$USER:$policy_group" "$policy_dir/color.json"
+  sudo chmod 0644 "$policy_dir/color.json"
+  ;;
+esac

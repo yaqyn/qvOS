@@ -195,7 +195,7 @@ QVOS_TEST_CURSOR_LOG="$cursor_log" \
   "$runner" </dev/null >/dev/null
 pass "cursor movement exits the screensaver"
 
-if rg -q 'on-resume\s*=\s*pkill.*org\.omarchy\.screensaver' "$root/config/hypr/hypridle.conf"; then
+if rg -q 'on-resume\s*=\s*pkill.*org\.omarchy\.screensaver' "$root/qv/config/files/hypr/hypridle.conf"; then
   fail "idle resume can terminate a screensaver during launch"
 fi
 pass "idle config does not race screensaver startup"

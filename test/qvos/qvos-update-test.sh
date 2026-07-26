@@ -1,0 +1,201 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+adapter="$root/bin/omarchy-qvos-update"
+owner="$root/qv/update/qvos-update"
+availability_owner="$root/qv/update/update-available"
+tui_update="$root/qv/tui/bin/qvos-update"
+test_root="$(mktemp -d)"
+test_bin="$test_root/bin"
+action_log="$test_root/actions.log"
+display_log="$test_root/display.log"
+
+cleanup() {
+  [[ -d $test_root ]] && rm -rf "$test_root"
+}
+trap cleanup EXIT
+
+pass() {
+  printf 'ok - %s\n' "$1"
+}
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+install -d "$test_bin" "$test_root/live"
+touch "$action_log" "$display_log"
+
+install -m 0755 /dev/stdin "$test_bin/git" <<'SCRIPT'
+#!/bin/bash
+if [[ $* == *"branch --show-current"* ]]; then
+  printf '%s\n' "${QVOS_TEST_BRANCH:-OS}"
+else
+  exit 2
+fi
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
+#!/bin/bash
+case ${1:-} in
+style)
+  printf '%s\n' "$*" >"$QVOS_TEST_DISPLAY_LOG"
+  printf 'gum-style\n' >>"$QVOS_TEST_ACTION_LOG"
+  ;;
+confirm)
+  printf 'gum-confirm\n' >>"$QVOS_TEST_ACTION_LOG"
+  exit "${QVOS_TEST_CONFIRM_STATUS:-0}"
+  ;;
+*)
+  exit 2
+  ;;
+esac
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-update" <<'SCRIPT'
+#!/bin/bash
+printf 'omarchy-update\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+exit "${QVOS_TEST_UPDATE_STATUS:-0}"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-update-available" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "${QVOS_TEST_AVAILABLE_OUTPUT:-Omarchy update available (1.2.3)}"
+exit "${QVOS_TEST_AVAILABLE_STATUS:-0}"
+SCRIPT
+
+run_owner() {
+  QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
+    QVOS_TEST_CONFIRM_STATUS="${QVOS_TEST_CONFIRM_STATUS:-0}" \
+    QVOS_TEST_DISPLAY_LOG="$display_log" \
+    QVOS_TEST_UPDATE_STATUS="${QVOS_TEST_UPDATE_STATUS:-0}" \
+    OMARCHY_PATH="$test_root/live" \
+    PATH="$test_bin:/usr/bin" \
+    "$owner" "$@"
+}
+
+: >"$action_log"
+confirmed_output=$(run_owner)
+[[ $(<"$action_log") == $'gum-style\ngum-confirm\nomarchy-update\t-y' ]] ||
+  fail "confirmed qvOS update delegation"
+grep -Fq 'original Omarchy updater' "$display_log" ||
+  fail "qvOS confirmation explains upstream ownership"
+grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/commits/OS' "$display_log" ||
+  fail "qvOS update history link"
+grep -Fq 'qvOS update is complete.' <<<"$confirmed_output" ||
+  fail "qvOS update completion result"
+pass "qvOS confirms once and delegates once to the original Omarchy updater"
+
+: >"$action_log"
+run_owner -y >/dev/null
+[[ $(<"$action_log") == $'omarchy-update\t-y' ]] ||
+  fail "non-interactive qvOS update delegation"
+pass "qvOS non-interactive mode skips only its wrapper confirmation"
+
+: >"$action_log"
+set +e
+cancel_output=$(QVOS_TEST_CONFIRM_STATUS=1 run_owner 2>&1)
+cancel_status=$?
+set -e
+((cancel_status == 130)) ||
+  fail "qvOS update cancellation status"
+[[ $(<"$action_log") == $'gum-style\ngum-confirm' ]] ||
+  fail "qvOS update cancellation mutation"
+grep -Fq 'qvOS update cancelled.' <<<"$cancel_output" ||
+  fail "qvOS update cancellation result"
+pass "qvOS cancellation is explicit and never enters Omarchy update"
+
+: >"$action_log"
+set +e
+wrong_branch_output=$(QVOS_TEST_BRANCH=master run_owner 2>&1)
+wrong_branch_status=$?
+set -e
+((wrong_branch_status == 1)) ||
+  fail "qvOS update wrong-branch status"
+grep -Fq "requires the live checkout on branch OS; found 'master'." \
+  <<<"$wrong_branch_output" ||
+  fail "qvOS update wrong-branch result"
+[[ ! -s $action_log ]] ||
+  fail "qvOS update wrong-branch mutation"
+pass "qvOS preflight refuses non-OS branches before confirmation or mutation"
+
+: >"$action_log"
+set +e
+invalid_output=$(run_owner --unknown 2>&1)
+invalid_status=$?
+set -e
+((invalid_status == 2)) ||
+  fail "qvOS update invalid argument status"
+grep -Fq 'Usage: omarchy-qvos-update [-y]' <<<"$invalid_output" ||
+  fail "qvOS update invalid argument usage"
+[[ ! -s $action_log ]] ||
+  fail "qvOS update invalid argument mutation"
+pass "qvOS wrapper rejects unsupported arguments before preflight"
+
+: >"$action_log"
+set +e
+failed_output=$(QVOS_TEST_UPDATE_STATUS=7 run_owner -y 2>&1)
+failed_status=$?
+set -e
+((failed_status == 7)) ||
+  fail "original updater failure propagation"
+if grep -Fq 'qvOS update is complete.' <<<"$failed_output"; then
+  fail "qvOS wrapper claims completion after an upstream failure"
+fi
+pass "qvOS preserves original updater failures without false completion"
+
+if grep -Eq \
+  'omarchy-update-(git|perform|system-pkgs|aur-pkgs|orphan-pkgs)|omarchy-migrate|omarchy-hook' \
+  "$owner"; then
+  fail "qvOS wrapper duplicates the original update pipeline"
+fi
+[[ $(grep -c '^omarchy-update -y$' "$owner") == "1" ]] ||
+  fail "qvOS wrapper delegation count"
+pass "qvOS owns only preflight and presentation, never Omarchy update stages"
+
+available_output=$(PATH="$test_bin:/usr/bin" "$availability_owner")
+[[ $available_output == "qvOS update available (1.2.3)" ]] ||
+  fail "qvOS update-availability presentation"
+set +e
+current_output=$(
+  QVOS_TEST_AVAILABLE_OUTPUT="Omarchy is up to date (1.2.3)" \
+    QVOS_TEST_AVAILABLE_STATUS=1 \
+    PATH="$test_bin:/usr/bin" \
+    "$availability_owner"
+)
+current_status=$?
+set -e
+((current_status == 1)) ||
+  fail "qvOS update-availability status preservation"
+[[ $current_output == "qvOS is up to date (1.2.3)" ]] ||
+  fail "qvOS current-version presentation"
+pass "qvOS relabels only the original update-availability result"
+
+fixture="$test_root/fixture"
+install -d "$fixture/qv/update"
+install -m 0755 /dev/stdin "$fixture/qv/update/qvos-update" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_ADAPTER_LOG"
+SCRIPT
+adapter_log="$test_root/adapter.log"
+QVOS_TEST_ADAPTER_LOG="$adapter_log" \
+  OMARCHY_PATH="$fixture" \
+  "$adapter" -y
+[[ $(<"$adapter_log") == "-y" ]] ||
+  fail "public qvOS update adapter"
+pass "public qvOS command remains a thin adapter to its feature owner"
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-update" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_TUI_UPDATE_LOG"
+SCRIPT
+tui_update_log="$test_root/tui-update.log"
+QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$tui_update"
+[[ $(<"$tui_update_log") == "-y" ]] ||
+  fail "qvOS TUI update delegation"
+pass "qvOS TUI delegates its confirmed action to the owned wrapper"

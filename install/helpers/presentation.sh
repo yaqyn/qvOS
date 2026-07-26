@@ -8,9 +8,8 @@ if [[ -e /dev/tty ]]; then
   TERM_SIZE=$(stty size 2>/dev/null </dev/tty)
 
   if [[ -n $TERM_SIZE ]]; then
-    TERM_HEIGHT=$(echo "$TERM_SIZE" | cut -d' ' -f1)
-    TERM_WIDTH=$(echo "$TERM_SIZE" | cut -d' ' -f2)
-    export TERM_HEIGHT TERM_WIDTH
+    export TERM_HEIGHT=$(echo "$TERM_SIZE" | cut -d' ' -f1)
+    export TERM_WIDTH=$(echo "$TERM_SIZE" | cut -d' ' -f2)
   else
     # Fallback to reasonable defaults if stty fails
     export TERM_WIDTH=80
@@ -23,15 +22,13 @@ else
 fi
 
 export LOGO_PATH="$OMARCHY_PATH/logo.txt"
-LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$LOGO_PATH" 2>/dev/null || echo 0)
-LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
-export LOGO_WIDTH LOGO_HEIGHT
+export LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$LOGO_PATH" 2>/dev/null || echo 0)
+export LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
 
 export PADDING_LEFT=$(((TERM_WIDTH - LOGO_WIDTH) / 2))
-PADDING_LEFT_SPACES=$(printf "%*s" "$PADDING_LEFT" "")
-export PADDING_LEFT_SPACES
+export PADDING_LEFT_SPACES=$(printf "%*s" $PADDING_LEFT "")
 
-# Installer colors for gum confirm
+# Tokyo Night theme for gum confirm
 export GUM_CONFIRM_PROMPT_FOREGROUND="6"     # Cyan for prompt
 export GUM_CONFIRM_SELECTED_FOREGROUND="0"   # Black text on selected
 export GUM_CONFIRM_SELECTED_BACKGROUND="2"   # Green background for selected

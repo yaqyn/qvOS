@@ -197,7 +197,7 @@ case ${1:-} in
   ;;
 esac
 
-for command in omarchy-menu-share xmlstarlet ufw; do
+for command in omarchy-qvos-share xmlstarlet ufw; do
   if omarchy-cmd-missing "$command"; then
     echo "qvCORE Share requires the qvOS base command: $command" >&2
     exit 1

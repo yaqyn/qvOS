@@ -2,5 +2,5 @@
 
 set -e
 
-echo "qvos-update not implemented yet" >&2
-exit 1
+# The TUI action is the confirmation surface and holds sudo authorization.
+exec omarchy-qvos-update -y

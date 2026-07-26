@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-hook="$root/config/omarchy/hooks/post-update.d/qvos-qvcore"
+hook="$root/qv/core/post-update-hook"
 migration="$root/migrations/1785073962.sh"
 test_root="$(mktemp -d)"
 fixture="$test_root/omarchy"
@@ -24,11 +24,13 @@ fail() {
 }
 
 install -d \
-  "$fixture/config/omarchy/hooks/post-update.d" \
   "$fixture/qv/core" \
+  "$fixture/qv/migrations" \
   "$(dirname -- "$installed_hook")"
 install -m 0644 "$hook" \
-  "$fixture/config/omarchy/hooks/post-update.d/qvos-qvcore"
+  "$fixture/qv/core/post-update-hook"
+install -m 0644 "$root/qv/migrations/1785073962.sh" \
+  "$fixture/qv/migrations/1785073962.sh"
 install -m 0755 /dev/stdin "$fixture/qv/core/health.sh" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TEST_MAINTENANCE_LOG"

@@ -73,9 +73,9 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-qvcore-repair-enabled" <<'SCRIPT'
 printf 'qvcore\trepair-enabled\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-waybar" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/localsend" <<'SCRIPT'
 #!/bin/bash
-printf 'waybar\trefresh\n' >>"$QVOS_TEST_ACTION_LOG"
+exit 0
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
@@ -129,12 +129,17 @@ grep -Fq "requires the live qvOS checkout on branch OS" <<<"$unsafe_output" ||
 [[ ! -s $action_log ]] || fail "branch refusal mutates the system"
 pass "qvOS repair refuses an upstream source branch before mutation"
 
+install -D -m 0644 /dev/null \
+  "$test_home/.local/state/qvos/qvcore/share"
 repair_output=$(run_repair --yes)
 grep -Fqx $'add\talacritty' "$action_log" ||
   fail "missing qvOS base package repair"
 grep -Fqx $'qvcore\trepair-enabled' "$action_log" ||
   fail "enabled qvCORE repair delegation"
-grep -Fqx $'waybar\trefresh' "$action_log" ||
+grep -Fq 'Enabled optional setups:     1 qvCORE' <<<"$repair_output" ||
+  fail "enabled optional qvCORE repair plan"
+jq -e '."custom/omarchy".format == "󱅾"' \
+  "$test_home/.config/waybar/config.jsonc" >/dev/null ||
   fail "restored Waybar overlay activation"
 grep -Fqx $'hyprland\treload' "$action_log" ||
   fail "restored Hyprland config reload"
@@ -145,23 +150,43 @@ grep -Fq 'preserved 1 customized qvOS config file' <<<"$repair_output" ||
 
 for config_path in \
   hypr/qv/looknfeel.conf \
-  hypr/qv/windows.conf \
-  omarchy/hooks/post-update.d/qvos-qvcore \
-  omarchy/hooks/post-update.d/qvos-waybar-overrides \
-  waybar/qv/overrides.jsonc; do
+  hypr/qv/windows.conf; do
   cmp -s \
-    "$root/config/$config_path" \
+    "$root/qv/config/files/$config_path" \
     "$test_home/.config/$config_path" ||
     fail "missing qvOS config repair: $config_path"
 done
+[[ ! -e $test_home/.config/refresh ]] ||
+  fail "qvOS config helper was installed as user config"
+[[ ! -e $test_home/.config/refresh-upstream ]] ||
+  fail "upstream refresh helper was installed as user config"
+cmp -s \
+  "$root/qv/core/post-update-hook" \
+  "$test_home/.config/omarchy/hooks/post-update.d/qvos-qvcore" ||
+  fail "missing qvCORE post-update hook"
+cmp -s \
+  "$root/qv/waybar/post-update-hook" \
+  "$test_home/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
+  fail "missing qvOS Waybar post-update hook"
 [[ -x $test_home/.local/share/qvos/tmux/qvos-tmux ]] ||
   fail "qvOS runtime payload repair"
 pass "qvOS repair restores only missing base state and enabled integrations"
 
+rm -f "$test_home/.local/state/qvos/qvcore/share"
+: >"$action_log"
+base_only_output=$(run_repair --yes)
+if grep -Fq 'qvCORE' <<<"$base_only_output"; then
+  fail "base-only qvOS repair mentions qvCORE"
+fi
+if grep -Fq $'qvcore\trepair-enabled' "$action_log"; then
+  fail "base-only qvOS repair delegates to qvCORE"
+fi
+pass "qvOS repair stays base-only when qvCORE is unused"
+
 : >"$action_log"
 run_repair --restore-config --yes >/dev/null
 cmp -s \
-  "$root/config/hypr/qv/bindings.conf" \
+  "$root/qv/config/files/hypr/qv/bindings.conf" \
   "$test_home/.config/hypr/qv/bindings.conf" ||
   fail "explicit qvOS config restore"
 compgen -G "$test_home/.config/hypr/qv/bindings.conf.bak.*" >/dev/null ||
@@ -172,7 +197,7 @@ pass "explicit config restoration keeps a timestamped backup"
 
 active_packages=$(
   sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-    "$root/install/omarchy-base.packages"
+    "$root/qv/install/packaging/base.packages"
 )
 while IFS=$'\t' read -r category package description; do
   [[ -n $category && $category != "#"* ]] || continue
@@ -206,7 +231,12 @@ commands=$("$root/bin/omarchy" commands --json)
 for binary in \
   omarchy-qvcore-disable \
   omarchy-qvos-cleanup-inherited \
-  omarchy-qvos-repair; do
+  omarchy-qvos-refresh-waybar \
+  omarchy-qvos-repair \
+  omarchy-qvos-setup-dns \
+  omarchy-qvos-share \
+  omarchy-qvos-update-available \
+  omarchy-qvos-update; do
   jq -e --arg binary "$binary" \
     'any(.commands[]; .binary == $binary)' <<<"$commands" >/dev/null ||
     fail "$binary command discovery"
@@ -219,9 +249,11 @@ fi
 pass "qvOS maintenance commands expose only user-facing routes"
 
 grep -Fq '*Repair*) present_terminal omarchy-qvos-repair ;;' \
-  "$root/bin/omarchy-menu" || fail "qvOS repair menu route"
+  "$root/qv/menu/extension.sh" || fail "qvOS repair menu route"
 grep -Fq '*Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;' \
-  "$root/bin/omarchy-menu" || fail "inherited-extra menu route"
+  "$root/qv/menu/extension.sh" || fail "inherited-extra menu route"
 grep -Fq 'exec omarchy-qvos-repair' "$root/qv/tui/bin/qvos-repair" ||
   fail "qvOS TUI repair delegation"
+grep -Fq 'exec omarchy-qvos-update -y' "$root/qv/tui/bin/qvos-update" ||
+  fail "qvOS TUI update delegation"
 pass "qvOS menus and TUI delegate to the maintenance owners"

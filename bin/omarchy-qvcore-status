@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Show qvCORE integration health without changing the system
+# omarchy:summary=Check enabled optional qvCORE setups without changing them
 # omarchy:group=qvcore
 # omarchy:name=status
 

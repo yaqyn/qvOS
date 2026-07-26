@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+source_dir="$OMARCHY_PATH/qv/launcher/elephant"
+runtime_dir="$HOME/.local/share/qvos/launcher/elephant"
+menus_dir="$HOME/.config/elephant/menus"
+providers=(
+  omarchy_background_selector.lua
+  omarchy_themes.lua
+  omarchy_unlocks.lua
+)
+
+for provider in "${providers[@]}"; do
+  if [[ ! -f $source_dir/$provider ]]; then
+    echo "Missing qvOS launcher provider: $source_dir/$provider" >&2
+    exit 1
+  fi
+done
+
+rm -rf -- "$runtime_dir"
+mkdir -p "$runtime_dir" "$menus_dir"
+for provider in "${providers[@]}"; do
+  install -m 0644 "$source_dir/$provider" "$runtime_dir/$provider"
+  ln -snf \
+    "$runtime_dir/$provider" \
+    "$menus_dir/$provider"
+done

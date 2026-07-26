@@ -1,9 +1,9 @@
 # Omarchy core package list installed via install/packaging/base.sh
 # This file is also used by the ISO builder when determining needs
 
-# 1password-beta
-# 1password-cli
-# aether
+1password-beta
+1password-cli
+aether
 alacritty
 alsa-utils
 asdcontrol
@@ -16,10 +16,8 @@ brightnessctl
 btop
 chromium
 clang
-# Disabled personal AI package: claude-code
-# cliamp
-# code
-curl
+claude-code
+cliamp
 cups
 cups-browsed
 cups-filters
@@ -28,7 +26,7 @@ docker
 docker-buildx
 docker-compose
 dosfstools
-# dotnet-runtime-9.0
+dotnet-runtime-9.0
 dust
 evince
 exfatprogs
@@ -39,7 +37,6 @@ fcitx5
 fcitx5-gtk
 fcitx5-qt
 fd
-engrampa
 ffmpegthumbnailer
 fontconfig
 fzf
@@ -67,7 +64,7 @@ inetutils
 inxi
 iwd
 jq
-# kdenlive
+kdenlive
 kernel-modules-hook
 kvantum-qt5
 lazydocker
@@ -76,37 +73,35 @@ less
 libsecret
 libyaml
 libqalculate
-# libreoffice-fresh
+libreoffice-fresh
 llvm
-# localsend
+localsend
 luarocks
 mako
 man-db
 mariadb-libs
 mise
 mpv
-# nautilus
-# nautilus-python
+nautilus
+nautilus-python
 gnome-disk-utility
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
 nss-mdns
 neovim
-# obs-studio
+obs-studio
 obsidian
 omarchy-nvim
 omarchy-walker
 pamixer
-papirus-icon-theme
-# pinta
+pinta
 playerctl
 plocate
 plymouth
 polkit-gnome
 postgresql-libs
 power-profiles-daemon
-pv
 python-gobject
 python-poetry-core
 python-terminaltexteffects
@@ -116,28 +111,24 @@ ruby
 rust
 satty
 sddm
-# signal-desktop
+signal-desktop
 slurp
-# spotify
+spotify
 socat
-sox
 starship
-# sushi
+sushi
 swaybg
 swayosd
 system-config-printer
 tesseract
 tesseract-data-eng
-thunar
-thunar-archive-plugin
 tldr
 tree-sitter-cli
 tmux
-# tobi-try
-tumbler
-# ttf-ia-writer
+tobi-try
+ttf-ia-writer
 ttf-jetbrains-mono-nerd
-# typora
+typora
 tzupdate
 ufw
 ufw-docker
@@ -155,7 +146,7 @@ xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
 xdg-terminal-exec
 xmlstarlet
-# xournalpp
+xournalpp
 yaru-icon-theme
 yay
 zoxide

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/config/hypr/qv/bindings.conf"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
 tiling="$root/default/hypr/bindings/tiling-v2.conf"
 
 pass() {

@@ -16,9 +16,9 @@ if [[ -z $current_tag ]]; then
 fi
 
 if [[ $current_tag != $latest_tag ]]; then
-  echo "qvOS update available ($latest_tag)"
+  echo "Omarchy update available ($latest_tag)"
   exit 0
 else
-  echo "qvOS is up to date ($current_tag)"
+  echo "Omarchy is up to date ($current_tag)"
   exit 1
 fi

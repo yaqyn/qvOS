@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+config_path=${1:-}
+source_file="$OMARCHY_PATH/config/$config_path"
+target_file="$HOME/.config/$config_path"
+
+if [[ -z $config_path || ! -f $source_file ]]; then
+  echo "Unknown Omarchy config: ${config_path:-<empty>}" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname -- "$target_file")"
+if [[ -e $target_file || -L $target_file ]]; then
+  cp -a -- "$target_file" "$target_file.bak.$(date +%s)"
+fi
+cp -a -- "$source_file" "$target_file"

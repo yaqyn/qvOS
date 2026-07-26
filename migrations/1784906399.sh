@@ -1,3 +1,2 @@
 echo "Keep the Chromium development browser shortcut"
-
-omarchy-refresh-config hypr/qv/bindings.conf
+source "$OMARCHY_PATH/qv/migrations/1784906399.sh"

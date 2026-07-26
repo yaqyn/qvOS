@@ -3,6 +3,11 @@
 # omarchy:summary=Add or remove an EFI boot entry for the Omarchy UKI, allowing the system to boot directly
 # omarchy:requires-sudo=true
 
+qvos_owner="$OMARCHY_PATH/qv/boot/config-direct-boot"
+if [[ -x $qvos_owner ]]; then
+  exec "$qvos_owner" "$@"
+fi
+
 if [[ ! -d /sys/firmware/efi ]]; then
   echo "Error: System is not booted in UEFI mode" >&2
   exit 1
@@ -23,12 +28,12 @@ if cat /sys/class/dmi/id/bios_vendor 2>/dev/null | grep -qi "Apple"; then
   exit 1
 fi
 
-existing_entry=$(efibootmgr | grep -E "^Boot[0-9A-Fa-f]+\*? (qvOS|Omarchy)([[:space:]]|$)" | head -1)
+existing_entry=$(efibootmgr | grep -E "^Boot[0-9A-Fa-f]+\*? Omarchy([[:space:]]|$)" | head -1)
 
 if [[ -n $existing_entry ]]; then
   boot_num=$(echo "$existing_entry" | sed -n 's/^Boot\([0-9A-Fa-f]\+\).*/\1/p')
 
-  if gum confirm "Disable direct boot (remove qvOS EFI entry)?"; then
+  if gum confirm "Disable direct boot (remove Omarchy EFI entry)?"; then
     echo "Removing EFI boot entry $boot_num"
     sudo efibootmgr --bootnum "$boot_num" --delete-bootnum >/dev/null
   fi
@@ -52,7 +57,7 @@ else
     sudo efibootmgr --create \
       --disk "$disk" \
       --part "$part" \
-      --label "qvOS" \
+      --label "Omarchy" \
       --loader "\\EFI\\Linux\\$uki_file"
   fi
 fi

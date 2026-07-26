@@ -23,6 +23,7 @@ fail() {
 }
 
 install -d "$test_bin" "$test_omarchy_path/qv/core"
+ln -s "$root/qv/core/install" "$test_omarchy_path/qv/core/install"
 ln -s "$root/qv/thunar" "$test_omarchy_path/qv/thunar"
 ln -s "$root/qv/core/codex" "$test_omarchy_path/qv/core/codex"
 ln -s "$root/qv/core/warp.sh" "$test_omarchy_path/qv/core/warp.sh"
@@ -65,7 +66,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-default-browser" <<'SCRIPT'
 printf 'default-browser\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-setup-dns" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-setup-dns" <<'SCRIPT'
 #!/bin/bash
 printf 'setup-dns\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
@@ -234,16 +235,16 @@ fi
 [[ ! -s $action_log ]] || fail "unknown qvCORE component performs actions"
 pass "unknown qvCORE components fail without side effects"
 
-if grep -RqsF '@openai/codex' "$root/install"; then
+if grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "Codex remains in the base installation"
 fi
 grep -Fq 'https://chatgpt.com/codex/install.sh' "$root/qv/core/codex.sh" || fail "official Codex installer"
 if grep -Eq 'gh auth token|Authorization:' "$root/qv/core/codex.sh"; then
   fail "Codex installer exposes GitHub credentials"
 fi
-if grep -Fq '.local/bin/codex' "$root/bin/omarchy-remove-preinstalls"; then
-  fail "preinstall cleanup removes optional Codex"
-fi
+grep -Fq 'omarchy-qvos-block-upstream-maintenance' \
+  "$root/bin/omarchy-remove-preinstalls" ||
+  fail "upstream preinstall cleanup is not guarded on qvOS"
 pass "Codex is owned only by qvCORE and uses OpenAI's standalone installer"
 
 [[ -x $root/qv/core/steam.sh ]] || fail "qvCORE Steam component"

@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/config/hypr/qv/bindings.conf"
-legacy_bindings="$root/default/hypr/bindings.conf"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
+application_bindings="$root/qv/config/files/hypr/bindings.conf"
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -47,11 +47,9 @@ if grep -Eqi '^bindd = SUPER( SHIFT)?, (backslash|N),' "$bindings"; then
   fail "retired qvOS tmux or editor family"
 fi
 
-grep -Fqx 'bindd = SUPER, N, Editor, exec, omarchy-launch-editor' "$legacy_bindings" || fail "legacy editor binding"
-
 if grep -Fvx 'bindd = SUPER CTRL, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "$bindings" |
   grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' ||
-  grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' "$legacy_bindings"; then
+  grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)' "$application_bindings"; then
   fail "hardcoded default application"
 fi
 pass "default-app bindings are dynamic except for the Chromium dev browser"

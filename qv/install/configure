@@ -1,0 +1,43 @@
+# shellcheck shell=bash
+
+(
+  set -euo pipefail
+
+  config_source="$OMARCHY_PATH/qv/config/files"
+  yaqyn_source="$OMARCHY_PATH/qv/theme/yaqyn"
+  qv_aliases="$OMARCHY_PATH/qv/shell/aliases"
+  bashrc="$HOME/.bashrc"
+
+  for source_path in \
+    "$config_source" \
+    "$yaqyn_source" \
+    "$qv_aliases"; do
+    if [[ ! -e $source_path ]]; then
+      echo "Missing qvOS configuration source: $source_path" >&2
+      exit 1
+    fi
+  done
+
+  mkdir -p "$HOME/.config"
+  cp -a "$config_source/." "$HOME/.config/"
+  install -D -m 0644 \
+    "$OMARCHY_PATH/qv/branding/icon.txt" \
+    "$HOME/.config/omarchy/branding/about.txt"
+  install -D -m 0644 \
+    "$OMARCHY_PATH/qv/branding/logo.txt" \
+    "$HOME/.config/omarchy/branding/screensaver.txt"
+
+  "$OMARCHY_PATH/qv/theme/install"
+
+  qv_alias_source="source \"\$HOME/.local/share/omarchy/qv/shell/aliases\""
+  if ! grep -Fqx "$qv_alias_source" "$bashrc"; then
+    printf '\n%s\n' "$qv_alias_source" >>"$bashrc"
+  fi
+
+  # shellcheck source=qv/install/config/mimetypes
+  source "$OMARCHY_PATH/qv/install/config/mimetypes"
+  # shellcheck source=qv/install/config/theme
+  source "$OMARCHY_PATH/qv/install/config/theme"
+  # shellcheck source=qv/install/desktop
+  source "$OMARCHY_PATH/qv/install/desktop"
+)

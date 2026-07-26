@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# omarchy:summary=Internal qvOS guard for incompatible upstream maintenance
+# omarchy:hidden=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+owner="$OMARCHY_PATH/qv/maintenance/qvos-block-upstream-maintenance"
+
+if [[ ! -x $owner ]]; then
+  echo "Blocked on qvOS: the maintenance safety guard is unavailable" >&2
+  exit 1
+fi
+
+exec "$owner" "$@"

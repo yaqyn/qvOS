@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# shellcheck disable=SC2016
+exec setsid uwsm-app -- \
+  xdg-terminal-exec \
+  --app-id=org.omarchy.terminal \
+  --title=qvOS \
+  -e bash -c \
+  'omarchy-show-logo
+  "$@"
+  status=$?
+  if ((status == 0)); then
+    omarchy-show-done
+  elif ((status != 130)); then
+    omarchy-show-failed "$status"
+  fi
+  exit "$status"' \
+  _ "$@"

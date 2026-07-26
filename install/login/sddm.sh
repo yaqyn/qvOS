@@ -3,7 +3,7 @@ omarchy-refresh-sddm
 
 # Setup SDDM login service
 sudo mkdir -p /usr/local/share/wayland-sessions
-sudo cp "$OMARCHY_PATH/default/wayland-sessions/omarchy.desktop" /usr/local/share/wayland-sessions/omarchy.desktop
+sudo cp "$OMARCHY_PATH/qv/boot/wayland-sessions/omarchy.desktop" /usr/local/share/wayland-sessions/omarchy.desktop
 sudo cp "$OMARCHY_PATH/default/sddm/hyprland.conf" /usr/share/sddm/hyprland.conf
 
 sudo mkdir -p /etc/sddm.conf.d

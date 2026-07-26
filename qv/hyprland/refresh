@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+config_owner="$OMARCHY_PATH/qv/config/refresh"
+config_paths=(
+  hypr/bindings.conf
+  hypr/input.conf
+  hypr/hyprland.conf
+  hypr/qv.conf
+  hypr/qv/bindings.conf
+  hypr/qv/looknfeel.conf
+  hypr/qv/windows.conf
+)
+
+for config_path in "${config_paths[@]}"; do
+  "$config_owner" "$config_path"
+done

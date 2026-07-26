@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+source_path="$OMARCHY_PATH/qv/menu/extension.sh"
+extension_dir="$HOME/.config/omarchy/extensions"
+target_path="$extension_dir/menu.sh"
+qvos_target_path="$extension_dir/qvos-menu.sh"
+# shellcheck disable=SC2016
+source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
+mode=${1:---repair}
+
+install_qvos_menu() {
+  local temporary_path
+
+  install -D -m 0644 "$source_path" "$qvos_target_path"
+
+  if [[ ! -f $target_path ]]; then
+    printf '%s\n' "$source_line" >"$target_path"
+    chmod 0644 "$target_path"
+    return
+  fi
+
+  if [[ $(head -n 1 "$target_path") == "$source_line" ]]; then
+    return
+  fi
+
+  temporary_path=$(mktemp "$target_path.tmp.XXXXXX")
+  {
+    printf '%s\n' "$source_line"
+    while IFS= read -r line || [[ -n $line ]]; do
+      [[ $line == "$source_line" ]] || printf '%s\n' "$line"
+    done <"$target_path"
+  } >"$temporary_path"
+  chmod --reference="$target_path" "$temporary_path"
+  mv "$temporary_path" "$target_path"
+}
+
+case $mode in
+--status)
+  cmp -s "$source_path" "$qvos_target_path" &&
+    [[ $(head -n 1 "$target_path" 2>/dev/null) == "$source_line" ]]
+  ;;
+--repair | --install)
+  install -d "$extension_dir"
+  install_qvos_menu
+  ;;
+*)
+  echo "Usage: install [--status|--repair|--install]" >&2
+  exit 2
+  ;;
+esac

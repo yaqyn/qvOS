@@ -24,8 +24,10 @@ fail() {
 }
 
 install -d \
-  "$fixture/install/config" \
+  "$fixture/qv/config" \
+  "$fixture/qv/install" \
   "$fixture/qv/core" \
+  "$fixture/qv/migrations" \
   "$system_root/etc/chromium/policies/managed" \
   "$system_root/etc/brave/policies/managed" \
   "$system_root/var/log" \
@@ -40,7 +42,10 @@ chmod 0666 \
   "$system_root/etc/chromium/policies/managed/color.json" \
   "$system_root/var/log/omarchy-install.log"
 
-install -m 0644 /dev/stdin "$fixture/install/config/qvos-scripts.sh" <<'SCRIPT'
+cp "$root/qv/migrations/1785020679.sh" \
+  "$fixture/qv/migrations/1785020679.sh"
+
+install -m 0644 /dev/stdin "$fixture/qv/install/desktop" <<'SCRIPT'
 printf 'payload\n' >>"$QVOS_TEST_MIGRATION_LOG"
 [[ ${QVOS_TEST_PAYLOAD_FAIL:-0} != "1" ]]
 SCRIPT
@@ -54,7 +59,7 @@ printf '%s\t%s\n' "$component" "$*" >>"$QVOS_TEST_MIGRATION_LOG"
 SCRIPT
 done
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'SCRIPT'
+install -m 0755 /dev/stdin "$fixture/qv/config/refresh" <<'SCRIPT'
 #!/bin/bash
 printf 'refresh\t%s\n' "$*" >>"$QVOS_TEST_MIGRATION_LOG"
 [[ ${QVOS_TEST_REFRESH_FAIL:-0} != "1" ]]

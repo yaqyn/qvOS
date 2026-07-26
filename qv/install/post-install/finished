@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+tui="$OMARCHY_PATH/qv/tui/qvos-tui"
+
+if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || ! -x $tui ]]; then
+  exit 1
+fi
+
+"$tui" --iso-finished --log "$OMARCHY_INSTALL_LOG_FILE"
+if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
+  sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
+fi
+touch /var/tmp/omarchy-install-completed

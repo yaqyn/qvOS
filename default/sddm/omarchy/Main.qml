@@ -5,17 +5,10 @@ Rectangle {
   id: root
   width: 640
   height: 480
-  color: "#090909"
+  color: "#1a1b26"
 
   property string currentUser: userModel.lastUser
-  property real unit: Math.max(1, Math.min(width / 1920, height / 1080))
-  property color textColor: "#d0d0d0"
-  property color mutedColor: "#808080"
-  property color panelColor: "#101010"
-  property color borderColor: "#303030"
-  property color focusBorderColor: "#505050"
-  property color accentColor: "#b01616"
-
+  property bool loginFailed: false
   property int sessionIndex: {
     for (var i = 0; i < sessionModel.rowCount(); i++) {
       var name = (sessionModel.data(sessionModel.index(i, 0), Qt.DisplayRole) || "").toString()
@@ -25,69 +18,88 @@ Rectangle {
     return sessionModel.lastIndex
   }
 
-  Rectangle {
-    anchors.fill: parent
-    color: "transparent"
-    border.color: "#101010"
-    border.width: Math.max(1, Math.round(root.unit))
-  }
-
   Connections {
     target: sddm
     function onLoginFailed() {
-      errorMessage.text = "ACCESS DENIED"
+      root.loginFailed = true
       password.text = ""
       password.focus = true
     }
     function onLoginSucceeded() {
-      errorMessage.text = ""
+      root.loginFailed = false
     }
   }
 
   Column {
-    id: loginBox
     anchors.centerIn: parent
-    spacing: Math.round(34 * root.unit)
-    width: Math.min(parent.width * 0.82, Math.round(620 * root.unit))
+    spacing: 40
 
     Image {
+      id: logo
       source: "logo.png"
-      width: Math.min(loginBox.width * 0.9, Math.round(560 * root.unit))
-      height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : Math.round(220 * root.unit)
+      width: Math.min(sourceSize.width, root.width * 0.8)
+      height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
       fillMode: Image.PreserveAspectFit
-      opacity: 0.86
       anchors.horizontalCenter: parent.horizontalCenter
     }
 
-    Column {
+    Row {
       anchors.horizontalCenter: parent.horizontalCenter
-      width: Math.min(loginBox.width, Math.round(420 * root.unit))
-      spacing: Math.round(12 * root.unit)
+      spacing: 15
 
-      Rectangle {
-        width: parent.width
-        height: Math.round(46 * root.unit)
-        radius: 0
-        color: root.panelColor
-        border.color: password.activeFocus ? root.focusBorderColor : root.borderColor
-        border.width: Math.max(1, Math.round(root.unit))
-        clip: true
+      Image {
+        source: root.loginFailed ? "lock-failed.png" : "lock.png"
+        width: 34
+        height: 38
+        fillMode: Image.PreserveAspectFit
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Item {
+        width: entry.width
+        height: entry.height
+
+        Image {
+          id: entry
+          source: root.loginFailed ? "entry-failed.png" : "entry.png"
+          anchors.centerIn: parent
+        }
+
+        Row {
+          anchors.left: parent.left
+          anchors.leftMargin: 20
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 5
+
+          Repeater {
+            model: Math.min(password.text.length, 21)
+
+            Image {
+              source: "bullet.png"
+              width: 7
+              height: 7
+            }
+          }
+        }
 
         TextInput {
           id: password
           anchors.fill: parent
-          anchors.leftMargin: Math.round(16 * root.unit)
-          anchors.rightMargin: Math.round(16 * root.unit)
+          anchors.leftMargin: 20
+          anchors.rightMargin: 20
           verticalAlignment: TextInput.AlignVCenter
           echoMode: TextInput.Password
-          passwordCharacter: "\u2022"
-          color: root.textColor
-          selectedTextColor: "#090909"
-          selectionColor: "#303030"
           font.family: "JetBrainsMono Nerd Font"
-          font.pixelSize: Math.round(18 * root.unit)
-          font.letterSpacing: Math.round(1 * root.unit)
+          font.pixelSize: 24
+          font.letterSpacing: 5
+          passwordCharacter: "\u2022"
+          color: "transparent"
+          selectionColor: "transparent"
+          selectedTextColor: "transparent"
+          cursorDelegate: Item {}
           focus: true
+
+          onTextChanged: root.loginFailed = false
 
           Keys.onPressed: {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -97,49 +109,8 @@ Rectangle {
           }
         }
       }
-
-      Text {
-        id: errorMessage
-        text: ""
-        color: root.accentColor
-        font.family: "JetBrainsMono Nerd Font"
-        font.pixelSize: Math.round(14 * root.unit)
-        anchors.horizontalCenter: parent.horizontalCenter
-      }
-    }
-  }
-
-  Row {
-    anchors.right: parent.right
-    anchors.bottom: parent.bottom
-    anchors.margins: Math.round(24 * root.unit)
-    spacing: Math.round(18 * root.unit)
-
-    Text {
-      text: "REBOOT"
-      color: rebootMouse.containsMouse ? root.accentColor : root.mutedColor
-      font.family: "JetBrainsMono Nerd Font"
-      font.pixelSize: Math.round(13 * root.unit)
-      MouseArea {
-        id: rebootMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        onClicked: sddm.reboot()
-      }
     }
 
-    Text {
-      text: "POWER"
-      color: powerMouse.containsMouse ? root.accentColor : root.mutedColor
-      font.family: "JetBrainsMono Nerd Font"
-      font.pixelSize: Math.round(13 * root.unit)
-      MouseArea {
-        id: powerMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        onClicked: sddm.powerOff()
-      }
-    }
   }
 
   Component.onCompleted: password.forceActiveFocus()

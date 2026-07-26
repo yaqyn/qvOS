@@ -128,25 +128,6 @@ copy_to_clipboard() {
   printf '%s\n' "$uri" | wl-copy --type text/uri-list
 }
 
-notify_transcode_ready() {
-  local glyph=$1
-  local headline=$2
-  local output=$3
-  local action=""
-  local notification_args=(
-    "$glyph"
-    "$headline"
-    "Saved and copied to clipboard."
-  )
-
-  if omarchy-cmd-present localsend; then
-    notification_args+=(-A "share=Share")
-  fi
-
-  action=$(omarchy-notification-send "${notification_args[@]}")
-  [[ $action == "share" ]] && omarchy-menu-share file "$output"
-}
-
 main() {
   local input="" format="" resolution="" search_path=""
   local type output positional=()
@@ -215,11 +196,13 @@ main() {
     omarchy-notification-send "" "Transcoding video…" "$(basename -- "$input") to $format ($resolution)"
     transcode_video "$input" "$format" "$resolution" "$output"
     copy_to_clipboard "$output"
-    notify_transcode_ready "" "Transcoded to $resolution $format" "$output" &
+    "$OMARCHY_PATH/qv/share/notification" \
+      transcode "$output" "" "Transcoded to $resolution $format" &
   else
     transcode_picture "$input" "$format" "$resolution" "$output"
     copy_to_clipboard "$output"
-    notify_transcode_ready "" "Transcoded to $resolution $format" "$output" &
+    "$OMARCHY_PATH/qv/share/notification" \
+      transcode "$output" "" "Transcoded to $resolution $format" &
   fi
 }
 

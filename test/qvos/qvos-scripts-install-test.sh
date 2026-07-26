@@ -30,7 +30,7 @@ install -d \
 touch "$partial_home/.local/share/qvos/desktop/keep-existing"
 
 if HOME="$partial_home" OMARCHY_PATH="$partial_root" \
-  bash -c 'source "$1"' _ "$root/install/config/qvos-scripts.sh" \
+  bash -c 'source "$1"' _ "$root/qv/install/desktop" \
   >"$test_root/preflight.log" 2>&1; then
   fail "incomplete source preflight"
 fi
@@ -43,7 +43,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop screensaver thunar tmux waybar; do
+for feature in desktop power screensaver thunar tmux waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -51,7 +51,7 @@ touch "$partial_file_home/.local/share/qvos/desktop/keep-existing"
 unlink "$partial_file_root/qv/thunar/transcode"
 
 if HOME="$partial_file_home" OMARCHY_PATH="$partial_file_root" \
-  bash -c 'source "$1"' _ "$root/install/config/qvos-scripts.sh" \
+  bash -c 'source "$1"' _ "$root/qv/install/desktop" \
   >"$test_root/preflight-file.log" 2>&1; then
   fail "incomplete source-file preflight"
 fi
@@ -91,7 +91,41 @@ ln -s "$root/qv/apps/home" "$test_root/.local/share/qvos/home-dev"
 touch "$test_root/.local/share/qvos/tui/retired-runtime-copy"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
 
-HOME="$test_root" OMARCHY_PATH="$root" bash -c 'source "$1"' _ "$root/install/config/qvos-scripts.sh"
+HOME="$test_root" OMARCHY_PATH="$root" \
+  bash -c 'source "$1"' _ "$root/qv/install/desktop"
+
+cmp -s \
+  "$root/qv/menu/extension.sh" \
+  "$test_root/.config/omarchy/extensions/qvos-menu.sh" ||
+  fail "qvOS menu extension install"
+# shellcheck disable=SC2016
+grep -Fqx \
+  '[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"' \
+  "$test_root/.config/omarchy/extensions/menu.sh" ||
+  fail "Omarchy user menu extension seam"
+pass "qvOS menu installs through the Omarchy user extension seam"
+
+for provider in \
+  omarchy_background_selector.lua \
+  omarchy_themes.lua \
+  omarchy_unlocks.lua; do
+  runtime_provider="$test_root/.local/share/qvos/launcher/elephant/$provider"
+  cmp -s "$root/qv/launcher/elephant/$provider" "$runtime_provider" ||
+    fail "$provider launcher runtime"
+  [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$runtime_provider" ]] ||
+    fail "$provider launcher runtime link"
+done
+pass "launcher providers install into qvOS-owned runtime"
+
+cmp -s \
+  "$root/qv/core/post-update-hook" \
+  "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore" ||
+  fail "qvCORE post-update hook install"
+cmp -s \
+  "$root/qv/waybar/post-update-hook" \
+  "$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
+  fail "qvOS Waybar post-update hook install"
+pass "qvOS post-update hooks install from their feature owners"
 
 [[ ! -e $test_root/.local/share/qvos/hyprland/removed-helper ]] || fail "stale Hyprland helper cleanup"
 [[ ! -e $test_root/.local/share/qvos/branding/removed-helper ]] || fail "stale branding helper cleanup"
@@ -135,8 +169,23 @@ for optional_thunar_feature in codex proton-drive-upload share; do
 done
 pass "installed feature payloads match tracked source"
 
+qvcore_state="$test_root/.local/state/qvos/qvcore"
+install -d "$qvcore_state"
+for component in codex proton share; do
+  install -m 0644 /dev/null "$qvcore_state/$component"
+done
+HOME="$test_root" OMARCHY_PATH="$root" \
+  bash -c 'source "$1"' _ "$root/qv/install/desktop"
+for optional_thunar_feature in codex proton-drive-upload share; do
+  cmp -s \
+    "$root/qv/thunar/$optional_thunar_feature" \
+    "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
+    fail "enabled Thunar $optional_thunar_feature preservation"
+done
+pass "desktop refresh preserves current helpers for enabled optional setups"
+
 waybar_source_inventory="$(find "$root/qv/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
-[[ $waybar_source_inventory == $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] ||
+[[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
@@ -160,6 +209,12 @@ pass "power guards are installed with the desktop runtime"
 
 [[ "$(stat -c '%a' "$test_root/.local/share/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
 [[ -x $test_root/.local/share/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
+[[ -x $test_root/.local/share/qvos/waybar/refresh ]] ||
+  fail "Waybar refresh mode"
+[[ ! -x $test_root/.local/share/qvos/waybar/overrides.jsonc ]] ||
+  fail "Waybar override data mode"
+[[ ! -x $test_root/.local/share/qvos/waybar/post-update-hook ]] ||
+  fail "Waybar hook source mode"
 [[ -x $test_root/.local/share/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"
 while IFS= read -r helper; do
   [[ -x $helper ]] || fail "desktop helper mode"
@@ -180,10 +235,6 @@ pass "tracked script and data modes are preserved"
 migration="$root/migrations/1785020679.sh"
 migration_log="$test_root/migration.log"
 install -d "$test_bin"
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'SCRIPT'
-#!/bin/bash
-printf 'refresh %s\n' "$*" >>"$QVOS_TEST_MIGRATION_LOG"
-SCRIPT
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
 printf 'hyprctl %s\n' "$*" >>"$QVOS_TEST_MIGRATION_LOG"
@@ -200,7 +251,9 @@ QVOS_TEST_MIGRATION_LOG="$migration_log" \
   PATH="$test_bin:$PATH" \
   bash "$migration"
 
-grep -Fqx 'refresh hypr/qv/bindings.conf' "$migration_log" ||
+cmp -s \
+  "$root/qv/config/files/hypr/qv/bindings.conf" \
+  "$test_root/.config/hypr/qv/bindings.conf" ||
   fail "organized binding migration refresh"
 grep -Fqx 'hyprctl reload' "$migration_log" ||
   fail "organized binding migration reload"

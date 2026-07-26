@@ -17,41 +17,35 @@ fail() {
 
 install -d "$test_bin"
 
-cat >"$test_bin/omarchy-refresh-config" <<'STUB'
-#!/bin/bash
-config_source="$OMARCHY_PATH/config/$1"
-install -D -m 0644 "$config_source" "$HOME/.config/$1"
-STUB
-
 cat >"$test_bin/omarchy-restart-waybar" <<'STUB'
 #!/bin/bash
 touch "$HOME/waybar-restarted"
 STUB
 
-chmod 0755 "$test_bin/omarchy-refresh-config" "$test_bin/omarchy-restart-waybar"
+chmod 0755 "$test_bin/omarchy-restart-waybar"
 
 PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
-  bash "$root/bin/omarchy-refresh-waybar"
+  bash "$root/qv/waybar/refresh"
 [[ -f $test_root/waybar-restarted ]] || fail "Waybar restart"
 
 source_config="$root/config/waybar/config.jsonc"
 live_config="$test_root/.config/waybar/config.jsonc"
 
 cmp -s "$root/config/waybar/style.css" "$test_root/.config/waybar/style.css" || fail "upstream Waybar style"
-workspace_style=$(sed -n '/^window#waybar #workspaces button {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+workspace_style=$(sed -n '/^window#waybar #workspaces button {/,/^}/p' "$root/qv/theme/yaqyn/waybar.css")
 grep -Fq '  color: @foreground;' <<<"$workspace_style" || fail "normal workspace foreground"
 grep -Fq '  opacity: 0.55;' <<<"$workspace_style" || fail "normal workspace opacity"
-empty_workspace_style=$(sed -n '/^window#waybar #workspaces button\.empty {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+empty_workspace_style=$(sed -n '/^window#waybar #workspaces button\.empty {/,/^}/p' "$root/qv/theme/yaqyn/waybar.css")
 grep -Fq '  color: @muted;' <<<"$empty_workspace_style" || fail "empty workspace muted color"
 grep -Fq '  opacity: 0.3;' <<<"$empty_workspace_style" || fail "empty workspace opacity"
-active_workspace_style=$(sed -n '/^window#waybar #workspaces button\.active {/,/^}/p' "$root/themes/yaqyn/waybar.css")
+active_workspace_style=$(sed -n '/^window#waybar #workspaces button\.active {/,/^}/p' "$root/qv/theme/yaqyn/waybar.css")
 grep -Fq '  color: @bright;' <<<"$active_workspace_style" || fail "active workspace bright color"
 grep -Fq '  opacity: 0.75;' <<<"$active_workspace_style" || fail "active workspace opacity"
-grep -Fq 'window#waybar #workspaces button.urgent label {' "$root/themes/yaqyn/waybar.css" || fail "urgent workspace label color"
-urgent_workspace_style=$(sed -n '/^window#waybar #workspaces button\.urgent,/,/^}/p' "$root/themes/yaqyn/waybar.css")
+grep -Fq 'window#waybar #workspaces button.urgent label {' "$root/qv/theme/yaqyn/waybar.css" || fail "urgent workspace label color"
+urgent_workspace_style=$(sed -n '/^window#waybar #workspaces button\.urgent,/,/^}/p' "$root/qv/theme/yaqyn/waybar.css")
 grep -Fq '  color: #ffffff;' <<<"$urgent_workspace_style" || fail "urgent workspace pure-white style"
 grep -Fq '  opacity: 1;' <<<"$urgent_workspace_style" || fail "urgent workspace full opacity"
-if grep -Fq '@define-color attention ' "$root/themes/yaqyn/waybar.css"; then
+if grep -Fq '@define-color attention ' "$root/qv/theme/yaqyn/waybar.css"; then
   fail "separate urgent workspace attention color"
 fi
 
@@ -59,7 +53,10 @@ jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("clock") == null) and
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-setup-dns") and
+  (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
+  (."custom/update".exec == "omarchy-qvos-update-available") and
+  (."custom/update"."on-click" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-update") and
+  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
   (."custom/prayerbar".exec == "~/.local/share/qvos/waybar/prayerbar.sh") and
@@ -67,7 +64,7 @@ jq -e --slurpfile source "$source_config" '
 ' "$live_config" >/dev/null || fail "prayer clock overlay"
 
 PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
-  bash "$root/bin/omarchy-refresh-waybar"
+  bash "$root/qv/waybar/refresh"
 if compgen -G "$test_root/.config/waybar/config.jsonc.bak.*" >/dev/null; then
   fail "unchanged refresh backup cleanup"
 fi
@@ -77,6 +74,11 @@ cmp -s \
   <(jq -S --slurpfile source "$source_config" '
     del(."custom/prayerbar", ."custom/qv-clock", ."group/prayer-clock")
     | ."custom/omarchy".format = $source[0]."custom/omarchy".format
+    | ."custom/omarchy"."on-click" = $source[0]."custom/omarchy"."on-click"
+    | ."custom/omarchy"."tooltip-format" = $source[0]."custom/omarchy"."tooltip-format"
+    | ."custom/update".exec = $source[0]."custom/update".exec
+    | ."custom/update"."on-click" = $source[0]."custom/update"."on-click"
+    | ."custom/update"."tooltip-format" = $source[0]."custom/update"."tooltip-format"
     | if ($source[0].network | has("on-click-right")) then
         ."network"."on-click-right" = $source[0]."network"."on-click-right"
       else
@@ -92,7 +94,10 @@ no_clock_root="$test_root/omarchy-without-clock"
 no_clock_config="$no_clock_root/config/waybar/config.jsonc"
 no_clock_home="$test_root/no-clock-home"
 install -D -m 0644 "$root/config/waybar/style.css" "$no_clock_root/config/waybar/style.css"
-install -D -m 0644 "$root/config/waybar/qv/overrides.jsonc" "$no_clock_root/config/waybar/qv/overrides.jsonc"
+install -D -m 0644 "$root/qv/waybar/overrides.jsonc" \
+  "$no_clock_root/qv/waybar/overrides.jsonc"
+install -D -m 0755 "$root/qv/config/refresh-upstream" \
+  "$no_clock_root/qv/config/refresh-upstream"
 jq '
   .["modules-left"] |= map(select(. != "clock"))
   | .["modules-center"] |= map(select(. != "clock"))
@@ -100,7 +105,7 @@ jq '
 ' "$source_config" >"$no_clock_config"
 
 PATH="$test_bin:$PATH" HOME="$no_clock_home" OMARCHY_PATH="$no_clock_root" \
-  bash "$root/bin/omarchy-refresh-waybar"
+  bash "$root/qv/waybar/refresh"
 no_clock_live="$no_clock_home/.config/waybar/config.jsonc"
 
 jq -e '
@@ -113,6 +118,11 @@ cmp -s \
   <(jq -S --slurpfile source "$no_clock_config" '
     del(."custom/prayerbar", ."custom/qv-clock", ."group/prayer-clock")
     | ."custom/omarchy".format = $source[0]."custom/omarchy".format
+    | ."custom/omarchy"."on-click" = $source[0]."custom/omarchy"."on-click"
+    | ."custom/omarchy"."tooltip-format" = $source[0]."custom/omarchy"."tooltip-format"
+    | ."custom/update".exec = $source[0]."custom/update".exec
+    | ."custom/update"."on-click" = $source[0]."custom/update"."on-click"
+    | ."custom/update"."tooltip-format" = $source[0]."custom/update"."tooltip-format"
     | if ($source[0].network | has("on-click-right")) then
         ."network"."on-click-right" = $source[0]."network"."on-click-right"
       else
@@ -126,7 +136,10 @@ sparse_root="$test_root/omarchy-sparse-layout"
 sparse_config="$sparse_root/config/waybar/config.jsonc"
 sparse_home="$test_root/sparse-home"
 install -D -m 0644 "$root/config/waybar/style.css" "$sparse_root/config/waybar/style.css"
-install -D -m 0644 "$root/config/waybar/qv/overrides.jsonc" "$sparse_root/config/waybar/qv/overrides.jsonc"
+install -D -m 0644 "$root/qv/waybar/overrides.jsonc" \
+  "$sparse_root/qv/waybar/overrides.jsonc"
+install -D -m 0755 "$root/qv/config/refresh-upstream" \
+  "$sparse_root/qv/config/refresh-upstream"
 jq '
   del(.["modules-left"], .["modules-center"])
   | .["modules-right"] |= map(select(. != "clock"))
@@ -134,7 +147,7 @@ jq '
 ' "$source_config" >"$sparse_config"
 
 PATH="$test_bin:$PATH" HOME="$sparse_home" OMARCHY_PATH="$sparse_root" \
-  bash "$root/bin/omarchy-refresh-waybar"
+  bash "$root/qv/waybar/refresh"
 sparse_live="$sparse_home/.config/waybar/config.jsonc"
 
 jq -e '
@@ -149,7 +162,7 @@ install -D -m 0644 "$source_config" "$custom_config"
 jq '."personal-setting" = true' "$custom_config" >"$custom_config.tmp"
 mv "$custom_config.tmp" "$custom_config"
 PATH="$test_bin:$PATH" HOME="$custom_home" OMARCHY_PATH="$root" \
-  bash "$root/bin/omarchy-refresh-waybar" >/dev/null
+  bash "$root/qv/waybar/refresh" >/dev/null
 custom_backup="$(find "$custom_home/.config/waybar" -maxdepth 1 -name 'config.jsonc.bak.*' -print -quit)"
 [[ -n $custom_backup ]] || fail "changed Waybar config backup"
 jq -e '."personal-setting" == true' "$custom_backup" >/dev/null || fail "Waybar backup contents"
@@ -158,11 +171,14 @@ invalid_root="$test_root/omarchy-invalid-config"
 invalid_home="$test_root/invalid-home"
 invalid_live="$invalid_home/.config/waybar/config.jsonc"
 install -D -m 0644 "$root/config/waybar/style.css" "$invalid_root/config/waybar/style.css"
-install -D -m 0644 "$root/config/waybar/qv/overrides.jsonc" "$invalid_root/config/waybar/qv/overrides.jsonc"
+install -D -m 0644 "$root/qv/waybar/overrides.jsonc" \
+  "$invalid_root/qv/waybar/overrides.jsonc"
+install -D -m 0755 "$root/qv/config/refresh-upstream" \
+  "$invalid_root/qv/config/refresh-upstream"
 install -D -m 0644 "$source_config" "$invalid_live"
 printf '[]\n' >"$invalid_root/config/waybar/config.jsonc"
 if PATH="$test_bin:$PATH" HOME="$invalid_home" OMARCHY_PATH="$invalid_root" \
-  bash "$root/bin/omarchy-refresh-waybar" >/dev/null 2>&1; then
+  bash "$root/qv/waybar/refresh" >/dev/null 2>&1; then
   fail "invalid Waybar config rejection"
 fi
 cmp -s "$source_config" "$invalid_live" || fail "invalid Waybar config preservation"
@@ -171,14 +187,18 @@ cmp -s "$source_config" "$invalid_live" || fail "invalid Waybar config preservat
 fresh_home="$test_root/fresh-home"
 install -d "$fresh_home/.local/share"
 ln -s "$root" "$fresh_home/.local/share/omarchy"
-ln -s "$root/bin/omarchy-refresh-waybar" "$test_bin/omarchy-refresh-waybar"
 PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
   bash "$root/install/config/config.sh"
+PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
+  QVOS_WAYBAR_SKIP_RESTART=1 bash "$root/qv/waybar/refresh"
 
 jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-setup-dns") and
+  (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
+  (."custom/update".exec == "omarchy-qvos-update-available") and
+  (."custom/update"."on-click" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-update") and
+  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"
 if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then
@@ -186,18 +206,17 @@ if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then
 fi
 [[ ! -e $fresh_home/waybar-restarted ]] || fail "fresh install Waybar restart"
 
-rm "$test_bin/omarchy-refresh-waybar"
-
-cat >"$test_bin/omarchy-refresh-waybar" <<'STUB'
+cat >"$test_bin/omarchy-qvos-refresh-waybar" <<'STUB'
 #!/bin/bash
 touch "$HOME/waybar-refreshed"
 STUB
-chmod 0755 "$test_bin/omarchy-refresh-waybar"
+chmod 0755 "$test_bin/omarchy-qvos-refresh-waybar"
 
 install -D -m 0644 /dev/null "$test_root/.config/omarchy/hooks/post-update.d/qvos-prayer-clock"
 HOME="$test_root" OMARCHY_PATH="$root" bash "$root/migrations/1784721483.sh" >/dev/null
 installed_hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
-cmp -s "$root/config/omarchy/hooks/post-update.d/qvos-waybar-overrides" "$installed_hook" || fail "post-update hook installation"
+cmp -s "$root/qv/waybar/post-update-hook" "$installed_hook" ||
+  fail "post-update hook installation"
 [[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-prayer-clock ]] || fail "retired post-update hook cleanup"
 PATH="$test_bin:$PATH" HOME="$test_root" bash "$installed_hook"
 [[ -f $test_root/waybar-refreshed ]] || fail "post-update prayer clock refresh"

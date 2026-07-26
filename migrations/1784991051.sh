@@ -1,3 +1,2 @@
 echo "Add a prompted web-app website shortcut"
-
-omarchy-refresh-config hypr/qv/bindings.conf
+source "$OMARCHY_PATH/qv/migrations/1784991051.sh"

@@ -3,7 +3,8 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 share_script="$root/qv/core/share.sh"
-share_command="$root/bin/omarchy-menu-share"
+firewall_reconciler="$root/qv/core/share/reconcile-inherited-firewall"
+share_command="$root/qv/share/share"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 installed_dir="$test_root/installed"
@@ -129,7 +130,7 @@ case $1 in
 localsend)
   [[ -f $QVOS_TEST_INSTALLED_DIR/localsend ]]
   ;;
-omarchy-menu-share | ufw | xmlstarlet)
+omarchy-qvos-share | ufw | xmlstarlet)
   exit 0
   ;;
 *)
@@ -191,6 +192,12 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-share" <<'SCRIPT'
+#!/bin/bash
+printf 'share\n' >"$QVOS_TEST_ACTION_LOG"
+printf '%s\n' "$@" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 
 run_share() {
@@ -401,21 +408,45 @@ invalid_mode_status=$?
 set -e
 ((invalid_mode_status != 0)) || fail "unknown Share mode succeeds"
 [[ ! -s $systemd_log ]] || fail "unknown Share mode launches LocalSend"
-grep -Fq 'Usage: omarchy-menu-share [clipboard|file|folder]' \
+grep -Fq 'Usage: omarchy-qvos-share [clipboard|file|folder]' \
   <<<"$invalid_mode_output" ||
   fail "unknown Share mode usage"
 pass "Share rejects unknown modes before launching LocalSend"
 
 [[ -x $share_script ]] || fail "qvCORE Share component is not executable"
-grep -Fqx '# localsend' "$root/install/omarchy-base.packages" ||
+[[ -x $firewall_reconciler ]] ||
+  fail "qvCORE Share inherited-firewall reconciler is not executable"
+grep -Fqx '# localsend' "$root/qv/install/packaging/base.packages" ||
   fail "LocalSend is not disabled in the base package manifest"
-if grep -Eq '^[[:space:]]+localsend([[:space:]\\]|$)' \
-  "$root/bin/omarchy-remove-preinstalls"; then
-  fail "preinstall cleanup removes qvCORE Share"
-fi
-if grep -Eq 'ufw allow 53317/(udp|tcp)' "$root/install/first-run/firewall.sh"; then
-  fail "base firewall still owns optional LocalSend ports"
-fi
+grep -Fq 'omarchy-qvos-block-upstream-maintenance' \
+  "$root/bin/omarchy-remove-preinstalls" ||
+  fail "upstream preinstall cleanup is not guarded on qvOS"
+grep -Eq 'ufw allow 53317/(udp|tcp)' "$root/install/first-run/firewall.sh" ||
+  fail "inherited Omarchy firewall policy was rewritten"
+grep -Fqx "\"\$OMARCHY_PATH/qv/core/share/reconcile-inherited-firewall\"" \
+  "$root/qv/install/first-run/apply" ||
+  fail "qvOS first-run does not reconcile inherited LocalSend ports"
+
+rm -f "$test_root/.local/state/qvos/qvcore/share"
+printf '%s\n' \
+  '-A ufw-user-input -p tcp --dport 53317 -j ACCEPT' \
+  '-A ufw-user-input -p udp --dport 53317 -j ACCEPT' \
+  >"$firewall_rules_v4"
+cp "$firewall_rules_v4" "$firewall_rules_v6"
+: >"$action_log"
+QVOS_TEST_ACTION_LOG="$action_log" \
+  QVOS_SHARE_UFW_RULES_V4="$firewall_rules_v4" \
+  QVOS_SHARE_UFW_RULES_V6="$firewall_rules_v6" \
+  HOME="$test_root" \
+  PATH="$test_bin:/usr/bin" \
+  "$firewall_reconciler"
+[[ ! -e $firewall_rules_v4 && ! -e $firewall_rules_v6 ]] ||
+  fail "disabled Share leaves inherited LocalSend ports open"
+grep -Fqx $'ufw\tdelete allow 53317/tcp' "$action_log" ||
+  fail "inherited LocalSend TCP rule cleanup"
+grep -Fqx $'ufw\tdelete allow 53317/udp' "$action_log" ||
+  fail "inherited LocalSend UDP rule cleanup"
+
 grep -Fqx 'ports=53317/tcp|53317/udp' "$root/qv/core/share/ufw.profile" ||
   fail "Share-owned UFW application profile"
 if grep -Eq '(localsend[[:space:]]+--(help|version)|uwsm-app|systemctl.*localsend)' \

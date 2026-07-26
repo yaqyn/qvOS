@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+qvcore_dir="$OMARCHY_PATH/qv/core"
+
+install_component() {
+  local component=$1
+  local component_script="$qvcore_dir/$component.sh"
+
+  if [[ ! -x $component_script ]]; then
+    echo "Missing qvCORE component: $component_script" >&2
+    return 1
+  fi
+
+  "$component_script"
+}
+
+if (($# > 1)); then
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
+  exit 1
+fi
+
+case ${1:-all} in
+all)
+  for component in warp brave-origin share dev codex proton steam media; do
+    install_component "$component"
+  done
+  echo ""
+  echo "qvCORE is ready."
+  ;;
+brave-origin | warp | share | dev | codex | proton | steam | media)
+  install_component "$1"
+  ;;
+*)
+  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
+  exit 1
+  ;;
+esac

@@ -23,6 +23,7 @@ fail() {
 }
 
 install -d "$test_bin"
+HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/menu/install" --repair
 
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
@@ -36,7 +37,7 @@ if [[ $* == *"Install…"* ]]; then
   printf 'qvCORE\n'
 else
   cat >"$QVOS_TEST_QVCORE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install All}"
+  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install All Setups}"
 fi
 SCRIPT
 
@@ -52,8 +53,9 @@ QVOS_TEST_INSTALL_MENU_LOG="$install_menu_log" \
   PATH="$test_bin:$root/bin:/usr/bin" \
   "$root/bin/omarchy-menu" install
 
-grep -Fqx '󰏖  qvCORE' "$install_menu_log" || fail "qvCORE install-menu entry"
-[[ $(<"$qvcore_menu_log") == $'󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] || fail "qvCORE component list"
+grep -Fqx '󰏖  qvCORE (Optional)' "$install_menu_log" ||
+  fail "optional qvCORE install-menu entry"
+[[ $(<"$qvcore_menu_log") == $'󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All Setups\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] || fail "qvCORE component list"
 [[ $(<"$route_log") == "omarchy-install-qvcore" ]] || fail "complete qvCORE route"
 pass "qvCORE exposes the complete opt-in profile"
 

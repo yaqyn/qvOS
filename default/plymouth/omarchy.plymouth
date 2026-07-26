@@ -1,6 +1,6 @@
 [Plymouth Theme]
-Name=Yaqyn
-Description=Yaqyn unlock and boot screen.
+Name=Omarchy
+Description=Omarchy splash screen.
 ModuleName=script
 
 [script]

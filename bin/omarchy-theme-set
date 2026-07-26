@@ -2,7 +2,7 @@
 
 # omarchy:summary=Apply an Omarchy theme
 # omarchy:args=<theme-name>
-# omarchy:examples=omarchy theme list | omarchy theme set Yaqyn
+# omarchy:examples=omarchy theme list | omarchy theme set "Tokyo Night"
 
 if [[ -z $1 ]]; then
   echo "Usage: omarchy-theme-set <theme-name>"

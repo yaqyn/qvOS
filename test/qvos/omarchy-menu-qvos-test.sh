@@ -24,6 +24,7 @@ fail() {
 }
 
 install -d "$test_bin"
+HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/menu/install" --repair
 
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
@@ -38,7 +39,7 @@ if [[ $* == *"qvOS…"* ]]; then
   printf '%s\n' "${QVOS_TEST_MENU_CHOICE:-Update qvOS}"
 else
   cat >"$QVOS_TEST_QVCORE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install qvCORE}"
+  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install All Setups}"
 fi
 SCRIPT
 
@@ -82,9 +83,9 @@ run_qvcore_route() {
   [[ $(<"$route_log") == "$expected" ]] || fail "$choice route"
 }
 
-run_route "Update qvOS" "omarchy-update"
+run_route "Update qvOS" "omarchy-qvos-update"
 
-[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE' ]] ||
+[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)' ]] ||
   fail "qvOS quick-access menu"
 grep -Fq -- '--width 360' "$menu_args_log" || fail "qvOS menu width"
 grep -Fq -- '--maxheight 760' "$menu_args_log" || fail "qvOS menu height"
@@ -96,11 +97,11 @@ run_route "qvCORE Health / Repair" "omarchy-qvcore-repair"
 run_route "Disable qvCORE Integrations" "omarchy-qvcore-disable"
 pass "direct qvOS menu delegates maintenance tools to their owners"
 
-run_qvcore_route "Install qvCORE" "omarchy-install-qvcore"
+run_qvcore_route "Install All Setups" "omarchy-install-qvcore"
 
-[[ $(<"$qvcore_menu_log") == $'  Install qvCORE\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] ||
+[[ $(<"$qvcore_menu_log") == $'󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All Setups\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] ||
   fail "qvCORE app submenu"
-pass "qvCORE button contains the complete app installer list"
+pass "qvCORE button uses the shared optional-setup menu"
 
 run_qvcore_route "Brave" "omarchy-install-qvcore brave-origin"
 run_qvcore_route "WARP" "omarchy-install-qvcore warp"
@@ -114,7 +115,7 @@ pass "qvCORE app submenu delegates every installer to its owner"
 
 grep -Fqx \
   'bindd = SUPER SHIFT ALT, SPACE, qvOS menu, exec, omarchy-menu qvos' \
-  "$root/config/hypr/qv/bindings.conf" || fail "direct qvOS menu binding"
+  "$root/qv/config/files/hypr/qv/bindings.conf" || fail "direct qvOS menu binding"
 
 grep -Fq 'for user-friendly direct access and testing' "$root/AGENTS.md" ||
   fail "direct qvOS menu workflow instruction"

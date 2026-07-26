@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Apply Omarchy Waybar defaults with qvOS overrides
+# omarchy:group=qvos
+# omarchy:name=refresh waybar
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/waybar/refresh" "$@"

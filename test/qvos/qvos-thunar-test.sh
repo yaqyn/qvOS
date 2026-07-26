@@ -2,10 +2,10 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-actions="$root/config/Thunar/uca.xml"
-bindings="$root/config/hypr/qv/bindings.conf"
+actions="$root/qv/config/files/Thunar/uca.xml"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
 feature_dir="$root/qv/thunar"
-gtk_css="$root/config/gtk-3.0/gtk.css"
+gtk_css="$root/qv/config/files/gtk-3.0/gtk.css"
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -85,7 +85,8 @@ for feature in \
 done
 pass "Thunar features and their shared action library stay in one domain"
 
-if find "$root/qv" -path "$feature_dir" -prune -o -type f \
+if find "$root/qv" \
+  \( -path "$feature_dir" -o -path "$root/qv/config" \) -prune -o -type f \
   \( -iname '*thunar*' -o -name 'qvos-set-background' \) -print |
   grep -q .; then
   fail "Thunar-owned helper remains outside qv/thunar"

@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-omarchy-setup-dns WARP
+omarchy-qvos-setup-dns WARP

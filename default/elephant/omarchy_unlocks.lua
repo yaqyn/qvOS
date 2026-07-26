@@ -1,13 +1,13 @@
 --
 -- Dynamic Omarchy Unlocks Menu for Elephant/Walker
 --
--- The "Yaqyn" entry restores the qvOS-shipped Plymouth via
--- omarchy-plymouth-reset. User-installed themes with a preview-unlock.png can
--- provide their own unlock; picking one runs omarchy-plymouth-set-by-theme
+-- A "Default" entry restores the omarchy-shipped Plymouth via
+-- omarchy-plymouth-reset. After that, every theme that has a preview-unlock.png
+-- appears as a customised unlock; picking one runs omarchy-plymouth-set-by-theme
 -- <theme>. Both run in a floating terminal so sudo can prompt.
 --
 Name = "omarchyunlocks"
-NamePretty = "qvOS Unlocks"
+NamePretty = "Omarchy Unlocks"
 HideFromProviderlist = true
 FixedOrder = true
 
@@ -74,19 +74,19 @@ function GetEntries()
   process_themes_from_dir(user_themes_dir)
   process_themes_from_dir(default_themes_dir)
 
-  -- Yaqyn restores the shipped qvOS unlock design.
-  local yaqyn_entry = {
-    Text = "Yaqyn  ",
+  -- Default entry last — restores the shipped Plymouth.
+  local default_entry = {
+    Text = "Default  ",
     Actions = {
       activate = "omarchy-launch-floating-terminal-with-presentation "
         .. shell_escape("omarchy-plymouth-reset"),
     },
   }
   if file_exists(default_preview) then
-    yaqyn_entry.Preview = default_preview
-    yaqyn_entry.PreviewType = "file"
+    default_entry.Preview = default_preview
+    default_entry.PreviewType = "file"
   end
-  table.insert(entries, yaqyn_entry)
+  table.insert(entries, default_entry)
 
   return entries
 end

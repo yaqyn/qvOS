@@ -131,12 +131,12 @@ for binary in \
 done
 pass "targeted qvOS maintenance routes remain discoverable"
 
-if grep -Fq 'Preinstalls' "$root/bin/omarchy-menu"; then
+if grep -Fq 'Preinstalls' "$root/qv/menu/extension.sh"; then
   fail "Remove menu still exposes upstream preinstall removal"
 fi
 
-if grep -Fq 'omarchy-channel-set' "$root/bin/omarchy-menu" ||
-  grep -Fq 'show_update_channel_menu' "$root/bin/omarchy-menu"; then
+if grep -Fq 'omarchy-channel-set' "$root/qv/menu/extension.sh" ||
+  grep -Fq 'show_update_channel_menu' "$root/qv/menu/extension.sh"; then
   fail "Update menu still exposes upstream channel switching"
 fi
 pass "qvOS menus hide incompatible upstream maintenance workflows"

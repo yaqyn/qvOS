@@ -75,8 +75,9 @@ SCRIPT
 
 run_launcher() {
   QVOS_TEST_EVENT_LOG="$event_log" \
+    OMARCHY_PATH="$root" \
     PATH="$test_bin:/usr/bin" \
-    "$launcher" "$1"
+    "$launcher" "$@"
 }
 
 : >"$event_log"
@@ -104,3 +105,9 @@ set -e
 [[ $(<"$event_log") == "logo" ]] ||
   fail "canceled presentation result"
 pass "presentation closes canceled commands without a false result"
+
+: >"$event_log"
+run_launcher qvos-test-success "argument with spaces"
+[[ $(<"$event_log") == $'logo\ndone' ]] ||
+  fail "presentation command argument preservation"
+pass "presentation preserves command argument boundaries"

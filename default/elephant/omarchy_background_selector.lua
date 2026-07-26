@@ -1,5 +1,5 @@
 Name = "omarchyBackgroundSelector"
-NamePretty = "qvOS Background Selector"
+NamePretty = "Omarchy Background Selector"
 Cache = false
 HideFromProviderlist = true
 SearchName = true

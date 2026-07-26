@@ -132,22 +132,8 @@ case "$PROCESSING" in
     echo "$FILEPATH"
     wl-copy <"$FILEPATH"
 
-    (
-      notification_args=(
-        "Screenshot saved to clipboard and file"
-        "Edit with Super + Alt + , (or choose an action)"
-        -t 10000
-        -i "$FILEPATH"
-        -A "default=Edit"
-      )
-      omarchy-cmd-present localsend &&
-        notification_args+=(-A "share=Share")
-      ACTION=$(notify-send "${notification_args[@]}")
-      case $ACTION in
-      default) open_editor "$FILEPATH" ;;
-      share) omarchy-menu-share file "$FILEPATH" ;;
-      esac
-    ) >/dev/null 2>&1 &
+    "$OMARCHY_PATH/qv/share/notification" \
+      screenshot "$FILEPATH" "$SCREENSHOT_EDITOR" >/dev/null 2>&1 &
     ;;
   copy)
     grim -g "$SELECTION" - | wl-copy

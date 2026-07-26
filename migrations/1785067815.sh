@@ -1,3 +1,2 @@
 echo "Add the direct qvOS feature menu shortcut"
-
-omarchy-refresh-config hypr/qv/bindings.conf
+source "$OMARCHY_PATH/qv/migrations/1785067815.sh"

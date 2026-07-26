@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 helper="$root/qv/desktop/hyprland/qvos-toggle-special-window"
-bindings="$root/config/hypr/qv/bindings.conf"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 dispatch_log="$test_root/dispatch"

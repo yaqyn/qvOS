@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Configure qvOS DNS or optional Cloudflare WARP
+# omarchy:args=[WARP|Cloudflare|Quad9|None|Custom]
+# omarchy:group=qvos
+# omarchy:name=setup dns
+# omarchy:requires-sudo=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/network/setup-dns" "$@"

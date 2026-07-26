@@ -129,7 +129,6 @@ if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep
   sed -i 's/fingerprint:enabled = .*/fingerprint:enabled = false/' ~/.config/hypr/hyprlock.conf
 fi
 ```
-
 ---
 
 <!-- qvOS ADDITIONS START -->
@@ -161,6 +160,22 @@ Every qvOS change must leave one traceable lifecycle. Prefer plain edits to
 existing files and add plumbing only when the simple path is brittle or
 repetitive.
 
+- Keep tracked Omarchy source byte-for-byte upstream by default. qvOS behavior,
+  configuration, assets, and policy belong under `qv/<domain>/`, with upstream
+  behavior applied first and the qvOS layer applied afterward.
+- Before editing an inherited file, prove that an Omarchy hook, config include,
+  qvOS installer or migration, or qvOS-owned public command cannot complete the
+  task. When no extension seam exists, keep the inherited change to the
+  smallest stable include or delegation line; never place qvOS implementation
+  or data there.
+- Treat an inherited file containing substantial qvOS logic as refactoring
+  debt. When touching it, compare it with `upstream/master`, move the qvOS
+  portion to its `qv/<domain>/` owner, and add a focused guard against renewed
+  upstream drift.
+- Keep qvOS config sources separate even when their installed runtime target is
+  an Omarchy-managed path. Apply or reconcile them after the upstream install,
+  refresh, migration, or update step instead of replacing the tracked upstream
+  default.
 - Give each feature one owner, normally under `qv/<feature>/`; reuse upstream
   owners and avoid dumping grounds such as `scripts/`, `utils/`, or `misc/`.
   Move source, installed payloads, references, guards, and tests together.
@@ -191,7 +206,8 @@ repetitive.
 
 ## Keybindings
 
-`config/hypr/qv/bindings.conf` is authoritative for qvOS-owned bindings.
+`qv/config/files/hypr/qv/bindings.conf` is authoritative for qvOS-owned
+bindings.
 
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
@@ -211,6 +227,24 @@ When the user asks to commit and run `qvsync`:
 
 - Treat it as `git qvsync`; inspect `.git/qvsync` when relevant, require branch
   `OS`, and inspect `git status --short --branch`.
+- Before `git qvsync`, fetch `upstream/master` without merging. From
+  `git merge-base HEAD upstream/master`, inspect every upstream-changed path and
+  search qvOS owners, inherited seams, installed payloads, migrations, and tests
+  for dependencies on the changed path or behavior.
+- Treat an upstream change as qvOS-impacting when it alters a command contract,
+  extension seam, config schema or include, path, package or service, install,
+  refresh, migration, repair, or update flow, permission, network exposure, or
+  security default that qvOS uses or overrides. Also flag new ownership overlap,
+  duplicated implementation, or an upstream replacement for a qvOS enhancement.
+- A clean merge is not compatibility proof. For every impact, preserve the new
+  upstream behavior when safe, update the affected `qv/<domain>/` owner and its
+  adapters, guards, and tests in the same sync, then verify the relevant fresh
+  install, update, repair, and live paths.
+- When adaptation is required, do not let `git qvsync` publish the raw upstream
+  merge. Create a backup branch, integrate upstream locally without pushing,
+  finish and verify the qvOS adaptation, commit it, then run `git qvsync` from
+  the clean tree. If compatibility or safety cannot be proven, stop before any
+  push and report the upstream paths, affected qvOS owners, and unresolved risk.
 - Before every qvsync, refresh `qv/core/steam.sh` and its test against Linutil's
   current Arch list at `core/tabs/system-setup/gaming-setup.sh`. Use current
   package names and leave GPU drivers to Omarchy hardware detection.
@@ -223,7 +257,7 @@ When the user asks to commit and run `qvsync`:
   `git diff --check`.
 - Before runtime checks, back up and apply changed user config, then install qvOS
   desktop payloads with
-  `OMARCHY_PATH=$PWD bash -c 'source install/config/qvos-scripts.sh'`.
+  `OMARCHY_PATH=$PWD bash -c 'source qv/install/desktop'`.
   Repair affected enabled qvCORE adapters, require no unexpected
   `omarchy qvcore status` drift, confirm the live checkout is clean, and run the
   relevant reload or smoke test.

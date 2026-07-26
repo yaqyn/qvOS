@@ -58,10 +58,9 @@ var sections = []section{
 	{
 		name: "INSTALL",
 		items: []item{
-			{"00", "APPLY", "Install qvOS"},
-			{"01", "UPDATE", "Sync qvOS"},
-			{"02", "REPAIR", "Repair qvOS"},
-			{"03", "BUILD", "Build qvOS ISO"},
+			{"00", "UPDATE", "Sync qvOS"},
+			{"01", "REPAIR", "Repair qvOS"},
+			{"02", "BUILD", "Build qvOS ISO"},
 		},
 	},
 	{
@@ -171,7 +170,6 @@ type actionMode int
 const (
 	actionBuild actionMode = iota
 	actionRepair
-	actionApply
 	actionUpdate
 )
 
@@ -205,7 +203,7 @@ type model struct {
 }
 
 func isRootAction(action actionMode) bool {
-	return action == actionApply || action == actionRepair || action == actionUpdate
+	return action == actionRepair || action == actionUpdate
 }
 
 func isScriptAction(action actionMode) bool {
@@ -494,15 +492,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			if m.tab == 0 && m.cursor == 0 {
-				return m.startRootAction(actionApply)
-			}
-			if m.tab == 0 && m.cursor == 1 {
 				return m.startRootAction(actionUpdate)
 			}
-			if m.tab == 0 && m.cursor == 2 {
+			if m.tab == 0 && m.cursor == 1 {
 				return m.startRootAction(actionRepair)
 			}
-			if m.tab == 0 && m.cursor == 3 {
+			if m.tab == 0 && m.cursor == 2 {
 				return m.startBuildAction()
 			}
 		}
@@ -840,15 +835,12 @@ func (m model) mainMouse(msg tea.MouseClickMsg) (model, tea.Cmd) {
 // activateMenuItem mirrors the keyboard Enter branch for the main menu.
 func (m model) activateMenuItem() (model, tea.Cmd) {
 	if m.tab == 0 && m.cursor == 0 {
-		return m.startRootAction(actionApply)
-	}
-	if m.tab == 0 && m.cursor == 1 {
 		return m.startRootAction(actionUpdate)
 	}
-	if m.tab == 0 && m.cursor == 2 {
+	if m.tab == 0 && m.cursor == 1 {
 		return m.startRootAction(actionRepair)
 	}
-	if m.tab == 0 && m.cursor == 3 {
+	if m.tab == 0 && m.cursor == 2 {
 		return m.startBuildAction()
 	}
 	return m, nil
@@ -1298,12 +1290,10 @@ func scriptProgressFromLine(action actionMode, line string) (string, float64) {
 	switch action {
 	case actionBuild:
 		return buildProgressFromLine(clean)
-	case actionApply:
-		return domainProgressFromLine(clean, "qvOS install:", installDomainOrder)
 	case actionRepair:
 		return domainProgressFromLine(clean, "qvOS repair:", repairDomainOrder)
 	case actionUpdate:
-		return domainProgressFromLine(clean, "qvOS update:", installDomainOrder)
+		return updateProgressFromLine(clean)
 	default:
 		return clean, -1
 	}
@@ -1420,7 +1410,31 @@ var installDomainOrder = []string{
 }
 
 var repairDomainOrder = []string{
-	"Source", "Packages", "Runtime", "Config", "qvCORE", "Complete",
+	"Source", "Packages", "Runtime", "Config", "Enabled optional qvCORE setups", "Complete",
+}
+
+var updateStages = []struct {
+	token    string
+	status   string
+	progress float64
+}{
+	{"Update qvOS", "updating qvOS source", 0.10},
+	{"Update Arch signing keys", "updating signing keys", 0.20},
+	{"Update system packages", "updating system packages", 0.38},
+	{"Update AUR packages", "updating AUR packages", 0.56},
+	{"Running migration (", "running migrations", 0.68},
+	{"Enabled qvCORE setups", "checking optional qvCORE setups", 0.76},
+	{"Remove orphan system packages", "removing package orphans", 0.84},
+	{"qvOS update is complete.", "update complete", 1.00},
+}
+
+func updateProgressFromLine(line string) (string, float64) {
+	for _, stage := range updateStages {
+		if strings.HasPrefix(line, stage.token) {
+			return stage.status, stage.progress
+		}
+	}
+	return line, -1
 }
 
 func domainProgressFromLine(line string, prefix string, order []string) (string, float64) {
@@ -1883,8 +1897,6 @@ func rootActionName(action actionMode) string {
 	switch action {
 	case actionRepair:
 		return "REPAIR"
-	case actionApply:
-		return "APPLY"
 	case actionUpdate:
 		return "UPDATE"
 	default:
@@ -1898,8 +1910,6 @@ func rootActionPastTense(action actionMode) string {
 		return "BUILT"
 	case actionRepair:
 		return "REPAIRED"
-	case actionApply:
-		return "APPLIED"
 	case actionUpdate:
 		return "UPDATED"
 	default:
@@ -1913,8 +1923,6 @@ func rootActionActiveTitle(action actionMode) string {
 		return "BUILDING"
 	case actionRepair:
 		return "REPAIRING"
-	case actionApply:
-		return "APPLYING"
 	case actionUpdate:
 		return "UPDATING"
 	default:
@@ -1928,8 +1936,6 @@ func rootActionRunningStatus(action actionMode) string {
 		return "ISO build running in background"
 	case actionRepair:
 		return "repair running in background"
-	case actionApply:
-		return "installer running in background"
 	case actionUpdate:
 		return "update running in background"
 	default:
@@ -1943,8 +1949,6 @@ func rootActionCompleteStatus(action actionMode) string {
 		return "ISO build complete"
 	case actionRepair:
 		return "repair complete"
-	case actionApply:
-		return "install complete"
 	case actionUpdate:
 		return "update complete"
 	default:
@@ -2590,10 +2594,6 @@ func findRootScript(action actionMode) (string, error) {
 	return "", fmt.Errorf("%s not found; set %s or provide %s in the project/binary directory", scriptName, envName, scriptName)
 }
 
-func findInstallScript() (string, error) {
-	return findRootScript(actionApply)
-}
-
 func findBuildScript() (string, error) {
 	return findRootScript(actionBuild)
 }
@@ -2604,8 +2604,6 @@ func rootScriptSpec(action actionMode) (scriptName string, envName string, err e
 		return "bin/qvos-build", "QVOS_BUILD_SCRIPT", nil
 	case actionRepair:
 		return "bin/qvos-repair", "QVOS_REPAIR_SCRIPT", nil
-	case actionApply:
-		return "bin/qvos-apply", "QVOS_INSTALL_SCRIPT", nil
 	case actionUpdate:
 		return "bin/qvos-update", "QVOS_UPDATE_SCRIPT", nil
 	default:
@@ -2641,12 +2639,10 @@ func qvosRootLogPath(action actionMode) string {
 		return qvosBuildLogPath()
 	case actionRepair:
 		return qvosRepairLogPath()
-	case actionApply:
-		return qvosInstallLogPath()
 	case actionUpdate:
 		return qvosUpdateLogPath()
 	default:
-		return qvosInstallLogPath()
+		return qvosBuildLogPath()
 	}
 }
 
@@ -2665,10 +2661,6 @@ func qvosEnvEnabled(name string) bool {
 	default:
 		return false
 	}
-}
-
-func qvosInstallLogPath() string {
-	return qvosStateLogPath("install", "root-install.log")
 }
 
 func qvosRepairLogPath() string {

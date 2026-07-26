@@ -6,85 +6,45 @@
 # omarchy:args=<clipboard|file|folder> [path...]
 # omarchy:examples=omarchy share clipboard | omarchy share file ~/Downloads/example.txt
 
-set -euo pipefail
-
-# Private clipboard temporary-file ownership
-
-clipboard_temp=""
-
-cleanup() {
-  if [[ -n $clipboard_temp && -f $clipboard_temp ]]; then
-    rm -f "$clipboard_temp"
-  fi
-}
-trap cleanup EXIT
-
-# Share request routing
-
-if omarchy-cmd-missing localsend; then
-  echo "LocalSend is not installed"
-  exit 1
-fi
-
 if (($# == 0)); then
   echo "Usage: omarchy-menu-share [clipboard|file|folder]"
   exit 1
 fi
 
-mode=$1
+MODE="$1"
 shift
-files=()
 
-case $mode in
---send-clipboard-temp)
-  (($# >= 1)) || exit 2
-  clipboard_candidate=$1
-  shift
-  expected_prefix="${TMPDIR:-/tmp}/qvos-share-clipboard."
-
-  if [[ $clipboard_candidate != "$expected_prefix"* ]] ||
-    [[ ! -f $clipboard_candidate ]] ||
-    [[ ! -O $clipboard_candidate ]] ||
-    [[ $(stat -c '%a' "$clipboard_candidate") != "600" ]]; then
-    echo "Refusing unsafe qvCORE Share clipboard cleanup path." >&2
-    exit 1
-  fi
-
-  clipboard_temp=$clipboard_candidate
-  localsend --headless send "$clipboard_temp"
-  exit
-  ;;
-clipboard)
-  clipboard_temp=$(mktemp "${TMPDIR:-/tmp}/qvos-share-clipboard.XXXXXX.txt")
-  wl-paste >"$clipboard_temp"
-  files=("$clipboard_temp")
-  ;;
-file | folder)
-  if (($# > 0)); then
-    files=("$@")
-  elif [[ $mode == "folder" ]]; then
-    selection=$(find "$HOME" -type d 2>/dev/null | fzf) || exit $?
-    [[ -n $selection ]] || exit 0
-    files=("$selection")
-  else
-    mapfile -t files < <(find "$HOME" -type f 2>/dev/null | fzf --multi)
-    ((${#files[@]} > 0)) || exit 0
-  fi
-  ;;
-*)
-  echo "Usage: omarchy-menu-share [clipboard|file|folder]" >&2
-  exit 1
-  ;;
-esac
-
-# Run LocalSend on demand, detached from the terminal.
-if [[ $mode == "clipboard" ]]; then
-  systemd-run --user --quiet --collect \
-    "$0" --send-clipboard-temp "$clipboard_temp"
-  clipboard_temp=""
+if [[ $MODE == "clipboard" ]]; then
+  TEMP_FILE=$(mktemp --suffix=.txt)
+  wl-paste >"$TEMP_FILE"
+  FILES="$TEMP_FILE"
 else
-  systemd-run --user --quiet --collect \
-    localsend --headless send "${files[@]}"
+  if (($# > 0)); then
+    FILES="$*"
+  else
+    if [[ $MODE == "folder" ]]; then
+      # Pick a single folder from home directory
+      FILES=$(find "$HOME" -type d 2>/dev/null | fzf)
+    else
+      # Pick one or more files from home directory
+      FILES=$(find "$HOME" -type f 2>/dev/null | fzf --multi)
+    fi
+    [[ -z $FILES ]] && exit 0
+  fi
 fi
+
+# Run LocalSend in its own systemd service (detached from terminal)
+# Convert newline-separated files to space-separated arguments
+if [[ $MODE != "clipboard" ]] && echo "$FILES" | grep -q $'\n'; then
+  # Multiple files selected - convert newlines to array
+  readarray -t FILE_ARRAY <<<"$FILES"
+  systemd-run --user --quiet --collect localsend --headless send "${FILE_ARRAY[@]}"
+else
+  # Single file or clipboard mode
+  systemd-run --user --quiet --collect localsend --headless send "$FILES"
+fi
+
+# Note: Temporary file will remain until system cleanup for clipboard mode
+# This ensures the file content is available for the LocalSend GUI
 
 exit 0

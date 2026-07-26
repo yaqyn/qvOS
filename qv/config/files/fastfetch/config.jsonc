@@ -1,0 +1,148 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file-raw",
+    "source": "~/.config/omarchy/branding/about-fastfetch.ansi",
+    "padding": {
+      "top": 2,
+      "right": 5,
+      "left": 2
+    }
+  },
+  "display": {
+    "separator": "  ",
+    "showErrors": false,
+    "key": {
+      "width": 12,
+      "type": "string"
+    },
+    "color": {
+      "keys": "245",
+      "title": "196",
+      "output": "245",
+      "separator": "240"
+    },
+    "percent": {
+      "color": {
+        "green": "242",
+        "yellow": "245",
+        "red": "160"
+      }
+    }
+  },
+  "modules": [
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;196mqvOS\u001b[38;5;242m / grayscale system profile"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;240m────────────────────────────────────────"
+    },
+    {
+      "type": "command",
+      "key": "os",
+      "keyColor": "bright_black",
+      "text": "version=$(omarchy-version 2>/dev/null || true); printf 'qvOS %s\\n' \"${version:-rolling}\""
+    },
+    {
+      "type": "kernel",
+      "key": "kernel",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "wm",
+      "key": "session",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "terminal",
+      "key": "terminal",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "shell",
+      "key": "shell",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "packages",
+      "key": "packages",
+      "keyColor": "bright_black"
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;246mhardware"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;240m────────────────────────────────────────"
+    },
+    {
+      "type": "host",
+      "key": "machine",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "cpu",
+      "key": "cpu",
+      "keyColor": "bright_black",
+      "showPeCoreCount": true
+    },
+    {
+      "type": "gpu",
+      "key": "gpu",
+      "keyColor": "bright_black",
+      "detectionMethod": "pci"
+    },
+    {
+      "type": "display",
+      "key": "display",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "memory",
+      "key": "memory",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "disk",
+      "key": "disk",
+      "keyColor": "bright_black"
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;246mstate"
+    },
+    {
+      "type": "custom",
+      "format": "\u001b[38;5;240m────────────────────────────────────────"
+    },
+    {
+      "type": "uptime",
+      "key": "uptime",
+      "keyColor": "bright_black"
+    },
+    {
+      "type": "command",
+      "key": "age",
+      "keyColor": "bright_black",
+      "text": "birth=$(stat -c %W / 2>/dev/null || echo 0); now=$(date +%s); if [ \"$birth\" -gt 0 ]; then printf '%s days\\n' $(((now - birth) / 86400)); else printf 'unknown\\n'; fi"
+    },
+    {
+      "type": "command",
+      "key": "theme",
+      "keyColor": "bright_black",
+      "text": "theme=$(omarchy-theme-current 2>/dev/null || echo qvos); printf '%s  \\e[38;5;238m● \\e[38;5;245m● \\e[38;5;160m●\\n' \"$theme\""
+    },
+    {
+      "type": "command",
+      "key": "updates",
+      "keyColor": "bright_black",
+      "text": "omarchy-version-pkgs 2>/dev/null || printf 'unknown\\n'"
+    }
+  ]
+}

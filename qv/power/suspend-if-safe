@@ -1,0 +1,151 @@
+#!/bin/bash
+
+set -uo pipefail
+
+mode="once"
+case ${1:-} in
+"") ;;
+--check) mode="check" ;;
+--watch) mode="watch" ;;
+*)
+  echo "Usage: omarchy system suspend if safe [--check|--watch]" >&2
+  exit 2
+  ;;
+esac
+if (($# > 1)); then
+  echo "Usage: omarchy system suspend if safe [--check|--watch]" >&2
+  exit 2
+fi
+
+retry_seconds=300
+minimum_lock_seconds=1800
+watch_lock="${XDG_RUNTIME_DIR:-/tmp}/qvos-suspend-watch-$UID.lock"
+
+locked_session_pid() {
+  local lock_pids
+
+  lock_pids="$(pidof hyprlock 2>/dev/null)" || return 1
+  printf '%s\n' "${lock_pids%% *}"
+}
+
+lock_age_seconds() {
+  local lock_pid="$1"
+  local age
+
+  age="$(ps -o etimes= -p "$lock_pid" 2>/dev/null)"
+  age="${age//[[:space:]]/}"
+  [[ $age =~ ^[0-9]+$ ]] || return 1
+  printf '%s\n' "$age"
+}
+
+blocking_inhibitor() {
+  local inhibitor_json blocker
+
+  if ! inhibitor_json="$(systemd-inhibit --list --json=short 2>/dev/null)"; then
+    printf 'system sleep-inhibitor state is unavailable\n'
+    return 0
+  fi
+
+  blocker="$(jq -r '
+    [
+      .[] |
+      select(
+        ((.mode // "") == "block" or (.mode // "") == "block-weak") and
+        (((.what // "") | split(":") | index("sleep")) != null)
+      )
+    ][0] |
+    if . == null then "" else
+      "\(.who // .comm // "unknown"): \(.why // "sleep is inhibited")"
+    end
+  ' <<<"$inhibitor_json" 2>/dev/null)" || {
+    printf 'system sleep-inhibitor state is invalid\n'
+    return 0
+  }
+
+  [[ -n $blocker ]] || return 1
+  printf '%s\n' "$blocker"
+}
+
+codex_is_active() {
+  pgrep -x codex >/dev/null 2>&1 ||
+    pgrep -f '(^|[[:space:]/])([^[:space:]]*/)?codex([[:space:]]|$)' >/dev/null 2>&1
+}
+
+fullscreen_client_is_active() {
+  local clients
+
+  clients="$(hyprctl clients -j 2>/dev/null)" || return 0
+  jq -e '
+    any(.[];
+      ((.mapped // true) == true) and
+      ((.fullscreen // 0) != 0)
+    )
+  ' <<<"$clients" >/dev/null 2>&1
+}
+
+game_is_active() {
+  pgrep -x gamescope >/dev/null 2>&1 ||
+    pgrep -f '/steamapps/common/|/steamapps/compatdata/[0-9]+/|(^|[[:space:]/])gamemoderun([[:space:]]|$)' >/dev/null 2>&1
+}
+
+suspend_blocker() {
+  local expected_lock_pid="${1:-}"
+  local current_lock_pid lock_age inhibitor
+
+  if command -v omarchy-toggle-enabled >/dev/null 2>&1 &&
+    omarchy-toggle-enabled suspend-off; then
+    printf 'suspend is disabled\n'
+  elif ! current_lock_pid="$(locked_session_pid)"; then
+    printf 'the session is not locked\n'
+  elif [[ -n $expected_lock_pid && $current_lock_pid != "$expected_lock_pid" ]]; then
+    printf 'the lock session changed\n'
+  elif ! lock_age="$(lock_age_seconds "$current_lock_pid")"; then
+    printf 'lock duration is unavailable\n'
+  elif ((lock_age < minimum_lock_seconds)); then
+    printf 'the session has not been locked for 30 minutes\n'
+  elif inhibitor="$(blocking_inhibitor)"; then
+    printf '%s\n' "$inhibitor"
+  elif codex_is_active; then
+    printf 'Codex is active\n'
+  elif fullscreen_client_is_active; then
+    printf 'a fullscreen application is active\n'
+  elif game_is_active; then
+    printf 'a game is active\n'
+  else
+    return 1
+  fi
+}
+
+check_or_suspend() {
+  local expected_lock_pid="${1:-}"
+  local blocker
+
+  if blocker="$(suspend_blocker "$expected_lock_pid")"; then
+    printf 'Automatic suspend deferred: %s.\n' "$blocker"
+    return 1
+  fi
+
+  if [[ $mode == "check" ]]; then
+    printf 'Automatic suspend is ready.\n'
+    return 0
+  fi
+
+  systemctl suspend
+}
+
+if [[ $mode == "watch" ]]; then
+  watched_lock_pid="$(locked_session_pid)" || exit 0
+
+  exec 9>"$watch_lock"
+  flock -n 9 || exit 0
+
+  while [[ $(locked_session_pid 2>/dev/null || true) == "$watched_lock_pid" ]]; do
+    check_or_suspend "$watched_lock_pid" && exit 0
+    sleep "$retry_seconds"
+  done
+  exit 0
+fi
+
+if ! check_or_suspend; then
+  [[ $mode == "check" ]] && exit 1
+fi

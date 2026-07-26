@@ -2,9 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/config/hypr/qv/bindings.conf"
+bindings="$root/qv/config/files/hypr/qv/bindings.conf"
 clipboard="$root/default/hypr/bindings/clipboard.conf"
-packages="$root/install/omarchy-base.packages"
+packages="$root/qv/install/packaging/base.packages"
 
 pass() {
   printf 'ok - %s\n' "$1"

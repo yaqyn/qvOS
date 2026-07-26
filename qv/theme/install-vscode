@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+extension_dir="$OMARCHY_PATH/qv/theme/yaqyn/vscode/extension"
+extension_version=$(jq -r .version "$extension_dir/package.json" 2>/dev/null)
+extension="$extension_dir/yaqyn-theme-$extension_version.vsix"
+
+if [[ -f $extension ]]; then
+  code --install-extension "$extension" --force
+fi

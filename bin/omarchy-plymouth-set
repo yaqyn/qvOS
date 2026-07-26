@@ -5,6 +5,11 @@
 # omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
 # omarchy:requires-sudo=true
 
+qvos_owner="$OMARCHY_PATH/qv/boot/plymouth-set"
+if [[ -x $qvos_owner ]]; then
+  exec "$qvos_owner" "$@"
+fi
+
 # Configure the Plymouth boot theme with a custom background color, text color, and logo.
 # Stages the change in a temp dir, then commits the staged files to /usr/share and
 # rebuilds the initramfs. Also syncs the SDDM login screen (the post-logout
@@ -42,7 +47,7 @@ theme_dir="/usr/share/plymouth/themes/omarchy"
 staging_dir=$(mktemp -d)
 trap 'rm -rf "$staging_dir"' EXIT
 
-find "$OMARCHY_PATH/default/plymouth" -maxdepth 1 -type f -exec cp -t "$staging_dir/" {} +
+find ~/.local/share/omarchy/default/plymouth -maxdepth 1 -type f -exec cp -t "$staging_dir/" {} +
 cp "$logo_path" "$staging_dir/logo.png"
 
 sed -i \
@@ -51,7 +56,7 @@ sed -i \
   "$staging_dir/omarchy.script"
 
 for asset in bullet.png entry.png lock.png progress_bar.png; do
-  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex,#$text_hex" "$staging_dir/$asset"
+  magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex","#$text_hex" "$staging_dir/$asset"
 done
 
 sudo cp -a "$staging_dir/." "$theme_dir/"
@@ -65,13 +70,11 @@ fi
 
 # Sync the SDDM login screen with the same colors and logo.
 sddm_dir="/usr/share/sddm/themes/omarchy"
-sddm_template="$OMARCHY_PATH/default/sddm/omarchy/Main.qml"
+sddm_template="$HOME/.local/share/omarchy/default/sddm/omarchy/Main.qml"
 
 sed \
   -e "s/#1a1b26/#$bg_hex/g" \
-  -e "s/#090909/#$bg_hex/g" \
   -e "s/#ffffff/#$text_hex/g" \
-  -e "s/#d0d0d0/#$text_hex/g" \
   "$sddm_template" | sudo tee "$sddm_dir/Main.qml" >/dev/null
 
 sudo cp "$logo_path" "$sddm_dir/logo.png"
@@ -79,7 +82,7 @@ for asset in bullet.png entry.png lock.png; do
   sudo cp "$staging_dir/$asset" "$sddm_dir/$asset"
 done
 for asset in entry lock; do
-  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e,#f7768e" "$staging_dir/$asset-failed.png"
+  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e","#f7768e" "$staging_dir/$asset-failed.png"
   sudo cp "$staging_dir/$asset-failed.png" "$sddm_dir/$asset-failed.png"
 done
 sudo rm -f "$sddm_dir/logo.svg"

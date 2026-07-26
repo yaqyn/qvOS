@@ -37,7 +37,7 @@ cleanup() {
 trap cleanup EXIT
 
 output=$("$CLI" --help)
-assert_output_contains "main help renders" "$output" "qvOS command center"
+assert_output_contains "main help renders" "$output" "Omarchy command center"
 assert_output_contains "main help includes hardware group" "$output" "hw"
 assert_output_contains "main help includes package group" "$output" "pkg"
 if grep -Eq '^  [a-z0-9-]+[[:space:]].*\([0-9]+\)$' <<<"$output"; then
@@ -46,7 +46,6 @@ fi
 pass "main help does not show group counts"
 
 output=$("$CLI" commands)
-assert_output_contains "commands use qvOS heading" "$output" "qvOS commands:"
 assert_output_contains "commands lists documented commands" "$output" "omarchy theme set <theme-name>"
 
 "$CLI" commands --json | jq -e '.ok == true and (.commands | length >= 200)' >/dev/null

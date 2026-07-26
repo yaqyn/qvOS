@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+waybar_source="$OMARCHY_PATH/config/waybar/config.jsonc"
+qvos_overrides="$OMARCHY_PATH/qv/waybar/overrides.jsonc"
+waybar_config="$HOME/.config/waybar/config.jsonc"
+merged_config=$(mktemp)
+trap 'rm -f "$merged_config"' EXIT
+
+jq -s '
+  def has_bar_module($name):
+    any(.["modules-left", "modules-center", "modules-right"] | arrays[]; . == $name);
+  def replace_bar_module($from; $to):
+    reduce ["modules-left", "modules-center", "modules-right"][] as $key (.;
+      if (.[$key] | type) == "array" then
+        .[$key] |= map(if . == $from then $to else . end)
+      else
+        .
+      end
+    );
+
+  if (.[0] | type) != "object" or (.[1] | type) != "object" then
+    error("Waybar base and qvOS overrides must be JSON objects")
+  else
+    .[0] * .[1]
+    | if has_bar_module("clock") then
+        replace_bar_module("clock"; "group/prayer-clock")
+      elif has_bar_module("group/prayer-clock") then
+        .
+      elif (.["modules-center"] | type) == "array" then
+        .["modules-center"] = ["group/prayer-clock"] + .["modules-center"]
+      else
+        .["modules-center"] = ["group/prayer-clock"]
+      end
+  end
+' "$waybar_source" "$qvos_overrides" >"$merged_config"
+
+"$OMARCHY_PATH/qv/config/refresh-upstream" waybar/style.css
+install -d "$(dirname "$waybar_config")"
+
+if [[ -f $waybar_config ]] &&
+  ! cmp -s "$merged_config" "$waybar_config" &&
+  ! cmp -s "$waybar_source" "$waybar_config"; then
+  backup_config="$waybar_config.bak.$(date +%s)"
+  cp -f "$waybar_config" "$backup_config"
+  printf 'Replaced %s with the latest Omarchy config plus qvOS overrides.\nSaved backup as %s.\n' \
+    "$waybar_config" "$backup_config"
+fi
+
+install -m 0644 "$merged_config" "$waybar_config"
+
+if [[ ${QVOS_WAYBAR_SKIP_RESTART:-0} != "1" ]]; then
+  omarchy-restart-waybar
+fi

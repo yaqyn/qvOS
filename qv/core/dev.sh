@@ -806,6 +806,7 @@ install_mise_component() {
   case $id in
   node)
     omarchy-install-dev-env node
+    mise use --global node@lts
     ;;
   bun)
     omarchy-install-dev-env bun

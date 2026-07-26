@@ -1,0 +1,4 @@
+# shellcheck shell=bash
+
+omarchy-cmd-missing nautilus && return 0
+source "$OMARCHY_INSTALL/config/nautilus-python.sh"

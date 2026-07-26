@@ -251,10 +251,10 @@ fi
 pass "Media delegates cached and partial downloads to the qvOS package helper"
 
 [[ -x $media_script ]] || fail "qvCORE Media component is not executable"
-if grep -Eq '^[[:space:]]*(gimp|inkscape|krita|kdenlive|obs-studio|audacity|blender)([[:space:]]|$)' "$root/install/omarchy-base.packages"; then
+if grep -Eq '^[[:space:]]*(gimp|inkscape|krita|kdenlive|obs-studio|audacity|blender)([[:space:]]|$)' "$root/qv/install/packaging/base.packages"; then
   fail "Media application remains in the base package list"
 fi
-if grep -Eq '^[[:space:]]+(gimp|inkscape|krita|kdenlive|obs-studio|audacity|blender)([[:space:]\\]|$)' "$root/bin/omarchy-remove-preinstalls"; then
-  fail "preinstall cleanup removes a qvCORE Media application"
-fi
+grep -Fq 'omarchy-qvos-block-upstream-maintenance' \
+  "$root/bin/omarchy-remove-preinstalls" ||
+  fail "upstream preinstall cleanup is not guarded on qvOS"
 pass "qvCORE exclusively owns the curated Media application lifecycle"

@@ -32,7 +32,7 @@ EOF
   # post-transaction deploy hook runs limine-install and reads this file. Without
   # it, ESP_PATH falls back to bootctl, which in a chroot prints a warning that
   # gets captured as the path and trips a spurious "invalid ESP" error.
-  sudo cp $OMARCHY_PATH/default/limine/default.conf /etc/default/limine
+  sudo cp "$OMARCHY_PATH/qv/boot/limine/default.conf" /etc/default/limine
   sudo sed -i "s|@@CMDLINE@@|$CMDLINE|g" /etc/default/limine
 
   # Append any drop-in kernel cmdline configs (from hardware fix scripts, etc.)
@@ -52,7 +52,7 @@ EOF
   fi
 
   # We overwrite the whole thing knowing the limine-update will add the entries for us
-  sudo cp $OMARCHY_PATH/default/limine/limine.conf /boot/limine.conf
+  sudo cp "$OMARCHY_PATH/qv/boot/limine/limine.conf" /boot/limine.conf
 
   sudo pacman -S --noconfirm --needed limine-snapper-sync limine-mkinitcpio-hook
 
