@@ -543,12 +543,19 @@ show_install_qvcore_menu() {
 }
 
 show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n  Install qvCORE\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media" "--width 360 --maxheight 760") in
+  case $(menu "qvOS" "󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE" "--width 360 --maxheight 760") in
   *"Update qvOS"*) present_terminal omarchy-update ;;
   *"Repair qvOS"*) present_terminal omarchy-qvos-repair ;;
   *Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;
   *Health*) present_terminal omarchy-qvcore-repair ;;
   *Disable*) present_terminal omarchy-qvcore-disable ;;
+  *qvCORE*) show_qvos_qvcore_menu ;;
+  *) back_to show_main_menu ;;
+  esac
+}
+
+show_qvos_qvcore_menu() {
+  case $(menu "qvCORE" "  Install qvCORE\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media") in
   *"Install qvCORE"*) present_terminal omarchy-install-qvcore ;;
   *Brave*) present_terminal "omarchy-install-qvcore brave-origin" ;;
   *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
@@ -558,7 +565,7 @@ show_qvos_menu() {
   *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
   *Steam*) present_terminal "omarchy-install-qvcore steam" ;;
   *Media*) present_terminal "omarchy-install-qvcore media" ;;
-  *) back_to show_main_menu ;;
+  *) show_qvos_menu ;;
   esac
 }
 
