@@ -222,11 +222,26 @@ upsert_recipe() {
   unlock_state
 }
 
+protect_startup_command() {
+  local command="$1"
+  local escaped
+
+  if [[ ! $command =~ (^|[[:space:]])([^[:space:]]*/)?codex([[:space:]]|$) ]]; then
+    printf '%s\n' "$command"
+    return 0
+  fi
+
+  printf -v escaped '%q' "$command"
+  printf 'QVOS_SLEEP_INHIBIT_REASON=%q ~/.local/share/qvos/bin/omarchy-system-inhibit-sleep /bin/bash -c %s\n' \
+    "Codex session is active" "$escaped"
+}
+
 send_startup_command() {
   local pane_id="$1"
   local command="$2"
 
   [[ -n $command ]] || return 0
+  command="$(protect_startup_command "$command")"
   tmux send-keys -t "$pane_id" -l -- "$command"
   tmux send-keys -t "$pane_id" Enter
 }

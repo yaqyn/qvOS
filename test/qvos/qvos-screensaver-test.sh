@@ -9,6 +9,7 @@ test_bin="$test_root/bin"
 launch_log="$test_root/launches"
 focus_log="$test_root/focus"
 effect_log="$test_root/effect"
+cursor_log="$test_root/cursor"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -63,6 +64,14 @@ dispatch)
   closewindow) : ;;
   *) exit 1 ;;
   esac
+  ;;
+cursorpos)
+  if [[ -s ${QVOS_TEST_CURSOR_LOG:-} ]]; then
+    head -n 1 "$QVOS_TEST_CURSOR_LOG"
+    sed -i '1d' "$QVOS_TEST_CURSOR_LOG"
+  else
+    printf '{"x":0,"y":0}\n'
+  fi
   ;;
 keyword) : ;;
 *) exit 1 ;;
@@ -172,3 +181,21 @@ pass "effect and frame-rate bounds are validated"
 grep -F -- '--frame-rate 144' "$effect_log" >/dev/null || fail "frame-rate propagation"
 grep -F -- ' rings ' "$effect_log" >/dev/null || fail "effect selection"
 pass "keypress exit cleans up a running effect"
+
+printf '%s\n' '{"x":0,"y":0}' '{"x":1,"y":0}' >"$cursor_log"
+: >"$launch_log"
+QVOS_TEST_CURSOR_LOG="$cursor_log" \
+  QVOS_TEST_EFFECT_LOG="$effect_log" \
+  QVOS_TEST_LAUNCH_LOG="$launch_log" \
+  QVOS_TEST_FOCUS_LOG="$focus_log" \
+  HOME="$test_root" \
+  QVOS_SCREENSAVER_EFFECT_INDEX=0 \
+  QVOS_SCREENSAVER_FRAME_RATE=144 \
+  PATH="$test_bin:/usr/bin" \
+  "$runner" </dev/null >/dev/null
+pass "cursor movement exits the screensaver"
+
+if rg -q 'on-resume\s*=\s*pkill.*org\.omarchy\.screensaver' "$root/config/hypr/hypridle.conf"; then
+  fail "idle resume can terminate a screensaver during launch"
+fi
+pass "idle config does not race screensaver startup"

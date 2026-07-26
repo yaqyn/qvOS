@@ -102,6 +102,37 @@ wait "$temporary_command_pid" 2>/dev/null || true
 [[ $detected_command == "codex 30" ]] || fail "temporary package executable cleanup"
 pass "temporary package paths display as reusable commands"
 
+codex_command="node /tmp/node_modules/.bin/codex --yolo"
+protected_command="$(protect_startup_command "$codex_command")"
+[[ $protected_command == *".local/share/qvos/bin/omarchy-system-inhibit-sleep"* &&
+  $protected_command == *"Codex"* ]] ||
+  fail "Codex startup sleep protection"
+[[ "$(protect_startup_command "bun run dev")" == "bun run dev" ]] ||
+  fail "non-Codex startup command preservation"
+
+protected_log="$test_root/protected-command"
+install -d "$HOME/.local/share/qvos/bin" "$test_root/test-bin"
+install -m 0755 /dev/stdin "$HOME/.local/share/qvos/bin/omarchy-system-inhibit-sleep" <<'SCRIPT'
+#!/bin/bash
+printf 'reason=%s\n' "$QVOS_SLEEP_INHIBIT_REASON" >>"$QVOS_TEST_PROTECTED_LOG"
+exec "$@"
+SCRIPT
+install -m 0755 /dev/stdin "$test_root/test-bin/codex" <<'SCRIPT'
+#!/bin/bash
+printf 'codex' >>"$QVOS_TEST_PROTECTED_LOG"
+printf ' %q' "$@" >>"$QVOS_TEST_PROTECTED_LOG"
+printf '\n' >>"$QVOS_TEST_PROTECTED_LOG"
+SCRIPT
+protected_command="$(protect_startup_command "codex --message 'two words'")"
+QVOS_TEST_PROTECTED_LOG="$protected_log" \
+  PATH="$test_root/test-bin:/usr/bin" \
+  /bin/bash -c "$protected_command"
+grep -Fqx 'reason=Codex session is active' "$protected_log" ||
+  fail "Codex startup inhibitor reason"
+grep -Fqx 'codex --message two\ words' "$protected_log" ||
+  fail "Codex startup command preservation"
+pass "Codex startup commands receive focused sleep protection without changing arguments"
+
 tile_log="$test_root/tile-dispatch"
 (
   # shellcheck disable=SC2329

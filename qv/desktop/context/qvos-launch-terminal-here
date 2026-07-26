@@ -32,9 +32,13 @@ root)
   exec uwsm-app -- xdg-terminal-exec --dir="$location" sudo -s
   ;;
 codex)
-  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex" --dir="$location" codex
+  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex" --dir="$location" \
+    env QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
+    "$HOME/.local/share/qvos/bin/omarchy-system-inhibit-sleep" codex
   ;;
 codex-yolo)
-  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex YOLO" --dir="$location" codex --yolo
+  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex YOLO" --dir="$location" \
+    env QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
+    "$HOME/.local/share/qvos/bin/omarchy-system-inhibit-sleep" codex --yolo
   ;;
 esac

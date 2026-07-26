@@ -12,6 +12,8 @@ for feature in desktop screensaver thunar tmux waybar; do
 done
 
 required_sources=(
+  bin/omarchy-system-inhibit-sleep
+  bin/omarchy-system-suspend-if-safe
   qv/desktop/context/qvos-active-location
   qv/desktop/context/qvos-launch-editor-here
   qv/desktop/context/qvos-launch-terminal-here
@@ -90,6 +92,9 @@ local_bin="$HOME/.local/bin"
 
 rm -rf -- "$qvos_screensaver"
 install -d "$qvos_bin" "$qvos_screensaver" "$local_bin"
+for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
+  install -m 0755 "$OMARCHY_PATH/bin/$command_name" "$qvos_bin/$command_name"
+done
 install -m 0644 "$screensaver_source/alacritty.toml" "$qvos_screensaver/alacritty.toml"
 for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
   install -m 0755 "$screensaver_source/$command_name" "$qvos_bin/$command_name"

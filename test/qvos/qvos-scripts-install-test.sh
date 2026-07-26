@@ -152,6 +152,12 @@ for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-scre
 done
 pass "screensaver commands and user links are installed"
 
+for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
+  [[ -x $test_root/.local/share/qvos/bin/$command_name ]] ||
+    fail "$command_name runtime installation"
+done
+pass "power guards are installed with the desktop runtime"
+
 [[ "$(stat -c '%a' "$test_root/.local/share/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
 [[ -x $test_root/.local/share/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
 [[ -x $test_root/.local/share/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"

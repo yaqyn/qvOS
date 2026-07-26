@@ -7,6 +7,7 @@ screen_text="$HOME/.config/omarchy/branding/screensaver.txt"
 effect_count=15
 effect_pid=""
 terminal_state="$(stty -g 2>/dev/null || true)"
+cursor_position="$(hyprctl cursorpos -j 2>/dev/null || true)"
 
 cleanup() {
   local status=$?
@@ -29,6 +30,22 @@ close_screensaver_windows() {
     [[ -n $address ]] || continue
     hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
   done < <(hyprctl clients -j 2>/dev/null | jq -r '.[] | select((.class // "") == "org.omarchy.screensaver") | .address' 2>/dev/null || true)
+}
+
+input_detected() {
+  local current_position
+
+  if read -r -s -n 1 -t 0.25; then
+    return 0
+  fi
+
+  current_position="$(hyprctl cursorpos -j 2>/dev/null || true)"
+  if [[ -n $cursor_position && -n $current_position && $current_position != "$cursor_position" ]]; then
+    return 0
+  fi
+  cursor_position="$current_position"
+
+  return 1
 }
 
 trap cleanup EXIT
@@ -217,7 +234,7 @@ while true; do
   effect_pid=$!
 
   while kill -0 "$effect_pid" 2>/dev/null; do
-    if read -r -s -n 1 -t 0.25; then
+    if input_detected; then
       close_screensaver_windows
       exit 0
     fi
