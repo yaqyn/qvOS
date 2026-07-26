@@ -14,7 +14,6 @@ thunar_config="$test_root/.config/Thunar/uca.xml"
 thunar_share_runtime="$test_root/.local/share/qvos/thunar/share"
 thunar_share_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/share\" \"\$@\"' qvos-thunar %F"
 state_file="$test_root/.local/state/qvos/qvcore/share"
-hook_target="$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
 firewall_profile="$test_root/firewall/qvos-qvcore-share"
 firewall_rules_v4="$test_root/firewall/user.rules"
 firewall_rules_v6="$test_root/firewall/user6.rules"
@@ -39,7 +38,6 @@ reset_test_state() {
   rm -f "$thunar_share_runtime"
   rm -f \
     "$state_file" \
-    "$hook_target" \
     "$firewall_profile" \
     "$firewall_rules_v4" \
     "$firewall_rules_v6"
@@ -231,7 +229,6 @@ run_thunar_share() {
 }
 
 reset_test_state
-install -D -m 0644 /dev/null "$hook_target"
 install_output=$(run_share)
 grep -Fqx $'package\tlocalsend' "$action_log" ||
   fail "missing LocalSend package install"
@@ -243,8 +240,6 @@ assert_thunar_integration
   fail "Thunar actions backup"
 cmp -s "$root/qv/core/share/ufw.profile" "$firewall_profile" ||
   fail "qvCORE Share firewall profile installation"
-[[ ! -e $hook_target ]] ||
-  fail "legacy qvCORE Share post-update hook cleanup"
 [[ -f $state_file ]] || fail "qvCORE Share enabled state"
 grep -Fq 'qvCORE Share inventory: 0/5 ready' <<<"$install_output" ||
   fail "initial Share inventory"
@@ -360,7 +355,7 @@ pass "Share adopts an existing LocalSend install without reinstalling it"
 : >"$action_log"
 disable_output=$(run_share --disable)
 [[ ! -e $thunar_share_runtime ]] || fail "Share disable helper removal"
-[[ ! -e $state_file && ! -e $hook_target ]] ||
+[[ ! -e $state_file ]] ||
   fail "Share disable maintenance removal"
 [[ ! -e $firewall_profile ]] || fail "Share disable firewall profile removal"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-localsend-share'])" "$thunar_config") == "0" ]] ||

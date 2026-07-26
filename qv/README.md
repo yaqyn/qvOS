@@ -22,7 +22,6 @@ qv/
   launcher/    qvOS Elephant providers.
   maintenance/ qvOS base repair, inherited-extra review, and upstream guards.
   menu/        qvOS menus installed through Omarchy's extension seam.
-  migrations/  Existing-system qvOS migration implementation.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
   presentation/ qvOS terminal presentation and failure handling.
@@ -87,7 +86,8 @@ that exposes, installs, or refreshes them:
 - `bin/` owns CLI routes and menu handoffs.
 - `qv/config/files/` owns qvOS config sources; inherited `config/` and
   `default/` remain upstream-owned.
-- `install/` owns fresh-install payloads; `migrations/` owns existing systems.
+- `install/` owns fresh-install payloads. Future existing-system transitions
+  belong in `qv/migrations/` behind thin Omarchy migration stubs.
 - `test/qvos/*-test.sh` guards qvOS product and integration contracts;
   `test/qvos/run.sh` runs them together with all upstream root tests.
 - `qv/theme/yaqyn/` is the qvOS theme overlay; Omarchy's inherited theme

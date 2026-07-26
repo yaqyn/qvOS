@@ -15,7 +15,6 @@ codex_pass_root="$test_root/.local/share/qvos-codex/proton-pass"
 proton_hook_fixture="$test_root/qvos-proton-on-demand.hook"
 thunar_config="$test_root/.config/Thunar/uca.xml"
 upload_helper="$test_root/.local/share/qvos/thunar/proton-drive-upload"
-desktop_hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
 desktop_state="$test_root/.local/state/qvos/qvcore/proton"
 
 cleanup() {
@@ -37,7 +36,6 @@ assert_log() {
 }
 
 install -d "$test_bin" "$test_root/tmp"
-install -D -m 0644 /dev/null "$desktop_hook"
 
 install -m 0755 /dev/stdin "$test_bin/cmp" <<'SCRIPT'
 #!/bin/bash
@@ -440,8 +438,6 @@ pass "Proton installs the skill and keeps only the isolated Codex session"
 
 cmp -s "$root/qv/thunar/proton-drive-upload" "$upload_helper" ||
   fail "Proton Drive upload helper installation"
-[[ ! -e $desktop_hook ]] ||
-  fail "legacy Proton desktop post-update hook cleanup"
 [[ -f $desktop_state ]] || fail "Proton desktop enabled state"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-proton-drive-upload'])" "$thunar_config") == "1" ]] ||
   fail "Proton Drive Thunar action"
@@ -571,7 +567,7 @@ grep -Fq "proton_pass_root=\"\$HOME/.local/share/qvos-codex/proton-pass\"" \
 pass "Codex Proton skill supports any fresh-install user home"
 
 disable_output=$(run_component --disable)
-[[ ! -e $upload_helper && ! -e $desktop_hook && ! -e $desktop_state ]] ||
+[[ ! -e $upload_helper && ! -e $desktop_state ]] ||
   fail "Proton desktop disable owned-file removal"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-proton-drive-upload'])" "$thunar_config") == "0" ]] ||
   fail "Proton desktop disable action removal"

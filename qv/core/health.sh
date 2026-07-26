@@ -31,13 +31,6 @@ enabled_components=()
 issues=()
 remaining_issues=()
 
-legacy_hook_targets=(
-  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
-  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
-  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
-  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
-)
-
 # Enabled setup discovery
 
 command_present() {
@@ -118,14 +111,6 @@ reset_maintenance_state() {
   issue_present=()
   issues=()
   remaining_issues=()
-}
-
-remove_legacy_component_hooks() {
-  local hook
-
-  for hook in "${legacy_hook_targets[@]}"; do
-    rm -f "$hook"
-  done
 }
 
 add_issue() {
@@ -291,7 +276,6 @@ repair_enabled_components_interactive() {
   local issue_label="issues"
 
   reset_maintenance_state
-  remove_legacy_component_hooks
   retire_removed_components
   collect_enabled_components
   inspect_enabled_components 0
@@ -316,7 +300,6 @@ repair_enabled_components_interactive() {
 
 repair_enabled_components_automatic() {
   reset_maintenance_state
-  remove_legacy_component_hooks
   retire_removed_components
   collect_enabled_components
   inspect_enabled_components 0
@@ -335,7 +318,6 @@ update_enabled_components() {
   local issue_label="issues"
 
   reset_maintenance_state
-  remove_legacy_component_hooks
   retire_removed_components
   collect_enabled_components
   inspect_enabled_components 1

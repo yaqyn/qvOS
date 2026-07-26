@@ -6,7 +6,6 @@ component="$root/qv/core/codex.sh"
 test_root="$(mktemp -d)"
 thunar_config="$test_root/.config/Thunar/uca.xml"
 helper="$test_root/.local/share/qvos/thunar/codex"
-hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
 state="$test_root/.local/state/qvos/qvcore/codex"
 codex_binary="$test_root/.local/bin/codex"
 
@@ -25,7 +24,6 @@ fail() {
 }
 
 install -d "$(dirname -- "$codex_binary")" "$(dirname -- "$thunar_config")"
-install -D -m 0644 /dev/null "$hook"
 install -m 0755 /dev/stdin "$codex_binary" <<'SCRIPT'
 #!/bin/bash
 [[ ${1:-} == "--version" ]] || exit 1
@@ -55,8 +53,6 @@ grep -Fq 'qvCORE Codex is ready: 4/4.' <<<"$adopt_output" ||
   fail "Codex adoption result"
 cmp -s "$root/qv/thunar/codex" "$helper" ||
   fail "Codex Thunar helper"
-[[ ! -e $hook ]] ||
-  fail "legacy Codex post-update hook cleanup"
 [[ -f $state ]] || fail "Codex enabled state"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-codex-here'])" "$thunar_config") == "1" ]] ||
   fail "Codex Thunar action"
@@ -89,7 +85,7 @@ cmp -s "$root/qv/thunar/codex" "$helper" ||
 pass "Codex repairs only its stale desktop integration"
 
 disable_output=$(run_component --disable)
-[[ ! -e $helper && ! -e $hook && ! -e $state ]] ||
+[[ ! -e $helper && ! -e $state ]] ||
   fail "Codex disable owned-file removal"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-codex-here'])" "$thunar_config") == "0" ]] ||
   fail "Codex disable action removal"

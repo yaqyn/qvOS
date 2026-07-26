@@ -233,11 +233,12 @@ for path in "${public_adapters[@]}"; do
 done
 pass "qvOS public commands are thin adapters"
 
-migration_count=0
-for owner in "$root"/qv/migrations/*.sh; do
+shopt -s nullglob
+migration_owners=("$root"/qv/migrations/*.sh)
+shopt -u nullglob
+for owner in "${migration_owners[@]}"; do
   migration=$(basename -- "$owner")
   stub="$root/migrations/$migration"
-  ((migration_count += 1))
 
   [[ -f $stub && ! -x $stub ]] ||
     fail "$migration inherited migration seam mode"
@@ -248,5 +249,4 @@ for owner in "$root"/qv/migrations/*.sh; do
   grep -Fqx "source \"\$OMARCHY_PATH/qv/migrations/$migration\"" "$stub" ||
     fail "$migration qvOS migration delegation"
 done
-((migration_count > 0)) || fail "qvOS migration inventory"
-pass "existing-system migrations keep implementation under qv/migrations"
+pass "qvOS migration seams keep implementation under qv/migrations"

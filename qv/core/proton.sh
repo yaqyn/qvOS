@@ -4,7 +4,6 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/proton"
-legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
 pass_installer_url="https://proton.me/download/pass-cli/install.sh"
 drive_metadata_url="https://proton.me/download/drive/cli/version.json"
 proton_skill_source="$component_dir/proton/skill"
@@ -182,12 +181,11 @@ install_desktop_integration() {
     "*" \
     directories audio-files image-files other-files text-files video-files
   install -D -m 0644 /dev/null "$state_file"
-  rm -f "$legacy_hook_target"
 }
 
 disable_desktop_integration() {
   qvos_thunar_remove_action "qvos-proton-drive-upload"
-  rm -f "$state_file" "$legacy_hook_target" "$thunar_upload_runtime"
+  rm -f "$state_file" "$thunar_upload_runtime"
   echo "qvCORE Proton desktop integration is disabled; Proton services and personal data were not changed."
 }
 

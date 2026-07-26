@@ -12,7 +12,6 @@ network_log="$test_root/network"
 timeout_log="$test_root/timeouts"
 mise_state="$test_root/mise-state"
 install_output="$test_root/install-output"
-legacy_hook="$test_home/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf -- "$test_root"
@@ -132,7 +131,6 @@ create_binary_release() {
 
 install -d "$test_bin" "$test_home" "$test_omarchy_path/qv/core"
 install -m 0755 "$root/qv/core/dev.sh" "$test_omarchy_path/qv/core/dev.sh"
-install -D -m 0644 /dev/null "$legacy_hook"
 
 create_archive_release \
   supabase/cli v1.2.3 supabase_1.2.3_linux_amd64.tar.gz 1.2.3 \
@@ -514,8 +512,6 @@ done
 pass "qvCORE installs only missing components with verified provider releases"
 
 state_file="$test_home/.local/state/qvos/qvcore/dev"
-[[ ! -e $legacy_hook ]] ||
-  fail "legacy Devel post-update hook cleanup"
 [[ -f $state_file ]] || fail "Devel opt-in state"
 grep -Fq 'bun add -d wrangler@latest' "$install_output" ||
   fail "project-local Wrangler guidance"
@@ -524,15 +520,12 @@ grep -Fq 'bun add convex' "$install_output" ||
 pass "qvCORE keeps Wrangler and Convex project-pinned"
 
 run_dev --status
-install -D -m 0644 /dev/null "$legacy_hook"
 repair_output=$(run_dev --repair)
-[[ ! -e $legacy_hook ]] ||
-  fail "Devel lifecycle repair leaves a legacy hook"
 grep -Fq 'installed tools were preserved' <<<"$repair_output" ||
   fail "Devel repair preservation result"
 
 disable_output=$(run_dev --disable)
-[[ ! -e $state_file && ! -e $legacy_hook ]] ||
+[[ ! -e $state_file ]] ||
   fail "Devel lifecycle disable"
 [[ -x $test_home/.local/bin/supabase ]] ||
   fail "Devel disable removed an installed tool"
@@ -541,8 +534,6 @@ grep -Fq 'installed tools remain available' <<<"$disable_output" ||
 run_dev --repair >/dev/null
 adopt_output=$(run_dev --adopt)
 [[ -f $state_file ]] || fail "Devel lifecycle adoption state"
-[[ ! -e $legacy_hook ]] ||
-  fail "Devel lifecycle adoption leaves a legacy hook"
 grep -Fq 'adopted the installed development tools' <<<"$adopt_output" ||
   fail "Devel adoption result"
 pass "qvCORE Devel lifecycle preserves installed tools"

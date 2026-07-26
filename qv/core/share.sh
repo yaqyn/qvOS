@@ -6,7 +6,6 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/share"
-legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_share_source="$component_dir/../thunar/share"
 thunar_share_runtime="$HOME/.local/share/qvos/thunar/share"
@@ -119,7 +118,7 @@ print_inventory() {
 
 # Firewall ownership
 
-remove_legacy_firewall_rules() {
+remove_inherited_firewall_rules() {
   firewall_rules_include_localsend "$firewall_rules_v4" || return 0
   [[ -f $firewall_profile_target ]] && return 0
 
@@ -128,7 +127,7 @@ remove_legacy_firewall_rules() {
 }
 
 install_firewall_policy() {
-  remove_legacy_firewall_rules
+  remove_inherited_firewall_rules
   sudo install -D -m 0644 "$firewall_profile_source" "$firewall_profile_target"
   sudo ufw app update "qvCORE Share" >/dev/null
   sudo ufw allow "qvCORE Share" >/dev/null
@@ -140,7 +139,7 @@ disable_firewall_policy() {
     sudo rm -f "$firewall_profile_target"
   fi
 
-  # Clean the unowned rules created by older qvOS base installations.
+  # Clean the inherited Omarchy rules when qvCORE Share is disabled.
   if firewall_rules_include_localsend "$firewall_rules_v4"; then
     sudo ufw delete allow 53317/tcp >/dev/null 2>&1 || true
     sudo ufw delete allow 53317/udp >/dev/null 2>&1 || true
@@ -167,13 +166,12 @@ install_thunar_integration() {
 
 install_maintenance() {
   install -D -m 0644 /dev/null "$state_file"
-  rm -f "$legacy_hook_target"
 }
 
 disable_share() {
   qvos_thunar_remove_action "qvos-localsend-share"
   disable_firewall_policy
-  rm -f "$state_file" "$legacy_hook_target" "$thunar_share_runtime"
+  rm -f "$state_file" "$thunar_share_runtime"
   echo "qvCORE Share integration is disabled; LocalSend and personal data were not changed."
 }
 

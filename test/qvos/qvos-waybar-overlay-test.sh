@@ -212,13 +212,8 @@ touch "$HOME/waybar-refreshed"
 STUB
 chmod 0755 "$test_bin/omarchy-qvos-refresh-waybar"
 
-install -D -m 0644 /dev/null "$test_root/.config/omarchy/hooks/post-update.d/qvos-prayer-clock"
-HOME="$test_root" OMARCHY_PATH="$root" bash "$root/migrations/1784721483.sh" >/dev/null
-installed_hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
-cmp -s "$root/qv/waybar/post-update-hook" "$installed_hook" ||
-  fail "post-update hook installation"
-[[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-prayer-clock ]] || fail "retired post-update hook cleanup"
-PATH="$test_bin:$PATH" HOME="$test_root" bash "$installed_hook"
+PATH="$test_bin:$PATH" HOME="$test_root" \
+  bash "$root/qv/waybar/post-update-hook"
 [[ -f $test_root/waybar-refreshed ]] || fail "post-update prayer clock refresh"
 
 printf 'ok - qvOS applies only its narrow Waybar overrides\n'

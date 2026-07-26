@@ -6,7 +6,6 @@ install_dir="$HOME/.local/bin"
 python_tools_dir="$HOME/.local/share/qvos/dev-tools"
 semgrep_binary="$python_tools_dir/semgrep/bin/semgrep"
 state_file="$HOME/.local/state/qvos/qvcore/dev"
-legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 work_dir=""
 update_only=0
 use_authenticated_gh=0
@@ -882,7 +881,6 @@ apply_component_changes() {
 
 enable_update_tracking() {
   install -D -m 0644 /dev/null "$state_file"
-  rm -f "$legacy_hook_target"
 }
 
 if (($# > 1)); then
@@ -920,7 +918,7 @@ case ${1:-} in
   exit
   ;;
 --disable)
-  rm -f "$state_file" "$legacy_hook_target"
+  rm -f "$state_file"
   echo "qvCORE Devel maintenance is disabled; installed tools remain available."
   exit
   ;;

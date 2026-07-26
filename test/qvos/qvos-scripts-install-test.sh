@@ -3,7 +3,6 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
-test_bin="$test_root/bin"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -64,31 +63,17 @@ pass "missing feature files cannot erase the installed desktop payload"
 
 install -d \
   "$test_root/.local/share/qvos/bin" \
-  "$test_root/.local/share/qvos/branding" \
-  "$test_root/.local/share/qvos/defaults" \
   "$test_root/.local/share/qvos/desktop/context" \
-  "$test_root/.local/share/qvos/domains" \
-  "$test_root/.local/share/qvos/hyprland" \
   "$test_root/.local/share/qvos/screensaver" \
-  "$test_root/.local/share/qvos/source" \
   "$test_root/.local/share/qvos/thunar" \
   "$test_root/.local/share/qvos/tmux" \
-  "$test_root/.local/share/qvos/tui" \
   "$test_root/.local/share/qvos/waybar"
 touch \
-  "$test_root/.local/share/qvos/branding/removed-helper" \
-  "$test_root/.local/share/qvos/defaults/qvos-launch-thunar" \
   "$test_root/.local/share/qvos/desktop/context/removed-helper" \
-  "$test_root/.local/share/qvos/hyprland/removed-helper" \
   "$test_root/.local/share/qvos/screensaver/removed-launcher" \
   "$test_root/.local/share/qvos/thunar/removed-feature" \
   "$test_root/.local/share/qvos/tmux/removed-feature" \
   "$test_root/.local/share/qvos/waybar/removed-feature"
-touch "$test_root/.local/share/qvos/README.md" "$test_root/.local/share/qvos/VERSION"
-touch "$test_root/.local/share/qvos/bin/omarchy-qvos-doctor" "$test_root/.local/share/qvos/bin/omarchy-qvos-reconcile" "$test_root/.local/share/qvos/bin/omarchy-qvos-update" "$test_root/.local/share/qvos/bin/qvos-show-logo"
-touch "$test_root/.local/share/qvos/domains/retired-domain" "$test_root/.local/share/qvos/source/retired-runtime"
-ln -s "$root/qv/apps/home" "$test_root/.local/share/qvos/home-dev"
-touch "$test_root/.local/share/qvos/tui/retired-runtime-copy"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
 
 HOME="$test_root" OMARCHY_PATH="$root" \
@@ -127,28 +112,12 @@ cmp -s \
   fail "qvOS Waybar post-update hook install"
 pass "qvOS post-update hooks install from their feature owners"
 
-[[ ! -e $test_root/.local/share/qvos/hyprland/removed-helper ]] || fail "stale Hyprland helper cleanup"
-[[ ! -e $test_root/.local/share/qvos/branding/removed-helper ]] || fail "stale branding helper cleanup"
 [[ ! -e $test_root/.local/share/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
 [[ ! -e $test_root/.local/share/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"
 [[ ! -e $test_root/.local/share/qvos/thunar/removed-feature ]] || fail "stale Thunar feature cleanup"
 [[ ! -e $test_root/.local/share/qvos/tmux/removed-feature ]] || fail "stale tmux feature cleanup"
 [[ ! -e $test_root/.local/share/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
-[[ ! -e $test_root/.local/share/qvos/defaults/qvos-launch-thunar ]] || fail "retired Thunar launcher cleanup"
 pass "stale helper payloads are removed"
-
-[[ ! -e $test_root/.local/share/qvos/home-dev && ! -L $test_root/.local/share/qvos/home-dev ]] ||
-  fail "retired qvPLAY development link cleanup"
-[[ ! -e $test_root/.local/share/qvos/source ]] || fail "retired standalone source cleanup"
-[[ ! -e $test_root/.local/share/qvos/domains ]] || fail "retired standalone domain cleanup"
-[[ ! -e $test_root/.local/share/qvos/tui ]] || fail "retired desktop TUI payload cleanup"
-[[ ! -e $test_root/.local/share/qvos/README.md ]] || fail "retired helper readme cleanup"
-[[ ! -e $test_root/.local/share/qvos/branding ]] || fail "retired branding helper cleanup"
-[[ ! -e $test_root/.local/share/qvos/VERSION ]] || fail "retired standalone version cleanup"
-for retired_command in omarchy-qvos-doctor omarchy-qvos-reconcile omarchy-qvos-update qvos-show-logo; do
-  [[ ! -e $test_root/.local/share/qvos/bin/$retired_command ]] || fail "retired $retired_command cleanup"
-done
-pass "retired applications and ISO tooling stay out of the desktop payload"
 
 [[ ! -e $root/qv/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
@@ -231,30 +200,3 @@ for feature in \
     fail "Thunar $feature mode"
 done
 pass "tracked script and data modes are preserved"
-
-migration="$root/migrations/1785020679.sh"
-migration_log="$test_root/migration.log"
-install -d "$test_bin"
-install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
-#!/bin/bash
-printf 'hyprctl %s\n' "$*" >>"$QVOS_TEST_MIGRATION_LOG"
-SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
-#!/bin/bash
-exit 1
-SCRIPT
-
-QVOS_TEST_MIGRATION_LOG="$migration_log" \
-  QVOS_SYSTEM_ROOT="$test_root/system-empty" \
-  HOME="$test_root" \
-  OMARCHY_PATH="$root" \
-  PATH="$test_bin:$PATH" \
-  bash "$migration"
-
-cmp -s \
-  "$root/qv/config/files/hypr/qv/bindings.conf" \
-  "$test_root/.config/hypr/qv/bindings.conf" ||
-  fail "organized binding migration refresh"
-grep -Fqx 'hyprctl reload' "$migration_log" ||
-  fail "organized binding migration reload"
-pass "existing systems migrate to the organized desktop payload"

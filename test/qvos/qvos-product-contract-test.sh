@@ -238,12 +238,6 @@ grep -Fq '(qvOS|Omarchy)([[:space:]]|$)' "$root/qv/boot/config-direct-boot" || f
 grep -Fq -- '--label "qvOS"' "$root/qv/boot/config-direct-boot" || fail "qvOS EFI label"
 grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
 grep -Fq 'GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"' "$root/bin/omarchy" || fail "upstream branch identity"
-grep -Fqx 'source "$OMARCHY_PATH/qv/migrations/1785077361.sh"' \
-  "$root/migrations/1785077361.sh" ||
-  fail "existing-system qvOS overlay migration seam"
-grep -Fqx 'source "$OMARCHY_PATH/qv/install/desktop"' \
-  "$root/qv/migrations/1785077361.sh" ||
-  fail "existing-system qvOS overlay migration"
 pass "visible system branding is qvOS without renaming Omarchy internals"
 
 grep -Fq 'ping -c 1 9.9.9.9' "$root/qv/diagnostics/debug" || fail "Quad9 diagnostic probe"
@@ -285,16 +279,6 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-missing" <<'SCRIPT'
 [[ $1 == "localsend" && ${QVOS_TEST_LOCALSEND:-0} != "1" ]]
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-missing" <<'SCRIPT'
-#!/bin/bash
-[[ $1 == "code" && ${QVOS_TEST_CODE_MISSING:-0} == "1" ]]
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
-#!/bin/bash
-printf '%s\n' "$*" >>"$QVOS_TEST_PACKAGE_LOG"
-SCRIPT
-
 install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
 #!/bin/bash
 exit 0
@@ -303,26 +287,6 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'SCRIPT'
 #!/bin/bash
 exit 0
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-theme-current" <<'SCRIPT'
-#!/bin/bash
-printf 'Orion\n'
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-theme-set" <<'SCRIPT'
-#!/bin/bash
-printf 'theme %s\n' "$1" >>"$QVOS_TEST_STYLE_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-plymouth-reset" <<'SCRIPT'
-#!/bin/bash
-printf 'unlock Yaqyn\n' >>"$QVOS_TEST_STYLE_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-restart-walker" <<'SCRIPT'
-#!/bin/bash
-printf 'restart Walker\n' >>"$QVOS_TEST_STYLE_LOG"
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
@@ -397,38 +361,6 @@ set -e
 [[ $share_output == "LocalSend is not installed" ]] || fail "missing LocalSend error"
 pass "direct LocalSend route fails clearly when unavailable"
 
-migration_home="$test_root/migration-home"
-package_log="$test_root/package.log"
-install -d "$migration_home/.config/uwsm"
-printf '%s\n' \
-  'export EDITOR=code-oss' \
-  'export VISUAL=code-oss' \
-  'export SUDO_EDITOR=code-oss' \
-  >"$migration_home/.config/uwsm/default"
-
-QVOS_TEST_PACKAGE_LOG="$package_log" HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784657678.sh" >/dev/null
-migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
-[[ $migrated_editor_env == $'code\ncode\ncode' ]] || fail "existing editor migration"
-
-HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784904379.sh" >/dev/null
-migrated_editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
-[[ $migrated_editor_env == $'nvim\nnvim\nnvim' ]] || fail "Neovim editor migration"
-grep -Fqx '"$OMARCHY_PATH/qv/config/refresh" hypr/qv/bindings.conf' "$root/qv/migrations/1784904379.sh" || fail "qvOS binding refresh migration"
-grep -Fqx '"$OMARCHY_PATH/qv/config/refresh" hypr/qv/bindings.conf' "$root/qv/migrations/1784906399.sh" || fail "Chromium dev browser migration"
-grep -Fqx '"$OMARCHY_PATH/qv/config/refresh" hypr/qv/bindings.conf' "$root/qv/migrations/1784991051.sh" || fail "prompted website binding migration"
-
-printf '%s\n' \
-  'export EDITOR=helix' \
-  'export VISUAL=helix' \
-  'export SUDO_EDITOR=helix' \
-  >"$migration_home/.config/uwsm/default"
-QVOS_TEST_CODE_MISSING=1 QVOS_TEST_PACKAGE_LOG="$package_log" HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784657678.sh" >/dev/null
-HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" bash -c 'source "$1"' _ "$root/migrations/1784904379.sh" >/dev/null
-migrated_custom_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$migration_home/.config/uwsm/default")
-[[ $migrated_custom_env == $'helix\nhelix\nhelix' ]] || fail "custom editor migration"
-[[ $(<"$package_log") == "code" ]] || fail "existing Code OSS package migration"
-pass "existing qvOS editor defaults migrate to Neovim while custom choices stay intact"
-
 install -d "$test_root/.config/omarchy/themes/yaqyn"
 printf 'personal theme\n' >"$test_root/.config/omarchy/themes/yaqyn/personal-marker"
 HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/theme/install" >/dev/null
@@ -498,26 +430,6 @@ if [[ -e $root/qv/theme/yaqyn/unlock.png || -e $root/qv/theme/yaqyn/preview-unlo
   fail "theme-specific unlock variant"
 fi
 pass "the unlock catalog has no bundled variants"
-
-style_log="$test_root/style.log"
-install -d \
-  "$migration_home/.config/omarchy/themes/qvos" \
-  "$migration_home/.config/omarchy/themes/personal"
-ln -s "$root/themes/orion" "$migration_home/.config/omarchy/themes/orion"
-QVOS_TEST_STYLE_LOG="$style_log" HOME="$migration_home" OMARCHY_PATH="$root" PATH="$test_bin:$root/bin:/usr/bin" \
-  bash -c 'source "$1"' _ "$root/migrations/1784659873.sh" >/dev/null
-[[ ! -e $migration_home/.config/omarchy/themes/orion ]] || fail "legacy Orion cleanup"
-[[ -d $migration_home/.config/omarchy/themes/qvos ]] || fail "personal legacy-named theme preservation"
-[[ -d $migration_home/.config/omarchy/themes/personal ]] || fail "personal theme preservation"
-for provider in omarchy_themes.lua omarchy_unlocks.lua; do
-  runtime_provider="$migration_home/.local/share/qvos/launcher/elephant/$provider"
-  cmp -s "$root/qv/launcher/elephant/$provider" "$runtime_provider" ||
-    fail "$provider runtime refresh"
-  [[ $(readlink "$migration_home/.config/elephant/menus/$provider") == "$runtime_provider" ]] ||
-    fail "$provider runtime link refresh"
-done
-[[ $(<"$style_log") == $'theme Yaqyn\nrestart Walker\nunlock Yaqyn' ]] || fail "Yaqyn migration actions"
-pass "existing qvOS themes migrate to Yaqyn without deleting personal themes"
 
 vsix="$root/qv/theme/yaqyn/vscode/extension/yaqyn-theme-0.1.0.vsix"
 vsix_manifest=$(unzip -p "$vsix" extension/package.json)

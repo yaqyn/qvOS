@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 guard="$root/bin/omarchy-system-suspend-if-safe"
 inhibitor="$root/bin/omarchy-system-inhibit-sleep"
-migration="$root/migrations/1785034010.sh"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 command_log="$test_root/commands"
@@ -183,33 +182,3 @@ grep -Fq -- '--why=Codex\ session\ is\ active' "$command_log" ||
 grep -Fq -- '--mode=block-weak' "$command_log" ||
   fail "sleep inhibitor override mode"
 pass "development commands block automatic sleep while allowing deliberate suspend"
-
-: >"$command_log"
-QVOS_TEST_COMMAND_LOG="$command_log" \
-  OMARCHY_PATH="$root" \
-  HOME="$test_root" \
-  PATH="$test_bin:/usr/bin" \
-bash "$migration" >/dev/null
-grep -Fqx 'restart-hypridle' "$command_log" ||
-  fail "idle migration refresh"
-pass "existing installations receive the guarded idle policy"
-
-failed_install_root="$test_root/failed-install"
-install -d "$failed_install_root/qv/install" "$failed_install_root/qv/migrations"
-install -m 0644 "$root/qv/migrations/1785034010.sh" \
-  "$failed_install_root/qv/migrations/1785034010.sh"
-install -m 0644 /dev/stdin "$failed_install_root/qv/install/desktop" <<'SCRIPT'
-return 1
-SCRIPT
-: >"$command_log"
-if QVOS_TEST_COMMAND_LOG="$command_log" \
-  OMARCHY_PATH="$failed_install_root" \
-  HOME="$test_root" \
-  PATH="$test_bin:/usr/bin" \
-  bash -c 'source "$1"' _ "$migration" >/dev/null 2>&1; then
-  fail "failed payload install accepted"
-fi
-if grep -Fq 'restart-hypridle' "$command_log"; then
-  fail "failed payload install refreshed idle config"
-fi
-pass "migration failure cannot apply a partial idle policy"

@@ -6,7 +6,6 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/codex"
-legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_codex_source="$component_dir/../thunar/codex"
 thunar_codex_runtime="$HOME/.local/share/qvos/thunar/codex"
@@ -105,12 +104,11 @@ install_integration() {
     "*" \
     directories
   install -D -m 0644 /dev/null "$state_file"
-  rm -f "$legacy_hook_target"
 }
 
 disable_integration() {
   qvos_thunar_remove_action "qvos-codex-here"
-  rm -f "$state_file" "$legacy_hook_target" "$thunar_codex_runtime"
+  rm -f "$state_file" "$thunar_codex_runtime"
   echo "qvCORE Codex desktop integration is disabled; Codex and personal data were not changed."
 }
 

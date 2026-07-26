@@ -60,23 +60,6 @@
     fi
   done
 
-  # Remove payloads from retired standalone qvOS installers and desktop apps.
-  rm -rf -- \
-    "$HOME/.local/share/qvos/branding" \
-    "$HOME/.local/share/qvos/domains" \
-    "$HOME/.local/share/qvos/hyprland" \
-    "$HOME/.local/share/qvos/source" \
-    "$HOME/.local/share/qvos/tui"
-  rm -f -- \
-    "$HOME/.local/share/qvos/README.md" \
-    "$HOME/.local/share/qvos/VERSION" \
-    "$HOME/.local/share/qvos/bin/omarchy-qvos-doctor" \
-    "$HOME/.local/share/qvos/bin/omarchy-qvos-reconcile" \
-    "$HOME/.local/share/qvos/bin/omarchy-qvos-update" \
-    "$HOME/.local/share/qvos/bin/qvos-show-logo" \
-    "$HOME/.local/share/qvos/home-dev" \
-    "$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
-
   for feature in desktop tmux waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     feature_runtime="$HOME/.local/share/qvos/$feature"

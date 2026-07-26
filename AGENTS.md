@@ -135,10 +135,10 @@ fi
 
 # qvOS Additions
 
-Everything above this separator is the verbatim upstream Omarchy `AGENTS.md`
-from <https://github.com/basecamp/omarchy/blob/master/AGENTS.md>. Never edit
-that block for qvOS-only work. During `qvsync`, update it only from upstream and
-keep all qvOS policy below this separator.
+The opening policy block is the verbatim upstream Omarchy `AGENTS.md` from
+<https://github.com/basecamp/omarchy/blob/master/AGENTS.md>. Never edit that
+block for qvOS-only work. During `qvsync`, update it only from upstream and keep
+all qvOS policy below this separator.
 
 ## qvCORE
 
@@ -203,6 +203,23 @@ repetitive.
 - Keep `~/.local/share/omarchy` a clean Git checkout. Deploy runtime content
   through installers/migrations to owned runtime, config, or system paths;
   untracked collisions there can block `omarchy update`.
+
+## ISO Builder
+
+`qv/tui/bin/qvos-build` owns qvOS image construction.
+
+- Use official `omacom-io/omarchy-iso` `main` as the default upstream builder
+  and stage it fresh for normal builds. `git qvsync` updates the Omarchy source
+  tree; it does not sync this separate repository.
+- Stage the selected qvOS Git ref separately and apply
+  `qv/iso/omarchy-iso-qvos-tui.patch` only to the temporary builder. Keep ISO
+  integration under `qv/iso/` and never persist qvOS edits in upstream source.
+- If an upstream builder change breaks the patch or a relied-on contract, stop
+  and update the qvOS owner and tests; do not weaken the guard or patch cached
+  upstream output directly.
+- For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
+  build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
+  source, and keep optional qvCORE applications out unless explicitly promoted.
 
 ## Keybindings
 
