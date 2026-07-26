@@ -60,7 +60,7 @@ var sections = []section{
 		items: []item{
 			{"00", "APPLY", "Install qvOS"},
 			{"01", "UPDATE", "Sync qvOS"},
-			{"02", "RESET", "Reset to Omarchy"},
+			{"02", "REPAIR", "Repair qvOS"},
 			{"03", "BUILD", "Build qvOS ISO"},
 		},
 	},
@@ -170,7 +170,7 @@ type actionMode int
 
 const (
 	actionBuild actionMode = iota
-	actionReset
+	actionRepair
 	actionApply
 	actionUpdate
 )
@@ -205,7 +205,7 @@ type model struct {
 }
 
 func isRootAction(action actionMode) bool {
-	return action == actionApply || action == actionReset || action == actionUpdate
+	return action == actionApply || action == actionRepair || action == actionUpdate
 }
 
 func isScriptAction(action actionMode) bool {
@@ -500,7 +500,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.startRootAction(actionUpdate)
 			}
 			if m.tab == 0 && m.cursor == 2 {
-				return m.startRootAction(actionReset)
+				return m.startRootAction(actionRepair)
 			}
 			if m.tab == 0 && m.cursor == 3 {
 				return m.startBuildAction()
@@ -846,7 +846,7 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 		return m.startRootAction(actionUpdate)
 	}
 	if m.tab == 0 && m.cursor == 2 {
-		return m.startRootAction(actionReset)
+		return m.startRootAction(actionRepair)
 	}
 	if m.tab == 0 && m.cursor == 3 {
 		return m.startBuildAction()
@@ -1300,8 +1300,8 @@ func scriptProgressFromLine(action actionMode, line string) (string, float64) {
 		return buildProgressFromLine(clean)
 	case actionApply:
 		return domainProgressFromLine(clean, "qvOS install:", installDomainOrder)
-	case actionReset:
-		return domainProgressFromLine(clean, "qvOS reset:", revertDomainOrder)
+	case actionRepair:
+		return domainProgressFromLine(clean, "qvOS repair:", repairDomainOrder)
 	case actionUpdate:
 		return domainProgressFromLine(clean, "qvOS update:", installDomainOrder)
 	default:
@@ -1419,8 +1419,8 @@ var installDomainOrder = []string{
 	"Runtime", "Defaults", "Icons", "Hyprland", "Theme", "Branding", "SDDM", "Fastfetch", "Screensaver", "GTK", "Waybar", "Tmux",
 }
 
-var revertDomainOrder = []string{
-	"Tmux", "Waybar", "GTK", "Screensaver", "Fastfetch", "SDDM", "Branding", "Theme", "Hyprland", "Icons", "Defaults", "Retired domains", "Runtime",
+var repairDomainOrder = []string{
+	"Source", "Packages", "Runtime", "Config", "qvCORE", "Complete",
 }
 
 func domainProgressFromLine(line string, prefix string, order []string) (string, float64) {
@@ -1881,8 +1881,8 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 
 func rootActionName(action actionMode) string {
 	switch action {
-	case actionReset:
-		return "RESET"
+	case actionRepair:
+		return "REPAIR"
 	case actionApply:
 		return "APPLY"
 	case actionUpdate:
@@ -1896,8 +1896,8 @@ func rootActionPastTense(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "BUILT"
-	case actionReset:
-		return "RESET"
+	case actionRepair:
+		return "REPAIRED"
 	case actionApply:
 		return "APPLIED"
 	case actionUpdate:
@@ -1911,8 +1911,8 @@ func rootActionActiveTitle(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "BUILDING"
-	case actionReset:
-		return "RESETTING"
+	case actionRepair:
+		return "REPAIRING"
 	case actionApply:
 		return "APPLYING"
 	case actionUpdate:
@@ -1926,8 +1926,8 @@ func rootActionRunningStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "ISO build running in background"
-	case actionReset:
-		return "reset running in background"
+	case actionRepair:
+		return "repair running in background"
 	case actionApply:
 		return "installer running in background"
 	case actionUpdate:
@@ -1941,8 +1941,8 @@ func rootActionCompleteStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "ISO build complete"
-	case actionReset:
-		return "fresh reset complete"
+	case actionRepair:
+		return "repair complete"
 	case actionApply:
 		return "install complete"
 	case actionUpdate:
@@ -2602,8 +2602,8 @@ func rootScriptSpec(action actionMode) (scriptName string, envName string, err e
 	switch action {
 	case actionBuild:
 		return "bin/qvos-build", "QVOS_BUILD_SCRIPT", nil
-	case actionReset:
-		return "bin/qvos-reset", "QVOS_REVERT_SCRIPT", nil
+	case actionRepair:
+		return "bin/qvos-repair", "QVOS_REPAIR_SCRIPT", nil
 	case actionApply:
 		return "bin/qvos-apply", "QVOS_INSTALL_SCRIPT", nil
 	case actionUpdate:
@@ -2639,8 +2639,8 @@ func qvosRootLogPath(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return qvosBuildLogPath()
-	case actionReset:
-		return qvosRevertLogPath()
+	case actionRepair:
+		return qvosRepairLogPath()
 	case actionApply:
 		return qvosInstallLogPath()
 	case actionUpdate:
@@ -2671,8 +2671,8 @@ func qvosInstallLogPath() string {
 	return qvosStateLogPath("install", "root-install.log")
 }
 
-func qvosRevertLogPath() string {
-	return qvosStateLogPath("revert", "root-revert.log")
+func qvosRepairLogPath() string {
+	return qvosStateLogPath("repair", "root-repair.log")
 }
 
 func qvosUpdateLogPath() string {

@@ -1,4 +1,5 @@
 #!/bin/bash
+# qvcore:lifecycle=1
 set -Eeuo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -108,7 +109,7 @@ report_failure() {
 trap report_failure ERR
 
 usage() {
-  echo "Usage: dev.sh [--update]" >&2
+  echo "Usage: dev.sh [--status|--repair|--adopt|--disable|--update]" >&2
 }
 
 require_command() {
@@ -778,6 +779,35 @@ fi
 
 case ${1:-} in
 "")
+  ;;
+--status)
+  [[ -f $state_file && -f $hook_target ]] &&
+    cmp -s "$hook_source" "$hook_target"
+  exit
+  ;;
+--repair)
+  if [[ ! -f $state_file ]]; then
+    echo "qvCORE Devel maintenance is not enabled; nothing was repaired."
+    exit 0
+  fi
+  install_update_hook
+  echo "qvCORE Devel maintenance is repaired; installed tools were preserved."
+  exit
+  ;;
+--adopt)
+  if omarchy-cmd-missing bun && omarchy-cmd-missing node; then
+    echo "No existing qvCORE Devel runtime was found to adopt." >&2
+    exit 1
+  fi
+  install_update_hook
+  install -D -m 0644 /dev/null "$state_file"
+  echo "qvCORE Devel maintenance adopted the installed development tools."
+  exit
+  ;;
+--disable)
+  rm -f "$state_file" "$hook_target"
+  echo "qvCORE Devel maintenance is disabled; installed tools remain available."
+  exit
   ;;
 --update)
   update_only=1

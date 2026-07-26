@@ -8,6 +8,7 @@ test_bin="$test_root/bin"
 fixture="$test_root/omarchy"
 state="$test_root/state"
 repair_log="$test_root/repair.log"
+lifecycle_log="$test_root/lifecycle.log"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -32,13 +33,31 @@ install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/state/qvos/qvcore"
 
-for component in share codex proton; do
+for component in share dev codex proton; do
   install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
 #!/bin/bash
-[[ ${1:-} == "--status" ]] || exit 2
-[[ -f $QVOS_TEST_HEALTH_STATE/ready-$(basename "$0" .sh) ]]
+component=$(basename "$0" .sh)
+state_file="$HOME/.local/state/qvos/qvcore/$component"
+case ${1:-} in
+--status)
+  [[ -f $state_file && -f $QVOS_TEST_HEALTH_STATE/ready-$component ]]
+  ;;
+--repair)
+  printf 'repair\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
+  [[ -f $state_file ]]
+  ;;
+--disable)
+  printf 'disable\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
+  rm -f "$state_file"
+  ;;
+*)
+  exit 2
+  ;;
+esac
 SCRIPT
   install -m 0644 /dev/null "$state/ready-$component"
+  install -m 0644 /dev/null \
+    "$test_root/.local/state/qvos/qvcore/$component"
 done
 
 install -m 0755 /dev/stdin "$fixture/qv/core/media.sh" <<'SCRIPT'
@@ -78,8 +97,11 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
-[[ ${1:-} == "choose" ]] || exit 1
-printf '%s\n' "${QVOS_TEST_HEALTH_CHOICE:-share}"
+case ${1:-} in
+choose) printf '%s\n' "${QVOS_TEST_HEALTH_CHOICE:-share}" ;;
+confirm) exit 0 ;;
+*) exit 1 ;;
+esac
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-install-qvcore" <<'SCRIPT'
@@ -111,6 +133,7 @@ printf '%s\n' 'bindd = SUPER CTRL, grave, Steam, exec, steam' \
 
 run_health() {
   QVOS_TEST_HEALTH_CHOICE="${QVOS_TEST_HEALTH_CHOICE:-share}" \
+    QVOS_TEST_HEALTH_LIFECYCLE_LOG="$lifecycle_log" \
     QVOS_TEST_HEALTH_REPAIR_LOG="$repair_log" \
     QVOS_TEST_HEALTH_STATE="$state" \
     HOME="$test_root" \
@@ -120,7 +143,7 @@ run_health() {
 }
 
 ready_output=$(run_health status)
-grep -Fq 'Ready: 8  Partial: 0  Missing: 0' <<<"$ready_output" ||
+grep -Fq 'Ready: 8  Partial: 0  Disabled: 0  Missing: 0' <<<"$ready_output" ||
   fail "all-ready qvCORE health summary"
 pass "qvCORE health reports every complete component"
 
@@ -132,18 +155,55 @@ rm -f \
 printf '6\n' >"$state/media-count"
 
 drift_output=$(run_health status)
-grep -Fq 'Ready: 5  Partial: 2  Missing: 1' <<<"$drift_output" ||
+grep -Fq 'Ready: 5  Partial: 3  Disabled: 0  Missing: 0' <<<"$drift_output" ||
   fail "mixed qvCORE health summary"
 grep -Fq 'Share          partial' <<<"$drift_output" ||
   fail "Share drift status"
-grep -Fq 'Codex          missing' <<<"$drift_output" ||
-  fail "Codex missing status"
+grep -Fq 'Codex          partial' <<<"$drift_output" ||
+  fail "Codex enabled drift status"
 pass "qvCORE health distinguishes missing components from integration drift"
+
+rm -f "$test_root/.local/state/qvos/qvcore/share"
+disabled_output=$(run_health status)
+grep -Fq 'Share          disabled' <<<"$disabled_output" ||
+  fail "Share disabled status"
+grep -Fq 'Ready: 5  Partial: 2  Disabled: 1  Missing: 0' <<<"$disabled_output" ||
+  fail "disabled qvCORE health summary"
+pass "qvCORE health distinguishes intentional disablement from drift"
+
+for state_path in \
+  "$test_root/.local/state/qvos/qvcore/share" \
+  "$state/ready-share" \
+  "$state/ready-codex" \
+  "$state/warp-registered" \
+  "$state/commands/codex"; do
+  install -m 0644 /dev/null "$state_path"
+done
 
 QVOS_TEST_HEALTH_CHOICE=share run_health repair >/dev/null
 [[ $(<"$repair_log") == "share" ]] ||
   fail "qvCORE repair delegates to the existing component route"
 pass "qvCORE repair reuses the independently rerunnable installer"
+
+: >"$lifecycle_log"
+run_health repair-enabled >/dev/null
+[[ $(grep -c '^repair' "$lifecycle_log") == "4" ]] ||
+  fail "enabled qvCORE repair count"
+for component in share dev codex proton; do
+  grep -Fqx $'repair\t'"$component" "$lifecycle_log" ||
+    fail "$component enabled repair"
+done
+pass "qvCORE repairs only lifecycle-enabled integrations"
+
+: >"$lifecycle_log"
+QVOS_TEST_HEALTH_CHOICE=all run_health disable >/dev/null
+[[ $(grep -c '^disable' "$lifecycle_log") == "4" ]] ||
+  fail "qvCORE disable-all count"
+for component in share dev codex proton; do
+  [[ ! -e $test_root/.local/state/qvos/qvcore/$component ]] ||
+    fail "$component enabled state remains"
+done
+pass "qvCORE disables every integration while preserving installed components"
 
 if run_health unknown >/dev/null 2>&1; then
   fail "unknown qvCORE health mode succeeds"

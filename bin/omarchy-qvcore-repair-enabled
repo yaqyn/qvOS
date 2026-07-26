@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Repair only enabled qvCORE integrations
+# omarchy:group=qvcore
+# omarchy:name=repair-enabled
+# omarchy:hidden=true
+# omarchy:requires-sudo=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/core/health.sh" repair-enabled

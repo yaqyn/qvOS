@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Repair the qvOS base without replacing source or personal configuration
+# omarchy:args=[--restore-config] [--yes]
+# omarchy:group=qvos
+# omarchy:name=repair
+# omarchy:requires-sudo=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/maintenance/qvos-repair" "$@"

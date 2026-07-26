@@ -525,6 +525,30 @@ grep -Fq 'bun add convex' "$install_output" ||
   fail "project-local Convex guidance"
 pass "qvCORE keeps Wrangler and Convex project-pinned"
 
+run_dev --status
+printf 'stale hook\n' >"$installed_hook"
+repair_output=$(run_dev --repair)
+cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
+  fail "Devel lifecycle repair"
+grep -Fq 'installed tools were preserved' <<<"$repair_output" ||
+  fail "Devel repair preservation result"
+
+disable_output=$(run_dev --disable)
+[[ ! -e $state_file && ! -e $installed_hook ]] ||
+  fail "Devel lifecycle disable"
+[[ -x $test_home/.local/bin/supabase ]] ||
+  fail "Devel disable removed an installed tool"
+grep -Fq 'installed tools remain available' <<<"$disable_output" ||
+  fail "Devel disable preservation result"
+run_dev --repair >/dev/null
+adopt_output=$(run_dev --adopt)
+[[ -f $state_file ]] || fail "Devel lifecycle adoption state"
+cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
+  fail "Devel lifecycle adoption hook"
+grep -Fq 'adopted the installed development tools' <<<"$adopt_output" ||
+  fail "Devel adoption result"
+pass "qvCORE Devel lifecycle preserves installed tools"
+
 : >"$action_log"
 : >"$network_log"
 : >"$timeout_log"

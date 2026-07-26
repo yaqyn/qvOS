@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -euo pipefail
+
+command_name="${1:-This upstream maintenance command}"
+
+cat >&2 <<EOF
+Blocked on qvOS: $command_name
+
+This upstream Omarchy workflow is incompatible with qvOS ownership and could
+replace qvOS source, packages, configs, or bindings.
+
+Use "omarchy qvos repair" for the base, "omarchy qvcore repair" for optional
+integrations, or "omarchy qvos cleanup inherited" for reviewed legacy packages.
+EOF
+
+exit 1

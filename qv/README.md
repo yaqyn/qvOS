@@ -12,6 +12,7 @@ qv/
   desktop/     Shared context, web, and Hyprland desktop helpers.
   git/         Private git helper source and installers.
   iso/         ISO integration patches.
+  maintenance/ qvOS base repair, inherited-extra review, and upstream guards.
   screensaver/ Screensaver launchers and terminal profile.
   thunar/      Thunar feature entry points.
   tmux/        Persistent tmux session manager.
@@ -23,6 +24,23 @@ qvCORE components marked `# qvcore:lifecycle=1` own four local operations:
 `--status`, `--repair`, `--adopt`, and `--disable`. Their post-update hooks run
 only when the deployed component exposes that marker, so a source update and a
 user integration cannot silently cross versions.
+
+## Product lifecycle
+
+qvOS has one supported base: a curated, unbloated Omarchy system. qvCORE adds
+optional applications and integrations without changing base ownership.
+
+- `omarchy qvos repair` restores missing base packages, qvOS runtime payloads,
+  missing qvOS config, and enabled qvCORE integrations. Customized qvOS config
+  is preserved unless `--restore-config` is explicitly requested.
+- `omarchy qvcore disable` removes only enabled qvOS-owned integration and
+  maintenance state. Installed applications, authentication, network choices,
+  and personal data remain.
+- `omarchy qvos cleanup inherited` previews a reviewed legacy package catalog.
+  Applying cleanup still requires explicit package selection and confirmation.
+
+Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
+separate documented installation rather than a source, branch, or config reset.
 
 `qv/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs only the default Thunar helpers; optional Share,

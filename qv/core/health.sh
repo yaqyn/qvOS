@@ -8,6 +8,7 @@ component_dir="$OMARCHY_PATH/qv/core"
 mode="${1:-status}"
 ready_count=0
 partial_count=0
+disabled_count=0
 missing_count=0
 
 components=(
@@ -19,6 +20,12 @@ components=(
   proton
   steam
   media
+)
+lifecycle_components=(
+  share
+  dev
+  codex
+  proton
 )
 
 declare -A component_names=(
@@ -68,6 +75,7 @@ set_component_state() {
   case $state in
   ready) ready_count=$((ready_count + 1)) ;;
   partial) partial_count=$((partial_count + 1)) ;;
+  disabled) disabled_count=$((disabled_count + 1)) ;;
   missing) missing_count=$((missing_count + 1)) ;;
   esac
 }
@@ -96,11 +104,14 @@ inspect_owned_component() {
   local component=$1
   local required_command=$2
   local script="$component_dir/$component.sh"
+  local state_file="$HOME/.local/state/qvos/qvcore/$component"
 
   if "$script" --status >/dev/null 2>&1; then
     set_component_state "$component" ready "complete integration"
+  elif [[ -f $state_file ]]; then
+    set_component_state "$component" partial "enabled with integration drift"
   elif command_present "$required_command"; then
-    set_component_state "$component" partial "installed with integration drift"
+    set_component_state "$component" disabled "installed; integration disabled"
   else
     set_component_state "$component" missing "not installed"
   fi
@@ -108,13 +119,13 @@ inspect_owned_component() {
 
 inspect_dev() {
   local state_file="$HOME/.local/state/qvos/qvcore/dev"
-  local hook="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
-  local source="$component_dir/dev/post-update.sh"
 
-  if [[ -f $state_file && -f $hook ]] && cmp -s "$source" "$hook"; then
+  if "$component_dir/dev.sh" --status >/dev/null 2>&1; then
     set_component_state dev ready "enabled with post-update refresh"
-  elif [[ -f $state_file ]] || command_present bun || command_present node; then
-    set_component_state dev partial "installed with unverified or stale maintenance"
+  elif [[ -f $state_file ]]; then
+    set_component_state dev partial "enabled with stale maintenance"
+  elif command_present bun || command_present node; then
+    set_component_state dev disabled "tools installed; maintenance disabled"
   else
     set_component_state dev missing "not installed"
   fi
@@ -153,6 +164,13 @@ inspect_media() {
 }
 
 inspect_all() {
+  ready_count=0
+  partial_count=0
+  disabled_count=0
+  missing_count=0
+  component_state=()
+  component_detail=()
+
   inspect_warp
   inspect_brave
   inspect_owned_component share localsend
@@ -161,10 +179,12 @@ inspect_all() {
 
   if "$component_dir/proton.sh" --status >/dev/null 2>&1; then
     set_component_state proton ready "complete local integration"
+  elif [[ -f $HOME/.local/state/qvos/qvcore/proton ]]; then
+    set_component_state proton partial "enabled with integration drift"
   elif command_present proton-drive ||
     command_present pass-cli ||
     command_present protonmail-bridge-core; then
-    set_component_state proton partial "installed with integration or authentication drift"
+    set_component_state proton disabled "services installed; desktop integration disabled"
   else
     set_component_state proton missing "not installed"
   fi
@@ -188,7 +208,7 @@ print_status() {
       "${component_detail[$component]}"
   done
   echo ""
-  echo "Ready: $ready_count  Partial: $partial_count  Missing: $missing_count"
+  echo "Ready: $ready_count  Partial: $partial_count  Disabled: $disabled_count  Missing: $missing_count"
 }
 
 repair_component() {
@@ -211,18 +231,100 @@ repair_component() {
   exec omarchy-install-qvcore "$selection"
 }
 
+repair_enabled_components() {
+  local component
+  local repaired_count=0
+  local repair_failed=0
+
+  for component in "${lifecycle_components[@]}"; do
+    if [[ ! -f $HOME/.local/state/qvos/qvcore/$component ]]; then
+      continue
+    fi
+
+    echo "Repairing qvCORE ${component_names[$component]} integration..."
+    if "$component_dir/$component.sh" --repair; then
+      repaired_count=$((repaired_count + 1))
+    else
+      repair_failed=1
+    fi
+  done
+
+  if ((repaired_count == 0 && repair_failed == 0)); then
+    echo "No enabled qvCORE integrations need repair."
+  fi
+
+  ((repair_failed == 0))
+}
+
+disable_integrations() {
+  local options=()
+  local enabled_components=()
+  local component
+  local selection
+
+  for component in "${lifecycle_components[@]}"; do
+    if [[ -f $HOME/.local/state/qvos/qvcore/$component ]]; then
+      enabled_components+=("$component")
+      options+=(
+        "${component_icons[$component]}  ${component_names[$component]}:$component"
+      )
+    fi
+  done
+
+  if ((${#enabled_components[@]} == 0)); then
+    echo "No qvCORE integrations are enabled."
+    return
+  fi
+
+  options=("󰑐  All enabled integrations:all" "${options[@]}")
+  selection=$(gum choose \
+    --label-delimiter ":" \
+    --header "Disable integrations; installed applications and data stay" \
+    "${options[@]}") || return $?
+  [[ -n $selection ]] || return 130
+
+  if [[ $selection == "all" ]]; then
+    gum confirm \
+      "Disable all ${#enabled_components[@]} enabled qvCORE integration(s)?" ||
+      return 130
+  else
+    gum confirm "Disable the qvCORE ${component_names[$selection]} integration?" ||
+      return 130
+    enabled_components=("$selection")
+  fi
+
+  for component in "${enabled_components[@]}"; do
+    "$component_dir/$component.sh" --disable
+  done
+
+  echo ""
+  echo "Installed applications, authentication, network choices, and personal data were preserved."
+}
+
 # Entry point
 
 case $mode in
-status | repair) ;;
+status | repair | repair-enabled | disable) ;;
 *)
-  echo "Usage: health.sh [status|repair]" >&2
+  echo "Usage: health.sh [status|repair|repair-enabled|disable]" >&2
   exit 2
   ;;
 esac
 
 inspect_all
 print_status
-if [[ $mode == "repair" ]]; then
+case $mode in
+repair)
   repair_component
-fi
+  ;;
+repair-enabled)
+  repair_enabled_components
+  inspect_all
+  print_status
+  ;;
+disable)
+  disable_integrations
+  inspect_all
+  print_status
+  ;;
+esac

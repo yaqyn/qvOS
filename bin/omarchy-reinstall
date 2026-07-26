@@ -1,9 +1,19 @@
 #!/bin/bash
 
-# omarchy:summary=Reinstall Omarchy packages and reset default configs
+# omarchy:summary=Unavailable on qvOS: upstream source, package, and config reset
+# omarchy:hidden=true
 # omarchy:requires-sudo=true
 
 set -e
+
+qvos_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+qvos_guard="$qvos_root/qv/maintenance/qvos-block-upstream-maintenance"
+if [[ -d $qvos_root/qv && ! -x $qvos_guard ]]; then
+  echo "Blocked on qvOS: the maintenance safety guard is unavailable" >&2
+  exit 1
+elif [[ -x $qvos_guard ]]; then
+  exec "$qvos_guard" "omarchy reinstall"
+fi
 
 # Attempt to reinstall all default Omarchy packages and reset all the default configs.
 

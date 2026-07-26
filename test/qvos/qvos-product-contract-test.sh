@@ -108,7 +108,7 @@ pass "desktop keyring support stays complete"
 grep -Fq '󱅾  qvOS' "$root/bin/omarchy-menu" || fail "qvOS update menu icon"
 grep -Fq '*qvOS*) present_terminal omarchy-update ;;' "$root/bin/omarchy-menu" || fail "qvOS update menu route"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
-grep -Fq '"02", "RESET", "Reset to Omarchy"' "$root/qv/tui/main.go" || fail "upstream Omarchy reset identity"
+grep -Fq '"02", "REPAIR", "Repair qvOS"' "$root/qv/tui/main.go" || fail "qvOS repair identity"
 grep -Fq '"format": "󱅾"' "$root/config/waybar/qv/overrides.jsonc" || fail "qvOS Waybar noodle icon"
 if grep -Fq '' "$root/bin/omarchy-menu"; then
   fail "retired Omarchy menu glyph"

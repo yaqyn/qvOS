@@ -1,6 +1,16 @@
 #!/bin/bash
 
-# omarchy:summary=Remove preinstalled Omarchy applications (web apps, TUIs, and selected packages).
+# omarchy:summary=Unavailable on qvOS: upstream preinstall removal and binding reset
+# omarchy:hidden=true
+
+qvos_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+qvos_guard="$qvos_root/qv/maintenance/qvos-block-upstream-maintenance"
+if [[ -d $qvos_root/qv && ! -x $qvos_guard ]]; then
+  echo "Blocked on qvOS: the maintenance safety guard is unavailable" >&2
+  exit 1
+elif [[ -x $qvos_guard ]]; then
+  exec "$qvos_guard" "omarchy remove preinstalls"
+fi
 
 if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI wrappers, and desktop applications?"; then
   echo -e "Removing preinstalled Omarchy applications...\n"

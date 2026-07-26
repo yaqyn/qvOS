@@ -526,8 +526,9 @@ show_install_menu() {
 }
 
 show_install_qvcore_menu() {
-  case $(menu "qvCORE" "󰓅  Health / Repair\n  Install All\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media") in
+  case $(menu "qvCORE" "󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media") in
   *Health*) present_terminal omarchy-qvcore-repair ;;
+  *Disable*) present_terminal omarchy-qvcore-disable ;;
   *"Install All"*) present_terminal omarchy-install-qvcore ;;
   *Brave*) present_terminal "omarchy-install-qvcore brave-origin" ;;
   *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
@@ -687,8 +688,9 @@ show_install_elixir_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n󰏓  Preinstalls\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n󰘶  Inherited Extras\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
+  *Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;
   *Web*) present_terminal omarchy-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;
@@ -697,7 +699,6 @@ show_remove_menu() {
   *Dictation*) present_terminal omarchy-voxtype-remove ;;
   *Gaming*) show_remove_gaming_menu ;;
   *Windows*) present_terminal "omarchy-windows-vm remove" ;;
-  *Preinstalls*) present_terminal omarchy-remove-preinstalls ;;
   *Security*) show_remove_security_menu ;;
   *) show_main_menu ;;
   esac
@@ -784,9 +785,9 @@ show_remove_elixir_menu() {
 }
 
 show_update_menu() {
-  case $(menu "Update" "󱅾  qvOS\n󰔫  Channel\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  case $(menu "Update" "󱅾  qvOS\n󰑓  Repair qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  *Repair*) present_terminal omarchy-qvos-repair ;;
   *qvOS*) present_terminal omarchy-update ;;
-  *Channel*) show_update_channel_menu ;;
   *Config*) show_update_config_menu ;;
   *Themes*) present_terminal omarchy-theme-update ;;
   *Process*) show_update_process_menu ;;
@@ -799,15 +800,6 @@ show_update_menu() {
   esac
 }
 
-show_update_channel_menu() {
-  case $(menu "Update channel" "🟢 Stable\n🟡 RC\n🟠 Edge\n🔴 Dev") in
-  *Stable*) present_terminal "omarchy-channel-set stable" ;;
-  *RC*) present_terminal "omarchy-channel-set rc" ;;
-  *Edge*) present_terminal "omarchy-channel-set edge" ;;
-  *Dev*) present_terminal "omarchy-channel-set dev" ;;
-  *) show_update_menu ;;
-  esac
-}
 show_update_process_menu() {
   case $(menu "Restart" "  Hypridle\n  Hyprsunset\n󰎟  Mako\n  Swayosd\n󰌧  Walker\n󰍜  Waybar") in
   *Hypridle*) omarchy-restart-hypridle ;;
