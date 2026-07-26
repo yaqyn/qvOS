@@ -171,6 +171,8 @@ repetitive.
   the link completes a clear user task. Use thin adapters that safely pass
   context to the owner; keep the base usable when an optional dependency is
   absent, and omit surfaces with no user value.
+- Keep qvOS actions in their normal product menus and mirror their buttons in
+  `show_qvos_menu` for direct testing; both surfaces delegate to the same owner.
 - Trace linked work from owner through public command and adapters to installed
   config/payload, state or repair hook, permissions/services/network exposure,
   and focused tests. Verify fresh-install, migration/update, and live paths.
