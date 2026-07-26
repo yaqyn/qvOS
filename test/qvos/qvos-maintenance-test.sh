@@ -146,6 +146,7 @@ grep -Fq 'preserved 1 customized qvOS config file' <<<"$repair_output" ||
 for config_path in \
   hypr/qv/looknfeel.conf \
   hypr/qv/windows.conf \
+  omarchy/hooks/post-update.d/qvos-qvcore \
   omarchy/hooks/post-update.d/qvos-waybar-overrides \
   waybar/qv/overrides.jsonc; do
   cmp -s \

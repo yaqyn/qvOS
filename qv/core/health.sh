@@ -50,6 +50,15 @@ declare -A component_icons=(
 )
 declare -A component_state=()
 declare -A component_detail=()
+declare -A update_issue_detail=()
+declare -A update_issue_present=()
+
+legacy_hook_targets=(
+  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
+  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
+  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
+  "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
+)
 
 # Health inspection
 
@@ -106,8 +115,10 @@ inspect_owned_component() {
   local script="$component_dir/$component.sh"
   local state_file="$HOME/.local/state/qvos/qvcore/$component"
 
-  if "$script" --status >/dev/null 2>&1; then
+  if "$script" --integration-status >/dev/null 2>&1; then
     set_component_state "$component" ready "complete integration"
+  elif [[ -f $state_file ]] && ! command_present "$required_command"; then
+    set_component_state "$component" disabled "application removed; integration no longer expected"
   elif [[ -f $state_file ]]; then
     set_component_state "$component" partial "enabled with integration drift"
   elif command_present "$required_command"; then
@@ -120,10 +131,10 @@ inspect_owned_component() {
 inspect_dev() {
   local state_file="$HOME/.local/state/qvos/qvcore/dev"
 
-  if "$component_dir/dev.sh" --status >/dev/null 2>&1; then
-    set_component_state dev ready "enabled with post-update refresh"
+  if "$component_dir/dev.sh" --integration-status >/dev/null 2>&1; then
+    set_component_state dev ready "enabled for installed-tool refresh"
   elif [[ -f $state_file ]]; then
-    set_component_state dev partial "enabled with stale maintenance"
+    set_component_state dev partial "enabled with unavailable lifecycle owner"
   elif command_present bun || command_present node; then
     set_component_state dev disabled "tools installed; maintenance disabled"
   else
@@ -177,8 +188,11 @@ inspect_all() {
   inspect_dev
   inspect_owned_component codex codex
 
-  if "$component_dir/proton.sh" --status >/dev/null 2>&1; then
+  if "$component_dir/proton.sh" --integration-status >/dev/null 2>&1; then
     set_component_state proton ready "complete local integration"
+  elif [[ -f $HOME/.local/state/qvos/qvcore/proton ]] &&
+    ! command_present proton-drive; then
+    set_component_state proton disabled "Drive removed; desktop integration no longer expected"
   elif [[ -f $HOME/.local/state/qvos/qvcore/proton ]]; then
     set_component_state proton partial "enabled with integration drift"
   elif command_present proton-drive ||
@@ -301,15 +315,195 @@ disable_integrations() {
   echo "Installed applications, authentication, network choices, and personal data were preserved."
 }
 
+# Quiet update maintenance
+
+component_application_present() {
+  local component=$1
+  local command
+
+  case $component in
+  share)
+    command_present localsend
+    ;;
+  dev)
+    for command in \
+      node \
+      bun \
+      mkcert \
+      hurl \
+      hurlfmt \
+      supabase \
+      infisical \
+      cloudflared \
+      sentry-cli \
+      act \
+      sops \
+      age \
+      age-keygen \
+      gitleaks \
+      osv-scanner \
+      semgrep; do
+      if command_present "$command"; then
+        return 0
+      fi
+    done
+    return 1
+    ;;
+  codex)
+    command_present codex
+    ;;
+  proton)
+    command_present proton-drive
+    ;;
+  esac
+}
+
+remove_legacy_component_hooks() {
+  local hook
+
+  for hook in "${legacy_hook_targets[@]}"; do
+    rm -f "$hook"
+  done
+}
+
+add_update_issue() {
+  local component=$1
+  local detail=$2
+
+  [[ -z ${update_issue_present[$component]:-} ]] || return
+  update_issues+=("$component")
+  update_issue_present[$component]=1
+  update_issue_detail[$component]=$detail
+}
+
+retire_removed_components() {
+  local component
+  local output
+
+  for component in "${lifecycle_components[@]}"; do
+    [[ -f $HOME/.local/state/qvos/qvcore/$component ]] || continue
+    component_application_present "$component" && continue
+
+    if output=$("$component_dir/$component.sh" --disable 2>&1); then
+      :
+    else
+      add_update_issue \
+        "$component" \
+        "removed application cleanup did not finish"
+    fi
+  done
+}
+
+inspect_enabled_for_update() {
+  local component
+  local output
+
+  for component in "${lifecycle_components[@]}"; do
+    [[ -f $HOME/.local/state/qvos/qvcore/$component ]] || continue
+
+    if [[ $component == "dev" ]]; then
+      if ! output=$("$component_dir/$component.sh" --update 2>&1); then
+        add_update_issue "$component" "installed-tool refresh did not finish"
+      fi
+    elif ! output=$(
+      "$component_dir/$component.sh" --integration-status 2>&1
+    ); then
+      add_update_issue "$component" "enabled integration drift"
+    fi
+  done
+}
+
+print_update_issues() {
+  local component
+
+  echo ""
+  echo "qvCORE needs attention:"
+  for component in "${update_issues[@]}"; do
+    printf '  %s — %s\n' \
+      "${component_names[$component]}" \
+      "${update_issue_detail[$component]}"
+  done
+}
+
+repair_update_issues() {
+  local component
+  local output
+  local repair_action
+
+  remaining_issues=()
+  for component in "${update_issues[@]}"; do
+    if [[ $component == "dev" ]]; then
+      repair_action="--update"
+    else
+      repair_action="--repair"
+    fi
+
+    if output=$("$component_dir/$component.sh" "$repair_action" 2>&1); then
+      if [[ ! -f $HOME/.local/state/qvos/qvcore/$component ]] ||
+        "$component_dir/$component.sh" --integration-status >/dev/null 2>&1; then
+        continue
+      fi
+      output="The repair command completed, but integration drift remains."
+    fi
+
+    remaining_issues+=("$component")
+    echo ""
+    echo "qvCORE ${component_names[$component]} repair did not finish:"
+    if [[ -n $output ]]; then
+      while IFS= read -r line; do
+        printf '  %s\n' "$line"
+      done <<<"$output"
+    fi
+  done
+}
+
+update_enabled_components() {
+  local issue_label="issues"
+
+  update_issues=()
+  remaining_issues=()
+  update_issue_present=()
+  remove_legacy_component_hooks
+  retire_removed_components
+
+  inspect_enabled_for_update
+  if ((${#update_issues[@]} == 0)); then
+    echo ""
+    echo "qvCORE is ready."
+    return
+  fi
+
+  print_update_issues
+  echo ""
+  ((${#update_issues[@]} == 1)) && issue_label="issue"
+  if gum confirm "Repair ${#update_issues[@]} qvCORE integration $issue_label now?"; then
+    repair_update_issues
+    if ((${#remaining_issues[@]} == 0)); then
+      echo ""
+      echo "qvCORE is ready."
+    else
+      echo ""
+      echo "qvCORE still needs attention. Run \"omarchy qvcore repair\" later."
+    fi
+  else
+    echo "qvCORE repair skipped. Run \"omarchy qvcore repair\" later."
+  fi
+}
+
 # Entry point
 
 case $mode in
-status | repair | repair-enabled | disable) ;;
+status | repair | repair-enabled | disable | update) ;;
 *)
-  echo "Usage: health.sh [status|repair|repair-enabled|disable]" >&2
+  echo "Usage: health.sh [status|repair|repair-enabled|disable|update]" >&2
   exit 2
   ;;
 esac
+
+if [[ $mode == "update" ]]; then
+  update_enabled_components
+  exit
+fi
 
 inspect_all
 print_status

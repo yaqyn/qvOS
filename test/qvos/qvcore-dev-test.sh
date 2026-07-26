@@ -12,6 +12,7 @@ network_log="$test_root/network"
 timeout_log="$test_root/timeouts"
 mise_state="$test_root/mise-state"
 install_output="$test_root/install-output"
+legacy_hook="$test_home/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf -- "$test_root"
@@ -129,11 +130,9 @@ create_binary_release() {
   write_release_metadata "$repository" "$tag" "$asset"
 }
 
-install -d "$test_bin" "$test_home" "$test_omarchy_path/qv/core/dev"
+install -d "$test_bin" "$test_home" "$test_omarchy_path/qv/core"
 install -m 0755 "$root/qv/core/dev.sh" "$test_omarchy_path/qv/core/dev.sh"
-install -m 0644 \
-  "$root/qv/core/dev/post-update.sh" \
-  "$test_omarchy_path/qv/core/dev/post-update.sh"
+install -D -m 0644 /dev/null "$legacy_hook"
 
 create_archive_release \
   supabase/cli v1.2.3 supabase_1.2.3_linux_amd64.tar.gz 1.2.3 \
@@ -514,10 +513,9 @@ done
   fail "Semgrep verified installation"
 pass "qvCORE installs only missing components with verified provider releases"
 
-installed_hook="$test_home/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 state_file="$test_home/.local/state/qvos/qvcore/dev"
-cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
-  fail "Devel update hook"
+[[ ! -e $legacy_hook ]] ||
+  fail "legacy Devel post-update hook cleanup"
 [[ -f $state_file ]] || fail "Devel opt-in state"
 grep -Fq 'bun add -d wrangler@latest' "$install_output" ||
   fail "project-local Wrangler guidance"
@@ -526,15 +524,15 @@ grep -Fq 'bun add convex' "$install_output" ||
 pass "qvCORE keeps Wrangler and Convex project-pinned"
 
 run_dev --status
-printf 'stale hook\n' >"$installed_hook"
+install -D -m 0644 /dev/null "$legacy_hook"
 repair_output=$(run_dev --repair)
-cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
-  fail "Devel lifecycle repair"
+[[ ! -e $legacy_hook ]] ||
+  fail "Devel lifecycle repair leaves a legacy hook"
 grep -Fq 'installed tools were preserved' <<<"$repair_output" ||
   fail "Devel repair preservation result"
 
 disable_output=$(run_dev --disable)
-[[ ! -e $state_file && ! -e $installed_hook ]] ||
+[[ ! -e $state_file && ! -e $legacy_hook ]] ||
   fail "Devel lifecycle disable"
 [[ -x $test_home/.local/bin/supabase ]] ||
   fail "Devel disable removed an installed tool"
@@ -543,8 +541,8 @@ grep -Fq 'installed tools remain available' <<<"$disable_output" ||
 run_dev --repair >/dev/null
 adopt_output=$(run_dev --adopt)
 [[ -f $state_file ]] || fail "Devel lifecycle adoption state"
-cmp -s "$root/qv/core/dev/post-update.sh" "$installed_hook" ||
-  fail "Devel lifecycle adoption hook"
+[[ ! -e $legacy_hook ]] ||
+  fail "Devel lifecycle adoption leaves a legacy hook"
 grep -Fq 'adopted the installed development tools' <<<"$adopt_output" ||
   fail "Devel adoption result"
 pass "qvCORE Devel lifecycle preserves installed tools"
@@ -553,25 +551,14 @@ pass "qvCORE Devel lifecycle preserves installed tools"
 : >"$network_log"
 : >"$timeout_log"
 current_output=$(
-  QVOS_TEST_ACTION_LOG="$action_log" \
-    QVOS_TEST_NETWORK_LOG="$network_log" \
-    QVOS_TEST_TIMEOUT_LOG="$timeout_log" \
-    QVOS_TEST_RELEASE_ROOT="$release_root" \
-    QVOS_TEST_ARCH=x86_64 \
-    QVOS_TEST_GH_AUTH=0 \
-    QVOS_TEST_MISE_STATE="$mise_state" \
-    QVOS_TEST_BIN="$test_bin" \
-    HOME="$test_home" \
-    OMARCHY_PATH="$test_omarchy_path" \
-    PATH="$test_home/.local/bin:$test_bin:/usr/bin" \
-    bash "$installed_hook"
+  QVOS_TEST_GH_AUTH=0 run_dev --update
 )
-grep -Fq 'qvCORE Devel inventory: 16/16 ready' <<<"$current_output" ||
+grep -Fq 'qvCORE Devel inventory: 14/16 ready' <<<"$current_output" ||
   fail "current update inventory"
-grep -Fq 'All 16 Devel components are current; no changes are needed.' \
+grep -Fq 'All 14 tracked Devel component(s) are current; no changes are needed.' \
   <<<"$current_output" ||
   fail "current update no-op"
-grep -Fq 'qvCORE Devel refresh is complete: 16/16 ready.' \
+grep -Fq 'qvCORE Devel refresh is complete: 14 tracked component(s) current.' \
   <<<"$current_output" ||
   fail "current update completion"
 [[ ! -s $action_log ]] || fail "current update performs mise actions"
@@ -584,6 +571,24 @@ if grep -q '^download' "$network_log"; then
 fi
 pass "post-update refresh inventories and preserves current components"
 
+rm -f "$test_home/.local/bin/supabase"
+: >"$action_log"
+: >"$network_log"
+: >"$timeout_log"
+removed_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update)
+[[ ! -e $test_home/.local/bin/supabase ]] ||
+  fail "Devel refresh reinstalls a removed component"
+[[ $(grep -c '^metadata-gh' "$network_log") == "8" ]] ||
+  fail "Devel refresh checks a removed provider component"
+if grep -q '^download' "$network_log"; then
+  fail "Devel refresh downloads a removed provider component"
+fi
+grep -Fq 'qvCORE Devel refresh is complete: 13 tracked component(s) current.' \
+  <<<"$removed_output" ||
+  fail "removed Devel component tracking result"
+pass "post-update refresh respects intentionally removed Devel components"
+
+create_fake_binary "$test_home/.local/bin/supabase" supabase 1.2.3
 drop_mise_state node
 set_mise_state bun 0.9.0
 drop_mise_state cargo:hurlfmt
@@ -600,31 +605,33 @@ interrupted_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update 2>&1)
 interrupted_status=$?
 set -e
 ((interrupted_status != 0)) || fail "tampered provider update succeeds"
-grep -Fq 'qvCORE Devel inventory: 12/16 ready' <<<"$interrupted_output" ||
+grep -Fq 'qvCORE Devel inventory: 10/16 ready' <<<"$interrupted_output" ||
   fail "partial ready inventory"
 grep -Fq 'Outdated: 2' <<<"$interrupted_output" ||
   fail "partial outdated inventory"
-grep -Fq 'Missing:  2' <<<"$interrupted_output" ||
+grep -Fq 'Missing:  4' <<<"$interrupted_output" ||
   fail "partial missing inventory"
 grep -Fq 'qvCORE Devel stopped during [5/16] Supabase CLI.' \
   <<<"$interrupted_output" ||
   fail "interrupted step report"
 grep -Fq 'Completed components were preserved.' <<<"$interrupted_output" ||
   fail "interrupted resume guidance"
-grep -Fq 'node 24.18.0' "$mise_state" || fail "interrupted Node install preserved"
+if grep -Fq 'node ' "$mise_state"; then
+  fail "interrupted refresh reinstalls removed Node.js"
+fi
 grep -Fq 'bun 1.3.14' "$mise_state" || fail "interrupted Bun update preserved"
 grep -Fq 'cargo:hurlfmt 8.1.2' "$mise_state" ||
   fail "interrupted Hurl component update preserved"
 [[ $("$test_home/.local/bin/supabase" --version) == "supabase 0.0.0" ]] ||
   fail "tampered provider asset replaced installed command"
-pass "interrupted refresh preserves three completed component changes"
+pass "interrupted refresh preserves completed changes and keeps Node.js removed"
 
 cp "$test_root/supabase-release.json" "$release_root/supabase/cli/release.json"
 : >"$action_log"
 : >"$network_log"
 : >"$timeout_log"
 resume_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update)
-grep -Fq 'qvCORE Devel inventory: 15/16 ready' <<<"$resume_output" ||
+grep -Fq 'qvCORE Devel inventory: 12/16 ready' <<<"$resume_output" ||
   fail "resumed inventory"
 grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resumed outdated count"
@@ -634,7 +641,7 @@ grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resume downloads more than the remaining component"
 [[ $("$test_home/.local/bin/supabase" --version) == "supabase 1.2.3" ]] ||
   fail "resumed Supabase update"
-grep -Fq 'qvCORE Devel refresh is complete: 16/16 ready.' \
+grep -Fq 'qvCORE Devel refresh is complete: 13 tracked component(s) current.' \
   <<<"$resume_output" ||
   fail "resumed completion"
 pass "rerun verifies completed work and continues only remaining updates"
@@ -644,12 +651,12 @@ pass "rerun verifies completed work and continues only remaining updates"
 : >"$timeout_log"
 set +e
 missing_base_output=$(
-  QVOS_TEST_GH_AUTH=1 QVOS_TEST_DOCKER_MISSING=1 run_dev --update 2>&1
+  QVOS_TEST_GH_AUTH=1 QVOS_TEST_DOCKER_MISSING=1 run_dev 2>&1
 )
 missing_base_status=$?
 set -e
 ((missing_base_status != 0)) || fail "missing Docker base succeeds"
-grep -Fq 'qvCORE Devel inventory: 15/16 ready' <<<"$missing_base_output" ||
+grep -Fq 'qvCORE Devel inventory: 14/16 ready' <<<"$missing_base_output" ||
   fail "missing base inventory"
 grep -Fq 'Docker + Compose     missing (qvOS base)' <<<"$missing_base_output" ||
   fail "missing base status"

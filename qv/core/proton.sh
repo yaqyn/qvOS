@@ -4,8 +4,7 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/proton"
-hook_source="$component_dir/proton/post-update.sh"
-hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
+legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
 pass_installer_url="https://proton.me/download/pass-cli/install.sh"
 drive_metadata_url="https://proton.me/download/drive/cli/version.json"
 proton_skill_source="$component_dir/proton/skill"
@@ -149,10 +148,7 @@ inventory_desktop_integration() {
     cmp -s "$thunar_upload_source" "$thunar_upload_runtime" &&
     upload_helper_ready=1
   upload_action_is_installed && upload_action_ready=1
-  [[ -f $state_file ]] &&
-    [[ -f $hook_target ]] &&
-    cmp -s "$hook_source" "$hook_target" &&
-    maintenance_ready=1
+  [[ -f $state_file ]] && maintenance_ready=1
   drive_ready && drive_desktop_auth_ready=1
   return 0
 }
@@ -168,7 +164,7 @@ print_desktop_inventory() {
     "$(status_label "$upload_helper_ready" "ready" "missing")"
   printf '  %-16s %s\n' "Thunar action" \
     "$(status_label "$upload_action_ready" "ready" "missing")"
-  printf '  %-16s %s\n' "Update repair" \
+  printf '  %-16s %s\n' "Update tracking" \
     "$(status_label "$maintenance_ready" "ready" "missing")"
   printf '  %-16s %s\n' "Drive access" \
     "$(status_label "$drive_desktop_auth_ready" "ready" "needs-login")"
@@ -185,14 +181,14 @@ install_desktop_integration() {
     "Upload the selected files and folders to private Proton Drive storage." \
     "*" \
     directories audio-files image-files other-files text-files video-files
-  install -D -m 0644 "$hook_source" "$hook_target"
   install -D -m 0644 /dev/null "$state_file"
+  rm -f "$legacy_hook_target"
 }
 
 disable_desktop_integration() {
   qvos_thunar_remove_action "qvos-proton-drive-upload"
-  rm -f "$state_file" "$hook_target" "$thunar_upload_runtime"
-  echo "qvCORE Proton desktop integration is disabled; Proton services remain installed."
+  rm -f "$state_file" "$legacy_hook_target" "$thunar_upload_runtime"
+  echo "qvCORE Proton desktop integration is disabled; Proton services and personal data were not changed."
 }
 
 codex_integration_is_installed() {
@@ -792,6 +788,7 @@ fi
 case ${1:-} in
 "") ;;
 --status) mode="status" ;;
+--integration-status) mode="integration-status" ;;
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
@@ -814,6 +811,12 @@ if [[ $mode != "install" ]]; then
     exit
   fi
 
+  if [[ $mode == "integration-status" ]]; then
+    ((drive_installed && codex_integration_installed &&
+      upload_helper_ready && upload_action_ready && maintenance_ready))
+    exit
+  fi
+
   if [[ $mode == "disable" ]]; then
     disable_desktop_integration
     exit
@@ -824,12 +827,17 @@ if [[ $mode != "install" ]]; then
     exit 0
   fi
 
+  if [[ $mode == "repair" && $drive_installed == 0 ]]; then
+    disable_desktop_integration
+    exit 0
+  fi
+
   if ((drive_installed == 0)); then
     echo "Proton Drive is not installed; desktop integration was not changed." >&2
     exit 1
   fi
 
-  if ! drive_ready; then
+  if [[ $mode == "adopt" ]] && ! drive_ready; then
     echo "Proton Drive cannot access /my-files; authenticate it before enabling the desktop integration." >&2
     exit 1
   fi

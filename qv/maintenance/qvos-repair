@@ -9,6 +9,7 @@ config_paths=(
   hypr/qv/bindings.conf
   hypr/qv/looknfeel.conf
   hypr/qv/windows.conf
+  omarchy/hooks/post-update.d/qvos-qvcore
   omarchy/hooks/post-update.d/qvos-waybar-overrides
   waybar/qv/overrides.jsonc
 )

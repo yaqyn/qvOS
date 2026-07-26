@@ -21,9 +21,10 @@ qv/
 ```
 
 qvCORE components marked `# qvcore:lifecycle=1` own four local operations:
-`--status`, `--repair`, `--adopt`, and `--disable`. Their post-update hooks run
-only when the deployed component exposes that marker, so a source update and a
-user integration cannot silently cross versions.
+`--status`, `--repair`, `--adopt`, and `--disable`. One base-owned post-update
+hook checks only explicitly enabled component state, delegates repairs to the
+component owner, and ignores optional applications that were never enabled or
+were later removed.
 
 ## Product lifecycle
 

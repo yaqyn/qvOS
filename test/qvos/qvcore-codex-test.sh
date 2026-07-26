@@ -25,6 +25,7 @@ fail() {
 }
 
 install -d "$(dirname -- "$codex_binary")" "$(dirname -- "$thunar_config")"
+install -D -m 0644 /dev/null "$hook"
 install -m 0755 /dev/stdin "$codex_binary" <<'SCRIPT'
 #!/bin/bash
 [[ ${1:-} == "--version" ]] || exit 1
@@ -54,8 +55,8 @@ grep -Fq 'qvCORE Codex is ready: 4/4.' <<<"$adopt_output" ||
   fail "Codex adoption result"
 cmp -s "$root/qv/thunar/codex" "$helper" ||
   fail "Codex Thunar helper"
-cmp -s "$root/qv/core/codex/post-update.sh" "$hook" ||
-  fail "Codex post-update hook"
+[[ ! -e $hook ]] ||
+  fail "legacy Codex post-update hook cleanup"
 [[ -f $state ]] || fail "Codex enabled state"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-codex-here'])" "$thunar_config") == "1" ]] ||
   fail "Codex Thunar action"
@@ -95,7 +96,7 @@ disable_output=$(run_component --disable)
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='user-action'])" "$thunar_config") == "1" ]] ||
   fail "Codex disable user action preservation"
 [[ -x $codex_binary ]] || fail "Codex disable CLI preservation"
-grep -Fq 'Codex remains installed.' <<<"$disable_output" ||
+grep -Fq 'Codex and personal data were not changed.' <<<"$disable_output" ||
   fail "Codex disable boundary"
 pass "Codex disables only its owned integration and preserves the CLI"
 

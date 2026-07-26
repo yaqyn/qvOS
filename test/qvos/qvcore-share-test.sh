@@ -224,6 +224,7 @@ run_thunar_share() {
 }
 
 reset_test_state
+install -D -m 0644 /dev/null "$hook_target"
 install_output=$(run_share)
 grep -Fqx $'package\tlocalsend' "$action_log" ||
   fail "missing LocalSend package install"
@@ -235,8 +236,8 @@ assert_thunar_integration
   fail "Thunar actions backup"
 cmp -s "$root/qv/core/share/ufw.profile" "$firewall_profile" ||
   fail "qvCORE Share firewall profile installation"
-cmp -s "$root/qv/core/share/post-update.sh" "$hook_target" ||
-  fail "qvCORE Share post-update hook installation"
+[[ ! -e $hook_target ]] ||
+  fail "legacy qvCORE Share post-update hook cleanup"
 [[ -f $state_file ]] || fail "qvCORE Share enabled state"
 grep -Fq 'qvCORE Share inventory: 0/5 ready' <<<"$install_output" ||
   fail "initial Share inventory"
@@ -360,7 +361,7 @@ disable_output=$(run_share --disable)
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='user-action'])" "$thunar_config") == "1" ]] ||
   fail "Share disable user action preservation"
 [[ -f $installed_dir/localsend ]] || fail "Share disable package preservation"
-grep -Fq 'LocalSend remains installed.' <<<"$disable_output" ||
+grep -Fq 'LocalSend and personal data were not changed.' <<<"$disable_output" ||
   fail "Share disable boundary"
 pass "Share disables only its owned integration and preserves LocalSend"
 

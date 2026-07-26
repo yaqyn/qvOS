@@ -6,8 +6,7 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/codex"
-hook_source="$component_dir/codex/post-update.sh"
-hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
+legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-codex"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_codex_source="$component_dir/../thunar/codex"
 thunar_codex_runtime="$HOME/.local/share/qvos/thunar/codex"
@@ -57,9 +56,7 @@ codex_action_matches() {
 }
 
 maintenance_is_ready() {
-  [[ -f $state_file ]] &&
-    [[ -f $hook_target ]] &&
-    cmp -s "$hook_source" "$hook_target"
+  [[ -f $state_file ]]
 }
 
 inventory_components() {
@@ -90,7 +87,7 @@ print_inventory() {
   printf '  %-20s %s\n' "Thunar helper" "$(status_label "$helper_ready")"
   printf '  %-20s %s\n' "Thunar integration" \
     "$(status_label "$integration_ready")"
-  printf '  %-20s %s\n' "Update repair" \
+  printf '  %-20s %s\n' "Update tracking" \
     "$(status_label "$maintenance_ready")"
 }
 
@@ -107,14 +104,14 @@ install_integration() {
     "Start Codex safely in this folder." \
     "*" \
     directories
-  install -D -m 0644 "$hook_source" "$hook_target"
   install -D -m 0644 /dev/null "$state_file"
+  rm -f "$legacy_hook_target"
 }
 
 disable_integration() {
   qvos_thunar_remove_action "qvos-codex-here"
-  rm -f "$state_file" "$hook_target" "$thunar_codex_runtime"
-  echo "qvCORE Codex desktop integration is disabled; Codex remains installed."
+  rm -f "$state_file" "$legacy_hook_target" "$thunar_codex_runtime"
+  echo "qvCORE Codex desktop integration is disabled; Codex and personal data were not changed."
 }
 
 install_codex() {
@@ -162,6 +159,7 @@ fi
 case ${1:-} in
 "") ;;
 --status) mode="status" ;;
+--integration-status) mode="integration-status" ;;
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
@@ -174,7 +172,7 @@ esac
 inventory_components
 print_inventory
 
-if [[ $mode == "status" ]]; then
+if [[ $mode == "status" || $mode == "integration-status" ]]; then
   ((codex_ready && helper_ready && integration_ready && maintenance_ready))
   exit
 fi
@@ -191,6 +189,9 @@ fi
 
 if [[ $mode != "install" && $codex_ready == 0 ]]; then
   disable_integration
+  if [[ $mode == "repair" ]]; then
+    exit 0
+  fi
   exit 1
 fi
 

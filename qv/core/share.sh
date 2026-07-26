@@ -6,8 +6,7 @@ set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/share"
-hook_source="$component_dir/share/post-update.sh"
-hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
+legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-share"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_share_source="$component_dir/../thunar/share"
 thunar_share_runtime="$HOME/.local/share/qvos/thunar/share"
@@ -78,9 +77,7 @@ firewall_is_ready() {
 }
 
 maintenance_is_ready() {
-  [[ -f $state_file ]] &&
-    [[ -f $hook_target ]] &&
-    cmp -s "$hook_source" "$hook_target"
+  [[ -f $state_file ]]
 }
 
 inventory_components() {
@@ -116,7 +113,7 @@ print_inventory() {
     "$(status_label "$integration_ready")"
   printf '  %-20s %s\n' "Firewall policy" \
     "$(status_label "$firewall_ready_state")"
-  printf '  %-20s %s\n' "Update repair" \
+  printf '  %-20s %s\n' "Update tracking" \
     "$(status_label "$maintenance_ready")"
 }
 
@@ -169,15 +166,15 @@ install_thunar_integration() {
 }
 
 install_maintenance() {
-  install -D -m 0644 "$hook_source" "$hook_target"
   install -D -m 0644 /dev/null "$state_file"
+  rm -f "$legacy_hook_target"
 }
 
 disable_share() {
   qvos_thunar_remove_action "qvos-localsend-share"
   disable_firewall_policy
-  rm -f "$state_file" "$hook_target" "$thunar_share_runtime"
-  echo "qvCORE Share integration is disabled; LocalSend remains installed."
+  rm -f "$state_file" "$legacy_hook_target" "$thunar_share_runtime"
+  echo "qvCORE Share integration is disabled; LocalSend and personal data were not changed."
 }
 
 # Entry point
@@ -190,6 +187,7 @@ fi
 case ${1:-} in
 "") ;;
 --status) mode="status" ;;
+--integration-status) mode="integration-status" ;;
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
@@ -209,7 +207,6 @@ done
 for source_file in \
   "$thunar_actions_source" \
   "$thunar_share_source" \
-  "$hook_source" \
   "$firewall_profile_source"; do
   if [[ ! -f $source_file ]]; then
     echo "qvCORE Share source is missing: $source_file" >&2
@@ -220,7 +217,7 @@ done
 inventory_components
 print_inventory
 
-if [[ $mode == "status" ]]; then
+if [[ $mode == "status" || $mode == "integration-status" ]]; then
   ((package_ready && helper_ready && integration_ready &&
     firewall_ready_state && maintenance_ready))
   exit
@@ -238,7 +235,7 @@ fi
 
 if [[ $mode == "repair" && $package_ready == 0 ]]; then
   disable_share
-  exit 1
+  exit 0
 fi
 
 if [[ $mode == "install" && $package_ready == 0 ]]; then

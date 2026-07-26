@@ -2,13 +2,11 @@
 # qvcore:lifecycle=1
 set -Eeuo pipefail
 
-component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 install_dir="$HOME/.local/bin"
 python_tools_dir="$HOME/.local/share/qvos/dev-tools"
 semgrep_binary="$python_tools_dir/semgrep/bin/semgrep"
 state_file="$HOME/.local/state/qvos/qvcore/dev"
-hook_source="$component_dir/dev/post-update.sh"
-hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
+legacy_hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-dev"
 work_dir=""
 update_only=0
 use_authenticated_gh=0
@@ -17,6 +15,8 @@ current_step=0
 ready_count=0
 outdated_count=0
 missing_count=0
+selected_count=0
+selected_missing_count=0
 development_action="install"
 
 component_ids=(
@@ -82,6 +82,7 @@ declare -A provider_release_version=()
 declare -A provider_asset_name=()
 declare -A provider_asset_url=()
 declare -A provider_asset_digest=()
+declare -A update_selected=()
 
 cleanup() {
   if [[ -n $work_dir && -d $work_dir ]]; then
@@ -251,6 +252,82 @@ register_provider_tools() {
   provider_binaries[osv-scanner]="osv-scanner"
 }
 
+optional_devel_component_present() {
+  local command
+
+  for command in \
+    node \
+    bun \
+    mkcert \
+    hurl \
+    hurlfmt \
+    supabase \
+    infisical \
+    cloudflared \
+    sentry-cli \
+    act \
+    sops \
+    age \
+    age-keygen \
+    gitleaks \
+    osv-scanner \
+    semgrep; do
+    if command -v "$command" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+component_present_for_update() {
+  local id=$1
+  local binary
+  local binaries=()
+
+  case $id in
+  node | bun | mkcert)
+    run_bounded 15s mise which "$id" >/dev/null 2>&1
+    ;;
+  hurl)
+    run_bounded 15s mise which hurl >/dev/null 2>&1 ||
+      run_bounded 15s mise which hurlfmt >/dev/null 2>&1
+    ;;
+  semgrep)
+    [[ -x $semgrep_binary ]] &&
+      [[ -x $install_dir/semgrep ]] &&
+      [[ $install_dir/semgrep -ef $semgrep_binary ]]
+    ;;
+  supabase | infisical | cloudflared | sentry-cli | act | sops | age | gitleaks | osv-scanner)
+    read -r -a binaries <<<"${provider_binaries[$id]}"
+    for binary in "${binaries[@]}"; do
+      if [[ -x $install_dir/$binary ]]; then
+        return 0
+      fi
+    done
+    return 1
+    ;;
+  gh | docker)
+    return 1
+    ;;
+  esac
+}
+
+select_update_components() {
+  local id
+
+  selected_count=0
+  update_selected=()
+  for id in "${component_ids[@]}"; do
+    if component_present_for_update "$id"; then
+      update_selected[$id]=1
+      selected_count=$((selected_count + 1))
+    else
+      update_selected[$id]=0
+    fi
+  done
+}
+
 resolve_provider_release() {
   local id=$1
   local repository=${provider_repository[$id]}
@@ -397,24 +474,36 @@ resolve_expected_versions() {
 
   echo "Checking the latest Devel component versions..."
 
-  mise_expected[node]=$(run_bounded 30s mise latest node@lts)
-  mise_expected[bun]=$(run_bounded 30s mise latest bun)
-  mise_expected[mkcert]=$(run_bounded 30s mise latest aqua:FiloSottile/mkcert)
-  mise_expected[hurl]=$(run_bounded 30s mise latest cargo:hurl)
-  mise_expected[hurlfmt]=$(run_bounded 30s mise latest cargo:hurlfmt)
-  mise_expected[semgrep]=$(run_bounded 30s mise latest pipx:semgrep)
-
-  component_latest[node]=${mise_expected[node]}
-  component_latest[bun]=${mise_expected[bun]}
-  component_latest[mkcert]=${mise_expected[mkcert]}
-  if [[ ${mise_expected[hurl]} == "${mise_expected[hurlfmt]}" ]]; then
-    component_latest[hurl]=${mise_expected[hurl]}
-  else
-    component_latest[hurl]="${mise_expected[hurl]} / ${mise_expected[hurlfmt]}"
+  if ((update_only == 0)) || ((update_selected[node])); then
+    mise_expected[node]=$(run_bounded 30s mise latest node@lts)
+    component_latest[node]=${mise_expected[node]}
   fi
-  component_latest[semgrep]=${mise_expected[semgrep]}
+  if ((update_only == 0)) || ((update_selected[bun])); then
+    mise_expected[bun]=$(run_bounded 30s mise latest bun)
+    component_latest[bun]=${mise_expected[bun]}
+  fi
+  if ((update_only == 0)) || ((update_selected[mkcert])); then
+    mise_expected[mkcert]=$(run_bounded 30s mise latest aqua:FiloSottile/mkcert)
+    component_latest[mkcert]=${mise_expected[mkcert]}
+  fi
+  if ((update_only == 0)) || ((update_selected[hurl])); then
+    mise_expected[hurl]=$(run_bounded 30s mise latest cargo:hurl)
+    mise_expected[hurlfmt]=$(run_bounded 30s mise latest cargo:hurlfmt)
+    if [[ ${mise_expected[hurl]} == "${mise_expected[hurlfmt]}" ]]; then
+      component_latest[hurl]=${mise_expected[hurl]}
+    else
+      component_latest[hurl]="${mise_expected[hurl]} / ${mise_expected[hurlfmt]}"
+    fi
+  fi
+  if ((update_only == 0)) || ((update_selected[semgrep])); then
+    mise_expected[semgrep]=$(run_bounded 30s mise latest pipx:semgrep)
+    component_latest[semgrep]=${mise_expected[semgrep]}
+  fi
 
   for id in "${provider_ids[@]}"; do
+    if ((update_only)) && ((${update_selected[$id]} == 0)); then
+      continue
+    fi
     resolve_provider_release "$id"
   done
 
@@ -577,8 +666,16 @@ inventory_components() {
   ready_count=0
   outdated_count=0
   missing_count=0
+  selected_missing_count=0
 
   for id in "${component_ids[@]}"; do
+    if ((update_only)) && ((${update_selected[$id]} == 0)); then
+      component_state[$id]="missing"
+      component_current[$id]="not selected"
+      missing_count=$((missing_count + 1))
+      continue
+    fi
+
     inspect_component "$id"
     case ${component_state[$id]} in
     ready)
@@ -589,6 +686,9 @@ inventory_components() {
       ;;
     missing)
       missing_count=$((missing_count + 1))
+      if ((update_only)); then
+        selected_missing_count=$((selected_missing_count + 1))
+      fi
       ;;
     esac
   done
@@ -606,7 +706,9 @@ component_status_label() {
       "${component_current[$id]}" "${component_latest[$id]}"
     ;;
   missing)
-    if [[ $id == "gh" || $id == "docker" ]]; then
+    if ((update_only)) && ((${update_selected[$id]} == 0)); then
+      printf 'not installed (kept absent)\n'
+    elif [[ $id == "gh" || $id == "docker" ]]; then
       printf 'missing (qvOS base)\n'
     else
       printf 'missing (latest %s)\n' "${component_latest[$id]}"
@@ -633,8 +735,9 @@ print_inventory() {
 choose_development_action() {
   local choice
 
-  if [[ ${component_state[gh]} == "missing" ||
-    ${component_state[docker]} == "missing" ]]; then
+  if ((update_only == 0)) &&
+    [[ ${component_state[gh]} == "missing" ||
+      ${component_state[docker]} == "missing" ]]; then
     echo ""
     echo "Restore the missing qvOS base components before continuing:" >&2
     [[ ${component_state[gh]} == "missing" ]] && echo "  GitHub CLI" >&2
@@ -642,9 +745,14 @@ choose_development_action() {
     return 1
   fi
 
-  if ((ready_count == total_components)); then
+  if ((update_only && ready_count == selected_count)) ||
+    ((update_only == 0 && ready_count == total_components)); then
     echo ""
-    echo "All $total_components Devel components are current; no changes are needed."
+    if ((update_only)); then
+      echo "All $selected_count tracked Devel component(s) are current; no changes are needed."
+    else
+      echo "All $total_components Devel components are current; no changes are needed."
+    fi
     development_action="keep"
     return
   fi
@@ -652,12 +760,16 @@ choose_development_action() {
   echo ""
   if ((update_only)); then
     echo "Automatic Devel refresh:"
+    printf '  restore %d incomplete tracked component(s)\n' "$selected_missing_count"
+    printf '  update  %d outdated tracked component(s)\n' "$outdated_count"
+    printf '  keep    %d current tracked component(s)\n' "$ready_count"
+    echo "  absent tools stay absent"
   else
     echo "Devel changes:"
+    printf '  install %d missing component(s)\n' "$missing_count"
+    printf '  update  %d outdated component(s)\n' "$outdated_count"
+    printf '  keep    %d ready component(s)\n' "$ready_count"
   fi
-  printf '  install %d missing component(s)\n' "$missing_count"
-  printf '  update  %d outdated component(s)\n' "$outdated_count"
-  printf '  keep    %d ready component(s)\n' "$ready_count"
   echo "  accounts, credentials, and project files remain unchanged"
 
   if ((update_only)); then
@@ -724,6 +836,10 @@ apply_component_changes() {
     current_step=$((current_step + 1))
     failure_context="[$current_step/$total_components] ${component_names[$id]}"
 
+    if ((update_only)) && ((${update_selected[$id]} == 0)); then
+      continue
+    fi
+
     if [[ ${component_state[$id]} == "ready" ]]; then
       printf '[%02d/%d] %-20s ready (%s)\n' \
         "$current_step" "$total_components" \
@@ -763,13 +879,9 @@ apply_component_changes() {
   done
 }
 
-install_update_hook() {
-  if [[ ! -f $hook_source ]]; then
-    echo "Missing qvCORE Devel update hook: $hook_source" >&2
-    return 1
-  fi
-
-  install -D -m 0644 "$hook_source" "$hook_target"
+enable_update_tracking() {
+  install -D -m 0644 /dev/null "$state_file"
+  rm -f "$legacy_hook_target"
 }
 
 if (($# > 1)); then
@@ -781,8 +893,11 @@ case ${1:-} in
 "")
   ;;
 --status)
-  [[ -f $state_file && -f $hook_target ]] &&
-    cmp -s "$hook_source" "$hook_target"
+  [[ -f $state_file ]]
+  exit
+  ;;
+--integration-status)
+  [[ -f $state_file ]]
   exit
   ;;
 --repair)
@@ -790,26 +905,29 @@ case ${1:-} in
     echo "qvCORE Devel maintenance is not enabled; nothing was repaired."
     exit 0
   fi
-  install_update_hook
+  enable_update_tracking
   echo "qvCORE Devel maintenance is repaired; installed tools were preserved."
   exit
   ;;
 --adopt)
-  if omarchy-cmd-missing bun && omarchy-cmd-missing node; then
-    echo "No existing qvCORE Devel runtime was found to adopt." >&2
+  if ! optional_devel_component_present; then
+    echo "No existing optional qvCORE Devel tool was found to adopt." >&2
     exit 1
   fi
-  install_update_hook
-  install -D -m 0644 /dev/null "$state_file"
+  enable_update_tracking
   echo "qvCORE Devel maintenance adopted the installed development tools."
   exit
   ;;
 --disable)
-  rm -f "$state_file" "$hook_target"
+  rm -f "$state_file" "$legacy_hook_target"
   echo "qvCORE Devel maintenance is disabled; installed tools remain available."
   exit
   ;;
 --update)
+  if [[ ! -f $state_file ]]; then
+    echo "qvCORE Devel maintenance is not enabled; nothing was refreshed."
+    exit 0
+  fi
   update_only=1
   ;;
 *)
@@ -828,6 +946,9 @@ if omarchy-cmd-present gh &&
 fi
 
 register_provider_tools
+if ((update_only)); then
+  select_update_components
+fi
 resolve_expected_versions
 inventory_components
 print_inventory
@@ -847,20 +968,25 @@ if [[ $development_action == "install" ]]; then
   print_inventory
 fi
 
-if ((ready_count != total_components)); then
+if ((update_only)); then
+  for id in "${component_ids[@]}"; do
+    if ((${update_selected[$id]})) &&
+      [[ ${component_state[$id]} != "ready" ]]; then
+      echo "qvCORE Devel refresh is incomplete." >&2
+      exit 1
+    fi
+  done
+elif ((ready_count != total_components)); then
   echo "qvCORE Devel is incomplete." >&2
   exit 1
 fi
 
-failure_context="update-hook installation"
-install_update_hook
-if ((update_only == 0)); then
-  install -D -m 0644 /dev/null "$state_file"
-fi
+failure_context="update tracking"
+enable_update_tracking
 
 echo ""
 if ((update_only)); then
-  echo "qvCORE Devel refresh is complete: $ready_count/$total_components ready."
+  echo "qvCORE Devel refresh is complete: $selected_count tracked component(s) current."
 else
   echo "Project-pinned tools:"
   echo "  bun add -d wrangler@latest && bunx wrangler --version"

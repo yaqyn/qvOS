@@ -2,9 +2,12 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+hook="$root/config/omarchy/hooks/post-update.d/qvos-qvcore"
+migration="$root/migrations/1785073962.sh"
 test_root="$(mktemp -d)"
 fixture="$test_root/omarchy"
 action_log="$test_root/actions"
+installed_hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -21,47 +24,43 @@ fail() {
 }
 
 install -d \
+  "$fixture/config/omarchy/hooks/post-update.d" \
   "$fixture/qv/core" \
-  "$test_root/.local/state/qvos/qvcore"
-
-run_hook() {
-  local component=$1
-
-  QVOS_TEST_MAINTENANCE_LOG="$action_log" \
-    HOME="$test_root" \
-    OMARCHY_PATH="$fixture" \
-    bash "$root/qv/core/$component/post-update.sh"
-}
-
-for component in share codex proton; do
-  install -m 0644 /dev/null \
-    "$test_root/.local/state/qvos/qvcore/$component"
-  install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
+  "$(dirname -- "$installed_hook")"
+install -m 0644 "$hook" \
+  "$fixture/config/omarchy/hooks/post-update.d/qvos-qvcore"
+install -m 0755 /dev/stdin "$fixture/qv/core/health.sh" <<'SCRIPT'
 #!/bin/bash
-printf 'legacy component ran\n' >>"$QVOS_TEST_MAINTENANCE_LOG"
+printf '%s\n' "$*" >>"$QVOS_TEST_MAINTENANCE_LOG"
 SCRIPT
 
-  : >"$action_log"
-  run_hook "$component"
-  [[ ! -s $action_log ]] ||
-    fail "$component hook ran against a pre-lifecycle component"
+QVOS_TEST_MAINTENANCE_LOG="$action_log" \
+  HOME="$test_root" \
+  OMARCHY_PATH="$fixture" \
+  bash "$hook"
+[[ $(<"$action_log") == "update" ]] ||
+  fail "central qvCORE hook delegation"
+pass "one central post-update hook delegates to qvCORE update health"
 
-  install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
-#!/bin/bash
-# qvcore:lifecycle=1
-[[ ${1:-} == "--repair" ]] || exit 2
-printf 'repair\n' >>"$QVOS_TEST_MAINTENANCE_LOG"
-SCRIPT
-
-  run_hook "$component"
-  [[ $(<"$action_log") == "repair" ]] ||
-    fail "$component hook repair delegation"
-done
-pass "qvCORE maintenance hooks wait for lifecycle-capable deployed source"
-
-rm -f "$test_root/.local/state/qvos/qvcore/share"
+rm -f "$fixture/qv/core/health.sh"
 : >"$action_log"
-run_hook share
+QVOS_TEST_MAINTENANCE_LOG="$action_log" \
+  HOME="$test_root" \
+  OMARCHY_PATH="$fixture" \
+  bash "$hook"
 [[ ! -s $action_log ]] ||
-  fail "disabled qvCORE component maintenance"
-pass "disabled qvCORE components remain untouched during updates"
+  fail "central qvCORE hook runs without deployed health source"
+pass "qvCORE update hook waits for its deployed lifecycle owner"
+
+for component in share dev codex proton; do
+  install -m 0644 /dev/null \
+    "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-$component"
+done
+HOME="$test_root" OMARCHY_PATH="$fixture" bash "$migration" >/dev/null
+cmp -s "$hook" "$installed_hook" ||
+  fail "central qvCORE hook migration"
+for component in share dev codex proton; do
+  [[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-$component ]] ||
+    fail "$component legacy post-update hook migration cleanup"
+done
+pass "migration replaces per-component hooks with one quiet update check"

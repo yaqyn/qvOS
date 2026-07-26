@@ -37,6 +37,7 @@ assert_log() {
 }
 
 install -d "$test_bin" "$test_root/tmp"
+install -D -m 0644 /dev/null "$desktop_hook"
 
 install -m 0755 /dev/stdin "$test_bin/cmp" <<'SCRIPT'
 #!/bin/bash
@@ -439,8 +440,8 @@ pass "Proton installs the skill and keeps only the isolated Codex session"
 
 cmp -s "$root/qv/thunar/proton-drive-upload" "$upload_helper" ||
   fail "Proton Drive upload helper installation"
-cmp -s "$root/qv/core/proton/post-update.sh" "$desktop_hook" ||
-  fail "Proton desktop post-update hook"
+[[ ! -e $desktop_hook ]] ||
+  fail "legacy Proton desktop post-update hook cleanup"
 [[ -f $desktop_state ]] || fail "Proton desktop enabled state"
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-proton-drive-upload'])" "$thunar_config") == "1" ]] ||
   fail "Proton Drive Thunar action"
@@ -576,6 +577,6 @@ disable_output=$(run_component --disable)
   fail "Proton desktop disable action removal"
 [[ -x $test_root/.local/bin/proton-drive ]] ||
   fail "Proton desktop disable preserves Drive CLI"
-grep -Fq 'Proton services remain installed.' <<<"$disable_output" ||
+grep -Fq 'Proton services and personal data were not changed.' <<<"$disable_output" ||
   fail "Proton desktop disable boundary"
 pass "Proton desktop integration can be disabled without removing services"
