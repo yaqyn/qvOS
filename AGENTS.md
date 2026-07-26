@@ -140,6 +140,15 @@ The opening policy block is the verbatim upstream Omarchy `AGENTS.md` from
 block for qvOS-only work. During `qvsync`, update it only from upstream and keep
 all qvOS policy below this separator.
 
+## Pre-Public Phase
+
+- This PC is the only qvOS installation. Until another installation or public
+  release exists, migrate and verify it directly instead of preserving
+  compatibility or migrations for unreleased qvOS states.
+- This exception never covers user data, security, upstream compatibility,
+  clean-install correctness, or future public architecture. Retire it when
+  qvOS reaches another machine or public users.
+
 ## qvCORE
 
 `Install > qvCORE` is the opt-in profile for qvOS-integrated daily software.
@@ -217,6 +226,9 @@ repetitive.
 - If an upstream builder change breaks the patch or a relied-on contract, stop
   and update the qvOS owner and tests; do not weaken the guard or patch cached
   upstream output directly.
+- During pre-public development, run full image builds and embedded audits on
+  request or for release candidates. For ISO changes, run fast staging and
+  contract checks immediately and report any deferred full build.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
   source, and keep optional qvCORE applications out unless explicitly promoted.

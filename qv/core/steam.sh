@@ -4,7 +4,7 @@ set -euo pipefail
 omarchy-install-gaming-steam
 
 # Source: https://github.com/ChrisTitusTech/linutil/blob/main/core/tabs/system-setup/gaming-setup.sh
-# Reviewed at Linutil commit 33cb81e245ca (2026-07-17).
+# Reviewed at Linutil commit 842c02770666 (2026-07-21).
 # Legacy aliases use current Arch package names; the unavailable
 # lib32-gst-plugins-base-libs entry is omitted.
 # Hardware-specific Vulkan drivers stay with Omarchy's GPU detection.
