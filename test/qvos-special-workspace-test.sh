@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-helper="$root/qv/scripts/hyprland/qvos-toggle-special-window"
+helper="$root/qv/desktop/hyprland/qvos-toggle-special-window"
 bindings="$root/config/hypr/qv/bindings.conf"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
@@ -92,7 +92,7 @@ if grep -Fqx 'unbind = SUPER SHIFT CTRL, SPACE' "$bindings"; then
   fail "qvOS suppresses the inherited theme menu"
 fi
 grep -Fqx 'bindd = SUPER CTRL, SPACE, Toggle special workspace, togglespecialworkspace, scratchpad' "$bindings" || fail "special workspace toggle binding"
-grep -Fqx 'bindd = SUPER CTRL ALT, SPACE, Move window in or out of special workspace, exec, ~/.local/share/qvos/hyprland/qvos-toggle-special-window' "$bindings" || fail "special window transfer binding"
+grep -Fqx 'bindd = SUPER CTRL ALT, SPACE, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" || fail "special window transfer binding"
 if grep -Eq '^bindd = SUPER[^,]*, S, .*(togglespecialworkspace|qvos-toggle-special-window|movetoworkspacesilent.*special)' "$bindings"; then
   fail "retired special workspace S binding"
 fi

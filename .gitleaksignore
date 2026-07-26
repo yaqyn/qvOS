@@ -1,0 +1,3 @@
+# Public installed-app OAuth identity inherited by Chromium account support.
+bin/omarchy-install-chromium-google-account:generic-api-key:12
+bin/omarchy-install-chromium-google-account:generic-api-key:13

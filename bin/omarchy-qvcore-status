@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Show qvCORE integration health without changing the system
+# omarchy:group=qvcore
+# omarchy:name=status
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/core/health.sh" status

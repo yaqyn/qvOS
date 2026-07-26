@@ -1,3 +1,5 @@
+omarchy-cmd-missing nautilus && return 0
+
 EXTENSIONS_DIR="$HOME/.local/share/nautilus-python/extensions"
 
 mkdir -p "$EXTENSIONS_DIR"

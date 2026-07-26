@@ -53,10 +53,15 @@ stop_log_output() {
 }
 
 start_install_log() {
-  sudo touch "$OMARCHY_INSTALL_LOG_FILE"
-  sudo chmod 666 "$OMARCHY_INSTALL_LOG_FILE"
+  local install_group
 
-  export OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  install_group=$(id -gn)
+  sudo touch "$OMARCHY_INSTALL_LOG_FILE"
+  sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"
+  sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"
+
+  OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  export OMARCHY_START_TIME
 
   echo "=== Omarchy Installation Started: $OMARCHY_START_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
   start_log_output

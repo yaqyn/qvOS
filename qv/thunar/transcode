@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 1)); then
+  printf 'Usage: transcode <media-file>\n' >&2
+  exit 2
+fi
+
+media_file=$1
+[[ -f $media_file ]] || {
+  notify-send -u critical "qvOS Transcode" "Select one image or video file." >/dev/null 2>&1 || true
+  exit 1
+}
+
+printf -v transcode_command 'omarchy-transcode %q' "$media_file"
+exec omarchy-launch-floating-terminal-with-presentation "$transcode_command"

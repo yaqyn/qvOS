@@ -33,4 +33,16 @@
   <startup-notify/>
   <image-files/>
 </action>
+<action>
+  <icon>media-playback-start</icon>
+  <name>Transcode</name>
+  <unique-id>qvos-transcode</unique-id>
+  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/transcode" "$1"' qvos-thunar %f</command>
+  <description>Convert this image or video for sharing.</description>
+  <range></range>
+  <patterns>*.avif;*.avi;*.gif;*.heic;*.jpeg;*.jpg;*.m4v;*.mkv;*.mov;*.mp4;*.png;*.webm;*.webp</patterns>
+  <startup-notify/>
+  <image-files/>
+  <video-files/>
+</action>
 </actions>

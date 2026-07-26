@@ -70,17 +70,22 @@ func writeOmarchyInstallerFiles(dir string, cfg isoInstallerConfig) error {
 	files := []struct {
 		name string
 		body []byte
+		mode os.FileMode
 	}{
-		{"user_full_name.txt", []byte(cfg.FullName + "\n")},
-		{"user_email_address.txt", []byte(cfg.EmailAddress + "\n")},
-		{"user_credentials.json", credentials},
-		{"user_encrypt_installation.txt", []byte(fmt.Sprintf("%t\n", cfg.EncryptInstallation))},
-		{"user_configuration.json", configuration},
+		{"user_full_name.txt", []byte(cfg.FullName + "\n"), 0o600},
+		{"user_email_address.txt", []byte(cfg.EmailAddress + "\n"), 0o600},
+		{"user_credentials.json", credentials, 0o600},
+		{"user_encrypt_installation.txt", []byte(fmt.Sprintf("%t\n", cfg.EncryptInstallation)), 0o600},
+		{"user_configuration.json", configuration, 0o600},
 	}
 
 	for _, file := range files {
-		if err := os.WriteFile(filepath.Join(dir, file.name), file.body, 0o644); err != nil {
+		path := filepath.Join(dir, file.name)
+		if err := os.WriteFile(path, file.body, file.mode); err != nil {
 			return fmt.Errorf("write %s: %w", file.name, err)
+		}
+		if err := os.Chmod(path, file.mode); err != nil {
+			return fmt.Errorf("secure %s: %w", file.name, err)
 		}
 	}
 

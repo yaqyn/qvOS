@@ -31,6 +31,15 @@ func TestWriteOmarchyInstallerFilesMatchesISOContract(t *testing.T) {
 	assertFileEquals(t, filepath.Join(dir, "user_full_name.txt"), "qvOS User\n")
 	assertFileEquals(t, filepath.Join(dir, "user_email_address.txt"), "qvos@example.test\n")
 	assertFileEquals(t, filepath.Join(dir, "user_encrypt_installation.txt"), "true\n")
+	for _, name := range []string{
+		"user_full_name.txt",
+		"user_email_address.txt",
+		"user_credentials.json",
+		"user_encrypt_installation.txt",
+		"user_configuration.json",
+	} {
+		assertFileMode(t, filepath.Join(dir, name), 0o600)
+	}
 
 	credentials := readCredentials(t, filepath.Join(dir, "user_credentials.json"))
 	if credentials.EncryptionPassword == nil || *credentials.EncryptionPassword != cfg.Password {
@@ -148,6 +157,18 @@ func assertFileEquals(t *testing.T, path string, want string) {
 	}
 	if string(data) != want {
 		t.Fatalf("%s = %q, want %q", filepath.Base(path), string(data), want)
+	}
+}
+
+func assertFileMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode != want {
+		t.Fatalf("%s mode = %o, want %o", filepath.Base(path), mode, want)
 	}
 }
 

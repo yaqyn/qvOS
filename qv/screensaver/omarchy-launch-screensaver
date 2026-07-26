@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+# omarchy:summary=Launch the qvOS screensaver
+# omarchy:args=[force]
+
+launcher="$HOME/.local/share/qvos/bin/qvos-launch-screensaver"
+
+if [[ ! -x $launcher ]]; then
+  printf 'omarchy-launch-screensaver: launcher is missing: %s\n' "$launcher" >&2
+  exit 1
+fi
+
+exec "$launcher" "$@"

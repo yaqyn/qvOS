@@ -7,6 +7,8 @@ current_step=0
 ready_count=0
 missing_count=0
 
+# Component registry
+
 component_ids=(
   gimp
   inkscape
@@ -38,6 +40,8 @@ declare -A component_descriptions=(
 )
 declare -A component_state=()
 
+# Inventory and status
+
 inventory_components() {
   local id
 
@@ -68,6 +72,27 @@ print_inventory() {
       "${component_state[$id]}"
   done
 }
+
+if (($# > 1)); then
+  echo "Usage: media.sh [--status]" >&2
+  exit 2
+fi
+
+case ${1:-} in
+"") ;;
+--status)
+  inventory_components
+  print_inventory
+  ((ready_count > 0))
+  exit
+  ;;
+*)
+  echo "Usage: media.sh [--status]" >&2
+  exit 2
+  ;;
+esac
+
+# Interactive installation
 
 report_failure() {
   local status=$?

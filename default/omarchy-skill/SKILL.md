@@ -279,8 +279,8 @@ Example - rebinding SUPER+F (which is bound to fullscreen by default):
 ```
 # Unbind existing SUPER+F (was: fullscreen)
 unbind = SUPER, F
-# New binding for file manager
-bind = SUPER, F, exec, nautilus
+# New binding for the default file manager
+bind = SUPER, F, exec, xdg-open "$HOME"
 ```
 
 Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've added an unbind directive to override it."

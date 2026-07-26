@@ -59,6 +59,7 @@ jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("clock") == null) and
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
+  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
   (."custom/prayerbar".exec == "~/.local/share/qvos/waybar/prayerbar.sh") and
@@ -76,11 +77,16 @@ cmp -s \
   <(jq -S --slurpfile source "$source_config" '
     del(."custom/prayerbar", ."custom/qv-clock", ."group/prayer-clock")
     | ."custom/omarchy".format = $source[0]."custom/omarchy".format
+    | if ($source[0].network | has("on-click-right")) then
+        ."network"."on-click-right" = $source[0]."network"."on-click-right"
+      else
+        del(."network"."on-click-right")
+      end
     | ."hyprland/workspaces"."format-icons" = $source[0]."hyprland/workspaces"."format-icons"
     | .["modules-left"] |= map(if . == "group/prayer-clock" then "clock" else . end)
     | .["modules-center"] |= map(if . == "group/prayer-clock" then "clock" else . end)
     | .["modules-right"] |= map(if . == "group/prayer-clock" then "clock" else . end)
-  ' "$live_config") || fail "prayer-only Waybar change"
+  ' "$live_config") || fail "narrow qvOS Waybar overlay"
 
 no_clock_root="$test_root/omarchy-without-clock"
 no_clock_config="$no_clock_root/config/waybar/config.jsonc"
@@ -107,6 +113,11 @@ cmp -s \
   <(jq -S --slurpfile source "$no_clock_config" '
     del(."custom/prayerbar", ."custom/qv-clock", ."group/prayer-clock")
     | ."custom/omarchy".format = $source[0]."custom/omarchy".format
+    | if ($source[0].network | has("on-click-right")) then
+        ."network"."on-click-right" = $source[0]."network"."on-click-right"
+      else
+        del(."network"."on-click-right")
+      end
     | ."hyprland/workspaces"."format-icons" = $source[0]."hyprland/workspaces"."format-icons"
     | .["modules-center"] |= map(select(. != "group/prayer-clock"))
   ' "$no_clock_live") || fail "narrow fallback changes"
@@ -167,6 +178,7 @@ PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
 jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
+  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"
 if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then

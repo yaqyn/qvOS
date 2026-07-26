@@ -1,7 +1,11 @@
 #!/bin/bash
+# qvcore:lifecycle=1
 set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+state_file="$HOME/.local/state/qvos/qvcore/proton"
+hook_source="$component_dir/proton/post-update.sh"
+hook_target="$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
 pass_installer_url="https://proton.me/download/pass-cli/install.sh"
 drive_metadata_url="https://proton.me/download/drive/cli/version.json"
 proton_skill_source="$component_dir/proton/skill"
@@ -10,6 +14,10 @@ codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
 pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
 proton_hook_path="/etc/pacman.d/hooks/qvos-proton-on-demand.hook"
+thunar_actions_source="$component_dir/../thunar/actions.sh"
+thunar_upload_source="$component_dir/../thunar/proton-drive-upload"
+thunar_upload_runtime="$HOME/.local/share/qvos/thunar/proton-drive-upload"
+thunar_upload_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/proton-drive-upload\" \"\$@\"' qvos-thunar %F"
 drive_download=""
 pass_admin_root=""
 created_pat_id=""
@@ -27,6 +35,16 @@ drive_auth_ready=0
 mail_auth_ready=0
 auth_ready_count=0
 auth_action="setup"
+mode="install"
+upload_helper_ready=0
+upload_action_ready=0
+maintenance_ready=0
+drive_desktop_auth_ready=0
+
+# Thunar integration inventory and lifecycle
+
+# shellcheck source=qv/thunar/actions.sh
+source "$thunar_actions_source"
 
 cleanup() {
   unset codex_pat pat_env pat_json
@@ -108,6 +126,73 @@ status_label() {
   else
     printf '%s\n' "$missing_label"
   fi
+}
+
+upload_action_is_installed() {
+  qvos_thunar_action_matches \
+    "qvos-proton-drive-upload" \
+    "folder-remote" \
+    "Upload to Proton Drive" \
+    "$thunar_upload_command" \
+    "Upload the selected files and folders to private Proton Drive storage." \
+    "*" \
+    directories audio-files image-files other-files text-files video-files
+}
+
+inventory_desktop_integration() {
+  upload_helper_ready=0
+  upload_action_ready=0
+  maintenance_ready=0
+  drive_desktop_auth_ready=0
+
+  [[ -x $thunar_upload_runtime ]] &&
+    cmp -s "$thunar_upload_source" "$thunar_upload_runtime" &&
+    upload_helper_ready=1
+  upload_action_is_installed && upload_action_ready=1
+  [[ -f $state_file ]] &&
+    [[ -f $hook_target ]] &&
+    cmp -s "$hook_source" "$hook_target" &&
+    maintenance_ready=1
+  drive_ready && drive_desktop_auth_ready=1
+  return 0
+}
+
+print_desktop_inventory() {
+  local ready_count=$((upload_helper_ready +
+    upload_action_ready +
+    maintenance_ready +
+    drive_desktop_auth_ready))
+
+  echo "Proton desktop inventory: $ready_count/4 ready"
+  printf '  %-16s %s\n' "Drive helper" \
+    "$(status_label "$upload_helper_ready" "ready" "missing")"
+  printf '  %-16s %s\n' "Thunar action" \
+    "$(status_label "$upload_action_ready" "ready" "missing")"
+  printf '  %-16s %s\n' "Update repair" \
+    "$(status_label "$maintenance_ready" "ready" "missing")"
+  printf '  %-16s %s\n' "Drive access" \
+    "$(status_label "$drive_desktop_auth_ready" "ready" "needs-login")"
+}
+
+install_desktop_integration() {
+  install -d "$HOME/.local/share/qvos/thunar"
+  install -m 0755 "$thunar_upload_source" "$thunar_upload_runtime"
+  qvos_thunar_ensure_action \
+    "qvos-proton-drive-upload" \
+    "folder-remote" \
+    "Upload to Proton Drive" \
+    "$thunar_upload_command" \
+    "Upload the selected files and folders to private Proton Drive storage." \
+    "*" \
+    directories audio-files image-files other-files text-files video-files
+  install -D -m 0644 "$hook_source" "$hook_target"
+  install -D -m 0644 /dev/null "$state_file"
+}
+
+disable_desktop_integration() {
+  qvos_thunar_remove_action "qvos-proton-drive-upload"
+  rm -f "$state_file" "$hook_target" "$thunar_upload_runtime"
+  echo "qvCORE Proton desktop integration is disabled; Proton services remain installed."
 }
 
 codex_integration_is_installed() {
@@ -697,6 +782,68 @@ verify_proton_setup() {
     }
 }
 
+# Entry point
+
+if (($# > 1)); then
+  echo "Usage: proton.sh [--status|--repair|--adopt|--disable]" >&2
+  exit 2
+fi
+
+case ${1:-} in
+"") ;;
+--status) mode="status" ;;
+--repair) mode="repair" ;;
+--adopt) mode="adopt" ;;
+--disable) mode="disable" ;;
+*)
+  echo "Usage: proton.sh [--status|--repair|--adopt|--disable]" >&2
+  exit 2
+  ;;
+esac
+
+if [[ $mode != "install" ]]; then
+  inventory_components
+  inventory_desktop_integration
+  print_desktop_inventory
+
+  if [[ $mode == "status" ]]; then
+    ((pass_installed && drive_installed && bridge_installed &&
+      account_cli_installed && codex_integration_installed &&
+      upload_helper_ready && upload_action_ready && maintenance_ready &&
+      drive_desktop_auth_ready))
+    exit
+  fi
+
+  if [[ $mode == "disable" ]]; then
+    disable_desktop_integration
+    exit
+  fi
+
+  if [[ $mode == "repair" && ! -f $state_file ]]; then
+    echo "qvCORE Proton desktop integration is not enabled; nothing was repaired."
+    exit 0
+  fi
+
+  if ((drive_installed == 0)); then
+    echo "Proton Drive is not installed; desktop integration was not changed." >&2
+    exit 1
+  fi
+
+  if ! drive_ready; then
+    echo "Proton Drive cannot access /my-files; authenticate it before enabling the desktop integration." >&2
+    exit 1
+  fi
+
+  install_codex_integration
+  install_desktop_integration
+  inventory_components
+  inventory_desktop_integration
+  print_desktop_inventory
+  ((codex_integration_installed && upload_helper_ready &&
+    upload_action_ready && maintenance_ready && drive_desktop_auth_ready))
+  exit
+fi
+
 dependency_packages=()
 system_changes_needed=0
 
@@ -787,6 +934,7 @@ setup_pass_auth "$auth_action"
 setup_drive_auth "$auth_action"
 setup_mail_auth "$auth_action"
 verify_proton_setup
+install_desktop_integration
 
 echo ""
 echo "Proton setup is complete:"
@@ -797,3 +945,4 @@ echo "  Mail Bridge: protonmail-bridge-core --cli"
 echo "  Bridge run:  systemctl --user start protonmail-bridge.service"
 echo "  Codex skill: ~/.codex/skills/proton-cli"
 echo "  Codex Pass:  ~/.local/share/qvos-codex/proton-pass"
+echo "  Drive upload: Thunar > Upload to Proton Drive"

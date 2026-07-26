@@ -8,7 +8,7 @@ fi
 
 mode="$1"
 path="$2"
-helper_dir="$HOME/.local/share/qvos/hyprland"
+helper_dir="$HOME/.local/share/qvos/desktop/context"
 
 case "$mode" in
 terminal)

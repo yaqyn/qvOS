@@ -85,8 +85,8 @@ man-db
 mariadb-libs
 mise
 mpv
-nautilus
-nautilus-python
+# nautilus
+# nautilus-python
 gnome-disk-utility
 noto-fonts
 noto-fonts-cjk
@@ -122,7 +122,7 @@ slurp
 socat
 sox
 starship
-sushi
+# sushi
 swaybg
 swayosd
 system-config-printer

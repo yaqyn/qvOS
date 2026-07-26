@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-script_dir="$root/qv/scripts/hyprland"
+context_dir="$root/qv/desktop/context"
 thunar_dir="$root/qv/thunar"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
@@ -24,8 +24,8 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin" "$project_dir/subdir" "$runtime_root"
-cp -a "$script_dir" "$runtime_root/hyprland"
+install -d "$test_bin" "$project_dir/subdir" "$runtime_root/desktop"
+cp -a "$context_dir" "$runtime_root/desktop/context"
 touch "$project_dir/example.txt"
 ln -s "$project_dir" "$test_root/project-link"
 
@@ -59,35 +59,35 @@ run_with_mocks() {
 }
 
 canonical_project="$(readlink -f "$project_dir")"
-actual="$("$script_dir/qvos-active-location" "$project_dir")"
+actual="$("$context_dir/qvos-active-location" "$project_dir")"
 [[ $actual == "$canonical_project" ]] || fail "explicit directory"
 
-actual="$("$script_dir/qvos-active-location" "$project_dir/example.txt")"
+actual="$("$context_dir/qvos-active-location" "$project_dir/example.txt")"
 [[ $actual == "$canonical_project" ]] || fail "explicit file"
 
 project_uri="file://${project_dir// /%20}"
-actual="$("$script_dir/qvos-active-location" "$project_uri")"
+actual="$("$context_dir/qvos-active-location" "$project_uri")"
 [[ $actual == "$canonical_project" ]] || fail "encoded file URI"
 
-actual="$("$script_dir/qvos-active-location" "$test_root/project-link")"
+actual="$("$context_dir/qvos-active-location" "$test_root/project-link")"
 [[ $actual == "$canonical_project" ]] || fail "symlink canonicalization"
 pass "explicit locations normalize to canonical directories"
 
-if "$script_dir/qvos-active-location" "$test_root/missing" >/dev/null 2>&1; then
+if "$context_dir/qvos-active-location" "$test_root/missing" >/dev/null 2>&1; then
   fail "missing path accepted"
 fi
 pass "missing locations are rejected"
 
-run_with_mocks "$script_dir/qvos-launch-terminal-here" terminal "$project_dir"
+run_with_mocks "$context_dir/qvos-launch-terminal-here" terminal "$project_dir"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project" ]] || fail "terminal route"
 
-run_with_mocks "$script_dir/qvos-launch-terminal-here" root "$project_dir"
+run_with_mocks "$context_dir/qvos-launch-terminal-here" root "$project_dir"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project sudo -s" ]] || fail "root terminal route"
 
-run_with_mocks "$script_dir/qvos-launch-terminal-here" codex-yolo "$project_dir"
+run_with_mocks "$context_dir/qvos-launch-terminal-here" codex-yolo "$project_dir"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex YOLO --dir=$canonical_project codex --yolo" ]] || fail "Codex YOLO route"
 
-run_with_mocks "$script_dir/qvos-launch-editor-here" "$project_dir"
+run_with_mocks "$context_dir/qvos-launch-editor-here" "$project_dir"
 [[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "editor route"
 pass "terminal, root, Codex YOLO, and editor launchers preserve location"
 
@@ -100,12 +100,12 @@ pass "Thunar actions route files through the shared location resolver"
 
 QVOS_TEST_ACTIVE_WINDOW="$(jq -cn --arg title "$canonical_project - Thunar" '{class: "thunar", title: $title, pid: 0}')"
 export QVOS_TEST_ACTIVE_WINDOW
-actual="$(run_with_mocks "$script_dir/qvos-active-location")"
+actual="$(run_with_mocks "$context_dir/qvos-active-location")"
 [[ $actual == "$canonical_project" ]] || fail "active Thunar location"
 
 QVOS_TEST_ACTIVE_WINDOW="$(jq -cn --arg title "$canonical_project - Code - OSS" '{class: "code-oss", title: $title, pid: 0}')"
 export QVOS_TEST_ACTIVE_WINDOW
-actual="$(run_with_mocks "$script_dir/qvos-active-location")"
+actual="$(run_with_mocks "$context_dir/qvos-active-location")"
 [[ $actual == "$canonical_project" ]] || fail "active Code location"
 pass "active Thunar and Code windows resolve their full-path titles"
 

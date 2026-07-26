@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-command_path="$root/qv/scripts/hyprland/qvos-localhost-open"
+command_path="$root/qv/desktop/web/qvos-localhost-open"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 launch_log="$test_root/launch"

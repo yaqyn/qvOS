@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+# Open a local development port in browser app mode.
+
+notify_error() {
+  local message="$1"
+
+  notify-send -u critical "Localhost" "$message" >/dev/null 2>&1 || true
+  printf 'qvos-localhost-open: %s\n' "$message" >&2
+}
+
+cmd_present() {
+  local command_name="$1"
+
+  if command -v omarchy-cmd-present >/dev/null 2>&1; then
+    omarchy-cmd-present "$command_name"
+  else
+    command -v "$command_name" >/dev/null 2>&1
+  fi
+}
+
+if (($# > 1)); then
+  printf 'Usage: qvos-localhost-open [port]\n' >&2
+  exit 2
+fi
+
+port="${1:-}"
+
+if [[ -z $port ]]; then
+  if ! cmd_present omarchy-menu-input; then
+    notify_error "Port prompt is unavailable"
+    exit 1
+  fi
+
+  port="$(omarchy-menu-input "Localhost port" --width 360)"
+fi
+
+port="${port//[[:space:]]/}"
+if [[ -z $port ]]; then
+  exit 0
+fi
+
+if [[ ! $port =~ ^[0-9]{1,5}$ ]] || ((10#$port < 1 || 10#$port > 65535)); then
+  notify_error "Port must be between 1 and 65535"
+  exit 1
+fi
+
+port="$((10#$port))"
+if cmd_present chromium; then
+  browser="chromium"
+elif cmd_present brave-origin-beta; then
+  browser="brave-origin-beta"
+else
+  notify_error "Install Chromium or Brave Origin"
+  exit 1
+fi
+
+exec setsid uwsm-app -- "$browser" "--app=http://localhost:$port"

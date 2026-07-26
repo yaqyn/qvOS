@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+# Open the current desktop context in the default editor.
+
+if (($# > 1)); then
+  printf 'Usage: qvos-launch-editor-here [path]\n' >&2
+  exit 2
+fi
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+location="$("$script_dir/qvos-active-location" "$@")"
+
+exec omarchy-launch-editor "$location"

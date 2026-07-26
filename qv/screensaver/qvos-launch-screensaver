@@ -1,0 +1,118 @@
+#!/bin/bash
+set -euo pipefail
+
+# Launch the qvOS screensaver on each monitor.
+
+case "${1:-}" in
+"" | force) ;;
+*)
+  printf 'Usage: qvos-launch-screensaver [force]\n' >&2
+  exit 2
+  ;;
+esac
+if (($# > 1)); then
+  printf 'Usage: qvos-launch-screensaver [force]\n' >&2
+  exit 2
+fi
+
+qvos_root="$HOME/.local/share/qvos"
+qvos_bin="$qvos_root/bin"
+omarchy_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+runner="$qvos_bin/qvos-screensaver"
+lock_file="${XDG_RUNTIME_DIR:-/tmp}/qvos-screensaver-$UID.lock"
+
+exec 9>"$lock_file"
+if ! flock -n 9; then
+  exit 0
+fi
+
+screensaver_count() {
+  hyprctl clients -j 2>/dev/null | jq '[.[] | select((.class // "") == "org.omarchy.screensaver")] | length' 2>/dev/null || printf '0\n'
+}
+
+if ! omarchy-cmd-present tte || [[ ! -x $runner ]]; then
+  notify-send -u critical "qvOS Screensaver" "Screensaver runtime is unavailable" >/dev/null 2>&1 || true
+  exit 1
+fi
+
+current_count="$(screensaver_count)"
+if ((current_count > 0)); then
+  exit 0
+fi
+
+if omarchy-toggle-enabled screensaver-off && [[ ${1:-} != "force" ]]; then
+  exit 1
+fi
+
+walker -q >/dev/null 2>&1 || true
+
+terminal="$(xdg-terminal-exec --print-id 2>/dev/null || true)"
+command=()
+
+case ${terminal,,} in
+*alacritty*)
+  command=(
+    alacritty
+    --class=org.omarchy.screensaver
+    --config-file "$qvos_root/screensaver/alacritty.toml"
+    -e "$runner"
+  )
+  ;;
+*ghostty*)
+  command=(
+    ghostty
+    --class=org.omarchy.screensaver
+    --config-file="$omarchy_root/default/ghostty/screensaver"
+    --font-size=14
+    -e "$runner"
+  )
+  ;;
+*foot*)
+  command=(
+    foot
+    --app-id=org.omarchy.screensaver
+    --config="$omarchy_root/default/foot/screensaver.ini"
+    -e "$runner"
+  )
+  ;;
+*kitty*)
+  command=(
+    kitty
+    --class=org.omarchy.screensaver
+    --override font_size=14
+    --override window_padding_width=0
+    -e "$runner"
+  )
+  ;;
+*)
+  notify-send -u low "qvOS Screensaver" "Use Alacritty, Foot, Ghostty, or Kitty" >/dev/null 2>&1 || true
+  exit 1
+  ;;
+esac
+
+focused="$(omarchy-hyprland-monitor-focused 2>/dev/null || true)"
+if [[ -z $focused ]]; then
+  focused="$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name' | head -n 1)"
+fi
+
+restore_monitor() {
+  [[ -n $focused ]] && hyprctl dispatch focusmonitor "$focused" >/dev/null 2>&1 || true
+}
+trap restore_monitor EXIT
+
+mapfile -t monitors < <(hyprctl monitors -j | jq -r '.[].name')
+if ((${#monitors[@]} == 0)); then
+  printf 'qvos-launch-screensaver: no active monitors found\n' >&2
+  exit 1
+fi
+
+for monitor in "${monitors[@]}"; do
+  hyprctl dispatch focusmonitor "$monitor" >/dev/null
+  hyprctl dispatch exec -- "${command[@]}" >/dev/null
+done
+
+for _ in {1..20}; do
+  current_count="$(screensaver_count)"
+  ((current_count >= ${#monitors[@]})) && break
+  sleep 0.1
+done

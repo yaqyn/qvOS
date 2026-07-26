@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 1)); then
+  printf 'Usage: codex <directory>\n' >&2
+  exit 2
+fi
+
+directory=$1
+[[ -d $directory ]] || {
+  notify-send -u critical "qvOS Codex" "Select one folder." >/dev/null 2>&1 || true
+  exit 1
+}
+
+launcher="$HOME/.local/share/qvos/desktop/context/qvos-launch-terminal-here"
+[[ -x $launcher ]] || {
+  notify-send -u critical "qvOS Codex" "The qvOS context launcher is unavailable." >/dev/null 2>&1 || true
+  exit 1
+}
+
+exec "$launcher" codex "$directory"

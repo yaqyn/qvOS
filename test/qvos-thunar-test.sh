@@ -34,7 +34,7 @@ assert_action() {
 
 xmlstarlet val -e "$actions" >/dev/null ||
   fail "valid Thunar actions XML"
-[[ $(xmlstarlet sel -t -v "count(/actions/action)" "$actions") == "3" ]] ||
+[[ $(xmlstarlet sel -t -v "count(/actions/action)" "$actions") == "4" ]] ||
   fail "default Thunar action count"
 pass "tracked Thunar actions XML is valid and intentionally scoped"
 
@@ -50,6 +50,10 @@ assert_action \
   qvos-set-background \
   "Set as Background" \
   "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/set-background\" \"\$1\"' qvos-thunar %f"
+assert_action \
+  qvos-transcode \
+  "Transcode" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/transcode\" \"\$1\"' qvos-thunar %f"
 pass "every default qvOS action is direct in Thunar's custom-action section"
 
 grep -Fqx 'menu separator {' "$gtk_css" ||
@@ -60,20 +64,29 @@ grep -Fqx '  background-color: #2a2a2a;' "$gtk_css" ||
   fail "visible GTK menu separator color"
 pass "native menu section separators render as thin lines"
 
-expected_features=$'launch\nopen-here\nset-background\nshare'
+expected_features=$'actions.sh\ncodex\nlaunch\nopen-here\nproton-drive-upload\nreconcile-default-actions\nset-background\nshare\ntranscode'
 actual_features="$(find "$feature_dir" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $actual_features == "$expected_features" ]] ||
   fail "Thunar feature script inventory"
 
-for feature in launch open-here set-background share; do
+[[ ! -x $feature_dir/actions.sh ]] || fail "Thunar action library executable mode"
+for feature in \
+  codex \
+  launch \
+  open-here \
+  proton-drive-upload \
+  reconcile-default-actions \
+  set-background \
+  share \
+  transcode; do
   [[ -x $feature_dir/$feature ]] || fail "$feature executable mode"
   [[ $(head -n 1 "$feature_dir/$feature") == "#!/bin/bash" ]] ||
     fail "$feature shebang"
 done
-pass "Thunar feature scripts are named and executable in one domain"
+pass "Thunar features and their shared action library stay in one domain"
 
-if find "$root/qv/scripts" -type f \
-  \( -iname '*thunar*' -o -name 'qvos-set-background' \) |
+if find "$root/qv" -path "$feature_dir" -prune -o -type f \
+  \( -iname '*thunar*' -o -name 'qvos-set-background' \) -print |
   grep -q .; then
   fail "Thunar-owned helper remains outside qv/thunar"
 fi
@@ -81,6 +94,6 @@ pass "Thunar-owned scripts stay in one source domain"
 
 grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$HOME\"" "$bindings" ||
   fail "home Thunar binding"
-grep -Fqx "bindd = SUPER SHIFT, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/hyprland/qvos-active-location)\"" "$bindings" ||
+grep -Fqx "bindd = SUPER SHIFT, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"

@@ -1,13 +1,12 @@
-# Set links for Nautilus action icons
-sudo ln -snf /usr/share/icons/Adwaita/symbolic/actions/go-previous-symbolic.svg /usr/share/icons/Yaru/scalable/actions/go-previous-symbolic.svg
-sudo ln -snf /usr/share/icons/Adwaita/symbolic/actions/go-next-symbolic.svg /usr/share/icons/Yaru/scalable/actions/go-next-symbolic.svg
-
 # Setup user theme folder
 mkdir -p ~/.config/omarchy/themes
 
 # Chromium policy directory for theme
-sudo mkdir -p /etc/chromium/policies/managed
-sudo chmod a+rw /etc/chromium/policies/managed
+policy_group=$(id -gn)
+sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed
+sudo touch /etc/chromium/policies/managed/color.json
+sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json
+sudo chmod 0644 /etc/chromium/policies/managed/color.json
 
 # Set initial theme
 omarchy-theme-set "Yaqyn"

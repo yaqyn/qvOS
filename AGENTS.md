@@ -101,6 +101,32 @@ Keep changes simple. Prefer plain edits to existing files, lists, and config ove
 
 Only add new plumbing when the simple path is clearly too brittle or repetitive, and state that reason before editing.
 
+# Bookkeeping
+
+Every qvOS feature and change must leave its applicable source, installed
+payload, update/migration path, and tests organized and easy to trace. Do not
+invent a lifecycle surface that the change does not need.
+
+- Give each feature one clear owner. Keep its complete private implementation
+  under `qv/<feature>/` when practical, reuse an existing upstream owner when
+  one already exists, and avoid generic dumping grounds such as `scripts/`,
+  `utils/`, or `misc/`.
+- Organize files internally when they contain multiple responsibilities. Use
+  short section headings and brief comments that explain ownership, intent, or
+  non-obvious constraints for the next developer; do not narrate obvious code
+  or clutter small files.
+- Treat qvOS as a maintained overlay on Omarchy's update stream. Before changing
+  an upstream-owned file, identify the full qvOS sync attack surface: source,
+  overlays, install/update/migration paths, runtime consumers, and regression
+  tests. Prefer qvOS-owned extension points, keep upstream edits minimal, and do
+  not reorganize inherited Omarchy code only to match qvOS style. Verify every
+  affected surface before committing, then re-check conflict resolutions after
+  `qvsync`.
+- Keep the attack surface discoverable with direct paths, names, and focused
+  tests. When ownership or layout changes, move the complete lifecycle, remove
+  stale source and installed payloads, and update references and guards in the
+  same change.
+
 # Helper Commands
 
 Use these instead of raw shell commands:
@@ -218,8 +244,8 @@ workflow:
     `cp ~/.config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf.bak.$(date +%s)`
     then
     `install -m 0644 config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf`.
-  - For qvOS helper scripts under `qv/scripts/` or `qv/tui/`, apply the repo
-    payload with the install script pattern:
+  - For qvOS desktop helpers under `qv/`, apply the repo payload with the
+    install script pattern:
     `OMARCHY_PATH=$PWD bash -c 'source install/config/qvos-scripts.sh'`.
   - After applying, run the relevant live reload/check command, such as
     `hyprctl reload && hyprctl configerrors`, `omarchy restart waybar`, or a

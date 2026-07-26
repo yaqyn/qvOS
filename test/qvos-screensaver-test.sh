@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-launcher="$root/qv/scripts/screensaver/qvos-launch-screensaver"
-runner="$root/qv/scripts/screensaver/qvos-screensaver"
+launcher="$root/qv/screensaver/qvos-launch-screensaver"
+runner="$root/qv/screensaver/qvos-screensaver"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 launch_log="$test_root/launches"

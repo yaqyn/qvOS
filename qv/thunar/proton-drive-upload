@@ -1,0 +1,181 @@
+#!/bin/bash
+set -euo pipefail
+
+default_destination="/my-files/qvOS Uploads"
+
+# Remote path management
+
+notify_error() {
+  notify-send -u critical "qvOS Proton Drive" "$1" >/dev/null 2>&1 || true
+  printf 'proton-drive-upload: %s\n' "$1" >&2
+}
+
+remote_path_exists() {
+  proton-drive filesystem info -j "$1" >/dev/null 2>&1
+}
+
+create_remote_folder() {
+  local path=$1
+  local parent=${path%/*}
+  local name=${path##*/}
+
+  [[ -n $parent && -n $name ]] || return 1
+  remote_path_exists "$parent" || {
+    notify_error "Remote parent does not exist: $parent"
+    return 1
+  }
+
+  proton-drive filesystem create-folder "$parent" "$name"
+  remote_path_exists "$path"
+}
+
+ensure_destination() {
+  local path=$1
+
+  remote_path_exists "$path" && return 0
+  gum confirm "Create Proton Drive folder '$path'?" || return 1
+  create_remote_folder "$path"
+}
+
+unique_batch_destination() {
+  local parent=$1
+  local timestamp
+  local candidate
+  local suffix=0
+
+  timestamp=$(date '+Upload %Y-%m-%d %H-%M-%S')
+  candidate="$parent/$timestamp"
+  while remote_path_exists "$candidate"; do
+    suffix=$((suffix + 1))
+    candidate="$parent/$timestamp-$suffix"
+  done
+
+  printf '%s\n' "$candidate"
+}
+
+extract_public_url() {
+  jq -r '
+    first(.. | strings | select(test("^https://"))) // empty
+  '
+}
+
+# Confirmed upload flow
+
+run_upload() {
+  local paths=("$@")
+  local path_index
+  local path
+  local name
+  local destination
+  local upload_destination
+  local remote_target=""
+  local share_status
+  local public_url
+  local -A selected_names=()
+
+  ((${#paths[@]} > 0)) || {
+    notify_error "No files or folders were selected."
+    return 2
+  }
+
+  for path_index in "${!paths[@]}"; do
+    path=${paths[$path_index]}
+    [[ -e $path ]] || {
+      notify_error "Selected path no longer exists: $path"
+      return 1
+    }
+    path=$(realpath -- "$path")
+    paths[path_index]=$path
+    name=${path##*/}
+    if [[ $name == *$'\n'* || $name == *\\* ]]; then
+      notify_error "Names containing newlines or backslashes are not supported."
+      return 1
+    fi
+    if [[ -n ${selected_names[$name]+selected} ]]; then
+      notify_error "Two selected items have the same name: $name"
+      return 1
+    fi
+    selected_names[$name]=1
+  done
+
+  destination=$(gum input \
+    --header "Proton Drive destination" \
+    --value "$default_destination" \
+    --width 70)
+  [[ -n $destination ]] || return 130
+  [[ $destination == "/my-files/"* && $destination != *$'\n'* ]] || {
+    notify_error "Destination must be below /my-files."
+    return 1
+  }
+
+  ensure_destination "$destination" || return 1
+  upload_destination="$destination"
+
+  if ((${#paths[@]} > 1)); then
+    upload_destination=$(unique_batch_destination "$destination")
+  else
+    name=${paths[0]##*/}
+    if remote_path_exists "$destination/$name"; then
+      upload_destination=$(unique_batch_destination "$destination")
+    fi
+  fi
+
+  if [[ $upload_destination != "$destination" ]]; then
+    create_remote_folder "$upload_destination"
+  fi
+
+  gum confirm \
+    "Upload ${#paths[@]} item(s) to '$upload_destination' with keep-both conflict handling?" ||
+    return 130
+
+  proton-drive filesystem upload \
+    --conflict-strategy keep-both \
+    "${paths[@]}" \
+    "$upload_destination"
+
+  for path in "${paths[@]}"; do
+    name=${path##*/}
+    remote_target="$upload_destination/$name"
+    if ! remote_path_exists "$remote_target"; then
+      notify_error "Upload completed but remote verification failed: $remote_target"
+      return 1
+    fi
+  done
+
+  if ((${#paths[@]} == 1)) &&
+    gum confirm "Create a public viewer link for '$remote_target'?"; then
+    proton-drive sharing set-url --role viewer "$remote_target"
+    share_status=$(proton-drive sharing status -j "$remote_target")
+    public_url=$(extract_public_url <<<"$share_status")
+    [[ -n $public_url ]] || {
+      notify_error "The public link was created but its URL could not be verified."
+      return 1
+    }
+    printf '%s' "$public_url" | wl-copy
+    notify-send "qvOS Proton Drive" "Upload verified and public link copied." >/dev/null 2>&1 || true
+  else
+    notify-send "qvOS Proton Drive" "Upload verified in $upload_destination." >/dev/null 2>&1 || true
+  fi
+}
+
+# Terminal entry point
+
+if [[ ${1:-} != "--run" ]]; then
+  (($# > 0)) || {
+    notify_error "No files or folders were selected."
+    exit 2
+  }
+
+  printf -v upload_command '%q ' "$0" --run "$@"
+  exec omarchy-launch-floating-terminal-with-presentation "$upload_command"
+fi
+
+shift
+for command in gum jq proton-drive realpath wl-copy; do
+  command -v "$command" >/dev/null 2>&1 || {
+    notify_error "$command is unavailable."
+    exit 1
+  }
+done
+
+run_upload "$@"

@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=qv/thunar/actions.sh
+source "$script_dir/actions.sh"
+
+qvos_thunar_ensure_action \
+  "qvos-terminal-here" \
+  "utilities-terminal" \
+  "Open Terminal Here" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/open-here\" terminal \"\$1\"' qvos-thunar %f" \
+  "Open a terminal in this folder." \
+  "*" \
+  directories
+
+qvos_thunar_ensure_action \
+  "qvos-editor-here" \
+  "accessories-text-editor" \
+  "Open Editor Here" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/open-here\" editor \"\$1\"' qvos-thunar %f" \
+  "Open the default editor in this folder." \
+  "*" \
+  directories
+
+qvos_thunar_ensure_action \
+  "qvos-set-background" \
+  "preferences-desktop-wallpaper" \
+  "Set as Background" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/set-background\" \"\$1\"' qvos-thunar %f" \
+  "Set this image as the current qvOS background." \
+  "*.avif;*.bmp;*.gif;*.jpeg;*.jpg;*.png;*.webp" \
+  image-files
+
+qvos_thunar_ensure_action \
+  "qvos-transcode" \
+  "media-playback-start" \
+  "Transcode" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/transcode\" \"\$1\"' qvos-thunar %f" \
+  "Convert this image or video for sharing." \
+  "*.avif;*.avi;*.gif;*.heic;*.jpeg;*.jpg;*.m4v;*.mkv;*.mov;*.mp4;*.png;*.webm;*.webp" \
+  image-files video-files

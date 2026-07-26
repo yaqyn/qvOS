@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-command_path="$root/qv/scripts/hyprland/qvos-tmux"
+command_path="$root/qv/tmux/qvos-tmux"
 test_root="$(mktemp -d)"
 
 export HOME="$test_root/home"

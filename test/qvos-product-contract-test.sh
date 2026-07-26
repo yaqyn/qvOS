@@ -31,12 +31,37 @@ editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$S
 terminal_desktop=$(grep -vE '^($|#)' "$root/config/xdg-terminals.list" | head -n 1)
 [[ $terminal_desktop == "Alacritty.desktop" ]] || fail "terminal default contract"
 
+refresh_home="$test_root/refresh-home"
+refresh_source="$test_root/refresh-source"
+install -d "$refresh_source/config/qvos" "$refresh_home"
+printf 'staged source\n' >"$refresh_source/config/qvos/path.conf"
+HOME="$refresh_home" OMARCHY_PATH="$refresh_source" \
+  "$root/bin/omarchy-refresh-config" qvos/path.conf
+[[ $(<"$refresh_home/.config/qvos/path.conf") == "staged source" ]] ||
+  fail "OMARCHY_PATH config refresh"
+pass "config refreshes honor staged and installed Omarchy roots"
+
 grep -Fqx 'xdg-settings set default-web-browser chromium.desktop' "$root/install/config/mimetypes.sh" || fail "browser default contract"
 grep -Fqx 'editor_desktop=nvim.desktop' "$root/install/config/mimetypes.sh" || fail "text MIME default contract"
 if grep -Eq 'editor_desktop=(code|code-oss)\.desktop|command -v (code|code-oss)' "$root/install/config/mimetypes.sh"; then
   fail "retired Code text MIME preference"
 fi
 pass "Chromium, Alacritty, and Neovim are the qvOS defaults"
+
+for retired_file_manager_package in nautilus nautilus-python sushi; do
+  grep -Fqx "# $retired_file_manager_package" \
+    "$root/install/omarchy-base.packages" ||
+    fail "$retired_file_manager_package disabled base package"
+done
+grep -Fq 'omarchy-cmd-missing nautilus && return 0' \
+  "$root/install/config/nautilus-python.sh" ||
+  fail "Nautilus configuration guard"
+if grep -Eq '^[[:space:]]*nautilus([[:space:]]|$)' \
+  "$root/bin/omarchy-theme-bg-install" \
+  "$root/bin/omarchy-install-gaming-retroarch"; then
+  fail "direct Nautilus launcher remains"
+fi
+pass "Thunar is singular while inherited Nautilus hooks remain safe to sync"
 
 grep -qx 'gnome-keyring' "$root/install/omarchy-base.packages" || fail "desktop keyring package contract"
 grep -Fqx "run_logged \"\$OMARCHY_INSTALL/login/default-keyring.sh\"" "$root/install/login/all.sh" || fail "default keyring setup contract"
@@ -55,6 +80,10 @@ if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared
 fi
 grep -Fqx '  for component in warp brave-origin share dev codex proton steam media; do' "$root/bin/omarchy-install-qvcore" || fail "complete qvCORE profile"
 grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
+grep -Fqx 'GROUP_DESCRIPTIONS[qvcore]="qvCORE integration health and repair"' "$root/bin/omarchy" ||
+  fail "qvCORE command group"
+[[ -x $root/bin/omarchy-qvcore-status && -x $root/bin/omarchy-qvcore-repair ]] ||
+  fail "qvCORE health commands"
 pass "qvCORE applications stay outside the base installation"
 
 grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" || fail "Framework 16 offline package contract"
@@ -119,6 +148,11 @@ if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/default/bash/aliases"; then
   fail "disabled AI aliases"
 fi
 pass "disabled AI aliases stay out of the default shell"
+
+while IFS= read -r qvos_test; do
+  [[ -x $qvos_test ]] || fail "$(basename "$qvos_test") executable mode"
+done < <(find "$root/test" -maxdepth 1 -type f -name 'qv*-test.sh' | sort)
+pass "qvOS-owned test entrypoints are executable"
 
 install -d "$test_bin" "$test_root/.config/omarchy/themes"
 
@@ -204,6 +238,27 @@ run_menu 1
 grep -q 'Share' "$menu_log" || fail "LocalSend menu shown when available"
 pass "LocalSend menu follows command availability"
 
+for capture_command in \
+  "$root/bin/omarchy-capture-screenshot" \
+  "$root/bin/omarchy-capture-screenrecording"; do
+  grep -Fq 'notification_args+=(-A "share=Share")' "$capture_command" ||
+    fail "$(basename "$capture_command") Share action"
+  grep -Fq 'share) omarchy-menu-share file "$filename" ;;' "$capture_command" &&
+    continue
+  grep -Fq 'share) omarchy-menu-share file "$FILEPATH" ;;' "$capture_command" ||
+    fail "$(basename "$capture_command") Share delegation"
+done
+grep -Fq 'notify_transcode_ready' "$root/bin/omarchy-transcode" ||
+  fail "transcode result notification"
+grep -Fq 'omarchy-menu-share file "$output"' "$root/bin/omarchy-transcode" ||
+  fail "transcode result Share delegation"
+jq -e '
+  ."network"."on-click-right"
+    == "omarchy-launch-floating-terminal-with-presentation omarchy-setup-dns"
+' "$root/config/waybar/qv/overrides.jsonc" >/dev/null ||
+  fail "Waybar network DNS route"
+pass "capture, transcode, and network surfaces reuse their established owners"
+
 set +e
 share_output=$(QVOS_TEST_LOCALSEND=0 PATH="$test_bin:$root/bin:/usr/bin" "$root/bin/omarchy-menu-share" clipboard 2>&1)
 share_status=$?
@@ -271,9 +326,29 @@ LUA
 pass "dynamic Style catalogs resolve to Yaqyn only"
 
 grep -qx 'omarchy-theme-set "Yaqyn"' "$root/install/config/theme.sh" || fail "fresh install theme"
+if rg -q 'chmod[[:space:]]+a\\+rw' \
+  "$root/install/config/theme.sh" \
+  "$root/bin/omarchy-install-browser"; then
+  fail "world-writable browser policy setup"
+fi
+grep -Fq 'sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed' \
+  "$root/install/config/theme.sh" ||
+  fail "root-owned Chromium policy directory"
+grep -Fq 'sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json' \
+  "$root/install/config/theme.sh" ||
+  fail "user-owned Chromium theme policy"
+if rg -q 'chmod[[:space:]]+666' "$root/install/helpers/logging.sh"; then
+  fail "world-writable install log"
+fi
+grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
+  "$root/install/helpers/logging.sh" ||
+  fail "desktop-owned install log"
+grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
+  "$root/install/helpers/logging.sh" ||
+  fail "restricted install log"
 grep -qx 'Name=Yaqyn' "$root/default/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
 grep -qx 'Name=Yaqyn' "$root/default/sddm/omarchy/metadata.desktop" || fail "SDDM theme identity"
-pass "fresh desktop and unlock defaults are named Yaqyn"
+pass "fresh theme policies are scoped to the desktop user and named Yaqyn"
 
 if [[ -e $root/themes/yaqyn/unlock.png || -e $root/themes/yaqyn/preview-unlock.png ]]; then
   fail "theme-specific unlock variant"

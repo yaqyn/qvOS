@@ -86,7 +86,7 @@ run_media() {
     QVOS_TEST_PACKAGE_NO_REGISTER="${QVOS_TEST_PACKAGE_NO_REGISTER:-}" \
     HOME="$test_root" \
     PATH="$test_bin:/usr/bin" \
-    "$media_script"
+    "$media_script" "$@"
 }
 
 all_selection=$'gimp\ninkscape\nkrita\nkdenlive\nobs-studio\naudacity\nblender'
@@ -122,6 +122,25 @@ grep -Fq '[1/1] GIMP is already ready; keeping it.' <<<"$installed_output" ||
 grep -Fq 'qvCORE Media selection is ready: 1/1 selected.' <<<"$installed_output" ||
   fail "already-ready Media summary"
 pass "Media keeps an already-installed selected application without sudo"
+
+reset_test_state
+set +e
+missing_status_output=$(run_media --status)
+missing_status=$?
+set -e
+((missing_status != 0)) || fail "empty Media status succeeds"
+grep -Fq 'qvCORE Media inventory: 0/7 ready' <<<"$missing_status_output" ||
+  fail "empty Media status inventory"
+[[ ! -s $gum_args_log && ! -s $action_log ]] ||
+  fail "Media status opens selection or changes packages"
+
+mark_installed gimp
+ready_status_output=$(run_media --status)
+grep -Fq 'qvCORE Media inventory: 1/7 ready' <<<"$ready_status_output" ||
+  fail "selected Media status inventory"
+[[ ! -s $gum_args_log && ! -s $action_log ]] ||
+  fail "ready Media status opens selection or changes packages"
+pass "Media exposes non-interactive status from its authoritative catalog"
 
 reset_test_state
 mark_installed gimp

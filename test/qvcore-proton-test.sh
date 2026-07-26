@@ -13,6 +13,10 @@ skill_source="$root/qv/core/proton/skill"
 installed_skill="$test_root/.codex/skills/proton-cli"
 codex_pass_root="$test_root/.local/share/qvos-codex/proton-pass"
 proton_hook_fixture="$test_root/qvos-proton-on-demand.hook"
+thunar_config="$test_root/.config/Thunar/uca.xml"
+upload_helper="$test_root/.local/share/qvos/thunar/proton-drive-upload"
+desktop_hook="$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore-proton"
+desktop_state="$test_root/.local/state/qvos/qvcore/proton"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -358,7 +362,7 @@ run_component() {
     TMPDIR="$test_root/tmp" \
     XDG_CONFIG_HOME="$test_root/.config" \
     PATH="$test_bin:/usr/bin" \
-    "$component"
+    "$component" "$@"
 }
 
 : >"$action_log"
@@ -432,6 +436,17 @@ if find "$test_root/tmp" -maxdepth 1 -type d -name 'qvos-proton-pass-admin.*' |
   fail "temporary Pass admin session remains"
 fi
 pass "Proton installs the skill and keeps only the isolated Codex session"
+
+cmp -s "$root/qv/thunar/proton-drive-upload" "$upload_helper" ||
+  fail "Proton Drive upload helper installation"
+cmp -s "$root/qv/core/proton/post-update.sh" "$desktop_hook" ||
+  fail "Proton desktop post-update hook"
+[[ -f $desktop_state ]] || fail "Proton desktop enabled state"
+[[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-proton-drive-upload'])" "$thunar_config") == "1" ]] ||
+  fail "Proton Drive Thunar action"
+run_component --status >/dev/null ||
+  fail "complete Proton lifecycle status"
+pass "Proton exposes an update-repairable Thunar upload integration"
 
 rm -f "$test_root/.local/bin/proton-drive"
 rm -rf "$installed_skill"
@@ -553,3 +568,14 @@ grep -Fq "proton_pass_root=\"\$HOME/.local/share/qvos-codex/proton-pass\"" \
   "$skill_source/SKILL.md" ||
   fail "Codex Proton skill portable home"
 pass "Codex Proton skill supports any fresh-install user home"
+
+disable_output=$(run_component --disable)
+[[ ! -e $upload_helper && ! -e $desktop_hook && ! -e $desktop_state ]] ||
+  fail "Proton desktop disable owned-file removal"
+[[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-proton-drive-upload'])" "$thunar_config") == "0" ]] ||
+  fail "Proton desktop disable action removal"
+[[ -x $test_root/.local/bin/proton-drive ]] ||
+  fail "Proton desktop disable preserves Drive CLI"
+grep -Fq 'Proton services remain installed.' <<<"$disable_output" ||
+  fail "Proton desktop disable boundary"
+pass "Proton desktop integration can be disabled without removing services"

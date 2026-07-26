@@ -8,6 +8,19 @@
 
 set -euo pipefail
 
+# Private clipboard temporary-file ownership
+
+clipboard_temp=""
+
+cleanup() {
+  if [[ -n $clipboard_temp && -f $clipboard_temp ]]; then
+    rm -f "$clipboard_temp"
+  fi
+}
+trap cleanup EXIT
+
+# Share request routing
+
 if omarchy-cmd-missing localsend; then
   echo "LocalSend is not installed"
   exit 1
@@ -23,10 +36,28 @@ shift
 files=()
 
 case $mode in
+--send-clipboard-temp)
+  (($# >= 1)) || exit 2
+  clipboard_candidate=$1
+  shift
+  expected_prefix="${TMPDIR:-/tmp}/qvos-share-clipboard."
+
+  if [[ $clipboard_candidate != "$expected_prefix"* ]] ||
+    [[ ! -f $clipboard_candidate ]] ||
+    [[ ! -O $clipboard_candidate ]] ||
+    [[ $(stat -c '%a' "$clipboard_candidate") != "600" ]]; then
+    echo "Refusing unsafe qvCORE Share clipboard cleanup path." >&2
+    exit 1
+  fi
+
+  clipboard_temp=$clipboard_candidate
+  localsend --headless send "$clipboard_temp"
+  exit
+  ;;
 clipboard)
-  temp_file=$(mktemp --suffix=.txt)
-  wl-paste >"$temp_file"
-  files=("$temp_file")
+  clipboard_temp=$(mktemp "${TMPDIR:-/tmp}/qvos-share-clipboard.XXXXXX.txt")
+  wl-paste >"$clipboard_temp"
+  files=("$clipboard_temp")
   ;;
 file | folder)
   if (($# > 0)); then
@@ -47,10 +78,13 @@ file | folder)
 esac
 
 # Run LocalSend on demand, detached from the terminal.
-systemd-run --user --quiet --collect \
-  localsend --headless send "${files[@]}"
-
-# Clipboard content stays in its temporary file until system cleanup so the
-# detached LocalSend process can read it.
+if [[ $mode == "clipboard" ]]; then
+  systemd-run --user --quiet --collect \
+    "$0" --send-clipboard-temp "$clipboard_temp"
+  clipboard_temp=""
+else
+  systemd-run --user --quiet --collect \
+    localsend --headless send "${files[@]}"
+fi
 
 exit 0
