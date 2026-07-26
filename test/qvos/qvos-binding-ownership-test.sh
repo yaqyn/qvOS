@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 bindings="$root/config/hypr/qv/bindings.conf"
 application_bindings="$root/config/hypr/bindings.conf"
 upstream_sources=(

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 context_dir="$root/qv/desktop/context"
 thunar_dir="$root/qv/thunar"
 test_root="$(mktemp -d)"

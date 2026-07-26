@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 bindings="$root/config/hypr/qv/bindings.conf"
 clipboard="$root/default/hypr/bindings/clipboard.conf"
 packages="$root/install/omarchy-base.packages"

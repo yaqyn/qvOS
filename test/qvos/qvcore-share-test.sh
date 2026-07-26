@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 share_script="$root/qv/core/share.sh"
 share_command="$root/bin/omarchy-menu-share"
 test_root="$(mktemp -d)"

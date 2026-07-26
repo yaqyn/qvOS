@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 menu_log="$test_root/menu.log"
@@ -149,9 +149,15 @@ if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/default/bash/aliases"; then
 fi
 pass "disabled AI aliases stay out of the default shell"
 
-while IFS= read -r qvos_test; do
+mapfile -t qvos_tests < <(
+  find "$root/test/qvos" -maxdepth 1 -type f \
+    \( -name '*-test.sh' -o -name 'run.sh' \) |
+    sort
+)
+((${#qvos_tests[@]} > 0)) || fail "qvOS test entrypoint inventory"
+for qvos_test in "${qvos_tests[@]}"; do
   [[ -x $qvos_test ]] || fail "$(basename "$qvos_test") executable mode"
-done < <(find "$root/test" -maxdepth 1 -type f -name 'qv*-test.sh' | sort)
+done
 pass "qvOS-owned test entrypoints are executable"
 
 install -d "$test_bin" "$test_root/.config/omarchy/themes"

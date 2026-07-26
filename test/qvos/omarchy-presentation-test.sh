@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 launcher="$root/bin/omarchy-launch-floating-terminal-with-presentation"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"

@@ -8,13 +8,6 @@
 - Shebangs must use `#!/bin/bash` consistently (never `#!/usr/bin/env bash`)
 - Scripts under `install/` and `migrations/` may be sourced and intentionally omit shebangs
 
-# qvOS Module Identity
-
-- Module wordmarks use `qv` as the consistent family signature in locally bundled Montserrat ExtraBold 800.
-- The module name is the expressive part of the identity. Give it distinctive, appropriately licensed typography or original lettering that fits the module's purpose.
-- Bundle fonts with the project. Never load fonts through runtime APIs, CDNs, or online font services.
-- Use existing product marks only as visual direction; do not copy proprietary logos or lettering.
-
 # Command Naming
 
 All commands start with `omarchy-`. Prefixes indicate purpose.
@@ -82,51 +75,6 @@ Install stage files follow this pattern:
 
 Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflight/package-helper contexts where the helper commands may not be available yet or where direct package-manager behavior is the point of the script.
 
-# qvCORE
-
-`Install > qvCORE` is the opt-in profile for qvOS-integrated daily software.
-
-- New program integrations belong in qvCORE and stay out of base package and
-  install lists unless the user explicitly promotes them to the base system.
-- Keep one complete profile route. Add a component under `qv/core/` only when
-  no existing `omarchy-install-*` or `omarchy-setup-*` command owns the flow.
-- Each component must own or delegate its complete installation and integration
-  flow; reuse existing `omarchy-install-*` and `omarchy-setup-*` owners.
-- Change the catalog only through an explicit qvOS curation decision and update
-  the qvCORE route and integration tests with it.
-
-# Simplicity
-
-Keep changes simple. Prefer plain edits to existing files, lists, and config over new mechanisms, helpers, generated layers, or abstractions.
-
-Only add new plumbing when the simple path is clearly too brittle or repetitive, and state that reason before editing.
-
-# Bookkeeping
-
-Every qvOS feature and change must leave its applicable source, installed
-payload, update/migration path, and tests organized and easy to trace. Do not
-invent a lifecycle surface that the change does not need.
-
-- Give each feature one clear owner. Keep its complete private implementation
-  under `qv/<feature>/` when practical, reuse an existing upstream owner when
-  one already exists, and avoid generic dumping grounds such as `scripts/`,
-  `utils/`, or `misc/`.
-- Organize files internally when they contain multiple responsibilities. Use
-  short section headings and brief comments that explain ownership, intent, or
-  non-obvious constraints for the next developer; do not narrate obvious code
-  or clutter small files.
-- Treat qvOS as a maintained overlay on Omarchy's update stream. Before changing
-  an upstream-owned file, identify the full qvOS sync attack surface: source,
-  overlays, install/update/migration paths, runtime consumers, and regression
-  tests. Prefer qvOS-owned extension points, keep upstream edits minimal, and do
-  not reorganize inherited Omarchy code only to match qvOS style. Verify every
-  affected surface before committing, then re-check conflict resolutions after
-  `qvsync`.
-- Keep the attack surface discoverable with direct paths, names, and focused
-  tests. When ownership or layout changes, move the complete lifecycle, remove
-  stale source and installed payloads, and update references and guards in the
-  same change.
-
 # Helper Commands
 
 Use these instead of raw shell commands:
@@ -144,36 +92,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `default/themed/*.tpl` - templates with `{{ variable }}` placeholders for theme colors
 - `themes/*/colors.toml` - theme color definitions (accent, background, foreground, color0-15)
 
-# qvOS Keybinding Workflow
-
-`config/hypr/qv/bindings.conf` is authoritative. Everything declared there is
-qvOS-owned, including custom controls such as Workspace G.
-
-- Before changing a binding, inspect that file and the complete live map with
-  `omarchy menu keybindings --print`. If the key is occupied, report its action
-  and owner, then wait for confirmation before replacing it. Use `unbind` when
-  overriding an existing binding.
-- Letter keys use two families: Family One is `SUPER` with optional Shift/Ctrl;
-  Family Two adds Alt with the same Shift/Ctrl variants.
-- Binding lists show only qvOS-owned scripts, apps, web apps, and controls by
-  default. Use separate family tables with a checkmark column and `—` for free
-  slots; list non-letter families separately and include a concise script index.
-  Mention inherited bindings only for conflicts or when explicitly requested.
-- After edits, check duplicates and executable targets, apply and compare the
-  live file, reload Hyprland, require no config errors, and show the updated
-  qvOS-only inventory.
-
 # Visual Changes
 
 When making visual changes, such as Waybar styles or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
-
-# Upstream Sync Conflicts
-
-When syncing from upstream Omarchy, qvOS customizations should not silently block new upstream features.
-
-If a merge conflict happens because upstream added or changed a feature in an area qvOS customizes, prefer integrating the upstream feature into the qvOS customization instead of dropping it. Keep the qvOS design/behavior, but preserve the new upstream capability when practical.
-
-Only omit an upstream feature when it is clearly incompatible, broken, unsafe, or intentionally not part of qvOS. In that case, state the reason explicitly.
 
 # Refresh Pattern
 
@@ -209,54 +130,104 @@ if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep
 fi
 ```
 
-# Clean Commit And qvsync Workflow
+---
 
-When the user asks to commit current work and run `qvsync`, use this clean
-workflow:
+<!-- qvOS ADDITIONS START -->
 
-- Treat `qvsync` as the git alias `git qvsync`; inspect `.git/qvsync` before
-  first use in a session if its behavior is relevant.
-- Confirm the branch is `OS` and inspect `git status --short --branch` before
-  staging.
-- Before every qvsync, refresh the curated gaming dependency snapshot in
-  `qv/core/steam.sh` and its test against Linutil's current Arch list at
-  `core/tabs/system-setup/gaming-setup.sh`; use current Arch package names and
-  leave GPU-specific drivers to Omarchy's hardware detection.
-- Verify the repo identity is exactly
-  `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>` before committing.
-- Run the narrow checks for the touched files before staging. For mixed
-  shell/config/Go changes, prefer:
-  - `bash -n` on changed shell scripts
-  - `shellcheck` on changed shell scripts
-  - `gofmt` on changed Go files
-  - `go test -count=1 ./...`
-  - `go build -trimpath -o /tmp/qvos-tui-test .` for Go command packages so no
-    build binary lands in the repo
-  - `bash test/omarchy-cli-test.sh` when command metadata or `bin/` routes are
-    touched
-  - the qvOS keybinding conflict, duplicate, and target checks above when
-    `config/hypr/qv/bindings.conf` changes
-  - `hyprctl reload && hyprctl configerrors` for Hyprland config changes
-  - `git diff --check`
-- Apply user-facing desktop changes to the running system before runtime checks:
-  - For changed files under `config/`, back up the live target first, then copy
-    the exact repo file to the matching `~/.config/...` path. Example:
-    `cp ~/.config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf.bak.$(date +%s)`
-    then
-    `install -m 0644 config/hypr/qv/bindings.conf ~/.config/hypr/qv/bindings.conf`.
-  - For qvOS desktop helpers under `qv/`, apply the repo payload with the
-    install script pattern:
-    `OMARCHY_PATH=$PWD bash -c 'source install/config/qvos-scripts.sh'`.
-  - After applying, run the relevant live reload/check command, such as
-    `hyprctl reload && hyprctl configerrors`, `omarchy restart waybar`, or a
-    direct launcher/script smoke test.
-- Stage with `git add -A`, then run `git diff --cached --check` and inspect
-  `git diff --cached --stat` before committing.
-- Remove generated artifacts such as `__pycache__/`, `*.pyc`, and local Go
-  build binaries from the index and worktree before commit. Add a narrow
-  `.gitignore` entry only when the artifact is a repeatable local build output.
-- Commit all staged changes with a clear human commit message and no agent
-  attribution.
-- Run `git qvsync` only after the commit leaves the worktree clean.
-- Report the commit SHA, qvsync result, checks that ran, checks skipped, and the
-  final `git status --short --branch` state.
+# qvOS Additions
+
+Everything above this separator is the verbatim upstream Omarchy `AGENTS.md`
+from <https://github.com/basecamp/omarchy/blob/master/AGENTS.md>. Never edit
+that block for qvOS-only work. During `qvsync`, update it only from upstream and
+keep all qvOS policy below this separator.
+
+## qvCORE
+
+`Install > qvCORE` is the opt-in profile for qvOS-integrated daily software.
+
+- Keep new integrations out of base install/package lists unless explicitly
+  promoted to the base system.
+- Reuse an existing `omarchy-install-*` or `omarchy-setup-*` owner. Add
+  `qv/core/<component>.sh` only when qvOS must own the integration.
+- Persistent integration or state belongs to one independently rerunnable owner
+  covering installation, `--status`, `--repair`, `--adopt`, `--disable`, and
+  post-update repair. Menus and desktop adapters must only delegate to it.
+- Catalog changes require an explicit curation decision plus matching installer
+  route, health inventory, and integration tests.
+
+## Organization And Integration
+
+Every qvOS change must leave one traceable lifecycle. Prefer plain edits to
+existing files and add plumbing only when the simple path is brittle or
+repetitive.
+
+- Give each feature one owner, normally under `qv/<feature>/`; reuse upstream
+  owners and avoid dumping grounds such as `scripts/`, `utils/`, or `misc/`.
+  Move source, installed payloads, references, guards, and tests together.
+- Keep all qvOS test files, including new ones, under `test/qvos/`.
+- In larger files, use short section headings and brief comments for ownership,
+  intent, or non-obvious constraints. Do not narrate obvious code.
+- Link qvCORE, menus, Thunar actions, keybindings, and desktop helpers only when
+  the link completes a clear user task. Use thin adapters that safely pass
+  context to the owner; keep the base usable when an optional dependency is
+  absent, and omit surfaces with no user value.
+- Trace linked work from owner through public command and adapters to installed
+  config/payload, state or repair hook, permissions/services/network exposure,
+  and focused tests. Verify fresh-install, migration/update, and live paths.
+- Treat qvOS as an overlay on Omarchy: prefer qvOS-owned seams, minimize
+  inherited edits, and never reorganize upstream code only for qvOS style.
+  During conflicts, preserve new upstream capability when practical; omit it
+  only when incompatible, broken, unsafe, or intentionally out of scope, and
+  state why.
+- Shared install/refresh paths must preserve optional integrations or restore
+  them through the enabled component's idempotent repair in the same update.
+  Verify both tracked source and installed runtime.
+- Keep `~/.local/share/omarchy` a clean Git checkout. Deploy runtime content
+  through installers/migrations to owned runtime, config, or system paths;
+  untracked collisions there can block `omarchy update`.
+
+## Keybindings
+
+`config/hypr/qv/bindings.conf` is authoritative for qvOS-owned bindings.
+
+- Inspect it and `omarchy menu keybindings --print` before edits. If a key is
+  occupied, report its action and owner and wait before replacing it; use
+  `unbind` for an override.
+- Letter keys use Family One (`SUPER` plus optional Shift/Ctrl) and Family Two
+  (add Alt with the same variants). Inventories show qvOS-owned entries by
+  family, a checkmark column, `—` for free slots, non-letter families, and a
+  concise script index; mention inherited bindings only for conflicts or when
+  requested.
+- After edits, check duplicates and executable targets, apply and compare the
+  live file, reload Hyprland, require no config errors, and show the updated
+  qvOS-only inventory.
+
+## Commit And qvsync
+
+When the user asks to commit and run `qvsync`:
+
+- Treat it as `git qvsync`; inspect `.git/qvsync` when relevant, require branch
+  `OS`, and inspect `git status --short --branch`.
+- Before every qvsync, refresh `qv/core/steam.sh` and its test against Linutil's
+  current Arch list at `core/tabs/system-setup/gaming-setup.sh`. Use current
+  package names and leave GPU drivers to Omarchy hardware detection.
+- Set the repository identity to
+  `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>`.
+- Match checks to the diff: `bash -n` and `shellcheck` for shell (`-s bash` for
+  sourced install/migrations); `gofmt`, `go test -count=1 ./...`, and a
+  `/tmp` Go build for Go; `test/qvos/run.sh` for the full shell suite; binding
+  checks for qvOS bindings; Hyprland reload/errors for its config; and
+  `git diff --check`.
+- Before runtime checks, back up and apply changed user config, then install qvOS
+  desktop payloads with
+  `OMARCHY_PATH=$PWD bash -c 'source install/config/qvos-scripts.sh'`.
+  Repair affected enabled qvCORE adapters, require no unexpected
+  `omarchy qvcore status` drift, confirm the live checkout is clean, and run the
+  relevant reload or smoke test.
+- Stage with `git add -A`; inspect `git diff --cached --check` and
+  `git diff --cached --stat`; remove generated artifacts; then commit the
+  verified logical unit without agent attribution.
+- Run `git qvsync` only from a clean post-commit worktree. Afterward, require the
+  upstream block above the qvOS separator to match `upstream/master:AGENTS.md`
+  byte-for-byte. Report the commit SHA, qvsync result, checks run/skipped, and
+  final branch status.

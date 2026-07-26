@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 actions="$root/config/Thunar/uca.xml"
 bindings="$root/config/hypr/qv/bindings.conf"
 feature_dir="$root/qv/thunar"

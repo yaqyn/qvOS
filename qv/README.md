@@ -36,7 +36,8 @@ that exposes, installs, or refreshes them:
 - `bin/` owns CLI routes and menu handoffs.
 - `config/` and `default/` own user-facing defaults and overlays.
 - `install/` owns fresh-install payloads; `migrations/` owns existing systems.
-- `test/qv*-test.sh` guards qvOS product and integration contracts.
+- `test/qvos/*-test.sh` guards qvOS product and integration contracts;
+  `test/qvos/run.sh` runs them together with all upstream root tests.
 - `themes/yaqyn/` is the intentionally singular bundled qvOS theme.
 
 When one of these seams changes, trace it back to its `qv/` owner and verify

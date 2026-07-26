@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 component="$root/qv/core/codex.sh"
 test_root="$(mktemp -d)"
 thunar_config="$test_root/.config/Thunar/uca.xml"
