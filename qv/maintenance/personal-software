@@ -531,7 +531,7 @@ for id in "${selected_ids[@]}"; do
   selected_packages+=("${entry_value[$id]}")
 done
 if ((${#selected_packages[@]} > 0)); then
-  if ! pacman -Rns --print "${selected_packages[@]}" >/dev/null; then
+  if ! pacman -Rs --print "${selected_packages[@]}" >/dev/null; then
     echo "Pacman could not prepare the selected removal transaction." >&2
     exit 1
   fi

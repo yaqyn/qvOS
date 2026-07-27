@@ -64,7 +64,7 @@ case ${1:-} in
 -Q)
   grep -Fxq "$2" "$QVOS_TEST_EXPLICIT_PACKAGES"
   ;;
--Rns)
+-Rs)
   [[ ${2:-} == "--print" ]] || exit 2
   shift 2
   for package in "$@"; do
