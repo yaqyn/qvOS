@@ -52,11 +52,6 @@ for package in "$@"; do
 done
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-qvcore-repair-enabled" <<'SCRIPT'
-#!/bin/bash
-printf 'qvcore\trepair-enabled\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
 install -m 0755 /dev/stdin "$test_bin/localsend" <<'SCRIPT'
 #!/bin/bash
 exit 0
@@ -106,18 +101,23 @@ grep -Fq "requires the live qvOS checkout on branch OS" <<<"$unsafe_output" ||
 [[ ! -s $action_log ]] || fail "branch refusal mutates the system"
 pass "qvOS repair refuses an upstream source branch before mutation"
 
-inspection_output=$(run_repair --status)
+set +e
+inspection_output=$(run_repair --status 2>&1)
+inspection_status=$?
+set -e
+((inspection_status == 1)) ||
+  fail "unhealthy qvOS inspection status"
 grep -Fq 'Removed default packages:    1' <<<"$inspection_output" ||
   fail "qvOS inspection removed-default count"
-grep -Fq 'no changes were made' <<<"$inspection_output" ||
+grep -Fq 'qvOS-owned runtime:          Needs repair' <<<"$inspection_output" ||
+  fail "qvOS inspection runtime status"
+grep -Fq 'qvOS needs repair; no changes were made.' <<<"$inspection_output" ||
   fail "qvOS inspection result"
 [[ -e $missing_packages/alacritty ]] ||
   fail "qvOS inspection reinstalls a removed default"
 [[ ! -s $action_log ]] || fail "qvOS inspection mutates the system"
-pass "qvOS inspection is read-only and treats removed defaults as user choice"
+pass "qvOS health is read-only and reports real runtime drift"
 
-install -D -m 0644 /dev/null \
-  "$test_home/.local/state/qvos/qvcore/share"
 repair_output=$(
   QVOS_TEST_GUM_SELECTION="Safe repair — preserve removed packages and customized config" \
     run_repair
@@ -129,10 +129,9 @@ fi
   fail "safe qvOS repair changes removed-default state"
 grep -Fq 'preserved 1 removed default package' <<<"$repair_output" ||
   fail "safe qvOS repair removed-default result"
-grep -Fqx $'qvcore\trepair-enabled' "$action_log" ||
-  fail "enabled qvCORE repair delegation"
-grep -Fq 'Enabled optional setups:     1 qvCORE' <<<"$repair_output" ||
-  fail "enabled optional qvCORE repair plan"
+if grep -Fq 'qvCORE Managed Setups' <<<"$repair_output"; then
+  fail "qvOS repair invokes qvCORE setup health"
+fi
 jq -e '."custom/omarchy".format == "󱅾"' \
   "$test_home/.config/waybar/config.jsonc" >/dev/null ||
   fail "restored Waybar overlay activation"
@@ -167,16 +166,28 @@ cmp -s \
   fail "qvOS runtime payload repair"
 pass "safe qvOS repair restores owned state without reinstalling removed defaults"
 
-rm -f "$test_home/.local/state/qvos/qvcore/share"
 : >"$action_log"
-base_only_output=$(run_repair --yes)
-if grep -Fq 'qvCORE' <<<"$base_only_output"; then
-  fail "base-only qvOS repair mentions qvCORE"
-fi
-if grep -Fq $'qvcore\trepair-enabled' "$action_log"; then
-  fail "base-only qvOS repair delegates to qvCORE"
-fi
-pass "qvOS repair stays base-only when qvCORE is unused"
+healthy_output=$(run_repair --status)
+grep -Fq 'qvOS-owned runtime:          Ready' <<<"$healthy_output" ||
+  fail "repaired qvOS runtime health"
+grep -Fq 'qvOS is healthy; no changes were made.' <<<"$healthy_output" ||
+  fail "healthy qvOS result"
+[[ ! -s $action_log ]] || fail "healthy qvOS inspection mutates the system"
+pass "qvOS repair produces a healthy base without grading qvCORE software"
+
+mv "$test_bin/omarchy-pkg-add" "$test_bin/omarchy-pkg-add.repair-only"
+health_output=$(
+  QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
+    HOME="$test_home" \
+    OMARCHY_PATH="$root" \
+    PATH="$test_bin:/usr/bin" \
+    "$root/bin/omarchy-qvos-health"
+)
+mv "$test_bin/omarchy-pkg-add.repair-only" "$test_bin/omarchy-pkg-add"
+grep -Fq 'qvOS is healthy; no changes were made.' <<<"$health_output" ||
+  fail "qvOS health public command"
+pass "qvOS health delegates to inspection without requiring a mutation owner"
 
 : >"$action_log"
 run_repair --reset --yes >/dev/null
@@ -197,6 +208,7 @@ pass "explicit qvOS defaults restore reinstalls packages and backs up config"
 commands=$("$root/bin/omarchy" commands --json)
 for binary in \
   omarchy-qvcore-disable \
+  omarchy-qvos-health \
   omarchy-qvos-personal-software \
   omarchy-qvos-refresh-waybar \
   omarchy-qvos-repair \
@@ -208,8 +220,7 @@ for binary in \
     'any(.commands[]; .binary == $binary)' <<<"$commands" >/dev/null ||
     fail "$binary command discovery"
 done
-if jq -e \
-  'any(.commands[]; .binary == "omarchy-qvcore-repair-enabled")' \
+if jq -e 'any(.commands[]; .binary == "omarchy-qvcore-repair-enabled")' \
   <<<"$commands" >/dev/null; then
   fail "internal qvCORE repair route is publicly listed"
 fi

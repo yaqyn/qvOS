@@ -3,57 +3,70 @@ set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 component_dir="$OMARCHY_PATH/qv/core"
+catalog="$component_dir/catalog.tsv"
 mode="${1:-status}"
 target_component="${2:-}"
+setup_components=()
+integrated_setups=()
+issues=()
+remaining_issues=()
+expected_repair_state="ready"
 
-lifecycle_components=(
-  warp
-  share
-  dev
-  codex
-  proton
-)
-catalog_components=(
-  warp
-  brave-origin
-  share
-  dev
-  codex
-  proton
-  steam
-  media
-)
-
-declare -A component_names=(
-  [warp]="WARP"
-  ["brave-origin"]="Brave"
-  [share]="Share"
-  [dev]="Devel"
-  [codex]="Codex"
-  [proton]="Proton"
-  [steam]="Steam"
-  [media]="Media"
-)
-declare -A component_icons=(
-  [warp]="󰖂"
-  ["brave-origin"]="󰖟"
-  [share]=""
-  [dev]="󰵮"
-  [codex]="󱚤"
-  [proton]="󰌾"
-  [steam]=""
-  [media]="󰕧"
-)
+declare -A component_name=()
+declare -A component_icon=()
+declare -A catalog_component=()
+declare -A setup_state=()
+declare -A setup_detail=()
 declare -A issue_action=()
 declare -A issue_detail=()
 declare -A issue_present=()
-declare -A catalog_detail=()
-declare -A catalog_state=()
-enabled_components=()
-issues=()
-remaining_issues=()
 
-# Enabled setup discovery
+usage() {
+  echo "Usage: health.sh [status|repair [warp|share|proton|steam]|maintain|disable]" >&2
+}
+
+load_setups() {
+  local type component label icon extra
+  local required_setup
+  local required_setups=(warp share proton steam)
+
+  [[ -f $catalog ]] || {
+    echo "Missing qvCORE catalog: $catalog" >&2
+    return 1
+  }
+  while IFS=$'\t' read -r type component label icon extra; do
+    [[ -n $type && $type != "#"* ]] || continue
+    if [[ $type != "app" && $type != "setup" ]] ||
+      [[ -z $component || -z $label || -z $icon || -n $extra ]] ||
+      [[ -n ${catalog_component[$component]+known} ]]; then
+      echo "Invalid qvCORE catalog entry." >&2
+      return 1
+    fi
+    catalog_component[$component]=1
+    [[ $type == "setup" ]] || continue
+    setup_components+=("$component")
+    component_name[$component]=$label
+    component_icon[$component]=$icon
+  done <"$catalog"
+
+  integrated_setups=(warp share proton)
+  if ((${#setup_components[@]} != ${#required_setups[@]})); then
+    echo "qvCORE catalog must define exactly four managed setups." >&2
+    return 1
+  fi
+  for required_setup in "${required_setups[@]}"; do
+    if [[ -z ${component_name[$required_setup]+known} ]]; then
+      echo "Missing managed qvCORE setup in catalog: $required_setup" >&2
+      return 1
+    fi
+  done
+  for component in "${setup_components[@]}"; do
+    if [[ ! -x $component_dir/$component.sh ]]; then
+      echo "Missing managed qvCORE setup owner: $component" >&2
+      return 1
+    fi
+  done
+}
 
 command_present() {
   if command -v omarchy-cmd-present >/dev/null 2>&1; then
@@ -63,72 +76,252 @@ command_present() {
   fi
 }
 
-component_is_tracked() {
+setup_is_tracked() {
   [[ -f $HOME/.local/state/qvos/qvcore/$1 ]]
 }
 
-component_application_present() {
-  local component=$1
-  local command
+setup_application_present() {
+  case $1 in
+  warp) command_present warp-cli ;;
+  share) command_present localsend ;;
+  proton) command_present proton-drive ;;
+  *) return 1 ;;
+  esac
+}
 
-  case $component in
-  warp)
-    command_present warp-cli
+status_label() {
+  case $1 in
+  ready) printf 'Ready\n' ;;
+  needs-repair) printf 'Partial\n' ;;
+  available) printf 'Disabled\n' ;;
+  removed) printf 'Missing\n' ;;
+  partial) printf 'Partial\n' ;;
+  not-installed) printf 'Missing\n' ;;
+  *) printf 'Unknown\n' ;;
+  esac
+}
+
+inspect_integrated_setup() {
+  local component=$1
+
+  if setup_is_tracked "$component"; then
+    if ! setup_application_present "$component"; then
+      setup_state[$component]="removed"
+      setup_detail[$component]="software removed; integration cleanup remains"
+    elif "$component_dir/$component.sh" \
+      --integration-status >/dev/null 2>&1; then
+      setup_state[$component]="ready"
+      setup_detail[$component]="enabled setup is healthy"
+    else
+      setup_state[$component]="needs-repair"
+      setup_detail[$component]="enabled setup integration drift"
+    fi
+  elif setup_application_present "$component"; then
+    setup_state[$component]="available"
+    setup_detail[$component]="software present; setup integration disabled"
+  else
+    setup_state[$component]="not-installed"
+    setup_detail[$component]="setup is not installed"
+  fi
+}
+
+inspect_steam_setup() {
+  local state
+
+  if ! state=$("$component_dir/steam.sh" --state 2>/dev/null); then
+    state="unknown"
+  fi
+  case $state in
+  ready)
+    setup_state[steam]="ready"
+    setup_detail[steam]="Steam and curated gaming dependencies are installed"
     ;;
-  share)
-    command_present localsend
+  partial)
+    setup_state[steam]="partial"
+    setup_detail[steam]="Steam is installed; gaming dependencies are incomplete"
     ;;
-  dev)
-    for command in \
-      node \
-      bun \
-      mkcert \
-      hurl \
-      hurlfmt \
-      supabase \
-      infisical \
-      cloudflared \
-      sentry-cli \
-      act \
-      sops \
-      age \
-      age-keygen \
-      gitleaks \
-      osv-scanner \
-      semgrep; do
-      if command_present "$command"; then
-        return 0
-      fi
-    done
-    return 1
+  not-installed)
+    setup_state[steam]="not-installed"
+    setup_detail[steam]="Steam setup is not installed"
     ;;
-  codex)
-    command_present codex
-    ;;
-  proton)
-    command_present proton-drive
+  *)
+    setup_state[steam]="needs-repair"
+    setup_detail[steam]="Steam setup inventory could not be read"
     ;;
   esac
 }
 
-collect_enabled_components() {
+inspect_setups() {
   local component
 
-  enabled_components=()
-  for component in "${lifecycle_components[@]}"; do
-    if component_is_tracked "$component" &&
-      component_application_present "$component"; then
-      enabled_components+=("$component")
-    fi
+  setup_state=()
+  setup_detail=()
+  for component in "${setup_components[@]}"; do
+    case $component in
+    steam) inspect_steam_setup ;;
+    *) inspect_integrated_setup "$component" ;;
+    esac
   done
 }
 
-print_enabled_count() {
-  collect_enabled_components
-  printf '%d\n' "${#enabled_components[@]}"
+print_setups() {
+  local component
+
+  echo ""
+  echo "qvCORE Managed Setups"
+  echo "qvCORE apps are normal personal software and are not graded here."
+  echo ""
+  for component in "${setup_components[@]}"; do
+    printf '  %s  %-14s %-14s %s\n' \
+      "${component_icon[$component]}" \
+      "${component_name[$component]}" \
+      "$(status_label "${setup_state[$component]}")" \
+      "${setup_detail[$component]}"
+  done
 }
 
-# Shared maintenance engine
+setups_need_attention() {
+  local component
+
+  for component in "${setup_components[@]}"; do
+    case ${setup_state[$component]} in
+    needs-repair | removed | partial) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+choose_setup() {
+  local component selection
+  local options=()
+
+  for component in "${setup_components[@]}"; do
+    options+=(
+      "${component_icon[$component]}  ${component_name[$component]} — $(status_label "${setup_state[$component]}"):$component"
+    )
+  done
+  selection=$(
+    gum choose \
+      --label-delimiter ":" \
+      --header "Choose one managed qvCORE setup" \
+      "${options[@]}"
+  ) || return 130
+  [[ -n $selection ]] || return 130
+  printf '%s\n' "$selection"
+}
+
+confirm_action() {
+  local prompt=$1
+
+  if ! gum confirm "$prompt"; then
+    echo "qvCORE setup repair canceled."
+    return 130
+  fi
+}
+
+repair_setup() {
+  local component=$1
+  local removed_action
+  local state=${setup_state[$component]}
+
+  expected_repair_state="ready"
+  case $state in
+  ready)
+    echo ""
+    echo "${component_name[$component]} is already ready; no changes were made."
+    ;;
+  needs-repair)
+    confirm_action "Repair the ${component_name[$component]} setup?" ||
+      return $?
+    if [[ $component == "steam" ]]; then
+      "$component_dir/install" steam
+    else
+      "$component_dir/$component.sh" --repair
+    fi
+    ;;
+  available)
+    if [[ $component == "warp" ]]; then
+      confirm_action "Adopt the existing WARP setup?" || return $?
+      if ! "$component_dir/warp.sh" --adopt; then
+        confirm_action "WARP is installed but not ready. Configure it now?" ||
+          return $?
+        "$component_dir/install" warp
+      fi
+    else
+      confirm_action \
+        "Enable the ${component_name[$component]} setup integration?" ||
+        return $?
+      "$component_dir/$component.sh" --adopt
+    fi
+    ;;
+  removed)
+    removed_action=$(
+      gum choose \
+        --header "${component_name[$component]} software was removed" \
+        "Keep it removed and clean setup integration" \
+        "Reinstall ${component_name[$component]}" \
+        "Cancel"
+    ) || return 130
+    case $removed_action in
+    "Keep it removed"*)
+      "$component_dir/$component.sh" --disable
+      expected_repair_state="not-installed"
+      ;;
+    "Reinstall "*)
+      "$component_dir/$component.sh" --disable
+      "$component_dir/install" "$component"
+      ;;
+    *)
+      echo "qvCORE setup repair canceled."
+      return 130
+      ;;
+    esac
+    ;;
+  partial)
+    confirm_action \
+      "Restore the missing ${component_name[$component]} dependencies?" ||
+      return $?
+    "$component_dir/install" "$component"
+    ;;
+  not-installed)
+    confirm_action "Install the ${component_name[$component]} setup?" ||
+      return $?
+    "$component_dir/install" "$component"
+    ;;
+  *)
+    echo "Unknown managed setup state: $state" >&2
+    return 1
+    ;;
+  esac
+}
+
+status_setups() {
+  inspect_setups
+  print_setups
+  ! setups_need_attention
+}
+
+repair_setups() {
+  local component=$target_component
+
+  inspect_setups
+  print_setups
+  if [[ -z $component ]]; then
+    component=$(choose_setup) || return $?
+  fi
+  if [[ -z ${component_name[$component]+known} ]]; then
+    echo "Unknown managed qvCORE setup: $component" >&2
+    return 2
+  fi
+
+  repair_setup "$component"
+  inspect_setups
+  print_setups
+  if [[ ${setup_state[$component]} != "$expected_repair_state" ]]; then
+    echo "${component_name[$component]} did not reach its expected setup state." >&2
+    return 1
+  fi
+}
 
 reset_maintenance_state() {
   issue_action=()
@@ -150,504 +343,129 @@ add_issue() {
   issue_action[$component]=$action
 }
 
-retire_removed_components() {
+inspect_enabled_integrations() {
   local component
 
-  for component in "${lifecycle_components[@]}"; do
-    component_is_tracked "$component" || continue
-    component_application_present "$component" && continue
-
-    if ! "$component_dir/$component.sh" --disable >/dev/null 2>&1; then
-      add_issue \
-        "$component" \
-        "removed application cleanup did not finish" \
-        "--disable"
+  for component in "${integrated_setups[@]}"; do
+    setup_is_tracked "$component" || continue
+    if ! setup_application_present "$component"; then
+      add_issue "$component" "removed software cleanup" "--disable"
+    elif ! "$component_dir/$component.sh" \
+      --integration-status >/dev/null 2>&1; then
+      add_issue "$component" "integration drift" "--repair"
     fi
   done
 }
 
-inspect_enabled_components() {
-  local refresh_tools=$1
-  local component
-  local output
+maintenance_action_succeeded() {
+  local component=$1
+  local action=$2
 
-  for component in "${enabled_components[@]}"; do
-    if ((refresh_tools)) && [[ $component == "dev" ]]; then
-      if ! output=$("$component_dir/$component.sh" --update 2>&1); then
-        add_issue \
-          "$component" \
-          "installed-tool refresh did not finish" \
-          "--update"
-      fi
-    elif ! output=$(
-      "$component_dir/$component.sh" --integration-status 2>&1
-    ); then
-      add_issue \
-        "$component" \
-        "enabled setup integration drift" \
-        "--repair"
+  if [[ $action == "--disable" ]]; then
+    if setup_is_tracked "$component"; then
+      return 1
     fi
-  done
+    return 0
+  else
+    setup_is_tracked "$component" &&
+      setup_application_present "$component" &&
+      "$component_dir/$component.sh" \
+        --integration-status >/dev/null 2>&1
+  fi
 }
 
-print_issues() {
-  local component
+maintain_enabled_setups() {
+  local action component output
+
+  reset_maintenance_state
+  inspect_enabled_integrations
+  ((${#issues[@]} > 0)) || return
 
   echo ""
-  echo "Enabled qvCORE setups need attention:"
-  for component in "${issues[@]}"; do
-    printf '  %s — %s\n' \
-      "${component_names[$component]}" \
-      "${issue_detail[$component]}"
-  done
-}
-
-repair_issues() {
-  local component
-  local action
-  local output
-  local repaired=0
-
-  remaining_issues=()
+  echo "Maintaining enabled qvCORE setups:"
   for component in "${issues[@]}"; do
     action=${issue_action[$component]}
-    output=""
-    repaired=0
-
-    if output=$("$component_dir/$component.sh" "$action" 2>&1); then
-      if [[ $action == "--disable" ]]; then
-        component_is_tracked "$component" || repaired=1
-      elif ! component_is_tracked "$component" ||
-        "$component_dir/$component.sh" --integration-status >/dev/null 2>&1; then
-        repaired=1
-      fi
-    fi
-
-    if ((repaired)); then
+    printf '  %s — %s\n' \
+      "${component_name[$component]}" \
+      "${issue_detail[$component]}"
+    if output=$("$component_dir/$component.sh" "$action" 2>&1) &&
+      maintenance_action_succeeded "$component" "$action"; then
       continue
     fi
-
     remaining_issues+=("$component")
-    echo ""
-    echo "qvCORE ${component_names[$component]} repair did not finish:"
-    if [[ -n $output ]]; then
-      while IFS= read -r line; do
-        printf '  %s\n' "$line"
-      done <<<"$output"
-    else
-      echo "  The owner completed without restoring the enabled setup."
-    fi
+    printf '  %s maintenance did not finish.\n' \
+      "${component_name[$component]}" >&2
+    [[ -z $output ]] || printf '%s\n' "$output" >&2
   done
-
-  ((${#remaining_issues[@]} == 0))
-}
-
-print_ready_summary() {
-  local empty_policy=$1
-
-  collect_enabled_components
-  if ((${#enabled_components[@]} > 0)); then
-    echo ""
-    echo "Enabled qvCORE setups are ready."
-  elif [[ $empty_policy == "show" ]]; then
-    echo ""
-    echo "No qvCORE setups are enabled."
-  fi
-}
-
-print_repair_result() {
-  local empty_policy=$1
 
   if ((${#remaining_issues[@]} > 0)); then
-    echo ""
-    echo "Enabled qvCORE setups still need attention."
-    echo 'Run "omarchy qvcore repair" later.'
+    echo 'Run "omarchy qvcore repair" to review the remaining setup.' >&2
     return 1
   fi
-
-  collect_enabled_components
-  if ((${#enabled_components[@]} > 0)); then
-    echo ""
-    echo "Enabled qvCORE setups are ready."
-  elif [[ $empty_policy == "show" ]]; then
-    echo ""
-    echo "No qvCORE setups are enabled."
-  else
-    echo ""
-    echo "qvCORE cleanup is complete."
-  fi
-}
-
-# Full optional catalog
-
-catalog_status_label() {
-  case $1 in
-  ready) printf 'Ready\n' ;;
-  needs-repair) printf 'Needs repair\n' ;;
-  available) printf 'Available\n' ;;
-  removed) printf 'Removed\n' ;;
-  partial) printf 'Partial\n' ;;
-  not-installed) printf 'Not installed\n' ;;
-  *) printf 'Unknown\n' ;;
-  esac
-}
-
-inspect_lifecycle_catalog_component() {
-  local component=$1
-
-  if component_is_tracked "$component"; then
-    if ! component_application_present "$component"; then
-      catalog_state[$component]="removed"
-      catalog_detail[$component]="application removed; qvOS cleanup remains"
-    elif "$component_dir/$component.sh" \
-      --integration-status >/dev/null 2>&1; then
-      catalog_state[$component]="ready"
-      catalog_detail[$component]="enabled integration is healthy"
-    else
-      catalog_state[$component]="needs-repair"
-      catalog_detail[$component]="enabled integration drift"
-    fi
-  elif component_application_present "$component"; then
-    catalog_state[$component]="available"
-    catalog_detail[$component]="application present; integration disabled"
-  else
-    catalog_state[$component]="not-installed"
-    catalog_detail[$component]="optional setup is not installed"
-  fi
-}
-
-inspect_application_catalog_component() {
-  local component=$1
-  local state
-
-  if ! state=$("$component_dir/$component.sh" --state 2>/dev/null); then
-    state="unknown"
-  fi
-  case $state in
-  ready)
-    catalog_state[$component]="ready"
-    if [[ $component == "brave-origin" ]]; then
-      catalog_detail[$component]="installed; default-browser choice is preserved"
-    else
-      catalog_detail[$component]="selected software is installed"
-    fi
-    ;;
-  partial)
-    catalog_state[$component]="partial"
-    catalog_detail[$component]="some optional software is installed"
-    ;;
-  not-installed)
-    catalog_state[$component]="not-installed"
-    catalog_detail[$component]="optional software is not installed"
-    ;;
-  *)
-    catalog_state[$component]="needs-repair"
-    catalog_detail[$component]="component inventory could not be read"
-    ;;
-  esac
-}
-
-inspect_catalog() {
-  local component
-
-  catalog_detail=()
-  catalog_state=()
-  for component in "${catalog_components[@]}"; do
-    case $component in
-    brave-origin | steam | media)
-      inspect_application_catalog_component "$component"
-      ;;
-    *)
-      inspect_lifecycle_catalog_component "$component"
-      ;;
-    esac
-  done
-}
-
-print_catalog() {
-  local component
-
-  echo ""
-  echo "qvCORE Health / Repair"
-  echo "Optional software that is absent is not considered broken."
-  echo ""
-  for component in "${catalog_components[@]}"; do
-    printf '  %s  %-10s %-14s %s\n' \
-      "${component_icons[$component]}" \
-      "${component_names[$component]}" \
-      "$(catalog_status_label "${catalog_state[$component]}")" \
-      "${catalog_detail[$component]}"
-  done
-}
-
-catalog_needs_attention() {
-  local component
-
-  for component in "${catalog_components[@]}"; do
-    case ${catalog_state[$component]} in
-    needs-repair | removed) return 0 ;;
-    esac
-  done
-  return 1
-}
-
-choose_catalog_component() {
-  local component
-  local options=()
-  local selection
-
-  for component in "${catalog_components[@]}"; do
-    options+=(
-      "${component_icons[$component]}  ${component_names[$component]} — $(catalog_status_label "${catalog_state[$component]}"):$component"
-    )
-  done
-
-  if ! selection=$(
-    gum choose \
-      --label-delimiter ":" \
-      --header "Choose one qvCORE component" \
-      "${options[@]}"
-  ); then
-    return 130
-  fi
-  [[ -n $selection ]] || return 130
-  printf '%s\n' "$selection"
-}
-
-confirm_component_action() {
-  local prompt=$1
-
-  if ! gum confirm "$prompt"; then
-    echo "qvCORE repair canceled."
-    return 130
-  fi
-}
-
-repair_catalog_component() {
-  local component=$1
-  local removed_action
-  local state=${catalog_state[$component]}
-
-  case $state in
-  ready)
-    echo ""
-    echo "qvCORE ${component_names[$component]} is already ready; no changes were made."
-    return
-    ;;
-  needs-repair)
-    confirm_component_action \
-      "Repair the enabled qvCORE ${component_names[$component]} integration?" ||
-      return $?
-    "$component_dir/$component.sh" --repair
-    ;;
-  available)
-    if [[ $component == "warp" ]]; then
-      confirm_component_action \
-        "Enable qvCORE maintenance for the existing WARP setup?" ||
-        return $?
-      if ! "$component_dir/$component.sh" --adopt; then
-        confirm_component_action \
-          "WARP is installed but not ready. Configure it now?" ||
-          return $?
-        "$component_dir/install" "$component"
-      fi
-    else
-      confirm_component_action \
-        "Enable the qvCORE ${component_names[$component]} integration for the installed application?" ||
-        return $?
-      "$component_dir/$component.sh" --adopt
-    fi
-    ;;
-  removed)
-    if ! removed_action=$(
-      gum choose \
-        --header "${component_names[$component]} was removed" \
-        "Keep it removed and clean qvOS integration state" \
-        "Reinstall ${component_names[$component]}" \
-        "Cancel"
-    ); then
-      return 130
-    fi
-    case $removed_action in
-    "Keep it removed"*)
-      "$component_dir/$component.sh" --disable
-      ;;
-    "Reinstall "*)
-      "$component_dir/$component.sh" --disable
-      "$component_dir/install" "$component"
-      ;;
-    *)
-      echo "qvCORE repair canceled."
-      return 130
-      ;;
-    esac
-    ;;
-  partial)
-    if [[ $component == "media" ]]; then
-      confirm_component_action \
-        "Open Media to choose which missing applications to install?" ||
-        return $?
-    else
-      confirm_component_action \
-        "Restore the missing optional ${component_names[$component]} package set?" ||
-        return $?
-    fi
-    "$component_dir/install" "$component"
-    ;;
-  not-installed)
-    confirm_component_action \
-      "Install the optional qvCORE ${component_names[$component]} component?" ||
-      return $?
-    "$component_dir/install" "$component"
-    ;;
-  *)
-    echo "Unknown qvCORE component state: $state" >&2
-    return 1
-    ;;
-  esac
-}
-
-status_catalog() {
-  inspect_catalog
-  print_catalog
-  ! catalog_needs_attention
-}
-
-repair_catalog_interactive() {
-  local component=$target_component
-
-  inspect_catalog
-  print_catalog
-  if [[ -z $component ]]; then
-    component=$(choose_catalog_component) || return $?
-  fi
-  if [[ -z ${component_names[$component]+known} ]]; then
-    echo "Unknown qvCORE component: $component" >&2
-    return 2
-  fi
-
-  repair_catalog_component "$component"
-  inspect_catalog
-  print_catalog
-}
-
-# User-facing operations
-
-repair_enabled_components_automatic() {
-  reset_maintenance_state
-  retire_removed_components
-  collect_enabled_components
-  inspect_enabled_components 0
-
-  if ((${#issues[@]} == 0)); then
-    print_ready_summary silent
-    return
-  fi
-
-  print_issues
-  repair_issues || true
-  print_repair_result silent
-}
-
-update_enabled_components() {
-  local issue_label="issues"
-
-  reset_maintenance_state
-  retire_removed_components
-  collect_enabled_components
-  inspect_enabled_components 1
-
-  if ((${#issues[@]} == 0)); then
-    print_ready_summary silent
-    return
-  fi
-
-  print_issues
-  ((${#issues[@]} == 1)) && issue_label="issue"
-  echo ""
-  if gum confirm \
-    "Repair ${#issues[@]} enabled qvCORE setup $issue_label now?"; then
-    repair_issues || true
-    print_repair_result silent || true
-  else
-    echo 'qvCORE repair skipped. Run "omarchy qvcore repair" later.'
-  fi
+  echo "Enabled qvCORE setup maintenance is complete."
 }
 
 disable_integrations() {
+  local component selection
   local options=()
-  local tracked_components=()
-  local component
-  local selection
+  local tracked=()
 
-  for component in "${lifecycle_components[@]}"; do
-    if component_is_tracked "$component"; then
-      tracked_components+=("$component")
-      options+=(
-        "${component_icons[$component]}  ${component_names[$component]}:$component"
-      )
-    fi
+  for component in "${integrated_setups[@]}"; do
+    setup_is_tracked "$component" || continue
+    tracked+=("$component")
+    options+=(
+      "${component_icon[$component]}  ${component_name[$component]}:$component"
+    )
   done
 
-  if ((${#tracked_components[@]} == 0)); then
-    echo "No qvCORE integrations are enabled."
+  if ((${#tracked[@]} == 0)); then
+    echo "No managed qvCORE setup integrations are enabled."
     return
   fi
 
-  options=("󰑐  All enabled integrations:all" "${options[@]}")
-  selection=$(gum choose \
-    --label-delimiter ":" \
-    --header "Disable integrations; installed applications and data stay" \
-    "${options[@]}") || return $?
+  options=("󰑐  All enabled setup integrations:all" "${options[@]}")
+  selection=$(
+    gum choose \
+      --label-delimiter ":" \
+      --header "Disable setup integration; software and data stay" \
+      "${options[@]}"
+  ) || return $?
   [[ -n $selection ]] || return 130
 
   if [[ $selection == "all" ]]; then
     gum confirm \
-      "Disable all ${#tracked_components[@]} enabled qvCORE integration(s)?" ||
+      "Disable all ${#tracked[@]} enabled setup integration(s)?" ||
       return 130
   else
-    gum confirm "Disable the qvCORE ${component_names[$selection]} integration?" ||
+    gum confirm \
+      "Disable the ${component_name[$selection]} setup integration?" ||
       return 130
-    tracked_components=("$selection")
+    tracked=("$selection")
   fi
 
-  for component in "${tracked_components[@]}"; do
+  for component in "${tracked[@]}"; do
     "$component_dir/$component.sh" --disable
   done
 
   echo ""
-  echo "Installed applications, authentication, network choices, and personal data were preserved."
+  echo "Installed software, authentication, network choices, and personal data were preserved."
 }
-
-# Entry point
 
 if (($# > 2)) ||
   [[ -n $target_component && $mode != "repair" ]]; then
-  echo "Usage: health.sh [status|repair [component]|repair-enabled|disable|update|enabled-count]" >&2
+  usage
   exit 2
 fi
 
+load_setups
+
 case $mode in
-status)
-  status_catalog
-  ;;
-repair)
-  repair_catalog_interactive
-  ;;
-repair-enabled)
-  repair_enabled_components_automatic
-  ;;
-disable)
-  disable_integrations
-  ;;
-update)
-  update_enabled_components
-  ;;
-enabled-count)
-  print_enabled_count
-  ;;
+status) status_setups ;;
+repair) repair_setups ;;
+maintain) maintain_enabled_setups ;;
+disable) disable_integrations ;;
 *)
-  echo "Usage: health.sh [status|repair [component]|repair-enabled|disable|update|enabled-count]" >&2
+  usage
   exit 2
   ;;
 esac

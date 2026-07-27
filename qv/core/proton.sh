@@ -1,5 +1,5 @@
 #!/bin/bash
-# qvcore:lifecycle=1
+# qvcore:managed-setup=1
 set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -779,7 +779,7 @@ verify_proton_setup() {
 # Entry point
 
 if (($# > 1)); then
-  echo "Usage: proton.sh [--status|--repair|--adopt|--disable]" >&2
+  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
   exit 2
 fi
 
@@ -790,8 +790,9 @@ case ${1:-} in
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
+--prepare-remove) mode="prepare-remove" ;;
 *)
-  echo "Usage: proton.sh [--status|--repair|--adopt|--disable]" >&2
+  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
   exit 2
   ;;
 esac
@@ -815,8 +816,11 @@ if [[ $mode != "install" ]]; then
     exit
   fi
 
-  if [[ $mode == "disable" ]]; then
+  if [[ $mode == "disable" || $mode == "prepare-remove" ]]; then
     disable_desktop_integration
+    if [[ $mode == "prepare-remove" ]]; then
+      echo "Proton desktop integration is ready for software removal."
+    fi
     exit
   fi
 

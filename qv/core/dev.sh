@@ -1,11 +1,9 @@
 #!/bin/bash
-# qvcore:lifecycle=1
 set -Eeuo pipefail
 
 install_dir="$HOME/.local/bin"
 python_tools_dir="$HOME/.local/share/qvos/dev-tools"
 semgrep_binary="$python_tools_dir/semgrep/bin/semgrep"
-state_file="$HOME/.local/state/qvos/qvcore/dev"
 work_dir=""
 update_only=0
 use_authenticated_gh=0
@@ -109,7 +107,7 @@ report_failure() {
 trap report_failure ERR
 
 usage() {
-  echo "Usage: dev.sh [--status|--repair|--adopt|--disable|--update]" >&2
+  echo "Usage: dev.sh [--update]" >&2
 }
 
 require_command() {
@@ -249,34 +247,6 @@ register_provider_tools() {
   provider_arch[osv-scanner]=$release_arch
   provider_asset_kind[osv-scanner]="binary"
   provider_binaries[osv-scanner]="osv-scanner"
-}
-
-optional_devel_component_present() {
-  local command
-
-  for command in \
-    node \
-    bun \
-    mkcert \
-    hurl \
-    hurlfmt \
-    supabase \
-    infisical \
-    cloudflared \
-    sentry-cli \
-    act \
-    sops \
-    age \
-    age-keygen \
-    gitleaks \
-    osv-scanner \
-    semgrep; do
-    if command -v "$command" >/dev/null 2>&1; then
-      return 0
-    fi
-  done
-
-  return 1
 }
 
 component_present_for_update() {
@@ -879,59 +849,20 @@ apply_component_changes() {
   done
 }
 
-enable_update_tracking() {
-  install -D -m 0644 /dev/null "$state_file"
-}
-
 if (($# > 1)); then
   usage
-  exit 1
+  exit 2
 fi
 
 case ${1:-} in
 "")
   ;;
---status)
-  [[ -f $state_file ]]
-  exit
-  ;;
---integration-status)
-  [[ -f $state_file ]]
-  exit
-  ;;
---repair)
-  if [[ ! -f $state_file ]]; then
-    echo "qvCORE Devel maintenance is not enabled; nothing was repaired."
-    exit 0
-  fi
-  enable_update_tracking
-  echo "qvCORE Devel maintenance is repaired; installed tools were preserved."
-  exit
-  ;;
---adopt)
-  if ! optional_devel_component_present; then
-    echo "No existing optional qvCORE Devel tool was found to adopt." >&2
-    exit 1
-  fi
-  enable_update_tracking
-  echo "qvCORE Devel maintenance adopted the installed development tools."
-  exit
-  ;;
---disable)
-  rm -f "$state_file"
-  echo "qvCORE Devel maintenance is disabled; installed tools remain available."
-  exit
-  ;;
 --update)
-  if [[ ! -f $state_file ]]; then
-    echo "qvCORE Devel maintenance is not enabled; nothing was refreshed."
-    exit 0
-  fi
   update_only=1
   ;;
 *)
   usage
-  exit 1
+  exit 2
   ;;
 esac
 
@@ -979,9 +910,6 @@ elif ((ready_count != total_components)); then
   echo "qvCORE Devel is incomplete." >&2
   exit 1
 fi
-
-failure_context="update tracking"
-enable_update_tracking
 
 echo ""
 if ((update_only)); then

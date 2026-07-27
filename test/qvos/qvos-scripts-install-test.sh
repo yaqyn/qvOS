@@ -200,3 +200,28 @@ for feature in \
     fail "Thunar $feature mode"
 done
 pass "tracked script and data modes are preserved"
+
+health_output=$(
+  HOME="$test_root" \
+    OMARCHY_PATH="$root" \
+    "$root/qv/install/desktop-status"
+)
+[[ -z $health_output ]] || fail "healthy desktop status output"
+
+printf '\n# test drift\n' \
+  >>"$test_root/.local/share/qvos/tmux/qvos-tmux"
+drift_before=$(sha256sum "$test_root/.local/share/qvos/tmux/qvos-tmux")
+set +e
+drift_output=$(
+  HOME="$test_root" \
+    OMARCHY_PATH="$root" \
+    "$root/qv/install/desktop-status" 2>&1
+)
+drift_status=$?
+set -e
+((drift_status == 1)) || fail "desktop drift health status"
+grep -Fq 'tmux runtime differs from tracked qvOS source' <<<"$drift_output" ||
+  fail "desktop drift health detail"
+[[ $(sha256sum "$test_root/.local/share/qvos/tmux/qvos-tmux") == "$drift_before" ]] ||
+  fail "desktop health mutates drifted runtime"
+pass "qvOS desktop health detects runtime drift without changing it"

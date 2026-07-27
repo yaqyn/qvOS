@@ -60,15 +60,24 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-setup-dns" <<'SCRIPT'
 #!/bin/bash
-[[ $1 == "WARP" ]] || exit 2
-printf 'setup\tWARP\n' >>"$QVOS_TEST_WARP_ACTION_LOG"
-touch \
-  "$QVOS_TEST_WARP_STATE/package" \
-  "$QVOS_TEST_WARP_STATE/enabled" \
-  "$QVOS_TEST_WARP_STATE/active" \
-  "$QVOS_TEST_WARP_STATE/registered" \
-  "$QVOS_TEST_WARP_STATE/connected"
-install -D -m 0644 /dev/null "$HOME/.local/state/qvos/qvcore/warp"
+printf 'setup\t%s\n' "$1" >>"$QVOS_TEST_WARP_ACTION_LOG"
+case $1 in
+WARP)
+  touch \
+    "$QVOS_TEST_WARP_STATE/package" \
+    "$QVOS_TEST_WARP_STATE/enabled" \
+    "$QVOS_TEST_WARP_STATE/active" \
+    "$QVOS_TEST_WARP_STATE/registered" \
+    "$QVOS_TEST_WARP_STATE/connected"
+  install -D -m 0644 /dev/null "$HOME/.local/state/qvos/qvcore/warp"
+  ;;
+DHCP)
+  rm -f "$QVOS_TEST_WARP_STATE/connected"
+  ;;
+*)
+  exit 2
+  ;;
+esac
 SCRIPT
 
 run_warp() {
@@ -121,7 +130,16 @@ grep -Fq 'qvCORE WARP is ready: 5/5.' <<<"$adopt_output" ||
   fail "WARP adoption verification"
 pass "an existing healthy WARP setup can be adopted without reconfiguration"
 
-rm -f "$test_root/.local/state/qvos/qvcore/warp" "$state/connected"
+: >"$action_log"
+prepare_output=$(run_warp --prepare-remove)
+grep -Fqx $'setup\tDHCP' "$action_log" ||
+  fail "WARP pre-removal network handoff"
+[[ ! -e $test_root/.local/state/qvos/qvcore/warp ]] ||
+  fail "WARP pre-removal maintenance state"
+grep -Fq 'ready for software removal' <<<"$prepare_output" ||
+  fail "WARP pre-removal result"
+pass "WARP hands networking back to DHCP before package removal"
+
 if run_warp --adopt >/dev/null 2>&1; then
   fail "unhealthy WARP adoption succeeds"
 fi

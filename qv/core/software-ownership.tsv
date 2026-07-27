@@ -1,5 +1,6 @@
-# Enabled qvCORE lifecycle software protected from generic removal.
+# qvCORE-curated software shown as normal personal software.
 # component	kind	name
+brave-origin	pacman	brave-origin-beta-bin
 warp	pacman	cloudflare-warp-nox-bin
 share	pacman	localsend
 dev	user-bin	supabase
@@ -14,11 +15,15 @@ dev	user-bin	gitleaks
 dev	user-bin	osv-scanner
 dev	user-bin	semgrep
 codex	user-bin	codex
-proton	pacman	curl
-proton	pacman	jq
-proton	pacman	openssl
-proton	pacman	iproute2
 proton	pacman	protonmail-bridge-core
 proton	pacman	proton-vpn-cli
 proton	user-bin	pass-cli
 proton	user-bin	proton-drive
+steam	pacman	steam
+media	pacman	gimp
+media	pacman	inkscape
+media	pacman	krita
+media	pacman	kdenlive
+media	pacman	obs-studio
+media	pacman	audacity
+media	pacman	blender

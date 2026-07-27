@@ -4,4 +4,4 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 health="$OMARCHY_PATH/qv/core/health.sh"
 
 [[ -x $health ]] || exit 0
-"$health" update
+"$health" maintain

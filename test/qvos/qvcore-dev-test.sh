@@ -512,31 +512,24 @@ done
 pass "qvCORE installs only missing components with verified provider releases"
 
 state_file="$test_home/.local/state/qvos/qvcore/dev"
-[[ -f $state_file ]] || fail "Devel opt-in state"
+[[ ! -e $state_file ]] || fail "Devel writes setup lifecycle state"
 grep -Fq 'bun add -d wrangler@latest' "$install_output" ||
   fail "project-local Wrangler guidance"
 grep -Fq 'bun add convex' "$install_output" ||
   fail "project-local Convex guidance"
-pass "qvCORE keeps Wrangler and Convex project-pinned"
+pass "qvCORE keeps Devel project-pinned and free of setup lifecycle state"
 
-run_dev --status
-repair_output=$(run_dev --repair)
-grep -Fq 'installed tools were preserved' <<<"$repair_output" ||
-  fail "Devel repair preservation result"
-
-disable_output=$(run_dev --disable)
-[[ ! -e $state_file ]] ||
-  fail "Devel lifecycle disable"
+for retired_mode in --status --repair --adopt --disable; do
+  set +e
+  run_dev "$retired_mode" >/dev/null 2>&1
+  retired_status=$?
+  set -e
+  ((retired_status == 2)) ||
+    fail "Devel accepts retired setup mode: $retired_mode"
+done
 [[ -x $test_home/.local/bin/supabase ]] ||
-  fail "Devel disable removed an installed tool"
-grep -Fq 'installed tools remain available' <<<"$disable_output" ||
-  fail "Devel disable preservation result"
-run_dev --repair >/dev/null
-adopt_output=$(run_dev --adopt)
-[[ -f $state_file ]] || fail "Devel lifecycle adoption state"
-grep -Fq 'adopted the installed development tools' <<<"$adopt_output" ||
-  fail "Devel adoption result"
-pass "qvCORE Devel lifecycle preserves installed tools"
+  fail "retired Devel setup mode changes an installed tool"
+pass "Devel is an app installer, not a managed setup lifecycle"
 
 : >"$action_log"
 : >"$network_log"

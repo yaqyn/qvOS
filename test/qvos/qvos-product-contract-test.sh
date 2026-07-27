@@ -80,17 +80,31 @@ if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared
   grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "qvCORE application leaked into the base installation"
 fi
-grep -Fqx '  for component in warp brave-origin share dev codex proton steam media; do' "$root/qv/core/install" || fail "complete qvCORE profile"
+expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t󰖂\napp\tbrave-origin\tBrave\t󰖟\nsetup\tshare\tShare\t\napp\tdev\tDevel\t󰵮\napp\tcodex\tCodex\t󱚤\nsetup\tproton\tProton\t󰌾\nsetup\tsteam\tGaming Dependencies\t\napp\tmedia\tMedia\t󰕧'
+[[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
+  fail "qvCORE catalog classification"
+grep -Fqx '  install_group app' "$root/qv/core/install" ||
+  fail "qvCORE application install group"
+grep -Fqx '  install_group setup' "$root/qv/core/install" ||
+  fail "qvCORE managed setup install group"
 grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
-grep -Fqx '# qvcore:lifecycle=1' "$root/qv/core/warp.sh" ||
-  fail "qvCORE WARP lifecycle"
-grep -Fqx 'catalog_components=(' "$root/qv/core/health.sh" ||
-  fail "qvCORE complete health catalog"
+grep -Fqx '# qvcore:managed-setup=1' "$root/qv/core/warp.sh" ||
+  fail "qvCORE WARP managed setup"
+grep -Fqx '# qvcore:app-integration=1' "$root/qv/core/codex.sh" ||
+  fail "qvCORE Codex app integration"
+grep -Fqx '    [[ $type == "setup" ]] || continue' "$root/qv/core/health.sh" ||
+  fail "qvCORE setup-only health catalog"
+if grep -Eq 'dev|codex|media|brave-origin' \
+  <(sed -n '/^setup_components=/,/^declare -A/p' "$root/qv/core/health.sh"); then
+  fail "qvCORE app hard-coded into setup health"
+fi
 grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
   fail "qvCORE command group"
 [[ -x $root/bin/omarchy-qvcore-status && -x $root/bin/omarchy-qvcore-repair ]] ||
   fail "qvCORE health commands"
-pass "qvCORE applications stay outside the base installation"
+[[ -x $root/bin/omarchy-qvos-health ]] ||
+  fail "qvOS base health command"
+pass "qvCORE apps stay personal while managed setups own lifecycle health"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"

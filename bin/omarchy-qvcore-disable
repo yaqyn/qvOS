@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Disable qvCORE integrations while preserving applications and personal data
+# omarchy:summary=Disable managed qvCORE setup integrations while preserving software and data
 # omarchy:group=qvcore
 # omarchy:name=disable
 # omarchy:requires-sudo=true

@@ -1410,7 +1410,7 @@ var installDomainOrder = []string{
 }
 
 var repairDomainOrder = []string{
-	"Inspect", "Source", "Packages", "Runtime", "Config", "qvCORE", "Complete",
+	"Inspect", "Source", "Packages", "Runtime", "Config", "Complete",
 }
 
 var updateStages = []struct {
@@ -1423,7 +1423,6 @@ var updateStages = []struct {
 	{"Update system packages", "updating system packages", 0.38},
 	{"Update AUR packages", "updating AUR packages", 0.56},
 	{"Running migration (", "running migrations", 0.68},
-	{"Enabled qvCORE setups", "checking optional qvCORE setups", 0.76},
 	{"Remove orphan system packages", "removing package orphans", 0.84},
 	{"qvOS update is complete.", "update complete", 1.00},
 }

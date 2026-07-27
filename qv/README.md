@@ -12,7 +12,7 @@ qv/
   branding/    qvOS terminal and desktop branding.
   browser/     Secure browser policy ownership.
   config/      qvOS config helpers and files installed after Omarchy defaults.
-  core/        Opt-in qvCORE integration components.
+  core/        qvCORE personal-software catalog and managed setup owners.
   diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   git/         Private git helper source and installers.
@@ -36,51 +36,55 @@ qv/
   waybar/      qvOS prayer clock modules.
 ```
 
-qvCORE components marked `# qvcore:lifecycle=1` own four local operations:
-`--status`, `--repair`, `--adopt`, and `--disable`. One base-owned maintenance
-seam checks only explicitly enabled setup state and delegates to the component
-owner. It stays silent when qvCORE is unused, ignores optional applications
-that were never enabled, and retires setup state when an application is later
-removed.
+qvCORE is an optional personal-software catalog, not a qvOS subsystem. It has
+two layers:
+
+- Apps (`Brave`, `Devel`, `Codex`, and `Media`) are curated shortcuts for
+  installing ordinary personal software.
+- Managed setups (`WARP`, `Share`, `Proton`, and Gaming Dependencies) have extra
+  configuration or dependency ownership. Only these setups participate in
+  qvCORE status, repair, disable, and post-update integration maintenance.
 
 ## Product lifecycle
 
 qvOS has one supported base: a solid, unbloated Arch system curated through
-Omarchy. qvCORE is separate and adds optional curated setups without changing
-qvOS identity, readiness, or base ownership.
+Omarchy. qvCORE is separate and adds optional personal software without
+changing qvOS identity, readiness, health, or base ownership.
 
 - `omarchy qvos update` confirms the operation and verifies branch `OS`, then
   delegates once to the original `omarchy update` implementation. Omarchy owns
   snapshots, source and package updates, migrations, orphan cleanup, log
-  analysis, and restarts. qvOS and enabled qvCORE reconciliation stay in
-  Omarchy's existing post-update hook seam.
-- `omarchy qvos repair` first inventories removed default packages, missing or
-  customized qvOS config, owned runtime, and enabled qvCORE integrations. Safe
-  repair restores missing config and tracked runtime while preserving package
-  removals and customization as user intent. `--reset` is the explicit,
-  backup-backed path that reinstalls missing packages from the original qvOS
-  manifest and restores every qvOS-owned config file from tracked source.
-- `omarchy qvcore status` inventories the complete optional catalog. It
-  distinguishes healthy or repairable integrations from available, partial,
-  and uninstalled software; optional absence is never damage.
-- `omarchy qvcore repair` lets the user choose exactly one component. Enabled
-  persistent integrations use their repair owner, installed applications can
-  be adopted, and missing software is installed only after explicit selection.
-  Automatic update and qvOS repair hooks remain limited to enabled persistent
-  integrations.
-- `omarchy qvcore disable` removes only enabled qvOS-owned integration and
-  maintenance state. Installed applications, authentication, network choices,
-  and personal data remain.
+  analysis, and restarts. A silent qvCORE post-update hook maintains only
+  enabled WARP, Share, and Proton integration state; it never installs or
+  updates curated apps.
+- `omarchy qvos health` is the read-only qvOS base inspection. It checks the
+  source branch, missing base config, customized config, and installed qvOS
+  runtime without grading personal software.
+- `omarchy qvos repair` uses the same base inspection. Safe repair restores
+  missing config and tracked runtime while preserving package removals and
+  customization as user intent. `--reset` is the explicit, backup-backed path
+  that reinstalls missing packages from the original qvOS manifest and
+  restores every qvOS-owned config file from tracked source. It does not repair
+  or reinstall qvCORE software.
+- `omarchy install qvcore` installs everything. `apps` installs only the
+  curated app catalog, `setups` installs only managed setups, and every
+  component remains independently installable.
+- `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
+  Proton, and Gaming Dependencies. `omarchy qvcore disable` removes only enabled
+  WARP, Share, or Proton integration state while preserving their software and
+  personal data.
 - `omarchy qvos software` inventories software added after the immutable
   fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
   npm globals, persistent npx wrappers, AppImages, and standalone executables
   in standard user or system locations, including common single-binary
   curl/GitHub installs. Active qvOS package manifests and qvOS-owned runtime
-  remain protected. Software owned by an enabled qvCORE lifecycle is visible
-  but protected until that integration is disabled. `--remove` changes only
-  explicit selections after confirmation; package managers retain ownership
-  of their packages, user files move to Trash, and system standalone removal
-  targets one exact path.
+  remain protected. qvCORE-curated software is shown as ordinary personal
+  software even when an older baseline captured them. Removing WARP, Share,
+  Proton, or Codex software delegates idempotent integration cleanup to its
+  owner first. `--remove` changes only explicit selections
+  after confirmation; package managers retain ownership of their packages,
+  user files move to Trash, and system standalone removal targets one exact
+  path.
 - Existing installations without a fresh-install baseline must run
   `omarchy qvos software --initialize` explicitly. qvOS does not fabricate
   historical ownership from the current package list.

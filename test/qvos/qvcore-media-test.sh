@@ -257,4 +257,4 @@ fi
 grep -Fq 'omarchy-qvos-block-upstream-maintenance' \
   "$root/bin/omarchy-remove-preinstalls" ||
   fail "upstream preinstall cleanup is not guarded on qvOS"
-pass "qvCORE exclusively owns the curated Media application lifecycle"
+pass "qvCORE exclusively owns the curated Media application installer"

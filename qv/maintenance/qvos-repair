@@ -9,6 +9,8 @@ config_paths=()
 missing_packages=()
 missing_configs=()
 drifted_configs=()
+runtime_ready=0
+runtime_issues=""
 
 usage() {
   echo "Usage: qvos-repair [--status|--reset] [--yes]" >&2
@@ -51,23 +53,29 @@ if [[ $repair_mode == "status" ]] && ((assume_yes)); then
   exit 2
 fi
 
-for command in git omarchy-pkg-add omarchy-pkg-present; do
+operation_name="qvOS repair"
+[[ $repair_mode == "status" ]] && operation_name="qvOS health"
+required_commands=(git omarchy-pkg-present)
+if [[ $repair_mode != "status" ]]; then
+  required_commands+=(omarchy-pkg-add)
+fi
+for command in "${required_commands[@]}"; do
   if ! command -v "$command" >/dev/null 2>&1; then
-    echo "qvOS repair requires the qvOS base command: $command" >&2
+    echo "$operation_name requires the qvOS base command: $command" >&2
     exit 1
   fi
 done
 
 branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
 if [[ $branch != "OS" ]]; then
-  echo "qvOS repair requires the live qvOS checkout on branch OS; found '${branch:-none}'." >&2
+  echo "$operation_name requires the live qvOS checkout on branch OS; found '${branch:-none}'." >&2
   exit 1
 fi
 
 required_sources=(
   qv/config/files
-  qv/core/health.sh
   qv/install/desktop
+  qv/install/desktop-status
   qv/install/packaging/base.packages
   qv/config/refresh
 )
@@ -83,17 +91,6 @@ mapfile -t config_paths < <(
   cd "$OMARCHY_PATH/qv/config/files"
   find . -type f -printf '%P\n' | sort
 )
-
-if ! enabled_qvcore_count=$(
-  "$OMARCHY_PATH/qv/core/health.sh" enabled-count
-); then
-  echo "qvOS repair could not inspect optional qvCORE setup state." >&2
-  exit 1
-fi
-if [[ ! $enabled_qvcore_count =~ ^[0-9]+$ ]]; then
-  echo "qvOS repair received invalid optional qvCORE setup state." >&2
-  exit 1
-fi
 
 mapfile -t base_packages < <(
   sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
@@ -116,16 +113,25 @@ for config_path in "${config_paths[@]}"; do
   fi
 done
 
-echo "qvOS repair: Inspect"
+if runtime_issues=$("$OMARCHY_PATH/qv/install/desktop-status" 2>&1); then
+  runtime_ready=1
+fi
+
+if [[ $repair_mode == "status" ]]; then
+  echo "qvOS health: Inspect"
+else
+  echo "qvOS repair: Inspect"
+fi
 echo ""
-echo "qvOS repair inspection"
+echo "qvOS Health"
 echo ""
 printf '  Removed default packages:    %d\n' "${#missing_packages[@]}"
 printf '  Missing qvOS config files:   %d\n' "${#missing_configs[@]}"
 printf '  Customized qvOS config:      %d\n' "${#drifted_configs[@]}"
-echo "  qvOS-owned runtime:          reconcile from tracked source"
-if ((enabled_qvcore_count > 0)); then
-  printf '  Enabled optional setups:     %d qvCORE\n' "$enabled_qvcore_count"
+if ((runtime_ready)); then
+  echo "  qvOS-owned runtime:          Ready"
+else
+  echo "  qvOS-owned runtime:          Needs repair"
 fi
 
 if ((${#missing_packages[@]} > 0)); then
@@ -145,11 +151,22 @@ if ((${#drifted_configs[@]} > 0)); then
   echo "Reset restores tracked qvOS config and creates timestamped backups."
   print_items "${drifted_configs[@]}"
 fi
+if ((runtime_ready == 0)); then
+  echo ""
+  echo "qvOS runtime repair plan:"
+  while IFS= read -r issue; do
+    [[ -n $issue ]] && printf '    - %s\n' "$issue"
+  done <<<"$runtime_issues"
+fi
 
 if [[ $repair_mode == "status" ]]; then
   echo ""
-  echo "qvOS inspection is complete; no changes were made."
-  exit
+  if ((${#missing_configs[@]} == 0 && runtime_ready)); then
+    echo "qvOS is healthy; no changes were made."
+    exit
+  fi
+  echo "qvOS needs repair; no changes were made."
+  exit 1
 fi
 
 if [[ $repair_mode == "interactive" ]] && ((assume_yes == 0)); then
@@ -246,9 +263,9 @@ if ((restored_hyprland)); then
   fi
 fi
 
-if ((enabled_qvcore_count > 0)); then
-  echo "qvOS repair: qvCORE"
-  omarchy-qvcore-repair-enabled
+if ! "$OMARCHY_PATH/qv/install/desktop-status"; then
+  echo "qvOS runtime verification failed after repair." >&2
+  exit 1
 fi
 
 echo "qvOS repair: Complete"

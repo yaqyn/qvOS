@@ -576,3 +576,13 @@ disable_output=$(run_component --disable)
 grep -Fq 'Proton services and personal data were not changed.' <<<"$disable_output" ||
   fail "Proton desktop disable boundary"
 pass "Proton desktop integration can be disabled without removing services"
+
+run_component --adopt >/dev/null
+prepare_output=$(run_component --prepare-remove)
+[[ ! -e $upload_helper && ! -e $desktop_state ]] ||
+  fail "Proton pre-removal desktop cleanup"
+[[ -x $test_root/.local/bin/proton-drive ]] ||
+  fail "Proton pre-removal Drive CLI preservation"
+grep -Fq 'ready for software removal' <<<"$prepare_output" ||
+  fail "Proton pre-removal result"
+pass "Proton software removal cleans its desktop integration before package changes"

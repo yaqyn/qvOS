@@ -1,5 +1,5 @@
 #!/bin/bash
-# qvcore:lifecycle=1
+# qvcore:managed-setup=1
 set -euo pipefail
 
 # Owned paths and state
@@ -29,7 +29,7 @@ source "$thunar_actions_source"
 # Integration inventory
 
 usage() {
-  echo "Usage: share.sh [--status|--repair|--adopt|--disable]" >&2
+  echo "Usage: share.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
 }
 
 status_label() {
@@ -189,6 +189,7 @@ case ${1:-} in
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
+--prepare-remove) mode="prepare-remove" ;;
 *)
   usage
   exit 2
@@ -221,8 +222,11 @@ if [[ $mode == "status" || $mode == "integration-status" ]]; then
   exit
 fi
 
-if [[ $mode == "disable" ]]; then
+if [[ $mode == "disable" || $mode == "prepare-remove" ]]; then
   disable_share
+  if [[ $mode == "prepare-remove" ]]; then
+    echo "Share setup integration is ready for software removal."
+  fi
   exit
 fi
 

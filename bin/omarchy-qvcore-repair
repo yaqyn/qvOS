@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# omarchy:summary=Inspect every qvCORE component and choose one to install or repair
-# omarchy:args=[warp|brave-origin|share|dev|codex|proton|steam|media]
+# omarchy:summary=Inspect and repair one managed qvCORE setup
+# omarchy:args=[warp|share|proton|steam]
 # omarchy:group=qvcore
 # omarchy:name=repair
 # omarchy:requires-sudo=true

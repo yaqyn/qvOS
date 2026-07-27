@@ -33,9 +33,9 @@ QVOS_TEST_MAINTENANCE_LOG="$action_log" \
   HOME="$test_root" \
   OMARCHY_PATH="$fixture" \
   bash "$hook"
-[[ $(<"$action_log") == "update" ]] ||
+[[ $(<"$action_log") == "maintain" ]] ||
   fail "central qvCORE hook delegation"
-pass "one central post-update hook delegates to qvCORE update health"
+pass "one central post-update hook maintains enabled setup integrations"
 
 rm -f "$fixture/qv/core/health.sh"
 : >"$action_log"
@@ -45,4 +45,4 @@ QVOS_TEST_MAINTENANCE_LOG="$action_log" \
   bash "$hook"
 [[ ! -s $action_log ]] ||
   fail "central qvCORE hook runs without deployed health source"
-pass "qvCORE update hook waits for its deployed lifecycle owner"
+pass "qvCORE maintenance waits for its deployed setup owner"

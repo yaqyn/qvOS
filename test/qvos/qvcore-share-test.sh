@@ -367,6 +367,16 @@ grep -Fq 'LocalSend and personal data were not changed.' <<<"$disable_output" ||
   fail "Share disable boundary"
 pass "Share disables only its owned integration and preserves LocalSend"
 
+run_share --adopt >/dev/null
+prepare_output=$(run_share --prepare-remove)
+[[ ! -e $thunar_share_runtime && ! -e $state_file && ! -e $firewall_profile ]] ||
+  fail "Share pre-removal integration cleanup"
+[[ -f $installed_dir/localsend ]] ||
+  fail "Share pre-removal LocalSend preservation"
+grep -Fq 'ready for software removal' <<<"$prepare_output" ||
+  fail "Share pre-removal result"
+pass "Share removes firewall and desktop integration before LocalSend removal"
+
 reset_test_state
 install -m 0644 /dev/null "$installed_dir/localsend"
 run_share_command file "$file_one" "$file_two"

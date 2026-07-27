@@ -61,12 +61,9 @@ func TestRepairActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 		t.Fatalf("repair progress = %q, %f", status, progress)
 	}
 
-	status, progress = scriptProgressFromLine(
-		actionRepair,
-		"qvOS repair: qvCORE",
-	)
-	if status != "qvcore" || progress <= 0 {
-		t.Fatalf("optional qvCORE repair progress = %q, %f", status, progress)
+	status, progress = scriptProgressFromLine(actionRepair, "qvOS repair: Complete")
+	if status != "complete" || progress <= 0 {
+		t.Fatalf("repair completion progress = %q, %f", status, progress)
 	}
 }
 

@@ -11,6 +11,7 @@ user_bin="$test_home/.local/bin"
 applications="$test_home/Applications"
 system_bin="$test_root/usr-local-bin"
 restricted_bin="$test_root/restricted-bin"
+qvcore_owner_dir="$test_root/qvcore-owners"
 state_home="$test_home/.local/state"
 explicit_packages="$test_root/explicit-packages"
 foreign_packages="$test_root/foreign-packages"
@@ -37,6 +38,7 @@ install -d \
   "$state_home" \
   "$system_bin" \
   "$restricted_bin" \
+  "$qvcore_owner_dir" \
   "$test_bin" \
   "$test_home/.config" \
   "$test_home/.bun/install/global" \
@@ -185,6 +187,16 @@ confirm)
 esac
 SCRIPT
 
+for component in warp codex; do
+  install -m 0755 /dev/stdin "$qvcore_owner_dir/$component.sh" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--prepare-remove" ]] || exit 2
+component=$(basename "$0" .sh)
+printf 'cleanup\t%s\n' "$component" >>"$QVOS_TEST_ACTION_LOG"
+rm -f "$HOME/.local/state/qvos/qvcore/$component"
+SCRIPT
+done
+
 install -m 0755 /dev/null "$user_bin/existing-tool"
 install -m 0755 /dev/null "$applications/Existing.AppImage"
 install -m 0755 /dev/null "$system_bin/existing-system-tool"
@@ -200,6 +212,7 @@ run_software() {
     XDG_STATE_HOME="$state_home" \
     OMARCHY_PATH="$root" \
     QVOS_PERSONAL_APPLICATIONS_DIR="$applications" \
+    QVOS_PERSONAL_QVCORE_OWNER_DIR="$qvcore_owner_dir" \
     QVOS_PERSONAL_SYSTEM_BIN_DIR="$system_bin" \
     QVOS_PERSONAL_USER_BIN_DIR="$user_bin" \
     PATH="${QVOS_TEST_PATH:-$test_bin:$root/bin:/usr/bin}" \
@@ -286,6 +299,10 @@ install -m 0755 /dev/null "$system_bin/package-owned"
 install -m 0755 /dev/null "$system_bin/system-tool"
 install -d "$state_home/qvos/qvcore"
 touch "$state_home/qvos/qvcore/warp" "$state_home/qvos/qvcore/codex"
+printf '%s\n' \
+  $'pacman\tcloudflare-warp-nox-bin' \
+  $'user-bin\tcodex' \
+  >>"$baseline"
 
 : >"$action_log"
 status_output=$(run_software --status)
@@ -293,17 +310,19 @@ grep -Fq 'Detected 11 personal software item(s)' <<<"$status_output" ||
   fail "complete personal-software inventory count"
 grep -Fq 'AUR/foreign        aur-app' <<<"$status_output" ||
   fail "AUR inventory"
-grep -Fq 'Pacman             kdenlive' <<<"$status_output" ||
-  fail "commented qvOS package inventory"
+grep -Eq 'qvCORE · Pacman[[:space:]]+kdenlive' <<<"$status_output" ||
+  fail "qvCORE Media package inventory"
 grep -Fq 'Description for kdenlive' <<<"$status_output" ||
   fail "Pacman package description"
-if ! grep -Fq 'cloudflare-warp-nox-bin' <<<"$status_output" ||
-  ! grep -Fq 'managed by enabled qvCORE WARP [protected]' <<<"$status_output"; then
-  fail "enabled qvCORE package protection"
+if ! grep -Eq 'qvCORE · Pacman[[:space:]]+cloudflare-warp-nox-bin' <<<"$status_output" ||
+  ! grep -Fq 'WARP; Description for cloudflare-warp-nox-bin; integration cleanup included' \
+    <<<"$status_output"; then
+  fail "qvCORE WARP personal-software ownership"
 fi
-if ! grep -Fq 'qvCORE             codex' <<<"$status_output" ||
-  ! grep -Fq 'managed by enabled qvCORE Codex [protected]' <<<"$status_output"; then
-  fail "enabled qvCORE standalone protection"
+if ! grep -Eq 'qvCORE · Direct[[:space:]]+codex' <<<"$status_output" ||
+  ! grep -Fq 'Codex; '"$user_bin/codex"'; integration cleanup included' \
+    <<<"$status_output"; then
+  fail "qvCORE Codex personal-software ownership"
 fi
 if ! grep -Fq 'shared-lib' <<<"$status_output" ||
   ! grep -Fq 'required by personal-parent [protected]' <<<"$status_output"; then
@@ -325,8 +344,8 @@ if grep -Eq 'existing-tool|Existing.AppImage|existing-system-tool|qvos-owned|[[:
   <<<"$status_output"; then
   fail "baseline or qvOS-owned software appears as personal"
 fi
-grep -Fq '8 item(s) can be selected for removal' <<<"$status_output" ||
-  fail "protected personal-software removal count"
+grep -Fq '10 item(s) can be selected for removal' <<<"$status_output" ||
+  fail "personal-software removal count"
 [[ ! -s $action_log ]] || fail "personal-software status mutates software"
 [[ $(<"$sentinel") == "preserve me" ]] ||
   fail "personal-software inventory changes config"
@@ -358,6 +377,29 @@ grep -Fqx kdenlive "$explicit_packages" ||
   fail "removal starts before every selected owner is available"
 pass "mixed removal preflights every owner before the first mutation"
 
+ln -s "$test_bin/gio" "$restricted_bin/gio"
+unlink "$restricted_bin/omarchy-pkg-drop"
+: >"$action_log"
+set +e
+package_preflight_output=$(
+  QVOS_TEST_PATH="$restricted_bin" \
+    QVOS_TEST_SELECTIONS="kdenlive" \
+    run_software --remove 2>&1
+)
+package_preflight_status=$?
+set -e
+((package_preflight_status == 1)) ||
+  fail "missing package removal owner is accepted"
+grep -Fq 'Personal software removal requires: omarchy-pkg-drop' \
+  <<<"$package_preflight_output" ||
+  fail "missing package removal owner explanation"
+grep -Fqx kdenlive "$explicit_packages" ||
+  fail "package changed before package-owner preflight"
+[[ ! -s $action_log ]] ||
+  fail "package removal starts before its owner is available"
+ln -s "$test_bin/omarchy-pkg-drop" "$restricted_bin/omarchy-pkg-drop"
+pass "Pacman removal preflights its exact qvOS owner"
+
 QVOS_TEST_SELECTIONS="kdenlive,cowsay,serve,gemini,personal-tool,Editor.AppImage,system-tool" \
   run_software --remove >/dev/null
 for expected in \
@@ -374,11 +416,11 @@ done
 grep -Fqx aur-app "$explicit_packages" ||
   fail "unselected AUR package was removed"
 grep -Fqx cloudflare-warp-nox-bin "$explicit_packages" ||
-  fail "enabled qvCORE package was removed"
+  fail "unselected qvCORE package was removed"
 grep -Fqx shared-lib "$explicit_packages" ||
   fail "protected required package was removed"
 [[ -e $user_bin/codex ]] ||
-  fail "enabled qvCORE standalone was removed"
+  fail "unselected qvCORE standalone was removed"
 [[ $(<"$sentinel") == "preserve me" ]] ||
   fail "personal-software removal changes config"
 pass "removal delegates only exact selections to their real owners"
@@ -392,7 +434,28 @@ grep -Fq 'shared-lib' <<<"$remaining_output" ||
   fail "post-removal protected state"
 pass "post-removal inventory truthfully preserves unselected software"
 
+: >"$action_log"
+QVOS_TEST_SELECTIONS="cloudflare-warp-nox-bin,codex" \
+  run_software --remove >/dev/null
+expected_qvcore_removal=$'cleanup\twarp\ncleanup\tcodex\npacman\tcloudflare-warp-nox-bin\ntrash\t'"$user_bin/codex"
+[[ $(<"$action_log") == "$expected_qvcore_removal" ]] ||
+  fail "qvCORE software cleanup and removal order"
+[[ ! -e $state_home/qvos/qvcore/warp ]] ||
+  fail "WARP integration state remains after software removal"
+[[ ! -e $state_home/qvos/qvcore/codex ]] ||
+  fail "Codex integration state remains after software removal"
+[[ ! -e $user_bin/codex ]] ||
+  fail "selected qvCORE standalone remains"
+if grep -Fxq cloudflare-warp-nox-bin "$explicit_packages"; then
+  fail "selected qvCORE package remains"
+fi
+final_output=$(run_software --status)
+grep -Fq 'Detected 2 personal software item(s)' <<<"$final_output" ||
+  fail "final personal-software inventory"
+pass "qvCORE apps are removable personal software with integration-aware cleanup"
+
 for ownership in \
+  $'brave-origin\tpacman\tbrave-origin-beta-bin' \
   $'warp\tpacman\tcloudflare-warp-nox-bin' \
   $'share\tpacman\tlocalsend' \
   $'dev\tuser-bin\tsupabase' \
@@ -400,11 +463,13 @@ for ownership in \
   $'proton\tpacman\tprotonmail-bridge-core' \
   $'proton\tpacman\tproton-vpn-cli' \
   $'proton\tuser-bin\tpass-cli' \
-  $'proton\tuser-bin\tproton-drive'; do
+  $'proton\tuser-bin\tproton-drive' \
+  $'steam\tpacman\tsteam' \
+  $'media\tpacman\tkdenlive'; do
   grep -Fqx "$ownership" "$root/qv/core/software-ownership.tsv" ||
     fail "qvCORE software ownership: $ownership"
 done
-pass "enabled qvCORE lifecycle software has an explicit protection catalog"
+pass "qvCORE curation has explicit cross-installer software ownership"
 
 grep -Fq \
   "\"\$OMARCHY_PATH/qv/maintenance/personal-software-baseline\" --capture" \

@@ -32,6 +32,7 @@
     qv/desktop/web/qvos-localhost-open
     qv/desktop/web/qvos-website-open
     qv/core/post-update-hook
+    qv/install/desktop-status
     qv/install/post-update-hook
     qv/launcher/install
     qv/launcher/elephant/omarchy_background_selector.lua

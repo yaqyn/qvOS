@@ -91,7 +91,7 @@ case ${1:-} in
 "") ;;
 --status)
   echo ""
-  echo "qvCORE Steam inventory"
+  echo "qvCORE Gaming Dependencies inventory"
   if ((steam_ready)); then
     echo "  Steam:               installed"
   else

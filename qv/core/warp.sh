@@ -1,5 +1,5 @@
 #!/bin/bash
-# qvcore:lifecycle=1
+# qvcore:managed-setup=1
 set -euo pipefail
 
 state_file="$HOME/.local/state/qvos/qvcore/warp"
@@ -11,7 +11,7 @@ connection_ready=0
 maintenance_ready=0
 
 usage() {
-  echo "Usage: warp.sh [--status|--integration-status|--repair|--adopt|--disable]" >&2
+  echo "Usage: warp.sh [--status|--integration-status|--repair|--adopt|--disable|--prepare-remove]" >&2
 }
 
 status_label() {
@@ -74,6 +74,7 @@ case ${1:-} in
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
+--prepare-remove) mode="prepare-remove" ;;
 *)
   usage
   exit 2
@@ -94,6 +95,15 @@ fi
 if [[ $mode == "disable" ]]; then
   rm -f "$state_file"
   echo "qvCORE WARP maintenance is disabled; the current network choice was not changed."
+  exit
+fi
+
+if [[ $mode == "prepare-remove" ]]; then
+  if ((package_ready)) || [[ -f $state_file ]]; then
+    omarchy-qvos-setup-dns DHCP
+  fi
+  rm -f "$state_file"
+  echo "WARP setup integration is ready for software removal."
   exit
 fi
 

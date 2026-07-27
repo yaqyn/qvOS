@@ -75,29 +75,49 @@ show_install_menu() {
 show_qvcore_menu() {
   local back_menu=${1:-show_install_menu}
 
-  case $(menu "qvCORE — Optional Setups" "󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All Setups\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media") in
-  *Health*) present_terminal omarchy-qvcore-repair ;;
-  *Disable*) present_terminal omarchy-qvcore-disable ;;
-  *"Install All Setups"*) present_terminal omarchy-install-qvcore ;;
+  case $(menu "qvCORE — Personal Software" "  Install Everything\n󰏖  Applications\n󰒓  Managed Setups") in
+  *"Install Everything"*) present_terminal omarchy-install-qvcore ;;
+  *Applications*) show_qvcore_apps_menu show_qvcore_menu ;;
+  *Setups*) show_qvcore_setups_menu show_qvcore_menu ;;
+  *) "$back_menu" ;;
+  esac
+}
+
+show_qvcore_apps_menu() {
+  local back_menu=${1:-show_qvcore_menu}
+
+  case $(menu "qvCORE — Applications" "  Install All Apps\n󰖟  Brave\n󰵮  Devel\n󱚤  Codex\n󰕧  Media") in
+  *"Install All Apps"*) present_terminal "omarchy-install-qvcore apps" ;;
   *Brave*) present_terminal "omarchy-install-qvcore brave-origin" ;;
-  *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
-  *Share*) present_terminal "omarchy-install-qvcore share" ;;
   *Devel*) present_terminal "omarchy-install-qvcore dev" ;;
   *Codex*) present_terminal "omarchy-install-qvcore codex" ;;
-  *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
-  *Steam*) present_terminal "omarchy-install-qvcore steam" ;;
   *Media*) present_terminal "omarchy-install-qvcore media" ;;
   *) "$back_menu" ;;
   esac
 }
 
+show_qvcore_setups_menu() {
+  local back_menu=${1:-show_qvcore_menu}
+
+  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Integration\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton\n  Gaming Dependencies") in
+  *Status*) present_terminal omarchy-qvcore-status ;;
+  *Repair*) present_terminal omarchy-qvcore-repair ;;
+  *Disable*) present_terminal omarchy-qvcore-disable ;;
+  *"Install All Setups"*) present_terminal "omarchy-install-qvcore setups" ;;
+  *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
+  *Share*) present_terminal "omarchy-install-qvcore share" ;;
+  *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
+  *Gaming*) present_terminal "omarchy-install-qvcore steam" ;;
+  *) "$back_menu" ;;
+  esac
+}
+
 show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
+  case $(menu "qvOS" "󱅾  Update qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
   *"Update qvOS"*) present_terminal omarchy-qvos-update ;;
+  *"Health qvOS"*) present_terminal omarchy-qvos-health ;;
   *"Repair qvOS"*) present_terminal omarchy-qvos-repair ;;
   *"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;
-  *Health*) present_terminal omarchy-qvcore-repair ;;
-  *Disable*) present_terminal omarchy-qvcore-disable ;;
   *qvCORE*) show_qvcore_menu show_qvos_menu ;;
   *) back_to show_main_menu ;;
   esac
@@ -121,7 +141,8 @@ show_remove_menu() {
 }
 
 show_update_menu() {
-  case $(menu "Update" "󱅾  qvOS\n󰑓  Repair qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  case $(menu "Update" "󱅾  qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  *Health*) present_terminal omarchy-qvos-health ;;
   *Repair*) present_terminal omarchy-qvos-repair ;;
   *qvOS*) present_terminal omarchy-qvos-update ;;
   *Config*) show_update_config_menu ;;

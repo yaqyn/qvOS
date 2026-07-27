@@ -28,30 +28,29 @@ install -d \
   "$fixture/qv/core" \
   "$state/commands" \
   "$test_root/.local/state/qvos/qvcore"
+cp "$root/qv/core/catalog.tsv" "$fixture/qv/core/catalog.tsv"
 touch "$lifecycle_log"
 
-for component in warp share dev codex proton; do
+for component in warp share proton; do
   install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
 #!/bin/bash
 component=$(basename "$0" .sh)
 state_file="$HOME/.local/state/qvos/qvcore/$component"
 case ${1:-} in
---status | --integration-status)
+--integration-status)
   [[ -f $state_file && -f $QVOS_TEST_HEALTH_STATE/ready-$component ]]
   ;;
 --repair)
   printf 'repair\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
-  install -m 0644 /dev/null "$QVOS_TEST_HEALTH_STATE/ready-$component"
+  if [[ ${QVOS_TEST_HEALTH_NO_REPAIR:-0} != "1" ]]; then
+    install -m 0644 /dev/null "$QVOS_TEST_HEALTH_STATE/ready-$component"
+  fi
   [[ -f $state_file ]]
   ;;
 --adopt)
   printf 'adopt\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
   install -D -m 0644 /dev/null "$state_file"
   install -m 0644 /dev/null "$QVOS_TEST_HEALTH_STATE/ready-$component"
-  ;;
---update)
-  printf 'update\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
-  [[ -f $state_file && -f $QVOS_TEST_HEALTH_STATE/ready-$component ]]
   ;;
 --disable)
   printf 'disable\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
@@ -64,24 +63,15 @@ esac
 SCRIPT
 done
 
-for component in brave-origin steam media; do
-  install -m 0755 /dev/stdin "$fixture/qv/core/$component.sh" <<'SCRIPT'
+install -m 0755 /dev/stdin "$fixture/qv/core/steam.sh" <<'SCRIPT'
 #!/bin/bash
-component=$(basename "$0" .sh)
-case ${1:-} in
---state)
-  if [[ -f $QVOS_TEST_HEALTH_STATE/simple-$component ]]; then
-    cat "$QVOS_TEST_HEALTH_STATE/simple-$component"
-  else
-    echo "not-installed"
-  fi
-  ;;
-*)
-  exit 2
-  ;;
-esac
+[[ ${1:-} == "--state" ]] || exit 2
+if [[ -f $QVOS_TEST_HEALTH_STATE/steam-state ]]; then
+  cat "$QVOS_TEST_HEALTH_STATE/steam-state"
+else
+  echo "not-installed"
+fi
 SCRIPT
-done
 
 install -m 0755 /dev/stdin "$fixture/qv/core/install" <<'SCRIPT'
 #!/bin/bash
@@ -90,11 +80,9 @@ printf 'install\t%s\n' "$component" >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
 case $component in
 warp) command_name=warp-cli ;;
 share) command_name=localsend ;;
-dev) command_name=bun ;;
-codex) command_name=codex ;;
 proton) command_name=proton-drive ;;
-brave-origin | steam | media)
-  printf 'ready\n' >"$QVOS_TEST_HEALTH_STATE/simple-$component"
+steam)
+  printf 'ready\n' >"$QVOS_TEST_HEALTH_STATE/steam-state"
   exit
   ;;
 *) exit 2 ;;
@@ -122,6 +110,7 @@ run_health() {
   QVOS_TEST_HEALTH_CHOICE="${QVOS_TEST_HEALTH_CHOICE:-share}" \
     QVOS_TEST_HEALTH_CONFIRM="${QVOS_TEST_HEALTH_CONFIRM:-1}" \
     QVOS_TEST_HEALTH_LIFECYCLE_LOG="$lifecycle_log" \
+    QVOS_TEST_HEALTH_NO_REPAIR="${QVOS_TEST_HEALTH_NO_REPAIR:-0}" \
     QVOS_TEST_HEALTH_STATE="$state" \
     HOME="$test_root" \
     OMARCHY_PATH="$fixture" \
@@ -129,89 +118,95 @@ run_health() {
     "$health" "$@"
 }
 
-enable_all_integrations() {
-  local component
+enable_integrations() {
+  local component command
 
-  for component in warp share dev codex proton; do
+  for component in warp share proton; do
     install -m 0644 /dev/null \
       "$test_root/.local/state/qvos/qvcore/$component"
     install -m 0644 /dev/null "$state/ready-$component"
   done
-  for command in warp-cli localsend bun codex proton-drive; do
+  for command in warp-cli localsend proton-drive; do
     install -m 0644 /dev/null "$state/commands/$command"
   done
 }
 
-empty_update=$(run_health update)
-[[ -z $empty_update ]] ||
-  fail "unused qvCORE update output"
-[[ ! -s $lifecycle_log ]] ||
-  fail "unused qvCORE update action"
-[[ $(run_health enabled-count) == "0" ]] ||
-  fail "unused qvCORE enabled count"
 empty_status=$(run_health status)
-grep -Fq 'Optional software that is absent is not considered broken.' \
-  <<<"$empty_status" || fail "unused qvCORE absence policy"
-for component in WARP Brave Share Devel Codex Proton Steam Media; do
-  grep -Eq "[[:space:]]${component}[[:space:]]+Not installed" <<<"$empty_status" ||
-    fail "unused qvCORE $component status"
+grep -Fq 'qvCORE apps are normal personal software and are not graded here.' \
+  <<<"$empty_status" || fail "qvCORE application policy"
+for component in WARP Share Proton "Gaming Dependencies"; do
+  grep -Eq "[[:space:]]${component}[[:space:]]+Missing" <<<"$empty_status" ||
+    fail "unused managed setup status: $component"
 done
-pass "qvCORE reports the complete optional catalog without treating absence as damage"
+for app in Brave Devel Codex Media; do
+  if grep -Eq "^[[:space:]]+.*${app}[[:space:]]+(Ready|Partial|Disabled|Missing)" \
+    <<<"$empty_status"; then
+    fail "ordinary qvCORE app graded as a managed setup: $app"
+  fi
+done
+pass "health grades only the four managed setups"
+
+install -m 0644 /dev/null "$state/commands/localsend"
+disabled_output=$(run_health status)
+grep -Eq '[[:space:]]Share[[:space:]]+Disabled' <<<"$disabled_output" ||
+  fail "installed but disabled Share status"
+rm -f "$state/commands/localsend"
+pass "health distinguishes installed software from an enabled setup"
 
 install -m 0644 /dev/null "$state/commands/warp-cli"
-install -m 0644 /dev/null "$state/ready-warp"
 : >"$lifecycle_log"
 run_health repair warp >/dev/null
 grep -Fqx $'adopt\twarp' "$lifecycle_log" ||
   fail "existing WARP adoption"
 if grep -Fq $'install\twarp' "$lifecycle_log"; then
-  fail "healthy existing WARP is reconfigured"
+  fail "existing WARP is reinstalled"
 fi
-pass "qvCORE adopts an existing healthy WARP setup without reconfiguration"
+pass "WARP can adopt existing software without reinstalling it"
 
-enable_all_integrations
-printf 'ready\n' >"$state/simple-brave-origin"
-printf 'partial\n' >"$state/simple-steam"
-ready_output=$(run_health status)
-grep -Eq '[[:space:]]WARP[[:space:]]+Ready' <<<"$ready_output" ||
-  fail "qvCORE WARP ready status"
-grep -Eq '[[:space:]]Steam[[:space:]]+Partial' <<<"$ready_output" ||
-  fail "qvCORE Steam partial status"
-grep -Eq '[[:space:]]Media[[:space:]]+Not installed' <<<"$ready_output" ||
-  fail "qvCORE Media optional absence"
-[[ $(run_health enabled-count) == "5" ]] ||
-  fail "enabled qvCORE count"
-pass "qvCORE distinguishes healthy integrations from partial and absent software"
+enable_integrations
+printf 'partial\n' >"$state/steam-state"
+set +e
+partial_output=$(run_health status 2>&1)
+partial_status=$?
+set -e
+((partial_status == 1)) || fail "partial Gaming Dependencies health status"
+grep -Eq '[[:space:]]WARP[[:space:]]+Ready' <<<"$partial_output" ||
+  fail "WARP ready status"
+grep -Eq '[[:space:]]Gaming Dependencies[[:space:]]+Partial' \
+  <<<"$partial_output" || fail "Gaming Dependencies partial status"
+pass "health distinguishes ready integrations from partial dependency setups"
 
 rm -f "$state/ready-share"
-set +e
-drift_output=$(run_health status 2>&1)
-drift_status=$?
-set -e
-((drift_status == 1)) ||
-  fail "qvCORE drift status succeeds"
-grep -Eq '[[:space:]]Share[[:space:]]+Needs repair' <<<"$drift_output" ||
-  fail "qvCORE Share drift"
-pass "qvCORE status fails only for enabled integration drift"
-
 : >"$lifecycle_log"
 repair_output=$(run_health repair share)
 grep -Fqx $'repair\tshare' "$lifecycle_log" ||
-  fail "targeted qvCORE Share repair"
+  fail "targeted Share repair"
 [[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
-  fail "targeted qvCORE repair touches another component"
+  fail "targeted repair touches another setup"
 grep -Eq '[[:space:]]Share[[:space:]]+Ready' <<<"$repair_output" ||
-  fail "targeted qvCORE repair completion"
-pass "qvCORE repair changes exactly the selected broken integration"
+  fail "Share repair completion"
+pass "repair changes exactly the selected broken setup"
 
-rm -f "$state/ready-codex"
+rm -f "$state/ready-share"
 : >"$lifecycle_log"
-QVOS_TEST_HEALTH_CHOICE=codex run_health repair >/dev/null
-grep -Fqx $'repair\tcodex' "$lifecycle_log" ||
-  fail "interactive qvCORE component choice"
-[[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
-  fail "interactive qvCORE repair touches another component"
-pass "qvCORE interactive repair chooses one component"
+set +e
+no_op_repair_output=$(
+  QVOS_TEST_HEALTH_NO_REPAIR=1 run_health repair share 2>&1
+)
+no_op_repair_status=$?
+set -e
+((no_op_repair_status == 1)) ||
+  fail "no-op setup owner reports successful repair"
+grep -Fq 'Share did not reach its expected setup state.' \
+  <<<"$no_op_repair_output" || fail "no-op repair verification result"
+pass "interactive repair verifies the selected setup after its owner returns"
+
+rm -f "$state/ready-share"
+: >"$lifecycle_log"
+QVOS_TEST_HEALTH_CHOICE=share run_health repair >/dev/null
+grep -Fqx $'repair\tshare' "$lifecycle_log" ||
+  fail "interactive setup choice"
+pass "interactive repair chooses one managed setup"
 
 rm -f \
   "$test_root/.local/state/qvos/qvcore/proton" \
@@ -220,76 +215,83 @@ rm -f \
 : >"$lifecycle_log"
 run_health repair proton >/dev/null
 grep -Fqx $'install\tproton' "$lifecycle_log" ||
-  fail "explicit missing qvCORE component install"
-pass "qvCORE installs an absent component only after explicit selection"
+  fail "missing Proton setup install"
+pass "an absent setup installs only after explicit selection"
 
-printf 'not-installed\n' >"$state/simple-media"
+printf 'partial\n' >"$state/steam-state"
 : >"$lifecycle_log"
-run_health repair media >/dev/null
-grep -Fqx $'install\tmedia' "$lifecycle_log" ||
-  fail "explicit Media install"
-pass "simple application collections delegate to their installer"
+run_health repair steam >/dev/null
+grep -Fqx $'install\tsteam' "$lifecycle_log" ||
+  fail "Gaming Dependencies repair"
+pass "Gaming Dependencies restores its curated dependency set explicitly"
 
-rm -f "$state/commands/localsend"
+for app in brave-origin dev codex media; do
+  : >"$lifecycle_log"
+  if run_health repair "$app" >/dev/null 2>&1; then
+    fail "ordinary qvCORE app accepted by setup repair: $app"
+  fi
+  [[ ! -s $lifecycle_log ]] ||
+    fail "ordinary qvCORE app repair performs a setup action: $app"
+done
+pass "ordinary apps cannot enter setup repair"
+
+enable_integrations
+rm -f "$state/commands/localsend" "$state/ready-proton"
+printf 'partial\n' >"$state/steam-state"
 : >"$lifecycle_log"
-removed_output=$(
-  QVOS_TEST_HEALTH_CHOICE="Keep it removed and clean qvOS integration state" \
-    run_health repair share
-)
-[[ ! -e $test_root/.local/state/qvos/qvcore/share ]] ||
-  fail "removed Share setup remains tracked"
+maintain_output=$(run_health maintain)
 grep -Fqx $'disable\tshare' "$lifecycle_log" ||
   fail "removed Share integration cleanup"
-if grep -Fq $'install\tshare' "$lifecycle_log"; then
-  fail "removed Share application is reinstalled"
-fi
-grep -Eq '[[:space:]]Share[[:space:]]+Not installed' <<<"$removed_output" ||
-  fail "removed Share final status"
-pass "application removal remains user intent during qvCORE repair"
+grep -Fqx $'repair\tproton' "$lifecycle_log" ||
+  fail "Proton post-update repair"
+[[ $(wc -l <"$lifecycle_log") == "2" ]] ||
+  fail "post-update maintenance touches an app or Gaming Dependencies"
+grep -Fq 'Enabled qvCORE setup maintenance is complete.' \
+  <<<"$maintain_output" || fail "setup maintenance completion"
+pass "post-update maintenance touches only enabled integration setups"
 
-install -m 0644 /dev/null "$state/commands/localsend"
-install -m 0644 /dev/null "$test_root/.local/state/qvos/qvcore/share"
-install -m 0644 /dev/null "$state/ready-share"
+enable_integrations
 rm -f "$state/ready-proton"
 : >"$lifecycle_log"
-automatic_output=$(run_health repair-enabled)
-grep -Fqx $'repair\tproton' "$lifecycle_log" ||
-  fail "automatic qvCORE Proton repair"
-[[ $(grep -c '^repair' "$lifecycle_log") == "1" ]] ||
-  fail "automatic qvCORE repair touches healthy setups"
-grep -Fq 'Enabled qvCORE setups are ready.' <<<"$automatic_output" ||
-  fail "automatic qvCORE repair completion"
-pass "qvOS repair preserves only affected enabled qvCORE integrations"
+set +e
+no_op_maintenance_output=$(
+  QVOS_TEST_HEALTH_NO_REPAIR=1 run_health maintain 2>&1
+)
+no_op_maintenance_status=$?
+set -e
+((no_op_maintenance_status == 1)) ||
+  fail "no-op setup owner reports successful maintenance"
+grep -Fq 'Proton maintenance did not finish.' \
+  <<<"$no_op_maintenance_output" || fail "no-op maintenance verification result"
+pass "post-update maintenance verifies owner results before reporting success"
 
-: >"$lifecycle_log"
-rm -f "$state/commands/localsend"
-update_output=$(run_health update)
-[[ ! -e $test_root/.local/state/qvos/qvcore/share ]] ||
-  fail "removed Share setup remains tracked after update"
-grep -Fqx $'disable\tshare' "$lifecycle_log" ||
-  fail "removed Share update retirement"
-if grep -Fq 'need attention' <<<"$update_output"; then
-  fail "removed Share application reports damage during update"
-fi
-pass "qvCORE update also treats application removal as user intent"
-
-enable_all_integrations
+enable_integrations
 : >"$lifecycle_log"
 disable_output=$(QVOS_TEST_HEALTH_CHOICE=all run_health disable)
-[[ $(grep -c '^disable' "$lifecycle_log") == "5" ]] ||
-  fail "qvCORE disable-all count"
-for component in warp share dev codex proton; do
+[[ $(grep -c '^disable' "$lifecycle_log") == "3" ]] ||
+  fail "disable-all setup integration count"
+for component in warp share proton; do
   [[ ! -e $test_root/.local/state/qvos/qvcore/$component ]] ||
     fail "$component enabled state remains"
 done
 grep -Fq 'network choices, and personal data were preserved' <<<"$disable_output" ||
-  fail "qvCORE disable preservation result"
-pass "qvCORE disable includes WARP while preserving the active network choice"
+  fail "disable preservation result"
+pass "disable is limited to integration setups and preserves software and data"
 
 if run_health repair unknown >/dev/null 2>&1; then
-  fail "unknown qvCORE component succeeds"
+  fail "unknown setup succeeds"
 fi
 if run_health unknown >/dev/null 2>&1; then
-  fail "unknown qvCORE health mode succeeds"
+  fail "unknown health mode succeeds"
 fi
-pass "qvCORE health rejects unknown modes and components without mutation"
+pass "qvCORE health rejects unknown modes and setups without mutation"
+
+mv "$fixture/qv/core/steam.sh" "$fixture/qv/core/steam.sh.missing"
+set +e
+missing_owner_output=$(run_health status 2>&1)
+missing_owner_status=$?
+set -e
+((missing_owner_status == 1)) || fail "missing setup owner succeeds"
+grep -Fq 'Missing managed qvCORE setup owner: steam' \
+  <<<"$missing_owner_output" || fail "missing setup owner result"
+pass "managed setup health fails closed when a catalog owner is unavailable"

@@ -24,6 +24,7 @@ fail() {
 
 install -d "$test_bin" "$test_omarchy_path/qv/core"
 ln -s "$root/qv/core/install" "$test_omarchy_path/qv/core/install"
+ln -s "$root/qv/core/catalog.tsv" "$test_omarchy_path/qv/core/catalog.tsv"
 ln -s "$root/qv/thunar" "$test_omarchy_path/qv/thunar"
 ln -s "$root/qv/core/codex" "$test_omarchy_path/qv/core/codex"
 ln -s "$root/qv/core/brave-origin.sh" "$test_omarchy_path/qv/core/brave-origin.sh"
@@ -172,7 +173,20 @@ expected_steam_actions=$'install-gaming-steam\npackage\t'"$expected_steam_packag
 expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"$'\ninstall-media'
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
-pass "qvCORE installs WARP, Brave, Share, Devel, standalone Codex, Proton, Steam, and Media"
+pass "qvCORE installs all curated apps and managed setups in catalog order"
+
+: >"$action_log"
+run_qvcore apps >/dev/null
+expected_app_actions=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-media'
+[[ $(<"$action_log") == "$expected_app_actions" ]] ||
+  fail "qvCORE app group route"
+
+: >"$action_log"
+run_qvcore setups >/dev/null
+expected_setup_actions=$'setup-dns\tWARP\ninstall-share\ninstall-proton\n'"$expected_steam_actions"
+[[ $(<"$action_log") == "$expected_setup_actions" ]] ||
+  fail "qvCORE managed setup group route"
+pass "qvCORE separates ordinary apps from managed setups without changing installer backends"
 
 declare -A expected_component_actions=(
   [warp]=$'setup-dns\tWARP'
@@ -221,7 +235,7 @@ set -e
 expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ncancel-dev'
 [[ $(<"$action_log") == "$expected_cancel_actions" ]] ||
   fail "complete profile stops after Devel cancellation"
-if grep -Fq 'qvCORE is ready.' <<<"$cancel_output"; then
+if grep -Fq 'qvCORE apps and managed setups are ready.' <<<"$cancel_output"; then
   fail "canceled complete profile reports ready"
 fi
 pass "Devel cancellation stops the complete qvCORE profile cleanly"
@@ -233,9 +247,11 @@ expected_authenticated_actions=$'curl\t-fsSL https://chatgpt.com/codex/install.s
 pass "Codex release metadata reuses gh authentication without exposing its token"
 
 : >"$action_log"
-if run_qvcore unknown >/dev/null 2>&1; then
-  fail "unknown qvCORE component succeeds"
-fi
+set +e
+run_qvcore unknown >/dev/null 2>&1
+unknown_status=$?
+set -e
+((unknown_status == 2)) || fail "unknown qvCORE component status"
 [[ ! -s $action_log ]] || fail "unknown qvCORE component performs actions"
 pass "unknown qvCORE components fail without side effects"
 

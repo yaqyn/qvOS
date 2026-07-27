@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Inspect qvOS base health without changing the system
+# omarchy:group=qvos
+# omarchy:name=health
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/maintenance/qvos-repair" --status

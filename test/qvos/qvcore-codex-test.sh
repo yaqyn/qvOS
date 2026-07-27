@@ -96,6 +96,15 @@ grep -Fq 'Codex and personal data were not changed.' <<<"$disable_output" ||
   fail "Codex disable boundary"
 pass "Codex disables only its owned integration and preserves the CLI"
 
+run_component --adopt >/dev/null
+prepare_output=$(run_component --prepare-remove)
+[[ ! -e $helper && ! -e $state ]] ||
+  fail "Codex pre-removal integration cleanup"
+[[ -x $codex_binary ]] || fail "Codex pre-removal CLI preservation"
+grep -Fq 'ready for software removal' <<<"$prepare_output" ||
+  fail "Codex pre-removal result"
+pass "Codex app removal cleans only its optional desktop integration first"
+
 printf 'malformed\n' >"$thunar_config"
 if run_component --adopt >/dev/null 2>&1; then
   fail "Codex adoption with malformed Thunar XML succeeds"

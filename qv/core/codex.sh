@@ -1,5 +1,5 @@
 #!/bin/bash
-# qvcore:lifecycle=1
+# qvcore:app-integration=1
 set -euo pipefail
 
 # Owned paths and state
@@ -32,7 +32,7 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-  echo "Usage: codex.sh [--status|--repair|--adopt|--disable]" >&2
+  echo "Usage: codex.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
 }
 
 status_label() {
@@ -86,7 +86,7 @@ print_inventory() {
   printf '  %-20s %s\n' "Thunar helper" "$(status_label "$helper_ready")"
   printf '  %-20s %s\n' "Thunar integration" \
     "$(status_label "$integration_ready")"
-  printf '  %-20s %s\n' "Update tracking" \
+  printf '  %-20s %s\n' "Desktop ownership" \
     "$(status_label "$maintenance_ready")"
 }
 
@@ -161,6 +161,7 @@ case ${1:-} in
 --repair) mode="repair" ;;
 --adopt) mode="adopt" ;;
 --disable) mode="disable" ;;
+--prepare-remove) mode="prepare-remove" ;;
 *)
   usage
   exit 2
@@ -175,8 +176,11 @@ if [[ $mode == "status" || $mode == "integration-status" ]]; then
   exit
 fi
 
-if [[ $mode == "disable" ]]; then
+if [[ $mode == "disable" || $mode == "prepare-remove" ]]; then
   disable_integration
+  if [[ $mode == "prepare-remove" ]]; then
+    echo "Codex desktop integration is ready for software removal."
+  fi
   exit
 fi
 

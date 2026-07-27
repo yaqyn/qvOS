@@ -1,0 +1,139 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+runtime_root="$HOME/.local/share/qvos"
+issue_count=0
+
+report_drift() {
+  printf '%s\n' "$1"
+  issue_count=$((issue_count + 1))
+}
+
+check_file() {
+  local source=$1
+  local target=$2
+  local label=$3
+
+  cmp -s "$source" "$target" ||
+    report_drift "$label"
+}
+
+check_tree() {
+  local source=$1
+  local target=$2
+  local label=$3
+
+  if [[ ! -d $target ]] ||
+    ! diff -qr "$source" "$target" >/dev/null 2>&1; then
+    report_drift "$label"
+  fi
+}
+
+for feature in desktop tmux waybar; do
+  check_tree \
+    "$OMARCHY_PATH/qv/$feature" \
+    "$runtime_root/$feature" \
+    "$feature runtime differs from tracked qvOS source"
+done
+
+thunar_features=(
+  actions.sh
+  launch
+  open-here
+  reconcile-default-actions
+  set-background
+  transcode
+)
+optional_thunar_features=(
+  codex
+  proton-drive-upload
+  share
+)
+for feature in "${optional_thunar_features[@]}"; do
+  [[ -e $runtime_root/thunar/$feature ]] || continue
+  thunar_features+=("$feature")
+done
+
+expected_thunar_inventory=$(printf '%s\n' "${thunar_features[@]}" | sort)
+if [[ -d $runtime_root/thunar ]]; then
+  installed_thunar_inventory=$(
+    find "$runtime_root/thunar" -maxdepth 1 -type f -printf '%f\n' | sort
+  )
+else
+  installed_thunar_inventory=""
+fi
+if [[ $installed_thunar_inventory != "$expected_thunar_inventory" ]]; then
+  report_drift "Thunar runtime inventory contains unknown qvOS features"
+else
+  for feature in "${thunar_features[@]}"; do
+    check_file \
+      "$OMARCHY_PATH/qv/thunar/$feature" \
+      "$runtime_root/thunar/$feature" \
+      "Thunar runtime differs: $feature"
+  done
+fi
+
+if ! "$OMARCHY_PATH/qv/menu/install" --status; then
+  report_drift "qvOS menu integration differs from tracked source"
+fi
+
+launcher_runtime="$runtime_root/launcher/elephant"
+launcher_menu="$HOME/.config/elephant/menus"
+for provider in \
+  omarchy_background_selector.lua \
+  omarchy_themes.lua \
+  omarchy_unlocks.lua; do
+  check_file \
+    "$OMARCHY_PATH/qv/launcher/elephant/$provider" \
+    "$launcher_runtime/$provider" \
+    "launcher provider differs: $provider"
+  if [[ ! -L $launcher_menu/$provider ]] ||
+    [[ $(readlink "$launcher_menu/$provider") != "$launcher_runtime/$provider" ]]; then
+    report_drift "launcher provider link differs: $provider"
+  fi
+done
+
+declare -A hook_source=(
+  [qvos-base]="$OMARCHY_PATH/qv/install/post-update-hook"
+  [qvos-qvcore]="$OMARCHY_PATH/qv/core/post-update-hook"
+  [qvos-waybar-overrides]="$OMARCHY_PATH/qv/waybar/post-update-hook"
+)
+for hook in qvos-base qvos-qvcore qvos-waybar-overrides; do
+  check_file \
+    "${hook_source[$hook]}" \
+    "$HOME/.config/omarchy/hooks/post-update.d/$hook" \
+    "post-update hook differs: $hook"
+done
+
+for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
+  owner=${command_name#omarchy-system-}
+  check_file \
+    "$OMARCHY_PATH/qv/power/$owner" \
+    "$runtime_root/bin/$command_name" \
+    "power runtime differs: $command_name"
+done
+
+check_file \
+  "$OMARCHY_PATH/qv/screensaver/alacritty.toml" \
+  "$runtime_root/screensaver/alacritty.toml" \
+  "screensaver configuration differs"
+for command_name in \
+  omarchy-launch-screensaver \
+  qvos-launch-screensaver \
+  qvos-screensaver; do
+  check_file \
+    "$OMARCHY_PATH/qv/screensaver/$command_name" \
+    "$runtime_root/bin/$command_name" \
+    "screensaver runtime differs: $command_name"
+  if [[ ! -L $HOME/.local/bin/$command_name ]] ||
+    [[ $(readlink "$HOME/.local/bin/$command_name") != "$runtime_root/bin/$command_name" ]]; then
+    report_drift "screensaver command link differs: $command_name"
+  fi
+done
+
+if ! "$OMARCHY_PATH/qv/waybar/refresh" --status; then
+  report_drift "Waybar qvOS integration needs repair"
+fi
+
+((issue_count == 0))

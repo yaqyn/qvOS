@@ -4,6 +4,13 @@ set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 qvcore_dir="$OMARCHY_PATH/qv/core"
+catalog="$qvcore_dir/catalog.tsv"
+components=()
+declare -A component_type=()
+
+usage() {
+  echo "Usage: omarchy-install-qvcore [all|apps|setups|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
+}
 
 install_component() {
   local component=$1
@@ -17,24 +24,67 @@ install_component() {
   "$component_script"
 }
 
+load_catalog() {
+  local type component label icon extra
+
+  [[ -f $catalog ]] || {
+    echo "Missing qvCORE catalog: $catalog" >&2
+    return 1
+  }
+  while IFS=$'\t' read -r type component label icon extra; do
+    [[ -n $type && $type != "#"* ]] || continue
+    if [[ $type != "app" && $type != "setup" ]] ||
+      [[ -z $component || -z $label || -z $icon || -n $extra ]] ||
+      [[ -n ${component_type[$component]+known} ]]; then
+      echo "Invalid qvCORE catalog entry." >&2
+      return 1
+    fi
+    components+=("$component")
+    component_type[$component]=$type
+  done <"$catalog"
+}
+
+install_group() {
+  local requested_type=$1
+  local component
+
+  for component in "${components[@]}"; do
+    if [[ $requested_type == "all" ||
+      ${component_type[$component]} == "$requested_type" ]]; then
+      install_component "$component"
+    fi
+  done
+}
+
 if (($# > 1)); then
-  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
-  exit 1
+  usage
+  exit 2
 fi
+
+load_catalog
 
 case ${1:-all} in
 all)
-  for component in warp brave-origin share dev codex proton steam media; do
-    install_component "$component"
-  done
+  install_group all
   echo ""
-  echo "qvCORE is ready."
+  echo "qvCORE apps and managed setups are ready."
   ;;
-brave-origin | warp | share | dev | codex | proton | steam | media)
-  install_component "$1"
+apps)
+  install_group app
+  echo ""
+  echo "qvCORE apps are ready."
+  ;;
+setups)
+  install_group setup
+  echo ""
+  echo "qvCORE managed setups are ready."
   ;;
 *)
-  echo "Usage: omarchy-install-qvcore [all|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
-  exit 1
+  if [[ -n ${component_type[$1]+known} ]]; then
+    install_component "$1"
+    exit
+  fi
+  usage
+  exit 2
   ;;
 esac

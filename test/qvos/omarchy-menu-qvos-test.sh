@@ -7,6 +7,8 @@ test_bin="$test_root/bin"
 menu_args_log="$test_root/menu-args.log"
 qvos_menu_log="$test_root/qvos-menu.log"
 qvcore_menu_log="$test_root/qvcore-menu.log"
+apps_menu_log="$test_root/apps-menu.log"
+setups_menu_log="$test_root/setups-menu.log"
 route_log="$test_root/route.log"
 
 cleanup() {
@@ -33,14 +35,25 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
 #!/bin/bash
-if [[ $* == *"qvOS…"* ]]; then
+case $* in
+*"qvOS…"*)
   printf '%s\n' "$*" >"$QVOS_TEST_MENU_ARGS_LOG"
   cat >"$QVOS_TEST_QVOS_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_MENU_CHOICE:-Update qvOS}"
-else
+  ;;
+*"qvCORE — Applications…"*)
+  cat >"$QVOS_TEST_APPS_MENU_LOG"
+  printf '%s\n' "${QVOS_TEST_APP_CHOICE:-Brave}"
+  ;;
+*"qvCORE — Managed Setups…"*)
+  cat >"$QVOS_TEST_SETUPS_MENU_LOG"
+  printf '%s\n' "${QVOS_TEST_SETUP_CHOICE:-WARP}"
+  ;;
+*)
   cat >"$QVOS_TEST_QVCORE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install All Setups}"
-fi
+  printf '%s\n' "${QVOS_TEST_QVCORE_CHOICE:-Install Everything}"
+  ;;
+esac
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
@@ -48,70 +61,78 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-pres
 printf '%s\n' "$*" >"$QVOS_TEST_ROUTE_LOG"
 SCRIPT
 
+run_menu() {
+  QVOS_TEST_MENU_CHOICE="${QVOS_TEST_MENU_CHOICE:-Update qvOS}" \
+    QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-Install Everything}" \
+    QVOS_TEST_APP_CHOICE="${QVOS_TEST_APP_CHOICE:-Brave}" \
+    QVOS_TEST_SETUP_CHOICE="${QVOS_TEST_SETUP_CHOICE:-WARP}" \
+    QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
+    QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
+    QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
+    QVOS_TEST_APPS_MENU_LOG="$apps_menu_log" \
+    QVOS_TEST_SETUPS_MENU_LOG="$setups_menu_log" \
+    QVOS_TEST_ROUTE_LOG="$route_log" \
+    HOME="$test_root" \
+    PATH="$test_bin:$root/bin:/usr/bin" \
+    "$root/bin/omarchy-menu" qvos
+}
+
 run_route() {
   local choice=$1
   local expected=$2
 
   : >"$route_log"
-  QVOS_TEST_MENU_CHOICE="$choice" \
-    QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
-    QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
-    QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
-    QVOS_TEST_ROUTE_LOG="$route_log" \
-    HOME="$test_root" \
-    PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-menu" qvos
-
+  QVOS_TEST_MENU_CHOICE="$choice" run_menu
   [[ $(<"$route_log") == "$expected" ]] || fail "$choice route"
 }
 
 run_qvcore_route() {
-  local choice=$1
-  local expected=$2
+  local section=$1
+  local choice=$2
+  local expected=$3
 
   : >"$route_log"
-  QVOS_TEST_MENU_CHOICE="qvCORE" \
-    QVOS_TEST_QVCORE_CHOICE="$choice" \
-    QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
-    QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
-    QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
-    QVOS_TEST_ROUTE_LOG="$route_log" \
-    HOME="$test_root" \
-    PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-menu" qvos
-
+  case $section in
+  main)
+    QVOS_TEST_MENU_CHOICE=qvCORE \
+      QVOS_TEST_QVCORE_CHOICE="$choice" \
+      run_menu
+    ;;
+  apps)
+    QVOS_TEST_MENU_CHOICE=qvCORE \
+      QVOS_TEST_QVCORE_CHOICE=Applications \
+      QVOS_TEST_APP_CHOICE="$choice" \
+      run_menu
+    ;;
+  setups)
+    QVOS_TEST_MENU_CHOICE=qvCORE \
+      QVOS_TEST_QVCORE_CHOICE="Managed Setups" \
+      QVOS_TEST_SETUP_CHOICE="$choice" \
+      run_menu
+    ;;
+  esac
   [[ $(<"$route_log") == "$expected" ]] || fail "$choice route"
 }
 
 run_route "Update qvOS" "omarchy-qvos-update"
-
-[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)' ]] ||
+[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰏖  qvCORE (Optional)' ]] ||
   fail "qvOS quick-access menu"
 grep -Fq -- '--width 360' "$menu_args_log" || fail "qvOS menu width"
 grep -Fq -- '--maxheight 760' "$menu_args_log" || fail "qvOS menu height"
-pass "direct qvOS menu keeps maintenance tools visible"
+pass "qvOS exposes its own update, health, repair, and software systems"
 
+run_route "Health qvOS" "omarchy-qvos-health"
 run_route "Repair qvOS" "omarchy-qvos-repair"
 run_route "Personal Software" "omarchy-qvos-personal-software --remove"
-run_route "qvCORE Health / Repair" "omarchy-qvcore-repair"
-run_route "Disable qvCORE Integrations" "omarchy-qvcore-disable"
-pass "direct qvOS menu delegates maintenance tools to their owners"
+pass "qvOS maintenance routes stay independent from qvCORE"
 
-run_qvcore_route "Install All Setups" "omarchy-install-qvcore"
-
-[[ $(<"$qvcore_menu_log") == $'󰓅  Health / Repair\n󰐕  Disable Integrations\n  Install All Setups\n󰖟  Brave\n󰖂  WARP\n  Share\n󰵮  Devel\n󱚤  Codex\n󰌾  Proton\n  Steam\n󰕧  Media' ]] ||
-  fail "qvCORE app submenu"
-pass "qvCORE button uses the shared optional-setup menu"
-
-run_qvcore_route "Brave" "omarchy-install-qvcore brave-origin"
-run_qvcore_route "WARP" "omarchy-install-qvcore warp"
-run_qvcore_route "Share" "omarchy-install-qvcore share"
-run_qvcore_route "Devel" "omarchy-install-qvcore dev"
-run_qvcore_route "Codex" "omarchy-install-qvcore codex"
-run_qvcore_route "Proton" "omarchy-install-qvcore proton"
-run_qvcore_route "Steam" "omarchy-install-qvcore steam"
-run_qvcore_route "Media" "omarchy-install-qvcore media"
-pass "qvCORE app submenu delegates every installer to its owner"
+run_qvcore_route main "Install Everything" "omarchy-install-qvcore"
+[[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups' ]] ||
+  fail "qvCORE category menu"
+run_qvcore_route apps Devel "omarchy-install-qvcore dev"
+run_qvcore_route setups "Setup Status" "omarchy-qvcore-status"
+run_qvcore_route setups "Gaming Dependencies" "omarchy-install-qvcore steam"
+pass "qvCORE delegates apps and managed setups to their distinct surfaces"
 
 grep -Fqx \
   'bindd = SUPER SHIFT ALT, SPACE, qvOS menu, exec, omarchy-menu qvos' \

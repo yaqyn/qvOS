@@ -78,7 +78,7 @@ for command_spec in "${blocked_commands[@]}"; do
   (( status == 1 )) || fail "$route exits with the qvOS safety status"
   grep -Fq "Blocked on qvOS: $route" <<<"$output" ||
     fail "$route explains the qvOS block"
-  grep -Fq 'Use "omarchy qvos repair" for the base' <<<"$output" ||
+  grep -Fq 'Use "omarchy qvos repair" for qvOS' <<<"$output" ||
     fail "$route identifies the safe qvOS replacement"
 done
 
