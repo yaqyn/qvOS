@@ -85,14 +85,14 @@ run_qvcore_route() {
 
 run_route "Update qvOS" "omarchy-qvos-update"
 
-[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)' ]] ||
+[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)' ]] ||
   fail "qvOS quick-access menu"
 grep -Fq -- '--width 360' "$menu_args_log" || fail "qvOS menu width"
 grep -Fq -- '--maxheight 760' "$menu_args_log" || fail "qvOS menu height"
 pass "direct qvOS menu keeps maintenance tools visible"
 
 run_route "Repair qvOS" "omarchy-qvos-repair"
-run_route "Inherited Extras" "omarchy-qvos-cleanup-inherited --apply"
+run_route "Personal Software" "omarchy-qvos-personal-software --remove"
 run_route "qvCORE Health / Repair" "omarchy-qvcore-repair"
 run_route "Disable qvCORE Integrations" "omarchy-qvcore-disable"
 pass "direct qvOS menu delegates maintenance tools to their owners"

@@ -3,6 +3,8 @@ set -euo pipefail
 
 tui="$OMARCHY_PATH/qv/tui/qvos-tui"
 
+"$OMARCHY_PATH/qv/maintenance/personal-software-baseline" --capture
+
 if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || ! -x $tui ]]; then
   exit 1
 fi

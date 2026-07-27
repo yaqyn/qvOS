@@ -92,10 +92,10 @@ show_qvcore_menu() {
 }
 
 show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Inherited Extras\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
+  case $(menu "qvOS" "󱅾  Update qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰓅  qvCORE Health / Repair\n󰐕  Disable qvCORE Integrations\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
   *"Update qvOS"*) present_terminal omarchy-qvos-update ;;
   *"Repair qvOS"*) present_terminal omarchy-qvos-repair ;;
-  *Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;
+  *"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;
   *Health*) present_terminal omarchy-qvcore-repair ;;
   *Disable*) present_terminal omarchy-qvcore-disable ;;
   *qvCORE*) show_qvcore_menu show_qvos_menu ;;
@@ -104,9 +104,9 @@ show_qvos_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n󰘶  Inherited Extras\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n󰘶  Personal Software\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;
+  *"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;
   *Web*) present_terminal omarchy-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;

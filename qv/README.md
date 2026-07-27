@@ -20,7 +20,7 @@ qv/
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
   launcher/    qvOS Elephant providers.
-  maintenance/ qvOS base repair, inherited-extra review, and upstream guards.
+  maintenance/ qvOS base repair, personal-software inventory, and upstream guards.
   menu/        qvOS menus installed through Omarchy's extension seam.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
@@ -71,8 +71,19 @@ qvOS identity, readiness, or base ownership.
 - `omarchy qvcore disable` removes only enabled qvOS-owned integration and
   maintenance state. Installed applications, authentication, network choices,
   and personal data remain.
-- `omarchy qvos cleanup inherited` previews a reviewed legacy package catalog.
-  Applying cleanup still requires explicit package selection and confirmation.
+- `omarchy qvos software` inventories software added after the immutable
+  fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
+  npm globals, persistent npx wrappers, AppImages, and standalone executables
+  in standard user or system locations, including common single-binary
+  curl/GitHub installs. Active qvOS package manifests and qvOS-owned runtime
+  remain protected. Software owned by an enabled qvCORE lifecycle is visible
+  but protected until that integration is disabled. `--remove` changes only
+  explicit selections after confirmation; package managers retain ownership
+  of their packages, user files move to Trash, and system standalone removal
+  targets one exact path.
+- Existing installations without a fresh-install baseline must run
+  `omarchy qvos software --initialize` explicitly. qvOS does not fabricate
+  historical ownership from the current package list.
 - The qvOS TUI exposes Update, Repair, and ISO Build only. ISO Build stages the
   qvOS source over Omarchy's `main` ISO for its matching `master` installer,
   adds the qvOS configurator and progress surfaces, and preserves Omarchy's

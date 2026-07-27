@@ -1,0 +1,24 @@
+# Enabled qvCORE lifecycle software protected from generic removal.
+# component	kind	name
+warp	pacman	cloudflare-warp-nox-bin
+share	pacman	localsend
+dev	user-bin	supabase
+dev	user-bin	infisical
+dev	user-bin	cloudflared
+dev	user-bin	sentry-cli
+dev	user-bin	act
+dev	user-bin	sops
+dev	user-bin	age
+dev	user-bin	age-keygen
+dev	user-bin	gitleaks
+dev	user-bin	osv-scanner
+dev	user-bin	semgrep
+codex	user-bin	codex
+proton	pacman	curl
+proton	pacman	jq
+proton	pacman	openssl
+proton	pacman	iproute2
+proton	pacman	protonmail-bridge-core
+proton	pacman	proton-vpn-cli
+proton	user-bin	pass-cli
+proton	user-bin	proton-drive

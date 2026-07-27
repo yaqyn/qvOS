@@ -11,7 +11,7 @@ This upstream Omarchy workflow is incompatible with qvOS ownership and could
 replace qvOS source, packages, configs, or bindings.
 
 Use "omarchy qvos repair" for the base, "omarchy qvcore repair" for optional
-integrations, or "omarchy qvos cleanup inherited" for reviewed legacy packages.
+integrations, or "omarchy qvos software" for personal software inventory.
 EOF
 
 exit 1

@@ -212,7 +212,7 @@ public_adapters=(
   bin/omarchy-qvcore-repair-enabled
   bin/omarchy-qvcore-status
   bin/omarchy-qvos-block-upstream-maintenance
-  bin/omarchy-qvos-cleanup-inherited
+  bin/omarchy-qvos-personal-software
   bin/omarchy-qvos-refresh-waybar
   bin/omarchy-qvos-repair
   bin/omarchy-qvos-setup-dns
@@ -226,7 +226,7 @@ public_adapters=(
 
 for path in "${public_adapters[@]}"; do
   [[ -x $root/$path ]] || fail "$path public adapter mode"
-  (( $(wc -l <"$root/$path") <= 15 )) ||
+  (($(wc -l <"$root/$path") <= 15)) ||
     fail "$path contains implementation outside qv/"
   rg -q 'qv/' "$root/$path" ||
     fail "$path does not delegate to qv/"
@@ -242,7 +242,7 @@ for owner in "${migration_owners[@]}"; do
 
   [[ -f $stub && ! -x $stub ]] ||
     fail "$migration inherited migration seam mode"
-  (( $(wc -l <"$stub") == 2 )) ||
+  (($(wc -l <"$stub") == 2)) ||
     fail "$migration contains implementation outside qv/migrations"
   head -n 1 "$stub" | grep -Eq '^echo ".+"$' ||
     fail "$migration migration description"

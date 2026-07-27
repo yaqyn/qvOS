@@ -20,6 +20,24 @@ func TestInstallMenuContainsOnlySupportedLifecycleActions(t *testing.T) {
 	}
 }
 
+func TestTweakMenuNamesPersonalSoftwareWithoutLegacyDebloatLanguage(t *testing.T) {
+	got := sections[2].items
+	want := []item{
+		{"00", "KEYBIND", "Edit bindings"},
+		{"01", "BROWSER", "Set browser"},
+		{"02", "SOFTWARE", "Review personal"},
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("tweak action count = %d, want %d", len(got), len(want))
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("tweak action %d = %#v, want %#v", index, got[index], want[index])
+		}
+	}
+}
+
 func TestRepairActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 	script, environment, err := rootScriptSpec(actionRepair)
 	if err != nil {

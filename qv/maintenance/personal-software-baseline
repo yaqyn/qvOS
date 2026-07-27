@@ -1,0 +1,137 @@
+#!/bin/bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/software"
+baseline="$state_dir/baseline.tsv"
+user_bin_dir=${QVOS_PERSONAL_USER_BIN_DIR:-$HOME/.local/bin}
+applications_dir=${QVOS_PERSONAL_APPLICATIONS_DIR:-$HOME/Applications}
+system_bin_dir=${QVOS_PERSONAL_SYSTEM_BIN_DIR:-/usr/local/bin}
+
+usage() {
+  echo "Usage: personal-software-baseline --capture" >&2
+}
+
+valid_field() {
+  local value=$1
+
+  [[ -n $value && $value != *$'\t'* && $value != *$'\n'* ]]
+}
+
+record_path_names() {
+  local kind=$1
+  local directory=$2
+  local mode=$3
+  local path name
+
+  [[ -d $directory ]] || return 0
+
+  while IFS= read -r -d '' path; do
+    name=${path##*/}
+    valid_field "$name" || continue
+
+    case $mode in
+    executable)
+      [[ -x $path ]] || continue
+      ;;
+    application)
+      [[ $name == *.AppImage || -x $path ]] || continue
+      ;;
+    *)
+      echo "Unknown personal-software baseline path mode: $mode" >&2
+      return 2
+      ;;
+    esac
+
+    printf '%s\t%s\n' "$kind" "$name"
+  done < <(
+    find "$directory" \
+      -mindepth 1 \
+      -maxdepth 1 \
+      \( -type f -o -type l \) \
+      -print0
+  )
+}
+
+record_bun_globals() {
+  local manifest="$HOME/.bun/install/global/package.json"
+
+  [[ -f $manifest ]] || return 0
+  jq -r '
+    [
+      (.dependencies // {}),
+      (.devDependencies // {}),
+      (.optionalDependencies // {})
+    ]
+    | add
+    | keys[]?
+  ' "$manifest" |
+    while IFS= read -r package; do
+      valid_field "$package" && printf 'bun\t%s\n' "$package"
+    done
+}
+
+record_npm_globals() {
+  local inventory package
+
+  command -v npm >/dev/null 2>&1 || return 0
+  inventory=$(npm ls --global --depth=0 --json 2>/dev/null || true)
+  [[ -n $inventory ]] || return 0
+
+  if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$inventory"; then
+    echo "Could not read the npm global-package inventory." >&2
+    return 1
+  fi
+
+  jq -r '.dependencies // {} | keys[]?' <<<"$inventory" |
+    while IFS= read -r package; do
+      valid_field "$package" && printf 'npm\t%s\n' "$package"
+    done
+}
+
+if (($# != 1)) || [[ $1 != "--capture" ]]; then
+  usage
+  exit 2
+fi
+
+for command in jq pacman; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "qvOS software baseline requires: $command" >&2
+    exit 1
+  fi
+done
+
+if [[ -f $baseline ]]; then
+  echo "qvOS personal-software baseline already exists; keeping it unchanged."
+  exit 0
+fi
+
+umask 077
+mkdir -p "$state_dir"
+pending=$(mktemp "$state_dir/.baseline.tsv.XXXXXX")
+
+cleanup_pending() {
+  [[ ! -e $pending ]] || rm -- "$pending"
+}
+trap cleanup_pending EXIT
+
+{
+  echo "# qvOS personal-software baseline v1"
+
+  while IFS= read -r package; do
+    valid_field "$package" && printf 'pacman\t%s\n' "$package"
+  done < <(pacman -Qqe | sort -u)
+
+  record_bun_globals
+  record_npm_globals
+  record_path_names user-bin "$user_bin_dir" executable
+  record_path_names application "$applications_dir" application
+  record_path_names system-bin "$system_bin_dir" executable
+} | LC_ALL=C sort -u >"$pending"
+
+chmod 0600 "$pending"
+mv "$pending" "$baseline"
+trap - EXIT
+
+entry_count=$(grep -vc '^#' "$baseline" || true)
+printf 'Recorded qvOS personal-software baseline with %d owned item(s).\n' \
+  "$entry_count"

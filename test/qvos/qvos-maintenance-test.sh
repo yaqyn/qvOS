@@ -3,13 +3,10 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 repair="$root/qv/maintenance/qvos-repair"
-cleanup_command="$root/qv/maintenance/qvos-cleanup-inherited"
-catalog="$root/qv/maintenance/inherited-extras.tsv"
 test_root="$(mktemp -d)"
 test_home="$test_root/home"
 test_bin="$test_root/bin"
 missing_packages="$test_root/missing-packages"
-installed_extras="$test_root/installed-extras"
 action_log="$test_root/actions.log"
 
 cleanup() {
@@ -29,8 +26,7 @@ fail() {
 install -d \
   "$test_home/.config/hypr/qv" \
   "$test_bin" \
-  "$missing_packages" \
-  "$installed_extras"
+  "$missing_packages"
 touch "$action_log" "$missing_packages/alacritty"
 printf 'custom bindings\n' >"$test_home/.config/hypr/qv/bindings.conf"
 
@@ -42,14 +38,10 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
 #!/bin/bash
-case $1 in
-1password-beta | 1password-cli | aether | claude-code | opencode | cliamp | libreoffice-fresh | pinta | signal-desktop | spotify | typora | xournalpp)
-  [[ -f $QVOS_TEST_INSTALLED_EXTRAS/$1 ]]
-  ;;
-*)
-  [[ ! -f $QVOS_TEST_MISSING_PACKAGES/$1 ]]
-  ;;
-esac
+for package in "$@"; do
+  [[ ! -f $QVOS_TEST_MISSING_PACKAGES/$package ]] || exit 1
+done
+exit 0
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
@@ -57,14 +49,6 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 printf 'add\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 for package in "$@"; do
   rm -f "$QVOS_TEST_MISSING_PACKAGES/$package"
-done
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-drop" <<'SCRIPT'
-#!/bin/bash
-printf 'drop\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-for package in "$@"; do
-  rm -f "$QVOS_TEST_INSTALLED_EXTRAS/$package"
 done
 SCRIPT
 
@@ -103,7 +87,6 @@ SCRIPT
 
 run_repair() {
   QVOS_TEST_ACTION_LOG="$action_log" \
-    QVOS_TEST_INSTALLED_EXTRAS="$installed_extras" \
     QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
     QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
     QVOS_TEST_GUM_SELECTION="${QVOS_TEST_GUM_SELECTION:-}" \
@@ -111,18 +94,6 @@ run_repair() {
     OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
     "$repair" "$@"
-}
-
-run_cleanup() {
-  QVOS_TEST_ACTION_LOG="$action_log" \
-    QVOS_TEST_GUM_CONFIRM="${QVOS_TEST_GUM_CONFIRM:-1}" \
-    QVOS_TEST_GUM_SELECTION="${QVOS_TEST_GUM_SELECTION:-}" \
-    QVOS_TEST_INSTALLED_EXTRAS="$installed_extras" \
-    QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
-    HOME="$test_home" \
-    OMARCHY_PATH="$root" \
-    PATH="$test_bin:$root/bin:/usr/bin" \
-    "$cleanup_command" "$@"
 }
 
 set +e
@@ -223,42 +194,10 @@ grep -Fqx $'hyprland\treload' "$action_log" ||
   fail "explicit qvOS config reload"
 pass "explicit qvOS defaults restore reinstalls packages and backs up config"
 
-active_packages=$(
-  sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-    "$root/qv/install/packaging/base.packages"
-)
-while IFS=$'\t' read -r category package description; do
-  [[ -n $category && $category != "#"* ]] || continue
-  [[ -n $description ]] || fail "inherited-extra catalog description"
-  if grep -Fqx "$package" <<<"$active_packages"; then
-    fail "active qvOS base package appears in inherited-extra catalog: $package"
-  fi
-done <"$catalog"
-pass "inherited-extra catalog cannot target the active qvOS base"
-
-touch "$installed_extras/1password-beta" "$installed_extras/claude-code"
-: >"$action_log"
-preview_output=$(run_cleanup --status)
-grep -Fq 'Detected 2 reviewed candidate(s)' <<<"$preview_output" ||
-  fail "inherited-extra preview count"
-grep -Fq 'never changes bindings, config files, web apps, or TUI launchers' \
-  <<<"$preview_output" || fail "inherited-extra scope statement"
-[[ ! -s $action_log ]] || fail "inherited-extra preview mutates packages"
-pass "inherited-extra cleanup is read-only by default"
-
-QVOS_TEST_GUM_SELECTION=1password-beta run_cleanup --apply >/dev/null
-grep -Fqx $'drop\t1password-beta' "$action_log" ||
-  fail "selected inherited-extra removal"
-[[ ! -e $installed_extras/1password-beta ]] ||
-  fail "selected inherited extra remains"
-[[ -e $installed_extras/claude-code ]] ||
-  fail "unselected inherited extra was removed"
-pass "inherited-extra cleanup removes only an explicitly selected package"
-
 commands=$("$root/bin/omarchy" commands --json)
 for binary in \
   omarchy-qvcore-disable \
-  omarchy-qvos-cleanup-inherited \
+  omarchy-qvos-personal-software \
   omarchy-qvos-refresh-waybar \
   omarchy-qvos-repair \
   omarchy-qvos-setup-dns \
@@ -278,8 +217,8 @@ pass "qvOS maintenance commands expose only user-facing routes"
 
 grep -Fq '*Repair*) present_terminal omarchy-qvos-repair ;;' \
   "$root/qv/menu/extension.sh" || fail "qvOS repair menu route"
-grep -Fq '*Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;' \
-  "$root/qv/menu/extension.sh" || fail "inherited-extra menu route"
+grep -Fq '*"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;' \
+  "$root/qv/menu/extension.sh" || fail "personal-software menu route"
 grep -Fq 'exec omarchy-qvos-repair --yes' "$root/qv/tui/bin/qvos-repair" ||
   fail "qvOS TUI repair delegation"
 grep -Fq 'exec omarchy-qvos-update -y' "$root/qv/tui/bin/qvos-update" ||

@@ -76,7 +76,7 @@ var sections = []section{
 		items: []item{
 			{"00", "KEYBIND", "Edit bindings"},
 			{"01", "BROWSER", "Set browser"},
-			{"02", "DEBLOAT", "Remove extras"},
+			{"02", "SOFTWARE", "Review personal"},
 		},
 	},
 	{
