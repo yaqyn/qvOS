@@ -4,11 +4,14 @@ set -euo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 qvsync_path=$(git rev-parse --git-path qvsync)
 qvsync_source="$repo_root/qv/git/qvsync"
+qvsync_audit_source="$repo_root/qv/git/qvsync-audit"
 
-if [[ ! -x $qvsync_source ]]; then
-  printf "Refusing: qvsync source is missing or not executable: %s\n" "$qvsync_source" >&2
-  exit 1
-fi
+for source_path in "$qvsync_source" "$qvsync_audit_source"; do
+  if [[ ! -x $source_path ]]; then
+    printf "Refusing: qvsync source is missing or not executable: %s\n" "$source_path" >&2
+    exit 1
+  fi
+done
 
 mkdir -p "$(dirname "$qvsync_path")"
 cat >"$qvsync_path" <<'SCRIPT'

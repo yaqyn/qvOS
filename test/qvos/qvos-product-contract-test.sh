@@ -185,18 +185,22 @@ grep -Fqx 'Default_keyring' "$default_file" || fail "default keyring selection"
 (($(find "$keyring_dir" -maxdepth 1 -type f | wc -l) == 2)) || fail "clean keyring file set"
 pass "desktop keyring support stays complete"
 
-grep -Fq '󱅾  qvOS' "$root/qv/menu/extension.sh" ||
+grep -Fq 'Text = "󱅾  Update qvOS"' \
+  "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
   fail "qvOS update menu icon"
-grep -Fq '*qvOS*) present_terminal omarchy-qvos-update ;;' \
-  "$root/qv/menu/extension.sh" ||
+grep -Fq 'Actions = { activate = present("omarchy-qvos-update") }' \
+  "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
   fail "qvOS update menu route"
 grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
   "$root/qv/menu/extension.sh" ||
   fail "qvOS unified system menu route"
+update_override=$(
+  sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
+)
+[[ $update_override == $'show_update_menu() {\n  present_terminal omarchy-qvos-update\n}' ]] ||
+  fail "Update qvOS is not direct"
 if grep -Fq 'omarchy-qvos-system --software' "$root/qv/menu/extension.sh" ||
-  grep -Fq 'qvOS System' <(
-    sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
-  ); then
+  grep -Fq 'qvOS System' <<<"$update_override"; then
   fail "software or maintenance action appears in a competing menu domain"
 fi
 install_gaming_override=$(
@@ -223,6 +227,13 @@ fi
 grep -Fq 'qvOS menu, exec, omarchy-menu qvos' \
   "$root/qv/config/files/hypr/qv/bindings.conf" ||
   fail "qvOS binding description"
+grep -Fq '`qv/hyprland/refresh` is the authoritative inventory' \
+  "$root/qv/hyprland/AGENTS.md" ||
+  fail "qvOS Hyprland source ownership instruction"
+grep -Fq 'otherwise update the' "$root/qv/hyprland/AGENTS.md" ||
+  fail "qvOS Hyprland top-level source instruction"
+grep -Fq 'owned top-level source' "$root/qv/hyprland/AGENTS.md" ||
+  fail "qvOS Hyprland top-level source instruction"
 grep -Fq 'bash "$OMARCHY_PATH/qv/install/first-run/apply"' \
   "$root/bin/omarchy-first-run" ||
   fail "qvOS first-run integration seam"
@@ -266,6 +277,9 @@ fi
 iso_build="$root/qv/tui/bin/qvos-build"
 grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"' "$iso_build" ||
   fail "qvOS ISO branch matching Omarchy master"
+grep -Fq 'default-branch change is not permission to follow it' \
+  "$root/qv/iso/AGENTS.md" ||
+  fail "qvOS ISO compatibility pin instruction"
 grep -Fq -- '-e "OMARCHY_INSTALLER_REF=master"' "$iso_build" ||
   fail "qvOS ISO installer branch contract"
 grep -Fq -- '-v "$staged_qvos:/omarchy:ro"' "$iso_build" ||

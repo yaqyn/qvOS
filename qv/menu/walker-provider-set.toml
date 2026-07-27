@@ -1,0 +1,30 @@
+# qvOS Omarchy menu provider set start
+[providers.sets.qvos-omarchy-menu]
+default = ["menus:qvosOmarchyMenu"]
+empty = ["menus:qvosOmarchyMenu"]
+
+[[providers.actions."menus:qvosOmarchyMenu"]]
+action = "activate"
+default = true
+bind = "Return"
+after = "Close"
+
+# Wait for Elephant's activation acknowledgement before repeating the query.
+[[providers.actions."menus:qvosOmarchyMenu"]]
+action = "show_apps"
+default = true
+bind = "Return"
+after = "AsyncReload"
+
+[[providers.actions."menus:qvosOmarchyMenu"]]
+action = "show_menu"
+default = true
+bind = "Return"
+after = "AsyncReload"
+
+[[providers.actions."menus:qvosOmarchyMenu"]]
+action = "toggle"
+label = "Apps / Menu"
+bind = "Tab"
+after = "AsyncReload"
+# qvOS Omarchy menu provider set end

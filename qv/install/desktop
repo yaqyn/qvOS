@@ -46,8 +46,14 @@
     qv/maintenance/qv
     qv/maintenance/qvos-repair
     qv/maintenance/qvos-system
+    qv/menu/concepts.psv
+    qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
     qv/menu/install
+    qv/menu/wait-for-elephant
+    qv/menu/walker-elephant-ready.conf
+    qv/menu/walker-provider-set.toml
+    qv/menu/walker-subtext.css
     qv/power/inhibit-sleep
     qv/power/suspend-if-safe
     qv/screensaver/alacritty.toml
@@ -115,8 +121,8 @@
     install -m 0755 "$thunar_source/$feature" "$thunar_runtime/$feature"
   done
 
-  "$OMARCHY_PATH/qv/menu/install" --repair
   "$OMARCHY_PATH/qv/launcher/install"
+  "$OMARCHY_PATH/qv/menu/install" --repair
 
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/install/post-update-hook" \

@@ -12,9 +12,41 @@ git_fetch_timeout="${QVSYNC_GIT_FETCH_TIMEOUT:-30}"
 git_push_timeout="${QVSYNC_GIT_PUSH_TIMEOUT:-180}"
 origin_git_available=1
 upstream_git_available=1
+mode="sync"
+reviewed_upstream=""
 
 repo_root=$(git rev-parse --show-toplevel) || exit 1
 cd "$repo_root" || exit 1
+audit_command="$repo_root/qv/git/qvsync-audit"
+
+case $# in
+0) ;;
+1)
+  if [[ $1 == "--audit" ]]; then
+    mode="audit"
+  else
+    printf "Usage: git qvsync [--audit|--reviewed-upstream <full-sha>]\n" >&2
+    exit 2
+  fi
+  ;;
+2)
+  if [[ $1 == "--reviewed-upstream" && $2 =~ ^[0-9a-f]{40}$ ]]; then
+    reviewed_upstream=$2
+  else
+    printf "Usage: git qvsync [--audit|--reviewed-upstream <full-sha>]\n" >&2
+    exit 2
+  fi
+  ;;
+*)
+  printf "Usage: git qvsync [--audit|--reviewed-upstream <full-sha>]\n" >&2
+  exit 2
+  ;;
+esac
+
+if [[ ! -x $audit_command ]]; then
+  printf "Refusing: qvsync audit helper is missing or not executable: %s\n" "$audit_command" >&2
+  exit 1
+fi
 
 acquire_lock() {
   local lock_pid=""
@@ -362,15 +394,17 @@ if [[ $branch != "$os_branch" ]]; then
   exit 1
 fi
 
-dirty=$(git status --porcelain=v1 --untracked-files=all)
-if [[ -n $dirty ]]; then
-  printf "Refusing: uncommitted changes on %s.\n" "$branch" >&2
-  print_ref "Current branch" "HEAD"
-  printf "Changed paths:\n" >&2
-  printf "%s\n" "$dirty" >&2
-  printf "Inspect with: git status --short --branch\n" >&2
-  printf "Clear the worktree by committing, stashing, or removing those changes before retrying.\n" >&2
-  exit 1
+if [[ $mode == "sync" ]]; then
+  dirty=$(git status --porcelain=v1 --untracked-files=all)
+  if [[ -n $dirty ]]; then
+    printf "Refusing: uncommitted changes on %s.\n" "$branch" >&2
+    print_ref "Current branch" "HEAD"
+    printf "Changed paths:\n" >&2
+    printf "%s\n" "$dirty" >&2
+    printf "Inspect with: git status --short --branch\n" >&2
+    printf "Clear the worktree by committing, stashing, or removing those changes before retrying.\n" >&2
+    exit 1
+  fi
 fi
 
 upstream_push=$(git remote get-url --push upstream 2>/dev/null || true)
@@ -425,6 +459,41 @@ if git rev-parse --verify --quiet "$local_master_ref^{commit}" >/dev/null &&
   printf "Refusing: local master is not a pure ancestor of upstream/master.\n" >&2
   describe_divergence "local master" "$local_master_ref" "upstream/master" "$upstream_ref"
   printf "Inspect local master before qvsync moves it.\n" >&2
+  exit 1
+fi
+
+upstream_sha=$(git rev-parse "$upstream_ref^{commit}")
+if ((origin_os_exists == 1)); then
+  audit_source=$origin_os_ref
+else
+  audit_source=HEAD
+fi
+audit_base=$(git merge-base "$audit_source" "$upstream_ref")
+
+if [[ $mode == "audit" ]]; then
+  "$audit_command" "$audit_base" "$upstream_ref" HEAD
+  exit 0
+fi
+
+review_required=0
+if ((origin_os_exists == 0)) ||
+  ! git merge-base --is-ancestor "$upstream_ref" "$origin_os_ref"; then
+  review_required=1
+fi
+
+if [[ -n $reviewed_upstream && $reviewed_upstream != "$upstream_sha" ]]; then
+  "$audit_command" "$audit_base" "$upstream_ref" HEAD >&2
+  printf "\nRefusing: reviewed upstream SHA does not match the fetched target.\n" >&2
+  printf "Reviewed: %s\nFetched:  %s\n" "$reviewed_upstream" "$upstream_sha" >&2
+  printf "Review the refreshed audit before retrying.\n" >&2
+  exit 1
+fi
+
+if ((review_required == 1)) && [[ $reviewed_upstream != "$upstream_sha" ]]; then
+  "$audit_command" "$audit_base" "$upstream_ref" HEAD >&2
+  printf "\nRefusing: upstream capability review is required before merge or publish.\n" >&2
+  printf "After Codex completes the decision ledger and required adaptations, retry with:\n" >&2
+  printf "  git qvsync --reviewed-upstream %s\n" "$upstream_sha" >&2
   exit 1
 fi
 

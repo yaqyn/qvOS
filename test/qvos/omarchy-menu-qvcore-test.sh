@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
-install_menu_log="$test_root/install-menu.log"
 qvcore_menu_log="$test_root/qvcore-menu.log"
 apps_menu_log="$test_root/apps-menu.log"
 setups_menu_log="$test_root/setups-menu.log"
@@ -35,10 +34,6 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
 #!/bin/bash
 case $* in
-*"Install…"*)
-  cat >"$QVOS_TEST_INSTALL_MENU_LOG"
-  printf 'qvCORE\n'
-  ;;
 *"qvCORE — Applications…"*)
   cat >"$QVOS_TEST_APPS_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_APP_CHOICE:-Brave}"
@@ -60,8 +55,7 @@ printf '%s\n' "$*" >"$QVOS_TEST_ROUTE_LOG"
 SCRIPT
 
 run_menu() {
-  QVOS_TEST_INSTALL_MENU_LOG="$install_menu_log" \
-    QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
+  QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
     QVOS_TEST_APPS_MENU_LOG="$apps_menu_log" \
     QVOS_TEST_SETUPS_MENU_LOG="$setups_menu_log" \
     QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-Install Everything}" \
@@ -97,14 +91,12 @@ run_route() {
   [[ $(<"$route_log") == "$expected" ]] || fail "$choice route"
 }
 
-run_menu install
-grep -Fqx '󰏖  qvCORE (Optional)' "$install_menu_log" ||
-  fail "optional qvCORE install-menu entry"
+run_menu qvcore
 [[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software' ]] ||
   fail "qvCORE category menu"
 [[ $(<"$route_log") == "omarchy-install-qvcore" ]] ||
   fail "complete qvCORE route"
-pass "qvCORE presents a curated software catalog with a separate setup category"
+pass "qvCORE presents a curated software sheet with a separate setup category"
 
 run_route main "Install Everything" "omarchy-install-qvcore"
 run_route main "Remove qvCORE Software" "omarchy-qvcore-remove"

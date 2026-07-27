@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+for ((attempt = 0; attempt < 200; attempt++)); do
+  if elephant query 'providerlist;;1' >/dev/null 2>&1; then
+    exit 0
+  fi
+
+  sleep 0.05
+done
+
+echo "Elephant providers did not become ready within 10 seconds." >&2
+exit 1

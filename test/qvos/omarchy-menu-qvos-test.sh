@@ -10,7 +10,6 @@ qvcore_menu_log="$test_root/qvcore-menu.log"
 apps_menu_log="$test_root/apps-menu.log"
 setups_menu_log="$test_root/setups-menu.log"
 remove_menu_log="$test_root/remove-menu.log"
-update_menu_log="$test_root/update-menu.log"
 route_log="$test_root/route.log"
 
 cleanup() {
@@ -47,10 +46,6 @@ case $* in
   cat >"$QVOS_TEST_REMOVE_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_REMOVE_CHOICE:-Standalone Tools}"
   ;;
-*"Update…"*)
-  cat >"$QVOS_TEST_UPDATE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_UPDATE_CHOICE:-qvOS}"
-  ;;
 *"qvCORE — Applications…"*)
   cat >"$QVOS_TEST_APPS_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_APP_CHOICE:-Brave}"
@@ -77,14 +72,12 @@ run_menu() {
     QVOS_TEST_APP_CHOICE="${QVOS_TEST_APP_CHOICE:-Brave}" \
     QVOS_TEST_SETUP_CHOICE="${QVOS_TEST_SETUP_CHOICE:-WARP}" \
     QVOS_TEST_REMOVE_CHOICE="${QVOS_TEST_REMOVE_CHOICE:-Standalone Tools}" \
-    QVOS_TEST_UPDATE_CHOICE="${QVOS_TEST_UPDATE_CHOICE:-qvOS}" \
     QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
     QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
     QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
     QVOS_TEST_APPS_MENU_LOG="$apps_menu_log" \
     QVOS_TEST_SETUPS_MENU_LOG="$setups_menu_log" \
     QVOS_TEST_REMOVE_MENU_LOG="$remove_menu_log" \
-    QVOS_TEST_UPDATE_MENU_LOG="$update_menu_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
     HOME="$test_root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
@@ -144,13 +137,15 @@ if grep -Fq "Personal Software" "$remove_menu_log"; then
   fail "Remove menu duplicates the qvOS personal-software inventory"
 fi
 : >"$route_log"
-QVOS_TEST_UPDATE_CHOICE="qvOS" run_menu update
+run_menu update
 [[ $(<"$route_log") == "omarchy-qvos-update" ]] ||
   fail "Update qvOS route"
-if grep -Fq "qvOS System" "$update_menu_log"; then
-  fail "Update menu duplicates the qvOS System hub"
-fi
-pass "qvOS menus keep system, package, and standalone ownership distinct"
+update_override=$(
+  sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
+)
+[[ $update_override == $'show_update_menu() {\n  present_terminal omarchy-qvos-update\n}' ]] ||
+  fail "Update qvOS stays direct"
+pass "qvOS menus keep update, system, package, and standalone ownership distinct"
 
 run_qvcore_route main "Install Everything" "omarchy-install-qvcore"
 [[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software' ]] ||
@@ -165,6 +160,7 @@ grep -Fqx \
   'bindd = SUPER SHIFT ALT, SPACE, qvOS menu, exec, omarchy-menu qvos' \
   "$root/qv/config/files/hypr/qv/bindings.conf" || fail "direct qvOS menu binding"
 
-grep -Fq 'for user-friendly direct access and testing' "$root/AGENTS.md" ||
+grep -Fq 'for user-friendly direct access and testing' \
+  "$root/qv/menu/AGENTS.md" ||
   fail "direct qvOS menu workflow instruction"
 pass "qvOS menu shortcut and workflow contract stay explicit"

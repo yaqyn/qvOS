@@ -1,0 +1,550 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+test_root="$(mktemp -d)"
+test_bin="$test_root/bin"
+main_args_log="$test_root/main-args.log"
+apps_args_log="$test_root/apps-args.log"
+settings_options_log="$test_root/settings-options.log"
+area_options_log="$test_root/area-options.log"
+concept_options_log="$test_root/concept-options.log"
+presentation_log="$test_root/presentation.log"
+web_log="$test_root/web.log"
+elephant_log="$test_root/elephant.log"
+route_log="$test_root/route.log"
+systemctl_log="$test_root/systemctl.log"
+
+cleanup() {
+  [[ -d $test_root ]] && rm -rf "$test_root"
+}
+trap cleanup EXIT
+
+pass() {
+  printf 'ok - %s\n' "$1"
+}
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+install -d "$test_bin"
+install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
+#!/bin/bash
+case $* in
+"--user show-environment")
+  printf 'HOME=%s\n' "$HOME"
+  ;;
+"--user is-active --quiet elephant.service" | \
+"--user is-active --quiet app-walker@autostart.service")
+  exit 0
+  ;;
+"--user restart elephant.service" | \
+"--user restart app-walker@autostart.service")
+  printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
+  ;;
+esac
+SCRIPT
+install -d \
+  "$test_root/.config/elephant/menus" \
+  "$test_root/.local/share/qvos/menu/elephant"
+for retired_provider in \
+  qvos_apps.lua \
+  qvos_omarchy_menu_home.lua \
+  qvos_omarchy_menu_search.lua; do
+  ln -s \
+    "$test_root/.local/share/qvos/menu/elephant/$retired_provider" \
+    "$test_root/.config/elephant/menus/$retired_provider"
+done
+
+HOME="$test_root" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  "$root/qv/menu/install" --repair
+HOME="$test_root" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qv/menu/install" --status ||
+  fail "installed menu status"
+[[ $(<"$systemctl_log") == $'--user restart elephant.service\n--user restart app-walker@autostart.service' ]] ||
+  fail "active menu service reload"
+for retired_provider in \
+  qvos_apps.lua \
+  qvos_omarchy_menu_home.lua \
+  qvos_omarchy_menu_search.lua; do
+  [[ ! -L $test_root/.config/elephant/menus/$retired_provider ]] ||
+    fail "retired $retired_provider provider"
+done
+
+python3 - "$test_root/.config/walker/config.toml" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+config = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
+provider_set = config["providers"]["sets"]["qvos-omarchy-menu"]
+assert config["theme"] == "qvos-omarchy-menu"
+assert provider_set == {
+    "default": ["menus:qvosOmarchyMenu"],
+    "empty": ["menus:qvosOmarchyMenu"],
+}
+
+menu_actions = config["providers"]["actions"]["menus:qvosOmarchyMenu"]
+assert any(
+    action["action"] == "activate"
+    and action["bind"] == "Return"
+    and action["default"]
+    for action in menu_actions
+)
+assert any(
+    action["action"] == "show_apps"
+    and action["bind"] == "Return"
+    and action["default"]
+    and action["after"] == "AsyncReload"
+    for action in menu_actions
+)
+assert any(
+    action["action"] == "show_menu"
+    and action["bind"] == "Return"
+    and action["default"]
+    and action["after"] == "AsyncReload"
+    for action in menu_actions
+)
+assert any(
+    action["action"] == "toggle"
+    and action["bind"] == "Tab"
+    and action["label"] == "Apps / Menu"
+    and action["after"] == "AsyncReload"
+    for action in menu_actions
+)
+PY
+pass "Walker binds Tab to a query-preserving mode reload"
+
+menu_provider="$root/qv/menu/elephant/qvos_omarchy_menu.lua"
+home_entries=$(
+  XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+dofile(arg[1])
+assert(Name == "qvosOmarchyMenu")
+assert(Cache == false)
+assert(FixedOrder == true)
+assert(Actions.toggle == "lua:ToggleMode")
+for _, entry in ipairs(GetEntries("")) do
+  print(entry.Text)
+end
+LUA
+)
+[[ $home_entries == $'󰀻  All Apps\n󱅾  Update qvOS\n  Settings\n󰍜  More' ]] ||
+  fail "four-item home catalog"
+pass "empty search stays focused on four real destinations"
+
+search_audit=$(
+  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+dofile(arg[1])
+local entries = GetEntries("all")
+local concept_counts = {}
+local concept_count = 0
+local duplicate_counts = {}
+local go_matches = 0
+local proton_matches = 0
+local style_matches = 0
+local theme_matches = 0
+local qvcore_matches = 0
+local password_matches = 0
+local old_breadcrumbs = 0
+
+for line in io.lines(os.getenv("HOME") .. "/.local/share/qvos/menu/concepts.psv") do
+  if line ~= "" and line:sub(1, 1) ~= "#" then
+    local slug, _, name, breadcrumb = line:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|")
+    concept_counts[name] = {
+      count = 0,
+      route = "omarchy-menu 'concept:" .. slug .. "'",
+      breadcrumb = breadcrumb,
+    }
+    concept_count = concept_count + 1
+  end
+end
+
+for _, entry in ipairs(entries) do
+  assert(entry.Text and entry.Text ~= "")
+  assert(entry.Subtext and entry.Subtext ~= "")
+  assert(entry.Actions and entry.Actions.activate and entry.Actions.activate ~= "")
+  assert(not entry.Text:lower():find("separator", 1, true))
+
+  local text = entry.Text:gsub("^.-  ", "")
+  duplicate_counts[text] = (duplicate_counts[text] or 0) + 1
+  if concept_counts[text] then
+    concept_counts[text].count = concept_counts[text].count + 1
+    assert(entry.Subtext == concept_counts[text].breadcrumb)
+    assert(entry.Actions.activate == concept_counts[text].route)
+  end
+  if text == "Go" then
+    go_matches = go_matches + 1
+    assert(entry.Subtext == "Settings · Software · Development")
+  end
+  if text == "Proton" then
+    proton_matches = proton_matches + 1
+    assert(entry.Subtext == "Settings · Software · qvCORE")
+  end
+  if text == "Style" then
+    style_matches = style_matches + 1
+  end
+  if text == "Theme" then
+    theme_matches = theme_matches + 1
+    assert(entry.Subtext == "Settings · Appearance")
+  end
+  if text == "qvCORE" then
+    qvcore_matches = qvcore_matches + 1
+    assert(entry.Subtext == "Settings · Software")
+  end
+  if text == "Password" then
+    password_matches = password_matches + 1
+    assert(entry.Subtext == "Settings · Security")
+  end
+  for _, obsolete in ipairs({ "Setup", "Install", "Remove", "Style", "Update", "Misc" }) do
+    if entry.Subtext:find(obsolete, 1, true) then
+      old_breadcrumbs = old_breadcrumbs + 1
+    end
+  end
+end
+
+for name, expected in pairs(concept_counts) do
+  assert(expected.count == 1, name .. " should appear exactly once")
+end
+
+for name, count in pairs(duplicate_counts) do
+  assert(count == 1, name .. " appears " .. count .. " times")
+end
+
+print(
+  #entries,
+  concept_count,
+  go_matches,
+  proton_matches,
+  style_matches,
+  theme_matches,
+  qvcore_matches,
+  password_matches,
+  old_breadcrumbs
+)
+LUA
+)
+read -r search_count concept_count go_matches proton_matches style_matches theme_matches qvcore_matches password_matches old_breadcrumbs <<<"$search_audit"
+((search_count >= 185)) || fail "global search catalog coverage"
+((concept_count >= 75)) || fail "concept action catalog coverage"
+((go_matches == 1)) || fail "single Go concept result"
+((proton_matches == 1)) || fail "single Proton concept result"
+((style_matches == 0)) || fail "Style verb folder removal"
+((theme_matches == 1)) || fail "single Theme concept result"
+((qvcore_matches == 1)) || fail "single qvCORE result"
+((password_matches == 1)) || fail "single Password concept result"
+((old_breadcrumbs == 0)) || fail "obsolete verb breadcrumbs"
+pass "typed search presents every concept exactly once"
+
+menu_agents="$root/qv/menu/AGENTS.md"
+grep -Fq 'qv/menu/AGENTS.md' "$root/AGENTS.md" ||
+  fail "root menu workflow route"
+grep -Fqx '# qvOS Menu Workflow' "$menu_agents" ||
+  fail "owner-local menu workflow heading"
+grep -Fq 'Verbs are actions on one canonical concept' "$menu_agents" ||
+  fail "canonical concept policy"
+grep -Fq 'During qvsync, compare upstream menu behavior' "$menu_agents" ||
+  fail "qvsync menu audit policy"
+pass "owner-local AGENTS keeps the compact menu contract durable across qvsync"
+
+apps_audit=$(
+  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+local responses = {
+  first = {
+    item = {
+      identifier = "code-oss.desktop",
+      text = "Code - OSS",
+      subtext = "Text Editor",
+      icon = "com.visualstudio.code.oss",
+    },
+  },
+  second = {
+    item = {
+      identifier = "codium.desktop",
+      text = "VSCodium",
+      icon = "vscodium",
+    },
+  },
+  chromium = {
+    item = {
+      identifier = "chromium.desktop",
+      text = "Chromium",
+      subtext = "Web Browser",
+      icon = "chromium",
+    },
+  },
+}
+local requested = ""
+
+jsonDecode = function(line)
+  return responses[line]
+end
+
+io.popen = function(command)
+  requested = command
+  local values = {}
+  if command:find("desktopapplications;code;", 1, true) then
+    values = { "first", "second" }
+  elseif command:find("desktopapplications;chrom;", 1, true) then
+    values = { "chromium" }
+  end
+  local index = 0
+  return {
+    lines = function()
+      return function()
+        index = index + 1
+        return values[index]
+      end
+    end,
+    close = function() end,
+  }
+end
+
+dofile(arg[1])
+
+ToggleMode()
+local mode_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-mode", "r"))
+assert(mode_file:read("*l") == "apps")
+mode_file:close()
+
+local entries = GetEntries("code")
+assert(#entries == 2)
+assert(entries[1].Text == "Code - OSS")
+assert(entries[1].Icon == "com.visualstudio.code.oss")
+assert(entries[1].Actions.activate == "elephant activate 'desktopapplications;code-oss.desktop;start;code;'")
+assert(entries[2].Subtext == "Installed App")
+assert(requested == "elephant query 'desktopapplications;code;256;false' --json 2>/dev/null")
+
+ToggleMode()
+mode_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-mode", "r"))
+assert(mode_file:read("*l") == "menu")
+mode_file:close()
+
+local menu_entries = GetEntries("code")
+assert(#menu_entries > #entries)
+
+ToggleMode()
+local chromium = GetEntries("chrome")
+assert(#chromium == 1)
+assert(chromium[1].Text == "Chromium")
+assert(chromium[1].Keywords[1] == "chrome")
+assert(chromium[1].Actions.activate == "elephant activate 'desktopapplications;chromium.desktop;start;chrome;'")
+
+ShowMenu()
+ToggleMode()
+local empty = GetEntries("zzzz")
+assert(#empty == 1)
+assert(empty[1].Text == "No installed app matches “zzzz”")
+assert(empty[1].Actions.show_menu == "lua:ShowMenu")
+ShowMenu()
+
+print(#entries, #menu_entries, #chromium, #empty)
+LUA
+)
+read -r installed_app_count returned_menu_count alias_count empty_count <<<"$apps_audit"
+((installed_app_count == 2 && returned_menu_count >= 190 &&
+  alias_count == 1 && empty_count == 1)) ||
+  fail "query-preserving app and menu modes"
+pass "the same query returns installed apps or menu concepts by mode"
+
+cmp -s \
+  "$root/default/walker/themes/omarchy-default/layout.xml" \
+  "$test_root/.config/walker/themes/qvos-omarchy-menu/layout.xml" ||
+  fail "menu theme inherits Walker layout"
+[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css") == \
+  '@import "../../../omarchy/current/theme/walker.css";' ]] ||
+  fail "menu theme import path"
+grep -Fq 'font-size: 12px;' \
+  "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css" ||
+  fail "menu breadcrumb typography"
+grep -Fq '.elephant-hint {' \
+  "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css" ||
+  fail "transient Elephant hint styling"
+grep -Fq 'opacity: 0;' \
+  "$root/qv/menu/walker-subtext.css" ||
+  fail "transient Elephant hint suppression"
+if grep -Fq 'font-size: 12px;' \
+  "$root/default/walker/themes/omarchy-default/style.css"; then
+  fail "qvOS menu typography drifted into inherited Walker source"
+fi
+pass "qvOS theme keeps breadcrumbs and hides transient provider noise"
+
+cmp -s \
+  "$root/qv/menu/wait-for-elephant" \
+  "$test_root/.local/share/qvos/menu/wait-for-elephant" ||
+  fail "Elephant readiness helper"
+cmp -s \
+  "$root/qv/menu/walker-elephant-ready.conf" \
+  "$test_root/.config/systemd/user/app-walker@autostart.service.d/qvos-elephant-ready.conf" ||
+  fail "Walker readiness drop-in"
+grep -Fqx 'Wants=elephant.service' \
+  "$root/qv/menu/walker-elephant-ready.conf" ||
+  fail "Walker starts Elephant"
+grep -Fqx 'After=elephant.service' \
+  "$root/qv/menu/walker-elephant-ready.conf" ||
+  fail "Walker starts after Elephant"
+
+install -m 0755 /dev/stdin "$test_bin/elephant" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_ELEPHANT_LOG"
+SCRIPT
+QVOS_TEST_ELEPHANT_LOG="$elephant_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$test_root/.local/share/qvos/menu/wait-for-elephant"
+[[ $(<"$elephant_log") == "query providerlist;;1" ]] ||
+  fail "Elephant provider readiness query"
+pass "Walker startup waits for ready Elephant providers"
+
+install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
+#!/bin/bash
+case $* in
+*"--set qvos-omarchy-menu"*)
+  if [[ $(<"$XDG_RUNTIME_DIR/qvos-menu-mode") == "apps" ]]; then
+    printf '%s\n' "$*" >"$QVOS_TEST_APPS_ARGS_LOG"
+  else
+    printf '%s\n' "$*" >"$QVOS_TEST_MAIN_ARGS_LOG"
+  fi
+  ;;
+*"Settings…"*)
+  cat >"$QVOS_TEST_SETTINGS_OPTIONS_LOG"
+  printf '%s\n' "$QVOS_TEST_SETTINGS_CHOICE"
+  ;;
+*"Appearance…"* | *"Connections…"* | *"Devices…"* | *"Software…"* | *"System…"* | *"Security…"*)
+  cat >"$QVOS_TEST_AREA_OPTIONS_LOG"
+  printf '%s\n' "$QVOS_TEST_AREA_CHOICE"
+  ;;
+*"Go…"* | *"Proton…"* | *"Theme…"* | *"Password…"* | *"Wi-Fi…"*)
+  cat >"$QVOS_TEST_CONCEPT_OPTIONS_LOG"
+  printf '%s\n' "$QVOS_TEST_CONCEPT_CHOICE"
+  ;;
+esac
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_PRESENTATION_LOG"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-webapp" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_WEB_LOG"
+SCRIPT
+
+for command_name in \
+  omarchy-launch-audio \
+  omarchy-launch-wifi \
+  omarchy-launch-bluetooth; do
+  install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
+#!/bin/bash
+basename -- "$0" >"$QVOS_TEST_ROUTE_LOG"
+SCRIPT
+done
+
+run_menu() {
+  QVOS_TEST_MAIN_ARGS_LOG="$main_args_log" \
+    QVOS_TEST_APPS_ARGS_LOG="$apps_args_log" \
+    QVOS_TEST_SETTINGS_OPTIONS_LOG="$settings_options_log" \
+    QVOS_TEST_SETTINGS_CHOICE="${QVOS_TEST_SETTINGS_CHOICE:-}" \
+    QVOS_TEST_AREA_OPTIONS_LOG="$area_options_log" \
+    QVOS_TEST_AREA_CHOICE="${QVOS_TEST_AREA_CHOICE:-}" \
+    QVOS_TEST_CONCEPT_OPTIONS_LOG="$concept_options_log" \
+    QVOS_TEST_CONCEPT_CHOICE="${QVOS_TEST_CONCEPT_CHOICE:-}" \
+    QVOS_TEST_PRESENTATION_LOG="$presentation_log" \
+    QVOS_TEST_WEB_LOG="$web_log" \
+    QVOS_TEST_ROUTE_LOG="$route_log" \
+    HOME="$test_root" \
+    XDG_RUNTIME_DIR="$test_root" \
+    OMARCHY_PATH="$root" \
+    PATH="$test_bin:$root/bin:/usr/bin" \
+    "$root/bin/omarchy-menu" "$@"
+}
+
+run_menu
+grep -Fq -- '--theme qvos-omarchy-menu' "$main_args_log" ||
+  fail "dedicated menu theme"
+grep -Fq -- '--set qvos-omarchy-menu' "$main_args_log" ||
+  fail "global search provider set"
+grep -Fq -- 'Tab: Apps ↔ Menu' "$main_args_log" ||
+  fail "menu switch affordance"
+run_menu apps
+grep -Fq -- '--theme qvos-omarchy-menu' "$apps_args_log" ||
+  fail "All Apps transient hint suppression"
+grep -Fq -- '--set qvos-omarchy-menu' "$apps_args_log" ||
+  fail "shared query provider"
+grep -Fq -- 'Tab: Apps ↔ Menu' "$apps_args_log" ||
+  fail "apps switch affordance"
+[[ $(<"$test_root/qvos-menu-mode") == "apps" ]] ||
+  fail "Apps launch mode"
+pass "Omarchy and Apps share one query-preserving Walker surface"
+
+QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:go
+[[ $(<"$concept_options_log") == $'󰐕  Install\n󰆴  Remove\n󰧑  Learn' ]] ||
+  fail "Go concept actions"
+[[ $(<"$presentation_log") == "omarchy-install-dev-env go" ]] ||
+  fail "Go install owner"
+QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:go
+[[ $(<"$presentation_log") == "omarchy-remove-dev-env go" ]] ||
+  fail "Go remove owner"
+QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:go
+[[ $(<"$web_log") == "https://go.dev/doc/" ]] ||
+  fail "Go documentation"
+
+QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:proton
+[[ $(<"$presentation_log") == "omarchy-install-qvcore proton" ]] ||
+  fail "Proton install owner"
+QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:proton
+[[ $(<"$presentation_log") == "$root/qv/core/proton.sh --remove" ]] ||
+  fail "Proton remove owner"
+QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:proton
+[[ $(<"$web_log") == "https://docs.proton.me" ]] ||
+  fail "Proton documentation"
+
+QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
+[[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||
+  fail "Theme concept actions"
+[[ $(<"$presentation_log") == "omarchy-theme-install" ]] ||
+  fail "Theme install owner"
+QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:theme
+[[ $(<"$presentation_log") == "omarchy-theme-remove" ]] ||
+  fail "Theme remove owner"
+QVOS_TEST_CONCEPT_CHOICE=Update run_menu concept:theme
+[[ $(<"$presentation_log") == "omarchy-theme-update" ]] ||
+  fail "Theme update owner"
+
+QVOS_TEST_CONCEPT_CHOICE="Drive Encryption" run_menu concept:password
+[[ $(<"$concept_options_log") == $'  User\n󰌾  Drive Encryption' ]] ||
+  fail "Password concept actions"
+[[ $(<"$presentation_log") == "omarchy-drive-password" ]] ||
+  fail "Drive Encryption password owner"
+pass "concept sheets delegate their named actions correctly"
+
+QVOS_TEST_SETTINGS_CHOICE=Appearance run_menu settings
+[[ $(<"$settings_options_log") == $'  Appearance\n󰖩  Connections\n󰋊  Devices\n󰏖  Software\n󰒓  System\n  Security' ]] ||
+  fail "six-area Settings menu"
+grep -Fqx '󰸌  Theme' "$area_options_log" || fail "Theme appearance item"
+grep -Fqx '󱄄  Screensaver' "$area_options_log" || fail "Screensaver appearance item"
+if grep -Eq '(^|  )(Install|Remove|Style|Update)$' "$settings_options_log" "$area_options_log"; then
+  fail "verb folder in Settings browse"
+fi
+
+: >"$route_log"
+QVOS_TEST_SETTINGS_CHOICE=Connections \
+  QVOS_TEST_AREA_CHOICE=Wi-Fi \
+  QVOS_TEST_CONCEPT_CHOICE=Open \
+  run_menu settings
+[[ $(<"$route_log") == "omarchy-launch-wifi" ]] ||
+  fail "Wi-Fi concept owner"
+[[ $(<"$area_options_log") == $'  Wi-Fi\n󰂯  Bluetooth\n󰐕  DNS' ]] ||
+  fail "catalog-derived Connections menu"
+pass "Settings browse is shallow, noun-based, and catalog-derived"

@@ -2,13 +2,78 @@
 set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-source_path="$OMARCHY_PATH/qv/menu/extension.sh"
+menu_source_dir="$OMARCHY_PATH/qv/menu"
+source_path="$menu_source_dir/extension.sh"
 extension_dir="$HOME/.config/omarchy/extensions"
 target_path="$extension_dir/menu.sh"
 qvos_target_path="$extension_dir/qvos-menu.sh"
+provider_source_dir="$menu_source_dir/elephant"
+menu_runtime_dir="$HOME/.local/share/qvos/menu"
+provider_runtime_dir="$menu_runtime_dir/elephant"
+provider_menu_dir="$HOME/.config/elephant/menus"
+concept_source="$menu_source_dir/concepts.psv"
+concept_runtime="$menu_runtime_dir/concepts.psv"
+elephant_ready_source="$menu_source_dir/wait-for-elephant"
+elephant_ready_runtime="$menu_runtime_dir/wait-for-elephant"
+walker_ready_source="$menu_source_dir/walker-elephant-ready.conf"
+walker_ready_target="$HOME/.config/systemd/user/app-walker@autostart.service.d/qvos-elephant-ready.conf"
+provider_set_source="$menu_source_dir/walker-provider-set.toml"
+provider_set_start="# qvOS Omarchy menu provider set start"
+provider_set_end="# qvOS Omarchy menu provider set end"
+provider_set_header="[providers.sets.qvos-omarchy-menu]"
+walker_config="$HOME/.config/walker/config.toml"
+walker_config_source="$OMARCHY_PATH/config/walker/config.toml"
+walker_theme_name="qvos-omarchy-menu"
+walker_theme_source="$OMARCHY_PATH/default/walker/themes/omarchy-default"
+walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
+walker_theme_import='@import "../../../omarchy/current/theme/walker.css";'
+walker_subtext_source="$menu_source_dir/walker-subtext.css"
+providers=(
+  qvos_omarchy_menu.lua
+)
+retired_providers=(
+  qvos_apps.lua
+  qvos_omarchy_menu_home.lua
+  qvos_omarchy_menu_search.lua
+)
 # shellcheck disable=SC2016
 source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
+walker_config_backed_up=false
 mode=${1:---repair}
+
+require_sources() {
+  local required_sources=(
+    "$source_path"
+    "$concept_source"
+    "$elephant_ready_source"
+    "$walker_ready_source"
+    "$provider_set_source"
+    "$walker_subtext_source"
+    "$walker_config_source"
+    "$walker_theme_source/layout.xml"
+    "$walker_theme_source/style.css"
+  )
+  local provider
+  local required_source
+
+  for provider in "${providers[@]}"; do
+    required_sources+=("$provider_source_dir/$provider")
+  done
+
+  for required_source in "${required_sources[@]}"; do
+    if [[ ! -f $required_source ]]; then
+      echo "Missing qvOS menu source: $required_source" >&2
+      return 1
+    fi
+  done
+
+  if ! head -n 1 "$walker_theme_source/style.css" |
+    grep -Fq '.config/omarchy/current/theme/walker.css'; then
+    echo "Omarchy Walker theme import changed; qvOS menu theme needs review." >&2
+    return 1
+  fi
+
+}
 
 install_qvos_menu() {
   local temporary_path
@@ -36,14 +101,265 @@ install_qvos_menu() {
   mv "$temporary_path" "$target_path"
 }
 
-case $mode in
---status)
+install_menu_providers() {
+  local provider
+  local provider_link
+  local runtime_provider
+
+  rm -rf -- "$provider_runtime_dir"
+  install -d "$provider_runtime_dir" "$provider_menu_dir"
+
+  for provider in "${retired_providers[@]}"; do
+    provider_link="$provider_menu_dir/$provider"
+    if [[ -L $provider_link ]] &&
+      [[ $(readlink "$provider_link") == "$provider_runtime_dir/$provider" ]]; then
+      rm -f -- "$provider_link"
+    fi
+  done
+
+  for provider in "${providers[@]}"; do
+    runtime_provider="$provider_runtime_dir/$provider"
+    install -m 0644 "$provider_source_dir/$provider" "$runtime_provider"
+    ln -sfn "$runtime_provider" "$provider_menu_dir/$provider"
+  done
+}
+
+install_menu_runtime() {
+  local manager_home
+
+  install -D -m 0644 "$concept_source" "$concept_runtime"
+  install -D -m 0755 "$elephant_ready_source" "$elephant_ready_runtime"
+  install -D -m 0644 "$walker_ready_source" "$walker_ready_target"
+
+  if manager_home=$(
+    systemctl --user show-environment 2>/dev/null |
+      sed -n 's/^HOME=//p' |
+      head -n 1
+  ) && [[ $manager_home == "$HOME" ]]; then
+    systemctl --user daemon-reload
+  fi
+}
+
+ensure_walker_config() {
+  if [[ ! -f $walker_config ]]; then
+    install -D -m 0644 "$walker_config_source" "$walker_config"
+  fi
+}
+
+backup_walker_config() {
+  local backup_path
+
+  [[ $walker_config_backed_up == "false" ]] || return 0
+
+  backup_path="$walker_config.bak.$(date +%s).$$"
+  cp -a "$walker_config" "$backup_path"
+  walker_config_backed_up=true
+}
+
+provider_set_block() {
+  awk \
+    -v start="$provider_set_start" \
+    -v finish="$provider_set_end" '
+      $0 == start { copying = 1 }
+      copying { print }
+      $0 == finish && copying { exit }
+    ' "$walker_config"
+}
+
+install_provider_set() {
+  local temporary_path
+
+  if cmp -s <(provider_set_block) "$provider_set_source"; then
+    return
+  fi
+
+  if awk \
+    -v start="$provider_set_start" \
+    -v finish="$provider_set_end" \
+    -v header="$provider_set_header" '
+      $0 == start { managed = 1; next }
+      $0 == finish && managed { managed = 0; next }
+      !managed && $0 == header { found = 1 }
+      END { exit found ? 0 : 1 }
+    ' "$walker_config"; then
+    echo "Walker provider set already exists outside the qvOS-managed block: $provider_set_header" >&2
+    return 1
+  fi
+
+  backup_walker_config
+
+  temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
+  if ! awk \
+    -v start="$provider_set_start" \
+    -v finish="$provider_set_end" '
+      $0 == start { skipping = 1; next }
+      $0 == finish && skipping { skipping = 0; next }
+      !skipping { print }
+      END { if (skipping) exit 2 }
+    ' "$walker_config" >"$temporary_path"; then
+    rm -f -- "$temporary_path"
+    echo "Walker config contains an incomplete qvOS menu provider block." >&2
+    return 1
+  fi
+
+  {
+    printf '\n'
+    cat "$provider_set_source"
+  } >>"$temporary_path"
+  chmod --reference="$walker_config" "$temporary_path"
+  mv "$temporary_path" "$walker_config"
+}
+
+walker_config_theme() {
+  sed -n 's/^theme = "\([^"]*\)".*/\1/p' "$walker_config" | head -n 1
+}
+
+install_default_walker_theme() {
+  local current_theme
+  local temporary_path
+
+  current_theme=$(walker_config_theme)
+  case $current_theme in
+  "$walker_theme_name") return ;;
+  "omarchy-default") ;;
+  *)
+    return
+    ;;
+  esac
+
+  backup_walker_config
+  temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
+  awk \
+    -v old='theme = "omarchy-default"' \
+    -v new="theme = \"$walker_theme_name\"" '
+      index($0, old) == 1 { sub(old, new) }
+      { print }
+    ' "$walker_config" >"$temporary_path"
+  chmod --reference="$walker_config" "$temporary_path"
+  mv "$temporary_path" "$walker_config"
+}
+
+generated_theme_style() {
+  printf '%s\n' "$walker_theme_import"
+  tail -n +2 "$walker_theme_source/style.css"
+  printf '\n\n/* qvOS Omarchy menu breadcrumbs */\n'
+  cat "$walker_subtext_source"
+}
+
+install_menu_theme() {
+  local temporary_theme
+
+  install -d "$(dirname -- "$walker_theme_target")"
+  temporary_theme=$(mktemp -d "$(dirname -- "$walker_theme_target")/.qvos-omarchy-menu.XXXXXX")
+  cp -a "$walker_theme_source/." "$temporary_theme/"
+  generated_theme_style >"$temporary_theme/style.css"
+  chmod --reference="$walker_theme_source/style.css" "$temporary_theme/style.css"
+
+  rm -rf -- "$walker_theme_target"
+  mv "$temporary_theme" "$walker_theme_target"
+}
+
+reload_active_menu_services() {
+  local manager_home
+  local service
+
+  manager_home=$(
+    systemctl --user show-environment 2>/dev/null |
+      sed -n 's/^HOME=//p' |
+      head -n 1
+  ) || return 0
+  [[ $manager_home == "$HOME" ]] || return 0
+
+  for service in elephant.service app-walker@autostart.service; do
+    if systemctl --user is-active --quiet "$service"; then
+      systemctl --user restart "$service"
+    fi
+  done
+}
+
+menu_extension_ready() {
   cmp -s "$source_path" "$qvos_target_path" &&
     [[ $(head -n 1 "$target_path" 2>/dev/null) == "$source_line" ]]
+}
+
+menu_providers_ready() {
+  local provider
+  local provider_link
+  local runtime_provider
+
+  for provider in "${retired_providers[@]}"; do
+    provider_link="$provider_menu_dir/$provider"
+    if [[ -L $provider_link ]] &&
+      [[ $(readlink "$provider_link") == "$provider_runtime_dir/$provider" ]]; then
+      return 1
+    fi
+  done
+
+  for provider in "${providers[@]}"; do
+    runtime_provider="$provider_runtime_dir/$provider"
+    if [[ ! -f $runtime_provider || -L $runtime_provider ]] ||
+      ! cmp -s "$provider_source_dir/$provider" "$runtime_provider" ||
+      [[ ! -L $provider_menu_dir/$provider ]] ||
+      [[ $(readlink "$provider_menu_dir/$provider") != "$runtime_provider" ]]; then
+      return 1
+    fi
+  done
+}
+
+menu_runtime_ready() {
+  cmp -s "$concept_source" "$concept_runtime" &&
+    cmp -s "$elephant_ready_source" "$elephant_ready_runtime" &&
+    [[ -x $elephant_ready_runtime ]] &&
+    cmp -s "$walker_ready_source" "$walker_ready_target"
+}
+
+menu_theme_ready() {
+  local source_inventory
+  local target_inventory
+  local source_file
+  local relative_path
+
+  [[ -d $walker_theme_target && ! -L $walker_theme_target ]] || return 1
+
+  source_inventory=$(
+    find "$walker_theme_source" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
+  )
+  target_inventory=$(
+    find "$walker_theme_target" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
+  )
+  [[ $source_inventory == "$target_inventory" ]] || return 1
+
+  while IFS= read -r -d '' source_file; do
+    relative_path=${source_file#"$walker_theme_source/"}
+    [[ $relative_path == "style.css" ]] && continue
+    cmp -s "$source_file" "$walker_theme_target/$relative_path" || return 1
+  done < <(find "$walker_theme_source" -type f -print0)
+
+  cmp -s <(generated_theme_style) "$walker_theme_target/style.css"
+}
+
+case $mode in
+--status)
+  require_sources >/dev/null 2>&1 &&
+    [[ -f $walker_config ]] &&
+    menu_extension_ready &&
+    menu_providers_ready &&
+    menu_runtime_ready &&
+    cmp -s <(provider_set_block) "$provider_set_source" &&
+    [[ $(walker_config_theme) != "omarchy-default" ]] &&
+    menu_theme_ready
   ;;
 --repair | --install)
+  require_sources
   install -d "$extension_dir"
+  ensure_walker_config
   install_qvos_menu
+  install_menu_runtime
+  install_menu_providers
+  install_provider_set
+  install_menu_theme
+  install_default_walker_theme
+  reload_active_menu_services
   ;;
 *)
   echo "Usage: install [--status|--repair|--install]" >&2

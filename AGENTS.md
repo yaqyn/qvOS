@@ -140,163 +140,93 @@ The opening policy block is the verbatim upstream Omarchy `AGENTS.md` from
 block for qvOS-only work. During `qvsync`, update it only from upstream and keep
 all qvOS policy below this separator.
 
-## Pre-Public Phase
+## Core Contract
 
-- This PC is the only qvOS installation. Until another installation or public
-  release exists, migrate and verify it directly instead of preserving
-  compatibility or migrations for unreleased qvOS states.
-- This exception never covers user data, security, upstream compatibility,
-  clean-install correctness, or future public architecture. Retire it when
-  qvOS reaches another machine or public users.
+Every qvOS change must leave one traceable lifecycle.
+
+- This PC is the only qvOS installation until another installation or public
+  release exists. Migrate unreleased qvOS states directly, but never relax user
+  data, security, upstream compatibility, clean-install, or future-public
+  architecture requirements.
 - After each verified local commit, align and verify this live installation
-  directly from the development repository; pushing is not required. Do not run
-  the interactive updater or package upgrades unless the task requires them.
+  from the development repository. Do not run the interactive updater or
+  package upgrades unless the task requires them.
+- Treat qvOS as an overlay on Omarchy. Keep inherited source byte-for-byte
+  upstream by default; give each feature one owner under `qv/<domain>/` or
+  `qv/<feature>/`, and keep its source, payloads, references, guards, and tests
+  together. All qvOS tests live under `test/qvos/`.
+- Before editing inherited source, prove no hook, include, installer, migration,
+  or qvOS-owned command can complete the task. Otherwise use the smallest stable
+  delegation seam. When touching inherited qvOS logic, move it to its owner and
+  guard against renewed drift.
+- Keep qvOS config sources separate from inherited defaults and reconcile them
+  after upstream install, refresh, migration, or update. Deploy runtime content
+  outside `~/.local/share/omarchy`; keep that checkout clean.
+- Use thin, absent-safe adapters only when they complete a user task. qvOS must
+  remain complete and healthy with no qvCORE component installed; shared
+  refresh paths preserve or idempotently repair enabled optional integrations.
+- Trace each feature through its command and adapters to installed config,
+  state, hooks, permissions, services, network exposure, and focused tests.
+  Verify fresh install, update, repair, and live behavior where applicable.
+- Preserve safe upstream capability during conflicts. Omit it only when broken,
+  unsafe, incompatible, or intentionally out of scope, and state why.
 
-## qvCORE
+## Main qvsync Workflow
 
-`Install > qvCORE` is the opt-in profile for qvOS-integrated daily software.
+`qvsync` is the main qvOS evolution loop: preserve new Omarchy capability while
+keeping qvOS cleaner, integrated, and deliberately differentiated.
 
-- Keep new integrations out of base install/package lists unless explicitly
-  promoted to the base system.
-- Reuse an existing `omarchy-install-*` or `omarchy-setup-*` owner. Add
-  `qv/core/<component>.sh` only when qvOS must own the integration.
-- Persistent integration or state belongs to one independently rerunnable owner
-  covering installation, `--status`, `--repair`, `--adopt`, `--disable`, and
-  post-update repair. Menus and desktop adapters must only delegate to it.
-- Catalog changes require an explicit curation decision plus matching installer
-  route, health inventory, and integration tests.
+1. Start with `git qvsync --audit`. Read every upstream commit and diff, then
+   search qvOS owners, installed payloads, tests, and history for the same
+   capability; filename overlap alone is not an audit.
+2. Flag changed commands, seams, schemas, paths, packages, services, lifecycle
+   flows, permissions, network exposure, security defaults, duplicate
+   ownership, and upstream replacements for qvOS enhancements.
+3. Record each commit's capability, qvOS owner or history, decision (`adopt`,
+   `combine`, `retire-qvos`, `preserve`, or `no-impact`), cleanup, and
+   verification. Explain every `preserve` and `no-impact`.
+4. Prefer an equal-or-better mature upstream owner. Port only qvOS
+   differentiators to its supported seam, remove superseded source, payloads,
+   hooks, state, migrations, adapters, and tests, then prove replacement and
+   residue removal.
+5. Treat maintainer roadmaps as advisory signals only; never merge or depend on
+   unshipped work.
+6. A clean merge is not compatibility proof. If adaptation is needed, integrate
+   locally without publishing, update owners and guards, verify affected fresh
+   install, update, repair, and live paths, then commit the complete adaptation.
+7. Approve only the exact audit target with `--reviewed-upstream <full-sha>`;
+   audit again if it advances and stop before pushing unresolved risk.
+8. Run qvsync only from a clean verified post-commit tree. Require the upstream
+   block here to match `upstream/master:AGENTS.md` byte-for-byte, then report the
+   ledger, commit, checks, qvsync result, and final status.
 
-## Organization And Integration
+Command mechanics and publication checks live in `qv/git/AGENTS.md`; they
+supplement this workflow and never replace its judgment.
 
-Every qvOS change must leave one traceable lifecycle. Prefer plain edits to
-existing files and add plumbing only when the simple path is brittle or
-repetitive.
+## Workflow Routing
 
-- Keep tracked Omarchy source byte-for-byte upstream by default. qvOS behavior,
-  configuration, assets, and policy belong under `qv/<domain>/`, with upstream
-  behavior applied first and the qvOS layer applied afterward.
-- Before editing an inherited file, prove that an Omarchy hook, config include,
-  qvOS installer or migration, or qvOS-owned public command cannot complete the
-  task. When no extension seam exists, keep the inherited change to the
-  smallest stable include or delegation line; never place qvOS implementation
-  or data there.
-- Treat an inherited file containing substantial qvOS logic as refactoring
-  debt. When touching it, compare it with `upstream/master`, move the qvOS
-  portion to its `qv/<domain>/` owner, and add a focused guard against renewed
-  upstream drift.
-- Keep qvOS config sources separate even when their installed runtime target is
-  an Omarchy-managed path. Apply or reconcile them after the upstream install,
-  refresh, migration, or update step instead of replacing the tracked upstream
-  default.
-- Give each feature one owner, normally under `qv/<feature>/`; reuse upstream
-  owners and avoid dumping grounds such as `scripts/`, `utils/`, or `misc/`.
-  Move source, installed payloads, references, guards, and tests together.
-- Keep all qvOS test files, including new ones, under `test/qvos/`.
-- In larger files, use short section headings and brief comments for ownership,
-  intent, or non-obvious constraints. Do not narrate obvious code.
-- Link qvCORE, menus, Thunar actions, keybindings, and desktop helpers only when
-  the link completes a clear user task. Use thin adapters that safely pass
-  context to the owner; keep the base usable when an optional dependency is
-  absent, and omit surfaces with no user value.
-- Keep qvOS actions in their normal product menus and mirror them in
-  `show_qvos_menu` for user-friendly direct access and testing; both surfaces
-  delegate to the same owner.
-- Trace linked work from owner through public command and adapters to installed
-  config/payload, state or repair hook, permissions/services/network exposure,
-  and focused tests. Verify fresh-install, migration/update, and live paths.
-- Treat qvOS as an overlay on Omarchy: prefer qvOS-owned seams, minimize
-  inherited edits, and never reorganize upstream code only for qvOS style.
-  During conflicts, preserve new upstream capability when practical; omit it
-  only when incompatible, broken, unsafe, or intentionally out of scope, and
-  state why.
-- Shared install/refresh paths must preserve optional integrations or restore
-  them through the enabled component's idempotent repair in the same update.
-  Verify both tracked source and installed runtime.
-- Keep `~/.local/share/omarchy` a clean Git checkout. Deploy runtime content
-  through installers/migrations to owned runtime, config, or system paths;
-  untracked collisions there can block `omarchy update`.
+Root-started Codex sessions do not discover nested instructions automatically.
+Read every matching route completely before editing:
 
-## ISO Builder
+- qvOS architecture and lifecycle boundaries: `qv/README.md`
+- qvCORE catalog and component lifecycle: `qv/core/AGENTS.md`
+- Menu, search, Walker, and Elephant: `qv/menu/AGENTS.md`
+- ISO construction and release images: `qv/iso/AGENTS.md`
+- Hyprland refresh and keybindings: `qv/hyprland/AGENTS.md`
+- Commit and qvsync command mechanics: `qv/git/AGENTS.md`
 
-`qv/tui/bin/qvos-build` owns qvOS image construction.
+## Future Workflow Instructions
 
-- Use official `omacom-io/omarchy-iso` `main` as the default upstream builder
-  and stage it fresh for normal builds. `git qvsync` updates the Omarchy source
-  tree; it does not sync this separate repository.
-- Stage the selected qvOS Git ref separately and apply
-  `qv/iso/omarchy-iso-qvos-tui.patch` only to the temporary builder. Keep ISO
-  integration under `qv/iso/` and never persist qvOS edits in upstream source.
-- If an upstream builder change breaks the patch or a relied-on contract, stop
-  and update the qvOS owner and tests; do not weaken the guard or patch cached
-  upstream output directly.
-- During pre-public development, run full image builds and embedded audits on
-  request or for release candidates. For ISO changes, run fast staging and
-  contract checks immediately and report any deferred full build.
-- For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
-  build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
-  source, and keep optional qvCORE applications out unless explicitly promoted.
-
-## Keybindings
-
-`qv/config/files/hypr/qv/bindings.conf` is authoritative for qvOS-owned
-bindings.
-
-- Inspect it and `omarchy menu keybindings --print` before edits. If a key is
-  occupied, report its action and owner and wait before replacing it; use
-  `unbind` for an override.
-- Letter keys use Family One (`SUPER` plus optional Shift/Ctrl) and Family Two
-  (add Alt with the same variants). Inventories show qvOS-owned entries by
-  family, a checkmark column, `—` for free slots, non-letter families, and a
-  concise script index; mention inherited bindings only for conflicts or when
-  requested.
-- After edits, check duplicates and executable targets, apply and compare the
-  live file, reload Hyprland, require no config errors, and show the updated
-  qvOS-only inventory.
-
-## Commit And qvsync
-
-When the user asks to commit and run `qvsync`:
-
-- Treat it as `git qvsync`; inspect `.git/qvsync` when relevant, require branch
-  `OS`, and inspect `git status --short --branch`.
-- Before `git qvsync`, fetch `upstream/master` without merging. From
-  `git merge-base HEAD upstream/master`, inspect every upstream-changed path and
-  search qvOS owners, inherited seams, installed payloads, migrations, and tests
-  for dependencies on the changed path or behavior.
-- Treat an upstream change as qvOS-impacting when it alters a command contract,
-  extension seam, config schema or include, path, package or service, install,
-  refresh, migration, repair, or update flow, permission, network exposure, or
-  security default that qvOS uses or overrides. Also flag new ownership overlap,
-  duplicated implementation, or an upstream replacement for a qvOS enhancement.
-- A clean merge is not compatibility proof. For every impact, preserve the new
-  upstream behavior when safe, update the affected `qv/<domain>/` owner and its
-  adapters, guards, and tests in the same sync, then verify the relevant fresh
-  install, update, repair, and live paths.
-- When adaptation is required, do not let `git qvsync` publish the raw upstream
-  merge. Create a backup branch, integrate upstream locally without pushing,
-  finish and verify the qvOS adaptation, commit it, then run `git qvsync` from
-  the clean tree. If compatibility or safety cannot be proven, stop before any
-  push and report the upstream paths, affected qvOS owners, and unresolved risk.
-- Before every qvsync, refresh `qv/core/steam.sh` and its test against Linutil's
-  current Arch list at `core/tabs/system-setup/gaming-setup.sh`. Use current
-  package names and leave GPU drivers to Omarchy hardware detection.
-- Set the repository identity to
-  `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>`.
-- Match checks to the diff: `bash -n` and `shellcheck` for shell (`-s bash` for
-  sourced install/migrations); `gofmt`, `go test -count=1 ./...`, and a
-  `/tmp` Go build for Go; `test/qvos/run.sh` for the full shell suite; binding
-  checks for qvOS bindings; Hyprland reload/errors for its config; and
-  `git diff --check`.
-- Before runtime checks, back up and apply changed user config, then install qvOS
-  desktop payloads with
-  `OMARCHY_PATH=$PWD bash -c 'source qv/install/desktop'`.
-  Repair affected enabled qvCORE adapters, require no unexpected
-  `omarchy qvcore status` drift, confirm the live checkout is clean, and run the
-  relevant reload or smoke test.
-- Stage with `git add -A`; inspect `git diff --cached --check` and
-  `git diff --cached --stat`; remove generated artifacts; then commit the
-  verified logical unit without agent attribution.
-- Run `git qvsync` only from a clean post-commit worktree. Afterward, require the
-  upstream block above the qvOS separator to match `upstream/master:AGENTS.md`
-  byte-for-byte. Report the commit SHA, qvsync result, checks run/skipped, and
-  final branch status.
+- Codex must automatically create or update the nearest owner-local `AGENTS.md`
+  for a recurring conditional or multi-stage domain workflow, and add its root
+  route in the same change so root-started sessions cannot miss it.
+- Do not document simple or one-off work or duplicate an existing workflow.
+  Keep the permanent operating model, overlay and ownership boundaries, main
+  qvsync workflow, and repository-wide invariants here. Never move them out
+  merely to reduce root size.
+- Keep every workflow concise: trigger and scope, source of truth, ordered
+  procedure, approval or stop conditions, verification, and live apply or
+  cleanup. Update it with behavior and remove stale guidance.
+- Enforce deterministic requirements in tests, hooks, or CI. The instruction
+  guard must discover every nested owner-local `AGENTS.md` and require a root
+  route.
