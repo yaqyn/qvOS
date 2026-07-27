@@ -1410,7 +1410,7 @@ var installDomainOrder = []string{
 }
 
 var repairDomainOrder = []string{
-	"Source", "Packages", "Runtime", "Config", "Enabled optional qvCORE setups", "Complete",
+	"Inspect", "Source", "Packages", "Runtime", "Config", "qvCORE", "Complete",
 }
 
 var updateStages = []struct {

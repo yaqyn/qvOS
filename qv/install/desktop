@@ -4,6 +4,15 @@
 (
   set -euo pipefail
 
+  desktop_mode=${QVOS_DESKTOP_MODE:-install}
+  case $desktop_mode in
+  install | repair | reset) ;;
+  *)
+    echo "Unknown qvOS desktop install mode: $desktop_mode" >&2
+    exit 2
+    ;;
+  esac
+
   mkdir -p "$HOME/.local/share/qvos"
 
   for feature in desktop power screensaver thunar tmux waybar; do
@@ -106,7 +115,12 @@
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/waybar/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
-  QVOS_WAYBAR_SKIP_RESTART=1 "$OMARCHY_PATH/qv/waybar/refresh"
+  if [[ $desktop_mode == "repair" || $desktop_mode == "reset" ]]; then
+    "$OMARCHY_PATH/qv/waybar/refresh" "--$desktop_mode"
+  else
+    QVOS_WAYBAR_SKIP_RESTART=1 \
+      "$OMARCHY_PATH/qv/waybar/refresh" --reset
+  fi
 
   if ! "$HOME/.local/share/qvos/thunar/reconcile-default-actions"; then
     echo "qvOS preserved the current Thunar actions because they could not be reconciled." >&2

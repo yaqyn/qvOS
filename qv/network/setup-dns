@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+qvcore_warp_state="$HOME/.local/state/qvos/qvcore/warp"
+
 reload_dns() {
   # Reload matching network files without tearing down every connection.
   sudo networkctl reload
@@ -18,7 +20,7 @@ lock_dns_to_resolved() {
 
     if grep -q "^\[IPv6AcceptRA\]" "$file" &&
       ! sed -n '/^\[IPv6AcceptRA\]/,/^\[/p' "$file" |
-        grep -q "^UseDNS="; then
+      grep -q "^UseDNS="; then
       sudo sed -i '/^\[IPv6AcceptRA\]/a UseDNS=no' "$file"
     fi
   done
@@ -41,13 +43,17 @@ EOF
 }
 
 deactivate_warp() {
-  omarchy-cmd-missing warp-cli && return
+  if omarchy-cmd-missing warp-cli; then
+    rm -f "$qvcore_warp_state"
+    return
+  fi
 
   if systemctl is-active --quiet warp-svc.service; then
     warp-cli disconnect || true
   fi
 
   sudo systemctl disable --now warp-svc.service
+  rm -f "$qvcore_warp_state"
 }
 
 ensure_warp_registration() {
@@ -87,6 +93,7 @@ activate_warp() {
   reload_dns
   warp-cli connect || return 1
   warp-cli status
+  install -D -m 0644 /dev/null "$qvcore_warp_state"
 }
 
 if [[ -z ${1:-} ]]; then

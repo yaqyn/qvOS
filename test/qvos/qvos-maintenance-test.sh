@@ -87,6 +87,11 @@ configerrors) ;;
 esac
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/omarchy-restart-waybar" <<'SCRIPT'
+#!/bin/bash
+printf 'waybar\trestart\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
 case ${1:-} in
@@ -101,6 +106,7 @@ run_repair() {
     QVOS_TEST_INSTALLED_EXTRAS="$installed_extras" \
     QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
     QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
+    QVOS_TEST_GUM_SELECTION="${QVOS_TEST_GUM_SELECTION:-}" \
     HOME="$test_home" \
     OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
@@ -129,11 +135,29 @@ grep -Fq "requires the live qvOS checkout on branch OS" <<<"$unsafe_output" ||
 [[ ! -s $action_log ]] || fail "branch refusal mutates the system"
 pass "qvOS repair refuses an upstream source branch before mutation"
 
+inspection_output=$(run_repair --status)
+grep -Fq 'Removed default packages:    1' <<<"$inspection_output" ||
+  fail "qvOS inspection removed-default count"
+grep -Fq 'no changes were made' <<<"$inspection_output" ||
+  fail "qvOS inspection result"
+[[ -e $missing_packages/alacritty ]] ||
+  fail "qvOS inspection reinstalls a removed default"
+[[ ! -s $action_log ]] || fail "qvOS inspection mutates the system"
+pass "qvOS inspection is read-only and treats removed defaults as user choice"
+
 install -D -m 0644 /dev/null \
   "$test_home/.local/state/qvos/qvcore/share"
-repair_output=$(run_repair --yes)
-grep -Fqx $'add\talacritty' "$action_log" ||
-  fail "missing qvOS base package repair"
+repair_output=$(
+  QVOS_TEST_GUM_SELECTION="Safe repair — preserve removed packages and customized config" \
+    run_repair
+)
+if grep -Fqx $'add\talacritty' "$action_log"; then
+  fail "safe qvOS repair reinstalls a removed default package"
+fi
+[[ -e $missing_packages/alacritty ]] ||
+  fail "safe qvOS repair changes removed-default state"
+grep -Fq 'preserved 1 removed default package' <<<"$repair_output" ||
+  fail "safe qvOS repair removed-default result"
 grep -Fqx $'qvcore\trepair-enabled' "$action_log" ||
   fail "enabled qvCORE repair delegation"
 grep -Fq 'Enabled optional setups:     1 qvCORE' <<<"$repair_output" ||
@@ -170,7 +194,7 @@ cmp -s \
   fail "missing qvOS Waybar post-update hook"
 [[ -x $test_home/.local/share/qvos/tmux/qvos-tmux ]] ||
   fail "qvOS runtime payload repair"
-pass "qvOS repair restores only missing base state and enabled integrations"
+pass "safe qvOS repair restores owned state without reinstalling removed defaults"
 
 rm -f "$test_home/.local/state/qvos/qvcore/share"
 : >"$action_log"
@@ -184,7 +208,11 @@ fi
 pass "qvOS repair stays base-only when qvCORE is unused"
 
 : >"$action_log"
-run_repair --restore-config --yes >/dev/null
+run_repair --reset --yes >/dev/null
+grep -Fqx $'add\talacritty' "$action_log" ||
+  fail "explicit qvOS package restore"
+[[ ! -e $missing_packages/alacritty ]] ||
+  fail "explicit qvOS package restore verification"
 cmp -s \
   "$root/qv/config/files/hypr/qv/bindings.conf" \
   "$test_home/.config/hypr/qv/bindings.conf" ||
@@ -193,7 +221,7 @@ compgen -G "$test_home/.config/hypr/qv/bindings.conf.bak.*" >/dev/null ||
   fail "explicit qvOS config restore backup"
 grep -Fqx $'hyprland\treload' "$action_log" ||
   fail "explicit qvOS config reload"
-pass "explicit config restoration keeps a timestamped backup"
+pass "explicit qvOS defaults restore reinstalls packages and backs up config"
 
 active_packages=$(
   sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
@@ -252,7 +280,7 @@ grep -Fq '*Repair*) present_terminal omarchy-qvos-repair ;;' \
   "$root/qv/menu/extension.sh" || fail "qvOS repair menu route"
 grep -Fq '*Extras*) present_terminal "omarchy-qvos-cleanup-inherited --apply" ;;' \
   "$root/qv/menu/extension.sh" || fail "inherited-extra menu route"
-grep -Fq 'exec omarchy-qvos-repair' "$root/qv/tui/bin/qvos-repair" ||
+grep -Fq 'exec omarchy-qvos-repair --yes' "$root/qv/tui/bin/qvos-repair" ||
   fail "qvOS TUI repair delegation"
 grep -Fq 'exec omarchy-qvos-update -y' "$root/qv/tui/bin/qvos-update" ||
   fail "qvOS TUI update delegation"

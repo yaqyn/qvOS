@@ -25,7 +25,7 @@ declare -A component_names=(
   [inkscape]="Inkscape"
   [krita]="Krita"
   [kdenlive]="Kdenlive"
-  [obs-studio]="OBS Studio"
+  ["obs-studio"]="OBS Studio"
   [audacity]="Audacity"
   [blender]="Blender"
 )
@@ -34,7 +34,7 @@ declare -A component_descriptions=(
   [inkscape]="Vector graphics"
   [krita]="Digital painting"
   [kdenlive]="Video editing"
-  [obs-studio]="Recording and streaming"
+  ["obs-studio"]="Recording and streaming"
   [audacity]="Audio editing"
   [blender]="3D creation"
 )
@@ -84,6 +84,17 @@ case ${1:-} in
   inventory_components
   print_inventory
   ((ready_count > 0))
+  exit
+  ;;
+--state)
+  inventory_components
+  if ((ready_count == total_components)); then
+    echo "ready"
+  elif ((ready_count > 0)); then
+    echo "partial"
+  else
+    echo "not-installed"
+  fi
   exit
   ;;
 *)

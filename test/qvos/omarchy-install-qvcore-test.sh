@@ -26,10 +26,14 @@ install -d "$test_bin" "$test_omarchy_path/qv/core"
 ln -s "$root/qv/core/install" "$test_omarchy_path/qv/core/install"
 ln -s "$root/qv/thunar" "$test_omarchy_path/qv/thunar"
 ln -s "$root/qv/core/codex" "$test_omarchy_path/qv/core/codex"
-ln -s "$root/qv/core/warp.sh" "$test_omarchy_path/qv/core/warp.sh"
 ln -s "$root/qv/core/brave-origin.sh" "$test_omarchy_path/qv/core/brave-origin.sh"
 ln -s "$root/qv/core/codex.sh" "$test_omarchy_path/qv/core/codex.sh"
 ln -s "$root/qv/core/steam.sh" "$test_omarchy_path/qv/core/steam.sh"
+
+install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/warp.sh" <<'SCRIPT'
+#!/bin/bash
+omarchy-qvos-setup-dns WARP
+SCRIPT
 
 install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/dev.sh" <<'SCRIPT'
 #!/bin/bash
@@ -172,7 +176,7 @@ pass "qvCORE installs WARP, Brave, Share, Devel, standalone Codex, Proton, Steam
 
 declare -A expected_component_actions=(
   [warp]=$'setup-dns\tWARP'
-  [brave-origin]=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin'
+  ["brave-origin"]=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin'
   [share]=$'install-share'
   [dev]=$'install-dev'
   [codex]=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"

@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-omarchy-install-gaming-steam
-
 # Source: https://github.com/ChrisTitusTech/linutil/blob/main/core/tabs/system-setup/gaming-setup.sh
 # Reviewed at Linutil commit 842c02770666 (2026-07-21).
 # Legacy aliases use current Arch package names; the unavailable
@@ -79,6 +77,48 @@ if omarchy-pkg-present pipewire-jack; then
 elif omarchy-pkg-present jack2; then
   gaming_packages+=(lib32-jack2)
 fi
+
+steam_ready=0
+ready_dependency_count=0
+omarchy-pkg-present steam && steam_ready=1
+for package in "${gaming_packages[@]}"; do
+  omarchy-pkg-present "$package" &&
+    ready_dependency_count=$((ready_dependency_count + 1))
+done
+total_dependencies=${#gaming_packages[@]}
+
+case ${1:-} in
+"") ;;
+--status)
+  echo ""
+  echo "qvCORE Steam inventory"
+  if ((steam_ready)); then
+    echo "  Steam:               installed"
+  else
+    echo "  Steam:               not installed"
+  fi
+  printf '  Gaming package set:  %d/%d present\n' \
+    "$ready_dependency_count" "$total_dependencies"
+  ((steam_ready))
+  exit
+  ;;
+--state)
+  if ((steam_ready == 0)); then
+    echo "not-installed"
+  elif ((ready_dependency_count == total_dependencies)); then
+    echo "ready"
+  else
+    echo "partial"
+  fi
+  exit
+  ;;
+*)
+  echo "Usage: steam.sh [--status]" >&2
+  exit 2
+  ;;
+esac
+
+omarchy-install-gaming-steam
 
 echo ""
 echo "Installing qvCORE gaming dependencies..."

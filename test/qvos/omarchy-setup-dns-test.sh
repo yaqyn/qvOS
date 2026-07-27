@@ -6,6 +6,7 @@ command_path="$root/qv/network/setup-dns"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 action_log="$test_root/actions"
+warp_state="$test_root/.local/state/qvos/qvcore/warp"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -79,6 +80,7 @@ run_setup() {
     QVOS_TEST_WARP_ACTIVE="${QVOS_TEST_WARP_ACTIVE:-0}" \
     QVOS_TEST_WARP_MISSING="${QVOS_TEST_WARP_MISSING:-0}" \
     QVOS_TEST_WARP_REGISTERED="${QVOS_TEST_WARP_REGISTERED:-0}" \
+    HOME="$test_root" \
     PATH="$test_bin:/usr/bin" \
     "$command_path" "$@"
 }
@@ -97,6 +99,7 @@ connect_line="$(grep -nFx $'warp-cli\tconnect' "$action_log" | cut -d: -f1)"
 if grep -Fq $'warp-cli\tdisconnect' "$action_log"; then
   fail "WARP activation disconnects itself"
 fi
+[[ -f $warp_state ]] || fail "WARP qvCORE maintenance state"
 pass "WARP installs, registers, resets DNS, and connects"
 
 : >"$action_log"
@@ -107,9 +110,11 @@ if grep -Fq $'package\t' "$action_log" || grep -Fq $'registration new' "$action_
 fi
 [[ $warp_output != *"registration-secret-must-not-escape"* ]] || fail "WARP registration secret output"
 grep -Fqx $'warp-cli\tconnect' "$action_log" || fail "registered WARP reconnect"
+[[ -f $warp_state ]] || fail "existing WARP maintenance state"
 pass "existing WARP registration is reused without exposing credentials"
 
 : >"$action_log"
+rm -f "$warp_state"
 if QVOS_TEST_GUM_CONFIRM=0 run_setup WARP >/dev/null 2>&1; then
   fail "declined WARP terms succeed"
 fi
@@ -117,9 +122,11 @@ grep -Fqx $'sudo\tsystemctl disable --now warp-svc.service' "$action_log" || fai
 if grep -Fq $'registration new' "$action_log" || grep -Fq $'warp-cli\tconnect' "$action_log"; then
   fail "declined WARP terms register or connect"
 fi
+[[ ! -e $warp_state ]] || fail "declined WARP maintenance state"
 pass "declined WARP terms leave the service disabled"
 
 : >"$action_log"
+install -D -m 0644 /dev/null "$warp_state"
 QVOS_TEST_WARP_ACTIVE=1 QVOS_TEST_WARP_REGISTERED=1 run_setup Quad9 >/dev/null
 grep -Fqx $'warp-cli\tdisconnect' "$action_log" || fail "DNS selection disconnects WARP"
 grep -Fqx $'sudo\tsystemctl disable --now warp-svc.service' "$action_log" || fail "DNS selection disables WARP"
@@ -127,14 +134,17 @@ grep -Fqx $'dns-config\tDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 
 disconnect_line="$(grep -nFx $'warp-cli\tdisconnect' "$action_log" | cut -d: -f1)"
 dns_line="$(grep -nF $'dns-config\tDNS=9.9.9.9' "$action_log" | cut -d: -f1)"
 ((disconnect_line < dns_line)) || fail "DNS is applied before WARP disconnects"
+[[ ! -e $warp_state ]] || fail "Quad9 leaves WARP tracked"
 pass "DNS selection deactivates WARP before applying DNS"
 
 : >"$action_log"
+install -D -m 0644 /dev/null "$warp_state"
 QVOS_TEST_WARP_MISSING=1 run_setup DHCP >/dev/null
 if grep -Fq $'warp-cli\t' "$action_log" || grep -Fq 'warp-svc.service' "$action_log"; then
   fail "DHCP touches missing WARP"
 fi
 grep -Fqx $'dns-config\tFallbackDNS=' "$action_log" || fail "DHCP configuration"
+[[ ! -e $warp_state ]] || fail "DHCP leaves missing WARP tracked"
 pass "DHCP remains independent when WARP is absent"
 
 : >"$action_log"

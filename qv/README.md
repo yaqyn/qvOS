@@ -54,13 +54,20 @@ qvOS identity, readiness, or base ownership.
   snapshots, source and package updates, migrations, orphan cleanup, log
   analysis, and restarts. qvOS and enabled qvCORE reconciliation stay in
   Omarchy's existing post-update hook seam.
-- `omarchy qvos repair` restores missing base packages, qvOS runtime payloads,
-  and missing qvOS config. When optional qvCORE setups are enabled, their
-  owners quietly preserve only those setups after shared runtime repair.
-  Customized qvOS config is preserved unless `--restore-config` is explicitly
-  requested.
-- `omarchy qvcore repair` checks only enabled persistent setups, reports only
-  actionable drift, and never installs an unselected catalog entry.
+- `omarchy qvos repair` first inventories removed default packages, missing or
+  customized qvOS config, owned runtime, and enabled qvCORE integrations. Safe
+  repair restores missing config and tracked runtime while preserving package
+  removals and customization as user intent. `--reset` is the explicit,
+  backup-backed path that reinstalls missing packages from the original qvOS
+  manifest and restores every qvOS-owned config file from tracked source.
+- `omarchy qvcore status` inventories the complete optional catalog. It
+  distinguishes healthy or repairable integrations from available, partial,
+  and uninstalled software; optional absence is never damage.
+- `omarchy qvcore repair` lets the user choose exactly one component. Enabled
+  persistent integrations use their repair owner, installed applications can
+  be adopted, and missing software is installed only after explicit selection.
+  Automatic update and qvOS repair hooks remain limited to enabled persistent
+  integrations.
 - `omarchy qvcore disable` removes only enabled qvOS-owned integration and
   maintenance state. Installed applications, authentication, network choices,
   and personal data remain.

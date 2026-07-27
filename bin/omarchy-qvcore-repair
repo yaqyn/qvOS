@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# omarchy:summary=Check and repair enabled optional qvCORE setups
+# omarchy:summary=Inspect every qvCORE component and choose one to install or repair
+# omarchy:args=[warp|brave-origin|share|dev|codex|proton|steam|media]
 # omarchy:group=qvcore
 # omarchy:name=repair
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/core/health.sh" repair
+exec "$OMARCHY_PATH/qv/core/health.sh" repair "$@"

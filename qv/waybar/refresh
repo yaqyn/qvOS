@@ -5,8 +5,29 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 waybar_source="$OMARCHY_PATH/config/waybar/config.jsonc"
 qvos_overrides="$OMARCHY_PATH/qv/waybar/overrides.jsonc"
 waybar_config="$HOME/.config/waybar/config.jsonc"
+waybar_style_source="$OMARCHY_PATH/config/waybar/style.css"
+waybar_style="$HOME/.config/waybar/style.css"
+mode=${1:---reset}
 merged_config=$(mktemp)
 trap 'rm -f "$merged_config"' EXIT
+
+case $mode in
+--repair | --reset | --status) ;;
+*)
+  echo "Usage: refresh [--repair|--reset|--status]" >&2
+  exit 2
+  ;;
+esac
+
+merge_source="$waybar_source"
+if [[ $mode != "--reset" && -f $waybar_config ]]; then
+  if ! jq -e 'type == "object"' "$waybar_config" >/dev/null 2>&1; then
+    echo "qvOS preserved malformed Waybar config: $waybar_config" >&2
+    echo 'Use "omarchy qvos repair --reset" only if you want to replace it.' >&2
+    exit 1
+  fi
+  merge_source="$waybar_config"
+fi
 
 jq -s '
   def has_bar_module($name):
@@ -34,22 +55,50 @@ jq -s '
         .["modules-center"] = ["group/prayer-clock"]
       end
   end
-' "$waybar_source" "$qvos_overrides" >"$merged_config"
+' "$merge_source" "$qvos_overrides" >"$merged_config"
 
-"$OMARCHY_PATH/qv/config/refresh-upstream" waybar/style.css
-install -d "$(dirname "$waybar_config")"
-
-if [[ -f $waybar_config ]] &&
-  ! cmp -s "$merged_config" "$waybar_config" &&
-  ! cmp -s "$waybar_source" "$waybar_config"; then
-  backup_config="$waybar_config.bak.$(date +%s)"
-  cp -f "$waybar_config" "$backup_config"
-  printf 'Replaced %s with the latest Omarchy config plus qvOS overrides.\nSaved backup as %s.\n' \
-    "$waybar_config" "$backup_config"
+if [[ $mode == "--status" ]]; then
+  cmp -s "$merged_config" "$waybar_config" &&
+    [[ -f $waybar_style ]]
+  exit
 fi
 
-install -m 0644 "$merged_config" "$waybar_config"
+config_changed=0
+style_changed=0
+if ! cmp -s "$merged_config" "$waybar_config"; then
+  config_changed=1
+fi
+if [[ $mode == "--reset" ]]; then
+  if ! cmp -s "$waybar_style_source" "$waybar_style"; then
+    style_changed=1
+  fi
+elif [[ ! -f $waybar_style ]]; then
+  style_changed=1
+fi
 
-if [[ ${QVOS_WAYBAR_SKIP_RESTART:-0} != "1" ]]; then
+if ((config_changed)) &&
+  [[ -f $waybar_config ]] &&
+  { [[ $mode != "--reset" ]] ||
+    ! cmp -s "$waybar_source" "$waybar_config"; }; then
+  backup_config="$waybar_config.bak.$(date +%s)"
+  cp -f "$waybar_config" "$backup_config"
+  printf 'Updated qvOS Waybar integration.\nSaved backup as %s.\n' \
+    "$backup_config"
+fi
+
+install -d "$(dirname -- "$waybar_config")"
+if ((config_changed)); then
+  install -m 0644 "$merged_config" "$waybar_config"
+fi
+if ((style_changed)); then
+  if [[ $mode == "--reset" ]]; then
+    "$OMARCHY_PATH/qv/config/refresh-upstream" waybar/style.css
+  else
+    install -m 0644 "$waybar_style_source" "$waybar_style"
+  fi
+fi
+
+if ((config_changed || style_changed)) &&
+  [[ ${QVOS_WAYBAR_SKIP_RESTART:-0} != "1" ]]; then
   omarchy-restart-waybar
 fi

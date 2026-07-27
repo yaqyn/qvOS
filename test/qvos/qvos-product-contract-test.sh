@@ -82,6 +82,10 @@ if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared
 fi
 grep -Fqx '  for component in warp brave-origin share dev codex proton steam media; do' "$root/qv/core/install" || fail "complete qvCORE profile"
 grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
+grep -Fqx '# qvcore:lifecycle=1' "$root/qv/core/warp.sh" ||
+  fail "qvCORE WARP lifecycle"
+grep -Fqx 'catalog_components=(' "$root/qv/core/health.sh" ||
+  fail "qvCORE complete health catalog"
 grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
   fail "qvCORE command group"
 [[ -x $root/bin/omarchy-qvcore-status && -x $root/bin/omarchy-qvcore-repair ]] ||
@@ -104,7 +108,7 @@ grep -Fqx 'Default_keyring' "$default_file" || fail "default keyring selection"
 [[ $(stat -c '%a' "$keyring_dir") == "700" ]] || fail "keyring directory permissions"
 [[ $(stat -c '%a' "$keyring_file") == "600" ]] || fail "keyring file permissions"
 [[ $(stat -c '%a' "$default_file") == "644" ]] || fail "default keyring pointer permissions"
-(( $(find "$keyring_dir" -maxdepth 1 -type f | wc -l) == 2 )) || fail "clean keyring file set"
+(($(find "$keyring_dir" -maxdepth 1 -type f | wc -l) == 2)) || fail "clean keyring file set"
 pass "desktop keyring support stays complete"
 
 grep -Fq '󱅾  qvOS' "$root/qv/menu/extension.sh" ||

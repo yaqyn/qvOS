@@ -3,20 +3,41 @@ set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 export OMARCHY_PATH
-restore_config=0
 assume_yes=0
+repair_mode="interactive"
 config_paths=()
 missing_packages=()
 missing_configs=()
 drifted_configs=()
 
 usage() {
-  echo "Usage: qvos-repair [--restore-config] [--yes]" >&2
+  echo "Usage: qvos-repair [--status|--reset] [--yes]" >&2
+}
+
+print_items() {
+  local item
+
+  for item in "$@"; do
+    printf '    - %s\n' "$item"
+  done
 }
 
 for argument in "$@"; do
   case $argument in
-  --restore-config) restore_config=1 ;;
+  --status)
+    [[ $repair_mode == "interactive" ]] || {
+      usage
+      exit 2
+    }
+    repair_mode="status"
+    ;;
+  --reset)
+    [[ $repair_mode == "interactive" ]] || {
+      usage
+      exit 2
+    }
+    repair_mode="reset"
+    ;;
   --yes) assume_yes=1 ;;
   *)
     usage
@@ -24,6 +45,11 @@ for argument in "$@"; do
     ;;
   esac
 done
+
+if [[ $repair_mode == "status" ]] && ((assume_yes)); then
+  usage
+  exit 2
+fi
 
 for command in git omarchy-pkg-add omarchy-pkg-present; do
   if ! command -v "$command" >/dev/null 2>&1; then
@@ -90,49 +116,94 @@ for config_path in "${config_paths[@]}"; do
   fi
 done
 
-echo "qvOS repair plan"
+echo "qvOS repair: Inspect"
 echo ""
-printf '  Missing base packages:       %d\n' "${#missing_packages[@]}"
+echo "qvOS repair inspection"
+echo ""
+printf '  Removed default packages:    %d\n' "${#missing_packages[@]}"
 printf '  Missing qvOS config files:   %d\n' "${#missing_configs[@]}"
 printf '  Customized qvOS config:      %d\n' "${#drifted_configs[@]}"
-echo "  Desktop runtime:             refresh from tracked qvOS source"
+echo "  qvOS-owned runtime:          reconcile from tracked source"
 if ((enabled_qvcore_count > 0)); then
   printf '  Enabled optional setups:     %d qvCORE\n' "$enabled_qvcore_count"
 fi
 
+if ((${#missing_packages[@]} > 0)); then
+  echo ""
+  echo "Safe repair preserves removed default packages as user choice."
+  echo "Reset reinstalls them from the original qvOS package manifest."
+  print_items "${missing_packages[@]}"
+fi
+if ((${#missing_configs[@]} > 0)); then
+  echo ""
+  echo "Safe repair and reset restore these missing qvOS config files:"
+  print_items "${missing_configs[@]}"
+fi
 if ((${#drifted_configs[@]} > 0)); then
   echo ""
-  if ((restore_config)); then
-    echo "Customized qvOS config will be replaced with timestamped backups."
-  else
-    echo "Customized qvOS config will be preserved."
-    echo "Use --restore-config only when you explicitly want tracked qvOS defaults."
-  fi
+  echo "Safe repair preserves customized qvOS config."
+  echo "Reset restores tracked qvOS config and creates timestamped backups."
+  print_items "${drifted_configs[@]}"
 fi
 
-if ((assume_yes == 0)); then
+if [[ $repair_mode == "status" ]]; then
   echo ""
-  gum confirm "Apply this qvOS repair plan?" || exit 130
+  echo "qvOS inspection is complete; no changes were made."
+  exit
+fi
+
+if [[ $repair_mode == "interactive" ]] && ((assume_yes == 0)); then
+  echo ""
+  selection=$(
+    gum choose \
+      --header "Choose a qvOS repair action" \
+      "Safe repair — preserve removed packages and customized config" \
+      "Restore qvOS defaults — reinstall packages and reset qvOS config" \
+      "Cancel"
+  ) || exit $?
+  case $selection in
+  "Safe repair"*) repair_mode="repair" ;;
+  "Restore qvOS defaults"*) repair_mode="reset" ;;
+  *)
+    echo "qvOS repair canceled."
+    exit 130
+    ;;
+  esac
+elif [[ $repair_mode == "interactive" ]]; then
+  repair_mode="repair"
+fi
+
+if [[ $repair_mode == "reset" ]] && ((assume_yes == 0)); then
+  echo ""
+  gum confirm \
+    "Restore original qvOS packages and qvOS-owned config from the repository?" ||
+    exit 130
 fi
 
 echo "qvOS repair: Source"
 echo "  branch OS verified"
 
 echo "qvOS repair: Packages"
-if ((${#missing_packages[@]} > 0)); then
+if [[ $repair_mode == "reset" ]] && ((${#missing_packages[@]} > 0)); then
   omarchy-pkg-add "${missing_packages[@]}"
+elif ((${#missing_packages[@]} > 0)); then
+  printf '  preserved %d intentionally removable default package(s)\n' \
+    "${#missing_packages[@]}"
 else
   echo "  base package set already present"
 fi
-for package in "${missing_packages[@]}"; do
-  if ! omarchy-pkg-present "$package"; then
-    echo "qvOS base package repair failed: $package" >&2
-    exit 1
-  fi
-done
+if [[ $repair_mode == "reset" ]]; then
+  for package in "${missing_packages[@]}"; do
+    if ! omarchy-pkg-present "$package"; then
+      echo "qvOS default package restore failed: $package" >&2
+      exit 1
+    fi
+  done
+fi
 
 echo "qvOS repair: Runtime"
-bash -c 'source "$1"' _ "$OMARCHY_PATH/qv/install/desktop"
+QVOS_DESKTOP_MODE="$repair_mode" \
+  bash -c 'source "$1"' _ "$OMARCHY_PATH/qv/install/desktop"
 
 echo "qvOS repair: Config"
 restored_hyprland=0
@@ -140,7 +211,7 @@ for config_path in "${missing_configs[@]}"; do
   "$OMARCHY_PATH/qv/config/refresh" "$config_path"
   [[ $config_path == hypr/* ]] && restored_hyprland=1
 done
-if ((restore_config)); then
+if [[ $repair_mode == "reset" ]]; then
   for config_path in "${drifted_configs[@]}"; do
     "$OMARCHY_PATH/qv/config/refresh" "$config_path"
     [[ $config_path == hypr/* ]] && restored_hyprland=1
@@ -155,7 +226,7 @@ for config_path in "${missing_configs[@]}"; do
     exit 1
   fi
 done
-if ((restore_config)); then
+if [[ $repair_mode == "reset" ]]; then
   for config_path in "${drifted_configs[@]}"; do
     if ! cmp -s \
       "$OMARCHY_PATH/qv/config/files/$config_path" \
@@ -176,13 +247,21 @@ if ((restored_hyprland)); then
 fi
 
 if ((enabled_qvcore_count > 0)); then
-  echo "qvOS repair: Enabled optional qvCORE setups"
+  echo "qvOS repair: qvCORE"
   omarchy-qvcore-repair-enabled
 fi
 
 echo "qvOS repair: Complete"
-if ((restore_config == 0 && ${#drifted_configs[@]} > 0)); then
+if [[ $repair_mode == "repair" ]] && ((${#drifted_configs[@]} > 0)); then
   printf '  preserved %d customized qvOS config file(s)\n' \
     "${#drifted_configs[@]}"
 fi
-echo "qvOS base repair is complete."
+if [[ $repair_mode == "repair" ]] && ((${#missing_packages[@]} > 0)); then
+  printf '  preserved %d removed default package(s)\n' \
+    "${#missing_packages[@]}"
+fi
+if [[ $repair_mode == "reset" ]]; then
+  echo "qvOS defaults restore is complete."
+else
+  echo "qvOS safe repair is complete."
+fi
