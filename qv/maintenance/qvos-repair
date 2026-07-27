@@ -207,7 +207,7 @@ inspect_tools() {
   local missing=()
   local tool
 
-  for tool in git gum jq curl ip getent timedatectl Hyprland hyprctl \
+  for tool in git gum jq curl ip getent timedatectl lspci Hyprland hyprctl \
     hyprlock systemctl busctl journalctl coredumpctl modinfo dkms; do
     command_exists "$tool" || missing+=("$tool")
   done
@@ -287,7 +287,9 @@ inspect_pacman_state() {
 detect_hardware_packages() {
   local kernel
   local kernel_package=""
+  local kernel_pkgbase=""
   local header_package=""
+  local module_root
   local registration
   local module_version
   local module
@@ -295,20 +297,37 @@ detect_hardware_packages() {
   local package
   local module_link
   local module_file
+  local dkms_required=0
+  local pci_info=""
+  local display_info=""
+  local intel_gpu=""
+  local cpu_vendor=""
+  local cpu_model=""
+  local battery
+  local battery_present=0
+  local product_name=""
+  local product_family=""
+  local sys_vendor=""
 
   kernel=$(uname -r)
   add_unique "linux-firmware" hardware_packages
 
-  if command_exists pacman && [[ -e $sys_root/../usr/lib/modules/$kernel/pkgbase ]]; then
+  module_root="$sys_root/../usr/lib/modules/$kernel"
+  if [[ ! -e $module_root/pkgbase ]]; then
+    module_root="/usr/lib/modules/$kernel"
+  fi
+  if [[ -r $module_root/pkgbase ]]; then
+    IFS= read -r kernel_pkgbase <"$module_root/pkgbase" || true
+  fi
+  if command_exists pacman && [[ -e $module_root/pkgbase ]]; then
     kernel_package=$(
-      pacman -Qqo "$sys_root/../usr/lib/modules/$kernel/pkgbase" 2>/dev/null |
+      pacman -Qqo "$module_root/pkgbase" 2>/dev/null |
         head -n 1 || true
     )
-  elif command_exists pacman; then
-    kernel_package=$(
-      pacman -Qqo "/usr/lib/modules/$kernel/pkgbase" 2>/dev/null |
-        head -n 1 || true
-    )
+  fi
+  if [[ -z $kernel_package &&
+    $kernel_pkgbase =~ ^[a-z0-9][a-z0-9@._+-]*$ ]]; then
+    kernel_package=$kernel_pkgbase
   fi
   add_unique "$kernel_package" hardware_packages
 
@@ -320,12 +339,7 @@ detect_hardware_packages() {
       version=${module_version#*/}
       [[ -n $module && $version != "$module" ]] || continue
 
-      add_unique "dkms" hardware_packages
-      if [[ -n $kernel_package ]]; then
-        header_package="$kernel_package-headers"
-        [[ $kernel_package == "linux" ]] && header_package="linux-headers"
-        add_unique "$header_package" hardware_packages
-      fi
+      dkms_required=1
       package=$(
         pacman -Qqo "/usr/src/$module-$version" 2>/dev/null |
           head -n 1 || true
@@ -333,6 +347,44 @@ detect_hardware_packages() {
       add_unique "$package" hardware_packages
     done < <(dkms status -k "$kernel" 2>/dev/null || true)
   fi
+
+  if command_exists lspci; then
+    pci_info=$(lspci -nn 2>/dev/null || true)
+    display_info=$(
+      grep -iE '(VGA|3D|Display)' <<<"$pci_info" || true
+    )
+  fi
+  product_name=$(
+    cat "$sys_root/class/dmi/id/product_name" 2>/dev/null || true
+  )
+  product_family=$(
+    cat "$sys_root/class/dmi/id/product_family" 2>/dev/null || true
+  )
+  sys_vendor=$(
+    cat "$sys_root/class/dmi/id/sys_vendor" 2>/dev/null || true
+  )
+  cpu_vendor=$(
+    awk -F: '/^vendor_id[[:space:]]*:/ {
+      gsub(/[[:space:]]/, "", $2)
+      print $2
+      exit
+    }' "$proc_root/cpuinfo" 2>/dev/null || true
+  )
+  cpu_model=$(
+    awk -F: '/^model[[:space:]]*:/ {
+      gsub(/[[:space:]]/, "", $2)
+      print $2
+      exit
+    }' "$proc_root/cpuinfo" 2>/dev/null || true
+  )
+  for battery in "$sys_root"/class/power_supply/BAT*; do
+    [[ -r $battery/present && -r $battery/type ]] || continue
+    if [[ $(<"$battery/present") == "1" &&
+      $(<"$battery/type") == "Battery" ]]; then
+      battery_present=1
+      break
+    fi
+  done
 
   if command_exists modinfo; then
     for module_link in \
@@ -347,17 +399,88 @@ detect_hardware_packages() {
     done
   fi
 
+  if grep -qi 'Intel' <<<"$display_info"; then
+    add_unique "vulkan-intel" hardware_packages
+    intel_gpu=$(grep -i 'Intel' <<<"$display_info" || true)
+    if [[ ${intel_gpu,,} =~ (hd[[:space:]]graphics|uhd[[:space:]]graphics|xe|iris|arc|panther[[:space:]]lake) ]]; then
+      for package in intel-media-driver libvpl vpl-gpu-rt; do
+        add_unique "$package" hardware_packages
+      done
+    elif [[ ${intel_gpu,,} =~ gma ]]; then
+      add_unique "libva-intel-driver" hardware_packages
+    fi
+  fi
+  grep -qi 'AMD' <<<"$display_info" &&
+    add_unique "vulkan-radeon" hardware_packages
+  grep -qi 'Apple' <<<"$display_info" &&
+    add_unique "vulkan-asahi" hardware_packages
+
+  if grep -qiE '(Multimedia audio controller|Audio device).*Intel' \
+    <<<"$pci_info"; then
+    add_unique "sof-firmware" hardware_packages
+  fi
+  if [[ $cpu_vendor == "GenuineIntel" && $cpu_model =~ ^[0-9]+$ ]] &&
+    ((battery_present)); then
+    ((cpu_model >= 42)) && add_unique "thermald" hardware_packages
+    if [[ $cpu_model =~ ^(151|154|170|172|183|186|189|191|204)$ ]]; then
+      add_unique "intel-lpmd" hardware_packages
+    fi
+  fi
+  if grep -q "OVTI08F4" "$sys_root"/bus/acpi/devices/*/hid 2>/dev/null; then
+    add_unique "intel-ipu7-camera" hardware_packages
+  fi
+  if [[ ${product_name,,} == *xps* || ${product_family,,} == *xps* ]] &&
+    grep -qi 'Intel.*Panther Lake' <<<"$display_info"; then
+    add_unique "linux-ptl" hardware_packages
+    add_unique "linux-ptl-headers" hardware_packages
+  fi
+
   if command_exists omarchy-hw-nvidia-gsp && omarchy-hw-nvidia-gsp; then
     for package in nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
       libva-nvidia-driver; do
       add_unique "$package" hardware_packages
     done
+    dkms_required=1
   elif command_exists omarchy-hw-nvidia-without-gsp &&
     omarchy-hw-nvidia-without-gsp; then
     for package in nvidia-580xx-dkms nvidia-580xx-utils \
-      lib32-nvidia-580xx-utils libva-nvidia-driver; do
+      lib32-nvidia-580xx-utils; do
       add_unique "$package" hardware_packages
     done
+    dkms_required=1
+  fi
+
+  if grep -qiE '14e4:(43a0|4331)' <<<"$pci_info"; then
+    add_unique "broadcom-wl" hardware_packages
+    dkms_required=1
+  fi
+  if grep -qiE 'YT6801|Motorcomm.*Ethernet' <<<"$pci_info"; then
+    add_unique "yt6801-dkms" hardware_packages
+    dkms_required=1
+  fi
+  if [[ ${sys_vendor,,} == *tuxedo* ||
+    ${sys_vendor,,} == *slimbook* ]]; then
+    add_unique "tuxedo-drivers-nocompatcheck-dkms" hardware_packages
+    dkms_required=1
+  fi
+  if [[ $product_name =~ MacBook[89],1|MacBook1[02],1|MacBookPro13,[123]|MacBookPro14,[123] ]]; then
+    add_unique "macbook12-spi-driver-dkms" hardware_packages
+    dkms_required=1
+  fi
+  if grep -qiE '106b:180[12]' <<<"$pci_info"; then
+    for package in linux-t2 linux-t2-headers apple-t2-audio-config \
+      apple-bcm-firmware t2fanrd tiny-dfr; do
+      add_unique "$package" hardware_packages
+    done
+  fi
+
+  if ((dkms_required)); then
+    add_unique "dkms" hardware_packages
+    if [[ -n $kernel_package ]]; then
+      header_package="$kernel_package-headers"
+      [[ $kernel_package == "linux" ]] && header_package="linux-headers"
+      add_unique "$header_package" hardware_packages
+    fi
   fi
   return 0
 }

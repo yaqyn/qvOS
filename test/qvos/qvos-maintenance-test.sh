@@ -44,7 +44,17 @@ install -d \
   "$state/unverified" \
   "$pacman_db" \
   "$proc_root" \
+  "$state/usr/lib/modules/test-kernel" \
+  "$sys_root/bus/acpi/devices" \
+  "$sys_root/class/dmi/id" \
+  "$sys_root/class/power_supply" \
   "$sys_root"
+printf 'linux\n' >"$state/usr/lib/modules/test-kernel/pkgbase"
+touch "$proc_root/cpuinfo" "$state/lspci"
+touch \
+  "$sys_root/class/dmi/id/product_family" \
+  "$sys_root/class/dmi/id/product_name" \
+  "$sys_root/class/dmi/id/sys_vendor"
 
 install -m 0755 \
   "$root/qv/maintenance/qvos-repair" \
@@ -367,6 +377,10 @@ install -m 0755 /dev/stdin "$test_bin/uname" <<'SCRIPT'
 #!/bin/bash
 [[ ${1:-} == "-r" ]] && echo "test-kernel"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/lspci" <<'SCRIPT'
+#!/bin/bash
+cat "$QVOS_TEST_STATE/lspci"
+SCRIPT
 install -m 0755 /dev/stdin "$test_bin/dkms" <<'SCRIPT'
 #!/bin/bash
 exit 0
@@ -389,11 +403,11 @@ printf 'omarchy\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-hw-nvidia-gsp" <<'SCRIPT'
 #!/bin/bash
-exit 1
+[[ -e $QVOS_TEST_STATE/nvidia-gsp ]]
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-hw-nvidia-without-gsp" <<'SCRIPT'
 #!/bin/bash
-exit 1
+[[ -e $QVOS_TEST_STATE/nvidia-without-gsp ]]
 SCRIPT
 
 run_repair() {
@@ -426,6 +440,44 @@ run_health() {
     "$source_root/bin/omarchy-qvos-health" "$@"
 }
 
+selected_hardware_packages() {
+  sed -n \
+    's/^.*packages\.hardware-selection[[:space:]]*running-system roots: //p' |
+    tr ',' '\n' |
+    sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+assert_hardware_selected() {
+  local inventory=$1
+  local package=$2
+
+  grep -Fqx "$package" <<<"$inventory" ||
+    fail "hardware package is not selected: $package"
+}
+
+assert_hardware_not_selected() {
+  local inventory=$1
+  local package=$2
+
+  if grep -Fqx "$package" <<<"$inventory"; then
+    fail "hardware package is selected unexpectedly: $package"
+  fi
+}
+
+reset_hardware_fixture() {
+  : >"$state/lspci"
+  : >"$proc_root/cpuinfo"
+  : >"$sys_root/class/dmi/id/product_family"
+  : >"$sys_root/class/dmi/id/product_name"
+  : >"$sys_root/class/dmi/id/sys_vendor"
+  rm -f \
+    "$state/nvidia-gsp" \
+    "$state/nvidia-without-gsp"
+  rm -rf \
+    "$sys_root/bus/acpi/devices/"* \
+    "$sys_root/class/power_supply/"*
+}
+
 touch "$state/unverified/sudo"
 touch "$state/mutable-dirs/systemd"
 healthy_output=$(run_health)
@@ -441,6 +493,140 @@ grep -Fq 'qvOS is ready; no changes were made.' <<<"$healthy_output" ||
 run_health --check >/dev/null
 [[ ! -s $action_log ]] || fail "read-only health mutates the fixture"
 pass "status succeeds and check ignores informational recovery readiness"
+
+reset_hardware_fixture
+printf '%s\n' \
+  '03:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Navi' \
+  >"$state/lspci"
+hardware_inventory=$(run_health | selected_hardware_packages)
+assert_hardware_selected "$hardware_inventory" "vulkan-radeon"
+if grep -q 'nvidia' <<<"$hardware_inventory"; then
+  fail "AMD-only hardware selects NVIDIA packages"
+fi
+
+reset_hardware_fixture
+cat >"$state/lspci" <<'PCI'
+00:02.0 VGA compatible controller: Intel Corporation UHD Graphics 630
+00:1f.3 Audio device: Intel Corporation Audio
+01:00.0 VGA compatible controller: NVIDIA Corporation GP107M [GeForce GTX 1050 Ti Mobile]
+PCI
+cat >"$proc_root/cpuinfo" <<'CPU'
+vendor_id : GenuineIntel
+model     : 158
+CPU
+install -d "$sys_root/class/power_supply/BAT0"
+printf '1\n' >"$sys_root/class/power_supply/BAT0/present"
+printf 'Battery\n' >"$sys_root/class/power_supply/BAT0/type"
+touch "$state/nvidia-without-gsp"
+hardware_inventory=$(run_health | selected_hardware_packages)
+for package in vulkan-intel intel-media-driver libvpl vpl-gpu-rt \
+  sof-firmware thermald nvidia-580xx-dkms nvidia-580xx-utils \
+  lib32-nvidia-580xx-utils dkms linux-headers; do
+  assert_hardware_selected "$hardware_inventory" "$package"
+done
+assert_hardware_not_selected "$hardware_inventory" "libva-nvidia-driver"
+
+reset_hardware_fixture
+printf '%s\n' \
+  '01:00.0 VGA compatible controller: NVIDIA Corporation AD104 [GeForce RTX 4070]' \
+  >"$state/lspci"
+touch "$state/nvidia-gsp"
+hardware_inventory=$(run_health | selected_hardware_packages)
+for package in nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
+  libva-nvidia-driver dkms linux-headers; do
+  assert_hardware_selected "$hardware_inventory" "$package"
+done
+
+reset_hardware_fixture
+cat >"$state/lspci" <<'PCI'
+00:02.0 VGA compatible controller: Intel Corporation Panther Lake Graphics
+00:1f.3 Multimedia audio controller: Intel Corporation Audio
+PCI
+cat >"$proc_root/cpuinfo" <<'CPU'
+vendor_id : GenuineIntel
+model     : 151
+CPU
+printf 'XPS 14 Panther Lake\n' >"$sys_root/class/dmi/id/product_name"
+install -d \
+  "$sys_root/class/power_supply/BAT0" \
+  "$sys_root/bus/acpi/devices/CAMERA0"
+printf '1\n' >"$sys_root/class/power_supply/BAT0/present"
+printf 'Battery\n' >"$sys_root/class/power_supply/BAT0/type"
+printf 'OVTI08F4\n' >"$sys_root/bus/acpi/devices/CAMERA0/hid"
+hardware_inventory=$(run_health | selected_hardware_packages)
+for package in vulkan-intel intel-media-driver libvpl vpl-gpu-rt \
+  sof-firmware thermald intel-lpmd intel-ipu7-camera linux-ptl \
+  linux-ptl-headers; do
+  assert_hardware_selected "$hardware_inventory" "$package"
+done
+
+reset_hardware_fixture
+printf '%s\n' \
+  '00:02.0 VGA compatible controller: Intel Corporation GMA 4500' \
+  >"$state/lspci"
+hardware_inventory=$(run_health | selected_hardware_packages)
+assert_hardware_selected "$hardware_inventory" "vulkan-intel"
+assert_hardware_selected "$hardware_inventory" "libva-intel-driver"
+assert_hardware_not_selected "$hardware_inventory" "intel-media-driver"
+
+reset_hardware_fixture
+cat >"$state/lspci" <<'PCI'
+00:02.0 Display controller: Apple Inc. Display
+02:00.0 Network controller [0280]: Broadcom Inc. [14e4:43a0]
+03:00.0 Ethernet controller: Motorcomm YT6801
+04:00.0 Processing accelerators: Apple Inc. [106b:1801]
+PCI
+printf 'MacBookPro14,1\n' >"$sys_root/class/dmi/id/product_name"
+printf 'TUXEDO Computers\n' >"$sys_root/class/dmi/id/sys_vendor"
+hardware_inventory=$(run_health | selected_hardware_packages)
+for package in vulkan-asahi broadcom-wl yt6801-dkms \
+  tuxedo-drivers-nocompatcheck-dkms macbook12-spi-driver-dkms linux-t2 \
+  linux-t2-headers apple-t2-audio-config apple-bcm-firmware t2fanrd \
+  tiny-dfr dkms linux-headers; do
+  assert_hardware_selected "$hardware_inventory" "$package"
+done
+reset_hardware_fixture
+pass "hardware recovery covers every conditional platform package family"
+
+mapfile -t hardware_install_packages < <(
+  for path in $(
+    rg -l 'omarchy-pkg-add|PACKAGES=|VULKAN_DRIVERS=' \
+      "$root/install/config/hardware"
+  ); do
+    awk '
+      /(PACKAGES|VULKAN_DRIVERS)=\(/ {
+        packages = 1
+        print
+        if (/\)/) packages = 0
+        next
+      }
+      packages {
+        print
+        if (/\)/) packages = 0
+        next
+      }
+      /omarchy-pkg-add/ {
+        print
+        continuation = /\\$/
+        next
+      }
+      continuation {
+        print
+        continuation = /\\$/
+      }
+    ' "$path"
+  done |
+    tr '()[]\\"=' '        ' |
+    tr '[:space:]' '\n' |
+    grep -E '^[a-z0-9][a-z0-9@._+-]*$' |
+    grep -Ev '^(declare|omarchy-pkg-add|PACKAGES|VULKAN_DRIVERS)$' |
+    sort -u
+)
+for package in "${hardware_install_packages[@]}"; do
+  grep -qw "$package" "$source_root/qv/maintenance/qvos-repair" ||
+    fail "hardware installer package lacks a recovery owner: $package"
+done
+pass "hardware installer package additions stay covered by Recovery"
 
 grep -Fvx jq "$installed" >"$state/installed.next"
 mv "$state/installed.next" "$installed"
