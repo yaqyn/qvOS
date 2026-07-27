@@ -413,7 +413,7 @@ package_integrity() {
       "warning: $package: "*mismatch* | "warning: $package: "*checksum*)
         path=${line#warning: "$package": }
         path=${path%% \(*}
-        if [[ -e $path || -L $path ]]; then
+        if [[ -f $path || -L $path ]]; then
           damaged=1
         fi
         ;;

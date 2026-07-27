@@ -39,6 +39,7 @@ install -d \
   "$test_home/.local/share/qvos/maintenance" \
   "$test_bin" \
   "$state/damaged" \
+  "$state/mutable-dirs" \
   "$state/missing-files" \
   "$state/unverified" \
   "$pacman_db" \
@@ -174,6 +175,13 @@ case ${1:-} in
     damaged_file="$QVOS_TEST_STATE/damaged-file"
     touch "$damaged_file"
     echo "warning: $package: $damaged_file (SHA256 checksum mismatch)"
+    echo "$package: 2 total files, 1 altered file"
+    exit 1
+  fi
+  if [[ -e $QVOS_TEST_STATE/mutable-dirs/$package ]]; then
+    mutable_dir="$QVOS_TEST_STATE/mutable-directory"
+    mkdir -p "$mutable_dir"
+    echo "warning: $package: $mutable_dir (GID mismatch)"
     echo "$package: 2 total files, 1 altered file"
     exit 1
   fi
@@ -419,11 +427,15 @@ run_health() {
 }
 
 touch "$state/unverified/sudo"
+touch "$state/mutable-dirs/systemd"
 healthy_output=$(run_health)
 grep -Fq '[Informational] packages.defaults-removed' <<<"$healthy_output" ||
   fail "removed defaults are informational"
 grep -Fq 'Unverified without sudo: sudo' <<<"$healthy_output" ||
   fail "permission-denied checksum is Unverified"
+if grep -Fq '[Repairable   ] packages.essential-damaged' <<<"$healthy_output"; then
+  fail "runtime-managed package directory is treated as file corruption"
+fi
 grep -Fq 'qvOS is ready; no changes were made.' <<<"$healthy_output" ||
   fail "informational findings do not make qvOS unhealthy"
 run_health --check >/dev/null
