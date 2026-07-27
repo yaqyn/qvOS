@@ -75,9 +75,10 @@ gaming_packages=(
 mode="install"
 remove_assume_yes=0
 remove_check=0
+state_file="$HOME/.local/state/qvos/qvcore/steam"
 
 usage() {
-  echo "Usage: steam.sh [--status|--state|--remove [--check|--yes]]" >&2
+  echo "Usage: steam.sh [--status|--state|--disable|--remove [--check|--yes]]" >&2
 }
 
 if (($# > 2)); then
@@ -92,7 +93,7 @@ case ${1:-} in
     exit 2
   }
   ;;
---status | --state)
+--status | --state | --disable)
   (($# == 1)) || {
     usage
     exit 2
@@ -134,6 +135,9 @@ total_dependencies=${#gaming_packages[@]}
 
 remove_steam() {
   local command
+  local setup_tracked=0
+
+  [[ -f $state_file ]] && setup_tracked=1
 
   if ((steam_ready)); then
     for command in omarchy-pkg-drop pacman sudo; do
@@ -156,7 +160,12 @@ remove_steam() {
     return 0
   fi
   if ((steam_ready == 0)); then
-    echo "qvCORE Steam is not installed; nothing was changed."
+    if ((setup_tracked)); then
+      rm -f "$state_file"
+      echo "Steam is not installed; removed its stale qvCORE setup ownership."
+    else
+      echo "qvCORE Steam is not installed; nothing was changed."
+    fi
     return 0
   fi
 
@@ -175,6 +184,7 @@ remove_steam() {
     echo "qvCORE Steam removal failed: steam remains installed." >&2
     return 1
   fi
+  rm -f "$state_file"
   echo "Removed Steam; game data and shared gaming dependencies were preserved."
 }
 
@@ -189,17 +199,31 @@ status)
   fi
   printf '  Gaming package set:  %d/%d present\n' \
     "$ready_dependency_count" "$total_dependencies"
-  ((steam_ready))
+  if [[ -f $state_file ]]; then
+    echo "  qvCORE ownership:     enabled"
+  else
+    echo "  qvCORE ownership:     disabled"
+  fi
+  [[ -f $state_file ]]
   exit
   ;;
 state)
-  if ((steam_ready == 0)); then
+  if [[ ! -f $state_file ]] && ((steam_ready)); then
+    echo "available"
+  elif [[ ! -f $state_file ]]; then
     echo "not-installed"
+  elif ((steam_ready == 0)); then
+    echo "removed"
   elif ((ready_dependency_count == total_dependencies)); then
     echo "ready"
   else
     echo "partial"
   fi
+  exit
+  ;;
+disable)
+  rm -f "$state_file"
+  echo "qvCORE Gaming Dependencies ownership is disabled; Steam, dependencies, and game data were preserved."
   exit
   ;;
 remove)
@@ -213,3 +237,4 @@ omarchy-install-gaming-steam
 echo ""
 echo "Installing qvCORE gaming dependencies..."
 omarchy-pkg-add "${gaming_packages[@]}"
+install -D -m 0644 /dev/null "$state_file"

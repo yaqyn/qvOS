@@ -90,9 +90,11 @@ changing qvOS identity, readiness, health, or base ownership.
   component remains independently installable.
 - `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
   Proton, and Gaming Dependencies. `omarchy qvcore disable` removes only enabled
-  WARP, Share, or Proton integration state while preserving their software and
-  personal data. Status reports exit successfully when inspection completes;
-  `status --check` returns nonzero when a managed setup needs attention.
+  setup ownership or integration state while preserving software and personal
+  data. Independently installed Steam remains disabled until the curated
+  Gaming Dependencies setup is explicitly installed. Status reports exit
+  successfully when inspection completes; `status --check` returns nonzero
+  when a managed setup needs attention.
 - `omarchy qvcore remove` is the removal surface for curated qvCORE software.
   Coordinated owners remove together. Brave Origin reuses Omarchy's browser
   cleanup while preserving its profile and personal data. Steam removal

@@ -140,6 +140,14 @@ inspect_steam_setup() {
     setup_state[steam]="partial"
     setup_detail[steam]="Steam is installed; gaming dependencies are incomplete"
     ;;
+  available)
+    setup_state[steam]="available"
+    setup_detail[steam]="Steam is present; curated dependency ownership is disabled"
+    ;;
+  removed)
+    setup_state[steam]="removed"
+    setup_detail[steam]="Steam was removed; qvCORE setup ownership remains"
+    ;;
   not-installed)
     setup_state[steam]="not-installed"
     setup_detail[steam]="Steam setup is not installed"
@@ -247,6 +255,11 @@ repair_setup() {
           return $?
         "$component_dir/install" warp
       fi
+    elif [[ $component == "steam" ]]; then
+      confirm_action \
+        "Enable the curated ${component_name[$component]} setup?" ||
+        return $?
+      "$component_dir/install" steam
     else
       confirm_action \
         "Enable the ${component_name[$component]} setup integration?" ||
@@ -415,7 +428,7 @@ disable_integrations() {
   local options=()
   local tracked=()
 
-  for component in "${integrated_setups[@]}"; do
+  for component in "${setup_components[@]}"; do
     setup_is_tracked "$component" || continue
     tracked+=("$component")
     options+=(
@@ -424,26 +437,26 @@ disable_integrations() {
   done
 
   if ((${#tracked[@]} == 0)); then
-    echo "No managed qvCORE setup integrations are enabled."
+    echo "No managed qvCORE setups are enabled."
     return
   fi
 
-  options=("󰑐  All enabled setup integrations:all" "${options[@]}")
+  options=("󰑐  All enabled setups:all" "${options[@]}")
   selection=$(
     gum choose \
       --label-delimiter ":" \
-      --header "Disable setup integration; software and data stay" \
+      --header "Disable setup ownership or integration; software and data stay" \
       "${options[@]}"
   ) || return $?
   [[ -n $selection ]] || return 130
 
   if [[ $selection == "all" ]]; then
     gum confirm \
-      "Disable all ${#tracked[@]} enabled setup integration(s)?" ||
+      "Disable all ${#tracked[@]} enabled setup(s)?" ||
       return 130
   else
     gum confirm \
-      "Disable the ${component_name[$selection]} setup integration?" ||
+      "Disable the ${component_name[$selection]} setup?" ||
       return 130
     tracked=("$selection")
   fi

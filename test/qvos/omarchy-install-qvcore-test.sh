@@ -173,6 +173,8 @@ expected_steam_actions=$'install-gaming-steam\npackage\t'"$expected_steam_packag
 expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\n'"$expected_steam_actions"$'\ninstall-media'
 [[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
 [[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
+[[ -f $test_root/.local/state/qvos/qvcore/steam ]] ||
+  fail "qvCORE Steam setup ownership state"
 pass "qvCORE installs all curated apps and managed setups in catalog order"
 
 : >"$action_log"
@@ -218,12 +220,15 @@ expected_no_jack_actions=${expected_steam_actions% lib32-pipewire-jack}
 pass "Steam adds only the matching 32-bit JACK dependency"
 
 : >"$action_log"
+rm -f "$test_root/.local/state/qvos/qvcore/steam"
 set +e
 QVOS_TEST_STEAM_FAIL=1 run_qvcore steam >/dev/null 2>&1
 steam_failure_status=$?
 set -e
 ((steam_failure_status != 0)) || fail "failed Steam installer succeeds"
 [[ $(<"$action_log") == "install-gaming-steam" ]] || fail "dependencies run after Steam failure"
+[[ ! -e $test_root/.local/state/qvos/qvcore/steam ]] ||
+  fail "failed Steam install records qvCORE ownership"
 pass "Steam failure stops before gaming dependency installation"
 
 : >"$action_log"

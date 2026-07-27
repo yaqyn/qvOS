@@ -118,6 +118,11 @@ grep -Fqx '  install_group app' "$root/qv/core/install" ||
 grep -Fqx '  install_group setup' "$root/qv/core/install" ||
   fail "qvCORE managed setup install group"
 grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
+grep -Fq 'state_file="$HOME/.local/state/qvos/qvcore/steam"' \
+  "$root/qv/core/steam.sh" ||
+  fail "qvCORE Steam explicit ownership state"
+grep -Fq 'echo "available"' "$root/qv/core/steam.sh" ||
+  fail "independent Steam availability state"
 grep -Fqx '# qvcore:managed-setup=1' "$root/qv/core/warp.sh" ||
   fail "qvCORE WARP managed setup"
 grep -Fqx '# qvcore:app-integration=1' "$root/qv/core/codex.sh" ||

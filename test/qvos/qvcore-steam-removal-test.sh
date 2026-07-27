@@ -26,6 +26,7 @@ fail() {
 install -d \
   "$test_bin" \
   "$test_home/.config/steam" \
+  "$test_home/.local/state/qvos/qvcore" \
   "$test_home/.local/share/Steam" \
   "$test_home/.steam"
 printf '%s\n' steam gamescope pipewire-jack >"$packages"
@@ -33,6 +34,7 @@ printf 'preserve\n' >"$test_home/.config/steam/config.vdf"
 printf 'preserve\n' >"$test_home/.local/share/Steam/libraryfolders.vdf"
 printf 'preserve\n' >"$test_home/.steam/registry.vdf"
 touch "$action_log"
+touch "$test_home/.local/state/qvos/qvcore/steam"
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
 #!/bin/bash
@@ -83,6 +85,20 @@ grep -Fxq steam "$packages" || fail "Steam changed during removal preflight"
 [[ ! -s $action_log ]] || fail "Steam preflight ran a removal action"
 pass "Steam removal preflights without mutation"
 
+disable_output=$(run_owner --disable)
+[[ ! -e $test_home/.local/state/qvos/qvcore/steam ]] ||
+  fail "Steam ownership remains after disable"
+grep -Fxq steam "$packages" || fail "Steam package changed during disable"
+[[ -f $test_home/.local/share/Steam/libraryfolders.vdf ]] ||
+  fail "Steam library changed during disable"
+[[ $(run_owner --state) == "available" ]] ||
+  fail "independent Steam is not reported as available"
+grep -Fq 'Steam, dependencies, and game data were preserved' \
+  <<<"$disable_output" ||
+  fail "Steam disable preservation result"
+touch "$test_home/.local/state/qvos/qvcore/steam"
+pass "Steam setup ownership disables without changing installed software"
+
 set +e
 cancel_output=$(QVOS_TEST_CONFIRM=0 run_owner --remove 2>&1)
 cancel_status=$?
@@ -104,6 +120,8 @@ grep -Fxq pipewire-jack "$packages" ||
   fail "shared audio dependency was removed"
 [[ $(<"$action_log") == $'drop\tsteam' ]] ||
   fail "Steam removal bypassed the package owner"
+[[ ! -e $test_home/.local/state/qvos/qvcore/steam ]] ||
+  fail "Steam qvCORE ownership remains after removal"
 for preserved_path in \
   "$test_home/.config/steam/config.vdf" \
   "$test_home/.local/share/Steam/libraryfolders.vdf" \

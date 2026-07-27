@@ -115,7 +115,7 @@ show_qvcore_apps_menu() {
 show_qvcore_setups_menu() {
   local back_menu=${1:-show_qvcore_menu}
 
-  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Integration\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton\n  Gaming Dependencies") in
+  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton\n  Gaming Dependencies") in
   *Status*) present_terminal omarchy-qvcore-status ;;
   *Repair*) present_terminal omarchy-qvcore-repair ;;
   *Disable*) present_terminal omarchy-qvcore-disable ;;

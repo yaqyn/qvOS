@@ -66,12 +66,23 @@ done
 
 install -m 0755 /dev/stdin "$fixture/qv/core/steam.sh" <<'SCRIPT'
 #!/bin/bash
-[[ ${1:-} == "--state" ]] || exit 2
-if [[ -f $QVOS_TEST_HEALTH_STATE/steam-state ]]; then
-  cat "$QVOS_TEST_HEALTH_STATE/steam-state"
-else
-  echo "not-installed"
-fi
+case ${1:-} in
+--state)
+  if [[ -f $QVOS_TEST_HEALTH_STATE/steam-state ]]; then
+    cat "$QVOS_TEST_HEALTH_STATE/steam-state"
+  else
+    echo "not-installed"
+  fi
+  ;;
+--disable)
+  printf 'disable\tsteam\n' >>"$QVOS_TEST_HEALTH_LIFECYCLE_LOG"
+  rm -f "$HOME/.local/state/qvos/qvcore/steam"
+  printf 'available\n' >"$QVOS_TEST_HEALTH_STATE/steam-state"
+  ;;
+*)
+  exit 2
+  ;;
+esac
 SCRIPT
 
 install -m 0755 /dev/stdin "$fixture/qv/core/install" <<'SCRIPT'
@@ -84,6 +95,7 @@ share) command_name=localsend ;;
 proton) command_name=proton-drive ;;
 steam)
   printf 'ready\n' >"$QVOS_TEST_HEALTH_STATE/steam-state"
+  install -D -m 0644 /dev/null "$HOME/.local/state/qvos/qvcore/steam"
   exit
   ;;
 *) exit 2 ;;
@@ -162,6 +174,28 @@ grep -Eq '[[:space:]]Share[[:space:]]+Disabled' <<<"$disabled_output" ||
   fail "installed but disabled Share status"
 rm -f "$state/commands/localsend"
 pass "health distinguishes installed software from an enabled setup"
+
+printf 'available\n' >"$state/steam-state"
+unowned_steam_output=$(run_health status)
+grep -Eq '[[:space:]]Gaming Dependencies[[:space:]]+Disabled' \
+  <<<"$unowned_steam_output" ||
+  fail "independently installed Steam status"
+set +e
+run_health check >/dev/null 2>&1
+unowned_steam_check_status=$?
+set -e
+((unowned_steam_check_status == 0)) ||
+  fail "independently installed Steam blocks qvCORE health"
+: >"$lifecycle_log"
+run_health repair steam >/dev/null
+grep -Fqx $'install\tsteam' "$lifecycle_log" ||
+  fail "explicit Steam setup adoption"
+[[ -f $test_root/.local/state/qvos/qvcore/steam ]] ||
+  fail "Steam setup ownership state"
+rm -f \
+  "$state/steam-state" \
+  "$test_root/.local/state/qvos/qvcore/steam"
+pass "independent Steam is not silently adopted by qvCORE"
 
 install -m 0644 /dev/null "$state/commands/warp-cli"
 : >"$lifecycle_log"
@@ -296,17 +330,20 @@ grep -Fq 'Proton maintenance did not finish.' \
 pass "post-update maintenance verifies owner results before reporting success"
 
 enable_integrations
+install -D -m 0644 /dev/null \
+  "$test_root/.local/state/qvos/qvcore/steam"
+printf 'ready\n' >"$state/steam-state"
 : >"$lifecycle_log"
 disable_output=$(QVOS_TEST_HEALTH_CHOICE=all run_health disable)
-[[ $(grep -c '^disable' "$lifecycle_log") == "3" ]] ||
-  fail "disable-all setup integration count"
-for component in warp share proton; do
+[[ $(grep -c '^disable' "$lifecycle_log") == "4" ]] ||
+  fail "disable-all setup count"
+for component in warp share proton steam; do
   [[ ! -e $test_root/.local/state/qvos/qvcore/$component ]] ||
     fail "$component enabled state remains"
 done
 grep -Fq 'network choices, and personal data were preserved' <<<"$disable_output" ||
   fail "disable preservation result"
-pass "disable is limited to integration setups and preserves software and data"
+pass "disable clears setup ownership or integration and preserves software and data"
 
 if run_health repair unknown >/dev/null 2>&1; then
   fail "unknown setup succeeds"
