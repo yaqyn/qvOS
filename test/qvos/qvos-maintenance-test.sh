@@ -32,6 +32,7 @@ fail() {
 install -d \
   "$source_root/bin" \
   "$source_root/qv/config/files/hypr/qv" \
+  "$source_root/qv/core" \
   "$source_root/qv/install/packaging" \
   "$source_root/qv/maintenance" \
   "$source_root/qv/shell" \
@@ -72,6 +73,12 @@ install -m 0755 \
 install -m 0755 \
   "$root/qv/maintenance/personal-software-baseline" \
   "$source_root/qv/maintenance/personal-software-baseline"
+install -m 0644 \
+  "$root/qv/core/software-removal-groups" \
+  "$source_root/qv/core/software-removal-groups"
+install -m 0644 \
+  "$root/qv/maintenance/protected-user-bin" \
+  "$source_root/qv/maintenance/protected-user-bin"
 install -m 0644 \
   "$root/qv/maintenance/essential-packages" \
   "$source_root/qv/maintenance/essential-packages"

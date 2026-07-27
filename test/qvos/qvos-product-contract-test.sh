@@ -83,6 +83,36 @@ fi
 expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t󰖂\napp\tbrave-origin\tBrave\t󰖟\nsetup\tshare\tShare\t\napp\tdev\tDevel\t󰵮\napp\tcodex\tCodex\t󱚤\nsetup\tproton\tProton\t󰌾\nsetup\tsteam\tGaming Dependencies\t\napp\tmedia\tMedia\t󰕧'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
   fail "qvCORE catalog classification"
+[[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
+  fail "qvOS regular user command protection inventory"
+[[ $(sed '/^#/d;/^$/d' "$root/qv/core/software-removal-groups") == \
+  $'proton\tcloud data and saved authentication are preserved' ]] ||
+  fail "qvCORE coordinated software-removal inventory"
+while IFS=$'\t' read -r type component _; do
+  [[ $type == "setup" ]] || continue
+  ownership_count=$(
+    awk -F '\t' -v component="$component" '
+      $1 == component { count++ }
+      END { print count + 0 }
+    ' "$root/qv/core/software-ownership.tsv"
+  )
+  if ((ownership_count > 1)) &&
+    ! grep -q "^${component}"$'\t' "$root/qv/core/software-removal-groups"; then
+    fail "multi-artifact setup lacks coordinated removal: $component"
+  fi
+done <"$root/qv/core/catalog.tsv"
+while IFS=$'\t' read -r component _; do
+  [[ -n $component && $component != "#"* ]] || continue
+  [[ -x $root/qv/core/$component.sh ]] ||
+    fail "coordinated removal owner is unavailable: $component"
+  grep -Fq -- '--remove [--check|--yes]' "$root/qv/core/$component.sh" ||
+    fail "coordinated removal owner lacks preflight and confirmation: $component"
+done <"$root/qv/core/software-removal-groups"
+grep -Fq 'qvcore-setup' "$root/qv/maintenance/personal-software" ||
+  fail "multi-artifact qvCORE setup removal grouping"
+grep -Fq '"$qvcore_owner_dir/$component.sh" --remove --check' \
+  "$root/qv/maintenance/personal-software" ||
+  fail "grouped qvCORE removal owner preflight"
 grep -Fqx '  install_group app' "$root/qv/core/install" ||
   fail "qvCORE application install group"
 grep -Fqx '  install_group setup' "$root/qv/core/install" ||

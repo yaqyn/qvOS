@@ -11,7 +11,7 @@ codex_skill_dir="$HOME/.codex/skills/proton-cli"
 codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
 pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
-proton_hook_path="/etc/pacman.d/hooks/qvos-proton-on-demand.hook"
+proton_hook_path=${QVOS_PROTON_HOOK_PATH:-/etc/pacman.d/hooks/qvos-proton-on-demand.hook}
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_upload_source="$component_dir/../thunar/proton-drive-upload"
 thunar_upload_runtime="$HOME/.local/share/qvos/thunar/proton-drive-upload"
@@ -34,10 +34,17 @@ mail_auth_ready=0
 auth_ready_count=0
 auth_action="setup"
 mode="install"
+remove_assume_yes=0
+remove_check=0
 upload_helper_ready=0
 upload_action_ready=0
 maintenance_ready=0
 drive_desktop_auth_ready=0
+
+declare -a removal_packages=()
+declare -a removal_paths=()
+remove_codex_skill=0
+remove_vpn_policy=0
 
 # Thunar integration inventory and lifecycle
 
@@ -184,9 +191,183 @@ install_desktop_integration() {
 }
 
 disable_desktop_integration() {
+  local report=${1:-1}
+
   qvos_thunar_remove_action "qvos-proton-drive-upload"
   rm -f "$state_file" "$thunar_upload_runtime"
-  echo "qvCORE Proton desktop integration is disabled; Proton services and personal data were not changed."
+  if ((report)); then
+    echo "qvCORE Proton desktop integration is disabled; Proton services and personal data were not changed."
+  fi
+}
+
+qvos_codex_skill_is_owned() {
+  local installed_inventory
+  local source_inventory
+
+  [[ -d $codex_skill_dir ]] || return 1
+  source_inventory=$(
+    find "$proton_skill_source" -type f -printf '%P\n' | sort
+  )
+  installed_inventory=$(
+    find "$codex_skill_dir" -type f -printf '%P\n' | sort
+  )
+  [[ $installed_inventory == "$source_inventory" ]] || return 1
+
+  while IFS= read -r path; do
+    cmp -s \
+      "$proton_skill_source/$path" \
+      "$codex_skill_dir/$path" ||
+      return 1
+  done <<<"$source_inventory"
+}
+
+inventory_removal() {
+  local package
+
+  removal_packages=()
+  removal_paths=()
+  remove_codex_skill=0
+  remove_vpn_policy=0
+
+  for package in protonmail-bridge-core proton-vpn-cli; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      removal_packages+=("$package")
+    fi
+  done
+  for path in "$pass_cli" "$drive_cli"; do
+    if [[ -e $path || -L $path ]]; then
+      removal_paths+=("$path")
+    fi
+  done
+  qvos_codex_skill_is_owned && remove_codex_skill=1
+  vpn_policy_ready && remove_vpn_policy=1
+}
+
+preflight_removal() {
+  local command
+
+  for command in pacman systemctl; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+      echo "Proton removal requires: $command" >&2
+      return 1
+    fi
+  done
+  if ((${#removal_packages[@]} > 0)); then
+    for command in omarchy-pkg-drop sudo; do
+      if ! command -v "$command" >/dev/null 2>&1; then
+        echo "Proton removal requires: $command" >&2
+        return 1
+      fi
+    done
+    if ! pacman -Rs --print "${removal_packages[@]}" >/dev/null; then
+      echo "Pacman could not prepare the Proton removal transaction." >&2
+      return 1
+    fi
+  fi
+  if ((${#removal_paths[@]} > 0 || remove_codex_skill)); then
+    if ! command -v gio >/dev/null 2>&1; then
+      echo "Proton removal requires: gio" >&2
+      return 1
+    fi
+  fi
+  if ((remove_vpn_policy)) && ! command -v sudo >/dev/null 2>&1; then
+    echo "Proton removal requires: sudo" >&2
+    return 1
+  fi
+  if ((remove_assume_yes == 0 && remove_check == 0)) &&
+    ! command -v gum >/dev/null 2>&1; then
+    echo "Proton removal requires: gum" >&2
+    return 1
+  fi
+}
+
+print_removal_plan() {
+  local package
+  local path
+
+  echo "Remove the local qvCORE Proton setup:"
+  for package in "${removal_packages[@]}"; do
+    printf '  Package: %s\n' "$package"
+  done
+  for path in "${removal_paths[@]}"; do
+    printf '  Command: %s\n' "$path"
+  done
+  ((remove_codex_skill == 0)) ||
+    printf '  Integration: %s\n' "$codex_skill_dir"
+  echo "  qvOS desktop integration and policy"
+  echo ""
+  echo "Proton cloud data and saved local authentication state will be preserved."
+}
+
+verify_removal() {
+  local package
+  local path
+
+  for package in protonmail-bridge-core proton-vpn-cli; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      echo "Proton removal failed: $package remains installed." >&2
+      return 1
+    fi
+  done
+  for path in "$pass_cli" "$drive_cli"; do
+    if [[ -e $path || -L $path ]]; then
+      echo "Proton removal failed: $path remains installed." >&2
+      return 1
+    fi
+  done
+  if [[ -e $state_file || -e $thunar_upload_runtime ]] ||
+    upload_action_is_installed; then
+    echo "Proton removal failed: qvOS desktop integration remains." >&2
+    return 1
+  fi
+}
+
+remove_local_proton() {
+  inventory_removal
+  preflight_removal
+  if ((remove_check)); then
+    return 0
+  fi
+
+  print_removal_plan
+  if ((remove_assume_yes == 0)); then
+    gum confirm \
+      "Remove all listed local Proton software while preserving Proton data?" ||
+      {
+        echo "Proton removal canceled; nothing was changed."
+        return 130
+      }
+  fi
+
+  if systemctl --user is-active --quiet protonmail-bridge.service; then
+    systemctl --user stop protonmail-bridge.service
+  fi
+  if systemctl is-enabled --quiet proton.VPN.service ||
+    systemctl is-active --quiet proton.VPN.service; then
+    sudo systemctl disable --now proton.VPN.service
+  fi
+
+  disable_desktop_integration 0
+  if ((remove_vpn_policy)); then
+    sudo rm -- "$proton_hook_path"
+  elif [[ -e $proton_hook_path ]]; then
+    echo "Preserved customized Proton VPN policy: $proton_hook_path"
+  fi
+  if ((remove_codex_skill)); then
+    gio trash "$codex_skill_dir"
+  elif [[ -e $codex_skill_dir ]]; then
+    echo "Preserved customized Proton Codex integration: $codex_skill_dir"
+  fi
+  if ((${#removal_packages[@]} > 0)); then
+    omarchy-pkg-drop "${removal_packages[@]}"
+  fi
+  for path in "${removal_paths[@]}"; do
+    gio trash "$path"
+  done
+
+  verify_removal
+  echo "Removed the local qvCORE Proton setup."
+  echo "Proton cloud data and saved local authentication state were preserved."
 }
 
 codex_integration_is_installed() {
@@ -778,24 +959,51 @@ verify_proton_setup() {
 
 # Entry point
 
-if (($# > 1)); then
-  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
+usage() {
+  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove|--remove [--check|--yes]]" >&2
+}
+
+if (($# > 2)); then
+  usage
   exit 2
 fi
 
 case ${1:-} in
-"") ;;
---status) mode="status" ;;
---integration-status) mode="integration-status" ;;
---repair) mode="repair" ;;
---adopt) mode="adopt" ;;
---disable) mode="disable" ;;
---prepare-remove) mode="prepare-remove" ;;
+"")
+  (($# == 0)) || {
+    usage
+    exit 2
+  }
+  ;;
+--status | --integration-status | --repair | --adopt | --disable | --prepare-remove)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  mode=${1#--}
+  ;;
+--remove)
+  mode="remove"
+  case ${2:-} in
+  "") ;;
+  --check) remove_check=1 ;;
+  --yes) remove_assume_yes=1 ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
 *)
-  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove]" >&2
+  usage
   exit 2
   ;;
 esac
+
+if [[ $mode == "remove" ]]; then
+  remove_local_proton
+  exit
+fi
 
 if [[ $mode != "install" ]]; then
   inventory_components

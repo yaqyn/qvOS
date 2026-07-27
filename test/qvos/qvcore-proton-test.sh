@@ -222,6 +222,66 @@ for package in "$@"; do
 done
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+case ${1:-} in
+-Q)
+  case ${2:-} in
+  protonmail-bridge-core)
+    [[ -f $HOME/.qvos-test-proton/bridge-installed ]]
+    ;;
+  proton-vpn-cli)
+    [[ -f $HOME/.qvos-test-proton/account-cli-installed ]]
+    ;;
+  *)
+    exit 1
+    ;;
+  esac
+  ;;
+-Rs)
+  [[ ${2:-} == "--print" ]] || exit 2
+  shift 2
+  for package in "$@"; do
+    "$0" -Q "$package" || exit 1
+  done
+  ;;
+*)
+  exit 2
+  ;;
+esac
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-drop" <<'SCRIPT'
+#!/bin/bash
+printf 'package-remove\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+for package in "$@"; do
+  case $package in
+  protonmail-bridge-core)
+    rm -f "$HOME/.qvos-test-proton/bridge-installed"
+    ;;
+  proton-vpn-cli)
+    rm -f "$HOME/.qvos-test-proton/account-cli-installed"
+    ;;
+  *)
+    exit 1
+    ;;
+  esac
+done
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/gio" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "trash" && -n ${2:-} ]] || exit 2
+printf 'trash\t%s\n' "$2" >>"$QVOS_TEST_ACTION_LOG"
+rm -rf -- "$2"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "confirm" ]] || exit 2
+[[ ${QVOS_TEST_GUM_CONFIRM:-1} == "1" ]]
+SCRIPT
+
 install -m 0755 /dev/stdin "$test_bin/protonmail-bridge-core" <<'SCRIPT'
 #!/bin/bash
 set -euo pipefail
@@ -311,6 +371,8 @@ elif [[ $1 == "install" ]]; then
     exec install -m 0644 /dev/stdin "$QVOS_TEST_PROTON_HOOK_FIXTURE"
   fi
   exec install "${@:2}"
+elif [[ $1 == "rm" ]]; then
+  exec rm "${@:2}"
 fi
 SCRIPT
 
@@ -357,6 +419,8 @@ run_component() {
     QVOS_TEST_PASS_FIXTURE="$pass_fixture" \
     QVOS_TEST_PASS_SCOPE_FAIL="${QVOS_TEST_PASS_SCOPE_FAIL:-0}" \
     QVOS_TEST_PROTON_HOOK_FIXTURE="$proton_hook_fixture" \
+    QVOS_TEST_GUM_CONFIRM="${QVOS_TEST_GUM_CONFIRM:-1}" \
+    QVOS_PROTON_HOOK_PATH="$proton_hook_fixture" \
     HOME="$test_root" \
     TMPDIR="$test_root/tmp" \
     XDG_CONFIG_HOME="$test_root/.config" \
@@ -586,3 +650,70 @@ prepare_output=$(run_component --prepare-remove)
 grep -Fq 'ready for software removal' <<<"$prepare_output" ||
   fail "Proton pre-removal result"
 pass "Proton software removal cleans its desktop integration before package changes"
+
+run_component --adopt >/dev/null
+install -m 0600 /dev/null "$codex_pass_root/data/preserved-session"
+install -m 0600 /dev/null "$test_state/preserved-local-config"
+: >"$action_log"
+run_component --remove --check
+[[ -x $test_root/.local/bin/pass-cli ]] ||
+  fail "Proton removal preflight changes Pass CLI"
+[[ -x $test_root/.local/bin/proton-drive ]] ||
+  fail "Proton removal preflight changes Drive CLI"
+[[ -f $test_state/bridge-installed ]] ||
+  fail "Proton removal preflight changes Bridge package"
+[[ -f $test_state/account-cli-installed ]] ||
+  fail "Proton removal preflight changes VPN package"
+[[ -f $desktop_state ]] ||
+  fail "Proton removal preflight changes integration state"
+[[ ! -s $action_log ]] ||
+  fail "Proton removal preflight performs an action"
+pass "Proton coordinated removal preflights without mutation"
+
+set +e
+canceled_output=$(QVOS_TEST_GUM_CONFIRM=0 run_component --remove 2>&1)
+canceled_status=$?
+set -e
+((canceled_status == 130)) || fail "Proton direct removal cancellation status"
+grep -Fq 'nothing was changed' <<<"$canceled_output" ||
+  fail "Proton direct removal cancellation explanation"
+[[ -x $test_root/.local/bin/pass-cli && -x $test_root/.local/bin/proton-drive ]] ||
+  fail "Proton direct removal cancellation changes commands"
+[[ -f $desktop_state ]] ||
+  fail "Proton direct removal cancellation changes integration"
+pass "Proton coordinated removal requires explicit confirmation"
+
+: >"$action_log"
+removal_output=$(run_component --remove --yes)
+[[ ! -e $test_root/.local/bin/pass-cli ]] ||
+  fail "Proton coordinated removal leaves Pass CLI"
+[[ ! -e $test_root/.local/bin/proton-drive ]] ||
+  fail "Proton coordinated removal leaves Drive CLI"
+[[ ! -e $test_state/bridge-installed ]] ||
+  fail "Proton coordinated removal leaves Bridge package"
+[[ ! -e $test_state/account-cli-installed ]] ||
+  fail "Proton coordinated removal leaves VPN package"
+[[ ! -e $installed_skill ]] ||
+  fail "Proton coordinated removal leaves qvOS Codex skill"
+[[ ! -e $proton_hook_fixture ]] ||
+  fail "Proton coordinated removal leaves qvOS VPN policy"
+[[ ! -e $upload_helper && ! -e $desktop_state ]] ||
+  fail "Proton coordinated removal leaves desktop integration"
+[[ -e $codex_pass_root/data/preserved-session ]] ||
+  fail "Proton coordinated removal deletes Pass authentication state"
+[[ -e $test_state/drive-auth ]] ||
+  fail "Proton coordinated removal deletes Drive authentication state"
+[[ -e $test_state/bridge-auth ]] ||
+  fail "Proton coordinated removal deletes Bridge authentication state"
+[[ -e $test_state/preserved-local-config ]] ||
+  fail "Proton coordinated removal deletes local Proton configuration"
+grep -Fq 'cloud data and saved local authentication state were preserved' \
+  <<<"$removal_output" ||
+  fail "Proton coordinated removal preservation result"
+assert_log \
+  $'package-remove\tprotonmail-bridge-core proton-vpn-cli' \
+  "coordinated Proton package removal"
+if grep -Eq $'pass-cli\t|drive\tauth|bridge\t' "$action_log"; then
+  fail "Proton coordinated removal accesses or resets authentication"
+fi
+pass "Proton removes local components together without touching account data"

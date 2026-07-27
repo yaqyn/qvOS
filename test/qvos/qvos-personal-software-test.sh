@@ -197,6 +197,32 @@ rm -f "$HOME/.local/state/qvos/qvcore/$component"
 SCRIPT
 done
 
+install -m 0755 /dev/stdin "$qvcore_owner_dir/proton.sh" <<'SCRIPT'
+#!/bin/bash
+case $* in
+"--remove --check")
+  exit
+  ;;
+"--remove --yes")
+  printf 'cleanup\tproton\n' >>"$QVOS_TEST_ACTION_LOG"
+  for package in protonmail-bridge-core proton-vpn-cli; do
+    grep -Fvx "$package" "$QVOS_TEST_EXPLICIT_PACKAGES" \
+      >"$QVOS_TEST_EXPLICIT_PACKAGES.pending" || true
+    mv \
+      "$QVOS_TEST_EXPLICIT_PACKAGES.pending" \
+      "$QVOS_TEST_EXPLICIT_PACKAGES"
+  done
+  rm -f \
+    "$HOME/.local/bin/pass-cli" \
+    "$HOME/.local/bin/proton-drive" \
+    "$HOME/.local/state/qvos/qvcore/proton"
+  ;;
+*)
+  exit 2
+  ;;
+esac
+SCRIPT
+
 install -m 0755 /dev/null "$user_bin/existing-tool"
 install -m 0755 /dev/null "$applications/Existing.AppImage"
 install -m 0755 /dev/null "$system_bin/existing-system-tool"
@@ -265,6 +291,8 @@ printf '%s\n' \
   aur-app \
   cloudflare-warp-nox-bin \
   kdenlive \
+  protonmail-bridge-core \
+  proton-vpn-cli \
   shared-lib \
   >"$explicit_packages"
 printf '%s\n' aur-app >"$foreign_packages"
@@ -290,6 +318,9 @@ npx_bin="$HOME/.cache/npx"
 SCRIPT
 install -m 0755 /dev/null "$user_bin/personal-tool"
 install -m 0755 /dev/null "$user_bin/codex"
+install -m 0755 /dev/null "$user_bin/pass-cli"
+install -m 0755 /dev/null "$user_bin/proton-drive"
+install -m 0755 /dev/null "$user_bin/qv"
 install -m 0755 /dev/null "$test_home/.local/share/qvos/bin/qvos-owned"
 ln -s \
   "$test_home/.local/share/qvos/bin/qvos-owned" \
@@ -299,6 +330,7 @@ install -m 0755 /dev/null "$system_bin/package-owned"
 install -m 0755 /dev/null "$system_bin/system-tool"
 install -d "$state_home/qvos/qvcore"
 touch "$state_home/qvos/qvcore/warp" "$state_home/qvos/qvcore/codex"
+touch "$state_home/qvos/qvcore/proton"
 printf '%s\n' \
   $'pacman\tcloudflare-warp-nox-bin' \
   $'user-bin\tcodex' \
@@ -306,7 +338,7 @@ printf '%s\n' \
 
 : >"$action_log"
 status_output=$(run_software --status)
-grep -Fq 'Detected 11 personal software item(s)' <<<"$status_output" ||
+grep -Fq 'Detected 12 personal software item(s)' <<<"$status_output" ||
   fail "complete personal-software inventory count"
 grep -Fq 'AUR/foreign        aur-app' <<<"$status_output" ||
   fail "AUR inventory"
@@ -324,6 +356,15 @@ if ! grep -Eq 'qvCORE · Direct[[:space:]]+codex' <<<"$status_output" ||
     <<<"$status_output"; then
   fail "qvCORE Codex personal-software ownership"
 fi
+if ! grep -Eq 'qvCORE · Setup[[:space:]]+Proton' <<<"$status_output" ||
+  ! grep -Fq '4 local components installed; removes together; cloud data and saved authentication are preserved' \
+    <<<"$status_output"; then
+  fail "qvCORE Proton grouped personal-software ownership"
+fi
+if grep -Eq 'qvCORE · (Pacman|Direct)[[:space:]]+(protonmail-bridge-core|proton-vpn-cli|pass-cli|proton-drive)' \
+  <<<"$status_output"; then
+  fail "qvCORE Proton components are exposed individually"
+fi
 if ! grep -Fq 'shared-lib' <<<"$status_output" ||
   ! grep -Fq 'required by personal-parent [protected]' <<<"$status_output"; then
   fail "required package protection"
@@ -340,11 +381,11 @@ grep -Fq 'AppImage           Editor.AppImage' <<<"$status_output" ||
   fail "AppImage inventory"
 grep -Fq 'System standalone  system-tool' <<<"$status_output" ||
   fail "system standalone inventory"
-if grep -Eq 'existing-tool|Existing.AppImage|existing-system-tool|qvos-owned|[[:space:]]pi[[:space:]]|package-owned|[[:space:]]sudo[[:space:]]' \
+if grep -Eq 'existing-tool|Existing.AppImage|existing-system-tool|qvos-owned|[[:space:]]pi[[:space:]]|package-owned|[[:space:]]qv[[:space:]]|[[:space:]]sudo[[:space:]]' \
   <<<"$status_output"; then
   fail "baseline or qvOS-owned software appears as personal"
 fi
-grep -Fq '10 item(s) can be selected for removal' <<<"$status_output" ||
+grep -Fq '11 item(s) can be selected for removal' <<<"$status_output" ||
   fail "personal-software removal count"
 [[ ! -s $action_log ]] || fail "personal-software status mutates software"
 [[ $(<"$sentinel") == "preserve me" ]] ||
@@ -426,7 +467,7 @@ grep -Fqx shared-lib "$explicit_packages" ||
 pass "removal delegates only exact selections to their real owners"
 
 remaining_output=$(run_software --status)
-grep -Fq 'Detected 4 personal software item(s)' <<<"$remaining_output" ||
+grep -Fq 'Detected 5 personal software item(s)' <<<"$remaining_output" ||
   fail "post-removal personal-software inventory"
 grep -Fq 'aur-app' <<<"$remaining_output" ||
   fail "post-removal AUR state"
@@ -449,10 +490,30 @@ expected_qvcore_removal=$'cleanup\twarp\ncleanup\tcodex\npacman\tcloudflare-warp
 if grep -Fxq cloudflare-warp-nox-bin "$explicit_packages"; then
   fail "selected qvCORE package remains"
 fi
+proton_remaining_output=$(run_software --status)
+grep -Fq 'Detected 3 personal software item(s)' <<<"$proton_remaining_output" ||
+  fail "grouped Proton setup remains after unrelated removals"
+pass "qvCORE apps are removable personal software with integration-aware cleanup"
+
+: >"$action_log"
+QVOS_TEST_SELECTIONS="Proton" run_software --remove >/dev/null
+[[ $(<"$action_log") == $'cleanup\tproton' ]] ||
+  fail "grouped Proton removal owner"
+for proton_item in \
+  protonmail-bridge-core \
+  proton-vpn-cli; do
+  if grep -Fxq "$proton_item" "$explicit_packages"; then
+    fail "grouped Proton package remains: $proton_item"
+  fi
+done
+for proton_path in "$user_bin/pass-cli" "$user_bin/proton-drive"; do
+  [[ ! -e $proton_path ]] || fail "grouped Proton command remains: $proton_path"
+done
+[[ -e $user_bin/qv ]] || fail "protected qvOS recovery command was removed"
 final_output=$(run_software --status)
 grep -Fq 'Detected 2 personal software item(s)' <<<"$final_output" ||
   fail "final personal-software inventory"
-pass "qvCORE apps are removable personal software with integration-aware cleanup"
+pass "multi-artifact qvCORE setups delegate one coordinated removal"
 
 for ownership in \
   $'brave-origin\tpacman\tbrave-origin-beta-bin' \
