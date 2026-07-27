@@ -5,6 +5,7 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 export OMARCHY_PATH
 assume_yes=0
 repair_mode="interactive"
+health_check=0
 config_paths=()
 missing_packages=()
 missing_configs=()
@@ -13,7 +14,7 @@ runtime_ready=0
 runtime_issues=""
 
 usage() {
-  echo "Usage: qvos-repair [--status|--reset] [--yes]" >&2
+  echo "Usage: qvos-repair [--status [--check]|--reset] [--yes]" >&2
 }
 
 print_items() {
@@ -33,6 +34,13 @@ for argument in "$@"; do
     }
     repair_mode="status"
     ;;
+  --check)
+    ((health_check == 0)) || {
+      usage
+      exit 2
+    }
+    health_check=1
+    ;;
   --reset)
     [[ $repair_mode == "interactive" ]] || {
       usage
@@ -48,13 +56,19 @@ for argument in "$@"; do
   esac
 done
 
+if ((health_check)) && [[ $repair_mode != "status" ]]; then
+  usage
+  exit 2
+fi
 if [[ $repair_mode == "status" ]] && ((assume_yes)); then
   usage
   exit 2
 fi
 
 operation_name="qvOS repair"
-[[ $repair_mode == "status" ]] && operation_name="qvOS health"
+if [[ $repair_mode == "status" ]]; then
+  operation_name="qvOS health"
+fi
 required_commands=(git omarchy-pkg-present)
 if [[ $repair_mode != "status" ]]; then
   required_commands+=(omarchy-pkg-add)
@@ -166,7 +180,8 @@ if [[ $repair_mode == "status" ]]; then
     exit
   fi
   echo "qvOS needs repair; no changes were made."
-  exit 1
+  ((health_check == 0)) || exit 1
+  exit
 fi
 
 if [[ $repair_mode == "interactive" ]] && ((assume_yes == 0)); then

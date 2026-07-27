@@ -59,7 +59,9 @@ changing qvOS identity, readiness, health, or base ownership.
   updates curated apps.
 - `omarchy qvos health` is the read-only qvOS base inspection. It checks the
   source branch, missing base config, customized config, and installed qvOS
-  runtime without grading personal software.
+  runtime without grading personal software. A completed report exits
+  successfully even when it recommends repair; `--check` returns nonzero when
+  automation requires a healthy base.
 - `omarchy qvos repair` uses the same base inspection. Safe repair restores
   missing config and tracked runtime while preserving package removals and
   customization as user intent. `--reset` is the explicit, backup-backed path
@@ -72,7 +74,8 @@ changing qvOS identity, readiness, health, or base ownership.
 - `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
   Proton, and Gaming Dependencies. `omarchy qvcore disable` removes only enabled
   WARP, Share, or Proton integration state while preserving their software and
-  personal data.
+  personal data. Status reports exit successfully when inspection completes;
+  `status --check` returns nonzero when a managed setup needs attention.
 - `omarchy qvos software` inventories software added after the immutable
   fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
   npm globals, persistent npx wrappers, AppImages, and standalone executables

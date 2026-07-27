@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Inspect or repair qvOS, with an explicit reset for tracked defaults
-# omarchy:args=[--status|--reset] [--yes]
+# omarchy:args=[--status [--check]|--reset] [--yes]
 # omarchy:group=qvos
 # omarchy:name=repair
 # omarchy:requires-sudo=true

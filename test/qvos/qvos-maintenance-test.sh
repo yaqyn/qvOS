@@ -91,6 +91,16 @@ run_repair() {
     "$repair" "$@"
 }
 
+run_health() {
+  QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
+    QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
+    HOME="$test_home" \
+    OMARCHY_PATH="$root" \
+    PATH="$test_bin:$root/bin:/usr/bin" \
+    "$root/bin/omarchy-qvos-health" "$@"
+}
+
 set +e
 unsafe_output=$(QVOS_TEST_BRANCH=master run_repair --yes 2>&1)
 unsafe_status=$?
@@ -101,12 +111,7 @@ grep -Fq "requires the live qvOS checkout on branch OS" <<<"$unsafe_output" ||
 [[ ! -s $action_log ]] || fail "branch refusal mutates the system"
 pass "qvOS repair refuses an upstream source branch before mutation"
 
-set +e
-inspection_output=$(run_repair --status 2>&1)
-inspection_status=$?
-set -e
-((inspection_status == 1)) ||
-  fail "unhealthy qvOS inspection status"
+inspection_output=$(run_repair --status)
 grep -Fq 'Removed default packages:    1' <<<"$inspection_output" ||
   fail "qvOS inspection removed-default count"
 grep -Fq 'qvOS-owned runtime:          Needs repair' <<<"$inspection_output" ||
@@ -116,7 +121,28 @@ grep -Fq 'qvOS needs repair; no changes were made.' <<<"$inspection_output" ||
 [[ -e $missing_packages/alacritty ]] ||
   fail "qvOS inspection reinstalls a removed default"
 [[ ! -s $action_log ]] || fail "qvOS inspection mutates the system"
-pass "qvOS health is read-only and reports real runtime drift"
+set +e
+check_output=$(run_repair --status --check 2>&1)
+check_status=$?
+set -e
+((check_status == 1)) || fail "unhealthy qvOS check status"
+[[ $check_output == "$inspection_output" ]] ||
+  fail "qvOS status and check inventory differ"
+public_health_output=$(run_health)
+[[ $public_health_output == "$inspection_output" ]] ||
+  fail "public qvOS health inventory"
+set +e
+run_health --check >/dev/null 2>&1
+public_check_status=$?
+set -e
+((public_check_status == 1)) || fail "public qvOS health check status"
+if run_health unknown >/dev/null 2>&1; then
+  fail "unknown public qvOS health argument succeeds"
+fi
+if run_health --check extra >/dev/null 2>&1; then
+  fail "extra public qvOS health argument succeeds"
+fi
+pass "qvOS health reports drift successfully while check gates automation"
 
 repair_output=$(
   QVOS_TEST_GUM_SELECTION="Safe repair — preserve removed packages and customized config" \
@@ -176,14 +202,7 @@ grep -Fq 'qvOS is healthy; no changes were made.' <<<"$healthy_output" ||
 pass "qvOS repair produces a healthy base without grading qvCORE software"
 
 mv "$test_bin/omarchy-pkg-add" "$test_bin/omarchy-pkg-add.repair-only"
-health_output=$(
-  QVOS_TEST_ACTION_LOG="$action_log" \
-    QVOS_TEST_MISSING_PACKAGES="$missing_packages" \
-    HOME="$test_home" \
-    OMARCHY_PATH="$root" \
-    PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-qvos-health"
-)
+health_output=$(run_health)
 mv "$test_bin/omarchy-pkg-add.repair-only" "$test_bin/omarchy-pkg-add"
 grep -Fq 'qvOS is healthy; no changes were made.' <<<"$health_output" ||
   fail "qvOS health public command"

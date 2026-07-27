@@ -29,6 +29,7 @@ install -d \
   "$state/commands" \
   "$test_root/.local/state/qvos/qvcore"
 cp "$root/qv/core/catalog.tsv" "$fixture/qv/core/catalog.tsv"
+install -m 0755 "$health" "$fixture/qv/core/health.sh"
 touch "$lifecycle_log"
 
 for component in warp share proton; do
@@ -118,6 +119,15 @@ run_health() {
     "$health" "$@"
 }
 
+run_public_status() {
+  QVOS_TEST_HEALTH_LIFECYCLE_LOG="$lifecycle_log" \
+    QVOS_TEST_HEALTH_STATE="$state" \
+    HOME="$test_root" \
+    OMARCHY_PATH="$fixture" \
+    PATH="$test_bin:/usr/bin" \
+    "$root/bin/omarchy-qvcore-status" "$@"
+}
+
 enable_integrations() {
   local component command
 
@@ -165,16 +175,28 @@ pass "WARP can adopt existing software without reinstalling it"
 
 enable_integrations
 printf 'partial\n' >"$state/steam-state"
-set +e
-partial_output=$(run_health status 2>&1)
-partial_status=$?
-set -e
-((partial_status == 1)) || fail "partial Gaming Dependencies health status"
+partial_output=$(run_health status)
 grep -Eq '[[:space:]]WARP[[:space:]]+Ready' <<<"$partial_output" ||
   fail "WARP ready status"
 grep -Eq '[[:space:]]Gaming Dependencies[[:space:]]+Partial' \
   <<<"$partial_output" || fail "Gaming Dependencies partial status"
-pass "health distinguishes ready integrations from partial dependency setups"
+set +e
+partial_check_output=$(run_health check 2>&1)
+partial_check_status=$?
+set -e
+((partial_check_status == 1)) ||
+  fail "partial Gaming Dependencies check status"
+[[ $partial_check_output == "$partial_output" ]] ||
+  fail "status and check inventory differ"
+public_status_output=$(run_public_status)
+[[ $public_status_output == "$partial_output" ]] ||
+  fail "public setup status inventory"
+set +e
+run_public_status --check >/dev/null 2>&1
+public_check_status=$?
+set -e
+((public_check_status == 1)) || fail "public setup check status"
+pass "status reports partial setups successfully while check gates automation"
 
 rm -f "$state/ready-share"
 : >"$lifecycle_log"
@@ -291,6 +313,12 @@ if run_health repair unknown >/dev/null 2>&1; then
 fi
 if run_health unknown >/dev/null 2>&1; then
   fail "unknown health mode succeeds"
+fi
+if run_public_status unknown >/dev/null 2>&1; then
+  fail "unknown public status argument succeeds"
+fi
+if run_public_status --check extra >/dev/null 2>&1; then
+  fail "extra public status argument succeeds"
 fi
 pass "qvCORE health rejects unknown modes and setups without mutation"
 

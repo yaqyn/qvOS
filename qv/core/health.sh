@@ -22,7 +22,7 @@ declare -A issue_detail=()
 declare -A issue_present=()
 
 usage() {
-  echo "Usage: health.sh [status|repair [warp|share|proton|steam]|maintain|disable]" >&2
+  echo "Usage: health.sh [status [--check]|check|repair [warp|share|proton|steam]|maintain|disable]" >&2
 }
 
 load_setups() {
@@ -298,6 +298,11 @@ repair_setup() {
 status_setups() {
   inspect_setups
   print_setups
+}
+
+check_setups() {
+  inspect_setups
+  print_setups
   ! setups_need_attention
 }
 
@@ -451,6 +456,11 @@ disable_integrations() {
   echo "Installed software, authentication, network choices, and personal data were preserved."
 }
 
+if [[ $mode == "status" && $target_component == "--check" ]]; then
+  mode="check"
+  target_component=""
+fi
+
 if (($# > 2)) ||
   [[ -n $target_component && $mode != "repair" ]]; then
   usage
@@ -461,6 +471,7 @@ load_setups
 
 case $mode in
 status) status_setups ;;
+check) check_setups ;;
 repair) repair_setups ;;
 maintain) maintain_enabled_setups ;;
 disable) disable_integrations ;;
