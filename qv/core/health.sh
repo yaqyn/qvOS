@@ -379,7 +379,7 @@ maintain_enabled_setups() {
 
   reset_maintenance_state
   inspect_enabled_integrations
-  ((${#issues[@]} > 0)) || return
+  ((${#issues[@]} > 0)) || return 0
 
   echo ""
   echo "Maintaining enabled qvCORE setups:"

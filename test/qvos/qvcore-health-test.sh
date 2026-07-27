@@ -236,6 +236,14 @@ done
 pass "ordinary apps cannot enter setup repair"
 
 enable_integrations
+: >"$lifecycle_log"
+healthy_maintenance_output=$(run_health maintain)
+[[ -z $healthy_maintenance_output ]] ||
+  fail "healthy setup maintenance emits unnecessary output"
+[[ ! -s $lifecycle_log ]] ||
+  fail "healthy setup maintenance performs an action"
+pass "healthy setup maintenance succeeds silently"
+
 rm -f "$state/commands/localsend" "$state/ready-proton"
 printf 'partial\n' >"$state/steam-state"
 : >"$lifecycle_log"
