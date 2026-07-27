@@ -39,8 +39,11 @@
     qv/launcher/elephant/omarchy_themes.lua
     qv/launcher/elephant/omarchy_unlocks.lua
     qv/maintenance/essential-packages
+    qv/maintenance/personal-software
+    qv/maintenance/personal-software-baseline
     qv/maintenance/qv
     qv/maintenance/qvos-repair
+    qv/maintenance/qvos-system
     qv/menu/extension.sh
     qv/menu/install
     qv/power/inhibit-sleep
@@ -153,6 +156,12 @@
   mv -f -- \
     "$qvos_maintenance/qvos-repair.tmp.$$" \
     "$qvos_maintenance/qvos-repair"
+  install -m 0755 \
+    "$OMARCHY_PATH/qv/maintenance/qvos-system" \
+    "$qvos_maintenance/qvos-system.tmp.$$"
+  mv -f -- \
+    "$qvos_maintenance/qvos-system.tmp.$$" \
+    "$qvos_maintenance/qvos-system"
   install -m 0755 \
     "$OMARCHY_PATH/qv/maintenance/qv" \
     "$local_bin/qv.tmp.$$"

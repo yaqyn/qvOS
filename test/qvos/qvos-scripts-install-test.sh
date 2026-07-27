@@ -189,16 +189,22 @@ cmp -s \
   "$test_root/.local/share/qvos/maintenance/qvos-repair" ||
   fail "recovery engine installation"
 cmp -s \
+  "$root/qv/maintenance/qvos-system" \
+  "$test_root/.local/share/qvos/maintenance/qvos-system" ||
+  fail "qvOS system hub installation"
+cmp -s \
   "$root/qv/maintenance/qv" \
   "$test_root/.local/bin/qv" ||
   fail "qv recovery front door installation"
 [[ -x $test_root/.local/share/qvos/maintenance/qvos-repair ]] ||
   fail "recovery engine mode"
+[[ -x $test_root/.local/share/qvos/maintenance/qvos-system ]] ||
+  fail "qvOS system hub mode"
 [[ ! -x $test_root/.local/share/qvos/maintenance/essential-packages ]] ||
   fail "recovery package policy mode"
 [[ -x $test_root/.local/bin/qv && ! -L $test_root/.local/bin/qv ]] ||
   fail "qv recovery front door is not a real executable"
-pass "recovery engine, package policy, and qv front door install independently"
+pass "recovery engine, system hub, policy, and qv front door install independently"
 
 cmp -s \
   "$root/qv/shell/aliases" \

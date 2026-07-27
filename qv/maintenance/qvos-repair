@@ -836,15 +836,20 @@ inspect_source() {
   local path
   local required_paths=(
     bin/omarchy-qvos-health
+    bin/omarchy-qvos-personal-software
     bin/omarchy-qvos-repair
+    bin/omarchy-qvos-system
     qv/config/files
     qv/config/refresh
     qv/install/desktop
     qv/install/desktop-status
     qv/install/packaging/base.packages
     qv/maintenance/essential-packages
+    qv/maintenance/personal-software
+    qv/maintenance/personal-software-baseline
     qv/maintenance/qv
     qv/maintenance/qvos-repair
+    qv/maintenance/qvos-system
     qv/shell/install
     qv/shell/status
   )

@@ -217,6 +217,7 @@ public_adapters=(
   bin/omarchy-qvos-repair
   bin/omarchy-qvos-setup-dns
   bin/omarchy-qvos-share
+  bin/omarchy-qvos-system
   bin/omarchy-qvos-update
   bin/omarchy-qvos-update-available
   bin/omarchy-show-failed

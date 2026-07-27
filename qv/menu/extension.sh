@@ -113,11 +113,9 @@ show_qvcore_setups_menu() {
 }
 
 show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
+  case $(menu "qvOS" "󱅾  Update qvOS\n󰒓  System\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
   *"Update qvOS"*) present_terminal omarchy-qvos-update ;;
-  *"Health qvOS"*) present_terminal omarchy-qvos-health ;;
-  *"Repair qvOS"*) present_terminal omarchy-qvos-repair ;;
-  *"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;
+  *System*) present_terminal omarchy-qvos-system ;;
   *qvCORE*) show_qvcore_menu show_qvos_menu ;;
   *) back_to show_main_menu ;;
   esac
@@ -126,7 +124,7 @@ show_qvos_menu() {
 show_remove_menu() {
   case $(menu "Remove" "󰣇  Package\n󰘶  Personal Software\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *"Personal Software"*) present_terminal "omarchy-qvos-personal-software --remove" ;;
+  *"Personal Software"*) present_terminal "omarchy-qvos-system --software" ;;
   *Web*) present_terminal omarchy-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;
@@ -141,9 +139,8 @@ show_remove_menu() {
 }
 
 show_update_menu() {
-  case $(menu "Update" "󱅾  qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
-  *Health*) present_terminal omarchy-qvos-health ;;
-  *Repair*) present_terminal omarchy-qvos-repair ;;
+  case $(menu "Update" "󱅾  qvOS\n󰒓  qvOS System\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  *"qvOS System"*) present_terminal omarchy-qvos-system ;;
   *qvOS*) present_terminal omarchy-qvos-update ;;
   *Config*) show_update_config_menu ;;
   *Themes*) present_terminal omarchy-theme-update ;;

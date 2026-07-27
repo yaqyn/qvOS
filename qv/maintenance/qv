@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-if [[ ${1:-} == "repair" ]]; then
+case ${1:-} in
+repair)
   shift
   runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"
   if [[ ! -x $runtime_repair ]]; then
@@ -9,6 +10,16 @@ if [[ ${1:-} == "repair" ]]; then
     exit 1
   fi
   exec "$runtime_repair" "$@"
-fi
+  ;;
+system)
+  shift
+  runtime_system="$HOME/.local/share/qvos/maintenance/qvos-system"
+  if [[ ! -x $runtime_system ]]; then
+    echo "qvOS system runtime is unavailable: $runtime_system" >&2
+    exit 1
+  fi
+  exec "$runtime_system" "$@"
+  ;;
+esac
 
 exec omarchy "$@"

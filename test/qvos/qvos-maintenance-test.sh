@@ -63,6 +63,15 @@ install -m 0755 \
 install -m 0755 \
   "$root/qv/maintenance/qv" \
   "$source_root/qv/maintenance/qv"
+install -m 0755 \
+  "$root/qv/maintenance/qvos-system" \
+  "$source_root/qv/maintenance/qvos-system"
+install -m 0755 \
+  "$root/qv/maintenance/personal-software" \
+  "$source_root/qv/maintenance/personal-software"
+install -m 0755 \
+  "$root/qv/maintenance/personal-software-baseline" \
+  "$source_root/qv/maintenance/personal-software-baseline"
 install -m 0644 \
   "$root/qv/maintenance/essential-packages" \
   "$source_root/qv/maintenance/essential-packages"
@@ -79,8 +88,14 @@ install -m 0755 \
   "$root/bin/omarchy-qvos-health" \
   "$source_root/bin/omarchy-qvos-health"
 install -m 0755 \
+  "$root/bin/omarchy-qvos-personal-software" \
+  "$source_root/bin/omarchy-qvos-personal-software"
+install -m 0755 \
   "$root/bin/omarchy-qvos-repair" \
   "$source_root/bin/omarchy-qvos-repair"
+install -m 0755 \
+  "$root/bin/omarchy-qvos-system" \
+  "$source_root/bin/omarchy-qvos-system"
 
 install -m 0644 /dev/stdin \
   "$source_root/qv/config/files/hypr/qv/looknfeel.conf" <<'CONFIG'
@@ -123,6 +138,9 @@ install -D -m 0644 \
 install -D -m 0755 \
   "$OMARCHY_PATH/qv/maintenance/qvos-repair" \
   "$HOME/.local/share/qvos/maintenance/qvos-repair"
+install -D -m 0755 \
+  "$OMARCHY_PATH/qv/maintenance/qvos-system" \
+  "$HOME/.local/share/qvos/maintenance/qvos-system"
 install -D -m 0755 \
   "$OMARCHY_PATH/qv/maintenance/qv" \
   "$HOME/.local/bin/qv"
@@ -899,9 +917,9 @@ grep -Fq $'omarchy\tcommands --json' "$action_log" ||
 pass "qv repair survives source damage and other qv arguments pass through"
 
 commands=$("$root/bin/omarchy" commands --json)
-for binary in omarchy-qvos-health omarchy-qvos-repair; do
+for binary in omarchy-qvos-health omarchy-qvos-repair omarchy-qvos-system; do
   jq -e --arg binary "$binary" \
     'any(.commands[]; .binary == $binary)' <<<"$commands" >/dev/null ||
     fail "$binary command discovery"
 done
-pass "health and repair remain discoverable Omarchy commands"
+pass "system, health, and repair remain discoverable Omarchy commands"

@@ -104,6 +104,9 @@ grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
   fail "qvCORE health commands"
 [[ -x $root/bin/omarchy-qvos-health ]] ||
   fail "qvOS base health command"
+[[ -x $root/bin/omarchy-qvos-system &&
+  -x $root/qv/maintenance/qvos-system ]] ||
+  fail "qvOS unified system hub"
 [[ -x $root/qv/maintenance/qv ]] ||
   fail "qvOS TTY recovery front door"
 grep -Fqx '  runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"' \
@@ -112,6 +115,12 @@ grep -Fqx '  runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"' \
 grep -Fqx '  exec "$runtime_repair" "$@"' \
   "$root/qv/maintenance/qv" ||
   fail "qv repair runtime delegation"
+grep -Fqx '  runtime_system="$HOME/.local/share/qvos/maintenance/qvos-system"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv system runtime location"
+grep -Fqx '  exec "$runtime_system" "$@"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv system runtime delegation"
 if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
   fail "fragile qv alias remains"
 fi
@@ -144,6 +153,9 @@ grep -Fq '󱅾  qvOS' "$root/qv/menu/extension.sh" ||
 grep -Fq '*qvOS*) present_terminal omarchy-qvos-update ;;' \
   "$root/qv/menu/extension.sh" ||
   fail "qvOS update menu route"
+grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
+  "$root/qv/menu/extension.sh" ||
+  fail "qvOS unified system menu route"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
 grep -Fq '"01", "REPAIR", "Repair qvOS"' "$root/qv/tui/main.go" || fail "qvOS repair identity"
 grep -Fq '"format": "󱅾"' "$root/qv/waybar/overrides.jsonc" ||

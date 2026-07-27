@@ -9,6 +9,8 @@ qvos_menu_log="$test_root/qvos-menu.log"
 qvcore_menu_log="$test_root/qvcore-menu.log"
 apps_menu_log="$test_root/apps-menu.log"
 setups_menu_log="$test_root/setups-menu.log"
+remove_menu_log="$test_root/remove-menu.log"
+update_menu_log="$test_root/update-menu.log"
 route_log="$test_root/route.log"
 
 cleanup() {
@@ -41,6 +43,14 @@ case $* in
   cat >"$QVOS_TEST_QVOS_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_MENU_CHOICE:-Update qvOS}"
   ;;
+*"Remove…"*)
+  cat >"$QVOS_TEST_REMOVE_MENU_LOG"
+  printf '%s\n' "${QVOS_TEST_REMOVE_CHOICE:-Personal Software}"
+  ;;
+*"Update…"*)
+  cat >"$QVOS_TEST_UPDATE_MENU_LOG"
+  printf '%s\n' "${QVOS_TEST_UPDATE_CHOICE:-qvOS System}"
+  ;;
 *"qvCORE — Applications…"*)
   cat >"$QVOS_TEST_APPS_MENU_LOG"
   printf '%s\n' "${QVOS_TEST_APP_CHOICE:-Brave}"
@@ -66,15 +76,19 @@ run_menu() {
     QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-Install Everything}" \
     QVOS_TEST_APP_CHOICE="${QVOS_TEST_APP_CHOICE:-Brave}" \
     QVOS_TEST_SETUP_CHOICE="${QVOS_TEST_SETUP_CHOICE:-WARP}" \
+    QVOS_TEST_REMOVE_CHOICE="${QVOS_TEST_REMOVE_CHOICE:-Personal Software}" \
+    QVOS_TEST_UPDATE_CHOICE="${QVOS_TEST_UPDATE_CHOICE:-qvOS System}" \
     QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
     QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
     QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
     QVOS_TEST_APPS_MENU_LOG="$apps_menu_log" \
     QVOS_TEST_SETUPS_MENU_LOG="$setups_menu_log" \
+    QVOS_TEST_REMOVE_MENU_LOG="$remove_menu_log" \
+    QVOS_TEST_UPDATE_MENU_LOG="$update_menu_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
     HOME="$test_root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-menu" qvos
+    "$root/bin/omarchy-menu" "${1:-qvos}"
 }
 
 run_route() {
@@ -115,16 +129,22 @@ run_qvcore_route() {
 }
 
 run_route "Update qvOS" "omarchy-qvos-update"
-[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰋼  Health qvOS\n󰑓  Repair qvOS\n󰘶  Personal Software\n󰏖  qvCORE (Optional)' ]] ||
+[[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰒓  System\n󰏖  qvCORE (Optional)' ]] ||
   fail "qvOS quick-access menu"
 grep -Fq -- '--width 360' "$menu_args_log" || fail "qvOS menu width"
 grep -Fq -- '--maxheight 760' "$menu_args_log" || fail "qvOS menu height"
-pass "qvOS exposes its own update, health, repair, and software systems"
+pass "qvOS exposes update and one unified system hub"
 
-run_route "Health qvOS" "omarchy-qvos-health"
-run_route "Repair qvOS" "omarchy-qvos-repair"
-run_route "Personal Software" "omarchy-qvos-personal-software --remove"
-pass "qvOS maintenance routes stay independent from qvCORE"
+run_route "System" "omarchy-qvos-system"
+: >"$route_log"
+QVOS_TEST_REMOVE_CHOICE="Personal Software" run_menu remove
+[[ $(<"$route_log") == "omarchy-qvos-system --software" ]] ||
+  fail "Remove Personal Software route"
+: >"$route_log"
+QVOS_TEST_UPDATE_CHOICE="qvOS System" run_menu update
+[[ $(<"$route_log") == "omarchy-qvos-system" ]] ||
+  fail "Update qvOS System route"
+pass "qvOS menus delegate health, recovery, and software to one system hub"
 
 run_qvcore_route main "Install Everything" "omarchy-install-qvcore"
 [[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups' ]] ||

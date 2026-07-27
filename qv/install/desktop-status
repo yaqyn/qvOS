@@ -84,6 +84,10 @@ check_file \
   "$runtime_root/maintenance/qvos-repair" \
   "recovery engine differs from tracked source"
 check_file \
+  "$OMARCHY_PATH/qv/maintenance/qvos-system" \
+  "$runtime_root/maintenance/qvos-system" \
+  "qvOS system hub differs from tracked source"
+check_file \
   "$OMARCHY_PATH/qv/maintenance/qv" \
   "$HOME/.local/bin/qv" \
   "qv recovery front door differs from tracked source"
