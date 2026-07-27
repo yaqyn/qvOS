@@ -167,8 +167,18 @@ case ${1:-} in
     "$OMARCHY_PATH/qv/maintenance/essential-packages"
   printf '%s\n' linux linux-firmware
   ;;
--Qk) echo "$2: 1 total file, 0 missing files" ;;
--Qkk) echo "$2: 1 total file, 0 altered files" ;;
+-Qk)
+  shift
+  for package in "$@"; do
+    echo "$package: 1 total file, 0 missing files"
+  done
+  ;;
+-Qkk)
+  shift
+  for package in "$@"; do
+    echo "$package: 1 total file, 0 altered files"
+  done
+  ;;
 -Qqo) echo "linux" ;;
 *) exit 2 ;;
 esac
@@ -307,6 +317,7 @@ run_repair() {
     QVOS_TEST_CONFIRM="${QVOS_TEST_CONFIRM:-0}" \
     QVOS_TEST_CONFIRM_SPAWN_LOCKER="${QVOS_TEST_CONFIRM_SPAWN_LOCKER:-0}" \
     QVOS_TEST_CONFIRM_INVALIDATE_INSTANCE="${QVOS_TEST_CONFIRM_INVALIDATE_INSTANCE:-0}" \
+    QVOS_INTEGRITY_WORKERS=2 \
     PATH="$test_bin:/usr/bin" \
     "$repair" "$@"
 }

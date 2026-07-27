@@ -9,6 +9,7 @@ test_bin="$test_root/bin"
 state="$test_root/state"
 installed="$state/installed"
 action_log="$state/actions.log"
+integrity_log="$state/integrity.log"
 pacman_db="$state/pacman"
 pacman_log="$state/pacman.log"
 proc_root="$state/proc"
@@ -143,7 +144,7 @@ load_installed_defaults() {
   } | sort -u >"$installed"
 }
 load_installed_defaults
-touch "$action_log" "$pacman_log"
+touch "$action_log" "$integrity_log" "$pacman_log"
 
 install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
 #!/bin/bash
@@ -161,41 +162,52 @@ case ${1:-} in
   cat "$QVOS_TEST_INSTALLED"
   ;;
 -Qk)
-  package=${2:?}
-  if [[ -e $QVOS_TEST_STATE/unverified/$package ]] &&
-    [[ ${QVOS_TEST_PRIVILEGED:-0} != "1" ]]; then
-    echo "error: Permission denied"
-    exit 1
-  fi
-  if [[ -e $QVOS_TEST_STATE/missing-files/$package ]]; then
-    echo "$package: 2 total files, 1 missing file"
-    exit 1
-  fi
-  echo "$package: 2 total files, 0 missing files"
+  printf 'Qk\t%s\n' "${*:2}" \
+    >>"${QVOS_TEST_INTEGRITY_LOG:-/dev/null}"
+  status=0
+  shift
+  for package in "$@"; do
+    if [[ -e $QVOS_TEST_STATE/unverified/$package ]] &&
+      [[ ${QVOS_TEST_PRIVILEGED:-0} != "1" ]]; then
+      echo "error: $package: Permission denied"
+      status=1
+    elif [[ -e $QVOS_TEST_STATE/missing-files/$package ]]; then
+      echo "$package: 2 total files, 1 missing file"
+      status=1
+    else
+      echo "$package: 2 total files, 0 missing files"
+    fi
+  done
+  exit "$status"
   ;;
 -Qkk)
-  package=${2:?}
-  if [[ -e $QVOS_TEST_STATE/unverified/$package ]] &&
-    [[ ${QVOS_TEST_PRIVILEGED:-0} != "1" ]]; then
-    echo "warning: $package: /root/private (failed to calculate SHA256 checksum)"
-    echo "$package: 2 total files, 1 altered file"
-    exit 1
-  fi
-  if [[ -e $QVOS_TEST_STATE/damaged/$package ]]; then
-    damaged_file="$QVOS_TEST_STATE/damaged-file"
-    touch "$damaged_file"
-    echo "warning: $package: $damaged_file (SHA256 checksum mismatch)"
-    echo "$package: 2 total files, 1 altered file"
-    exit 1
-  fi
-  if [[ -e $QVOS_TEST_STATE/mutable-dirs/$package ]]; then
-    mutable_dir="$QVOS_TEST_STATE/mutable-directory"
-    mkdir -p "$mutable_dir"
-    echo "warning: $package: $mutable_dir (GID mismatch)"
-    echo "$package: 2 total files, 1 altered file"
-    exit 1
-  fi
-  echo "$package: 2 total files, 0 altered files"
+  printf 'Qkk\t%s\n' "${*:2}" \
+    >>"${QVOS_TEST_INTEGRITY_LOG:-/dev/null}"
+  status=0
+  shift
+  for package in "$@"; do
+    if [[ -e $QVOS_TEST_STATE/unverified/$package ]] &&
+      [[ ${QVOS_TEST_PRIVILEGED:-0} != "1" ]]; then
+      echo "warning: $package: /root/private (failed to calculate SHA256 checksum)"
+      echo "$package: 2 total files, 1 altered file"
+      status=1
+    elif [[ -e $QVOS_TEST_STATE/damaged/$package ]]; then
+      damaged_file="$QVOS_TEST_STATE/damaged-file"
+      touch "$damaged_file"
+      echo "warning: $package: $damaged_file (SHA256 checksum mismatch)"
+      echo "$package: 2 total files, 1 altered file"
+      status=1
+    elif [[ -e $QVOS_TEST_STATE/mutable-dirs/$package ]]; then
+      mutable_dir="$QVOS_TEST_STATE/mutable-directory"
+      mkdir -p "$mutable_dir"
+      echo "warning: $package: $mutable_dir (GID mismatch)"
+      echo "$package: 2 total files, 1 altered file"
+      status=1
+    else
+      echo "$package: 2 total files, 0 altered files"
+    fi
+  done
+  exit "$status"
   ;;
 -Qqo)
   echo "linux"
@@ -421,6 +433,8 @@ run_repair() {
     QVOS_TEST_STATE="$state" \
     QVOS_TEST_INSTALLED="$installed" \
     QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_INTEGRITY_LOG="$integrity_log" \
+    QVOS_INTEGRITY_WORKERS=3 \
     PATH="$test_bin:/usr/bin" \
     "$source_root/qv/maintenance/qvos-repair" "$@"
 }
@@ -436,6 +450,8 @@ run_health() {
     QVOS_TEST_STATE="$state" \
     QVOS_TEST_INSTALLED="$installed" \
     QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_INTEGRITY_LOG="$integrity_log" \
+    QVOS_INTEGRITY_WORKERS=3 \
     PATH="$test_bin:/usr/bin" \
     "$source_root/bin/omarchy-qvos-health" "$@"
 }
@@ -480,7 +496,10 @@ reset_hardware_fixture() {
 
 touch "$state/unverified/sudo"
 touch "$state/mutable-dirs/systemd"
+: >"$integrity_log"
 healthy_output=$(run_health)
+[[ ${healthy_output%%$'\n'*} == "qvOS health: Inspect" ]] ||
+  fail "health does not print its inspection state before the report"
 grep -Fq '[Informational] packages.defaults-removed' <<<"$healthy_output" ||
   fail "removed defaults are informational"
 grep -Fq 'Unverified without sudo: sudo' <<<"$healthy_output" ||
@@ -490,9 +509,25 @@ if grep -Fq '[Repairable   ] packages.essential-damaged' <<<"$healthy_output"; t
 fi
 grep -Fq 'qvOS is ready; no changes were made.' <<<"$healthy_output" ||
   fail "informational findings do not make qvOS unhealthy"
+(( $(grep -c $'^Qk\t' "$integrity_log") == 3 )) ||
+  fail "required-file integrity does not use bounded batches"
+(( $(grep -c $'^Qkk\t' "$integrity_log") == 3 )) ||
+  fail "checksum integrity does not use bounded batches"
 run_health --check >/dev/null
 [[ ! -s $action_log ]] || fail "read-only health mutates the fixture"
-pass "status succeeds and check ignores informational recovery readiness"
+pass "status batches integrity and check ignores informational recovery readiness"
+
+: >"$integrity_log"
+set +e
+cancel_output=$(QVOS_TEST_GUM_SELECTION=Cancel run_repair 2>&1)
+cancel_status=$?
+set -e
+((cancel_status == 130)) || fail "interactive repair cancellation succeeds"
+grep -Fq 'qvOS repair canceled.' <<<"$cancel_output" ||
+  fail "interactive repair cancellation result"
+[[ ! -s $integrity_log ]] ||
+  fail "interactive repair inspects all packages before showing its menu"
+pass "interactive repair shows its action menu before full inspection"
 
 reset_hardware_fixture
 printf '%s\n' \

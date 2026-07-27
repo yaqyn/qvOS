@@ -32,6 +32,7 @@ missing_hardware_packages=()
 damaged_hardware_packages=()
 missing_default_packages=()
 unverified_packages=()
+integrity_packages=()
 missing_configs=()
 mode_drifted_configs=()
 customized_configs=()
@@ -42,6 +43,11 @@ locker_pids=()
 declare -A hyprland_pid=()
 declare -A hyprland_socket=()
 declare -A matching_locker=()
+declare -A integrity_classes=()
+integrity_scan_root=""
+integrity_qk_pid=""
+integrity_qkk_pid=""
+package_inspection_ready=0
 
 usage() {
   echo "Usage: qvos-repair [--status [--check] | --reset | --yes]" >&2
@@ -88,6 +94,8 @@ count_findings() {
 }
 
 reset_inspection() {
+  cleanup_integrity_scan
+
   finding_ids=()
   finding_state=()
   finding_detail=()
@@ -102,6 +110,7 @@ reset_inspection() {
   damaged_hardware_packages=()
   missing_default_packages=()
   unverified_packages=()
+  integrity_packages=()
   missing_configs=()
   mode_drifted_configs=()
   customized_configs=()
@@ -112,8 +121,31 @@ reset_inspection() {
   hyprland_pid=()
   hyprland_socket=()
   matching_locker=()
+  integrity_classes=()
+  integrity_qk_pid=""
+  integrity_qkk_pid=""
+  package_inspection_ready=0
   persistent_preconditions_failed=0
 }
+
+cleanup_integrity_scan() {
+  local pid
+
+  for pid in "$integrity_qk_pid" "$integrity_qkk_pid"; do
+    [[ $pid =~ ^[0-9]+$ ]] || continue
+    if kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
+  if [[ -n $integrity_scan_root && -d $integrity_scan_root ]]; then
+    rm -rf -- "$integrity_scan_root"
+  fi
+  integrity_scan_root=""
+  integrity_qk_pid=""
+  integrity_qkk_pid=""
+}
+
+trap cleanup_integrity_scan EXIT
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
@@ -485,80 +517,195 @@ detect_hardware_packages() {
   return 0
 }
 
-package_integrity() {
-  local package=$1
-  local class=$2
+run_pacman_integrity_query() {
+  local operation=$1
+  local output_prefix=$2
+  local workers=$3
+  shift 3
+  local packages=("$@")
+  local pids=()
+  local outputs=()
+  local chunk=()
+  local query=()
+  local worker
+  local index
+  local output
+  local pid
+  local status=0
+
+  for ((worker = 0; worker < workers; worker += 1)); do
+    chunk=()
+    for ((index = worker; index < ${#packages[@]}; index += workers)); do
+      chunk+=("${packages[$index]}")
+    done
+    ((${#chunk[@]} > 0)) || continue
+
+    output="$output_prefix-$worker"
+    outputs+=("$output")
+    query=(pacman "$operation" "${chunk[@]}")
+    if ((integrity_privileged)); then
+      query=(sudo "${query[@]}")
+    fi
+    "${query[@]}" >"$output" 2>&1 &
+    pids+=("$!")
+  done
+
+  for pid in "${pids[@]}"; do
+    if ! wait "$pid"; then
+      status=1
+    fi
+  done
+  for output in "${outputs[@]}"; do
+    [[ -r $output ]] && cat -- "$output"
+  done
+  return "$status"
+}
+
+start_package_integrity() {
+  local specs=("$@")
+  local cpu_count=1
+  local workers=${QVOS_INTEGRITY_WORKERS:-6}
+  local spec
+  local class
+  local package
+
+  integrity_packages=()
+  integrity_classes=()
+  for spec in "${specs[@]}"; do
+    class=${spec%%:*}
+    package=${spec#*:}
+    [[ -n $package && -z ${integrity_classes[$package]:-} ]] || continue
+    integrity_packages+=("$package")
+    integrity_classes[$package]=$class
+  done
+  ((${#integrity_packages[@]} > 0)) || return
+
+  [[ $workers =~ ^[1-9][0-9]*$ ]] || workers=6
+  ((workers > 8)) && workers=8
+  if command_exists nproc; then
+    cpu_count=$(nproc 2>/dev/null || true)
+    [[ $cpu_count =~ ^[1-9][0-9]*$ ]] || cpu_count=1
+    ((workers > cpu_count)) && workers=$cpu_count
+  fi
+  ((${#integrity_packages[@]} < workers)) &&
+    workers=${#integrity_packages[@]}
+
+  if ! integrity_scan_root=$(
+    mktemp -d "${TMPDIR:-/tmp}/qvos-integrity.XXXXXX"
+  ); then
+    unverified_packages=("${integrity_packages[@]}")
+    return
+  fi
+  run_pacman_integrity_query \
+    "-Qk" "$integrity_scan_root/qk" "$workers" \
+    "${integrity_packages[@]}" >"$integrity_scan_root/qk.output" &
+  integrity_qk_pid=$!
+  run_pacman_integrity_query \
+    "-Qkk" "$integrity_scan_root/qkk" "$workers" \
+    "${integrity_packages[@]}" >"$integrity_scan_root/qkk.output" &
+  integrity_qkk_pid=$!
+}
+
+finish_package_integrity() {
   local qk_output=""
   local qkk_output=""
   local qk_status=0
-  local qkk_status=0
-  local unverified=0
-  local damaged=0
+  local classified_qk_issue=0
+  local package
+  local candidate
+  local missing_count
   local line
   local path
+  declare -A damaged=()
+  declare -A unverified=()
 
-  set +e
-  if ((integrity_privileged)); then
-    qk_output=$(sudo pacman -Qk "$package" 2>&1)
-    qk_status=$?
-    qkk_output=$(sudo pacman -Qkk "$package" 2>&1)
-    qkk_status=$?
-  else
-    qk_output=$(pacman -Qk "$package" 2>&1)
-    qk_status=$?
-    qkk_output=$(pacman -Qkk "$package" 2>&1)
-    qkk_status=$?
+  [[ -n $integrity_scan_root ]] || return
+  if ! wait "$integrity_qk_pid"; then
+    qk_status=1
   fi
-  set -e
+  wait "$integrity_qkk_pid" || true
+  qk_output=$(<"$integrity_scan_root/qk.output")
+  qkk_output=$(<"$integrity_scan_root/qkk.output")
+  cleanup_integrity_scan
 
-  if ((qk_status != 0)); then
-    if [[ $qk_output =~ [[:space:]][Mm]issing[[:space:]]file ]]; then
-      damaged=1
-    elif [[ $qk_output =~ [Pp]ermission[[:space:]]denied ]] ||
-      [[ $qk_output =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
-      unverified=1
-    else
-      damaged=1
+  while IFS= read -r line; do
+    candidate=""
+    if [[ $line =~ ^([^:]+):[[:space:]]+[0-9]+[[:space:]]+total[[:space:]]+files?,[[:space:]]+([0-9]+)[[:space:]]+missing[[:space:]]+files?$ ]]; then
+      candidate=${BASH_REMATCH[1]}
+      missing_count=${BASH_REMATCH[2]}
+      if [[ -n ${integrity_classes[$candidate]:-} ]] &&
+        ((missing_count > 0)); then
+        damaged[$candidate]=1
+        classified_qk_issue=1
+      fi
+      continue
     fi
-  fi
-  if ((qkk_status != 0)); then
-    if [[ $qkk_output =~ [Pp]ermission[[:space:]]denied ]] ||
-      [[ $qkk_output =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
-      unverified=1
+
+    if [[ $line == "warning: "* || $line == "error: "* ]]; then
+      candidate=${line#*: }
+      candidate=${candidate%%:*}
     fi
-    while IFS= read -r line; do
-      case $line in
-      "backup file:"*) continue ;;
-      *"failed to calculate"*checksum*)
-        ((integrity_privileged == 0)) && unverified=1
-        continue
-        ;;
-      "warning: $package: "*mismatch* | "warning: $package: "*checksum*)
-        path=${line#warning: "$package": }
-        path=${path%% \(*}
-        if [[ -f $path || -L $path ]]; then
-          damaged=1
-        fi
-        ;;
-      esac
-    done <<<"$qkk_output"
+    [[ -n $candidate ]] || continue
+    [[ -n ${integrity_classes[$candidate]:-} ]] || continue
+    if [[ $line =~ [Pp]ermission[[:space:]]denied ]] ||
+      [[ $line =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
+      unverified[$candidate]=1
+      classified_qk_issue=1
+    elif [[ $line =~ [Mm]issing[[:space:]]file ]] ||
+      [[ $line == *"(No such file or directory)"* ]]; then
+      damaged[$candidate]=1
+      classified_qk_issue=1
+    fi
+  done <<<"$qk_output"
+
+  if ((qk_status != 0 && classified_qk_issue == 0)); then
+    for package in "${integrity_packages[@]}"; do
+      unverified[$package]=1
+    done
   fi
 
-  if ((damaged)); then
-    if [[ $class == "essential" ]]; then
+  while IFS= read -r line; do
+    [[ $line == "backup file:"* ]] && continue
+    [[ $line == "warning: "* ]] || continue
+    candidate=${line#warning: }
+    candidate=${candidate%%:*}
+    [[ -n $candidate ]] || continue
+    [[ -n ${integrity_classes[$candidate]:-} ]] || continue
+
+    if [[ $line == *"failed to calculate"*checksum* ]]; then
+      ((integrity_privileged == 0)) && unverified[$candidate]=1
+      continue
+    fi
+    if [[ $line =~ [Pp]ermission[[:space:]]denied ]] ||
+      [[ $line =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
+      unverified[$candidate]=1
+      continue
+    fi
+    if [[ $line == *mismatch* || $line == *checksum* ]]; then
+      path=${line#warning: "$candidate": }
+      path=${path%% \(*}
+      if [[ -f $path || -L $path ]]; then
+        damaged[$candidate]=1
+      fi
+    fi
+  done <<<"$qkk_output"
+
+  for package in "${integrity_packages[@]}"; do
+    if [[ -n ${damaged[$package]:-} ]] &&
+      [[ ${integrity_classes[$package]} == "essential" ]]; then
       damaged_essential_packages+=("$package")
-    else
+    elif [[ -n ${damaged[$package]:-} ]]; then
       damaged_hardware_packages+=("$package")
+    elif [[ -n ${unverified[$package]:-} ]]; then
+      unverified_packages+=("$package")
     fi
-  elif ((unverified)); then
-    unverified_packages+=("$package")
-  fi
+  done
 }
 
 inspect_packages() {
   local installed_output=""
   local package
-  local class
+  local integrity_specs=()
   declare -A installed=()
   declare -A essential_set=()
   declare -A hardware_set=()
@@ -614,14 +761,22 @@ inspect_packages() {
   done
 
   for package in "${essential_packages[@]}"; do
-    [[ -n ${installed[$package]:-} ]] || continue
-    package_integrity "$package" "essential"
+    if [[ -n ${installed[$package]:-} ]]; then
+      integrity_specs+=("essential:$package")
+    fi
   done
   for package in "${hardware_packages[@]}"; do
     [[ -n ${installed[$package]:-} ]] || continue
     array_contains "$package" "${essential_packages[@]}" && continue
-    package_integrity "$package" "hardware"
+    integrity_specs+=("hardware:$package")
   done
+  package_inspection_ready=1
+  start_package_integrity "${integrity_specs[@]}"
+}
+
+finish_package_inspection() {
+  ((package_inspection_ready)) || return
+  finish_package_integrity
 
   add_finding "packages.hardware-selection" "Ready" \
     "running-system roots: $(join_by ", " "${hardware_packages[@]}")"
@@ -1391,6 +1546,38 @@ inspect_hyprland() {
   inspect_hyprland_logs
 }
 
+order_findings() {
+  local original=("${finding_ids[@]}")
+  local ordered=()
+  local prefixes=(
+    tools
+    pacman
+    packages
+    source
+    runtime
+    config
+    storage
+    network
+    hyprland
+  )
+  local prefix
+  local id
+  declare -A included=()
+
+  for prefix in "${prefixes[@]}"; do
+    for id in "${original[@]}"; do
+      [[ $id == "$prefix."* ]] || continue
+      ordered+=("$id")
+      included[$id]=1
+    done
+  done
+  for id in "${original[@]}"; do
+    [[ -n ${included[$id]:-} ]] && continue
+    ordered+=("$id")
+  done
+  finding_ids=("${ordered[@]}")
+}
+
 run_inspection() {
   reset_inspection
   inspect_tools
@@ -1402,6 +1589,8 @@ run_inspection() {
   inspect_storage
   inspect_network
   inspect_hyprland
+  finish_package_inspection
+  order_findings
 }
 
 print_report() {
@@ -1417,7 +1606,11 @@ print_report() {
   blocked=$(count_findings "Blocked")
   informational=$(count_findings "Informational")
 
-  printf '%s: Inspect\n\n' "$title"
+  if [[ -n $title ]]; then
+    printf '%s: Inspect\n\n' "$title"
+  else
+    echo ""
+  fi
   echo "qvOS Recovery Health"
   echo ""
   for id in "${finding_ids[@]}"; do
@@ -1875,10 +2068,10 @@ if [[ $repair_mode == "reset" ]] && ((assume_yes)); then
   exit 2
 fi
 
-run_inspection
-
 if [[ $repair_mode == "status" ]]; then
-  print_report "qvOS health"
+  echo "qvOS health: Inspect"
+  run_inspection
+  print_report ""
   if ((health_check)) &&
     (( $(count_findings "Repairable") > 0 || $(count_findings "Blocked") > 0 )); then
     exit 1
@@ -1889,6 +2082,11 @@ fi
 if [[ $repair_mode == "interactive" ]] && ((assume_yes)); then
   repair_mode="repair"
 elif [[ $repair_mode == "interactive" ]]; then
+  reset_inspection
+  discover_hyprland_instances
+  inspect_lockers
+  inspect_hyprland_outputs
+
   options=()
   if ((${#valid_hyprland_signatures[@]} > 0)); then
     options+=("Recover Hyprland sad-face lock screen")
@@ -1924,9 +2122,12 @@ if [[ $repair_mode == "reset" ]] && ((assume_yes == 0)); then
     exit 130
 fi
 
+echo "qvOS repair: Inspect"
+run_inspection
+
 if [[ $repair_mode == "repair" ]] &&
   (( $(count_findings "Repairable") == 0 )); then
-  print_report "qvOS repair"
+  print_report ""
   if (( $(count_findings "Blocked") > 0 )); then
     exit 1
   fi
