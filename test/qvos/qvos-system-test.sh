@@ -72,16 +72,14 @@ assert_action $'runtime-repair\t--status'
 run_system --repair
 assert_action $'runtime-repair\t'
 run_system --software
-assert_action $'software\t--remove'
-pass "qvOS System direct modes delegate to their independent owners"
+assert_action $'software\t--remove-standalone'
+pass "qvOS System direct modes preserve the compatibility software route"
 
 QVOS_TEST_SELECTION="Check system health" run_system
 assert_action $'runtime-repair\t--status'
 QVOS_TEST_SELECTION="Repair & recovery" run_system
 assert_action $'runtime-repair\t'
-QVOS_TEST_SELECTION="Manage personal software" run_system
-assert_action $'software\t--remove'
-pass "qvOS System presents one hub for health, recovery, and software"
+pass "qvOS System presents only health and recovery actions"
 
 set +e
 cancel_output=$(QVOS_TEST_SELECTION=Cancel run_system 2>&1)
@@ -120,7 +118,7 @@ HOME="$test_home" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/bin/omarchy-qvos-system" --software
-assert_action $'software\t--remove'
+assert_action $'software\t--remove-standalone'
 pass "qv and Omarchy expose the same installed qvOS System hub"
 
 set +e

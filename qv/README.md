@@ -93,6 +93,10 @@ changing qvOS identity, readiness, health, or base ownership.
   WARP, Share, or Proton integration state while preserving their software and
   personal data. Status reports exit successfully when inspection completes;
   `status --check` returns nonzero when a managed setup needs attention.
+- `omarchy qvcore remove` is the removal surface for curated qvCORE software.
+  Coordinated owners remove together. Brave Origin reuses Omarchy's browser
+  cleanup while preserving its profile and personal data. Steam removal
+  preserves game libraries, configuration, and shared gaming dependencies.
 - `omarchy qvos software` inventories software added after the immutable
   fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
   npm globals, persistent npx wrappers, AppImages, and standalone executables
@@ -101,7 +105,10 @@ changing qvOS identity, readiness, health, or base ownership.
   remain protected. qvCORE-curated software is shown as ordinary personal
   software even when an older baseline captured them. Removing WARP, Share,
   Proton, or Codex software delegates idempotent integration cleanup to its
-  owner first. `--remove` changes only explicit selections
+  owner first. `--remove-standalone` limits the visible inventory to global
+  packages, AppImages, and standalone paths; `--remove-qvcore` limits it to
+  qvCORE ownership. The broad `--remove` route remains compatibility-only.
+  Removal changes only explicit selections
   after confirmation; package managers retain ownership of their packages,
   user files move to Trash, and system standalone removal targets one exact
   path.

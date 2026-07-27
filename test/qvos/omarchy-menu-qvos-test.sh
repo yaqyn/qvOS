@@ -45,11 +45,11 @@ case $* in
   ;;
 *"Remove…"*)
   cat >"$QVOS_TEST_REMOVE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_REMOVE_CHOICE:-Personal Software}"
+  printf '%s\n' "${QVOS_TEST_REMOVE_CHOICE:-Standalone Tools}"
   ;;
 *"Update…"*)
   cat >"$QVOS_TEST_UPDATE_MENU_LOG"
-  printf '%s\n' "${QVOS_TEST_UPDATE_CHOICE:-qvOS System}"
+  printf '%s\n' "${QVOS_TEST_UPDATE_CHOICE:-qvOS}"
   ;;
 *"qvCORE — Applications…"*)
   cat >"$QVOS_TEST_APPS_MENU_LOG"
@@ -76,8 +76,8 @@ run_menu() {
     QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-Install Everything}" \
     QVOS_TEST_APP_CHOICE="${QVOS_TEST_APP_CHOICE:-Brave}" \
     QVOS_TEST_SETUP_CHOICE="${QVOS_TEST_SETUP_CHOICE:-WARP}" \
-    QVOS_TEST_REMOVE_CHOICE="${QVOS_TEST_REMOVE_CHOICE:-Personal Software}" \
-    QVOS_TEST_UPDATE_CHOICE="${QVOS_TEST_UPDATE_CHOICE:-qvOS System}" \
+    QVOS_TEST_REMOVE_CHOICE="${QVOS_TEST_REMOVE_CHOICE:-Standalone Tools}" \
+    QVOS_TEST_UPDATE_CHOICE="${QVOS_TEST_UPDATE_CHOICE:-qvOS}" \
     QVOS_TEST_MENU_ARGS_LOG="$menu_args_log" \
     QVOS_TEST_QVOS_MENU_LOG="$qvos_menu_log" \
     QVOS_TEST_QVCORE_MENU_LOG="$qvcore_menu_log" \
@@ -137,22 +137,29 @@ pass "qvOS exposes update and one unified system hub"
 
 run_route "System" "omarchy-qvos-system"
 : >"$route_log"
-QVOS_TEST_REMOVE_CHOICE="Personal Software" run_menu remove
-[[ $(<"$route_log") == "omarchy-qvos-system --software" ]] ||
-  fail "Remove Personal Software route"
+QVOS_TEST_REMOVE_CHOICE="Standalone Tools" run_menu remove
+[[ $(<"$route_log") == "omarchy-qvos-personal-software --remove-standalone" ]] ||
+  fail "Remove Standalone Tools route"
+if grep -Fq "Personal Software" "$remove_menu_log"; then
+  fail "Remove menu duplicates the qvOS personal-software inventory"
+fi
 : >"$route_log"
-QVOS_TEST_UPDATE_CHOICE="qvOS System" run_menu update
-[[ $(<"$route_log") == "omarchy-qvos-system" ]] ||
-  fail "Update qvOS System route"
-pass "qvOS menus delegate health, recovery, and software to one system hub"
+QVOS_TEST_UPDATE_CHOICE="qvOS" run_menu update
+[[ $(<"$route_log") == "omarchy-qvos-update" ]] ||
+  fail "Update qvOS route"
+if grep -Fq "qvOS System" "$update_menu_log"; then
+  fail "Update menu duplicates the qvOS System hub"
+fi
+pass "qvOS menus keep system, package, and standalone ownership distinct"
 
 run_qvcore_route main "Install Everything" "omarchy-install-qvcore"
-[[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups' ]] ||
+[[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software' ]] ||
   fail "qvCORE category menu"
+run_qvcore_route main "Remove qvCORE Software" "omarchy-qvcore-remove"
 run_qvcore_route apps Devel "omarchy-install-qvcore dev"
 run_qvcore_route setups "Setup Status" "omarchy-qvcore-status"
 run_qvcore_route setups "Gaming Dependencies" "omarchy-install-qvcore steam"
-pass "qvCORE delegates apps and managed setups to their distinct surfaces"
+pass "qvCORE owns installation, setup lifecycle, and curated removal"
 
 grep -Fqx \
   'bindd = SUPER SHIFT ALT, SPACE, qvOS menu, exec, omarchy-menu qvos' \

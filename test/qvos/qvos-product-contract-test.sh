@@ -86,7 +86,7 @@ expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t�
 [[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
   fail "qvOS regular user command protection inventory"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/core/software-removal-groups") == \
-  $'proton\tcloud data and saved authentication are preserved' ]] ||
+  $'brave-origin\tbrowser profile and personal data are preserved\nproton\tcloud data and saved authentication are preserved\nsteam\tgame libraries, configuration, and shared gaming dependencies are preserved' ]] ||
   fail "qvCORE coordinated software-removal inventory"
 while IFS=$'\t' read -r type component _; do
   [[ $type == "setup" ]] || continue
@@ -130,7 +130,9 @@ if grep -Eq 'dev|codex|media|brave-origin' \
 fi
 grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
   fail "qvCORE command group"
-[[ -x $root/bin/omarchy-qvcore-status && -x $root/bin/omarchy-qvcore-repair ]] ||
+[[ -x $root/bin/omarchy-qvcore-status &&
+  -x $root/bin/omarchy-qvcore-repair &&
+  -x $root/bin/omarchy-qvcore-remove ]] ||
   fail "qvCORE health commands"
 [[ -x $root/bin/omarchy-qvos-health ]] ||
   fail "qvOS base health command"
@@ -186,6 +188,26 @@ grep -Fq '*qvOS*) present_terminal omarchy-qvos-update ;;' \
 grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
   "$root/qv/menu/extension.sh" ||
   fail "qvOS unified system menu route"
+if grep -Fq 'omarchy-qvos-system --software' "$root/qv/menu/extension.sh" ||
+  grep -Fq 'qvOS System' <(
+    sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
+  ); then
+  fail "software or maintenance action appears in a competing menu domain"
+fi
+install_gaming_override=$(
+  sed -n '/^show_install_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
+)
+remove_gaming_override=$(
+  sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
+)
+grep -Fq '*Steam*) present_terminal "omarchy-install-qvcore steam" ;;' \
+  <<<"$install_gaming_override" ||
+  fail "Steam install bypasses its qvCORE owner"
+grep -Fq '/qv/core/steam.sh --remove" ;;' <<<"$remove_gaming_override" ||
+  fail "Steam removal bypasses its preservation-safe qvCORE owner"
+if grep -Fq 'omarchy-remove-gaming-steam' <<<"$remove_gaming_override"; then
+  fail "qvOS menu exposes destructive inherited Steam removal"
+fi
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
 grep -Fq '"01", "REPAIR", "Repair qvOS"' "$root/qv/tui/main.go" || fail "qvOS repair identity"
 grep -Fq '"format": "󱅾"' "$root/qv/waybar/overrides.jsonc" ||

@@ -41,7 +41,6 @@ choose_action() {
   local options=(
     "Check system health"
     "Repair & recovery"
-    "Manage personal software"
     "Cancel"
   )
 
@@ -71,7 +70,7 @@ run_software() {
     echo "qvOS Personal Software is unavailable: $software_owner" >&2
     return 1
   fi
-  exec "$software_owner" --remove
+  exec "$software_owner" --remove-standalone
 }
 
 if (($# > 1)); then
@@ -94,7 +93,6 @@ selection=$(choose_action) || exit 130
 case $selection in
 "Check system health") run_status ;;
 "Repair & recovery") run_repair ;;
-"Manage personal software") run_software ;;
 *)
   echo "qvOS System canceled."
   exit 130

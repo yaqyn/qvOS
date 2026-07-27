@@ -100,13 +100,14 @@ run_route() {
 run_menu install
 grep -Fqx '󰏖  qvCORE (Optional)' "$install_menu_log" ||
   fail "optional qvCORE install-menu entry"
-[[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups' ]] ||
+[[ $(<"$qvcore_menu_log") == $'  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software' ]] ||
   fail "qvCORE category menu"
 [[ $(<"$route_log") == "omarchy-install-qvcore" ]] ||
   fail "complete qvCORE route"
 pass "qvCORE presents a curated software catalog with a separate setup category"
 
 run_route main "Install Everything" "omarchy-install-qvcore"
+run_route main "Remove qvCORE Software" "omarchy-qvcore-remove"
 run_route apps "Install All Apps" "omarchy-install-qvcore apps"
 run_route apps Brave "omarchy-install-qvcore brave-origin"
 run_route apps Devel "omarchy-install-qvcore dev"

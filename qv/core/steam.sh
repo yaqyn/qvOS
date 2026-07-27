@@ -72,6 +72,51 @@ gaming_packages=(
   goverlay
 )
 
+mode="install"
+remove_assume_yes=0
+remove_check=0
+
+usage() {
+  echo "Usage: steam.sh [--status|--state|--remove [--check|--yes]]" >&2
+}
+
+if (($# > 2)); then
+  usage
+  exit 2
+fi
+
+case ${1:-} in
+"")
+  (($# == 0)) || {
+    usage
+    exit 2
+  }
+  ;;
+--status | --state)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  mode=${1#--}
+  ;;
+--remove)
+  mode="remove"
+  case ${2:-} in
+  "") ;;
+  --check) remove_check=1 ;;
+  --yes) remove_assume_yes=1 ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
 if omarchy-pkg-present pipewire-jack; then
   gaming_packages+=(lib32-pipewire-jack)
 elif omarchy-pkg-present jack2; then
@@ -87,9 +132,54 @@ for package in "${gaming_packages[@]}"; do
 done
 total_dependencies=${#gaming_packages[@]}
 
-case ${1:-} in
-"") ;;
---status)
+remove_steam() {
+  local command
+
+  if ((steam_ready)); then
+    for command in omarchy-pkg-drop pacman sudo; do
+      if ! command -v "$command" >/dev/null 2>&1; then
+        echo "qvCORE Steam removal requires: $command" >&2
+        return 1
+      fi
+    done
+    if ! pacman -Rs --print steam >/dev/null; then
+      echo "Pacman could not prepare the Steam removal transaction." >&2
+      return 1
+    fi
+  fi
+  if ((remove_assume_yes == 0 && remove_check == 0)) &&
+    ! command -v gum >/dev/null 2>&1; then
+    echo "qvCORE Steam removal requires: gum" >&2
+    return 1
+  fi
+  if ((remove_check)); then
+    return 0
+  fi
+  if ((steam_ready == 0)); then
+    echo "qvCORE Steam is not installed; nothing was changed."
+    return 0
+  fi
+
+  echo "Remove the Steam package from qvCORE."
+  echo "Game libraries, configuration, and shared gaming dependencies will be preserved."
+  if ((remove_assume_yes == 0)); then
+    gum confirm "Remove Steam while preserving its data and shared dependencies?" ||
+      {
+        echo "qvCORE Steam removal canceled; nothing was changed."
+        return 130
+      }
+  fi
+
+  omarchy-pkg-drop steam
+  if omarchy-pkg-present steam; then
+    echo "qvCORE Steam removal failed: steam remains installed." >&2
+    return 1
+  fi
+  echo "Removed Steam; game data and shared gaming dependencies were preserved."
+}
+
+case $mode in
+status)
   echo ""
   echo "qvCORE Gaming Dependencies inventory"
   if ((steam_ready)); then
@@ -102,7 +192,7 @@ case ${1:-} in
   ((steam_ready))
   exit
   ;;
---state)
+state)
   if ((steam_ready == 0)); then
     echo "not-installed"
   elif ((ready_dependency_count == total_dependencies)); then
@@ -112,9 +202,9 @@ case ${1:-} in
   fi
   exit
   ;;
-*)
-  echo "Usage: steam.sh [--status]" >&2
-  exit 2
+remove)
+  remove_steam
+  exit
   ;;
 esac
 

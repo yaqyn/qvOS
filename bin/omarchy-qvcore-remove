@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# omarchy:summary=Select installed qvCORE software for ownership-safe removal
+# omarchy:group=qvcore
+# omarchy:name=remove
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/maintenance/personal-software" --remove-qvcore "$@"

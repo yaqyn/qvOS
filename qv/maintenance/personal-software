@@ -14,6 +14,7 @@ user_bin_dir=${QVOS_PERSONAL_USER_BIN_DIR:-$HOME/.local/bin}
 applications_dir=${QVOS_PERSONAL_APPLICATIONS_DIR:-$HOME/Applications}
 system_bin_dir=${QVOS_PERSONAL_SYSTEM_BIN_DIR:-/usr/local/bin}
 mode="status"
+requested_scope="all"
 assume_yes=0
 
 declare -A baseline_item=()
@@ -36,9 +37,10 @@ declare -A entry_kind=()
 declare -A entry_value=()
 declare -A entry_removable=()
 declare -A entry_cleanup_owner=()
+declare -A entry_scope=()
 
 usage() {
-  echo "Usage: personal-software [--status|--remove|--initialize] [--yes]" >&2
+  echo "Usage: personal-software [--status|--remove|--remove-standalone|--remove-qvcore|--initialize] [--yes]" >&2
 }
 
 valid_field() {
@@ -62,6 +64,7 @@ add_entry() {
   local value=$5
   local removable=$6
   local cleanup_owner=${7:-}
+  local scope=${8:-standalone}
   local id="entry-$((${#entry_ids[@]} + 1))"
 
   entry_ids+=("$id")
@@ -72,6 +75,7 @@ add_entry() {
   entry_value[$id]=$value
   entry_removable[$id]=$removable
   entry_cleanup_owner[$id]=$cleanup_owner
+  entry_scope[$id]=$scope
 }
 
 list_bun_globals() {
@@ -187,10 +191,12 @@ add_grouped_qvcore_entries() {
     add_entry \
       "qvCORE · Setup" \
       "${qvcore_component_name[$component]}" \
-      "${grouped_component_count[$component]} local components installed; removes together; ${grouped_component_preservation[$component]}" \
+      "${grouped_component_count[$component]} local component(s) installed; coordinated removal; ${grouped_component_preservation[$component]}" \
       qvcore-setup \
       "$component" \
-      "${grouped_component_removable[$component]}"
+      "${grouped_component_removable[$component]}" \
+      "" \
+      qvcore
   done
 }
 
@@ -253,7 +259,7 @@ load_qvcore_owners() {
 }
 
 scan_pacman() {
-  local package source required_by description detail removable component
+  local package source required_by description detail removable component scope
   local cleanup_owner
 
   while IFS= read -r package; do
@@ -275,7 +281,9 @@ scan_pacman() {
     detail=${description:-explicit package}
     removable=1
     cleanup_owner=""
+    scope="package"
     if [[ -n $component ]]; then
+      scope="qvcore"
       if [[ $source == "AUR/foreign" ]]; then
         source="qvCORE · AUR"
       else
@@ -300,7 +308,7 @@ scan_pacman() {
 
     add_entry \
       "$source" "$package" "$detail" pacman "$package" "$removable" \
-      "$cleanup_owner"
+      "$cleanup_owner" "$scope"
   done < <(pacman -Qqe | sort -u)
 }
 
@@ -380,7 +388,7 @@ scan_user_bin() {
       esac
       add_entry "qvCORE · Direct" "$name" \
         "${qvcore_component_name[$component]}; $path${cleanup_owner:+; integration cleanup included}" \
-        user-path "$path" 1 "$cleanup_owner"
+        user-path "$path" 1 "$cleanup_owner" qvcore
       continue
     fi
 
@@ -441,22 +449,55 @@ scan_system_bin() {
   )
 }
 
+filter_entries_by_scope() {
+  local scope=$1
+  local id
+  local filtered_ids=()
+
+  [[ $scope != "all" ]] || return 0
+
+  for id in "${entry_ids[@]}"; do
+    [[ ${entry_scope[$id]} == "$scope" ]] || continue
+    filtered_ids+=("$id")
+  done
+  entry_ids=("${filtered_ids[@]}")
+}
+
 print_inventory() {
   local id protection
   local removable_count=0
 
-  echo "qvOS Personal Software"
+  case $requested_scope in
+  standalone)
+    echo "qvOS Standalone Tools"
+    echo ""
+    echo "Standalone commands, global packages, and AppImages outside package ownership."
+    ;;
+  qvcore)
+    echo "Installed qvCORE Software"
+    echo ""
+    echo "qvCORE-curated applications and coordinated setups."
+    ;;
+  *)
+    echo "qvOS Personal Software"
+    echo ""
+    echo "Personal software outside current qvOS base ownership."
+    echo "qvCORE-curated software remains visible even if the baseline captured it."
+    echo "npx execution caches are ignored; persistent wrappers are listed."
+    echo "Standalone discovery is limited to standard executable locations."
+    ;;
+  esac
   echo ""
-  echo "Personal software outside current qvOS base ownership."
-  echo "qvCORE-curated software remains visible even if the baseline captured it."
-  echo "npx execution caches are ignored; persistent wrappers are listed."
-  echo "Standalone discovery is limited to standard executable locations."
   echo "Bindings, web apps, and personal data are never changed."
   echo "Selected qvCORE software may clean only its qvOS-owned integration."
   echo ""
 
   if ((${#entry_ids[@]} == 0)); then
-    echo "No personal software additions were detected."
+    case $requested_scope in
+    standalone) echo "No removable standalone tools were detected." ;;
+    qvcore) echo "No installed qvCORE software was detected." ;;
+    *) echo "No personal software additions were detected." ;;
+    esac
     return
   fi
 
@@ -492,6 +533,22 @@ for argument in "$@"; do
       exit 2
     }
     mode="remove"
+    ;;
+  --remove-standalone)
+    [[ $mode == "status" ]] || {
+      usage
+      exit 2
+    }
+    mode="remove"
+    requested_scope="standalone"
+    ;;
+  --remove-qvcore)
+    [[ $mode == "status" ]] || {
+      usage
+      exit 2
+    }
+    mode="remove"
+    requested_scope="qvcore"
     ;;
   --initialize)
     [[ $mode == "status" ]] || {
@@ -570,6 +627,7 @@ scan_user_bin
 scan_applications
 scan_system_bin
 add_grouped_qvcore_entries
+filter_entries_by_scope "$requested_scope"
 print_inventory
 
 if [[ $mode != "remove" ]]; then
@@ -585,16 +643,26 @@ for id in "${entry_ids[@]}"; do
 done
 
 if ((${#options[@]} == 0)); then
-  echo "No removable personal software was detected."
+  case $requested_scope in
+  standalone) echo "No removable standalone tools were detected." ;;
+  qvcore) echo "No removable qvCORE software was detected." ;;
+  *) echo "No removable personal software was detected." ;;
+  esac
   exit
 fi
+
+case $requested_scope in
+standalone) selection_header="Choose standalone tools to remove; Esc keeps everything" ;;
+qvcore) selection_header="Choose qvCORE software to remove; Esc keeps everything" ;;
+*) selection_header="Choose personal software to remove; Esc keeps everything" ;;
+esac
 
 echo ""
 if selections=$(gum choose \
   --no-limit \
   --height 20 \
   --label-delimiter ":" \
-  --header "Choose personal software to remove; Esc keeps everything" \
+  --header "$selection_header" \
   "${options[@]}"); then
   :
 else

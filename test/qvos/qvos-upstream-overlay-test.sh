@@ -209,6 +209,7 @@ public_adapters=(
   bin/omarchy-install-qvcore
   bin/omarchy-qvcore-disable
   bin/omarchy-qvcore-repair
+  bin/omarchy-qvcore-remove
   bin/omarchy-qvcore-status
   bin/omarchy-qvos-block-upstream-maintenance
   bin/omarchy-qvos-health

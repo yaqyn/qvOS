@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Open the unified qvOS system health, recovery, and software hub
+# omarchy:summary=Open qvOS system health and recovery
 # omarchy:group=qvos
 # omarchy:name=system
 # omarchy:args=[--status|--repair|--software]

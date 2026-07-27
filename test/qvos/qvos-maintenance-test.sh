@@ -103,6 +103,9 @@ install -m 0755 \
 install -m 0755 \
   "$root/bin/omarchy-qvos-system" \
   "$source_root/bin/omarchy-qvos-system"
+install -m 0755 \
+  "$root/bin/omarchy-qvcore-remove" \
+  "$source_root/bin/omarchy-qvcore-remove"
 
 install -m 0644 /dev/stdin \
   "$source_root/qv/config/files/hypr/qv/looknfeel.conf" <<'CONFIG'
@@ -924,7 +927,11 @@ grep -Fq $'omarchy\tcommands --json' "$action_log" ||
 pass "qv repair survives source damage and other qv arguments pass through"
 
 commands=$("$root/bin/omarchy" commands --json)
-for binary in omarchy-qvos-health omarchy-qvos-repair omarchy-qvos-system; do
+for binary in \
+  omarchy-qvcore-remove \
+  omarchy-qvos-health \
+  omarchy-qvos-repair \
+  omarchy-qvos-system; do
   jq -e --arg binary "$binary" \
     'any(.commands[]; .binary == $binary)' <<<"$commands" >/dev/null ||
     fail "$binary command discovery"

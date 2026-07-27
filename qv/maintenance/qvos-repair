@@ -839,6 +839,7 @@ inspect_source() {
     bin/omarchy-qvos-personal-software
     bin/omarchy-qvos-repair
     bin/omarchy-qvos-system
+    bin/omarchy-qvcore-remove
     qv/core/software-removal-groups
     qv/config/files
     qv/config/refresh

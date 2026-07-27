@@ -72,13 +72,29 @@ show_install_menu() {
   esac
 }
 
+show_install_gaming_menu() {
+  case $(menu "Install" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰂯  Xbox Controller\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
+  *Steam*) present_terminal "omarchy-install-qvcore steam" ;;
+  *RetroArch*) present_terminal omarchy-install-gaming-retroarch ;;
+  *Minecraft*) install_and_launch "Minecraft" "minecraft-launcher" "minecraft-launcher" ;;
+  *GeForce*) present_terminal omarchy-install-gaming-geforce-now ;;
+  *"Xbox Cloud"*) present_terminal omarchy-install-gaming-xbox-cloud ;;
+  *Xbox*) present_terminal omarchy-install-gaming-xbox-controllers ;;
+  *Lutris*) present_terminal omarchy-install-gaming-lutris ;;
+  *Heroic*) present_terminal omarchy-install-gaming-heroic ;;
+  *Moonlight*) present_terminal omarchy-install-gaming-moonlight ;;
+  *) show_install_menu ;;
+  esac
+}
+
 show_qvcore_menu() {
   local back_menu=${1:-show_install_menu}
 
-  case $(menu "qvCORE — Personal Software" "  Install Everything\n󰏖  Applications\n󰒓  Managed Setups") in
+  case $(menu "qvCORE — Personal Software" "  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software") in
   *"Install Everything"*) present_terminal omarchy-install-qvcore ;;
   *Applications*) show_qvcore_apps_menu show_qvcore_menu ;;
   *Setups*) show_qvcore_setups_menu show_qvcore_menu ;;
+  *"Remove qvCORE"*) present_terminal omarchy-qvcore-remove ;;
   *) "$back_menu" ;;
   esac
 }
@@ -122,9 +138,9 @@ show_qvos_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n󰘶  Personal Software\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n  Standalone Tools\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *"Personal Software"*) present_terminal "omarchy-qvos-system --software" ;;
+  *"Standalone Tools"*) present_terminal "omarchy-qvos-personal-software --remove-standalone" ;;
   *Web*) present_terminal omarchy-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;
@@ -138,9 +154,23 @@ show_remove_menu() {
   esac
 }
 
+show_remove_gaming_menu() {
+  case $(menu "Remove" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰖺  Xbox Controller (󰂯)\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
+  *Steam*) present_terminal "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/steam.sh --remove" ;;
+  *RetroArch*) present_terminal omarchy-remove-gaming-retroarch ;;
+  *Minecraft*) present_terminal omarchy-remove-gaming-minecraft ;;
+  *GeForce*) present_terminal omarchy-remove-gaming-geforce-now ;;
+  *"Xbox Cloud"*) present_terminal omarchy-remove-gaming-xbox-cloud ;;
+  *Xbox*) present_terminal omarchy-remove-gaming-xbox-controllers ;;
+  *Moonlight*) present_terminal omarchy-remove-gaming-moonlight ;;
+  *Lutris*) present_terminal omarchy-remove-gaming-lutris ;;
+  *Heroic*) present_terminal omarchy-remove-gaming-heroic ;;
+  *) show_remove_menu ;;
+  esac
+}
+
 show_update_menu() {
-  case $(menu "Update" "󱅾  qvOS\n󰒓  qvOS System\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
-  *"qvOS System"*) present_terminal omarchy-qvos-system ;;
+  case $(menu "Update" "󱅾  qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
   *qvOS*) present_terminal omarchy-qvos-update ;;
   *Config*) show_update_config_menu ;;
   *Themes*) present_terminal omarchy-theme-update ;;

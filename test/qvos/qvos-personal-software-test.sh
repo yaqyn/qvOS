@@ -197,6 +197,14 @@ rm -f "$HOME/.local/state/qvos/qvcore/$component"
 SCRIPT
 done
 
+install -m 0755 /dev/stdin "$qvcore_owner_dir/brave-origin.sh" <<'SCRIPT'
+#!/bin/bash
+case $* in
+"--remove --check" | "--remove --yes") exit ;;
+*) exit 2 ;;
+esac
+SCRIPT
+
 install -m 0755 /dev/stdin "$qvcore_owner_dir/proton.sh" <<'SCRIPT'
 #!/bin/bash
 case $* in
@@ -220,6 +228,14 @@ case $* in
 *)
   exit 2
   ;;
+esac
+SCRIPT
+
+install -m 0755 /dev/stdin "$qvcore_owner_dir/steam.sh" <<'SCRIPT'
+#!/bin/bash
+case $* in
+"--remove --check" | "--remove --yes") exit ;;
+*) exit 2 ;;
 esac
 SCRIPT
 
@@ -357,7 +373,7 @@ if ! grep -Eq 'qvCORE · Direct[[:space:]]+codex' <<<"$status_output" ||
   fail "qvCORE Codex personal-software ownership"
 fi
 if ! grep -Eq 'qvCORE · Setup[[:space:]]+Proton' <<<"$status_output" ||
-  ! grep -Fq '4 local components installed; removes together; cloud data and saved authentication are preserved' \
+  ! grep -Fq '4 local component(s) installed; coordinated removal; cloud data and saved authentication are preserved' \
     <<<"$status_output"; then
   fail "qvCORE Proton grouped personal-software ownership"
 fi
@@ -391,6 +407,35 @@ grep -Fq '11 item(s) can be selected for removal' <<<"$status_output" ||
 [[ $(<"$sentinel") == "preserve me" ]] ||
   fail "personal-software inventory changes config"
 pass "inventory covers package managers and standard standalone locations"
+
+standalone_output=$(
+  QVOS_TEST_SELECTIONS="aur-app,kdenlive,codex" \
+    run_software --remove-standalone
+)
+grep -Fq 'qvOS Standalone Tools' <<<"$standalone_output" ||
+  fail "standalone removal title"
+grep -Eq 'Standalone[[:space:]]+personal-tool' <<<"$standalone_output" ||
+  fail "standalone removal inventory"
+if grep -Eq '(AUR/foreign[[:space:]]+aur-app|qvCORE · (Pacman|Direct)[[:space:]]+(kdenlive|codex))' \
+  <<<"$standalone_output"; then
+  fail "standalone removal exposes package or qvCORE ownership"
+fi
+[[ ! -s $action_log ]] || fail "standalone scope mutates an excluded owner"
+
+qvcore_output=$(
+  QVOS_TEST_SELECTIONS="aur-app,personal-tool" \
+    run_software --remove-qvcore
+)
+grep -Fq 'Installed qvCORE Software' <<<"$qvcore_output" ||
+  fail "qvCORE removal title"
+grep -Eq 'qvCORE · Pacman[[:space:]]+kdenlive' <<<"$qvcore_output" ||
+  fail "qvCORE removal inventory"
+if grep -Eq '(AUR/foreign[[:space:]]+aur-app|Standalone[[:space:]]+personal-tool)' \
+  <<<"$qvcore_output"; then
+  fail "qvCORE removal exposes package or standalone ownership"
+fi
+[[ ! -s $action_log ]] || fail "qvCORE scope mutates an excluded owner"
+pass "visible removal scopes never compete for another owner's software"
 
 for command in cat find grep head jq readlink sed sort; do
   ln -s "$(command -v "$command")" "$restricted_bin/$command"
@@ -477,7 +522,7 @@ pass "post-removal inventory truthfully preserves unselected software"
 
 : >"$action_log"
 QVOS_TEST_SELECTIONS="cloudflare-warp-nox-bin,codex" \
-  run_software --remove >/dev/null
+  run_software --remove-qvcore >/dev/null
 expected_qvcore_removal=$'cleanup\twarp\ncleanup\tcodex\npacman\tcloudflare-warp-nox-bin\ntrash\t'"$user_bin/codex"
 [[ $(<"$action_log") == "$expected_qvcore_removal" ]] ||
   fail "qvCORE software cleanup and removal order"
@@ -496,7 +541,7 @@ grep -Fq 'Detected 3 personal software item(s)' <<<"$proton_remaining_output" ||
 pass "qvCORE apps are removable personal software with integration-aware cleanup"
 
 : >"$action_log"
-QVOS_TEST_SELECTIONS="Proton" run_software --remove >/dev/null
+QVOS_TEST_SELECTIONS="Proton" run_software --remove-qvcore >/dev/null
 [[ $(<"$action_log") == $'cleanup\tproton' ]] ||
   fail "grouped Proton removal owner"
 for proton_item in \
