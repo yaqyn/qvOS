@@ -104,6 +104,20 @@ grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
   fail "qvCORE health commands"
 [[ -x $root/bin/omarchy-qvos-health ]] ||
   fail "qvOS base health command"
+[[ -x $root/qv/maintenance/qv ]] ||
+  fail "qvOS TTY recovery front door"
+grep -Fqx '  runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv repair runtime location"
+grep -Fqx '  exec "$runtime_repair" "$@"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv repair runtime delegation"
+if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
+  fail "fragile qv alias remains"
+fi
+grep -Fqx 'xdg-desktop-portal-hyprland' \
+  "$root/qv/maintenance/essential-packages" ||
+  fail "qvOS recovery essential policy"
 pass "qvCORE apps stay personal while managed setups own lifecycle health"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"

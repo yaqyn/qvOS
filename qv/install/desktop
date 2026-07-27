@@ -15,7 +15,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in desktop power screensaver thunar tmux waybar; do
+  for feature in desktop maintenance power screensaver shell thunar tmux waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -38,6 +38,9 @@
     qv/launcher/elephant/omarchy_background_selector.lua
     qv/launcher/elephant/omarchy_themes.lua
     qv/launcher/elephant/omarchy_unlocks.lua
+    qv/maintenance/essential-packages
+    qv/maintenance/qv
+    qv/maintenance/qvos-repair
     qv/menu/extension.sh
     qv/menu/install
     qv/power/inhibit-sleep
@@ -46,6 +49,9 @@
     qv/screensaver/omarchy-launch-screensaver
     qv/screensaver/qvos-launch-screensaver
     qv/screensaver/qvos-screensaver
+    qv/shell/aliases
+    qv/shell/install
+    qv/shell/status
     qv/thunar/actions.sh
     qv/thunar/codex
     qv/thunar/launch
@@ -129,11 +135,29 @@
 
   screensaver_source="$OMARCHY_PATH/qv/screensaver"
   qvos_bin="$HOME/.local/share/qvos/bin"
+  qvos_maintenance="$HOME/.local/share/qvos/maintenance"
   qvos_screensaver="$HOME/.local/share/qvos/screensaver"
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
-  install -d "$qvos_bin" "$qvos_screensaver" "$local_bin"
+  install -d "$qvos_bin" "$qvos_maintenance" "$qvos_screensaver" "$local_bin"
+  install -m 0644 \
+    "$OMARCHY_PATH/qv/maintenance/essential-packages" \
+    "$qvos_maintenance/essential-packages.tmp.$$"
+  mv -f -- \
+    "$qvos_maintenance/essential-packages.tmp.$$" \
+    "$qvos_maintenance/essential-packages"
+  install -m 0755 \
+    "$OMARCHY_PATH/qv/maintenance/qvos-repair" \
+    "$qvos_maintenance/qvos-repair.tmp.$$"
+  mv -f -- \
+    "$qvos_maintenance/qvos-repair.tmp.$$" \
+    "$qvos_maintenance/qvos-repair"
+  install -m 0755 \
+    "$OMARCHY_PATH/qv/maintenance/qv" \
+    "$local_bin/qv.tmp.$$"
+  mv -f -- "$local_bin/qv.tmp.$$" "$local_bin/qv"
+  "$OMARCHY_PATH/qv/shell/install"
   for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
     power_owner=${command_name#omarchy-system-}
     install -m 0755 "$OMARCHY_PATH/qv/power/$power_owner" "$qvos_bin/$command_name"

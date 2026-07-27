@@ -5,13 +5,11 @@
 
   config_source="$OMARCHY_PATH/qv/config/files"
   yaqyn_source="$OMARCHY_PATH/qv/theme/yaqyn"
-  qv_aliases="$OMARCHY_PATH/qv/shell/aliases"
-  bashrc="$HOME/.bashrc"
 
   for source_path in \
     "$config_source" \
     "$yaqyn_source" \
-    "$qv_aliases"; do
+    "$OMARCHY_PATH/qv/shell/install"; do
     if [[ ! -e $source_path ]]; then
       echo "Missing qvOS configuration source: $source_path" >&2
       exit 1
@@ -28,11 +26,6 @@
     "$HOME/.config/omarchy/branding/screensaver.txt"
 
   "$OMARCHY_PATH/qv/theme/install"
-
-  qv_alias_source="source \"\$HOME/.local/share/omarchy/qv/shell/aliases\""
-  if ! grep -Fqx "$qv_alias_source" "$bashrc"; then
-    printf '\n%s\n' "$qv_alias_source" >>"$bashrc"
-  fi
 
   # shellcheck source=qv/install/config/mimetypes
   source "$OMARCHY_PATH/qv/install/config/mimetypes"

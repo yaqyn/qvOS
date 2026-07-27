@@ -6,4 +6,8 @@
 # omarchy:args=[--check]
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"
+if [[ -x $runtime_repair ]]; then
+  exec "$runtime_repair" --status "$@"
+fi
 exec "$OMARCHY_PATH/qv/maintenance/qvos-repair" --status "$@"

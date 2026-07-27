@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+source_file="$OMARCHY_PATH/qv/shell/aliases"
+runtime_file="$HOME/.local/share/qvos/shell/aliases"
+bashrc="$HOME/.bashrc"
+# shellcheck disable=SC2016
+legacy_source='source "$HOME/.local/share/omarchy/qv/shell/aliases"'
+# shellcheck disable=SC2016
+runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
+
+[[ -f $runtime_file && ! -L $runtime_file ]] &&
+  cmp -s "$source_file" "$runtime_file" &&
+  [[ $(stat -c '%a' "$runtime_file") == "644" ]] &&
+  [[ -f $bashrc ]] &&
+  grep -Fqx "$runtime_source" "$bashrc" &&
+  ! grep -Fqx "$legacy_source" "$bashrc"

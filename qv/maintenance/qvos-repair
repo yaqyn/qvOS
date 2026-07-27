@@ -3,26 +3,1708 @@ set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 export OMARCHY_PATH
-assume_yes=0
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+package_policy="$script_dir/essential-packages"
+pacman_db_path=${QVOS_PACMAN_DB_PATH:-/var/lib/pacman}
+pacman_log=${QVOS_PACMAN_LOG:-/var/log/pacman.log}
+proc_root=${QVOS_PROC_ROOT:-/proc}
+sys_root=${QVOS_SYS_ROOT:-/sys}
+canonical_origin="https://github.com/Yaqyn-qvOS/qvOS.git"
+
 repair_mode="interactive"
 health_check=0
-config_paths=()
-missing_packages=()
+assume_yes=0
+integrity_privileged=0
+persistent_preconditions_failed=0
+
+finding_ids=()
+declare -A finding_state=()
+declare -A finding_detail=()
+declare -A finding_repair=()
+
+essential_packages=()
+default_packages=()
+hardware_packages=()
+missing_essential_packages=()
+damaged_essential_packages=()
+missing_hardware_packages=()
+damaged_hardware_packages=()
+missing_default_packages=()
+unverified_packages=()
 missing_configs=()
-drifted_configs=()
-runtime_ready=0
-runtime_issues=""
+mode_drifted_configs=()
+customized_configs=()
+wrong_type_configs=()
+broken_portal_units=()
+valid_hyprland_signatures=()
+locker_pids=()
+declare -A hyprland_pid=()
+declare -A hyprland_socket=()
+declare -A matching_locker=()
 
 usage() {
-  echo "Usage: qvos-repair [--status [--check]|--reset] [--yes]" >&2
+  echo "Usage: qvos-repair [--status [--check] | --reset | --yes]" >&2
 }
 
-print_items() {
+join_by() {
+  local separator=$1
+  shift
+  local result=""
+  local value
+
+  for value in "$@"; do
+    if [[ -n $result ]]; then
+      result+="$separator"
+    fi
+    result+="$value"
+  done
+  printf '%s' "$result"
+}
+
+add_finding() {
+  local id=$1
+  local state=$2
+  local detail=$3
+  local repair=${4:-}
+
+  if [[ -z ${finding_state[$id]:-} ]]; then
+    finding_ids+=("$id")
+  fi
+  finding_state[$id]=$state
+  finding_detail[$id]=$detail
+  finding_repair[$id]=$repair
+}
+
+count_findings() {
+  local wanted=$1
+  local count=0
+  local id
+
+  for id in "${finding_ids[@]}"; do
+    [[ ${finding_state[$id]} == "$wanted" ]] && ((count += 1))
+  done
+  printf '%d' "$count"
+}
+
+reset_inspection() {
+  finding_ids=()
+  finding_state=()
+  finding_detail=()
+  finding_repair=()
+
+  essential_packages=()
+  default_packages=()
+  hardware_packages=()
+  missing_essential_packages=()
+  damaged_essential_packages=()
+  missing_hardware_packages=()
+  damaged_hardware_packages=()
+  missing_default_packages=()
+  unverified_packages=()
+  missing_configs=()
+  mode_drifted_configs=()
+  customized_configs=()
+  wrong_type_configs=()
+  broken_portal_units=()
+  valid_hyprland_signatures=()
+  locker_pids=()
+  hyprland_pid=()
+  hyprland_socket=()
+  matching_locker=()
+  persistent_preconditions_failed=0
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+read_process_value() {
+  local pid=$1
+  local name=$2
+  local entry
+
+  [[ -r $proc_root/$pid/environ ]] || return 1
+  while IFS= read -r entry; do
+    if [[ $entry == "$name="* ]]; then
+      printf '%s' "${entry#*=}"
+      return
+    fi
+  done < <(tr '\0' '\n' <"$proc_root/$pid/environ")
+  return 1
+}
+
+process_uid() {
+  local pid=$1
+  local line
+
+  [[ -r $proc_root/$pid/status ]] || return 1
+  while IFS= read -r line; do
+    if [[ $line == "Uid:"* ]]; then
+      read -r _ uid _ <<<"$line"
+      printf '%s' "$uid"
+      return
+    fi
+  done <"$proc_root/$pid/status"
+  return 1
+}
+
+processes_named() {
+  local wanted=$1
+  local process_path
+  local name
+
+  for process_path in "$proc_root"/[0-9]*; do
+    [[ -r $process_path/comm ]] || continue
+    IFS= read -r name <"$process_path/comm" || continue
+    [[ $name == "$wanted" ]] || continue
+    printf '%s\n' "${process_path##*/}"
+  done
+}
+
+user_process_named() {
+  local wanted=$1
+  local pid
+
+  while IFS= read -r pid; do
+    [[ $(process_uid "$pid" 2>/dev/null || true) == "$UID" ]] && return
+  done < <(processes_named "$wanted")
+  return 1
+}
+
+array_contains() {
+  local wanted=$1
+  shift
   local item
 
   for item in "$@"; do
-    printf '    - %s\n' "$item"
+    [[ $item == "$wanted" ]] && return
   done
+  return 1
+}
+
+add_unique() {
+  local value=$1
+  local array_name=$2
+  local existing
+  local -n target=$array_name
+
+  [[ -n $value ]] || return 0
+  for existing in "${target[@]}"; do
+    [[ $existing == "$value" ]] && return
+  done
+  target+=("$value")
+}
+
+load_active_lines() {
+  local path=$1
+
+  sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d;s/^[[:space:]]*//;s/[[:space:]]*$//' \
+    "$path"
+}
+
+inspect_tools() {
+  local missing=()
+  local tool
+
+  for tool in git gum jq curl ip getent timedatectl Hyprland hyprctl \
+    hyprlock systemctl busctl journalctl coredumpctl modinfo dkms; do
+    command_exists "$tool" || missing+=("$tool")
+  done
+
+  if ((${#missing[@]} == 0)); then
+    add_finding "tools.recovery" "Ready" \
+      "recovery and optional diagnostic commands are available"
+  else
+    add_finding "tools.missing" "Informational" \
+      "optional or recoverable tools unavailable: $(join_by ", " "${missing[@]}")"
+  fi
+}
+
+inspect_pacman_state() {
+  local output=""
+  local transaction_open=0
+  local line
+  local lock_owner=0
+  local fd
+
+  if ! command_exists pacman; then
+    add_finding "pacman.command" "Blocked" \
+      "pacman is unavailable; package state cannot be inspected"
+    persistent_preconditions_failed=1
+    return
+  fi
+
+  if output=$(pacman -Dk 2>&1); then
+    add_finding "pacman.database" "Ready" "local package database dependencies are consistent"
+  else
+    add_finding "pacman.database" "Blocked" \
+      "pacman -Dk failed: ${output//$'\n'/; }"
+    persistent_preconditions_failed=1
+  fi
+
+  if [[ -e $pacman_db_path/db.lck ]]; then
+    for fd in "$proc_root"/[0-9]*/fd/*; do
+      [[ -L $fd ]] || continue
+      if [[ $(readlink -f -- "$fd" 2>/dev/null || true) == "$pacman_db_path/db.lck" ]]; then
+        lock_owner=1
+        break
+      fi
+    done
+    if ((lock_owner)); then
+      add_finding "pacman.lock-active" "Blocked" \
+        "an active process owns $pacman_db_path/db.lck"
+    else
+      add_finding "pacman.lock-ownerless" "Blocked" \
+        "$pacman_db_path/db.lck has no visible owner; qvOS will never remove it automatically"
+    fi
+    persistent_preconditions_failed=1
+  else
+    add_finding "pacman.lock" "Ready" "no Pacman database lock is present"
+  fi
+
+  if [[ -r $pacman_log ]]; then
+    while IFS= read -r line; do
+      case $line in
+      *"[ALPM] transaction started"*) transaction_open=1 ;;
+      *"[ALPM] transaction completed"*) transaction_open=0 ;;
+      esac
+    done <"$pacman_log"
+    if ((transaction_open)); then
+      add_finding "pacman.transaction-incomplete" "Blocked" \
+        "$pacman_log ends with an unmatched transaction-start marker"
+      persistent_preconditions_failed=1
+    else
+      add_finding "pacman.transaction" "Ready" \
+        "the Pacman log has no unmatched final transaction"
+    fi
+  else
+    add_finding "pacman.transaction-unverified" "Informational" \
+      "$pacman_log is not readable"
+  fi
+}
+
+detect_hardware_packages() {
+  local kernel
+  local kernel_package=""
+  local header_package=""
+  local registration
+  local module_version
+  local module
+  local version
+  local package
+  local module_link
+  local module_file
+
+  kernel=$(uname -r)
+  add_unique "linux-firmware" hardware_packages
+
+  if command_exists pacman && [[ -e $sys_root/../usr/lib/modules/$kernel/pkgbase ]]; then
+    kernel_package=$(
+      pacman -Qqo "$sys_root/../usr/lib/modules/$kernel/pkgbase" 2>/dev/null |
+        head -n 1 || true
+    )
+  elif command_exists pacman; then
+    kernel_package=$(
+      pacman -Qqo "/usr/lib/modules/$kernel/pkgbase" 2>/dev/null |
+        head -n 1 || true
+    )
+  fi
+  add_unique "$kernel_package" hardware_packages
+
+  if command_exists dkms; then
+    while IFS= read -r registration; do
+      [[ -n $registration ]] || continue
+      module_version=${registration%%,*}
+      module=${module_version%%/*}
+      version=${module_version#*/}
+      [[ -n $module && $version != "$module" ]] || continue
+
+      add_unique "dkms" hardware_packages
+      if [[ -n $kernel_package ]]; then
+        header_package="$kernel_package-headers"
+        [[ $kernel_package == "linux" ]] && header_package="linux-headers"
+        add_unique "$header_package" hardware_packages
+      fi
+      package=$(
+        pacman -Qqo "/usr/src/$module-$version" 2>/dev/null |
+          head -n 1 || true
+      )
+      add_unique "$package" hardware_packages
+    done < <(dkms status -k "$kernel" 2>/dev/null || true)
+  fi
+
+  if command_exists modinfo; then
+    for module_link in \
+      "$sys_root"/class/drm/card*/device/driver/module \
+      "$sys_root"/class/net/*/device/driver/module; do
+      [[ -e $module_link ]] || continue
+      module=$(basename -- "$(readlink -f -- "$module_link")")
+      module_file=$(modinfo -n "$module" 2>/dev/null || true)
+      [[ -n $module_file ]] || continue
+      package=$(pacman -Qqo "$module_file" 2>/dev/null | head -n 1 || true)
+      add_unique "$package" hardware_packages
+    done
+  fi
+
+  if command_exists omarchy-hw-nvidia-gsp && omarchy-hw-nvidia-gsp; then
+    for package in nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
+      libva-nvidia-driver; do
+      add_unique "$package" hardware_packages
+    done
+  elif command_exists omarchy-hw-nvidia-without-gsp &&
+    omarchy-hw-nvidia-without-gsp; then
+    for package in nvidia-580xx-dkms nvidia-580xx-utils \
+      lib32-nvidia-580xx-utils libva-nvidia-driver; do
+      add_unique "$package" hardware_packages
+    done
+  fi
+  return 0
+}
+
+package_integrity() {
+  local package=$1
+  local class=$2
+  local qk_output=""
+  local qkk_output=""
+  local qk_status=0
+  local qkk_status=0
+  local unverified=0
+  local damaged=0
+  local line
+  local path
+
+  set +e
+  if ((integrity_privileged)); then
+    qk_output=$(sudo pacman -Qk "$package" 2>&1)
+    qk_status=$?
+    qkk_output=$(sudo pacman -Qkk "$package" 2>&1)
+    qkk_status=$?
+  else
+    qk_output=$(pacman -Qk "$package" 2>&1)
+    qk_status=$?
+    qkk_output=$(pacman -Qkk "$package" 2>&1)
+    qkk_status=$?
+  fi
+  set -e
+
+  if ((qk_status != 0)); then
+    if [[ $qk_output =~ [[:space:]][Mm]issing[[:space:]]file ]]; then
+      damaged=1
+    elif [[ $qk_output =~ [Pp]ermission[[:space:]]denied ]] ||
+      [[ $qk_output =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
+      unverified=1
+    else
+      damaged=1
+    fi
+  fi
+  if ((qkk_status != 0)); then
+    if [[ $qkk_output =~ [Pp]ermission[[:space:]]denied ]] ||
+      [[ $qkk_output =~ [Oo]peration[[:space:]]not[[:space:]]permitted ]]; then
+      unverified=1
+    fi
+    while IFS= read -r line; do
+      case $line in
+      "backup file:"*) continue ;;
+      *"failed to calculate"*checksum*)
+        ((integrity_privileged == 0)) && unverified=1
+        continue
+        ;;
+      "warning: $package: "*mismatch* | "warning: $package: "*checksum*)
+        path=${line#warning: "$package": }
+        path=${path%% \(*}
+        if [[ -e $path || -L $path ]]; then
+          damaged=1
+        fi
+        ;;
+      esac
+    done <<<"$qkk_output"
+  fi
+
+  if ((damaged)); then
+    if [[ $class == "essential" ]]; then
+      damaged_essential_packages+=("$package")
+    else
+      damaged_hardware_packages+=("$package")
+    fi
+  elif ((unverified)); then
+    unverified_packages+=("$package")
+  fi
+}
+
+inspect_packages() {
+  local installed_output=""
+  local package
+  local class
+  declare -A installed=()
+  declare -A essential_set=()
+  declare -A hardware_set=()
+
+  if [[ ! -r $package_policy ]]; then
+    add_finding "packages.policy" "Blocked" \
+      "essential package policy is missing: $package_policy"
+    persistent_preconditions_failed=1
+    return
+  fi
+  mapfile -t essential_packages < <(load_active_lines "$package_policy")
+
+  if [[ -r $OMARCHY_PATH/qv/install/packaging/base.packages ]]; then
+    mapfile -t default_packages < <(
+      load_active_lines "$OMARCHY_PATH/qv/install/packaging/base.packages"
+    )
+  else
+    add_finding "packages.default-policy" "Blocked" \
+      "base package manifest is unavailable"
+    persistent_preconditions_failed=1
+  fi
+
+  command_exists pacman || return
+  if ! installed_output=$(pacman -Qq 2>/dev/null); then
+    add_finding "packages.inventory" "Blocked" \
+      "installed package inventory could not be read"
+    persistent_preconditions_failed=1
+    return
+  fi
+  while IFS= read -r package; do
+    [[ -n $package ]] && installed[$package]=1
+  done <<<"$installed_output"
+
+  detect_hardware_packages
+  for package in "${essential_packages[@]}"; do
+    essential_set[$package]=1
+    if [[ -z ${installed[$package]:-} ]]; then
+      missing_essential_packages+=("$package")
+    fi
+  done
+  for package in "${hardware_packages[@]}"; do
+    hardware_set[$package]=1
+    if [[ -z ${installed[$package]:-} ]]; then
+      missing_hardware_packages+=("$package")
+    fi
+  done
+  for package in "${default_packages[@]}"; do
+    [[ -n ${essential_set[$package]:-} ]] && continue
+    [[ -n ${hardware_set[$package]:-} ]] && continue
+    if [[ -z ${installed[$package]:-} ]]; then
+      missing_default_packages+=("$package")
+    fi
+  done
+
+  for package in "${essential_packages[@]}"; do
+    [[ -n ${installed[$package]:-} ]] || continue
+    package_integrity "$package" "essential"
+  done
+  for package in "${hardware_packages[@]}"; do
+    [[ -n ${installed[$package]:-} ]] || continue
+    array_contains "$package" "${essential_packages[@]}" && continue
+    package_integrity "$package" "hardware"
+  done
+
+  add_finding "packages.hardware-selection" "Ready" \
+    "running-system roots: $(join_by ", " "${hardware_packages[@]}")"
+
+  if ((${#missing_essential_packages[@]} > 0)); then
+    add_finding "packages.essential-missing" "Repairable" \
+      "$(join_by ", " "${missing_essential_packages[@]}")" "packages"
+  fi
+  if ((${#damaged_essential_packages[@]} > 0)); then
+    add_finding "packages.essential-damaged" "Repairable" \
+      "$(join_by ", " "${damaged_essential_packages[@]}")" "packages"
+  fi
+  if ((${#missing_hardware_packages[@]} > 0)); then
+    add_finding "packages.hardware-missing" "Repairable" \
+      "$(join_by ", " "${missing_hardware_packages[@]}")" "packages"
+  fi
+  if ((${#damaged_hardware_packages[@]} > 0)); then
+    add_finding "packages.hardware-damaged" "Repairable" \
+      "$(join_by ", " "${damaged_hardware_packages[@]}")" "packages"
+  fi
+  if ((${#missing_default_packages[@]} > 0)); then
+    add_finding "packages.defaults-removed" "Informational" \
+      "preserved as removable defaults: $(join_by ", " "${missing_default_packages[@]}")"
+  fi
+  if ((${#unverified_packages[@]} > 0)); then
+    add_finding "packages.integrity-unverified" "Informational" \
+      "Unverified without sudo: $(join_by ", " "${unverified_packages[@]}")"
+  fi
+  if ((${#missing_essential_packages[@]} == 0 &&
+    ${#damaged_essential_packages[@]} == 0 &&
+    ${#missing_hardware_packages[@]} == 0 &&
+    ${#damaged_hardware_packages[@]} == 0)); then
+    add_finding "packages.required" "Ready" \
+      "${#essential_packages[@]} essential and ${#hardware_packages[@]} selected hardware roots are present"
+  fi
+}
+
+origin_is_canonical() {
+  local remote=$1
+
+  case $remote in
+  "$canonical_origin" | "${canonical_origin%.git}" | \
+    "git@github.com:Yaqyn-qvOS/qvOS.git" | \
+    "git@github.com:Yaqyn-qvOS/qvOS" | \
+    "ssh://git@github.com/Yaqyn-qvOS/qvOS.git" | \
+    "ssh://git@github.com/Yaqyn-qvOS/qvOS") return ;;
+  esac
+  return 1
+}
+
+inspect_source() {
+  local branch=""
+  local status=""
+  local origin=""
+  local output=""
+  local missing=()
+  local path
+  local required_paths=(
+    bin/omarchy-qvos-health
+    bin/omarchy-qvos-repair
+    qv/config/files
+    qv/config/refresh
+    qv/install/desktop
+    qv/install/desktop-status
+    qv/install/packaging/base.packages
+    qv/maintenance/essential-packages
+    qv/maintenance/qv
+    qv/maintenance/qvos-repair
+    qv/shell/install
+    qv/shell/status
+  )
+
+  if ! command_exists git; then
+    add_finding "source.git-unavailable" "Blocked" \
+      "Git is unavailable; the live source cannot be validated"
+    persistent_preconditions_failed=1
+    return
+  fi
+  if ! git -C "$OMARCHY_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    add_finding "source.checkout" "Blocked" \
+      "$OMARCHY_PATH is not a Git worktree"
+    persistent_preconditions_failed=1
+    return
+  fi
+
+  branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
+  if [[ $branch == "OS" ]]; then
+    add_finding "source.branch" "Ready" "live source is on branch OS"
+  else
+    add_finding "source.branch" "Blocked" \
+      "expected branch OS, found ${branch:-detached}"
+    persistent_preconditions_failed=1
+  fi
+
+  if status=$(
+    git -C "$OMARCHY_PATH" status --porcelain=v1 --untracked-files=all 2>&1
+  ); then
+    if [[ -z $status ]]; then
+      add_finding "source.worktree" "Ready" \
+        "tracked, deleted, and untracked state is clean"
+    else
+      add_finding "source.worktree" "Blocked" \
+        "worktree changes require review: ${status//$'\n'/; }"
+      persistent_preconditions_failed=1
+    fi
+  else
+    add_finding "source.worktree" "Blocked" \
+      "complete worktree status could not be read: ${status//$'\n'/; }"
+    persistent_preconditions_failed=1
+  fi
+
+  for path in "${required_paths[@]}"; do
+    if [[ ! -e $OMARCHY_PATH/$path ]] ||
+      ! git -C "$OMARCHY_PATH" ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+      missing+=("$path")
+    fi
+  done
+  if ((${#missing[@]} == 0)); then
+    add_finding "source.required-paths" "Ready" "required qvOS owners are tracked and present"
+  else
+    add_finding "source.required-paths" "Blocked" \
+      "missing or untracked: $(join_by ", " "${missing[@]}")"
+    persistent_preconditions_failed=1
+  fi
+
+  origin=$(git -C "$OMARCHY_PATH" config --get remote.origin.url 2>/dev/null || true)
+  if origin_is_canonical "$origin"; then
+    add_finding "source.origin" "Ready" "origin is the canonical qvOS repository"
+  else
+    add_finding "source.origin" "Blocked" \
+      "origin is not canonical: ${origin:-missing}"
+    persistent_preconditions_failed=1
+  fi
+
+  if git -C "$OMARCHY_PATH" rev-parse --verify origin/OS >/dev/null 2>&1 &&
+    git -C "$OMARCHY_PATH" merge-base --is-ancestor origin/OS HEAD; then
+    add_finding "source.ancestry" "Ready" \
+      "HEAD contains origin/OS; local commits ahead are valid"
+  else
+    add_finding "source.ancestry" "Blocked" \
+      "origin/OS is missing or is not an ancestor of HEAD"
+    persistent_preconditions_failed=1
+  fi
+
+  if output=$(git -C "$OMARCHY_PATH" fsck --connectivity-only --no-dangling 2>&1); then
+    add_finding "source.connectivity" "Ready" "Git object connectivity is valid"
+  else
+    add_finding "source.connectivity" "Blocked" \
+      "git fsck failed: ${output//$'\n'/; }"
+    persistent_preconditions_failed=1
+  fi
+}
+
+inspect_runtime() {
+  local output=""
+
+  if [[ ! -x $OMARCHY_PATH/qv/install/desktop-status ]]; then
+    add_finding "runtime.inventory" "Blocked" \
+      "tracked runtime inventory owner is unavailable"
+    persistent_preconditions_failed=1
+    return
+  fi
+  if output=$("$OMARCHY_PATH/qv/install/desktop-status" 2>&1); then
+    add_finding "runtime.inventory" "Ready" \
+      "qvOS runtime types, bytes, links, and modes match source"
+  else
+    add_finding "runtime.inventory" "Repairable" \
+      "${output//$'\n'/; }" "runtime"
+  fi
+}
+
+inspect_configs() {
+  local source_root="$OMARCHY_PATH/qv/config/files"
+  local source
+  local target
+  local path
+  local source_mode
+  local target_mode
+
+  if [[ ! -d $source_root ]]; then
+    add_finding "config.source" "Blocked" "qvOS config source is unavailable"
+    persistent_preconditions_failed=1
+    return
+  fi
+
+  while IFS= read -r -d '' source; do
+    path=${source#"$source_root/"}
+    target="$HOME/.config/$path"
+    if [[ ! -e $target && ! -L $target ]]; then
+      missing_configs+=("$path")
+    elif [[ ! -f $target || -L $target ]]; then
+      wrong_type_configs+=("$path")
+    elif cmp -s "$source" "$target"; then
+      source_mode=$(stat -c '%a' "$source")
+      target_mode=$(stat -c '%a' "$target")
+      if [[ $source_mode != "$target_mode" ]]; then
+        mode_drifted_configs+=("$path")
+      fi
+    else
+      customized_configs+=("$path")
+    fi
+  done < <(find "$source_root" -type f -print0 | sort -z)
+
+  if ((${#missing_configs[@]} > 0)); then
+    add_finding "config.missing" "Repairable" \
+      "$(join_by ", " "${missing_configs[@]}")" "config"
+  fi
+  if ((${#mode_drifted_configs[@]} > 0)); then
+    add_finding "config.mode-drift" "Repairable" \
+      "same-byte files with incorrect mode: $(join_by ", " "${mode_drifted_configs[@]}")" \
+      "config"
+  fi
+  if ((${#customized_configs[@]} > 0)); then
+    add_finding "config.customized" "Informational" \
+      "Safe Repair preserves content and modes: $(join_by ", " "${customized_configs[@]}")"
+  fi
+  if ((${#wrong_type_configs[@]} > 0)); then
+    add_finding "config.wrong-type" "Blocked" \
+      "Reset can back up and restore: $(join_by ", " "${wrong_type_configs[@]}")"
+  fi
+  if ((${#missing_configs[@]} == 0 &&
+    ${#mode_drifted_configs[@]} == 0 &&
+    ${#customized_configs[@]} == 0 &&
+    ${#wrong_type_configs[@]} == 0)); then
+    add_finding "config.qvos" "Ready" "qvOS-owned config bytes and modes match source"
+  fi
+}
+
+inspect_storage_target() {
+  local target=$1
+  local label=$2
+  local blocked_kib=$3
+  local warning_kib=$4
+  local mount_options=""
+  local df_line=""
+  local available
+  local inode_line=""
+  local inode_total
+  local inode_available
+  local inode_percent=100
+
+  if command_exists findmnt; then
+    mount_options=$(findmnt -n -o OPTIONS -T "$target" 2>/dev/null || true)
+    if [[ ,$mount_options, == *,ro,* ]]; then
+      add_finding "storage.$label-read-only" "Blocked" \
+        "$target is on a read-only mount"
+      persistent_preconditions_failed=1
+    fi
+  fi
+
+  df_line=$(df -Pk "$target" 2>/dev/null | tail -n 1 || true)
+  if [[ -z $df_line ]]; then
+    add_finding "storage.$label-unverified" "Blocked" \
+      "free blocks for $target could not be inspected"
+    persistent_preconditions_failed=1
+    return
+  fi
+  available=$(awk '{ print $4 }' <<<"$df_line")
+  if [[ ! $available =~ ^[0-9]+$ ]]; then
+    add_finding "storage.$label-unverified" "Blocked" \
+      "free blocks for $target were not numeric"
+    persistent_preconditions_failed=1
+    return
+  fi
+  if ((available < blocked_kib)); then
+    add_finding "storage.$label-blocked" "Blocked" \
+      "$target has ${available} KiB free; persistent repair requires ${blocked_kib} KiB"
+    persistent_preconditions_failed=1
+  elif ((available < warning_kib)); then
+    add_finding "storage.$label-warning" "Informational" \
+      "$target has ${available} KiB free; ${warning_kib} KiB is recommended"
+  else
+    add_finding "storage.$label-blocks" "Ready" \
+      "$target has ${available} KiB free"
+  fi
+
+  inode_line=$(df -Pi "$target" 2>/dev/null | tail -n 1 || true)
+  if [[ -n $inode_line ]]; then
+    read -r inode_total inode_available < <(
+      awk '{ print $2, $4 }' <<<"$inode_line"
+    )
+    if [[ $inode_total =~ ^[0-9]+$ &&
+      $inode_available =~ ^[0-9]+$ ]] && ((inode_total > 0)); then
+      inode_percent=$((inode_available * 100 / inode_total))
+      if ((inode_percent < 5)); then
+        add_finding "storage.$label-inodes-blocked" "Blocked" \
+          "$target has ${inode_percent}% free inodes"
+        persistent_preconditions_failed=1
+      elif ((inode_percent < 10)); then
+        add_finding "storage.$label-inodes-warning" "Informational" \
+          "$target has ${inode_percent}% free inodes"
+      fi
+    fi
+  fi
+}
+
+inspect_storage() {
+  local boot_target=""
+
+  inspect_storage_target "/" "root" 2097152 5242880
+  inspect_storage_target "$HOME" "home" 2097152 5242880
+
+  if command_exists findmnt; then
+    boot_target=$(findmnt -n -o TARGET -T /boot 2>/dev/null || true)
+  fi
+  if [[ $boot_target == "/boot" ]]; then
+    inspect_storage_target "/boot" "boot" 262144 524288
+  else
+    add_finding "storage.boot-shared" "Ready" \
+      "/boot shares the root filesystem and its root threshold"
+  fi
+}
+
+inspect_network() {
+  local unavailable=()
+
+  if command_exists ip && ip route show default 2>/dev/null | grep -q .; then
+    :
+  else
+    unavailable+=("default route")
+  fi
+  if command_exists getent && getent ahostsv4 archlinux.org >/dev/null 2>&1; then
+    :
+  else
+    unavailable+=("DNS")
+  fi
+  if command_exists curl &&
+    curl -fsSI --connect-timeout 2 --max-time 4 \
+      https://archlinux.org/packages/ >/dev/null 2>&1; then
+    :
+  else
+    unavailable+=("repository reachability")
+  fi
+  if command_exists timedatectl &&
+    [[ $(timedatectl show -p NTPSynchronized --value 2>/dev/null || true) == "yes" ]]; then
+    :
+  else
+    unavailable+=("NTP synchronization")
+  fi
+
+  if ((${#unavailable[@]} == 0)); then
+    add_finding "network.readiness" "Ready" \
+      "route, DNS, package reachability, and NTP are ready"
+  else
+    add_finding "network.readiness" "Informational" \
+      "offline recovery readiness: $(join_by ", " "${unavailable[@]}")"
+  fi
+}
+
+discover_hyprland_instances() {
+  local instances=""
+  local signature
+  local pid
+  local socket
+  local uid
+  local process_name
+  local instance_root
+  local lock_pid=""
+  local lock_socket=""
+
+  command_exists hyprctl || return
+  instances=$(hyprctl instances 2>/dev/null || true)
+  while IFS=$'\t' read -r signature pid socket; do
+    [[ $signature =~ ^[[:alnum:]_.-]+$ ]] || continue
+    [[ $pid =~ ^[0-9]+$ ]] || continue
+    [[ $socket =~ ^[[:alnum:]_.-]+$ ]] || continue
+    uid=$(process_uid "$pid" 2>/dev/null || true)
+    [[ $uid == "$UID" ]] || continue
+    IFS= read -r process_name <"$proc_root/$pid/comm" || continue
+    [[ $process_name == "Hyprland" ]] || continue
+    instance_root="${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr/$signature"
+    [[ -d $instance_root && ! -L $instance_root ]] || continue
+    [[ $(stat -c '%u' "$instance_root" 2>/dev/null || true) == "$UID" ]] ||
+      continue
+    [[ -f $instance_root/hyprland.lock &&
+      ! -L $instance_root/hyprland.lock ]] || continue
+    {
+      IFS= read -r lock_pid
+      IFS= read -r lock_socket
+    } <"$instance_root/hyprland.lock"
+    [[ $lock_pid == "$pid" && $lock_socket == "$socket" ]] || continue
+
+    valid_hyprland_signatures+=("$signature")
+    hyprland_pid[$signature]=$pid
+    hyprland_socket[$signature]=$socket
+  done < <(
+    awk '
+      /^instance / {
+        signature = $2
+        sub(/:$/, "", signature)
+        pid = ""
+        socket = ""
+      }
+      /^[[:space:]]+pid:/ { pid = $2 }
+      /^[[:space:]]+wl socket:/ {
+        socket = $3
+        print signature "\t" pid "\t" socket
+      }
+    ' <<<"$instances"
+  )
+}
+
+locker_matches_signature() {
+  local pid=$1
+  local signature=$2
+  local uid
+  local process_name
+  local process_signature
+  local wayland_display
+  local runtime_dir
+
+  uid=$(process_uid "$pid" 2>/dev/null || true)
+  [[ $uid == "$UID" ]] || return 1
+  IFS= read -r process_name <"$proc_root/$pid/comm" || return 1
+  [[ $process_name == "hyprlock" ]] || return 1
+  process_signature=$(
+    read_process_value "$pid" HYPRLAND_INSTANCE_SIGNATURE 2>/dev/null || true
+  )
+  [[ $process_signature == "$signature" ]] || return 1
+  wayland_display=$(
+    read_process_value "$pid" WAYLAND_DISPLAY 2>/dev/null || true
+  )
+  [[ $wayland_display == "${hyprland_socket[$signature]:-}" ]] || return 1
+  runtime_dir=$(
+    read_process_value "$pid" XDG_RUNTIME_DIR 2>/dev/null || true
+  )
+  [[ $runtime_dir == "/run/user/$UID" ]] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+inspect_lockers() {
+  local pid
+  local signature
+  local uid
+  local matched
+  local unmatched=()
+
+  mapfile -t locker_pids < <(processes_named hyprlock)
+  for pid in "${locker_pids[@]}"; do
+    uid=$(process_uid "$pid" 2>/dev/null || true)
+    [[ $uid == "$UID" ]] || continue
+    matched=0
+    for signature in "${valid_hyprland_signatures[@]}"; do
+      if locker_matches_signature "$pid" "$signature"; then
+        matching_locker[$signature]=$pid
+        matched=1
+        break
+      fi
+    done
+    if ((matched == 0)); then
+      unmatched+=("$pid")
+    fi
+  done
+
+  if ((${#valid_hyprland_signatures[@]} == 0)); then
+    add_finding "hyprland.instances" "Informational" \
+      "no same-user Hyprland instance with a validated signature is running"
+    return
+  fi
+
+  for signature in "${valid_hyprland_signatures[@]}"; do
+    if [[ -n ${matching_locker[$signature]:-} ]]; then
+      add_finding "hyprland.locker-$signature" "Ready" \
+        "hyprlock PID ${matching_locker[$signature]} matches the exact compositor environment"
+    else
+      add_finding "hyprland.locker-$signature" "Informational" \
+        "no locker is active for $signature; this is normal while unlocked"
+    fi
+  done
+  if ((${#unmatched[@]} > 0)); then
+    add_finding "hyprland.locker-unmatched" "Informational" \
+      "same-user hyprlock processes do not match a validated instance: $(join_by ", " "${unmatched[@]}")"
+  fi
+}
+
+inspect_hyprland_services() {
+  local units=""
+  local unit
+  local active
+  local sub
+  local active_compositors=()
+  local failed_compositors=()
+  local portal
+  local wait_result=""
+
+  command_exists systemctl || return
+  units=$(
+    systemctl --user list-units --type=service --all --no-legend \
+      'wayland-wm@*.service' 2>/dev/null || true
+  )
+  while read -r unit _ active sub _; do
+    [[ $unit == wayland-wm@*.service ]] || continue
+    if [[ $active == "active" && $sub == "running" ]]; then
+      active_compositors+=("$unit")
+    elif [[ $active == "failed" || $sub == "failed" ]]; then
+      failed_compositors+=("$unit")
+    fi
+  done <<<"$units"
+
+  if ((${#failed_compositors[@]} > 0)); then
+    add_finding "hyprland.uwsm-failed" "Blocked" \
+      "failed compositor unit(s): $(join_by ", " "${failed_compositors[@]}"); qvOS will not stop or restart UWSM"
+  elif ((${#active_compositors[@]} > 0)); then
+    add_finding "hyprland.uwsm" "Ready" \
+      "active compositor unit(s): $(join_by ", " "${active_compositors[@]}")"
+  else
+    add_finding "hyprland.uwsm" "Informational" \
+      "no active UWSM compositor unit was found"
+  fi
+
+  wait_result=$(
+    systemctl --user show wayland-session-waitenv.service \
+      -p Result --value 2>/dev/null || true
+  )
+  if [[ $wait_result == "failed" || $wait_result == "timeout" ]]; then
+    add_finding "hyprland.uwsm-waitenv" "Informational" \
+      "wayland-session-waitenv.service result is $wait_result"
+  fi
+
+  if systemctl is-failed --quiet sddm.service 2>/dev/null; then
+    add_finding "hyprland.sddm-failed" "Blocked" \
+      "sddm.service is failed; qvOS will not restart it"
+  elif systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+    add_finding "hyprland.sddm" "Ready" "sddm.service is enabled and not failed"
+  else
+    add_finding "hyprland.sddm-disabled" "Repairable" \
+      "sddm.service is not enabled; Safe Repair can enable it without restarting" \
+      "services"
+  fi
+
+  for portal in xdg-desktop-portal.service \
+    xdg-desktop-portal-hyprland.service xdg-desktop-portal-gtk.service; do
+    if ! systemctl --user is-active --quiet "$portal" 2>/dev/null ||
+      systemctl --user is-failed --quiet "$portal" 2>/dev/null; then
+      broken_portal_units+=("$portal")
+    fi
+  done
+  if ((${#broken_portal_units[@]} > 0)); then
+    add_finding "hyprland.portals" "Repairable" \
+      "targeted restart needed: $(join_by ", " "${broken_portal_units[@]}")" \
+      "services"
+  elif command_exists busctl &&
+    busctl --user status org.freedesktop.portal.Desktop >/dev/null 2>&1; then
+    add_finding "hyprland.portals" "Ready" \
+      "portal units and org.freedesktop.portal.Desktop owner are active"
+  else
+    add_unique "xdg-desktop-portal.service" broken_portal_units
+    add_finding "hyprland.portal-owner" "Repairable" \
+      "portal D-Bus owner is unavailable" "services"
+  fi
+
+  if ((${#valid_hyprland_signatures[@]} > 0)); then
+    if user_process_named hypridle; then
+      add_finding "hyprland.hypridle" "Ready" "hypridle is running"
+    else
+      add_finding "hyprland.hypridle" "Repairable" \
+        "hypridle is not running during a Hyprland session" "services"
+    fi
+  fi
+}
+
+inspect_hyprland_outputs() {
+  local signature
+  local monitors=""
+  local counts
+  local enabled
+  local awake
+  local mode_summary
+  local mode_detail
+
+  command_exists hyprctl || return
+  for signature in "${valid_hyprland_signatures[@]}"; do
+    if ! monitors=$(
+      hyprctl --instance "$signature" monitors all 2>/dev/null
+    ); then
+      add_finding "hyprland.outputs-$signature" "Blocked" \
+        "output inventory is unavailable for validated instance $signature"
+      continue
+    fi
+    counts=$(
+      awk '
+        function finish_monitor() {
+          if (seen && disabled == "false") {
+            enabled += 1
+            if (dpms == "1") {
+              awake += 1
+            }
+          }
+        }
+        /^Monitor / {
+          finish_monitor()
+          seen = 1
+          disabled = ""
+          dpms = ""
+        }
+        /^[[:space:]]+disabled:/ { disabled = $2 }
+        /^[[:space:]]+dpmsStatus:/ { dpms = $2 }
+        END {
+          finish_monitor()
+          print enabled + 0, awake + 0
+        }
+      ' <<<"$monitors"
+    )
+    mode_summary=$(
+      awk '
+        /^Monitor / {
+          name = $2
+          sub(/:$/, "", name)
+          if (getline > 0) {
+            sub(/^[[:space:]]+/, "")
+            if (summary != "") {
+              summary = summary ", "
+            }
+            summary = summary name " " $0
+          }
+        }
+        END { print summary }
+      ' <<<"$monitors"
+    )
+    mode_detail=""
+    [[ -n $mode_summary ]] && mode_detail="; modes: $mode_summary"
+    read -r enabled awake <<<"$counts"
+    if ((enabled == 0)); then
+      add_finding "hyprland.outputs-$signature" "Blocked" \
+        "no output is enabled$mode_detail; inspect: hyprctl --instance $signature monitors all"
+    elif ((awake == 0)) && [[ -n ${matching_locker[$signature]:-} ]]; then
+      add_finding "hyprland.outputs-$signature" "Informational" \
+        "all $enabled enabled output(s) have DPMS off while a validated locker is active$mode_detail" \
+        "wake-displays"
+    elif ((awake == 0)); then
+      add_finding "hyprland.outputs-$signature" "Repairable" \
+        "all $enabled enabled output(s) have DPMS off$mode_detail" "wake-displays"
+    else
+      add_finding "hyprland.outputs-$signature" "Ready" \
+        "$awake of $enabled enabled output(s) have DPMS on$mode_detail"
+    fi
+  done
+}
+
+inspect_hyprland_logs() {
+  local cache_root=${XDG_CACHE_HOME:-$HOME/.cache}
+  local boot_time=0
+  local report
+  local report_mtime
+  local signature
+  local log_path
+  local coredumps=""
+  local journal_errors=""
+  local executable
+  local system_info=""
+  local backend=""
+  local gpu_drivers=""
+  local evidence=""
+
+  if [[ -r $proc_root/stat ]]; then
+    boot_time=$(awk '$1 == "btime" { print $2 }' "$proc_root/stat")
+  fi
+  for report in "$cache_root"/hyprland/hyprlandCrashReport*.txt; do
+    [[ -f $report ]] || continue
+    report_mtime=$(stat -c '%Y' "$report")
+    if ((boot_time == 0 || report_mtime >= boot_time)); then
+      add_finding "hyprland.crash-report" "Informational" \
+        "current-boot crash report: $report"
+      break
+    fi
+  done
+
+  if command_exists coredumpctl; then
+    for executable in Hyprland hyprlock; do
+      coredumps+=$(
+        coredumpctl --no-pager --no-legend -b list "$executable" 2>/dev/null ||
+          true
+      )
+    done
+    if [[ -n $coredumps ]]; then
+      add_finding "hyprland.coredumps" "Informational" \
+        "current-boot coredumps exist; inspect with: coredumpctl -b info"
+    fi
+  fi
+
+  if command_exists journalctl; then
+    journal_errors=$(
+      journalctl --user -b --no-pager -p warning \
+        -u 'wayland-wm@*.service' \
+        -u xdg-desktop-portal.service \
+        -u xdg-desktop-portal-hyprland.service \
+        -u xdg-desktop-portal-gtk.service \
+        -u hypridle.service 2>/dev/null |
+        grep -Ei 'crash|coredump|fatal|failed|segfault|timeout' |
+        tail -n 5 || true
+    )
+    if [[ -n $journal_errors ]]; then
+      add_finding "hyprland.current-boot-log" "Informational" \
+        "warning evidence exists; inspect the current boot with journalctl --user -b"
+    fi
+  fi
+
+  for signature in "${valid_hyprland_signatures[@]}"; do
+    log_path="${XDG_RUNTIME_DIR:-/run/user/$UID}/hypr/$signature/hyprland.log"
+    system_info=$(
+      hyprctl --instance "$signature" systeminfo 2>/dev/null || true
+    )
+    backend=$(
+      awk -F':[[:space:]]*' \
+        'tolower($1) == "backend" { print $2; exit }' <<<"$system_info"
+    )
+    gpu_drivers=""
+    if [[ -r $log_path ]]; then
+      gpu_drivers=$(
+        sed -nE \
+          's/.*[Ww]ith driver ([^[:space:]]+).*/\1/p' \
+          "$log_path" |
+          sort -u |
+          paste -sd, -
+      )
+    fi
+    evidence="backend ${backend:-unverified}"
+    [[ -n $gpu_drivers ]] && evidence+="; GPU driver(s) $gpu_drivers"
+    if [[ -r $log_path ]]; then
+      add_finding "hyprland.log-$signature" "Ready" \
+        "$evidence; compositor log: $log_path"
+    else
+      add_finding "hyprland.log-$signature" "Informational" \
+        "$evidence; expected compositor log is unavailable: $log_path"
+    fi
+  done
+}
+
+inspect_hyprland() {
+  local output=""
+  local signature
+  local errors=""
+  local live_errors=0
+
+  if command_exists Hyprland && [[ -f $HOME/.config/hypr/hyprland.conf ]]; then
+    if output=$(
+      Hyprland --verify-config --config "$HOME/.config/hypr/hyprland.conf" 2>&1
+    ); then
+      add_finding "hyprland.offline-config" "Ready" \
+        "Hyprland accepts the complete config offline"
+    else
+      add_finding "hyprland.offline-config" "Blocked" \
+        "offline config verification failed; preserve and inspect user config"
+    fi
+  else
+    add_finding "hyprland.offline-config" "Informational" \
+      "Hyprland or its user config is unavailable for offline verification"
+  fi
+
+  discover_hyprland_instances
+  for signature in "${valid_hyprland_signatures[@]}"; do
+    errors=$(hyprctl --instance "$signature" configerrors 2>/dev/null || true)
+    if [[ -n $errors ]]; then
+      add_finding "hyprland.live-config-$signature" "Blocked" \
+        "live config errors: ${errors//$'\n'/; }"
+      live_errors=1
+    fi
+  done
+  if ((${#valid_hyprland_signatures[@]} > 0 && live_errors == 0)); then
+    add_finding "hyprland.live-config" "Ready" \
+      "all validated live instances report no config errors"
+  fi
+
+  inspect_lockers
+  inspect_hyprland_services
+  inspect_hyprland_outputs
+  inspect_hyprland_logs
+}
+
+run_inspection() {
+  reset_inspection
+  inspect_tools
+  inspect_pacman_state
+  inspect_packages
+  inspect_source
+  inspect_runtime
+  inspect_configs
+  inspect_storage
+  inspect_network
+  inspect_hyprland
+}
+
+print_report() {
+  local title=$1
+  local id
+  local ready
+  local repairable
+  local blocked
+  local informational
+
+  ready=$(count_findings "Ready")
+  repairable=$(count_findings "Repairable")
+  blocked=$(count_findings "Blocked")
+  informational=$(count_findings "Informational")
+
+  printf '%s: Inspect\n\n' "$title"
+  echo "qvOS Recovery Health"
+  echo ""
+  for id in "${finding_ids[@]}"; do
+    printf '  [%-13s] %-38s %s\n' \
+      "${finding_state[$id]}" "$id" "${finding_detail[$id]}"
+  done
+  echo ""
+  printf '  Ready: %d  Repairable: %d  Blocked: %d  Informational: %d\n' \
+    "$ready" "$repairable" "$blocked" "$informational"
+  echo ""
+
+  if ((blocked > 0)); then
+    echo "qvOS recovery has blocked findings; no inspection changes were made."
+  elif ((repairable > 0)); then
+    echo "qvOS has repairable findings; no inspection changes were made."
+  else
+    echo "qvOS is ready; no changes were made."
+  fi
+}
+
+plain_choose() {
+  local prompt=$1
+  shift
+  local options=("$@")
+  local index
+  local answer
+
+  printf '%s\n' "$prompt" >/dev/tty
+  for index in "${!options[@]}"; do
+    printf '  %d) %s\n' "$((index + 1))" "${options[$index]}" >/dev/tty
+  done
+  printf '> ' >/dev/tty
+  IFS= read -r answer </dev/tty
+  [[ $answer =~ ^[0-9]+$ ]] || return 1
+  ((answer >= 1 && answer <= ${#options[@]})) || return 1
+  printf '%s' "${options[$((answer - 1))]}"
+}
+
+choose_option() {
+  local prompt=$1
+  shift
+
+  if command_exists gum; then
+    gum choose --header "$prompt" "$@"
+  else
+    plain_choose "$prompt" "$@"
+  fi
+}
+
+confirm_action() {
+  local prompt=$1
+  local answer
+
+  if command_exists gum; then
+    gum confirm "$prompt"
+  else
+    printf '%s [y/N] ' "$prompt" >/dev/tty
+    IFS= read -r answer </dev/tty
+    [[ $answer == "y" || $answer == "Y" || $answer == "yes" ||
+      $answer == "YES" ]]
+  fi
+}
+
+select_hyprland_signature() {
+  local options=()
+  local signature
+  local selection
+
+  ((${#valid_hyprland_signatures[@]} > 0)) || return 1
+  if ((${#valid_hyprland_signatures[@]} == 1)); then
+    printf '%s' "${valid_hyprland_signatures[0]}"
+    return
+  fi
+  for signature in "${valid_hyprland_signatures[@]}"; do
+    options+=("$signature (PID ${hyprland_pid[$signature]}, ${hyprland_socket[$signature]})")
+  done
+  selection=$(choose_option "Choose the exact Hyprland instance" "${options[@]}") ||
+    return
+  printf '%s' "${selection%% *}"
+}
+
+validated_locker_for() {
+  local signature=$1
+  local pid
+
+  mapfile -t locker_pids < <(processes_named hyprlock)
+  for pid in "${locker_pids[@]}"; do
+    locker_matches_signature "$pid" "$signature" || continue
+    printf '%s' "$pid"
+    return
+  done
+  return 1
+}
+
+hyprland_signature_is_valid() {
+  local signature=$1
+  local pid=${hyprland_pid[$signature]:-}
+  local socket=${hyprland_socket[$signature]:-}
+  local uid
+  local process_name
+  local runtime_dir
+  local wayland_display
+  local instance_root
+  local lock_pid=""
+  local lock_socket=""
+
+  [[ $pid =~ ^[0-9]+$ && $socket =~ ^[[:alnum:]_.-]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  uid=$(process_uid "$pid" 2>/dev/null || true)
+  [[ $uid == "$UID" ]] || return 1
+  IFS= read -r process_name <"$proc_root/$pid/comm" || return 1
+  [[ $process_name == "Hyprland" ]] || return 1
+
+  runtime_dir=$(
+    read_process_value "$pid" XDG_RUNTIME_DIR 2>/dev/null || true
+  )
+  [[ $runtime_dir == "/run/user/$UID" ]] || return 1
+  wayland_display=$(
+    read_process_value "$pid" WAYLAND_DISPLAY 2>/dev/null || true
+  )
+  [[ $wayland_display == "$socket" ]] || return 1
+
+  instance_root="$runtime_dir/hypr/$signature"
+  [[ -d $instance_root && ! -L $instance_root ]] || return 1
+  [[ $(stat -c '%u' "$instance_root" 2>/dev/null || true) == "$UID" ]] ||
+    return 1
+  [[ -f $instance_root/hyprland.lock &&
+    ! -L $instance_root/hyprland.lock ]] || return 1
+  {
+    IFS= read -r lock_pid
+    IFS= read -r lock_socket
+  } <"$instance_root/hyprland.lock"
+  [[ $lock_pid == "$pid" && $lock_socket == "$socket" ]]
+}
+
+wake_displays() {
+  local signature
+
+  signature=$(select_hyprland_signature) || {
+    echo "No validated same-user Hyprland instance is available." >&2
+    return 1
+  }
+  hyprland_signature_is_valid "$signature" || {
+    echo "Refusing display recovery: the Hyprland instance changed after inspection." >&2
+    return 1
+  }
+  hyprctl --instance "$signature" dispatch dpms on
+  echo "Display wake requested for Hyprland instance $signature."
+}
+
+recover_lockdead() {
+  local signature
+  local compositor_pid
+  local wayland_display
+  local runtime_dir
+  local bus_address
+  local state_dir="$HOME/.local/state/qvos/recovery"
+  local log_path
+  local locker_pid
+
+  ((assume_yes == 0)) || {
+    echo "--yes cannot unlock or clear a session." >&2
+    return 2
+  }
+  if ! command_exists hyprlock || ! command_exists hyprctl; then
+    echo "Hyprland lock recovery requires hyprlock and hyprctl." >&2
+    return 1
+  fi
+
+  signature=$(select_hyprland_signature) || {
+    echo "No validated same-user Hyprland instance is available." >&2
+    return 1
+  }
+  hyprland_signature_is_valid "$signature" || {
+    echo "Refusing recovery: the Hyprland instance changed after inspection." >&2
+    return 1
+  }
+  if locker_pid=$(validated_locker_for "$signature"); then
+    echo "Refusing recovery: healthy matching hyprlock PID $locker_pid is active." >&2
+    return 1
+  fi
+
+  compositor_pid=${hyprland_pid[$signature]}
+  wayland_display=$(
+    read_process_value "$compositor_pid" WAYLAND_DISPLAY 2>/dev/null || true
+  )
+  runtime_dir=$(
+    read_process_value "$compositor_pid" XDG_RUNTIME_DIR 2>/dev/null || true
+  )
+  bus_address=$(
+    read_process_value "$compositor_pid" DBUS_SESSION_BUS_ADDRESS 2>/dev/null ||
+      true
+  )
+  [[ $wayland_display == "${hyprland_socket[$signature]}" ]] || {
+    echo "Refusing recovery: compositor Wayland socket no longer matches." >&2
+    return 1
+  }
+  [[ $runtime_dir == "/run/user/$UID" ]] || {
+    echo "Refusing recovery: compositor runtime directory is not owned by this login." >&2
+    return 1
+  }
+
+  install -d -m 0700 "$state_dir"
+  log_path="$state_dir/hyprlock-$signature.log"
+  HYPRLAND_INSTANCE_SIGNATURE="$signature" \
+    WAYLAND_DISPLAY="$wayland_display" \
+    XDG_RUNTIME_DIR="$runtime_dir" \
+    DBUS_SESSION_BUS_ADDRESS="$bus_address" \
+    hyprlock --immediate-render >"$log_path" 2>&1 &
+  locker_pid=$!
+  sleep 2
+
+  if kill -0 "$locker_pid" 2>/dev/null &&
+    [[ $(read_process_value "$locker_pid" HYPRLAND_INSTANCE_SIGNATURE \
+      2>/dev/null || true) == "$signature" ]]; then
+    echo "Replacement hyprlock PID $locker_pid is healthy."
+    echo "Return to the graphical TTY and unlock normally."
+    echo "Recovery log: $log_path"
+    return
+  fi
+
+  wait "$locker_pid" 2>/dev/null || true
+  echo "Replacement hyprlock did not remain healthy. Log: $log_path" >&2
+  if ! confirm_action \
+    "Do you currently see Hyprland's sad-face lockdead screen on this exact session?"; then
+    echo "Crashed-lock clearing was not confirmed; the session remains locked."
+    return 1
+  fi
+  if locker_pid=$(validated_locker_for "$signature"); then
+    echo "Refusing to clear: matching hyprlock PID $locker_pid became active." >&2
+    return 1
+  fi
+  hyprland_signature_is_valid "$signature" || {
+    echo "Refusing to clear: the Hyprland instance changed during recovery." >&2
+    return 1
+  }
+
+  hyprctl --instance "$signature" eval 'hl.clear_crashed_lockscreen()'
+  echo "Hyprland accepted the official crashed-lock clearing operation for $signature."
+}
+
+create_root_snapshot() {
+  local before=0
+  local after=0
+  local created=""
+  local number
+
+  command_exists snapper || {
+    echo "Persistent repair requires snapper before any mutation." >&2
+    return 1
+  }
+  while IFS= read -r number; do
+    number=${number//[[:space:]]/}
+    [[ $number =~ ^[0-9]+$ ]] || continue
+    ((number > before)) && before=$number
+  done < <(
+    sudo snapper -c root list --columns number --no-headers 2>/dev/null ||
+      true
+  )
+
+  created=$(
+    sudo snapper -c root create -c number \
+      -d "qvOS recovery before persistent repair" --print-number 2>/dev/null
+  ) || {
+    echo "Root Snapper snapshot creation failed; no persistent changes were made." >&2
+    return 1
+  }
+  created=${created//[[:space:]]/}
+  [[ $created =~ ^[0-9]+$ ]] || {
+    echo "Snapper did not return a verifiable snapshot ID." >&2
+    return 1
+  }
+
+  while IFS= read -r number; do
+    number=${number//[[:space:]]/}
+    [[ $number =~ ^[0-9]+$ ]] || continue
+    ((number > after)) && after=$number
+  done < <(
+    sudo snapper -c root list --columns number --no-headers 2>/dev/null ||
+      true
+  )
+  if ((created <= before || after < created)); then
+    echo "A newer root Snapper snapshot could not be proven; repair aborted." >&2
+    return 1
+  fi
+  printf '  root snapshot %s verified\n' "$created"
+}
+
+repair_packages() {
+  local missing=()
+  local damaged=()
+
+  for package in "${missing_essential_packages[@]}" \
+    "${missing_hardware_packages[@]}"; do
+    add_unique "$package" missing
+  done
+  for package in "${damaged_essential_packages[@]}" \
+    "${damaged_hardware_packages[@]}"; do
+    add_unique "$package" damaged
+  done
+
+  if [[ $repair_mode == "reset" ]]; then
+    for package in "${missing_default_packages[@]}"; do
+      add_unique "$package" missing
+    done
+  fi
+  if ((${#missing[@]} > 0)); then
+    command_exists omarchy-pkg-add || {
+      echo "Missing package owner: omarchy-pkg-add" >&2
+      return 1
+    }
+    omarchy-pkg-add "${missing[@]}"
+  fi
+  if ((${#damaged[@]} > 0)); then
+    sudo pacman -S --noconfirm --overwrite '*' "${damaged[@]}"
+  fi
+}
+
+repair_runtime() {
+  QVOS_DESKTOP_MODE="$repair_mode" \
+    bash -c 'source "$1"' _ "$OMARCHY_PATH/qv/install/desktop"
+}
+
+repair_configs() {
+  local path
+  local source
+  local target
+  local source_mode
+  local restored_hyprland=0
+
+  for path in "${missing_configs[@]}"; do
+    "$OMARCHY_PATH/qv/config/refresh" "$path"
+    [[ $path == hypr/* ]] && restored_hyprland=1
+  done
+  for path in "${mode_drifted_configs[@]}"; do
+    source="$OMARCHY_PATH/qv/config/files/$path"
+    target="$HOME/.config/$path"
+    source_mode=$(stat -c '%a' "$source")
+    chmod "$source_mode" "$target"
+    [[ $path == hypr/* ]] && restored_hyprland=1
+  done
+  if [[ $repair_mode == "reset" ]]; then
+    for path in "${customized_configs[@]}" "${wrong_type_configs[@]}"; do
+      "$OMARCHY_PATH/qv/config/refresh" "$path"
+      [[ $path == hypr/* ]] && restored_hyprland=1
+    done
+  fi
+
+  if ((restored_hyprland)) && command_exists hyprctl &&
+    ((${#valid_hyprland_signatures[@]} > 0)); then
+    for signature in "${valid_hyprland_signatures[@]}"; do
+      hyprctl --instance "$signature" reload
+      if [[ -n $(hyprctl --instance "$signature" configerrors) ]]; then
+        echo "Hyprland reported config errors after qvOS config repair." >&2
+        hyprctl --instance "$signature" configerrors >&2
+        return 1
+      fi
+    done
+  fi
+}
+
+repair_services() {
+  local portal
+
+  if command_exists systemctl; then
+    if ! systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+      sudo systemctl enable sddm.service
+    fi
+    for portal in "${broken_portal_units[@]}"; do
+      systemctl --user restart "$portal"
+    done
+    if ((${#valid_hyprland_signatures[@]} > 0)) &&
+      ! user_process_named hypridle; then
+      systemctl --user restart hypridle.service
+    fi
+  fi
+}
+
+persistent_repair() {
+  echo "qvOS repair: Authorize"
+  sudo -v
+
+  integrity_privileged=1
+  run_inspection
+  if ((persistent_preconditions_failed)); then
+    print_report "qvOS repair revalidation"
+    echo "Persistent repair preconditions failed after sudo revalidation." >&2
+    return 1
+  fi
+
+  echo "qvOS repair: Snapshot"
+  create_root_snapshot
+
+  echo "qvOS repair: Packages"
+  repair_packages
+  echo "qvOS repair: Runtime"
+  repair_runtime
+  echo "qvOS repair: Config"
+  repair_configs
+  echo "qvOS repair: Services"
+  repair_services
+
+  echo "qvOS repair: Reinspect"
+  run_inspection
+  print_report "qvOS repair"
+  if (( $(count_findings "Repairable") > 0 || $(count_findings "Blocked") > 0 )); then
+    echo "qvOS repair completed with unresolved findings." >&2
+    return 1
+  fi
+  echo "qvOS ${repair_mode/repair/safe repair} is complete."
 }
 
 for argument in "$@"; do
@@ -64,136 +1746,46 @@ if [[ $repair_mode == "status" ]] && ((assume_yes)); then
   usage
   exit 2
 fi
+if [[ $repair_mode == "reset" ]] && ((assume_yes)); then
+  echo "--yes selects Safe Repair only; Reset always requires confirmation." >&2
+  usage
+  exit 2
+fi
 
-operation_name="qvOS repair"
+run_inspection
+
 if [[ $repair_mode == "status" ]]; then
-  operation_name="qvOS health"
-fi
-required_commands=(git omarchy-pkg-present)
-if [[ $repair_mode != "status" ]]; then
-  required_commands+=(omarchy-pkg-add)
-fi
-for command in "${required_commands[@]}"; do
-  if ! command -v "$command" >/dev/null 2>&1; then
-    echo "$operation_name requires the qvOS base command: $command" >&2
+  print_report "qvOS health"
+  if ((health_check)) &&
+    (( $(count_findings "Repairable") > 0 || $(count_findings "Blocked") > 0 )); then
     exit 1
   fi
-done
-
-branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
-if [[ $branch != "OS" ]]; then
-  echo "$operation_name requires the live qvOS checkout on branch OS; found '${branch:-none}'." >&2
-  exit 1
-fi
-
-required_sources=(
-  qv/config/files
-  qv/install/desktop
-  qv/install/desktop-status
-  qv/install/packaging/base.packages
-  qv/config/refresh
-)
-
-for source_path in "${required_sources[@]}"; do
-  if [[ ! -e $OMARCHY_PATH/$source_path ]]; then
-    echo "qvOS repair source is missing: $OMARCHY_PATH/$source_path" >&2
-    exit 1
-  fi
-done
-
-mapfile -t config_paths < <(
-  cd "$OMARCHY_PATH/qv/config/files"
-  find . -type f -printf '%P\n' | sort
-)
-
-mapfile -t base_packages < <(
-  sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-    "$OMARCHY_PATH/qv/install/packaging/base.packages"
-)
-for package in "${base_packages[@]}"; do
-  if ! omarchy-pkg-present "$package"; then
-    missing_packages+=("$package")
-  fi
-done
-
-for config_path in "${config_paths[@]}"; do
-  source_config="$OMARCHY_PATH/qv/config/files/$config_path"
-  user_config="$HOME/.config/$config_path"
-
-  if [[ ! -f $user_config ]]; then
-    missing_configs+=("$config_path")
-  elif ! cmp -s "$source_config" "$user_config"; then
-    drifted_configs+=("$config_path")
-  fi
-done
-
-if runtime_issues=$("$OMARCHY_PATH/qv/install/desktop-status" 2>&1); then
-  runtime_ready=1
-fi
-
-if [[ $repair_mode == "status" ]]; then
-  echo "qvOS health: Inspect"
-else
-  echo "qvOS repair: Inspect"
-fi
-echo ""
-echo "qvOS Health"
-echo ""
-printf '  Removed default packages:    %d\n' "${#missing_packages[@]}"
-printf '  Missing qvOS config files:   %d\n' "${#missing_configs[@]}"
-printf '  Customized qvOS config:      %d\n' "${#drifted_configs[@]}"
-if ((runtime_ready)); then
-  echo "  qvOS-owned runtime:          Ready"
-else
-  echo "  qvOS-owned runtime:          Needs repair"
-fi
-
-if ((${#missing_packages[@]} > 0)); then
-  echo ""
-  echo "Safe repair preserves removed default packages as user choice."
-  echo "Reset reinstalls them from the original qvOS package manifest."
-  print_items "${missing_packages[@]}"
-fi
-if ((${#missing_configs[@]} > 0)); then
-  echo ""
-  echo "Safe repair and reset restore these missing qvOS config files:"
-  print_items "${missing_configs[@]}"
-fi
-if ((${#drifted_configs[@]} > 0)); then
-  echo ""
-  echo "Safe repair preserves customized qvOS config."
-  echo "Reset restores tracked qvOS config and creates timestamped backups."
-  print_items "${drifted_configs[@]}"
-fi
-if ((runtime_ready == 0)); then
-  echo ""
-  echo "qvOS runtime repair plan:"
-  while IFS= read -r issue; do
-    [[ -n $issue ]] && printf '    - %s\n' "$issue"
-  done <<<"$runtime_issues"
-fi
-
-if [[ $repair_mode == "status" ]]; then
-  echo ""
-  if ((${#missing_configs[@]} == 0 && runtime_ready)); then
-    echo "qvOS is healthy; no changes were made."
-    exit
-  fi
-  echo "qvOS needs repair; no changes were made."
-  ((health_check == 0)) || exit 1
   exit
 fi
 
-if [[ $repair_mode == "interactive" ]] && ((assume_yes == 0)); then
-  echo ""
-  selection=$(
-    gum choose \
-      --header "Choose a qvOS repair action" \
-      "Safe repair — preserve removed packages and customized config" \
-      "Restore qvOS defaults — reinstall packages and reset qvOS config" \
-      "Cancel"
-  ) || exit $?
+if [[ $repair_mode == "interactive" ]] && ((assume_yes)); then
+  repair_mode="repair"
+elif [[ $repair_mode == "interactive" ]]; then
+  options=()
+  if ((${#valid_hyprland_signatures[@]} > 0)); then
+    options+=("Recover Hyprland sad-face lock screen")
+  fi
+  for id in "${finding_ids[@]}"; do
+    if [[ ${finding_repair[$id]} == "wake-displays" ]]; then
+      options+=("Wake all Hyprland displays")
+      break
+    fi
+  done
+  options+=(
+    "Safe repair — preserve removed defaults and customized config"
+    "Restore qvOS defaults — reinstall defaults and reset qvOS config"
+    "Cancel"
+  )
+  selection=$(choose_option "Choose a qvOS recovery action" "${options[@]}") ||
+    exit 130
   case $selection in
+  "Recover Hyprland"*) recover_lockdead; exit ;;
+  "Wake all"*) wake_displays; exit ;;
   "Safe repair"*) repair_mode="repair" ;;
   "Restore qvOS defaults"*) repair_mode="reset" ;;
   *)
@@ -201,99 +1793,21 @@ if [[ $repair_mode == "interactive" ]] && ((assume_yes == 0)); then
     exit 130
     ;;
   esac
-elif [[ $repair_mode == "interactive" ]]; then
-  repair_mode="repair"
 fi
 
 if [[ $repair_mode == "reset" ]] && ((assume_yes == 0)); then
-  echo ""
-  gum confirm \
-    "Restore original qvOS packages and qvOS-owned config from the repository?" ||
+  confirm_action \
+    "Restore qvOS packages and qvOS-owned config after a verified root snapshot?" ||
     exit 130
 fi
 
-echo "qvOS repair: Source"
-echo "  branch OS verified"
-
-echo "qvOS repair: Packages"
-if [[ $repair_mode == "reset" ]] && ((${#missing_packages[@]} > 0)); then
-  omarchy-pkg-add "${missing_packages[@]}"
-elif ((${#missing_packages[@]} > 0)); then
-  printf '  preserved %d intentionally removable default package(s)\n' \
-    "${#missing_packages[@]}"
-else
-  echo "  base package set already present"
-fi
-if [[ $repair_mode == "reset" ]]; then
-  for package in "${missing_packages[@]}"; do
-    if ! omarchy-pkg-present "$package"; then
-      echo "qvOS default package restore failed: $package" >&2
-      exit 1
-    fi
-  done
-fi
-
-echo "qvOS repair: Runtime"
-QVOS_DESKTOP_MODE="$repair_mode" \
-  bash -c 'source "$1"' _ "$OMARCHY_PATH/qv/install/desktop"
-
-echo "qvOS repair: Config"
-restored_hyprland=0
-for config_path in "${missing_configs[@]}"; do
-  "$OMARCHY_PATH/qv/config/refresh" "$config_path"
-  [[ $config_path == hypr/* ]] && restored_hyprland=1
-done
-if [[ $repair_mode == "reset" ]]; then
-  for config_path in "${drifted_configs[@]}"; do
-    "$OMARCHY_PATH/qv/config/refresh" "$config_path"
-    [[ $config_path == hypr/* ]] && restored_hyprland=1
-  done
-fi
-
-for config_path in "${missing_configs[@]}"; do
-  if ! cmp -s \
-    "$OMARCHY_PATH/qv/config/files/$config_path" \
-    "$HOME/.config/$config_path"; then
-    echo "qvOS config repair failed: $config_path" >&2
+if [[ $repair_mode == "repair" ]] &&
+  (( $(count_findings "Repairable") == 0 )); then
+  print_report "qvOS repair"
+  if (( $(count_findings "Blocked") > 0 )); then
     exit 1
   fi
-done
-if [[ $repair_mode == "reset" ]]; then
-  for config_path in "${drifted_configs[@]}"; do
-    if ! cmp -s \
-      "$OMARCHY_PATH/qv/config/files/$config_path" \
-      "$HOME/.config/$config_path"; then
-      echo "qvOS config restore failed: $config_path" >&2
-      exit 1
-    fi
-  done
+  exit
 fi
 
-if ((restored_hyprland)); then
-  hyprctl reload
-  if [[ -n $(hyprctl configerrors) ]]; then
-    echo "Hyprland reported config errors after qvOS repair." >&2
-    hyprctl configerrors >&2
-    exit 1
-  fi
-fi
-
-if ! "$OMARCHY_PATH/qv/install/desktop-status"; then
-  echo "qvOS runtime verification failed after repair." >&2
-  exit 1
-fi
-
-echo "qvOS repair: Complete"
-if [[ $repair_mode == "repair" ]] && ((${#drifted_configs[@]} > 0)); then
-  printf '  preserved %d customized qvOS config file(s)\n' \
-    "${#drifted_configs[@]}"
-fi
-if [[ $repair_mode == "repair" ]] && ((${#missing_packages[@]} > 0)); then
-  printf '  preserved %d removed default package(s)\n' \
-    "${#missing_packages[@]}"
-fi
-if [[ $repair_mode == "reset" ]]; then
-  echo "qvOS defaults restore is complete."
-else
-  echo "qvOS safe repair is complete."
-fi
+persistent_repair

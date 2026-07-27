@@ -42,7 +42,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop power screensaver thunar tmux waybar; do
+for feature in desktop maintenance power screensaver shell thunar tmux waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -75,6 +75,10 @@ touch \
   "$test_root/.local/share/qvos/tmux/removed-feature" \
   "$test_root/.local/share/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
+# shellcheck disable=SC2016
+printf '%s\n' \
+  'source "$HOME/.local/share/omarchy/qv/shell/aliases"' \
+  >"$test_root/.bashrc"
 
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qv/install/desktop"
@@ -175,6 +179,45 @@ for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe;
     fail "$command_name runtime installation"
 done
 pass "power guards are installed with the desktop runtime"
+
+cmp -s \
+  "$root/qv/maintenance/essential-packages" \
+  "$test_root/.local/share/qvos/maintenance/essential-packages" ||
+  fail "recovery essential-package policy installation"
+cmp -s \
+  "$root/qv/maintenance/qvos-repair" \
+  "$test_root/.local/share/qvos/maintenance/qvos-repair" ||
+  fail "recovery engine installation"
+cmp -s \
+  "$root/qv/maintenance/qv" \
+  "$test_root/.local/bin/qv" ||
+  fail "qv recovery front door installation"
+[[ -x $test_root/.local/share/qvos/maintenance/qvos-repair ]] ||
+  fail "recovery engine mode"
+[[ ! -x $test_root/.local/share/qvos/maintenance/essential-packages ]] ||
+  fail "recovery package policy mode"
+[[ -x $test_root/.local/bin/qv && ! -L $test_root/.local/bin/qv ]] ||
+  fail "qv recovery front door is not a real executable"
+pass "recovery engine, package policy, and qv front door install independently"
+
+cmp -s \
+  "$root/qv/shell/aliases" \
+  "$test_root/.local/share/qvos/shell/aliases" ||
+  fail "runtime shell overlay"
+# shellcheck disable=SC2016
+grep -Fqx \
+  'source "$HOME/.local/share/qvos/shell/aliases"' \
+  "$test_root/.bashrc" ||
+  fail "runtime shell source line"
+# shellcheck disable=SC2016
+if grep -Fqx \
+  'source "$HOME/.local/share/omarchy/qv/shell/aliases"' \
+  "$test_root/.bashrc"; then
+  fail "source-tree shell source line"
+fi
+compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
+  fail "legacy Bash source line backup"
+pass "Bash loads the source-independent qvOS shell overlay"
 
 [[ "$(stat -c '%a' "$test_root/.local/share/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
 [[ -x $test_root/.local/share/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"

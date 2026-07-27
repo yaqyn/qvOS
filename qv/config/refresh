@@ -4,6 +4,8 @@ set -euo pipefail
 config_path=${1:-}
 source_file="$OMARCHY_PATH/qv/config/files/$config_path"
 target_file="$HOME/.config/$config_path"
+backup_file=""
+backup_suffix=0
 
 if [[ -z $config_path || ! -f $source_file ]]; then
   echo "Unknown qvOS config: ${config_path:-<empty>}" >&2
@@ -12,6 +14,11 @@ fi
 
 mkdir -p "$(dirname -- "$target_file")"
 if [[ -e $target_file || -L $target_file ]]; then
-  cp -a -- "$target_file" "$target_file.bak.$(date +%s)"
+  backup_file="$target_file.bak.$(date +%s)"
+  while [[ -e $backup_file || -L $backup_file ]]; do
+    ((backup_suffix += 1))
+    backup_file="$target_file.bak.$(date +%s).$backup_suffix"
+  done
+  mv -- "$target_file" "$backup_file"
 fi
-cp -a -- "$source_file" "$target_file"
+install -m "$(stat -c '%a' "$source_file")" "$source_file" "$target_file"

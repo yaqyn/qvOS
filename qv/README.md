@@ -57,17 +57,34 @@ changing qvOS identity, readiness, health, or base ownership.
   analysis, and restarts. A silent qvCORE post-update hook maintains only
   enabled WARP, Share, and Proton integration state; it never installs or
   updates curated apps.
-- `omarchy qvos health` is the read-only qvOS base inspection. It checks the
-  source branch, missing base config, customized config, and installed qvOS
-  runtime without grading personal software. A completed report exits
-  successfully even when it recommends repair; `--check` returns nonzero when
-  automation requires a healthy base.
-- `omarchy qvos repair` uses the same base inspection. Safe repair restores
-  missing config and tracked runtime while preserving package removals and
-  customization as user intent. `--reset` is the explicit, backup-backed path
-  that reinstalls missing packages from the original qvOS manifest and
-  restores every qvOS-owned config file from tracked source. It does not repair
-  or reinstall qvCORE software.
+- `omarchy qvos health` is the read-only qvOS Recovery v2 inspection. Stable
+  findings are Ready, Repairable, Blocked, or Informational across Pacman,
+  essential and running-hardware packages, source integrity, runtime and
+  config, storage, network readiness, and the Hyprland login session. A
+  completed report exits successfully; `--check` returns nonzero only for
+  Repairable or Blocked findings. Offline readiness and intentionally removed
+  defaults remain informational.
+- `qv repair` is a real `~/.local/bin` recovery front door suitable for a TTY.
+  Its engine and essential-package policy run from
+  `~/.local/share/qvos/maintenance`, independently of optional UI tools and
+  source-tree health. Other `qv` arguments pass through to Omarchy.
+- `omarchy qvos repair` and `qv repair` use the same runtime engine. Safe Repair
+  restores damaged essential or selected hardware packages, runtime bytes and
+  modes, missing config, same-byte config mode drift, and only affected
+  services. It preserves removed defaults and customized config. Before the
+  first persistent change, repair revalidates Pacman, storage, and source after
+  sudo, then proves a newer root Snapper snapshot. `--reset` additionally
+  reinstalls removable defaults and backup-restores qvOS-owned config.
+  `--yes` selects Safe Repair and can never unlock a session.
+- Hyprland recovery can wake all-asleep outputs, start a replacement locker
+  for an exact same-user compositor signature, and—only after replacement
+  failure plus explicit sad-face confirmation—ask Hyprland to clear its
+  crashed lock. It never clears a healthy locker, restarts SDDM, stops UWSM, or
+  kills the active compositor.
+- Recovery v2 Phase 1 targets a booted but damaged installation. Kernel,
+  module, UKI, Limine, and mkinitcpio rebuilds; mounted-filesystem repair;
+  comprehensive snapshot restore; networking mutation; and offline/unbootable
+  rescue remain outside this phase. qvCORE is never graded or repaired.
 - `omarchy install qvcore` installs everything. `apps` installs only the
   curated app catalog, `setups` installs only managed setups, and every
   component remains independently installable.

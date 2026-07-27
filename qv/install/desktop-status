@@ -15,17 +15,55 @@ check_file() {
   local target=$2
   local label=$3
 
-  cmp -s "$source" "$target" ||
+  if [[ ! -f $target || -L $target ]] ||
+    ! cmp -s "$source" "$target" ||
+    [[ $(stat -c '%a' "$source") != "$(stat -c '%a' "$target")" ]]; then
     report_drift "$label"
+  fi
 }
 
 check_tree() {
   local source=$1
   local target=$2
   local label=$3
+  local source_inventory
+  local target_inventory
+  local source_file
+  local path
 
-  if [[ ! -d $target ]] ||
-    ! diff -qr "$source" "$target" >/dev/null 2>&1; then
+  if [[ ! -d $target || -L $target ]]; then
+    report_drift "$label"
+    return
+  fi
+
+  source_inventory=$(
+    find "$source" -mindepth 1 \
+      -printf '%y\t%m\t%P\t%l\n' | sort
+  )
+  target_inventory=$(
+    find "$target" -mindepth 1 \
+      -printf '%y\t%m\t%P\t%l\n' | sort
+  )
+  if [[ $source_inventory != "$target_inventory" ]]; then
+    report_drift "$label"
+    return
+  fi
+
+  while IFS= read -r -d '' source_file; do
+    path=${source_file#"$source/"}
+    if ! cmp -s "$source_file" "$target/$path"; then
+      report_drift "$label"
+      return
+    fi
+  done < <(find "$source" -type f -print0)
+}
+
+check_link() {
+  local target=$1
+  local expected=$2
+  local label=$3
+
+  if [[ ! -L $target ]] || [[ $(readlink "$target") != "$expected" ]]; then
     report_drift "$label"
   fi
 }
@@ -36,6 +74,22 @@ for feature in desktop tmux waybar; do
     "$runtime_root/$feature" \
     "$feature runtime differs from tracked qvOS source"
 done
+
+check_file \
+  "$OMARCHY_PATH/qv/maintenance/essential-packages" \
+  "$runtime_root/maintenance/essential-packages" \
+  "recovery essential-package policy differs from tracked source"
+check_file \
+  "$OMARCHY_PATH/qv/maintenance/qvos-repair" \
+  "$runtime_root/maintenance/qvos-repair" \
+  "recovery engine differs from tracked source"
+check_file \
+  "$OMARCHY_PATH/qv/maintenance/qv" \
+  "$HOME/.local/bin/qv" \
+  "qv recovery front door differs from tracked source"
+if ! "$OMARCHY_PATH/qv/shell/status"; then
+  report_drift "qvOS runtime shell overlay or Bash source line differs"
+fi
 
 thunar_features=(
   actions.sh
@@ -88,10 +142,10 @@ for provider in \
     "$OMARCHY_PATH/qv/launcher/elephant/$provider" \
     "$launcher_runtime/$provider" \
     "launcher provider differs: $provider"
-  if [[ ! -L $launcher_menu/$provider ]] ||
-    [[ $(readlink "$launcher_menu/$provider") != "$launcher_runtime/$provider" ]]; then
-    report_drift "launcher provider link differs: $provider"
-  fi
+  check_link \
+    "$launcher_menu/$provider" \
+    "$launcher_runtime/$provider" \
+    "launcher provider link differs: $provider"
 done
 
 declare -A hook_source=(
@@ -126,10 +180,10 @@ for command_name in \
     "$OMARCHY_PATH/qv/screensaver/$command_name" \
     "$runtime_root/bin/$command_name" \
     "screensaver runtime differs: $command_name"
-  if [[ ! -L $HOME/.local/bin/$command_name ]] ||
-    [[ $(readlink "$HOME/.local/bin/$command_name") != "$runtime_root/bin/$command_name" ]]; then
-    report_drift "screensaver command link differs: $command_name"
-  fi
+  check_link \
+    "$HOME/.local/bin/$command_name" \
+    "$runtime_root/bin/$command_name" \
+    "screensaver command link differs: $command_name"
 done
 
 if ! "$OMARCHY_PATH/qv/waybar/refresh" --status; then
