@@ -46,6 +46,7 @@ type isoInstallerModel struct {
 	step           isoStep
 	frame          int
 	width, height  int
+	fullscreen     bool
 	preview        bool
 	input          []rune
 	filter         []rune
@@ -76,7 +77,7 @@ func runISOInstaller(preview ...bool) error {
 		return err
 	}
 
-	p := tea.NewProgram(newISOInstallerModel(preview...), tea.WithFilter(filterISOInstallerExitMessages))
+	p := newTUIProgram(newISOInstallerModel(preview...), tea.WithFilter(filterISOInstallerExitMessages))
 	stopSignals := guardISOInstallerSignals(p)
 	defer stopSignals()
 
@@ -128,7 +129,7 @@ func newISOInstallerModel(preview ...bool) isoInstallerModel {
 	}
 }
 
-func (m isoInstallerModel) Init() tea.Cmd { return tick() }
+func (m isoInstallerModel) Init() tea.Cmd { return tea.Batch(tick(), detectFullscreenCmd()) }
 
 func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -137,6 +138,9 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		return m, detectFullscreenCmd()
+	case fullscreenStateMsg:
+		m.fullscreen = msg.fullscreen
 	case isoInstallerDoneMsg:
 		if msg.err != nil {
 			m.step = isoStepError
@@ -585,43 +589,75 @@ func (m isoInstallerModel) diskSizeFor(device string) int64 {
 }
 
 func (m isoInstallerModel) View() tea.View {
-	width, height := safeDimensions(m.width, m.height)
+	termWidth, termHeight := safeDimensions(m.width, m.height)
+	width, height := termWidth, termHeight
 	mode := layoutFor(width, height)
-	if mode == layoutFull {
-		canvasW, canvasH = fitCanvas(width, height)
-	} else if mode == layoutMid {
-		canvasW, canvasH = fitMidCanvas(width, height)
+
+	var body string
+	if isSideComposition(width, height, m.fullscreen) {
+		body = m.renderISOSideBody(width, height)
 	} else {
-		canvasW, canvasH = fitSmallBody(width), 0
+		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, fullCanvasReserveRows)
+		if showIcon {
+			canvasW, canvasH = iconWidth, iconHeight
+		} else {
+			canvasW, canvasH = fitContentWidth(width), 0
+		}
+
+		icon := ""
+		if showIcon {
+			icon = renderBloom(m.frame)
+		}
+		canvasW = fitContentWidth(width)
+		body = m.renderISOBody(mode, icon)
 	}
 
-	icon := ""
-	if mode != layoutSmall {
-		icon = renderBloom(m.frame)
-	}
-
-	body := m.renderISOBody(mode, icon)
-	placed := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
-	placed = lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Background(lipgloss.Color("#000000")).
-		Render(placed)
+	placed := renderViewport(termWidth, termHeight, body)
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeNone
-	v.BackgroundColor = lipgloss.Color("#000000")
+	v.BackgroundColor = lipgloss.Color(bgTerm)
 	v.WindowTitle = "qvOS ISO"
 	return v
+}
+
+func (m isoInstallerModel) renderISOSideBody(width, height int) string {
+	leftWidth, _ := sideColumnWidths(width)
+	canvasW, canvasH = leftWidth, 0
+	contentMode := layoutTablet
+	if height < 12 {
+		contentMode = layoutMobile
+	}
+	left := m.renderISOStep(contentMode)
+	page := m.stepTitle()
+	if m.step == isoStepReview {
+		page = "REVIEW"
+	}
+	if m.step == isoStepConfirm {
+		page = "CONFIRM"
+	}
+	right := renderIdentity("qvOS", "INSTALL / "+page)
+
+	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
+		canvasW, canvasH = iconWidth, iconHeight
+		right = lipgloss.JoinVertical(
+			lipgloss.Center,
+			renderBloom(m.frame),
+			"",
+			renderIdentity("qvOS", "INSTALL / "+page),
+		)
+		canvasW, canvasH = leftWidth, 0
+	}
+	return renderSideColumns(width, left, right)
 }
 
 func (m isoInstallerModel) renderISOBody(mode layoutMode, icon string) string {
 	var lines []string
 	if icon != "" {
-		lines = append(lines, icon, "")
+		lines = append(lines, centerCanvas(icon), "")
 	}
-	if m.step == isoStepIntro && mode != layoutSmall {
+	if m.step == isoStepIntro && mode != layoutMobile {
 		lines = append(lines, sWhite.Render("qvOS"), sDim.Render("BASED ON OMARCHY"), "")
 	}
 	lines = append(lines, m.renderISOStep(mode))
@@ -655,7 +691,7 @@ func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
 
 func (m isoInstallerModel) renderISOIntro(mode layoutMode) string {
 	begin := renderISOActionRow("00", "BEGIN", true, mode)
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return strings.Join([]string{
 			centerCanvas(sWhite.Render("qvOS")),
 			centerCanvas(sDim.Render("BASED ON OMARCHY")),
@@ -665,7 +701,7 @@ func (m isoInstallerModel) renderISOIntro(mode layoutMode) string {
 	}
 
 	lines := []string{centerCanvas(begin)}
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
@@ -674,7 +710,7 @@ func (m isoInstallerModel) renderISOIntro(mode layoutMode) string {
 func (m isoInstallerModel) renderISOInputStep(mode layoutMode) string {
 	title := sWhite.Render(m.stepTitle())
 	field := m.renderISOInputField(mode)
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return strings.Join([]string{centerCanvas(title), centerCanvas(field)}, "\n")
 	}
 
@@ -685,7 +721,7 @@ func (m isoInstallerModel) renderISOInputStep(mode layoutMode) string {
 	if m.errorText != "" {
 		lines = append(lines, "", centerCanvas(sRed.Render(m.errorText)))
 	}
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
@@ -696,7 +732,7 @@ func (m isoInstallerModel) renderISOShutdownPrompt(mode layoutMode) string {
 	subtitle := sDim.Render("(shutdown)")
 	choices := renderISOOptionRows(isoShutdownChoices(), m.shutdownChoice, mode)
 
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return strings.Join(append([]string{centerCanvas(title)}, centerLines(choices)...), "\n")
 	}
 
@@ -705,7 +741,7 @@ func (m isoInstallerModel) renderISOShutdownPrompt(mode layoutMode) string {
 	if m.errorText != "" {
 		lines = append(lines, "", centerCanvas(sRed.Render(m.errorText)))
 	}
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
@@ -729,7 +765,7 @@ func (m isoInstallerModel) renderISOListStep(mode layoutMode) string {
 	filter := strings.TrimSpace(string(m.filter))
 	filterLine := renderISOSearchField(filter, mode)
 
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		selected := "none"
 		if len(choices) > 0 {
 			selected = trimDisplay(choices[m.choiceIndex].Label, inputWidthForMode(mode))
@@ -742,7 +778,7 @@ func (m isoInstallerModel) renderISOListStep(mode layoutMode) string {
 	if m.errorText != "" {
 		lines = append(lines, centerCanvas(sRed.Render(m.errorText)))
 	}
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		lines = append(lines, "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
@@ -750,19 +786,29 @@ func (m isoInstallerModel) renderISOListStep(mode layoutMode) string {
 
 func (m isoInstallerModel) renderISOReview(mode layoutMode) string {
 	lines := []string{centerCanvas(sWhite.Render("REVIEW")), ""}
-	if mode != layoutSmall {
+	if mode == layoutDesktop {
 		reviewRows := m.renderISOReviewGridRows(mode)
 		blockWidth := isoReviewBlockWidth(mode)
 
 		lines = append(lines, centerLinesWithWidth(reviewRows, blockWidth)...)
 		return strings.Join(lines, "\n")
 	}
+	if mode == layoutTablet {
+		reviewRows := m.renderISOReviewFieldRows(mode)
+		lines = append(lines, centerLines(reviewRows)...)
+		lines = append(lines, "")
+		lines = append(lines, centerLines(renderISOOptionRows(m.staticStepChoices(), m.choiceIndex, mode))...)
+		return strings.Join(lines, "\n")
+	}
 	lines = append(lines, centerLines(renderISOOptionRows(m.staticStepChoices(), m.choiceIndex, mode))...)
 	return strings.Join(lines, "\n")
 }
 
-func (m isoInstallerModel) renderISOReviewGridRows(mode layoutMode) []string {
-	fields := []struct {
+func (m isoInstallerModel) reviewFields() []struct {
+	label string
+	value string
+} {
+	return []struct {
 		label string
 		value string
 	}{
@@ -774,12 +820,14 @@ func (m isoInstallerModel) renderISOReviewGridRows(mode layoutMode) []string {
 		{"TIMEZONE", m.config.Timezone},
 		{"KEYBOARD", m.config.Keyboard},
 	}
+}
 
+func (m isoInstallerModel) renderISOReviewGridRows(mode layoutMode) []string {
 	labelWidth, valueWidth, actionWidth := isoReviewColumnWidths(mode)
 	actions := renderISOOptionRows(m.staticStepChoices(), m.choiceIndex, mode)
 
-	rows := make([]string, 0, len(fields))
-	for i, field := range fields {
+	rows := make([]string, 0, len(m.reviewFields()))
+	for i, field := range m.reviewFields() {
 		value := strings.TrimSpace(field.value)
 		if value == "" {
 			value = "-"
@@ -798,13 +846,29 @@ func (m isoInstallerModel) renderISOReviewGridRows(mode layoutMode) []string {
 	return rows
 }
 
+func (m isoInstallerModel) renderISOReviewFieldRows(mode layoutMode) []string {
+	labelWidth := 8
+	valueWidth := max(10, min(24, canvasW-labelWidth-2))
+	rows := make([]string, 0, len(m.reviewFields()))
+	for _, field := range m.reviewFields() {
+		value := strings.TrimSpace(field.value)
+		if value == "" {
+			value = "-"
+		}
+		label := lipgloss.PlaceHorizontal(labelWidth, lipgloss.Left, field.label)
+		value = lipgloss.PlaceHorizontal(valueWidth, lipgloss.Left, trimDisplay(value, valueWidth))
+		rows = append(rows, sGray.Render(label)+"  "+sBright.Render(value))
+	}
+	return rows
+}
+
 func isoReviewColumnWidths(mode layoutMode) (int, int, int) {
 	labelWidth := 8
 	valueWidth := 15
-	actionWidth := 14
-	if mode == layoutMid {
+	actionWidth := 18
+	if mode == layoutTablet {
 		valueWidth = 12
-		actionWidth = 12
+		actionWidth = 16
 	}
 	return labelWidth, valueWidth, actionWidth
 }
@@ -819,7 +883,7 @@ func (m isoInstallerModel) renderISOStaticChoice(mode layoutMode) string {
 	if m.step == isoStepConfirm {
 		title = "ERASE " + m.config.Disk
 	}
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return strings.Join([]string{
 			centerCanvas(sWhite.Render(title)),
 			centerCanvas(renderISOActionRow("00", strings.ToUpper(m.staticStepChoices()[m.choiceIndex].Label), true, mode)),
@@ -832,7 +896,7 @@ func (m isoInstallerModel) renderISOStaticChoice(mode layoutMode) string {
 		lines = append(lines, centerCanvas(sGray.Render("disk encryption: "+encryptionLabel(m.config.EncryptInstallation))), "")
 	}
 	lines = append(lines, centerLines(renderISOOptionRows(m.staticStepChoices(), m.choiceIndex, mode))...)
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
@@ -851,7 +915,7 @@ func (m isoInstallerModel) visibleChoiceRows(choices []isoChoice, mode layoutMod
 	}
 
 	limit := 7
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		limit = 5
 	}
 	start := m.choiceIndex - limit/2
@@ -942,9 +1006,9 @@ func (m isoInstallerModel) inputHelp() string {
 
 func inputWidthForMode(mode layoutMode) int {
 	switch mode {
-	case layoutSmall:
+	case layoutMobile:
 		return 14
-	case layoutMid:
+	case layoutTablet:
 		return 26
 	default:
 		return 36
@@ -960,22 +1024,20 @@ func renderISOOptionRows(choices []isoChoice, active int, mode layoutMode) []str
 	return rows
 }
 
-func renderISOOptionRow(choices []isoChoice, active int) string {
-	return strings.Join(renderISOOptionRows(choices, active, layoutFull), "\n")
-}
-
-func renderISOActionRow(_ string, label string, selected bool, mode layoutMode) string {
+func renderISOActionRow(id string, label string, selected bool, mode layoutMode) string {
+	idStyle := sGray
 	labelStyle := sMid
 	marker := sDim.Render("╎")
 
 	if selected {
+		idStyle = sRed
 		labelStyle = sWhite
 		marker = sRed.Render("▐")
 	}
-	if mode == layoutSmall {
-		return labelStyle.Render(label)
+	if mode == layoutMobile {
+		return idStyle.Render(id) + "  " + labelStyle.Render(label)
 	}
-	return marker + "  " + labelStyle.Render(label)
+	return marker + "  " + idStyle.Render(id) + "  " + labelStyle.Render(label)
 }
 
 func renderISOInputField(value string, placeholder bool, mode layoutMode) string {

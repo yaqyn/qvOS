@@ -581,4 +581,12 @@ grep -Fq \
   "\"\$OMARCHY_PATH/qv/maintenance/personal-software-baseline\" --capture" \
   "$root/qv/install/post-install/finished" ||
   fail "fresh-install baseline capture"
+# shellcheck disable=SC2016
+grep -Fq 'tui=$(command -v qvos-tui || true)' \
+  "$root/qv/install/post-install/finished" ||
+  fail "fresh-install finale uses installed qvOS TUI"
+# shellcheck disable=SC2016
+grep -Fq 'QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished' \
+  "$root/qv/install/post-install/finished" ||
+  fail "fresh-install finale keeps the fullscreen TUI composition"
 pass "fresh qvOS installation records the personal-software baseline once"

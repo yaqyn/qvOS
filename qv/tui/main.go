@@ -23,7 +23,7 @@ import (
 // -- palette --
 
 const (
-	bgTerm  = "#060606" // terminal background — set when qvos launches
+	bgTerm  = "#020202"
 	dim     = "#2a2a2a"
 	gray    = "#5a5a5a"
 	mid     = "#8a8a8a"
@@ -44,6 +44,24 @@ var (
 	sHot     = lipgloss.NewStyle().Foreground(lipgloss.Color(hotRed)).Bold(true)
 	sDeepRed = lipgloss.NewStyle().Foreground(lipgloss.Color(deepRed))
 )
+
+func tuiEnvironment() []string {
+	// The qvOS TUI owns its branded palette; keep terminal capability detection
+	// while preventing a caller's generic color opt-out from erasing it.
+	env := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "NO_COLOR=") {
+			continue
+		}
+		env = append(env, entry)
+	}
+	return env
+}
+
+func newTUIProgram(model tea.Model, options ...tea.ProgramOption) *tea.Program {
+	options = append(options, tea.WithEnvironment(tuiEnvironment()))
+	return tea.NewProgram(model, options...)
+}
 
 // -- menu data --
 
@@ -92,19 +110,32 @@ var sections = []section{
 type layoutMode int
 
 const (
-	layoutFull layoutMode = iota
-	layoutMid
-	layoutSmall
+	layoutDesktop layoutMode = iota
+	layoutTablet
+	layoutMobile
+)
+
+const (
+	desktopMinWidth  = 96
+	desktopMinHeight = 34
+	tabletMinWidth   = 60
+	tabletMinHeight  = 26
+	cellAspectWidth  = 20
+	cellAspectHeight = 49
+	sideGap          = 6
+	sidePadding      = 4
+	sideLeftMax      = 48
+	sideRightMax     = 64
 )
 
 func layoutFor(width, height int) layoutMode {
 	switch {
-	case width < 42 || height < 18:
-		return layoutSmall
-	case width < 90 || height < 34:
-		return layoutMid
+	case width >= desktopMinWidth && height >= desktopMinHeight:
+		return layoutDesktop
+	case width >= tabletMinWidth && height >= tabletMinHeight:
+		return layoutTablet
 	default:
-		return layoutFull
+		return layoutMobile
 	}
 }
 
@@ -118,24 +149,91 @@ func safeDimensions(width, height int) (int, int) {
 	return width, height
 }
 
-// computeMenuRowWidth returns the widest rendered row across every section,
-// given whether descriptions are shown. mirrors the layout of the rows built
-// in View(). used so rows pad to a uniform width — left edge stays fixed
-// across tab switches, no visual shift from longer descriptions.
-func computeMenuRowWidth(withDesc bool) int {
-	max := 0
-	for _, s := range sections {
+// The live Alacritty grid measures 98x40 cells in a 720x720 window. Compare
+// the calibrated physical aspect, while letting true fullscreen canvases use
+// their dedicated centered composition.
+func isSideComposition(width, height int, fullscreen bool) bool {
+	if fullscreen {
+		return false
+	}
+	return width*cellAspectWidth > height*cellAspectHeight
+}
+
+func renderViewport(width, height int, body string) string {
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
+}
+
+func sideColumnWidths(width int) (int, int) {
+	available := width - sideGap - sidePadding*2
+	if available < 2 {
+		available = 2
+	}
+	leftWidth := available * 2 / 5
+	rightWidth := available - leftWidth
+	if leftWidth > sideLeftMax {
+		leftWidth = sideLeftMax
+	}
+	if rightWidth > sideRightMax {
+		rightWidth = sideRightMax
+	}
+	if leftWidth < 1 {
+		leftWidth = 1
+	}
+	if rightWidth < 1 {
+		rightWidth = 1
+	}
+	return leftWidth, rightWidth
+}
+
+func renderSideColumns(width int, left, right string) string {
+	leftWidth, rightWidth := sideColumnWidths(width)
+	leftColumn := lipgloss.NewStyle().Width(leftWidth).Align(lipgloss.Center)
+	rightColumn := lipgloss.NewStyle().Width(rightWidth).Align(lipgloss.Center)
+	return lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		leftColumn.Render(left),
+		strings.Repeat(" ", sideGap),
+		rightColumn.Render(right),
+	)
+}
+
+func renderIdentity(product, page string) string {
+	return strings.Join([]string{
+		sWhite.Render(product),
+		sDim.Render(strings.ToUpper(page)),
+	}, "\n")
+}
+
+type menuMetrics struct {
+	titleWidth int
+	descWidth  int
+}
+
+func measureMenu(catalog []section) menuMetrics {
+	var metrics menuMetrics
+	for _, s := range catalog {
 		for _, it := range s.items {
-			w := 7 + len(it.title) // marker(1) + "  " + id(2) + "  " + title
-			if withDesc {
-				w += 3 + len(it.desc)
+			if width := lipgloss.Width(it.title); width > metrics.titleWidth {
+				metrics.titleWidth = width
 			}
-			if w > max {
-				max = w
+			if width := lipgloss.Width(it.desc); width > metrics.descWidth {
+				metrics.descWidth = width
 			}
 		}
 	}
-	return max
+	return metrics
+}
+
+// computeMenuRowWidth returns the stable width shared by every menu row.
+// Titles occupy one measured column so descriptions always begin at the same
+// cell, even when the active section changes.
+func computeMenuRowWidth(withDesc bool) int {
+	metrics := measureMenu(sections)
+	width := 7 + metrics.titleWidth
+	if withDesc {
+		width += 3 + metrics.descWidth
+	}
+	return width
 }
 
 func menuDescriptionsFit(availableWidth int) bool {
@@ -147,7 +245,12 @@ func menuDescriptionsFit(availableWidth int) bool {
 const (
 	framesPerSecond = 30
 	framesPerTick   = 2
+	animationSpeed  = 1.6
 )
+
+func animationFrame(frame int) float64 {
+	return float64(frame) * animationSpeed
+}
 
 type tickMsg time.Time
 
@@ -178,6 +281,7 @@ type model struct {
 	cursor          int
 	frame           int
 	width, height   int
+	fullscreen      bool
 	loading         bool
 	action          actionMode
 	loadStart       int
@@ -316,7 +420,7 @@ func realisticProgress(progress float64) float64 {
 	return progress
 }
 
-func (m model) Init() tea.Cmd { return tick() }
+func (m model) Init() tea.Cmd { return tea.Batch(tick(), detectFullscreenCmd()) }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -328,6 +432,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		return m, detectFullscreenCmd()
+	case fullscreenStateMsg:
+		m.fullscreen = msg.fullscreen
 
 	case scriptDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -506,28 +613,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() tea.View {
-	width, height := safeDimensions(m.width, m.height)
+	termWidth, termHeight := safeDimensions(m.width, m.height)
+	width, height := termWidth, termHeight
 	mode := layoutFor(width, height)
 
-	// scale the canvas to fit — mutates canvasW/canvasH for this frame
-	if mode == layoutFull {
-		canvasW, canvasH = fitCanvas(width, height)
-	} else if mode == layoutMid {
-		canvasW, canvasH = fitMidCanvas(width, height)
-	} else {
-		canvasW, canvasH = fitSmallBody(width), 0
-	}
-
-	icon := m.renderIconForMode(mode)
-
 	var body string
-	if mode == layoutFull {
-		body = m.renderFullBody(icon)
+	if isSideComposition(width, height, m.fullscreen) {
+		body = m.renderSideBody(width, height)
 	} else {
-		body = m.renderReducedBody(mode, icon)
+		reserveRows := fullCanvasReserveRows
+		if m.loading && m.logOverlay {
+			reserveRows = 26
+		}
+		var showIcon bool
+		canvasW, canvasH, showIcon = fitCenterStageCanvas(width, height, reserveRows)
+		if !showIcon {
+			canvasW, canvasH = min(maxCanvasW, max(1, width-4)), 0
+		}
+
+		icon := ""
+		if showIcon {
+			icon = m.renderActiveIcon()
+		}
+		canvasW = fitContentWidth(width)
+		if mode == layoutDesktop {
+			body = m.renderDesktopBody(icon)
+		} else {
+			body = m.renderReducedBody(mode, icon)
+		}
 	}
 
-	placed := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
+	placed := renderViewport(termWidth, termHeight, body)
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
@@ -537,23 +653,40 @@ func (m model) View() tea.View {
 	return v
 }
 
-func (m model) renderFullBody(icon string) string {
-	return m.renderNormalFullBody(icon)
+func (m model) renderSideBody(width, height int) string {
+	leftWidth, _ := sideColumnWidths(width)
+	canvasW, canvasH = leftWidth, 0
+
+	page := sections[m.tab].name
+	left := m.renderMiddle(layoutMobile)
+	right := renderIdentity("qvOS", page)
+
+	if m.loading {
+		page = rootActionName(m.action)
+		right = renderIdentity("qvOS", page)
+		if m.logOverlay {
+			left = m.renderRootProgressFor(layoutTablet)
+			right = m.renderRootLogOverlayFor(layoutTablet)
+			return renderSideColumns(width, left, right)
+		}
+	}
+
+	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
+		canvasW, canvasH = iconWidth, iconHeight
+		icon := m.renderActiveIcon()
+		right = lipgloss.JoinVertical(lipgloss.Center, icon, "", renderIdentity("qvOS", page))
+		canvasW, canvasH = leftWidth, 0
+	}
+
+	return renderSideColumns(width, left, right)
 }
 
-func (m model) renderNormalFullBody(icon string) string {
+func (m model) renderDesktopBody(icon string) string {
 	title := sWhite.Render("qvOS")
 	tagline := sDim.Render("· · · · ·")
 	return lipgloss.JoinVertical(lipgloss.Center,
-		icon, "", title, tagline, "", m.renderMiddle(layoutFull),
+		icon, "", title, tagline, "", m.renderMiddle(layoutDesktop),
 	)
-}
-
-func (m model) renderIconForMode(mode layoutMode) string {
-	if mode == layoutSmall {
-		return ""
-	}
-	return m.renderActiveIcon()
 }
 
 func (m model) renderActiveIcon() string {
@@ -576,10 +709,10 @@ func (m model) renderMiddle(mode layoutMode) string {
 		}
 	}
 
-	if mode == layoutFull {
+	if mode == layoutDesktop {
 		return m.renderFullMenu()
 	}
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		return m.renderMidMenu()
 	}
 	return m.renderReducedMenu(mode)
@@ -589,7 +722,7 @@ func (m model) renderReducedBody(mode layoutMode, icon string) string {
 	titleRows, middleRows, gapRows := m.reducedBodyRows(mode)
 	var lines []string
 	if icon != "" {
-		lines = append(lines, icon)
+		lines = append(lines, centerCanvas(icon))
 	}
 	for i := 0; i < gapRows; i++ {
 		lines = append(lines, "")
@@ -604,13 +737,13 @@ func (m model) renderReducedBody(mode layoutMode, icon string) string {
 }
 
 func (m model) reducedBodyRows(mode layoutMode) (titleRows, middleRows, gapRows int) {
-	if mode == layoutMid && m.height >= 24 {
+	if mode == layoutTablet && m.height >= tabletMinHeight {
 		titleRows = 2
 	}
 
 	middleRows = m.reducedMiddleRows(mode)
 
-	if mode == layoutMid && m.height >= titleRows+middleRows+canvasH+1 {
+	if mode == layoutTablet && m.height >= titleRows+middleRows+canvasH+1 {
 		gapRows = 1
 	}
 	return titleRows, middleRows, gapRows
@@ -622,7 +755,7 @@ func (m model) reducedMiddleRows(mode layoutMode) int {
 	}
 
 	if m.loading {
-		if mode == layoutSmall {
+		if mode == layoutMobile {
 			return 1
 		}
 		if m.sudoPrompt && m.sudoErr != nil {
@@ -634,7 +767,7 @@ func (m model) reducedMiddleRows(mode layoutMode) int {
 	if m.height <= 2 {
 		return 1
 	}
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		return 7
 	}
 	if m.height >= 7 {
@@ -687,21 +820,23 @@ func (m model) renderMidMenu() string {
 func (m model) renderReducedMenu(mode layoutMode) string {
 	active := sections[m.tab]
 	rows := []string{centerCanvas(renderActiveTab(m.tab))}
+	metrics := measureMenu(sections)
+	showDescriptions := compactMenuRowWidth(metrics, true) <= canvasW
 
 	if m.height <= 2 {
 		return strings.Join(rows, "\n")
 	}
 
-	if mode == layoutMid || m.height >= 7 {
+	if mode == layoutTablet || m.height >= 7 {
 		rows = append(rows, "")
 		for i, it := range active.items {
-			rows = append(rows, centerCanvas(renderMenuRow(it, i == m.cursor, mode)))
+			rows = append(rows, centerCanvas(renderCompactMenuRow(it, i == m.cursor, metrics, canvasW, showDescriptions)))
 		}
 		return strings.Join(rows, "\n")
 	}
 
 	selected := active.items[m.cursor]
-	rows = append(rows, centerCanvas(renderMenuRow(selected, true, mode)))
+	rows = append(rows, centerCanvas(renderCompactMenuRow(selected, true, metrics, canvasW, showDescriptions)))
 	return strings.Join(rows, "\n")
 }
 
@@ -710,27 +845,45 @@ func renderActiveTab(active int) string {
 	return sDim.Render("< ") + sWhite.Render(name) + sDim.Render(" >")
 }
 
-func renderMenuRow(it item, selected bool, mode layoutMode) string {
+func compactMenuRowWidth(metrics menuMetrics, withDescription bool) int {
+	width := 4 + metrics.titleWidth
+	if withDescription {
+		width += 2 + metrics.descWidth
+	}
+	return width
+}
+
+func renderCompactMenuRow(it item, selected bool, metrics menuMetrics, availableWidth int, showDescription bool) string {
 	idStyle := sGray
 	titleStyle := sMid
+	descStyle := sDim
 	if selected {
 		idStyle = sRed
 		titleStyle = sWhite
+		descStyle = sGray
 	}
 
-	if mode == layoutSmall {
-		return idStyle.Render(it.id) + " " + titleStyle.Render(it.title)
+	titleWidth := metrics.titleWidth
+	if maximum := max(1, availableWidth-4); titleWidth > maximum {
+		titleWidth = maximum
+	}
+	title := lipgloss.PlaceHorizontal(titleWidth, lipgloss.Left, titleStyle.Render(trimDisplay(it.title, titleWidth)))
+	line := idStyle.Render(it.id) + "  " + title
+
+	if showDescription {
+		line += "  " + descStyle.Render(it.desc)
 	}
 
-	marker := sDim.Render("╎")
-	if selected {
-		marker = sRed.Render("▐")
+	rowWidth := compactMenuRowWidth(metrics, showDescription)
+	if rowWidth > availableWidth {
+		rowWidth = availableWidth
 	}
-	return marker + "  " + idStyle.Render(it.id) + "  " + titleStyle.Render(it.title)
+	return lipgloss.PlaceHorizontal(rowWidth, lipgloss.Left, line)
 }
 
 func (m model) renderMenuRows(showDesc bool) string {
 	menuRowWidth := computeMenuRowWidth(showDesc)
+	metrics := measureMenu(sections)
 	active := sections[m.tab]
 
 	var rows []string
@@ -748,7 +901,7 @@ func (m model) renderMenuRows(showDesc bool) string {
 		}
 		line := marker + "  " +
 			idStyle.Render(it.id) + "  " +
-			titleStyle.Render(it.title)
+			lipgloss.PlaceHorizontal(metrics.titleWidth, lipgloss.Left, titleStyle.Render(it.title))
 		if showDesc {
 			line += "   " + descStyle.Render(it.desc)
 		}
@@ -772,7 +925,7 @@ func (m model) mainMouse(msg tea.MouseClickMsg) (model, tea.Cmd) {
 	if msg.Button != tea.MouseLeft {
 		return m, nil
 	}
-	if layoutFor(m.width, m.height) != layoutFull {
+	if layoutFor(m.width, m.height) != layoutDesktop {
 		return m, nil
 	}
 	nItems := len(sections[m.tab].items)
@@ -1084,19 +1237,6 @@ func authorizeSudo(secret []byte) error {
 		return err
 	}
 	return cmd.Wait()
-}
-
-func runRootScript(action actionMode, script string) error {
-	events := make(chan scriptEvent, 1024)
-	go runRootScriptStream(context.Background(), action, script, events)
-
-	var finalErr error
-	for event := range events {
-		if event.done {
-			finalErr = event.err
-		}
-	}
-	return finalErr
 }
 
 func runRootScriptStream(ctx context.Context, action actionMode, script string, events chan<- scriptEvent) {
@@ -1622,7 +1762,7 @@ func renderReducedProgress(label string, phase loadPhase, progress float64, mode
 		percentStyle = sWhite
 	}
 
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return centerCanvas(percentStyle.Render(percent))
 	}
 
@@ -1630,10 +1770,6 @@ func renderReducedProgress(label string, phase loadPhase, progress float64, mode
 		centerCanvas(sWhite.Render(label)),
 		centerCanvas(percentStyle.Render(percent)),
 	}, "\n")
-}
-
-func (m model) renderRootAction() string {
-	return m.renderRootActionFor(layoutFull)
 }
 
 func (m model) renderRootActionFor(mode layoutMode) string {
@@ -1651,10 +1787,6 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 	}, "\n")
 }
 
-func (m model) renderSudoPrompt() string {
-	return m.renderSudoPromptFor(layoutFull)
-}
-
 func (m model) renderSudoPromptFor(mode layoutMode) string {
 	title := sWhite.Render(rootActionName(m.action) + " AUTH")
 	status := sGray.Render("sudo password required")
@@ -1663,14 +1795,14 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 	}
 	field := renderPasswordField(m.sudoPassword, mode)
 
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return strings.Join([]string{
 			centerCanvas(title),
 			centerCanvas(field),
 		}, "\n")
 	}
 
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		lines := []string{centerCanvas(title)}
 		if m.sudoErr != nil {
 			lines = append(lines, centerCanvas(status))
@@ -1701,10 +1833,10 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 
 func renderPasswordField(password []rune, mode layoutMode) string {
 	fieldWidth := 28
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		fieldWidth = 18
 	}
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		fieldWidth = 10
 	}
 
@@ -1723,10 +1855,6 @@ func renderPasswordField(password []rune, mode layoutMode) string {
 		sDeepRed.Render(" ▌")
 }
 
-func (m model) renderRootProgress() string {
-	return m.renderRootProgressFor(layoutFull)
-}
-
 func (m model) renderRootProgressFor(mode layoutMode) string {
 	phase := m.loadPhase()
 	progress := m.loadProgress()
@@ -1734,7 +1862,7 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	if phase == loadOK && m.action == actionBuild && !m.scriptCanceled {
 		return m.renderBuildFinishedFor(mode)
 	}
-	if mode != layoutFull {
+	if mode != layoutDesktop {
 		return renderReducedProgress(rootActionName(m.action), phase, progress, mode)
 	}
 
@@ -1819,10 +1947,10 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 		releaseDir = defaultISOReleaseDir()
 	}
 
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return centerCanvas(sWhite.Render("BUILD FINISHED"))
 	}
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		return strings.Join([]string{
 			centerCanvas(sWhite.Render("BUILD FINISHED")),
 			centerCanvas(sGray.Render(trimDisplay(releaseName, canvasW))),
@@ -1854,22 +1982,22 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 	width := canvasW
 	height := 10
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		width = canvasW
 		height = 7
 	}
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		width = canvasW
 		height = 3
 	}
-	if width < 20 {
-		width = 20
+	if width < 1 {
+		width = 1
 	}
 	if width > 74 {
 		width = 74
 	}
 
-	contentWidth := width - 4
+	contentWidth := max(1, width-4)
 	lines := m.scriptLogLines
 	if len(lines) == 0 {
 		lines = []string{"waiting for logs"}
@@ -1969,8 +2097,8 @@ func renderTabs(active int) string {
 
 // -- 3D rendering primitives --
 
-// canvas sizing — the 3D shape scales to fit the terminal.
-// `canvasW`/`canvasH` are mutated each frame by fitCanvas() in View().
+// Canvas sizing is shared by each responsive view while Bubble Tea renders
+// models sequentially on its event loop.
 var (
 	canvasW = 64
 	canvasH = 32
@@ -1978,27 +2106,32 @@ var (
 
 const (
 	maxCanvasW = 64
-	maxCanvasH = 32
-	minCanvasW = 24
 
 	fullCanvasReserveRows = 12
+	modelQualityMinW      = 40
 	iconCanvasScale       = 0.82
-	smallBodyMaxW         = 32
 )
 
-// fitCanvas returns a canvas size that fits inside the given terminal while
-// respecting the min/max and the 2:1 horizontal:vertical cell aspect. Full and
-// mid use the same vertical reserve so the icon shrinks continuously across the
-// layout boundary instead of jumping to a larger canvas.
-func fitCanvas(termW, termH int) (int, int) {
-	return fitIconCanvasReserved(termW, termH, minCanvasW, fullCanvasReserveRows)
+func fitSideIconCanvas(termW, termH int) (int, int, bool) {
+	_, rightWidth := sideColumnWidths(termW)
+	width, height := fitIconCanvasReserved(rightWidth+4, termH, modelQualityMinW, 4)
+	return width, height, width >= modelQualityMinW && height >= modelQualityMinW/2
 }
 
-func fitMidCanvas(termW, termH int) (int, int) {
-	return fitIconCanvasReserved(termW, termH, 1, fullCanvasReserveRows)
+func fitCenteredIconCanvas(termW, termH, reserveRows int) (int, int, bool) {
+	width, height := fitIconCanvasReserved(termW, termH, modelQualityMinW, reserveRows)
+	return width, height, width >= modelQualityMinW && height >= modelQualityMinW/2
+}
+
+func fitCenterStageCanvas(termW, termH, reserveRows int) (int, int, bool) {
+	return fitCenteredIconCanvas(termW, termH, reserveRows)
 }
 
 func fitIconCanvasReserved(termW, termH int, minW int, reserveRows int) (int, int) {
+	return fitIconCanvasReservedWithin(termW, termH, minW, maxCanvasW, reserveRows, iconCanvasScale)
+}
+
+func fitIconCanvasReservedWithin(termW, termH, minW, maxW, reserveRows int, scale float64) (int, int) {
 	availW := termW - 4
 	if availW < 1 {
 		availW = 1
@@ -2013,8 +2146,11 @@ func fitIconCanvasReserved(termW, termH int, minW int, reserveRows int) (int, in
 	if minW < 1 {
 		minW = 1
 	}
+	if maxW < minW {
+		maxW = minW
+	}
 
-	w := maxCanvasW
+	w := maxW
 	if w > availW {
 		w = availW
 	}
@@ -2022,12 +2158,12 @@ func fitIconCanvasReserved(termW, termH int, minW int, reserveRows int) (int, in
 		w = availH * 2
 	}
 
-	w = int(math.Round(float64(w) * iconCanvasScale))
+	w = int(math.Round(float64(w) * scale))
 	if w < minW {
 		w = minW
 	}
-	if w > maxCanvasW {
-		w = maxCanvasW
+	if w > maxW {
+		w = maxW
 	}
 	if w > availW {
 		w = availW
@@ -2040,8 +2176,8 @@ func fitIconCanvasReserved(termW, termH int, minW int, reserveRows int) (int, in
 	if h < 1 {
 		h = 1
 	}
-	if h > maxCanvasH {
-		h = maxCanvasH
+	if h > maxW/2 {
+		h = maxW / 2
 	}
 	if h > availH {
 		h = availH
@@ -2049,25 +2185,103 @@ func fitIconCanvasReserved(termW, termH int, minW int, reserveRows int) (int, in
 	return w, h
 }
 
-func fitIconCanvas(termW, termH int, minW int) (int, int) {
-	return fitIconCanvasReserved(termW, termH, minW, fullCanvasReserveRows)
-}
-
-func fitSmallBody(termW int) int {
-	if termW < 1 {
+func fitContentWidth(termW int) int {
+	width := termW - 4
+	if width < 1 {
 		return 1
 	}
-	if termW < smallBodyMaxW {
-		return termW
+	if width > maxCanvasW {
+		return maxCanvasW
 	}
-	return smallBodyMaxW
+	return width
 }
 
-var ramp = []rune(" .,:;-+*oO#%@")
+const shadeRamp = " .,:;-+*oO#%@"
+
+type cellStyle uint8
+
+const (
+	cellDim cellStyle = iota
+	cellGray
+	cellMid
+	cellBright
+	cellWhite
+	cellRed
+	cellHot
+	cellDeepRed
+	cellStyleCount
+)
+
+var renderedRamp = func() [cellStyleCount][len(shadeRamp)]string {
+	styles := [...]lipgloss.Style{
+		sDim,
+		sGray,
+		sMid,
+		sBright,
+		sWhite,
+		sRed,
+		sHot,
+		sDeepRed,
+	}
+	var rendered [cellStyleCount][len(shadeRamp)]string
+	for style := cellStyle(0); style < cellStyleCount; style++ {
+		for shade := 1; shade < len(shadeRamp); shade++ {
+			rendered[style][shade] = styles[style].Render(string(shadeRamp[shade]))
+		}
+	}
+	return rendered
+}()
+
+var maxRenderedCellBytes = func() int {
+	maxBytes := 1
+	for style := cellStyle(0); style < cellStyleCount; style++ {
+		for shade := 1; shade < len(shadeRamp); shade++ {
+			if size := len(renderedRamp[style][shade]); size > maxBytes {
+				maxBytes = size
+			}
+		}
+	}
+	return maxBytes
+}()
 
 type cell struct {
-	ch    rune
-	style lipgloss.Style
+	shade uint8
+	style cellStyle
+}
+
+type angleSample struct {
+	angle  float64
+	cosine float64
+	sine   float64
+}
+
+func periodicAngleSamples(count int) []angleSample {
+	samples := make([]angleSample, count)
+	for index := range samples {
+		angle := float64(index) / float64(count) * 2 * math.Pi
+		samples[index] = angleSample{
+			angle:  angle,
+			cosine: math.Cos(angle),
+			sine:   math.Sin(angle),
+		}
+	}
+	return samples
+}
+
+func inclusiveAngleSamples(count int, start, span float64) []angleSample {
+	samples := make([]angleSample, count)
+	for index := range samples {
+		angle := start
+		if count > 1 {
+			angle += float64(index) / float64(count-1) * span
+		}
+		samples[index] = angleSample{
+			angle:  angle,
+			cosine: math.Cos(angle),
+			sine:   math.Sin(angle),
+		}
+	}
+	return samples
 }
 
 // scene holds working state for rendering one 3D shape: char grid, per-pixel
@@ -2161,7 +2375,7 @@ func (sc *scene) project(wx, wy, wz, nx, ny, nz float64) (idx int, nrx, nry, nrz
 
 // phongGray picks a char + grayscale style for a rotated normal via Lambertian
 // diffuse + Phong specular. View direction is assumed to be (0,0,1).
-func (sc *scene) phongGray(nrx, nry, nrz float64) (rune, lipgloss.Style) {
+func (sc *scene) phongGray(nrx, nry, nrz float64) (uint8, cellStyle) {
 	NdL := nrx*sc.lx + nry*sc.ly + nrz*sc.lz
 	if NdL < 0 {
 		NdL = 0
@@ -2177,29 +2391,33 @@ func (sc *scene) phongGray(nrx, nry, nrz float64) (rune, lipgloss.Style) {
 		brightness = 1
 	}
 
-	ri := int(brightness * float64(len(ramp)-1))
-	if ri < 0 {
-		ri = 0
-	}
-	if ri >= len(ramp) {
-		ri = len(ramp) - 1
-	}
-	ch := ramp[ri]
+	shade := shadeForBrightness(brightness)
 
-	var style lipgloss.Style
+	var style cellStyle
 	switch {
 	case brightness > 0.93:
-		style = sWhite
+		style = cellWhite
 	case brightness > 0.70:
-		style = sBright
+		style = cellBright
 	case brightness > 0.48:
-		style = sMid
+		style = cellMid
 	case brightness > 0.26:
-		style = sGray
+		style = cellGray
 	default:
-		style = sDim
+		style = cellDim
 	}
-	return ch, style
+	return shade, style
+}
+
+func shadeForBrightness(brightness float64) uint8 {
+	shade := int(brightness * float64(len(shadeRamp)-1))
+	if shade < 0 {
+		return 0
+	}
+	if shade >= len(shadeRamp) {
+		return uint8(len(shadeRamp) - 1)
+	}
+	return uint8(shade)
 }
 
 // plotGray = project → phongGray → commit for one world point+normal.
@@ -2208,21 +2426,22 @@ func (sc *scene) plotGray(wx, wy, wz, nx, ny, nz float64) {
 	if !ok {
 		return
 	}
-	ch, style := sc.phongGray(nrx, nry, nrz)
-	sc.grid[idx] = cell{ch: ch, style: style}
+	shade, style := sc.phongGray(nrx, nry, nrz)
+	sc.grid[idx] = cell{shade: shade, style: style}
 }
 
-// String renders the grid with ANSI escapes per styled cell.
+// String renders the grid from cached ANSI tokens. A frame has thousands of
+// styled cells, but only a small fixed set of shade/style combinations.
 func (sc *scene) String() string {
 	var sb strings.Builder
-	sb.Grow(canvasH * (canvasW + 1))
+	sb.Grow(canvasH * (canvasW*maxRenderedCellBytes + 1))
 	for y := 0; y < canvasH; y++ {
 		for x := 0; x < canvasW; x++ {
 			c := sc.grid[y*canvasW+x]
-			if c.ch == 0 || c.ch == ' ' {
+			if c.shade == 0 {
 				sb.WriteRune(' ')
 			} else {
-				sb.WriteString(c.style.Render(string(c.ch)))
+				sb.WriteString(renderedRamp[c.style][c.shade])
 			}
 		}
 		if y < canvasH-1 {
@@ -2240,11 +2459,17 @@ const (
 	bloomShn = 18.0
 )
 
+var (
+	bloomThetaSamples = periodicAngleSamples(bloomUN)
+	bloomPhiSamples   = inclusiveAngleSamples(bloomVN, -math.Pi/2, math.Pi)
+)
+
 func renderBloom(frame int) string {
-	t := float64(frame) * 0.018
+	motion := animationFrame(frame)
+	t := motion * 0.018
 	sc := newScene(sceneCfg{
-		aY:  float64(frame) * 0.011,
-		aX:  float64(frame) * 0.005,
+		aY:  motion * 0.011,
+		aX:  motion * 0.005,
 		fit: 1.34,
 		shn: bloomShn,
 		lx:  -0.45, ly: -0.55, lz: 0.71,
@@ -2253,13 +2478,13 @@ func renderBloom(frame int) string {
 	pulseRaw := math.Sin(t * 2.4)
 	pulse := 0.35 + 0.65*pulseRaw*pulseRaw
 
-	for ui := 0; ui < bloomUN; ui++ {
-		theta := float64(ui) / float64(bloomUN) * 2 * math.Pi
-		cth, sth := math.Cos(theta), math.Sin(theta)
+	for _, thetaSample := range bloomThetaSamples {
+		theta := thetaSample.angle
+		cth, sth := thetaSample.cosine, thetaSample.sine
 
-		for vi := 0; vi < bloomVN; vi++ {
-			phi := float64(vi)/float64(bloomVN-1)*math.Pi - math.Pi/2
-			cph, sph := math.Cos(phi), math.Sin(phi)
+		for _, phiSample := range bloomPhiSamples {
+			phi := phiSample.angle
+			cph, sph := phiSample.cosine, phiSample.sine
 
 			// Three traveling surface waves that beat and never quite repeat.
 			a1 := 3*theta + 2*phi + t*1.5
@@ -2331,37 +2556,30 @@ func renderBloom(frame int) string {
 				brightness = 1
 			}
 
-			ri := int(brightness * float64(len(ramp)-1))
-			if ri < 0 {
-				ri = 0
-			}
-			if ri >= len(ramp) {
-				ri = len(ramp) - 1
-			}
-			ch := ramp[ri]
+			shade := shadeForBrightness(brightness)
 
-			var style lipgloss.Style
+			var style cellStyle
 			switch {
 			case heat > 0.70:
-				style = sHot
+				style = cellHot
 			case heat > 0.40:
-				style = sRed
+				style = cellRed
 			case thin > 0.55:
-				style = sRed
+				style = cellRed
 			case thin > 0.25:
-				style = sDeepRed
+				style = cellDeepRed
 			case brightness > 0.93:
-				style = sWhite
+				style = cellWhite
 			case brightness > 0.70:
-				style = sBright
+				style = cellBright
 			case brightness > 0.48:
-				style = sMid
+				style = cellMid
 			case brightness > 0.26:
-				style = sGray
+				style = cellGray
 			default:
-				style = sDim
+				style = cellDim
 			}
-			sc.grid[idx] = cell{ch: ch, style: style}
+			sc.grid[idx] = cell{shade: shade, style: style}
 		}
 	}
 	return sc.String()
@@ -2377,21 +2595,25 @@ const (
 	torusShn = 22.0
 )
 
+var (
+	torusUSamples = periodicAngleSamples(torusUN)
+	torusVSamples = periodicAngleSamples(torusVN)
+)
+
 func renderTorus(frame int) string {
+	motion := animationFrame(frame)
 	sc := newScene(sceneCfg{
-		aY:  float64(frame) * 0.010,
-		aX:  float64(frame) * 0.013,
+		aY:  motion * 0.010,
+		aX:  motion * 0.013,
 		fit: torusR + torusRr,
 		shn: torusShn,
 		lx:  0.50, ly: -0.55, lz: 0.67,
 	})
 
-	for ui := 0; ui < torusUN; ui++ {
-		u := float64(ui) / float64(torusUN) * 2 * math.Pi
-		cu, su := math.Cos(u), math.Sin(u)
-		for vi := 0; vi < torusVN; vi++ {
-			v := float64(vi) / float64(torusVN) * 2 * math.Pi
-			cv, sv := math.Cos(v), math.Sin(v)
+	for _, u := range torusUSamples {
+		cu, su := u.cosine, u.sine
+		for _, v := range torusVSamples {
+			cv, sv := v.cosine, v.sine
 
 			sc.plotGray(
 				(torusR+torusRr*cv)*cu,
@@ -2414,6 +2636,8 @@ const (
 	knotShn    = 18.0
 )
 
+var knotRingSamples = periodicAngleSamples(knotRingN)
+
 func knotPos(t float64) (x, y, z float64) {
 	r := 2 + math.Cos(3*t)
 	return knotR * r * math.Cos(2*t),
@@ -2422,9 +2646,10 @@ func knotPos(t float64) (x, y, z float64) {
 }
 
 func renderKnot(frame int) string {
+	motion := animationFrame(frame)
 	sc := newScene(sceneCfg{
-		aY:  float64(frame) * 0.011,
-		aX:  float64(frame) * 0.008,
+		aY:  motion * 0.011,
+		aX:  motion * 0.008,
 		fit: 1.65,
 		shn: knotShn,
 		lx:  -0.50, ly: -0.48, lz: 0.72,
@@ -2460,9 +2685,8 @@ func renderKnot(frame int) string {
 		fby := tz*fnx - tx*fnz
 		fbz := tx*fny - ty*fnx
 
-		for ri := 0; ri < knotRingN; ri++ {
-			theta := float64(ri) / float64(knotRingN) * 2 * math.Pi
-			ct, st := math.Cos(theta), math.Sin(theta)
+		for _, ring := range knotRingSamples {
+			ct, st := ring.cosine, ring.sine
 
 			nx := ct*fnx + st*fbx
 			ny := ct*fny + st*fby
@@ -2490,22 +2714,26 @@ const (
 	hopfOffset = 0.30
 )
 
+var (
+	hopfUSamples = periodicAngleSamples(hopfUN)
+	hopfVSamples = periodicAngleSamples(hopfVN)
+)
+
 func renderHopf(frame int) string {
+	motion := animationFrame(frame)
 	sc := newScene(sceneCfg{
-		aY:  float64(frame) * 0.010,
-		aX:  float64(frame) * 0.012,
+		aY:  motion * 0.010,
+		aX:  motion * 0.012,
 		fit: 1.20,
 		shn: hopfShn,
 		lx:  -0.48, ly: -0.52, lz: 0.71,
 	})
 
 	// Ring A: XY plane at (-offset, 0, 0); hole along +Z.
-	for ui := 0; ui < hopfUN; ui++ {
-		u := float64(ui) / float64(hopfUN) * 2 * math.Pi
-		cu, su := math.Cos(u), math.Sin(u)
-		for vi := 0; vi < hopfVN; vi++ {
-			v := float64(vi) / float64(hopfVN) * 2 * math.Pi
-			cv, sv := math.Cos(v), math.Sin(v)
+	for _, u := range hopfUSamples {
+		cu, su := u.cosine, u.sine
+		for _, v := range hopfVSamples {
+			cv, sv := v.cosine, v.sine
 			sc.plotGray(
 				-hopfOffset+(hopfR+hopfRr*cv)*cu,
 				(hopfR+hopfRr*cv)*su,
@@ -2515,12 +2743,10 @@ func renderHopf(frame int) string {
 		}
 	}
 	// Ring B: XZ plane at (+offset, 0, 0); hole along +Y — links Ring A.
-	for ui := 0; ui < hopfUN; ui++ {
-		u := float64(ui) / float64(hopfUN) * 2 * math.Pi
-		cu, su := math.Cos(u), math.Sin(u)
-		for vi := 0; vi < hopfVN; vi++ {
-			v := float64(vi) / float64(hopfVN) * 2 * math.Pi
-			cv, sv := math.Cos(v), math.Sin(v)
+	for _, u := range hopfUSamples {
+		cu, su := u.cosine, u.sine
+		for _, v := range hopfVSamples {
+			cv, sv := v.cosine, v.sine
 			sc.plotGray(
 				hopfOffset+(hopfR+hopfRr*cv)*cu,
 				hopfRr*sv,
@@ -2530,31 +2756,6 @@ func renderHopf(frame int) string {
 		}
 	}
 	return sc.String()
-}
-
-func openRootLogCmd(action actionMode) tea.Cmd {
-	path := qvosRootLogPath(action)
-	if _, err := os.Stat(path); err != nil {
-		return nil
-	}
-	return openEditorCmd(path)
-}
-
-func openEditorCmd(path string) tea.Cmd {
-	editor := strings.TrimSpace(os.Getenv("VISUAL"))
-	if editor == "" {
-		editor = strings.TrimSpace(os.Getenv("EDITOR"))
-	}
-	if editor == "" {
-		editor = "vi"
-	}
-
-	parts := strings.Fields(editor)
-	if len(parts) == 0 {
-		parts = []string{"vi"}
-	}
-	args := append(parts[1:], path)
-	return tea.ExecProcess(exec.Command(parts[0], args...), func(error) tea.Msg { return nil })
 }
 
 func findRootScript(action actionMode) (string, error) {
@@ -2576,6 +2777,9 @@ func findRootScript(action actionMode) (string, error) {
 		if realExe, err := filepath.EvalSymlinks(exe); err == nil {
 			candidates = append(candidates, filepath.Join(filepath.Dir(realExe), scriptName))
 		}
+	}
+	if sourcePath := omarchySourcePath(); sourcePath != "" {
+		candidates = append(candidates, filepath.Join(sourcePath, "qv", "tui", scriptName))
 	}
 
 	seen := make(map[string]bool)
@@ -2632,19 +2836,6 @@ func validateRootScript(path string) error {
 	return nil
 }
 
-func qvosRootLogPath(action actionMode) string {
-	switch action {
-	case actionBuild:
-		return qvosBuildLogPath()
-	case actionRepair:
-		return qvosRepairLogPath()
-	case actionUpdate:
-		return qvosUpdateLogPath()
-	default:
-		return qvosBuildLogPath()
-	}
-}
-
 func qvosBuildLogPath() string {
 	return qvosStateLogPath("iso", "build.log")
 }
@@ -2660,14 +2851,6 @@ func qvosEnvEnabled(name string) bool {
 	default:
 		return false
 	}
-}
-
-func qvosRepairLogPath() string {
-	return qvosStateLogPath("repair", "root-repair.log")
-}
-
-func qvosUpdateLogPath() string {
-	return qvosStateLogPath("update", "root-update.log")
 }
 
 func qvosStateLogPath(domain string, name string) string {
@@ -2715,6 +2898,13 @@ func shouldDefaultToISOInstaller() bool {
 // -- main --
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--prototype" {
+		if err := runPrototype(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--iso-installer-preview" {
 		if err := runISOInstaller(true); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -2744,7 +2934,7 @@ func main() {
 		return
 	}
 
-	p := tea.NewProgram(model{})
+	p := newTUIProgram(model{})
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

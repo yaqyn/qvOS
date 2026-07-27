@@ -300,9 +300,24 @@ grep -Fq 'for attempt in 1 2 3' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
 grep -Fq '/omarchy/qv/install/packaging/base.packages' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO base package ownership"
-grep -Fq 'qvos-tui --iso-installer' \
+grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO configurator integration"
+grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO progress fullscreen contract"
+grep -Fq 'install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS installed-system TUI payload"
+grep -Fq 'mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS continuous boot-install log"
+grep -Fq 'QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS continuous boot-install TUI ownership"
+grep -Fq 'if [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then' \
+  "$root/qv/install/helpers/logging" ||
+  fail "qvOS external install progress suppresses inherited monitor"
 
 publish_fixture="$test_root/iso-publish"
 publish_bin="$publish_fixture/bin"

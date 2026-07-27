@@ -148,6 +148,56 @@ func TestISOInstallerFlowCollectsOptionalIdentity(t *testing.T) {
 	}
 }
 
+func TestISOInstallerCoversTheOmarchyInformationContract(t *testing.T) {
+	steps := []isoStep{
+		isoStepKeyboard,
+		isoStepUsername,
+		isoStepFullName,
+		isoStepEmail,
+		isoStepPassword,
+		isoStepPasswordConfirm,
+		isoStepHostname,
+		isoStepTimezone,
+		isoStepReview,
+		isoStepDisk,
+		isoStepConfirm,
+	}
+
+	if len(steps) != 11 {
+		t.Fatalf("installer information step count = %d, want 11", len(steps))
+	}
+	if choices := (isoInstallerModel{step: isoStepReview}).staticStepChoices(); len(choices) != 2 {
+		t.Fatalf("review choices = %d, want continue/change", len(choices))
+	}
+	if choices := (isoInstallerModel{step: isoStepConfirm}).staticStepChoices(); len(choices) != 2 {
+		t.Fatalf("disk confirmation choices = %d, want install/change disk", len(choices))
+	}
+}
+
+func TestISOProgressPrototypeSpansBaseSystemAndQvOSInstall(t *testing.T) {
+	model := newISOProgressPrototypeModel()
+	for range 360 {
+		model.advancePrototype()
+	}
+
+	if model.progress != 1 {
+		t.Fatalf("prototype progress = %v, want 1", model.progress)
+	}
+	if model.status != "install complete" {
+		t.Fatalf("prototype status = %q, want install complete", model.status)
+	}
+	if len(model.logLines) < 7 {
+		t.Fatalf("prototype log lines = %d, want all install phases", len(model.logLines))
+	}
+}
+
+func TestISOActionsKeepNumbersOnMobile(t *testing.T) {
+	row := stripANSI(renderISOActionRow("01", "CHANGE", true, layoutMobile))
+	if row != "01  CHANGE" {
+		t.Fatalf("mobile ISO action row = %q, want aligned numbered action", row)
+	}
+}
+
 func assertFileEquals(t *testing.T, path string, want string) {
 	t.Helper()
 

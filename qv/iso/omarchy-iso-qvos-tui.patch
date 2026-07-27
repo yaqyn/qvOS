@@ -181,13 +181,13 @@
  # Fix ownership of output files to match host user
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
-@@ -11,24 +11,56 @@ use_omarchy_helpers() {
+@@ -11,24 +11,65 @@ use_omarchy_helpers() {
  
  run_configurator() {
    set_tokyo_night_colors
 -  ./configurator
 +  if command -v qvos-tui >/dev/null 2>&1; then
-+    qvos-tui --iso-installer
++    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer
 +  else
 +    ./configurator
 +  fi
@@ -196,7 +196,7 @@
  
 +start_qvos_iso_progress() {
 +  if command -v qvos-tui >/dev/null 2>&1; then
-+    qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
++    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
 +    qvos_iso_progress_pid=$!
 +  else
 +    start_log_output
@@ -239,11 +239,32 @@
 -  stop_log_output
 +  set -e
 +
-+  stop_qvos_iso_progress
-+  return "$install_status"
++  if (( install_status != 0 )); then
++    stop_qvos_iso_progress
++    return "$install_status"
++  fi
++
++  if [[ -x /usr/local/bin/qvos-tui ]]; then
++    install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui
++  fi
++  install -Dm0640 /dev/null /mnt/var/log/omarchy-install.log
++  mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log
++  return 0
  }
  
  install_omarchy() {
+@@ -247,10 +288,11 @@ configure_login_for_unencrypted_install() {
+ chroot_bash() {
+   HOME=/home/$OMARCHY_USER \
+     arch-chroot -u $OMARCHY_USER /mnt/ \
+     env OMARCHY_CHROOT_INSTALL=1 \
++    QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}" \
+     OMARCHY_USER_NAME="$(<user_full_name.txt)" \
+     OMARCHY_USER_EMAIL="$(<user_email_address.txt)" \
+     OMARCHY_MIRROR="$OMARCHY_MIRROR" \
+     USER="$OMARCHY_USER" \
+     HOME="/home/$OMARCHY_USER" \
+     /bin/bash "$@"
 --- configs/profiledef.sh
 +++ configs/profiledef.sh
 @@ -23,4 +23,5 @@ file_permissions=(

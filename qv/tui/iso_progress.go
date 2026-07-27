@@ -21,8 +21,11 @@ type isoProgressModel struct {
 	frame      int
 	width      int
 	height     int
+	fullscreen bool
 	logPath    string
 	noInput    bool
+	prototype  bool
+	previewAge int
 	progress   float64
 	target     float64
 	status     string
@@ -66,7 +69,7 @@ func runISOProgress(args []string) error {
 	if noInput {
 		options = append(options, tea.WithInput(nil))
 	}
-	p := tea.NewProgram(newISOProgressModel(logPath, noInput), options...)
+	p := newTUIProgram(newISOProgressModel(logPath, noInput), options...)
 	_, err := p.Run()
 	return err
 }
@@ -92,18 +95,38 @@ func newISOProgressModel(logPath string, noInput ...bool) isoProgressModel {
 	}
 }
 
+func newISOProgressPrototypeModel() isoProgressModel {
+	return isoProgressModel{
+		prototype: true,
+		status:    "preparing base system",
+		logLines: []string{
+			"prototype: no installer commands will run",
+		},
+	}
+}
+
 func (m isoProgressModel) Init() tea.Cmd {
-	return tea.Batch(tick(), readISOProgressSnapshotCmd(m.logPath))
+	if m.prototype {
+		return tea.Batch(tick(), detectFullscreenCmd())
+	}
+	return tea.Batch(tick(), detectFullscreenCmd(), readISOProgressSnapshotCmd(m.logPath))
 }
 
 func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tickMsg:
 		m.frame += framesPerTick
+		if m.prototype {
+			m.advancePrototype()
+			return m, tick()
+		}
 		m.progress = advanceScriptProgress(m.progress, m.target)
 		return m, tea.Batch(tick(), readISOProgressSnapshotCmd(m.logPath))
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		return m, detectFullscreenCmd()
+	case fullscreenStateMsg:
+		m.fullscreen = msg.fullscreen
 	case isoProgressSnapshotMsg:
 		if msg.status != "" {
 			m.status = msg.status
@@ -116,6 +139,16 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.noInput {
 			return m, nil
 		}
+		if m.prototype {
+			switch msg.String() {
+			case "esc", "ctrl+c":
+				return m, tea.Quit
+			case "enter":
+				if m.progress >= 1 {
+					return m, tea.Quit
+				}
+			}
+		}
 		if msg.String() == "v" || msg.String() == "V" {
 			m.logOverlay = !m.logOverlay
 		}
@@ -123,50 +156,106 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *isoProgressModel) advancePrototype() {
+	if m.progress >= 1 {
+		return
+	}
+
+	m.previewAge++
+	m.progress = min(1, float64(m.previewAge)/360)
+	m.target = m.progress
+	stages := []struct {
+		at     float64
+		status string
+		log    string
+	}{
+		{0.02, "preparing base system", "installing Arch base system"},
+		{0.18, "partitioning encrypted disk", "created encrypted qvOS layout"},
+		{0.38, "installing system packages", "base packages installed"},
+		{0.58, "installing qvOS", "started qvOS installation"},
+		{0.76, "applying desktop configuration", "desktop configuration applied"},
+		{0.90, "repairing qvOS integrations", "qvOS integrations repaired"},
+		{1.00, "install complete", "installation completed successfully"},
+	}
+
+	completed := len(m.logLines) - 1
+	for completed < len(stages) && m.progress >= stages[completed].at {
+		stage := stages[completed]
+		m.status = stage.status
+		m.logLines = append(m.logLines, stage.log)
+		completed++
+	}
+}
+
 func (m isoProgressModel) View() tea.View {
-	width, height := safeDimensions(m.width, m.height)
+	termWidth, termHeight := safeDimensions(m.width, m.height)
+	width, height := termWidth, termHeight
 	mode := layoutFor(width, height)
-	reserveRows := fullCanvasReserveRows
-	if m.logOverlay {
-		reserveRows = 22
-		if mode == layoutMid {
-			reserveRows = 18
-		}
-	}
 
-	if mode == layoutFull {
-		canvasW, canvasH = fitIconCanvasReserved(width, height, minCanvasW, reserveRows)
-	} else if mode == layoutMid {
-		canvasW, canvasH = fitIconCanvasReserved(width, height, 1, reserveRows)
+	var body string
+	if isSideComposition(width, height, m.fullscreen) {
+		body = m.renderISOSideBody(width, height)
 	} else {
-		canvasW, canvasH = fitSmallBody(width), 0
+		reserveRows := fullCanvasReserveRows
+		if m.logOverlay {
+			reserveRows = 22
+			if mode == layoutTablet {
+				reserveRows = 18
+			}
+		}
+
+		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
+		if showIcon {
+			canvasW, canvasH = iconWidth, iconHeight
+		} else {
+			canvasW, canvasH = fitContentWidth(width), 0
+		}
+
+		var icon string
+		if showIcon {
+			icon = renderBloom(m.frame)
+		}
+		canvasW = fitContentWidth(width)
+		body = m.renderISOProgressBody(mode, icon)
 	}
 
-	var icon string
-	if mode != layoutSmall {
-		icon = renderBloom(m.frame)
-	}
-
-	body := m.renderISOProgressBody(mode, icon)
-	placed := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
-	placed = lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Background(lipgloss.Color("#000000")).
-		Render(placed)
+	placed := renderViewport(termWidth, termHeight, body)
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeNone
-	v.BackgroundColor = lipgloss.Color("#000000")
+	v.BackgroundColor = lipgloss.Color(bgTerm)
 	v.WindowTitle = "qvOS install"
 	return v
+}
+
+func (m isoProgressModel) renderISOSideBody(width, height int) string {
+	leftWidth, _ := sideColumnWidths(width)
+	canvasW, canvasH = leftWidth, 0
+	left := m.renderISOProgressPanel(layoutTablet)
+	right := renderIdentity("qvOS", "INSTALL / LOADING")
+
+	if m.logOverlay {
+		right = m.renderISOProgressLogs(layoutTablet)
+		return renderSideColumns(width, left, right)
+	}
+	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
+		canvasW, canvasH = iconWidth, iconHeight
+		right = lipgloss.JoinVertical(
+			lipgloss.Center,
+			renderBloom(m.frame),
+			"",
+			renderIdentity("qvOS", "INSTALL / LOADING"),
+		)
+		canvasW, canvasH = leftWidth, 0
+	}
+	return renderSideColumns(width, left, right)
 }
 
 func (m isoProgressModel) renderISOProgressBody(mode layoutMode, icon string) string {
 	var lines []string
 	if icon != "" {
-		lines = append(lines, icon, "")
+		lines = append(lines, centerCanvas(icon), "")
 	}
 	lines = append(lines, m.renderISOProgressPanel(mode))
 	if m.logOverlay {
@@ -176,7 +265,7 @@ func (m isoProgressModel) renderISOProgressBody(mode layoutMode, icon string) st
 }
 
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
-	if mode == layoutSmall {
+	if mode == layoutMobile {
 		return renderReducedProgress("INSTALLING", loadRun, m.progress, mode)
 	}
 
@@ -196,13 +285,15 @@ func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 	hint := sRed.Render("v") + sBright.Render(" logs")
 	if m.noInput {
 		hint = sBright.Render("logs")
+	} else if m.prototype && m.progress >= 1 {
+		hint = sRed.Render("enter") + sBright.Render(" return")
 	}
 
 	ctr := func(s string) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
 
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		return strings.Join([]string{
 			ctr(sWhite.Render("INSTALLING")),
 			"",
@@ -228,17 +319,17 @@ func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
 	width := canvasW
 	height := 9
-	if mode == layoutMid {
+	if mode == layoutTablet {
 		height = 6
 	}
-	if width < 24 {
-		width = 24
+	if width < 1 {
+		width = 1
 	}
 	if width > 82 {
 		width = 82
 	}
 
-	contentWidth := width - 2
+	contentWidth := max(1, width-2)
 	lines := m.logLines
 	if len(lines) == 0 {
 		lines = []string{"waiting for install log"}

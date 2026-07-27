@@ -1,15 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-tui="$OMARCHY_PATH/qv/tui/qvos-tui"
+tui="${QVOS_TUI_BIN:-}"
+if [[ -z $tui ]]; then
+  tui=$(command -v qvos-tui || true)
+fi
 
 "$OMARCHY_PATH/qv/maintenance/personal-software-baseline" --capture
 
-if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || ! -x $tui ]]; then
+if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || -z $tui || ! -x $tui ]]; then
   exit 1
 fi
 
-"$tui" --iso-finished --log "$OMARCHY_INSTALL_LOG_FILE"
+QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished --log "$OMARCHY_INSTALL_LOG_FILE"
 if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
   sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
 fi
