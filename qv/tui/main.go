@@ -129,6 +129,8 @@ const (
 	sidePadding      = 4
 	sideLeftMax      = 48
 	sideRightMax     = 64
+	logSideLeftMax   = 36
+	logSideRightMax  = 96
 )
 
 func layoutFor(width, height int) layoutMode {
@@ -190,6 +192,39 @@ func sideColumnWidths(width int) (int, int) {
 
 func renderSideColumns(width int, left, right string) string {
 	leftWidth, rightWidth := sideColumnWidths(width)
+	return renderColumnPair(leftWidth, rightWidth, left, right)
+}
+
+func sideLogColumnWidths(width int) (int, int) {
+	available := width - sideGap - sidePadding*2
+	if available < 2 {
+		available = 2
+	}
+
+	leftWidth := available * 3 / 10
+	if leftWidth > logSideLeftMax {
+		leftWidth = logSideLeftMax
+	}
+	if leftWidth < 1 {
+		leftWidth = 1
+	}
+
+	rightWidth := available - leftWidth
+	if rightWidth > logSideRightMax {
+		rightWidth = logSideRightMax
+	}
+	if rightWidth < 1 {
+		rightWidth = 1
+	}
+	return leftWidth, rightWidth
+}
+
+func renderSideLogColumns(width int, left, right string) string {
+	leftWidth, rightWidth := sideLogColumnWidths(width)
+	return renderColumnPair(leftWidth, rightWidth, left, right)
+}
+
+func renderColumnPair(leftWidth, rightWidth int, left, right string) string {
 	leftColumn := lipgloss.NewStyle().Width(leftWidth).Align(lipgloss.Center)
 	rightColumn := lipgloss.NewStyle().Width(rightWidth).Align(lipgloss.Center)
 	return lipgloss.JoinHorizontal(
@@ -277,6 +312,15 @@ const (
 	actionBuild actionMode = iota
 	actionRepair
 	actionUpdate
+)
+
+type modelRole uint8
+
+const (
+	modelCore modelRole = iota
+	modelThreeRings
+	modelTwoRings
+	modelOneRing
 )
 
 type model struct {
@@ -661,7 +705,7 @@ func (m model) View() tea.View {
 	} else {
 		reserveRows := fullCanvasReserveRows
 		if m.loading && m.logOverlay {
-			reserveRows = 26
+			reserveRows = logCanvasReserveRows
 		}
 		var showIcon bool
 		canvasW, canvasH, showIcon = fitCenterStageCanvas(width, height, reserveRows)
@@ -673,7 +717,11 @@ func (m model) View() tea.View {
 		if showIcon {
 			icon = m.renderActiveIcon()
 		}
-		canvasW = fitContentWidth(width)
+		if m.loading && m.logOverlay {
+			canvasW = fitLogContentWidth(width)
+		} else {
+			canvasW = fitContentWidth(width)
+		}
 		if mode == layoutDesktop {
 			body = m.renderDesktopBody(icon)
 		} else {
@@ -693,21 +741,22 @@ func (m model) View() tea.View {
 
 func (m model) renderSideBody(width, height int) string {
 	leftWidth, _ := sideColumnWidths(width)
-	canvasW, canvasH = leftWidth, 0
-
 	page := sections[m.tab].name
-	left := m.renderMiddle(layoutMobile)
-	right := renderIdentity("qvOS", page)
-
 	if m.loading {
 		page = rootActionName(m.action)
-		right = renderIdentity("qvOS", page)
 		if m.logOverlay {
-			left = m.renderRootProgressFor(layoutTablet)
-			right = m.renderRootLogOverlayFor(layoutTablet)
-			return renderSideColumns(width, left, right)
+			logLeftWidth, logRightWidth := sideLogColumnWidths(width)
+			canvasW, canvasH = logLeftWidth, 0
+			left := m.renderRootProgressFor(layoutTablet)
+			canvasW = logRightWidth
+			right := m.renderRootLogOverlayFor(layoutTablet)
+			return renderSideLogColumns(width, left, right)
 		}
 	}
+
+	canvasW, canvasH = leftWidth, 0
+	left := m.renderMiddle(layoutMobile)
+	right := renderIdentity("qvOS", page)
 
 	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
 		canvasW, canvasH = iconWidth, iconHeight
@@ -728,16 +777,20 @@ func (m model) renderDesktopBody(icon string) string {
 }
 
 func (m model) renderActiveIcon() string {
-	switch m.tab {
-	case 1:
-		return renderKnot(m.frame)
-	case 2:
-		return renderHopf(m.frame)
-	case 3:
-		return renderTorus(m.frame)
-	default:
-		return renderBloom(m.frame)
+	return renderModelRole(m.activeModelRole(), m.frame)
+}
+
+func (m model) activeModelRole() modelRole {
+	if m.loading && isScriptAction(m.action) {
+		if m.action == actionUpdate {
+			return modelThreeRings
+		}
+		return modelTwoRings
 	}
+	if m.tab == 3 {
+		return modelOneRing
+	}
+	return modelCore
 }
 
 func (m model) renderMiddle(mode layoutMode) string {
@@ -2092,6 +2145,9 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	phase := m.loadPhase()
 	progress := m.loadProgress()
 	elapsed := m.frame - m.loadStart
+	if m.scriptCanceled {
+		return m.renderRootCanceledFor(mode)
+	}
 	if phase == loadOK && m.action == actionBuild && !m.scriptCanceled {
 		return m.renderBuildFinishedFor(mode)
 	}
@@ -2116,13 +2172,8 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	var op, stageRaw, hint string
 	switch phase {
 	case loadOK:
-		if m.scriptCanceled {
-			op = sWhite.Render("CANCELED")
-			stageRaw = rootActionCanceledStatus(m.action)
-		} else {
-			op = sWhite.Render(rootActionPastTense(m.action))
-			stageRaw = rootActionCompleteStatus(m.action)
-		}
+		op = sWhite.Render(rootActionPastTense(m.action))
+		stageRaw = rootActionCompleteStatus(m.action)
 		hint = sDim.Render("⏎") + sGray.Render("  return    ") +
 			sDim.Render("v") + sGray.Render("  logs")
 	case loadErr:
@@ -2183,6 +2234,26 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	}, "\n")
 }
 
+func (m model) renderRootCanceledFor(mode layoutMode) string {
+	title := rootActionName(m.action) + " CANCELED"
+	if mode != layoutDesktop {
+		return centerCanvas(sWhite.Render(title))
+	}
+
+	ctr := func(s string) string {
+		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
+	}
+	hint := sDim.Render("⏎") + sGray.Render("  return    ") +
+		sDim.Render("v") + sGray.Render("  logs")
+	return strings.Join([]string{
+		ctr(sWhite.Render(title)),
+		"",
+		ctr(sGray.Render(rootActionCanceledStatus(m.action))),
+		"",
+		ctr(hint),
+	}, "\n")
+}
+
 func (m model) renderBuildFinishedFor(mode layoutMode) string {
 	releaseName := "qvOS ISO"
 	if m.scriptArtifact != "" {
@@ -2231,29 +2302,42 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 
 func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 	width := canvasW
-	height := 10
+	height := 18
 	if mode == layoutTablet {
 		width = canvasW
-		height = 7
+		height = 16
 	}
 	if mode == layoutMobile {
 		width = canvasW
-		height = 3
+		height = 7
 	}
 	if width < 1 {
 		width = 1
 	}
-	if width > 74 {
-		width = 74
+	if width > logSideRightMax {
+		width = logSideRightMax
+	}
+	if m.height > 0 {
+		heightLimit := m.height - 4
+		if mode == layoutDesktop {
+			heightLimit = m.height - 12
+		}
+		if heightLimit < 3 {
+			heightLimit = 3
+		}
+		if height > heightLimit {
+			height = heightLimit
+		}
 	}
 
 	contentWidth := max(1, width-4)
+	contentHeight := max(1, height-2)
 	lines := m.scriptLogLines
 	if len(lines) == 0 {
 		lines = []string{"waiting for logs"}
 	}
-	if len(lines) > height {
-		lines = lines[len(lines)-height:]
+	if len(lines) > contentHeight {
+		lines = lines[len(lines)-contentHeight:]
 	}
 
 	var body []string
@@ -2263,6 +2347,7 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 
 	return lipgloss.NewStyle().
 		Width(width).
+		Height(height).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color(deepRed)).
 		Foreground(lipgloss.Color(mid)).
@@ -2384,6 +2469,7 @@ const (
 	maxCanvasW = 64
 
 	fullCanvasReserveRows = 12
+	logCanvasReserveRows  = 31
 	modelQualityMinW      = 40
 	iconCanvasScale       = 0.82
 )
@@ -2468,6 +2554,17 @@ func fitContentWidth(termW int) int {
 	}
 	if width > maxCanvasW {
 		return maxCanvasW
+	}
+	return width
+}
+
+func fitLogContentWidth(termW int) int {
+	width := termW - 4
+	if width < 1 {
+		return 1
+	}
+	if width > logSideRightMax {
+		return logSideRightMax
 	}
 	return width
 }
@@ -2739,6 +2836,19 @@ var (
 	bloomThetaSamples = periodicAngleSamples(bloomUN)
 	bloomPhiSamples   = inclusiveAngleSamples(bloomVN, -math.Pi/2, math.Pi)
 )
+
+func renderModelRole(role modelRole, frame int) string {
+	switch role {
+	case modelThreeRings:
+		return renderKnot(frame)
+	case modelTwoRings:
+		return renderHopf(frame)
+	case modelOneRing:
+		return renderTorus(frame)
+	default:
+		return renderBloom(frame)
+	}
+}
 
 func renderBloom(frame int) string {
 	motion := animationFrame(frame)

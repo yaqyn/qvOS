@@ -1,8 +1,5 @@
 #!/bin/bash
 set -euo pipefail
 
-exec setsid uwsm-app -- \
-  xdg-terminal-exec \
-  --app-id=org.omarchy.terminal \
-  --title=qvOS \
-  -e omarchy-qvos-update
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/tui/launch" "qvOS Update" omarchy-qvos-update "$@"

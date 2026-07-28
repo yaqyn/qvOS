@@ -606,7 +606,7 @@ func (m isoInstallerModel) View() tea.View {
 
 		icon := ""
 		if showIcon {
-			icon = renderBloom(m.frame)
+			icon = renderModelRole(modelTwoRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
 		body = m.renderISOBody(mode, icon)
@@ -643,7 +643,7 @@ func (m isoInstallerModel) renderISOSideBody(width, height int) string {
 		canvasW, canvasH = iconWidth, iconHeight
 		right = lipgloss.JoinVertical(
 			lipgloss.Center,
-			renderBloom(m.frame),
+			renderModelRole(modelTwoRings, m.frame),
 			"",
 			renderIdentity("qvOS", "INSTALL / "+page),
 		)

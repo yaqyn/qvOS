@@ -17,13 +17,25 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   for update or recovery, and ISO flows retain their inherited fallback.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
-- Complete confirmation and non-mutating preflight before sudo. Cancellation
-  remains available for normal desktop actions and must stop the full owned
-  process group. During Update, interruption keys open a confirmation while
-  mutation continues; only an explicit `Stop Update` choice may cancel it.
-  Only boot/ISO installation is intentionally non-interruptible.
+- Complete confirmation and non-mutating preflight before sudo.
 - Put runnable snapshots under the user runtime directory, never inside the
   Omarchy checkout, and stop active children when a TUI window exits.
+
+## Durable UX Contract
+
+- Launch desktop TUI windows through `qv/tui/launch`; the shared
+  `org.qvos.tui` class owns the centered 1024x509 floating stage.
+- Model roles are semantic: CORE (beating red/grayscale) is the hub identity,
+  three rings is Update, two rings is every other operational terminal, and
+  one ring is About only.
+- About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
+  Keep those values in its future owner contract rather than duplicating them.
+- Important loading or mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly
+  to cancellation. Open a safe-default confirmation, keep unpausable work
+  running until an explicit stop choice, then stop the full owned process
+  group. Boot/ISO installation keeps its stricter interruption guard.
+- Give logs responsive priority over the model and use the shared expanded
+  panel. Canceled results must say canceled, never `100%` or success.
 
 ## Change Workflow
 
@@ -38,8 +50,8 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
    adapters, focused action/menu tests, then `test/qvos/run.sh` when shared
    contracts or lifecycle wiring changes.
 5. Build and install the live binary through `qv/tui/install`, apply affected
-   launch/config owners, exercise the safe presentation path, then capture and
-   inspect a fullscreen screenshot with
+   launch/config owners, verify the semantic model and responsive log/result
+   states, then capture and inspect a fullscreen screenshot with
    `omarchy capture screenshot fullscreen save`.
 
 When an ISO surface changes, follow `qv/iso/AGENTS.md` in addition to this

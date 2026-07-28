@@ -181,6 +181,8 @@ grep -Fq "automatically create or update the nearest owner-local \`AGENTS.md\`" 
   "$root/AGENTS.md" || fail "conditional workflow documentation contract"
 grep -Fq 'conditional or multi-stage' "$root/AGENTS.md" ||
   fail "conditional workflow creation threshold"
+grep -Fq 'safety invariant, or UX' "$root/AGENTS.md" ||
+  fail "owner-local reusable learning contract"
 workflow_count=0
 while IFS= read -r -d '' workflow_agents; do
   workflow_agents=${workflow_agents#"$root/"}

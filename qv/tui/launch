@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# < 2)); then
+  echo "Usage: qv/tui/launch <title> <command> [args...]" >&2
+  exit 2
+fi
+
+title=$1
+shift
+
+exec setsid uwsm-app -- \
+  xdg-terminal-exec \
+  --app-id=org.qvos.tui \
+  --title="$title" \
+  -e "$@"

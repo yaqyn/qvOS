@@ -7,6 +7,7 @@ owner="$root/qv/update/qvos-update"
 availability_owner="$root/qv/update/update-available"
 tui_update="$root/qv/tui/update/run"
 tui_update_compat="$root/qv/tui/bin/qvos-update"
+tui_shared_launch="$root/qv/tui/launch"
 tui_launch="$root/qv/tui/update/launch"
 launch_adapter="$root/bin/omarchy-launch-qvos-update"
 test_root="$(mktemp -d)"
@@ -307,17 +308,19 @@ printf '%s\n' "$*" >"$QVOS_TEST_TUI_LAUNCH_LOG"
 SCRIPT
 tui_launch_log="$test_root/tui-launch.log"
 QVOS_TEST_TUI_LAUNCH_LOG="$tui_launch_log" \
+  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$tui_launch"
-[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e omarchy-qvos-update" ]] ||
+[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tui --title=qvOS Update -e omarchy-qvos-update" ]] ||
   fail "qvOS TUI update terminal launch"
-pass "qvOS Update opens the shared TUI without the legacy presentation wrapper"
+pass "qvOS Update opens the shared sized TUI without the legacy presentation wrapper"
 
 install -D -m 0755 "$tui_launch" "$fixture/qv/tui/update/launch"
+install -D -m 0755 "$tui_shared_launch" "$fixture/qv/tui/launch"
 QVOS_TEST_TUI_LAUNCH_LOG="$tui_launch_log" \
   OMARCHY_PATH="$fixture" \
   PATH="$test_bin:/usr/bin" \
   "$launch_adapter"
-[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e omarchy-qvos-update" ]] ||
+[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tui --title=qvOS Update -e omarchy-qvos-update" ]] ||
   fail "public qvOS Update launch adapter"
 pass "public qvOS Update launcher remains a thin TUI-domain adapter"

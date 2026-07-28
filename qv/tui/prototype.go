@@ -166,14 +166,7 @@ func (m prototypeHubModel) View() tea.View {
 }
 
 func (m prototypeHubModel) renderIcon() string {
-	switch m.tab {
-	case 1:
-		return renderKnot(m.frame)
-	case 2:
-		return renderBloom(m.frame)
-	default:
-		return renderTorus(m.frame)
-	}
+	return renderModelRole(modelCore, m.frame)
 }
 
 func (m prototypeHubModel) renderSideBody(width, height int) string {
@@ -530,7 +523,7 @@ func (m prototypeSessionModel) View() tea.View {
 
 		icon := ""
 		if showIcon {
-			icon = renderKnot(m.frame)
+			icon = renderModelRole(modelTwoRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
 		body = m.renderBody(mode, icon)
@@ -558,7 +551,7 @@ func (m prototypeSessionModel) renderSideBody(width, height int) string {
 		canvasW, canvasH = iconWidth, iconHeight
 		right = lipgloss.JoinVertical(
 			lipgloss.Center,
-			renderKnot(m.frame),
+			renderModelRole(modelTwoRings, m.frame),
 			"",
 			renderIdentity("qvOS", "PROTOTYPE / "+m.profile.title),
 		)

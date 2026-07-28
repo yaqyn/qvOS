@@ -73,6 +73,7 @@
     qv/thunar/share
     qv/thunar/transcode
     qv/tui/install
+    qv/tui/launch
     qv/tui/update/launch
     qv/tui/update/run
     qv/tmux/qvos-tmux

@@ -234,6 +234,24 @@ grep -Fq 'otherwise update the' "$root/qv/hyprland/AGENTS.md" ||
   fail "qvOS Hyprland top-level source instruction"
 grep -Fq 'owned top-level source' "$root/qv/hyprland/AGENTS.md" ||
   fail "qvOS Hyprland top-level source instruction"
+grep -Fq 'three rings is Update' "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI Update model role"
+grep -Fq 'one ring is About only' "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI About model role"
+grep -Fq 'Important loading or mutation flows never bind' \
+  "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI interruption confirmation rule"
+grep -Fq 'Canceled results must say canceled' "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI cancellation result rule"
+grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \
+  "$root/qv/config/files/hypr/qv/windows.conf" ||
+  fail "qvOS TUI floating window contract"
+grep -Fqx 'windowrule = size 1024 509, match:class ^org\.qvos\.tui$' \
+  "$root/qv/config/files/hypr/qv/windows.conf" ||
+  fail "qvOS TUI default window size"
+grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
+  "$root/qv/config/files/hypr/qv/windows.conf" ||
+  fail "qvOS TUI centered window contract"
 grep -Fq 'bash "$OMARCHY_PATH/qv/install/first-run/apply"' \
   "$root/bin/omarchy-first-run" ||
   fail "qvOS first-run integration seam"

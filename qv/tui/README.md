@@ -17,6 +17,8 @@ modes:
 The composition follows the terminal's visual orientation. Its aspect is
 calibrated against the live Alacritty cell geometry:
 
+- desktop special TUI routes share the centered `org.qvos.tui` 1024x509
+  floating stage
 - landscape: actions on the left and the 3D stage on the right
 - portrait or square: the 3D stage centered above the active content
 - constrained: preserve the composition but hide the 3D stage below its
@@ -28,7 +30,19 @@ Menu titles and descriptions use catalog-wide measured columns. Descriptions
 yield first when space is constrained; complete rows share one measured width
 so identifiers, titles, and descriptions stay aligned.
 Opening logs prioritizes progress and log content over the 3D stage.
+Landscape logs use a dedicated 3:7 progress/log split, up to a 96x16-cell log
+panel, instead of inheriting the compact identity-column limits.
 Every mode uses the same `#020202` background.
+
+The four model roles carry meaning across surfaces:
+
+- CORE: beating red/grayscale hub identity
+- three rings: Update
+- two rings: every other operational terminal, including ISO
+- one ring: About only
+
+The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
+and guides without scattering those values through shared rendering code.
 
 ## Update
 
@@ -48,7 +62,8 @@ the background. `Keep Updating` is the safe default; only explicitly choosing
 Closing the Update window still stops an active update. The non-interruptible
 keyboard guard remains exclusive to boot/ISO installation. If the TUI is
 unavailable, `omarchy-qvos-update` retains its plain terminal confirmation and
-update path.
+update path. A stopped Update renders `UPDATE CANCELED`; it never presents
+`100%`, `UPDATED`, or `update complete`.
 
 ## Boot phases
 

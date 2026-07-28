@@ -102,7 +102,7 @@ func (m isoFinishedModel) View() tea.View {
 
 		icon := ""
 		if showIcon {
-			icon = renderBloom(m.frame)
+			icon = renderModelRole(modelTwoRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
 		body = m.renderISOFinishedBody(mode, icon)
@@ -128,7 +128,7 @@ func (m isoFinishedModel) renderISOSideBody(width, height int) string {
 		canvasW, canvasH = iconWidth, iconHeight
 		right = lipgloss.JoinVertical(
 			lipgloss.Center,
-			renderBloom(m.frame),
+			renderModelRole(modelTwoRings, m.frame),
 			"",
 			renderIdentity("qvOS", "INSTALL / FINALE"),
 		)

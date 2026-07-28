@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -243,6 +244,39 @@ func TestCompletedUpdateClosesStopConfirmation(t *testing.T) {
 	m = next.(model)
 	if m.updateStopConfirm || !m.scriptDone {
 		t.Fatal("completed Update left the stop confirmation open")
+	}
+}
+
+func TestCanceledUpdateRendersAResultInsteadOfCompletionProgress(t *testing.T) {
+	sizes := []struct {
+		name          string
+		width, height int
+	}{
+		{"desktop", 120, 42},
+		{"tablet", 72, 30},
+		{"mobile", 44, 18},
+	}
+
+	for _, size := range sizes {
+		t.Run(size.name, func(t *testing.T) {
+			view := (model{
+				width:          size.width,
+				height:         size.height,
+				loading:        true,
+				action:         actionUpdate,
+				scriptDone:     true,
+				scriptCanceled: true,
+			}).View()
+			content := stripANSI(view.Content)
+			if !strings.Contains(content, "UPDATE CANCELED") {
+				t.Fatalf("canceled result is missing: %q", content)
+			}
+			if strings.Contains(content, "100%") ||
+				strings.Contains(content, "UPDATED") ||
+				strings.Contains(content, "update complete") {
+				t.Fatalf("canceled result still claims completion: %q", content)
+			}
+		})
 	}
 }
 
@@ -512,6 +546,66 @@ func TestResponsiveLayoutUsesDesktopTabletAndMobileTiers(t *testing.T) {
 	}
 }
 
+func TestModelRolesStaySemanticAcrossTUISurfaces(t *testing.T) {
+	tests := []struct {
+		name  string
+		model model
+		want  modelRole
+	}{
+		{"hub", model{tab: 0}, modelCore},
+		{"system hub", model{tab: 1}, modelCore},
+		{"tweak hub", model{tab: 2}, modelCore},
+		{"about", model{tab: 3}, modelOneRing},
+		{"update", model{loading: true, action: actionUpdate}, modelThreeRings},
+		{"repair", model{loading: true, action: actionRepair}, modelTwoRings},
+		{"build", model{loading: true, action: actionBuild}, modelTwoRings},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.model.activeModelRole(); got != test.want {
+				t.Fatalf("model role = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
+func TestUpdateLogPanelUsesTheExpandedLandscapeBudget(t *testing.T) {
+	leftWidth, rightWidth := sideLogColumnWidths(140)
+	if leftWidth != 36 || rightWidth != 90 {
+		t.Fatalf("log columns = %d/%d, want 36/90", leftWidth, rightWidth)
+	}
+	if rightWidth <= sideRightMax {
+		t.Fatalf("log width = %d, did not exceed generic panel cap %d", rightWidth, sideRightMax)
+	}
+
+	previousWidth, previousHeight := canvasW, canvasH
+	canvasW, canvasH = rightWidth, 0
+	t.Cleanup(func() {
+		canvasW, canvasH = previousWidth, previousHeight
+	})
+
+	var logLines []string
+	for index := 0; index < 20; index++ {
+		logLines = append(logLines, fmt.Sprintf("update log line %02d with useful detail", index))
+	}
+	panel := (model{
+		height:         28,
+		scriptLogLines: logLines,
+	}).renderRootLogOverlayFor(layoutTablet)
+	if width := lipgloss.Width(panel); width != rightWidth {
+		t.Fatalf("log panel width = %d, want %d", width, rightWidth)
+	}
+	if height := len(strings.Split(panel, "\n")); height != 16 {
+		t.Fatalf("log panel height = %d, want 16", height)
+	}
+	content := stripANSI(panel)
+	if !strings.Contains(content, "update log line 06") ||
+		!strings.Contains(content, "update log line 19") {
+		t.Fatalf("expanded log history is incomplete: %q", content)
+	}
+}
+
 func TestTabletCanvasHidesBeforeTheModelLooksBroken(t *testing.T) {
 	if _, _, ok := fitCenteredIconCanvas(tabletMinWidth, tabletMinHeight, fullCanvasReserveRows); ok {
 		t.Fatal("constrained centered canvas should hide the model")
@@ -649,7 +743,7 @@ func TestViewportUsesBlackBackgroundWithoutDecorativeFrame(t *testing.T) {
 }
 
 func TestLogsHideModelWhenMinimumCanvasCannotFit(t *testing.T) {
-	if _, _, ok := fitCenteredIconCanvas(desktopMinWidth, desktopMinHeight, 26); ok {
+	if _, _, ok := fitCenteredIconCanvas(desktopMinWidth, desktopMinHeight, logCanvasReserveRows); ok {
 		t.Fatal("log-constrained canvas should yield to logs")
 	}
 }

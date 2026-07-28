@@ -219,8 +219,9 @@ Read every matching route completely before editing:
 ## Future Workflow Instructions
 
 - Codex must automatically create or update the nearest owner-local `AGENTS.md`
-  for a recurring conditional or multi-stage domain workflow, and add its root
-  route in the same change so root-started sessions cannot miss it.
+  for a recurring conditional or multi-stage workflow, safety invariant, or UX
+  contract, and add its root route in the same change so future work inherits
+  the reusable learning without bloating this file.
 - Do not document simple or one-off work or duplicate an existing workflow.
   Keep the permanent operating model, overlay and ownership boundaries, main
   qvsync workflow, and repository-wide invariants here. Never move them out
