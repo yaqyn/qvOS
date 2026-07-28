@@ -240,10 +240,20 @@ func TestLogOutputScrollsAndReturnsToFollowingTheNewestLine(t *testing.T) {
 		t.Fatalf("Home did not open the oldest retained output: %q", content)
 	}
 
+	next, _ = m.Update(scriptEventMsg{event: scriptEvent{
+		action: actionUpdate,
+		line:   "log line 30",
+	}})
+	m = next.(model)
+	content = stripANSI(m.View().Content)
+	if !strings.Contains(content, "log line 00") || strings.Contains(content, "log line 30") {
+		t.Fatalf("new output moved a deliberately scrolled viewport: %q", content)
+	}
+
 	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
 	m = next.(model)
 	content = stripANSI(m.View().Content)
-	if !strings.Contains(content, "log line 29") || strings.Contains(content, "newer") {
+	if !strings.Contains(content, "log line 30") || strings.Contains(content, "newer") {
 		t.Fatalf("End did not resume the newest output: %q", content)
 	}
 }
