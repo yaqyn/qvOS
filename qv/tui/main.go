@@ -925,18 +925,9 @@ func (m model) helpHints() []tuiHint {
 }
 
 func (m model) hubPersistentHints() []tuiHint {
-	if m.tab == 0 {
-		return []tuiHint{
-			{Key: "↑↓", Action: "move"},
-			{Key: "enter", Action: "open"},
-			{Key: "?", Action: "help"},
-			{Key: "ctrl+c", Action: "exit"},
-		}
-	}
 	return []tuiHint{
 		{Key: "↑↓", Action: "move"},
 		{Key: "?", Action: "help"},
-		{Key: "ctrl+c", Action: "exit"},
 	}
 }
 
@@ -944,50 +935,42 @@ func (m model) rootPersistentHints() []tuiHint {
 	if m.updateStopConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "enter", Action: "confirm"},
-			{Key: "esc", Action: "keep updating"},
 			{Key: "?", Action: "help"},
 		}
 	}
 	if m.updateConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "enter", Action: "continue"},
-			{Key: "esc", Action: "cancel"},
 			{Key: "?", Action: "help"},
 		}
 	}
 	if m.sudoPrompt {
 		return []tuiHint{
 			{Key: "enter", Action: "authorize"},
-			{Key: "esc", Action: "cancel"},
 			{Key: "f1", Action: "help"},
 		}
 	}
 
-	logAction := "logs"
-	if m.logOverlay {
-		logAction = "close logs"
-	}
-	hints := []tuiHint{
-		{Key: "v", Action: logAction},
-		{Key: "ctrl+v", Action: "terminal"},
-		{Key: "?", Action: "help"},
-	}
 	switch m.loadPhase() {
 	case loadErr:
-		return append([]tuiHint{
+		return []tuiHint{
 			{Key: "r", Action: "retry"},
-			{Key: "enter", Action: "return"},
-		}, hints...)
+			{Key: "?", Action: "help"},
+		}
 	case loadOK:
-		return append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
+		return []tuiHint{
+			{Key: "enter", Action: "return"},
+			{Key: "?", Action: "help"},
+		}
 	default:
 		action := "cancel"
 		if m.action == actionUpdate {
 			action = "stop options"
 		}
-		return append([]tuiHint{{Key: "ctrl+c/z", Action: action}}, hints...)
+		return []tuiHint{
+			{Key: "ctrl+c/z", Action: action},
+			{Key: "?", Action: "help"},
+		}
 	}
 }
 
@@ -1007,18 +990,10 @@ func (m model) terminalHelpHints() []tuiHint {
 }
 
 func (m model) terminalHints() []tuiHint {
-	hints := []tuiHint{
+	return []tuiHint{
 		{Key: "ctrl+v", Action: "qvOS view"},
-		{Key: "v", Action: "logs"},
+		{Key: "?", Action: "help"},
 	}
-	if m.loadPhase() == loadRun {
-		action := "cancel"
-		if m.action == actionUpdate {
-			action = "stop options"
-		}
-		hints = append(hints, tuiHint{Key: "ctrl+c/z", Action: action})
-	}
-	return append(hints, tuiHint{Key: "?", Action: "help"})
 }
 
 func (m model) renderMiddle(mode layoutMode) string {

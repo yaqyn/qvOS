@@ -38,11 +38,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   panel. Canceled results must say canceled, never `100%` or success.
 - Keep a visible bar with the percentage in non-mobile progress views. Use one
   quiet selection marker for choices; do not frame action labels as buttons.
-- Every active keyboard action must be discoverable in a high-contrast
-  persistent hint or the contextual help overlay at every responsive size.
-  Use `?` outside text fields and `F1` everywhere so passwords and filters keep
-  their full character set; labels must describe the current result, such as
-  `v close logs`, rather than only the initial action.
+- Keep persistent controls to exactly one context-critical action plus Help at
+  every responsive size; put every other active keyboard action in the
+  contextual help overlay. Use `?` outside text fields and `F1` everywhere so
+  passwords and filters keep their full character set. Labels describe the
+  action result, not implementation details.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
   mutating command to imitate a terminal view.

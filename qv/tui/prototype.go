@@ -189,9 +189,7 @@ func (m prototypeHubModel) helpHints() []tuiHint {
 func (m prototypeHubModel) persistentHints() []tuiHint {
 	return []tuiHint{
 		{Key: "↑↓", Action: "move"},
-		{Key: "enter", Action: "open"},
 		{Key: "?", Action: "help"},
-		{Key: "esc", Action: "exit"},
 	}
 }
 
@@ -671,38 +669,32 @@ func (m prototypeSessionModel) persistentHints() []tuiHint {
 	if m.awaitingAuthorization() {
 		return []tuiHint{
 			{Key: "enter", Action: "authorize"},
-			{Key: "esc", Action: "return"},
 			{Key: "f1", Action: "help"},
 		}
 	}
 
-	logAction := "logs"
-	if m.logOverlay {
-		logAction = "close logs"
-	}
-	hints := []tuiHint{
-		{Key: "v", Action: logAction},
-		{Key: "ctrl+v", Action: "terminal"},
-		{Key: "?", Action: "help"},
-	}
 	if m.failed {
-		return append([]tuiHint{
+		return []tuiHint{
 			{Key: "r", Action: "retry"},
-			{Key: "enter", Action: "return"},
-		}, hints...)
+			{Key: "?", Action: "help"},
+		}
 	}
 	if m.done {
-		return append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
+		return []tuiHint{
+			{Key: "enter", Action: "return"},
+			{Key: "?", Action: "help"},
+		}
 	}
-	return append([]tuiHint{{Key: "esc", Action: "return"}}, hints...)
+	return []tuiHint{
+		{Key: "esc", Action: "return"},
+		{Key: "?", Action: "help"},
+	}
 }
 
 func (m prototypeSessionModel) terminalHints() []tuiHint {
 	return []tuiHint{
 		{Key: "ctrl+v", Action: "qvOS view"},
-		{Key: "v", Action: "logs"},
 		{Key: "?", Action: "help"},
-		{Key: "esc", Action: "return"},
 	}
 }
 

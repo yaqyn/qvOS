@@ -750,8 +750,6 @@ func (m isoInstallerModel) persistentHints() []tuiHint {
 	if m.shutdownPrompt {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "enter", Action: "confirm"},
-			{Key: "esc", Action: "continue"},
 			{Key: "?", Action: "help"},
 		}
 	}
@@ -759,7 +757,6 @@ func (m isoInstallerModel) persistentHints() []tuiHint {
 	case isoStepIntro:
 		return []tuiHint{
 			{Key: "enter", Action: "begin"},
-			{Key: "esc", Action: "cancel options"},
 			{Key: "?", Action: "help"},
 		}
 	case isoStepWriting:
@@ -775,22 +772,17 @@ func (m isoInstallerModel) persistentHints() []tuiHint {
 	case isoStepReview, isoStepConfirm:
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "enter", Action: "continue"},
-			{Key: "esc", Action: "back"},
 			{Key: "?", Action: "help"},
 		}
 	default:
 		if m.isListStep() {
 			return []tuiHint{
 				{Key: "↑↓", Action: "choose"},
-				{Key: "enter", Action: "continue"},
-				{Key: "esc", Action: "back"},
 				{Key: "f1", Action: "help"},
 			}
 		}
 		return []tuiHint{
 			{Key: "enter", Action: "continue"},
-			{Key: "esc", Action: "back"},
 			{Key: "f1", Action: "help"},
 		}
 	}

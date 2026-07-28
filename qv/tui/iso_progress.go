@@ -330,27 +330,23 @@ func (m isoProgressModel) persistentHints() []tuiHint {
 	if m.logOverlay {
 		logAction = "close logs"
 	}
-	hints := []tuiHint{
+	if m.prototype && m.progress >= 1 {
+		return []tuiHint{
+			{Key: "enter", Action: "return"},
+			{Key: "?", Action: "help"},
+		}
+	}
+	return []tuiHint{
 		{Key: "v", Action: logAction},
-		{Key: "ctrl+v", Action: "terminal"},
 		{Key: "?", Action: "help"},
 	}
-	if m.prototype && m.progress >= 1 {
-		hints = append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
-	}
-	return hints
 }
 
 func (m isoProgressModel) terminalHints() []tuiHint {
-	hints := []tuiHint{
+	return []tuiHint{
 		{Key: "ctrl+v", Action: "qvOS view"},
-		{Key: "v", Action: "logs"},
 		{Key: "?", Action: "help"},
 	}
-	if m.prototype {
-		hints = append(hints, tuiHint{Key: "esc", Action: "return"})
-	}
-	return hints
 }
 
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {

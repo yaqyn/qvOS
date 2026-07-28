@@ -22,16 +22,24 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 	}
 
 	content := stripANSI(m.View().Content)
-	for _, expected := range []string{"ctrl+c/z", "stop options", "v logs", "ctrl+v terminal", "? help"} {
+	for _, expected := range []string{"ctrl+c/z", "stop options", "? help"} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("default Update view is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{"v logs", "ctrl+v terminal"} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("default Update view exposes secondary action %q: %q", hidden, content)
 		}
 	}
 
 	m.logOverlay = true
 	content = stripANSI(m.View().Content)
-	if !strings.Contains(content, "v close logs") {
-		t.Fatalf("open log view does not expose its close control: %q", content)
+	if !strings.Contains(content, "ctrl+c/z stop options") || !strings.Contains(content, "? help") {
+		t.Fatalf("open log view lost the primary action and Help: %q", content)
+	}
+	if strings.Contains(content, "v close logs") {
+		t.Fatalf("open log view exposes a secondary action persistently: %q", content)
 	}
 }
 
@@ -59,12 +67,15 @@ func TestTerminalOutputViewUsesTheSameRunningModel(t *testing.T) {
 		"first update line",
 		"latest update line",
 		"ctrl+v qvOS view",
-		"v logs",
-		"ctrl+c/z stop options",
 		"? help",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("terminal output is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{"v logs", "ctrl+c/z stop options"} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("terminal output exposes secondary action %q: %q", hidden, content)
 		}
 	}
 	assertViewFits(t, m.View().Content, m.width, m.height)
@@ -205,6 +216,62 @@ func TestFutureHubPagesDoNotLookActionable(t *testing.T) {
 		if command != nil || next.(model).loading {
 			t.Fatalf("%s page unexpectedly started an action", sections[tab].name)
 		}
+	}
+}
+
+func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
+	tests := []struct {
+		name       string
+		hints      []tuiHint
+		primaryKey string
+		helpKey    string
+	}{
+		{"hub", (model{}).hubPersistentHints(), "↑↓", "?"},
+		{"update confirmation", (model{updateConfirm: true}).rootPersistentHints(), "←→", "?"},
+		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→", "?"},
+		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter", "f1"},
+		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z", "?"},
+		{"failed action", (model{scriptErr: fmt.Errorf("failed")}).rootPersistentHints(), "r", "?"},
+		{"completed action", (model{scriptDone: true}).rootPersistentHints(), "enter", "?"},
+		{"terminal output", (model{}).terminalHints(), "ctrl+v", "?"},
+		{"prototype hub", (prototypeHubModel{}).persistentHints(), "↑↓", "?"},
+		{"prototype sudo", (prototypeSessionModel{
+			profile: prototypeProfileFor(prototypeSudo),
+		}).persistentHints(), "enter", "f1"},
+		{"prototype running", (prototypeSessionModel{}).persistentHints(), "esc", "?"},
+		{"prototype failure", (prototypeSessionModel{failed: true}).persistentHints(), "r", "?"},
+		{"prototype complete", (prototypeSessionModel{done: true}).persistentHints(), "enter", "?"},
+		{"prototype terminal", (prototypeSessionModel{}).terminalHints(), "ctrl+v", "?"},
+		{"ISO intro", (isoInstallerModel{step: isoStepIntro}).persistentHints(), "enter", "?"},
+		{"ISO writing", (isoInstallerModel{step: isoStepWriting}).persistentHints(), "ctrl+c/z", "?"},
+		{"ISO list", (isoInstallerModel{step: isoStepKeyboard}).persistentHints(), "↑↓", "f1"},
+		{"ISO input", (isoInstallerModel{step: isoStepPassword}).persistentHints(), "enter", "f1"},
+		{"ISO choice", (isoInstallerModel{step: isoStepReview}).persistentHints(), "←→", "?"},
+		{"ISO progress", (isoProgressModel{}).persistentHints(), "v", "?"},
+		{"ISO progress complete", (isoProgressModel{
+			prototype: true,
+			progress:  1,
+		}).persistentHints(), "enter", "?"},
+		{"ISO terminal", (isoProgressModel{}).terminalHints(), "ctrl+v", "?"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if len(test.hints) != 2 {
+				t.Fatalf("persistent hints = %#v, want one primary action and Help", test.hints)
+			}
+			if test.hints[0].Key != test.primaryKey || test.hints[1].Key != test.helpKey {
+				t.Fatalf(
+					"persistent hints = %#v, want primary %q and Help %q",
+					test.hints,
+					test.primaryKey,
+					test.helpKey,
+				)
+			}
+			if test.hints[1].Action != "help" {
+				t.Fatalf("second hint = %#v, want Help", test.hints[1])
+			}
+		})
 	}
 }
 

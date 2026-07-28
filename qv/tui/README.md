@@ -38,18 +38,20 @@ Every mode uses the same `#020202` background.
 
 ## Accessibility
 
-Every responsive surface keeps its essential controls visible with bright key
-labels and plain-language actions. `?` opens contextual help outside text
-fields; `F1` opens it everywhere so passwords, search filters, and other input
-retain the `?` character. The help screen inventories the current state's
-navigation, confirmation, editing, exit, retry, log, and interruption keys.
+Every responsive surface keeps only its single most important action and Help
+visible, using bright key labels and plain-language actions. `?` opens
+contextual help outside text fields; `F1` opens it everywhere so passwords,
+search filters, and other input retain the `?` character. The help screen
+inventories the current state's navigation, confirmation, editing, exit,
+retry, log, and interruption keys.
 Scaffold pages without a wired owner are labeled `COMING LATER` and do not
 advertise an inactive Enter action.
 
-`v` toggles the composed qvOS log panel and changes its visible label to
-`close logs` while open. `Ctrl+V` switches log-producing flows to a
-same-process `TERMINAL OUTPUT` view of the captured original command stream.
-It never spawns a second terminal or duplicates the running action.
+`v` toggles the composed qvOS log panel. `Ctrl+V` switches log-producing flows
+to a same-process `TERMINAL OUTPUT` view of the captured original command
+stream. Both remain documented in contextual Help without competing with the
+screen's primary action. The terminal view never spawns a second terminal or
+duplicates the running action.
 
 The four model roles carry meaning across surfaces:
 
