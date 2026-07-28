@@ -6,7 +6,7 @@ const (
 	Title              = "UPDATE QVOS"
 	Summary            = "Update qvOS and system packages"
 	PowerNotice        = "Keep this computer powered on until the update finishes"
-	PrimaryAction      = "Update qvOS"
+	PrimaryAction      = "Begin"
 	CancelAction       = "Cancel"
 	StopPromptTitle    = "STOP UPDATE?"
 	StopPromptNotice   = "Update keeps running until you confirm"

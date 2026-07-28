@@ -68,7 +68,7 @@ and guides without scattering those values through shared rendering code.
 `update/` owns the TUI-specific Update contract and thin engine adapter. The
 main hub and `--update` direct mode reuse one flow:
 
-1. Confirm `Update qvOS` or cancel before any work starts.
+1. Choose `Begin` or cancel before any work starts.
 2. Run the qvOS update owner's read-only preflight.
 3. Reuse the shared sudo authorization surface.
 4. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and

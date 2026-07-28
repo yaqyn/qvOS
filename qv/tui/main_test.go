@@ -399,7 +399,7 @@ func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 			}
 			content := stripANSI(view.Content)
 			if !strings.Contains(content, "UPDATE QVOS") ||
-				!strings.Contains(content, "Update qvOS") ||
+				!strings.Contains(content, "Begin") ||
 				!strings.Contains(content, "Cancel") {
 				t.Fatalf("confirmation copy is incomplete: %q", content)
 			}
@@ -477,10 +477,10 @@ func TestDefaultLandscapeUpdateKeepsVisibleProgressBar(t *testing.T) {
 }
 
 func TestConfirmationActionsUseQuietSelectionMarker(t *testing.T) {
-	selected := stripANSI(renderConfirmationAction("Update qvOS", true))
+	selected := stripANSI(renderConfirmationAction("Begin", true))
 	unselected := stripANSI(renderConfirmationAction("Cancel", false))
 
-	if selected != "● Update qvOS" {
+	if selected != "● Begin" {
 		t.Fatalf("selected action = %q", selected)
 	}
 	if strings.ContainsAny(selected+unselected, "▐▌|") {

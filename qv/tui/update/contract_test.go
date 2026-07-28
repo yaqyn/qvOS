@@ -35,8 +35,8 @@ func TestProgressFromLineUsesRealUpdateMilestones(t *testing.T) {
 	}
 }
 
-func TestUpdateCopyNamesTheWholeProductOperation(t *testing.T) {
-	if PrimaryAction != "Update qvOS" {
+func TestUpdateCopyKeepsThePrimaryActionConcise(t *testing.T) {
+	if PrimaryAction != "Begin" {
 		t.Fatalf("primary action = %q", PrimaryAction)
 	}
 	if Summary != "Update qvOS and system packages" {
