@@ -15,7 +15,7 @@ input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.co
 keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
-qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,proton,media,qvdev|Browse|menu:qvcore
+qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,proton,qvdev|Browse|menu:qvcore
 web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:omarchy-webapp-remove
 tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:omarchy-tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Install|menu:install-development|Remove|menu:remove-development
@@ -73,7 +73,5 @@ xbox-controller|󰂯|Xbox Controller|Settings · Software · Gaming|games,gamepa
 moonlight|󰍹|Moonlight|Settings · Software · Gaming|games,gamestream|Install|present:omarchy-install-gaming-moonlight|Remove|present:omarchy-remove-gaming-moonlight|Learn|web:https://github.com/moonlight-stream/moonlight-docs/wiki
 lutris||Lutris|Settings · Software · Gaming|games,battle.net|Install|present:omarchy-install-gaming-lutris|Remove|present:omarchy-remove-gaming-lutris|Learn|web:https://github.com/lutris/lutris/wiki
 heroic|󱓟|Heroic|Settings · Software · Gaming|games,epic|Install|present:omarchy-install-gaming-heroic|Remove|present:omarchy-remove-gaming-heroic|Learn|web:https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki
-warp|󰖂|WARP|Settings · Software · qvCORE|cloudflare,dns,vpn,qvcore|Browse|menu:qvcore|Learn|web:https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/
 proton|󰌾|Proton|Settings · Software · qvCORE|pass,drive,mail,vpn,qvcore,proton cli,proton docs,documentation,guide|Browse|menu:qvcore|Learn|web:https://proton.me/support/drive-cli
-media|󰕧|Media|Settings · Software · qvCORE|gimp,inkscape,krita,kdenlive,obs,audacity,blender,qvcore|Browse|menu:qvcore
 qvdev|󰵮|qvDEV|Settings · Software · qvCORE|development,codex,workbench,tools,qvcore|Browse|menu:qvcore

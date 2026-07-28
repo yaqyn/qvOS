@@ -232,8 +232,8 @@ print(
 LUA
 )
 read -r search_count concept_count go_matches proton_matches style_matches theme_matches qvcore_matches password_matches old_breadcrumbs <<<"$search_audit"
-((search_count >= 185)) || fail "global search catalog coverage"
-((concept_count >= 75)) || fail "concept action catalog coverage"
+((search_count >= 183)) || fail "global search catalog coverage"
+((concept_count >= 73)) || fail "concept action catalog coverage"
 ((go_matches == 1)) || fail "single Go concept result"
 ((proton_matches == 1)) || fail "single Proton concept result"
 ((style_matches == 0)) || fail "Style verb folder removal"
@@ -266,6 +266,7 @@ local required = {
   ["system health"] = "qvOS System",
   ["volume mixer"] = "Audio",
   ["wifi settings"] = "Wi-Fi",
+  ["warp"] = "DNS",
   ["display settings"] = "Monitors",
   ["keyboard shortcuts"] = "Keybindings",
   ["default apps"] = "Defaults",

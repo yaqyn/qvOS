@@ -13,7 +13,7 @@ qv/
   browser/     Secure browser policy ownership.
   codex/       Codex workstation capability contract and read-only doctor.
   config/      qvOS config helpers and files installed after Omarchy defaults.
-  core/        qvCORE four-stack catalog and lifecycle owners.
+  core/        qvCORE two-stack catalog and lifecycle owners.
   diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
@@ -38,9 +38,8 @@ qv/
   waybar/      qvOS prayer clock modules.
 ```
 
-qvCORE is an optional four-stack collection, not a qvOS subsystem. Its complete
-catalog is WARP, Proton, Media, and qvDEV. Every stack exposes
-only Install and Remove.
+qvCORE is an optional two-stack collection, not a qvOS subsystem. Its complete
+catalog is Proton and qvDEV. Every stack exposes only Install and Remove.
 
 ## Product lifecycle
 
@@ -86,7 +85,7 @@ identity, readiness, health, or Recovery ownership.
   module, UKI, Limine, and mkinitcpio rebuilds; mounted-filesystem repair;
   comprehensive snapshot restore; networking mutation; and offline/unbootable
   rescue remain outside this phase. qvCORE is never graded or repaired.
-- The qvCORE menu shows the four stacks directly. Each row is Install when
+- The qvCORE menu shows the two stacks directly. Each row is Install when
   unenrolled and Remove when enrolled. Install converges only missing pieces,
   configures and verifies the stack, then records enrollment. Remove deletes
   the complete enrolled stack and its qvOS integration while preserving

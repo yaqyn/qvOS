@@ -3,9 +3,8 @@
 Read this file completely when changing the qvCORE catalog, stack lifecycle,
 direct-tool updater, removal, migration, or menu integration.
 
-`Settings > Software > qvCORE` exposes exactly four optional stacks: WARP,
-Proton, Media, and qvDEV. qvOS must remain complete and healthy
-with none installed.
+`Settings > Software > qvCORE` exposes exactly two optional stacks: Proton and
+qvDEV. qvOS must remain complete and healthy with neither installed.
 
 ## Stack Contract
 
@@ -32,6 +31,11 @@ with none installed.
 - Software guaranteed by Omarchy, including LocalSend, stays base-owned and
   out of qvCORE. qvOS-only desktop adapters for it belong to their base feature
   owner and must never uninstall the inherited package.
+- WARP belongs exclusively to the DNS selector. That owner may install and
+  configure WARP when selected, but it must not write qvCORE enrollment state.
+- Curated application bundles such as the retired Media stack do not belong in
+  qvCORE. Removing bundle ownership must preserve already-installed packages
+  and their settings, projects, and personal files.
 
 ## Direct Tools
 

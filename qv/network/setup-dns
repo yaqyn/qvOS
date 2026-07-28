@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-qvcore_warp_state="$HOME/.local/state/qvos/qvcore/warp"
-
 reload_dns() {
   # Reload matching network files without tearing down every connection.
   sudo networkctl reload
@@ -44,7 +42,6 @@ EOF
 
 deactivate_warp() {
   if omarchy-cmd-missing warp-cli; then
-    rm -f "$qvcore_warp_state"
     return
   fi
 
@@ -53,7 +50,6 @@ deactivate_warp() {
   fi
 
   sudo systemctl disable --now warp-svc.service
-  rm -f "$qvcore_warp_state"
 }
 
 ensure_warp_registration() {
@@ -93,7 +89,6 @@ activate_warp() {
   reload_dns
   warp-cli connect || return 1
   warp-cli status
-  install -D -m 0644 /dev/null "$qvcore_warp_state"
 }
 
 if [[ -z ${1:-} ]]; then

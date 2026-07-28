@@ -20,7 +20,7 @@ fail() {
 
 install -d "$source_root/qv/core"
 cp "$root/qv/core/catalog.tsv" "$source_root/qv/core/catalog.tsv"
-printf 'qvCORE\nMedia\n' >"$choices"
+printf 'qvCORE\nProton\n' >"$choices"
 
 HOME="$test_root/home" \
   OMARCHY_PATH="$source_root" \
@@ -47,9 +47,9 @@ HOME="$test_root/home" \
 grep -Fqx 'qvOS' "$menu_log" || fail "qvOS menu opened"
 grep -Fqx '󰏖  qvCORE (Optional)' "$menu_log" ||
   fail "qvCORE route remains under qvOS"
-grep -Fqx '󰕧  Media — Install' "$menu_log" ||
-  fail "qvOS route opens the four-stack qvCORE menu"
-[[ $(<"$action_log") == "omarchy-install-qvcore media" ]] ||
+grep -Fqx '󰌾  Proton — Install' "$menu_log" ||
+  fail "qvOS route opens the two-stack qvCORE menu"
+[[ $(<"$action_log") == "omarchy-install-qvcore proton" ]] ||
   fail "qvOS qvCORE route executes selected stack action"
 
-printf 'ok - qvOS menu routes directly into the four-stack qvCORE surface\n'
+printf 'ok - qvOS menu routes directly into the two-stack qvCORE surface\n'

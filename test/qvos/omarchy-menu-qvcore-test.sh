@@ -44,12 +44,12 @@ run_menu() {
     ' _ "$root/qv/menu/extension.sh"
 }
 
-run_menu WARP
-expected_install=$'󰖂  WARP — Install\n󰌾  Proton — Install\n󰕧  Media — Install\n󰵮  qvDEV — Install'
+run_menu Proton
+expected_install=$'󰌾  Proton — Install\n󰵮  qvDEV — Install'
 [[ $(<"$menu_log") == "$expected_install" ]] ||
-  fail "four direct Install rows"
-[[ $(<"$action_log") == "omarchy-install-qvcore warp" ]] ||
-  fail "WARP Install action"
+  fail "two direct Install rows"
+[[ $(<"$action_log") == "omarchy-install-qvcore proton" ]] ||
+  fail "Proton Install action"
 
 install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/qvdev"
 run_menu qvDEV
@@ -62,4 +62,4 @@ if rg -q 'Status|Repair|Disable|Applications|Managed Setups|Install Everything' 
   fail "retired qvCORE menu complexity"
 fi
 
-printf 'ok - qvCORE menu shows four dynamic Install or Remove actions\n'
+printf 'ok - qvCORE menu shows two dynamic Install or Remove actions\n'

@@ -5,7 +5,7 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 catalog="$OMARCHY_PATH/qv/core/catalog.tsv"
 
 usage() {
-  echo "Usage: omarchy install qvcore <warp|proton|media|qvdev>" >&2
+  echo "Usage: omarchy install qvcore <proton|qvdev>" >&2
 }
 
 component_known() {
