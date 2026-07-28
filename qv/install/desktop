@@ -15,7 +15,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in codex desktop maintenance power screensaver shell thunar tmux tui waybar; do
+  for feature in codex desktop direct maintenance power screensaver shell thunar tmux tui waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -31,10 +31,12 @@
     qv/desktop/open
     qv/desktop/web/qvos-localhost-open
     qv/desktop/web/qvos-website-open
-    qv/core/post-update-hook
-    qv/core/software-removal-groups
     qv/codex/capabilities.tsv
     qv/codex/doctor
+    qv/direct/manifest.tsv
+    qv/direct/post-update-hook
+    qv/direct/tool
+    qv/direct/update
     qv/install/desktop-status
     qv/install/post-update-hook
     qv/launcher/install
@@ -94,7 +96,7 @@
     fi
   done
 
-  for feature in desktop tmux waybar; do
+  for feature in desktop direct tmux waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     feature_runtime="$HOME/.local/share/qvos/$feature"
 
@@ -104,6 +106,11 @@
 
   thunar_source="$OMARCHY_PATH/qv/thunar"
   thunar_runtime="$HOME/.local/share/qvos/thunar"
+  preserved_thunar=$(mktemp -d)
+  for feature in codex proton-drive-upload share; do
+    [[ -e $thunar_runtime/$feature ]] || continue
+    cp -a "$thunar_runtime/$feature" "$preserved_thunar/$feature"
+  done
   rm -rf -- "$thunar_runtime"
   install -d "$thunar_runtime"
   for feature in \
@@ -115,18 +122,8 @@
     transcode; do
     cp -a "$thunar_source/$feature" "$thunar_runtime/$feature"
   done
-
-  declare -A optional_thunar_helpers=(
-    [codex]=codex
-    [proton]=proton-drive-upload
-    [share]=share
-  )
-  qvcore_state="$HOME/.local/state/qvos/qvcore"
-  for component in "${!optional_thunar_helpers[@]}"; do
-    [[ -f $qvcore_state/$component ]] || continue
-    feature=${optional_thunar_helpers[$component]}
-    install -m 0755 "$thunar_source/$feature" "$thunar_runtime/$feature"
-  done
+  cp -a "$preserved_thunar/." "$thunar_runtime/"
+  rm -rf -- "$preserved_thunar"
 
   "$OMARCHY_PATH/qv/launcher/install"
   "$OMARCHY_PATH/qv/menu/install" --repair
@@ -135,8 +132,9 @@
     "$OMARCHY_PATH/qv/install/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-base"
   install -D -m 0644 \
-    "$OMARCHY_PATH/qv/core/post-update-hook" \
-    "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore"
+    "$OMARCHY_PATH/qv/direct/post-update-hook" \
+    "$HOME/.config/omarchy/hooks/post-update.d/qvos-direct-tools"
+  rm -f "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore"
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/waybar/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"

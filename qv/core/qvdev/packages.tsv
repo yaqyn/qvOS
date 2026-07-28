@@ -1,0 +1,25 @@
+# source	package	label	commands
+pacman	7zip	7-Zip	7z
+pacman	clang	Clang	clang
+pacman	cmake	CMake	cmake
+pacman	dos2unix	DOS/Unix text tools	dos2unix unix2dos
+pacman	gdb	GDB	gdb
+pacman	git-lfs	Git LFS	git-lfs
+pacman	go-yq	yq	yq
+pacman	hyperfine	Hyperfine	hyperfine
+pacman	just	Just	just
+pacman	lldb	LLDB	lldb
+pacman	llvm	LLVM	llvm-config
+pacman	lsof	lsof	lsof
+pacman	ninja	Ninja	ninja
+pacman	pacman-contrib	Pacman contribution tools	pactree
+pacman	postgresql-libs	PostgreSQL client	psql
+pacman	ruby	Ruby	ruby
+pacman	rust	Rust	rustc cargo
+pacman	shellcheck	ShellCheck	shellcheck
+pacman	shfmt	shfmt	shfmt
+pacman	strace	strace	strace
+pacman	time	GNU time	/usr/bin/time
+pacman	tinyxxd	xxd	xxd
+pacman	valgrind	Valgrind	valgrind
+pacman	zip	Zip	zip

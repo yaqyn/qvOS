@@ -1,3 +1,0 @@
-# id	package	label	commands
-lldb	lldb	LLDB	lldb
-valgrind	valgrind	Valgrind	valgrind

@@ -22,4 +22,4 @@ embedded source, installer integration, or release-image verification.
   contract checks immediately and report any deferred full build.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
-  source, and keep optional qvCORE applications out unless explicitly promoted.
+  source, and keep optional qvCORE stacks out unless explicitly promoted.

@@ -31,8 +31,9 @@ fail() {
 
 install -d \
   "$source_root/bin" \
+  "$source_root/qv/codex" \
   "$source_root/qv/config/files/hypr/qv" \
-  "$source_root/qv/core" \
+  "$source_root/qv/direct" \
   "$source_root/qv/install/packaging" \
   "$source_root/qv/maintenance" \
   "$source_root/qv/shell" \
@@ -73,9 +74,10 @@ install -m 0755 \
 install -m 0755 \
   "$root/qv/maintenance/personal-software-baseline" \
   "$source_root/qv/maintenance/personal-software-baseline"
-install -m 0644 \
-  "$root/qv/core/software-removal-groups" \
-  "$source_root/qv/core/software-removal-groups"
+install -m 0755 "$root/qv/codex/install" "$source_root/qv/codex/install"
+install -m 0644 "$root/qv/direct/manifest.tsv" "$source_root/qv/direct/manifest.tsv"
+install -m 0755 "$root/qv/direct/tool" "$source_root/qv/direct/tool"
+install -m 0755 "$root/qv/direct/update" "$source_root/qv/direct/update"
 install -m 0644 \
   "$root/qv/maintenance/protected-user-bin" \
   "$source_root/qv/maintenance/protected-user-bin"

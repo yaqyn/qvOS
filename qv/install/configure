@@ -26,6 +26,7 @@
     "$HOME/.config/omarchy/branding/screensaver.txt"
 
   "$OMARCHY_PATH/qv/theme/install"
+  "$OMARCHY_PATH/qv/codex/install"
 
   # shellcheck source=qv/install/config/mimetypes
   source "$OMARCHY_PATH/qv/install/config/mimetypes"

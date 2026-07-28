@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# omarchy:summary=Install all qvCORE software, its apps, its setups, or one component
-# omarchy:args=[all|apps|setups|brave-origin|warp|share|dev|codex|proton|media]
-# omarchy:examples=omarchy install qvcore | omarchy install qvcore apps | omarchy install qvcore setups
+# omarchy:summary=Install one qvCORE stack
+# omarchy:args=<warp|share|proton|brave|media|qvdev>
+# omarchy:examples=omarchy install qvcore qvdev | omarchy install qvcore proton
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}

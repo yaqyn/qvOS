@@ -68,7 +68,7 @@ check_link() {
   fi
 }
 
-for feature in desktop tmux waybar; do
+for feature in desktop direct tmux waybar; do
   check_tree \
     "$OMARCHY_PATH/qv/$feature" \
     "$runtime_root/$feature" \
@@ -114,6 +114,7 @@ thunar_features=(
   set-background
   transcode
 )
+checked_thunar_features=("${thunar_features[@]}")
 optional_thunar_features=(
   codex
   proton-drive-upload
@@ -135,7 +136,7 @@ fi
 if [[ $installed_thunar_inventory != "$expected_thunar_inventory" ]]; then
   report_drift "Thunar runtime inventory contains unknown qvOS features"
 else
-  for feature in "${thunar_features[@]}"; do
+  for feature in "${checked_thunar_features[@]}"; do
     check_file \
       "$OMARCHY_PATH/qv/thunar/$feature" \
       "$runtime_root/thunar/$feature" \
@@ -165,15 +166,18 @@ done
 
 declare -A hook_source=(
   [qvos-base]="$OMARCHY_PATH/qv/install/post-update-hook"
-  [qvos-qvcore]="$OMARCHY_PATH/qv/core/post-update-hook"
+  [qvos-direct-tools]="$OMARCHY_PATH/qv/direct/post-update-hook"
   [qvos-waybar-overrides]="$OMARCHY_PATH/qv/waybar/post-update-hook"
 )
-for hook in qvos-base qvos-qvcore qvos-waybar-overrides; do
+for hook in qvos-base qvos-direct-tools qvos-waybar-overrides; do
   check_file \
     "${hook_source[$hook]}" \
     "$HOME/.config/omarchy/hooks/post-update.d/$hook" \
     "post-update hook differs: $hook"
 done
+if [[ -e $HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore ]]; then
+  report_drift "obsolete qvCORE post-update hook remains installed"
+fi
 
 for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
   owner=${command_name#omarchy-system-}

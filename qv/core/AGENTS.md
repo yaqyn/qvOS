@@ -1,39 +1,47 @@
 # qvCORE Workflow
 
-Read this file completely when changing the qvCORE catalog, component lifecycle,
-health, removal, post-update maintenance, or menu integration.
+Read this file completely when changing the qvCORE catalog, stack lifecycle,
+direct-tool updater, removal, migration, or menu integration.
 
-`Settings > Software > qvCORE` is the opt-in profile for qvOS-integrated daily
-software. qvOS must remain complete, healthy, and usable with no qvCORE
-component installed.
+`Settings > Software > qvCORE` exposes exactly six optional stacks: WARP,
+Share, Proton, Brave, Media, and qvDEV. qvOS must remain complete and healthy
+with none installed.
 
-- Keep new integrations out of base install and package lists unless explicitly
-  promoted to the base system.
-- The reviewed gaming runtime is explicitly promoted to
-  `qv/install/packaging/base.packages`. Steam is not a qvCORE component; use
-  Omarchy's standard Steam install and removal commands.
-- Stable Codex coding, build, inspection, archive, shell-lint, and system
-  Python primitives are also explicitly base-owned. Devel retains fast-moving
-  managed or direct tools and the advanced LLDB and Valgrind packages; it does
-  not own AUR packages or a global mise Python runtime.
-- Reuse an existing `omarchy-install-*` or `omarchy-setup-*` owner. Add
-  `qv/core/<component>.sh` only when qvOS must own persistent integration.
-- Ordinary apps remain personal software. Only managed setups participate in
-  qvCORE status, repair, adopt, disable, and post-update maintenance.
-- A persistent owner must be independently rerunnable for installation,
-  `--status`, `--repair`, `--adopt`, `--disable`, removal cleanup, and
-  post-update repair where those lifecycle states apply.
-- Menus, Thunar actions, desktop adapters, and hooks are thin delegates to the
-  same owner. Optional dependencies must never weaken the base system.
-- Catalog changes require an explicit curation decision, installer route,
-  personal-software ownership, health inventory, removal behavior, and focused
-  integration tests.
-- Healthy output stays quiet. Report actionable drift only for enabled or
-  explicitly adopted managed setups; package presence alone is not ownership.
+## Stack Contract
 
-Verify the affected component independently, then run its focused tests,
-`test/qvos/qvcore-health-test.sh`, personal-software coverage when removal
-changes, post-update coverage when maintenance changes, and the full qvOS suite
-for shared contracts. Gaming-base changes additionally run
-`test/qvos/qvos-gaming-base-test.sh` and prove Steam has no qvCORE catalog,
-health, removal, or menu route.
+- Every stack has exactly two user actions: Install and Remove. Keep detection,
+  convergence, and verification internal; do not expose status, health, repair,
+  adopt, disable, group-install, or partial-app lifecycle routes.
+- `catalog.tsv` is the stack source of truth. A successful Install writes
+  `~/.local/state/qvos/qvcore/<stack>` only after all missing software,
+  configuration, integrations, and verification complete.
+- Install only missing pieces and safely reuse compatible installed software.
+  Remove only an enrolled stack, remove its entire declared software and
+  qvOS-owned integrations, and preserve personal files, browser profiles,
+  credentials, authentication state, projects, and cloud data.
+- Stack scripts own package preflight, confirmation, resumable removal, and
+  final verification. Do not route qvCORE through personal-software ownership
+  or coordinated removal machinery.
+- qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex
+  workbench integration. Codex itself is base-owned and must survive qvDEV
+  removal. Wrangler, Convex, and Playwright stay project-local.
+- Steam and the reviewed gaming runtime are not qvCORE. qvOS Recovery is a
+  separate base subsystem and never grades, installs, or repairs qvCORE.
+
+## Direct Tools
+
+`qv/direct/manifest.tsv` is the only direct-tool update registry. Its manager
+must use bounded downloads, authoritative checksums or release digests,
+candidate verification, and atomic replacement.
+
+The post-update runner executes after normal Pacman/AUR updates. It updates
+only already-installed direct tools in the base, qvDEV, and Proton scopes,
+skips absent tools, continues through independent failures, and returns
+nonzero after reporting every failure. It must never install a stack, restore
+a missing tool, authenticate an account, repair an integration, or change
+networking. Do not add one updater per tool.
+
+Verify catalog and manifest guards, affected stack Install/Remove tests, direct
+updater tests, menu tests, Bash syntax, ShellCheck, Codex doctor checks, and the
+full qvOS suite. Base-manifest changes additionally require ISO prepare-only
+verification.

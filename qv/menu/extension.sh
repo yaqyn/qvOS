@@ -98,7 +98,6 @@ show_misc_menu() {
 
 run_concept_action() {
   local action="$1"
-  local component
 
   case $action in
   present:*) present_terminal "${action#present:}" ;;
@@ -107,16 +106,6 @@ run_concept_action() {
   terminal:*) terminal bash -lc "${action#terminal:}" ;;
   web:*) omarchy-launch-webapp "${action#web:}" ;;
   edit:*) open_in_editor "$HOME/${action#edit:}" ;;
-  component-remove:*)
-    component=${action#component-remove:}
-    if [[ ! $component =~ ^[a-z0-9-]+$ ]] ||
-      [[ ! -f ${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/$component.sh ]]; then
-      notify-send "This removal action is unavailable" "$component"
-      return 1
-    fi
-    present_terminal \
-      "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/$component.sh --remove"
-    ;;
   *)
     notify-send "This menu action is unavailable"
     return 1
@@ -358,42 +347,49 @@ show_install_gaming_menu() {
 
 show_qvcore_menu() {
   local back_menu=${1:-show_settings_software_menu}
+  local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/catalog.tsv"
+  local state_dir="$HOME/.local/state/qvos/qvcore"
+  local component
+  local label
+  local icon
+  local extra
+  local action
+  local choice
+  local index
+  local options=""
+  local -a components=()
+  local -a labels=()
+  local -a actions=()
 
-  case $(menu "qvCORE — Personal Software" "  Install Everything\n󰏖  Applications\n󰒓  Managed Setups\n󰆴  Remove qvCORE Software") in
-  *"Install Everything"*) present_terminal omarchy-install-qvcore ;;
-  *Applications*) show_qvcore_apps_menu show_qvcore_menu ;;
-  *Setups*) show_qvcore_setups_menu show_qvcore_menu ;;
-  *"Remove qvCORE"*) present_terminal omarchy-qvcore-remove ;;
-  *) "$back_menu" ;;
-  esac
-}
+  while IFS=$'\t' read -r component label icon extra; do
+    [[ -n $component && $component != "#"* ]] || continue
+    [[ -n $label && -n $icon && -z ${extra:-} ]] || continue
+    if [[ -f $state_dir/$component ]]; then
+      action="Remove"
+    else
+      action="Install"
+    fi
+    components+=("$component")
+    labels+=("$label")
+    actions+=("$action")
+    options="${options:+$options\n}$icon  $label — $action"
+  done <"$catalog"
 
-show_qvcore_apps_menu() {
-  local back_menu=${1:-show_qvcore_menu}
+  choice=$(menu "qvCORE" "$options")
+  choice=${choice#*  }
+  choice=${choice% — *}
 
-  case $(menu "qvCORE — Applications" "  Install All Apps\n󰖟  Brave\n󰵮  Devel\n󱚤  Codex\n󰕧  Media") in
-  *"Install All Apps"*) present_terminal "omarchy-install-qvcore apps" ;;
-  *Brave*) present_terminal "omarchy-install-qvcore brave-origin" ;;
-  *Devel*) present_terminal "omarchy-install-qvcore dev" ;;
-  *Codex*) present_terminal "omarchy-install-qvcore codex" ;;
-  *Media*) present_terminal "omarchy-install-qvcore media" ;;
-  *) "$back_menu" ;;
-  esac
-}
+  for index in "${!labels[@]}"; do
+    [[ $choice == "${labels[$index]}" ]] || continue
+    if [[ ${actions[$index]} == "Install" ]]; then
+      present_terminal "omarchy-install-qvcore ${components[$index]}"
+    else
+      present_terminal "omarchy-qvcore-remove ${components[$index]}"
+    fi
+    return
+  done
 
-show_qvcore_setups_menu() {
-  local back_menu=${1:-show_qvcore_menu}
-
-  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton") in
-  *Status*) present_terminal omarchy-qvcore-status ;;
-  *Repair*) present_terminal omarchy-qvcore-repair ;;
-  *Disable*) present_terminal omarchy-qvcore-disable ;;
-  *"Install All Setups"*) present_terminal "omarchy-install-qvcore setups" ;;
-  *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
-  *Share*) present_terminal "omarchy-install-qvcore share" ;;
-  *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
-  *) "$back_menu" ;;
-  esac
+  "$back_menu"
 }
 
 show_qvos_menu() {

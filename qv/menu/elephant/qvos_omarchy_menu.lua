@@ -399,14 +399,6 @@ function GetEntries(query)
   add(entries, "󰍜", "Waybar Config", "Settings · System · Config", { "reset", "default", "bar" }, edit(".config/waybar/config.jsonc"))
   add(entries, "󰞅", "XCompose Config", "Settings · System · Config", { "reset", "default", "input" }, edit(".XCompose"))
 
-  -- qvCORE.
-  add(entries, "󰵮", "Devel", "Settings · Software · qvCORE", { "development", "tools" }, present("omarchy-install-qvcore dev"))
-  add(entries, "󱚤", "Codex", "Settings · Software · qvCORE", { "openai", "agent" }, present("omarchy-install-qvcore codex"))
-  add(entries, "󰕧", "Media", "Settings · Software · qvCORE", { "gimp", "krita", "blender", "kdenlive", "obs", "audacity" }, present("omarchy-install-qvcore media"))
-  add(entries, "󰋼", "qvCORE Status", "Settings · Software · qvCORE", { "health", "check" }, present("omarchy-qvcore-status"))
-  add(entries, "󰑓", "Repair qvCORE", "Settings · Software · qvCORE", { "fix", "health" }, present("omarchy-qvcore-repair"))
-  add(entries, "󰐕", "Disable qvCORE", "Settings · Software · qvCORE", { "integration", "off" }, present("omarchy-qvcore-disable"))
-
   -- Install services.
   add(entries, "", "Dropbox", "Settings · Software · Services", { "cloud", "storage" }, present("omarchy-install-dropbox"))
   add(entries, "", "Tailscale", "Settings · Software · Services", { "vpn", "network" }, present("omarchy-install-tailscale"))

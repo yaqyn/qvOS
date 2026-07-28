@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Inspect qvCORE managed setups without changing them
-# omarchy:group=qvcore
-# omarchy:name=status
-# omarchy:args=[--check]
-
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/core/health.sh" status "$@"

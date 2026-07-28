@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Disable managed qvCORE setup integrations while preserving software and data
-# omarchy:group=qvcore
-# omarchy:name=disable
-# omarchy:requires-sudo=true
-
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/core/health.sh" disable

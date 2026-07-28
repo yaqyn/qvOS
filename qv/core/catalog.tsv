@@ -1,8 +1,7 @@
-# type	component	label	icon
-setup	warp	WARP	󰖂
-app	brave-origin	Brave	󰖟
-setup	share	Share	
-app	dev	Devel	󰵮
-app	codex	Codex	󱚤
-setup	proton	Proton	󰌾
-app	media	Media	󰕧
+# component	label	icon
+warp	WARP	󰖂
+share	Share	
+proton	Proton	󰌾
+brave	Brave	󰖟
+media	Media	󰕧
+qvdev	qvDEV	󰵮

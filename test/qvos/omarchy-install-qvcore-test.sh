@@ -2,218 +2,63 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-command_path="$root/bin/omarchy-install-qvcore"
 test_root="$(mktemp -d)"
-test_bin="$test_root/bin"
-test_omarchy_path="$test_root/omarchy"
-action_log="$test_root/actions"
+source_root="$test_root/source"
+action_log="$test_root/actions.log"
 
 cleanup() {
-  [[ -d $test_root ]] && rm -rf "$test_root"
+  [[ ! -d $test_root ]] || rm -rf -- "$test_root"
 }
 trap cleanup EXIT
-
-pass() {
-  printf 'ok - %s\n' "$1"
-}
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-install -d "$test_bin" "$test_omarchy_path/qv/core"
-ln -s "$root/qv/core/install" "$test_omarchy_path/qv/core/install"
-ln -s "$root/qv/core/catalog.tsv" "$test_omarchy_path/qv/core/catalog.tsv"
-ln -s "$root/qv/thunar" "$test_omarchy_path/qv/thunar"
-ln -s "$root/qv/core/codex" "$test_omarchy_path/qv/core/codex"
-ln -s "$root/qv/core/brave-origin.sh" "$test_omarchy_path/qv/core/brave-origin.sh"
-ln -s "$root/qv/core/codex.sh" "$test_omarchy_path/qv/core/codex.sh"
+install -d "$source_root/qv/core"
+cp "$root/qv/core/catalog.tsv" "$source_root/qv/core/catalog.tsv"
+cp "$root/qv/core/install" "$source_root/qv/core/install"
+cp "$root/qv/core/remove" "$source_root/qv/core/remove"
 
-install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/warp.sh" <<'SCRIPT'
+while IFS=$'\t' read -r component _label _icon _extra; do
+  [[ -n $component && $component != "#"* ]] || continue
+  install -m 0755 /dev/stdin "$source_root/qv/core/$component.sh" <<'SCRIPT'
 #!/bin/bash
-omarchy-qvos-setup-dns WARP
+printf '%s\t%s\t%s\n' "${0##*/}" "${1:-}" "${2:-}" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+done <"$root/qv/core/catalog.tsv"
 
-install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/dev.sh" <<'SCRIPT'
-#!/bin/bash
-if [[ ${QVOS_TEST_DEV_CANCEL:-0} == "1" ]]; then
-  printf 'cancel-dev\n' >>"$QVOS_TEST_ACTION_LOG"
-  echo "Devel changes canceled; no components were modified."
-  exit 130
-fi
-printf 'install-dev\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/share.sh" <<'SCRIPT'
-#!/bin/bash
-printf 'install-share\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/proton.sh" <<'SCRIPT'
-#!/bin/bash
-printf 'install-proton\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_omarchy_path/qv/core/media.sh" <<'SCRIPT'
-#!/bin/bash
-printf 'install-media\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-install-browser" <<'SCRIPT'
-#!/bin/bash
-printf 'install-browser\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-default-browser" <<'SCRIPT'
-#!/bin/bash
-printf 'default-browser\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-setup-dns" <<'SCRIPT'
-#!/bin/bash
-printf 'setup-dns\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-missing" <<'SCRIPT'
-#!/bin/bash
-exit 1
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
-#!/bin/bash
-[[ $1 == "gh" && ${QVOS_TEST_GH_AUTH:-0} == "1" ]]
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
-#!/bin/bash
-exit 1
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/curl" <<'SCRIPT'
-#!/bin/bash
-printf 'curl\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-
-if [[ $* == *"https://api.github.com/"* ]]; then
-  printf '{"tag_name":"rust-v0.145.0"}\n'
-  exit 0
-fi
-
-printf '%s\n' \
-  '#!/bin/bash' \
-  'curl -fsSL https://api.github.com/repos/openai/codex/releases/latest >/dev/null' \
-  'printf "standalone\t%s\t%s\n" "$CODEX_NON_INTERACTIVE" "$CODEX_INSTALL_DIR" >>"$QVOS_TEST_ACTION_LOG"' \
-  'install -d "$CODEX_INSTALL_DIR"' \
-  'printf "#!/bin/bash\nprintf \"codex-cli test\\n\"\n" >"$CODEX_INSTALL_DIR/codex"' \
-  'chmod 0755 "$CODEX_INSTALL_DIR/codex"'
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/gh" <<'SCRIPT'
-#!/bin/bash
-case $1 in
-auth)
-  [[ ${QVOS_TEST_GH_AUTH:-0} == "1" ]]
-  ;;
-api)
-  printf 'gh\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-  printf '{"tag_name":"rust-v0.145.0"}\n'
-  ;;
-esac
-SCRIPT
-
-run_qvcore() {
-  QVOS_TEST_ACTION_LOG="$action_log" \
-    QVOS_TEST_DEV_CANCEL="${QVOS_TEST_DEV_CANCEL:-0}" \
-    QVOS_TEST_GH_AUTH="${QVOS_TEST_GH_AUTH:-0}" \
-    HOME="$test_root" \
-    OMARCHY_PATH="$test_omarchy_path" \
-    PATH="$test_bin:/usr/bin" \
-    "$command_path" "$@"
+run_install() {
+  HOME="$test_root/home" \
+    OMARCHY_PATH="$source_root" \
+    QVOS_TEST_ACTION_LOG="$action_log" \
+    "$root/bin/omarchy-install-qvcore" "$@"
 }
 
-: >"$action_log"
-run_qvcore >/dev/null
-expected_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-proton\ninstall-media'
-[[ $(<"$action_log") == "$expected_actions" ]] || fail "complete qvCORE route order"
-[[ $("$test_root/.local/bin/codex" --version) == "codex-cli test" ]] || fail "standalone Codex command"
-pass "qvCORE installs all curated apps and managed setups in catalog order"
+run_remove() {
+  HOME="$test_root/home" \
+    OMARCHY_PATH="$source_root" \
+    QVOS_TEST_ACTION_LOG="$action_log" \
+    "$root/bin/omarchy-qvcore-remove" "$@"
+}
 
-: >"$action_log"
-run_qvcore apps >/dev/null
-expected_app_actions=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-dev\ncurl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"$'\ninstall-media'
-[[ $(<"$action_log") == "$expected_app_actions" ]] ||
-  fail "qvCORE app group route"
-
-: >"$action_log"
-run_qvcore setups >/dev/null
-expected_setup_actions=$'setup-dns\tWARP\ninstall-share\ninstall-proton'
-[[ $(<"$action_log") == "$expected_setup_actions" ]] ||
-  fail "qvCORE managed setup group route"
-pass "qvCORE separates ordinary apps from managed setups without changing installer backends"
-
-declare -A expected_component_actions=(
-  [warp]=$'setup-dns\tWARP'
-  ["brave-origin"]=$'install-browser\tbrave-origin\ndefault-browser\tbrave-origin'
-  [share]=$'install-share'
-  [dev]=$'install-dev'
-  [codex]=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ncurl\t-fsSL https://api.github.com/repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"
-  [proton]=$'install-proton'
-  [media]=$'install-media'
-)
-
-for component in warp brave-origin share dev codex proton media; do
-  : >"$action_log"
-  run_qvcore "$component" >/dev/null
-  [[ $(<"$action_log") == "${expected_component_actions[$component]}" ]] || fail "$component component route"
+for component in warp share proton brave media qvdev; do
+  run_install "$component"
+  [[ $(tail -n 1 "$action_log") == "$component.sh"$'\tinstall\t' ]] ||
+    fail "Install route: $component"
+  run_remove "$component" --yes
+  [[ $(tail -n 1 "$action_log") == "$component.sh"$'\tremove\t--yes' ]] ||
+    fail "Remove route: $component"
 done
-pass "qvCORE components are independently rerunnable"
 
-: >"$action_log"
-set +e
-cancel_output=$(QVOS_TEST_DEV_CANCEL=1 run_qvcore 2>&1)
-cancel_status=$?
-set -e
-((cancel_status == 130)) || fail "Devel cancellation status propagation"
-expected_cancel_actions=$'setup-dns\tWARP\ninstall-browser\tbrave-origin\ndefault-browser\tbrave-origin\ninstall-share\ncancel-dev'
-[[ $(<"$action_log") == "$expected_cancel_actions" ]] ||
-  fail "complete profile stops after Devel cancellation"
-if grep -Fq 'qvCORE apps and managed setups are ready.' <<<"$cancel_output"; then
-  fail "canceled complete profile reports ready"
+for retired in "" all apps setups dev codex brave-origin; do
+  if run_install "$retired" >/dev/null 2>&1; then
+    fail "retired Install route accepted: ${retired:-empty}"
+  fi
+done
+if run_remove qvdev --check >/dev/null 2>&1; then
+  fail "retired removal preflight mode accepted"
 fi
-pass "Devel cancellation stops the complete qvCORE profile cleanly"
 
-: >"$action_log"
-QVOS_TEST_GH_AUTH=1 run_qvcore codex >/dev/null
-expected_authenticated_actions=$'curl\t-fsSL https://chatgpt.com/codex/install.sh\ngh\tapi repos/openai/codex/releases/latest\nstandalone\t1\t'"$test_root/.local/bin"
-[[ $(<"$action_log") == "$expected_authenticated_actions" ]] || fail "authenticated Codex release metadata route"
-pass "Codex release metadata reuses gh authentication without exposing its token"
-
-: >"$action_log"
-set +e
-run_qvcore unknown >/dev/null 2>&1
-unknown_status=$?
-set -e
-((unknown_status == 2)) || fail "unknown qvCORE component status"
-[[ ! -s $action_log ]] || fail "unknown qvCORE component performs actions"
-pass "unknown qvCORE components fail without side effects"
-
-if grep -RqsF '@openai/codex' "$root/qv/install"; then
-  fail "Codex remains in the base installation"
-fi
-grep -Fq 'https://chatgpt.com/codex/install.sh' "$root/qv/core/codex.sh" || fail "official Codex installer"
-if grep -Eq 'gh auth token|Authorization:' "$root/qv/core/codex.sh"; then
-  fail "Codex installer exposes GitHub credentials"
-fi
-grep -Fq 'omarchy-qvos-block-upstream-maintenance' \
-  "$root/bin/omarchy-remove-preinstalls" ||
-  fail "upstream preinstall cleanup is not guarded on qvOS"
-pass "Codex is owned only by qvCORE and uses OpenAI's standalone installer"
-
-[[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam component"
-if rg -q '(^|[[:space:]|])steam([[:space:]|]|$)|Gaming Dependencies' \
-  "$root/qv/core/catalog.tsv" \
-  "$root/qv/core/software-ownership.tsv" \
-  "$root/qv/core/software-removal-groups"; then
-  fail "Steam remains in qvCORE ownership metadata"
-fi
-pass "Steam and gaming dependencies stay outside qvCORE"
+printf 'ok - qvCORE routes exactly six stacks through Install and Remove\n'

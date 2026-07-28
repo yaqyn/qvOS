@@ -1,0 +1,5 @@
+#!/bin/bash
+
+updater="$HOME/.local/share/qvos/direct/update"
+[[ -x $updater ]] || exit 0
+"$updater"

@@ -44,7 +44,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in codex desktop maintenance power screensaver shell thunar tmux tui waybar; do
+for feature in codex desktop direct maintenance power screensaver shell thunar tmux tui waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -64,6 +64,7 @@ grep -Fq 'Missing qvOS desktop feature file:' \
 pass "missing feature files cannot erase the installed desktop payload"
 
 install -d \
+  "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/share/qvos/bin" \
   "$test_root/.local/share/qvos/desktop/context" \
   "$test_root/.local/share/qvos/screensaver" \
@@ -71,6 +72,7 @@ install -d \
   "$test_root/.local/share/qvos/tmux" \
   "$test_root/.local/share/qvos/waybar"
 touch \
+  "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore" \
   "$test_root/.local/share/qvos/desktop/context/removed-helper" \
   "$test_root/.local/share/qvos/screensaver/removed-launcher" \
   "$test_root/.local/share/qvos/thunar/removed-feature" \
@@ -109,9 +111,11 @@ done
 pass "launcher providers install into qvOS-owned runtime"
 
 cmp -s \
-  "$root/qv/core/post-update-hook" \
-  "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore" ||
-  fail "qvCORE post-update hook install"
+  "$root/qv/direct/post-update-hook" \
+  "$test_root/.config/omarchy/hooks/post-update.d/qvos-direct-tools" ||
+  fail "direct-tool post-update hook install"
+[[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore ]] ||
+  fail "obsolete qvCORE post-update hook cleanup"
 cmp -s \
   "$root/qv/waybar/post-update-hook" \
   "$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
@@ -134,7 +138,8 @@ pass "Codex capability contract and doctor install together"
 
 [[ ! -e $test_root/.local/share/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
 [[ ! -e $test_root/.local/share/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"
-[[ ! -e $test_root/.local/share/qvos/thunar/removed-feature ]] || fail "stale Thunar feature cleanup"
+[[ ! -e $test_root/.local/share/qvos/thunar/removed-feature ]] ||
+  fail "stale Thunar feature cleanup"
 [[ ! -e $test_root/.local/share/qvos/tmux/removed-feature ]] || fail "stale tmux feature cleanup"
 [[ ! -e $test_root/.local/share/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
 pass "stale helper payloads are removed"
@@ -142,7 +147,7 @@ pass "stale helper payloads are removed"
 [[ ! -e $root/qv/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
 
-for feature in desktop tmux waybar; do
+for feature in desktop direct tmux waybar; do
   expected_feature="$(find "$root/qv/$feature" -type f -printf '%P\n' | sort)"
   installed_feature="$(find "$test_root/.local/share/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
@@ -158,10 +163,9 @@ for optional_thunar_feature in codex proton-drive-upload share; do
 done
 pass "installed feature payloads match tracked source"
 
-qvcore_state="$test_root/.local/state/qvos/qvcore"
-install -d "$qvcore_state"
-for component in codex proton share; do
-  install -m 0644 /dev/null "$qvcore_state/$component"
+for optional_thunar_feature in codex proton-drive-upload share; do
+  cp "$root/qv/thunar/$optional_thunar_feature" \
+    "$test_root/.local/share/qvos/thunar/$optional_thunar_feature"
 done
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qv/install/desktop"
@@ -171,7 +175,7 @@ for optional_thunar_feature in codex proton-drive-upload share; do
     "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
     fail "enabled Thunar $optional_thunar_feature preservation"
 done
-pass "desktop refresh preserves current helpers for enabled optional setups"
+pass "desktop refresh preserves optional helpers without repairing stacks"
 
 waybar_source_inventory="$(find "$root/qv/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||

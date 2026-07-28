@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# omarchy:summary=Select installed qvCORE software for ownership-safe removal
+# omarchy:summary=Remove one enrolled qvCORE stack while preserving personal data
 # omarchy:group=qvcore
 # omarchy:name=remove
+# omarchy:args=<warp|share|proton|brave|media|qvdev>
+# omarchy:examples=omarchy qvcore remove qvdev
+# omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/maintenance/personal-software" --remove-qvcore "$@"
+exec "$OMARCHY_PATH/qv/core/remove" "$@"

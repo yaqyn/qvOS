@@ -28,8 +28,9 @@ replace its judgment.
 
 ## Verification And Publication
 
-- Set repository identity to
-  `Abdulrahman M. Yaqyn <253025238+yaqyn@users.noreply.github.com>`.
+- Set repository identity to `Abdulrahman M. Yaqyn <Yaqyn@pm.me>`. Use the
+  GitHub noreply fallback only for an unpublished commit rejected by email
+  privacy, as defined by the root contract.
 - Match checks to the diff: Bash syntax and ShellCheck for shell (`-s bash` for
   sourced install or migration files); `gofmt`, `go test -count=1 ./...`, and
   a `/tmp` Go build for Go; `test/qvos/run.sh` for the full shell suite; binding
@@ -37,10 +38,10 @@ replace its judgment.
   `git diff --check`.
 - Before runtime checks, back up and apply changed user config, then install
   desktop payloads with
-  `OMARCHY_PATH=$PWD bash -c 'source qv/install/desktop'`. Repair affected
-  enabled qvCORE adapters, require no unexpected `omarchy qvcore status` drift,
-  confirm the live checkout is clean, and run the relevant reload or smoke
-  test.
+  `OMARCHY_PATH=$PWD bash -c 'source qv/install/desktop'`. Preserve optional
+  qvCORE runtime integrations without repairing them, verify the direct-tool
+  runtime and hook, confirm the live checkout is clean, and run the relevant
+  reload or smoke test.
 - Stage with `git add -A`; inspect `git diff --cached --check` and
   `git diff --cached --stat`; remove generated artifacts; then commit the
   verified logical unit without agent attribution.

@@ -1,22 +1,18 @@
 #!/bin/bash
-# qvcore:managed-setup=1
 set -euo pipefail
 
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/proton"
-pass_installer_url="https://proton.me/download/pass-cli/install.sh"
-drive_metadata_url="https://proton.me/download/drive/cli/version.json"
+direct_tool="$component_dir/../direct/tool"
 proton_skill_source="$component_dir/proton/skill"
 codex_skill_dir="$HOME/.codex/skills/proton-cli"
 codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
 pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
-proton_hook_path=${QVOS_PROTON_HOOK_PATH:-/etc/pacman.d/hooks/qvos-proton-on-demand.hook}
 thunar_actions_source="$component_dir/../thunar/actions.sh"
 thunar_upload_source="$component_dir/../thunar/proton-drive-upload"
 thunar_upload_runtime="$HOME/.local/share/qvos/thunar/proton-drive-upload"
 thunar_upload_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/proton-drive-upload\" \"\$@\"' qvos-thunar %F"
-drive_download=""
 pass_admin_root=""
 created_pat_id=""
 codex_pat=""
@@ -32,19 +28,10 @@ pass_auth_ready=0
 drive_auth_ready=0
 mail_auth_ready=0
 auth_ready_count=0
-auth_action="setup"
-mode="install"
 remove_assume_yes=0
-remove_check=0
-upload_helper_ready=0
-upload_action_ready=0
-maintenance_ready=0
-drive_desktop_auth_ready=0
 
 declare -a removal_packages=()
-declare -a removal_paths=()
 remove_codex_skill=0
-remove_vpn_policy=0
 
 # Thunar integration inventory and lifecycle
 
@@ -62,55 +49,18 @@ cleanup() {
 
   cleanup_pass_admin
 
-  if [[ -n $drive_download && -f $drive_download ]]; then
-    rm -f "$drive_download"
-  fi
-
   if ((restart_bridge_on_cleanup)); then
     systemctl --user start protonmail-bridge.service >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
 
-vpn_policy_ready() {
-  [[ -f $proton_hook_path ]] || return 1
-
-  cmp -s "$proton_hook_path" - <<'HOOK'
-[Trigger]
-Operation = Install
-Operation = Upgrade
-Type = Package
-Target = proton-vpn-daemon
-
-[Action]
-Description = Keep Proton VPN available on demand
-When = PostTransaction
-Exec = /usr/bin/systemctl disable --now proton.VPN.service
-HOOK
-}
-
-install_vpn_on_demand_policy() {
-  sudo install -d -m 0755 "$(dirname -- "$proton_hook_path")"
-  sudo install -m 0644 /dev/stdin "$proton_hook_path" <<'HOOK'
-[Trigger]
-Operation = Install
-Operation = Upgrade
-Type = Package
-Target = proton-vpn-daemon
-
-[Action]
-Description = Keep Proton VPN available on demand
-When = PostTransaction
-Exec = /usr/bin/systemctl disable --now proton.VPN.service
-HOOK
-}
-
 pass_cli_installed() {
-  [[ -x $pass_cli ]] && "$pass_cli" --version >/dev/null 2>&1
+  "$direct_tool" verify pass-cli
 }
 
 drive_cli_installed() {
-  [[ -x $drive_cli ]] && "$drive_cli" version >/dev/null 2>&1
+  "$direct_tool" verify proton-drive
 }
 
 bridge_cli_installed() {
@@ -144,36 +94,10 @@ upload_action_is_installed() {
     directories audio-files image-files other-files text-files video-files
 }
 
-inventory_desktop_integration() {
-  upload_helper_ready=0
-  upload_action_ready=0
-  maintenance_ready=0
-  drive_desktop_auth_ready=0
-
+desktop_integration_ready() {
   [[ -x $thunar_upload_runtime ]] &&
     cmp -s "$thunar_upload_source" "$thunar_upload_runtime" &&
-    upload_helper_ready=1
-  upload_action_is_installed && upload_action_ready=1
-  [[ -f $state_file ]] && maintenance_ready=1
-  drive_ready && drive_desktop_auth_ready=1
-  return 0
-}
-
-print_desktop_inventory() {
-  local ready_count=$((upload_helper_ready +
-    upload_action_ready +
-    maintenance_ready +
-    drive_desktop_auth_ready))
-
-  echo "Proton desktop inventory: $ready_count/4 ready"
-  printf '  %-16s %s\n' "Drive helper" \
-    "$(status_label "$upload_helper_ready" "ready" "missing")"
-  printf '  %-16s %s\n' "Thunar action" \
-    "$(status_label "$upload_action_ready" "ready" "missing")"
-  printf '  %-16s %s\n' "Update tracking" \
-    "$(status_label "$maintenance_ready" "ready" "missing")"
-  printf '  %-16s %s\n' "Drive access" \
-    "$(status_label "$drive_desktop_auth_ready" "ready" "needs-login")"
+    upload_action_is_installed
 }
 
 install_desktop_integration() {
@@ -187,17 +111,11 @@ install_desktop_integration() {
     "Upload the selected files and folders to private Proton Drive storage." \
     "*" \
     directories audio-files image-files other-files text-files video-files
-  install -D -m 0644 /dev/null "$state_file"
 }
 
-disable_desktop_integration() {
-  local report=${1:-1}
-
+remove_desktop_integration() {
   qvos_thunar_remove_action "qvos-proton-drive-upload"
-  rm -f "$state_file" "$thunar_upload_runtime"
-  if ((report)); then
-    echo "qvCORE Proton desktop integration is disabled; Proton services and personal data were not changed."
-  fi
+  rm -f "$thunar_upload_runtime"
 }
 
 qvos_codex_skill_is_owned() {
@@ -225,22 +143,14 @@ inventory_removal() {
   local package
 
   removal_packages=()
-  removal_paths=()
   remove_codex_skill=0
-  remove_vpn_policy=0
 
   for package in protonmail-bridge-core proton-vpn-cli; do
     if pacman -Q "$package" >/dev/null 2>&1; then
       removal_packages+=("$package")
     fi
   done
-  for path in "$pass_cli" "$drive_cli"; do
-    if [[ -e $path || -L $path ]]; then
-      removal_paths+=("$path")
-    fi
-  done
   qvos_codex_skill_is_owned && remove_codex_skill=1
-  vpn_policy_ready && remove_vpn_policy=1
 }
 
 preflight_removal() {
@@ -264,17 +174,13 @@ preflight_removal() {
       return 1
     fi
   fi
-  if ((${#removal_paths[@]} > 0 || remove_codex_skill)); then
+  if ((remove_codex_skill)); then
     if ! command -v gio >/dev/null 2>&1; then
       echo "Proton removal requires: gio" >&2
       return 1
     fi
   fi
-  if ((remove_vpn_policy)) && ! command -v sudo >/dev/null 2>&1; then
-    echo "Proton removal requires: sudo" >&2
-    return 1
-  fi
-  if ((remove_assume_yes == 0 && remove_check == 0)) &&
+  if ((remove_assume_yes == 0)) &&
     ! command -v gum >/dev/null 2>&1; then
     echo "Proton removal requires: gum" >&2
     return 1
@@ -283,38 +189,37 @@ preflight_removal() {
 
 print_removal_plan() {
   local package
-  local path
-
-  echo "Remove the local qvCORE Proton setup:"
+  echo "Remove the enrolled qvCORE Proton stack:"
   for package in "${removal_packages[@]}"; do
     printf '  Package: %s\n' "$package"
   done
-  for path in "${removal_paths[@]}"; do
-    printf '  Command: %s\n' "$path"
-  done
+  printf '  Direct tool: Proton Pass CLI\n'
+  printf '  Direct tool: Proton Drive CLI\n'
   ((remove_codex_skill == 0)) ||
     printf '  Integration: %s\n' "$codex_skill_dir"
-  echo "  qvOS desktop integration and policy"
+  echo "  qvOS desktop and Codex integrations"
   echo ""
   echo "Proton cloud data and saved local authentication state will be preserved."
 }
 
 verify_removal() {
   local package
-  local path
-
   for package in protonmail-bridge-core proton-vpn-cli; do
     if pacman -Q "$package" >/dev/null 2>&1; then
       echo "Proton removal failed: $package remains installed." >&2
       return 1
     fi
   done
-  for path in "$pass_cli" "$drive_cli"; do
-    if [[ -e $path || -L $path ]]; then
-      echo "Proton removal failed: $path remains installed." >&2
+  "$direct_tool" installed pass-cli &&
+    {
+      echo "Proton removal failed: Proton Pass CLI remains installed." >&2
       return 1
-    fi
-  done
+    }
+  "$direct_tool" installed proton-drive &&
+    {
+      echo "Proton removal failed: Proton Drive CLI remains installed." >&2
+      return 1
+    }
   if [[ -e $state_file || -e $thunar_upload_runtime ]] ||
     upload_action_is_installed; then
     echo "Proton removal failed: qvOS desktop integration remains." >&2
@@ -323,11 +228,13 @@ verify_removal() {
 }
 
 remove_local_proton() {
+  if [[ ! -f $state_file ]]; then
+    echo "qvCORE Proton is not enrolled; nothing was changed."
+    return
+  fi
+
   inventory_removal
   preflight_removal
-  if ((remove_check)); then
-    return 0
-  fi
 
   print_removal_plan
   if ((remove_assume_yes == 0)); then
@@ -347,12 +254,7 @@ remove_local_proton() {
     sudo systemctl disable --now proton.VPN.service
   fi
 
-  disable_desktop_integration 0
-  if ((remove_vpn_policy)); then
-    sudo rm -- "$proton_hook_path"
-  elif [[ -e $proton_hook_path ]]; then
-    echo "Preserved customized Proton VPN policy: $proton_hook_path"
-  fi
+  remove_desktop_integration
   if ((remove_codex_skill)); then
     gio trash "$codex_skill_dir"
   elif [[ -e $codex_skill_dir ]]; then
@@ -361,9 +263,9 @@ remove_local_proton() {
   if ((${#removal_packages[@]} > 0)); then
     omarchy-pkg-drop "${removal_packages[@]}"
   fi
-  for path in "${removal_paths[@]}"; do
-    gio trash "$path"
-  done
+  "$direct_tool" remove pass-cli
+  "$direct_tool" remove proton-drive
+  rm -f "$state_file"
 
   verify_removal
   echo "Removed the local qvCORE Proton setup."
@@ -424,71 +326,6 @@ inventory_components() {
     "$(status_label "$account_cli_installed" "ready" "missing")"
   printf '  %-16s %s\n' "Codex skill" \
     "$(status_label "$codex_integration_installed" "ready" "missing")"
-}
-
-install_pass_cli() {
-  echo "Installing Proton Pass CLI from Proton..."
-  curl -fsSL "$pass_installer_url" |
-    PROTON_PASS_CLI_INSTALL_DIR="$HOME/.local/bin" bash
-  chmod 0755 "$pass_cli"
-}
-
-install_drive_cli() {
-  local drive_arch
-  local drive_checksum
-  local drive_info
-  local drive_metadata
-  local drive_platform
-  local drive_url
-
-  case $(uname -m) in
-  x86_64 | amd64)
-    drive_arch="x64"
-    ;;
-  aarch64 | arm64)
-    drive_arch="arm64"
-    ;;
-  *)
-    echo "Proton Drive CLI does not support architecture: $(uname -m)" >&2
-    return 1
-    ;;
-  esac
-
-  drive_platform="linux/$drive_arch"
-  drive_metadata=$(curl -fsSL "$drive_metadata_url")
-  drive_info=$(
-    jq -r --arg platform "$drive_platform" '
-      (
-        [
-          .Releases[]
-          | select(.CategoryName == "Stable")
-          | .Files[]
-          | select(.Platform == $platform)
-        ][0] // {}
-      )
-      | [(.Url // ""), (.Sha512CheckSum // "")]
-      | @tsv
-    ' <<<"$drive_metadata"
-  )
-  IFS=$'\t' read -r drive_url drive_checksum <<<"$drive_info"
-
-  if [[ $drive_url != "https://proton.me/download/drive/cli/"*"/proton-drive" ]] ||
-    [[ ! $drive_checksum =~ ^[[:xdigit:]]{128}$ ]]; then
-    echo "Could not resolve a verified Proton Drive CLI download for $drive_platform" >&2
-    return 1
-  fi
-
-  drive_download=$(mktemp)
-  curl -fsSL -o "$drive_download" "$drive_url"
-
-  if ! printf '%s  %s\n' "$drive_checksum" "$drive_download" | sha512sum --check --status; then
-    echo "Proton Drive CLI checksum verification failed" >&2
-    return 1
-  fi
-
-  install -d "$HOME/.local/bin"
-  install -m 0755 "$drive_download" "$drive_cli"
-  echo "Installed Proton Drive CLI from Proton."
 }
 
 install_codex_integration() {
@@ -587,53 +424,7 @@ pass_codex_ready() {
   ' <<<"$vault_json" >/dev/null
 }
 
-reset_pass_auth() {
-  local existing_pat_id
-  local existing_pat_name
-  local info_json
-  local pat_count
-  local pat_list
-
-  info_json=$(run_pass_codex info --output json)
-  existing_pat_name=$(
-    jq -er '
-      .personal_access_token_name
-      | select(type == "string" and length > 0)
-    ' <<<"$info_json"
-  )
-  if [[ $existing_pat_name == "[Agent] "* ]]; then
-    existing_pat_name=${existing_pat_name#"[Agent] "}
-  fi
-
-  pat_list=$(run_pass_admin pat list --output json)
-  pat_count=$(
-    jq --arg name "$existing_pat_name" \
-      '[.[] | select(.name == $name)] | length' <<<"$pat_list"
-  )
-
-  if ((pat_count == 0)); then
-    echo "The existing Codex PAT was not found; its local session was preserved." >&2
-    return 1
-  elif ((pat_count > 1)); then
-    echo "Multiple PATs match the Codex session; none were changed." >&2
-    return 1
-  fi
-
-  existing_pat_id=$(
-    jq -er --arg name "$existing_pat_name" '
-      [.[] | select(.name == $name)]
-      | if length == 1 then .[0].pat_id else error("PAT is not unique") end
-    ' <<<"$pat_list"
-  )
-  run_pass_admin pat delete \
-    --personal-access-token-id "$existing_pat_id" >/dev/null
-  run_pass_codex logout --force >/dev/null 2>&1 || true
-  echo "Reset the isolated Proton Pass Codex session."
-}
-
 setup_pass_auth() {
-  local auth_action=$1
-  local existing_ready=0
   local pat_env=""
   local pat_json=""
   local pat_name
@@ -642,15 +433,11 @@ setup_pass_auth() {
   local vault_share_id
 
   if pass_codex_ready; then
-    existing_ready=1
-    if [[ $auth_action != "reset" ]]; then
-      echo "Proton Pass Codex access is already ready; keeping it."
-      return
-    fi
+    echo "Proton Pass Codex access is already ready; keeping it."
+    return
   fi
 
-  if ((existing_ready == 0)) &&
-    run_pass_codex info --output json >/dev/null 2>&1; then
+  if run_pass_codex info --output json >/dev/null 2>&1; then
     if ! run_pass_codex test >/dev/null 2>&1; then
       echo "Existing Proton Pass Codex access could not be verified." >&2
       echo "Retry when Proton Pass is reachable; the session was not changed." >&2
@@ -664,17 +451,13 @@ setup_pass_auth() {
 
     echo "Replacing an isolated Proton Pass session with an unexpected vault scope."
     run_pass_codex logout --force >/dev/null
-  elif ((existing_ready == 0)) &&
-    find "$codex_pass_root/data" -type f -print -quit | grep -q .; then
+  elif find "$codex_pass_root/data" -type f -print -quit | grep -q .; then
     echo "Existing Proton Pass Codex session data could not be verified." >&2
     echo "The session was preserved; resolve or remove it before retrying." >&2
     return 1
   fi
 
   open_pass_admin
-  if ((existing_ready)); then
-    reset_pass_auth
-  fi
 
   vault_json=$(run_pass_admin vault list --output json)
   vault_count=$(
@@ -750,16 +533,9 @@ drive_ready() {
 }
 
 setup_drive_auth() {
-  local auth_action=$1
-
   if drive_ready; then
-    if [[ $auth_action != "reset" ]]; then
-      echo "Proton Drive is already ready; keeping it."
-      return
-    fi
-
-    "$drive_cli" auth logout
-    echo "Reset Proton Drive authentication."
+    echo "Proton Drive is already ready; keeping it."
+    return
   fi
 
   echo ""
@@ -861,47 +637,8 @@ inventory_authentication() {
     "$(status_label "$mail_auth_ready" "configured" "needs-setup")"
 }
 
-choose_auth_action() {
-  local auth_choice
-
-  if ((auth_ready_count == 0)); then
-    echo "No Proton authentication was found; continuing with setup."
-    auth_action="setup"
-    return
-  fi
-
-  echo ""
-  echo "Existing Proton authentication was found."
-  echo "  reset  Revoke/sign out ready services, then authenticate all services."
-  echo "  skip   Keep ready services and authenticate only missing services."
-
-  while true; do
-    printf 'Choose reset or skip [skip]: ' >&2
-    if ! IFS= read -r auth_choice; then
-      auth_choice="skip"
-    fi
-
-    case ${auth_choice,,} in
-    "" | k | keep | s | skip)
-      auth_action="skip"
-      return
-      ;;
-    r | reset)
-      auth_action="reset"
-      return
-      ;;
-    *)
-      echo "Enter reset or skip." >&2
-      ;;
-    esac
-  done
-}
-
 setup_mail_auth() {
-  local auth_action=$1
-  local bridge_mode="login"
-
-  if ((mail_auth_ready)) && [[ $auth_action != "reset" ]]; then
+  if ((mail_auth_ready)); then
     systemctl --user start protonmail-bridge.service
     if wait_for_bridge 30; then
       echo "Proton Mail Bridge is already authenticated; keeping it."
@@ -918,17 +655,8 @@ setup_mail_auth() {
 
   echo ""
   echo "Proton Mail Bridge authentication"
-  if ((mail_auth_ready)) && [[ $auth_action == "reset" ]]; then
-    bridge_mode="reset"
-    echo "At the Bridge prompt:"
-    echo "  1. Type list."
-    echo "  2. Type delete <account name or index> and confirm the removal."
-    echo "  3. Type login and complete authentication."
-    echo "  4. Type exit."
-  else
-    echo "At the Bridge prompt: type login, complete authentication, then type exit."
-  fi
-  QVOS_PROTON_BRIDGE_MODE="$bridge_mode" protonmail-bridge-core --cli
+  echo "At the Bridge prompt: type login, complete authentication, then type exit."
+  QVOS_PROTON_BRIDGE_MODE=login protonmail-bridge-core --cli
 
   systemctl --user start protonmail-bridge.service
   if ! wait_for_bridge 30; then
@@ -960,111 +688,37 @@ verify_proton_setup() {
 # Entry point
 
 usage() {
-  echo "Usage: proton.sh [--status|--repair|--adopt|--disable|--prepare-remove|--remove [--check|--yes]]" >&2
+  echo "Usage: proton.sh <install|remove> [--yes]" >&2
 }
 
-if (($# > 2)); then
+if (($# < 1 || $# > 2)); then
   usage
   exit 2
 fi
 
-case ${1:-} in
-"")
-  (($# == 0)) || {
+if (($# == 2)); then
+  [[ $2 == "--yes" && $1 == "remove" ]] || {
     usage
     exit 2
   }
-  ;;
---status | --integration-status | --repair | --adopt | --disable | --prepare-remove)
-  (($# == 1)) || {
-    usage
-    exit 2
-  }
-  mode=${1#--}
-  ;;
---remove)
-  mode="remove"
-  case ${2:-} in
-  "") ;;
-  --check) remove_check=1 ;;
-  --yes) remove_assume_yes=1 ;;
-  *)
-    usage
-    exit 2
-    ;;
-  esac
-  ;;
-*)
-  usage
-  exit 2
-  ;;
-esac
+  remove_assume_yes=1
+fi
 
-if [[ $mode == "remove" ]]; then
+if [[ $1 == "remove" ]]; then
   remove_local_proton
   exit
-fi
-
-if [[ $mode != "install" ]]; then
-  inventory_components
-  inventory_desktop_integration
-  print_desktop_inventory
-
-  if [[ $mode == "status" ]]; then
-    ((pass_installed && drive_installed && bridge_installed &&
-      account_cli_installed && codex_integration_installed &&
-      upload_helper_ready && upload_action_ready && maintenance_ready &&
-      drive_desktop_auth_ready))
-    exit
-  fi
-
-  if [[ $mode == "integration-status" ]]; then
-    ((drive_installed && codex_integration_installed &&
-      upload_helper_ready && upload_action_ready && maintenance_ready))
-    exit
-  fi
-
-  if [[ $mode == "disable" || $mode == "prepare-remove" ]]; then
-    disable_desktop_integration
-    if [[ $mode == "prepare-remove" ]]; then
-      echo "Proton desktop integration is ready for software removal."
-    fi
-    exit
-  fi
-
-  if [[ $mode == "repair" && ! -f $state_file ]]; then
-    echo "qvCORE Proton desktop integration is not enabled; nothing was repaired."
-    exit 0
-  fi
-
-  if [[ $mode == "repair" && $drive_installed == 0 ]]; then
-    disable_desktop_integration
-    exit 0
-  fi
-
-  if ((drive_installed == 0)); then
-    echo "Proton Drive is not installed; desktop integration was not changed." >&2
-    exit 1
-  fi
-
-  if [[ $mode == "adopt" ]] && ! drive_ready; then
-    echo "Proton Drive cannot access /my-files; authenticate it before enabling the desktop integration." >&2
-    exit 1
-  fi
-
-  install_codex_integration
-  install_desktop_integration
-  inventory_components
-  inventory_desktop_integration
-  print_desktop_inventory
-  ((codex_integration_installed && upload_helper_ready &&
-    upload_action_ready && maintenance_ready && drive_desktop_auth_ready))
-  exit
+elif [[ $1 != "install" ]]; then
+  usage
+  exit 2
 fi
 
 dependency_packages=()
 system_changes_needed=0
 
+[[ -x $direct_tool ]] || {
+  echo "The qvOS direct-tool manager is unavailable: $direct_tool" >&2
+  exit 1
+}
 inventory_components
 
 for dependency in curl jq openssl; do
@@ -1078,7 +732,6 @@ fi
 
 if ((${#dependency_packages[@]} > 0)) ||
   ((bridge_installed == 0 || account_cli_installed == 0)) ||
-  ! vpn_policy_ready ||
   systemctl is-enabled --quiet proton.VPN.service ||
   systemctl is-active --quiet proton.VPN.service; then
   system_changes_needed=1
@@ -1094,10 +747,6 @@ if ((${#dependency_packages[@]} > 0)); then
   omarchy-pkg-add "${dependency_packages[@]}"
 fi
 
-if ! vpn_policy_ready; then
-  install_vpn_on_demand_policy
-fi
-
 if ((bridge_installed == 0)); then
   omarchy-pkg-add protonmail-bridge-core
 fi
@@ -1107,11 +756,11 @@ if ((account_cli_installed == 0)); then
 fi
 
 if ((pass_installed == 0)); then
-  install_pass_cli
+  "$direct_tool" install pass-cli
 fi
 
 if ((drive_installed == 0)); then
-  install_drive_cli
+  "$direct_tool" install proton-drive
 fi
 
 if ((codex_integration_installed == 0)); then
@@ -1146,16 +795,20 @@ if ((pass_installed == 0 || drive_installed == 0 || bridge_installed == 0 ||
 fi
 
 inventory_authentication
-choose_auth_action
 
-setup_pass_auth "$auth_action"
-setup_drive_auth "$auth_action"
-setup_mail_auth "$auth_action"
+setup_pass_auth
+setup_drive_auth
+setup_mail_auth
 verify_proton_setup
 install_desktop_integration
+desktop_integration_ready || {
+  echo "Proton desktop integration verification failed." >&2
+  exit 1
+}
+install -D -m 0644 /dev/null "$state_file"
 
 echo ""
-echo "Proton setup is complete:"
+echo "qvCORE Proton is installed:"
 echo "  Pass CLI:    pass-cli"
 echo "  Drive CLI:   proton-drive"
 echo "  Account CLI: protonvpn"

@@ -1,137 +1,100 @@
 #!/bin/bash
-# qvcore:managed-setup=1
 set -euo pipefail
 
 state_file="$HOME/.local/state/qvos/qvcore/warp"
-mode="install"
-package_ready=0
-service_ready=0
-registration_ready=0
-connection_ready=0
-maintenance_ready=0
+assume_yes=0
 
 usage() {
-  echo "Usage: warp.sh [--status|--integration-status|--repair|--adopt|--disable|--prepare-remove]" >&2
+  echo "Usage: warp.sh <install|remove> [--yes]" >&2
 }
 
-status_label() {
-  if (($1)); then
-    printf 'ready\n'
-  else
-    printf 'missing\n'
-  fi
-}
-
-inventory_warp() {
-  package_ready=0
-  service_ready=0
-  registration_ready=0
-  connection_ready=0
-  maintenance_ready=0
-
-  omarchy-cmd-present warp-cli && package_ready=1
-  if ((package_ready)); then
+warp_ready() {
+  omarchy-cmd-present warp-cli &&
     systemctl is-enabled --quiet warp-svc.service &&
-      systemctl is-active --quiet warp-svc.service &&
-      service_ready=1
+    systemctl is-active --quiet warp-svc.service &&
     warp-cli --json registration show </dev/null &>/dev/null &&
-      registration_ready=1
-    if warp-cli --json status 2>/dev/null |
-      jq -e '.status == "Connected"' >/dev/null; then
-      connection_ready=1
-    fi
+    warp-cli --json status 2>/dev/null |
+      jq -e '.status == "Connected"' >/dev/null
+}
+
+install_stack() {
+  omarchy-qvos-setup-dns WARP
+  warp_ready || {
+    echo "WARP verification failed after configuration." >&2
+    return 1
+  }
+
+  install -D -m 0644 /dev/null "$state_file"
+  echo "qvCORE WARP is installed."
+}
+
+remove_stack() {
+  local removal_started=0
+
+  if [[ ! -f $state_file ]]; then
+    echo "qvCORE WARP is not enrolled; nothing was changed."
+    return
   fi
-  [[ -f $state_file ]] && maintenance_ready=1
-  return 0
+
+  for command in omarchy-qvos-setup-dns pacman gum; do
+    command -v "$command" >/dev/null 2>&1 || {
+      echo "qvCORE WARP removal requires: $command" >&2
+      return 1
+    }
+  done
+  if omarchy-pkg-present cloudflare-warp-nox-bin &&
+    ! pacman -Rs --print cloudflare-warp-nox-bin >/dev/null; then
+    echo "Pacman could not prepare the WARP removal transaction." >&2
+    return 1
+  fi
+
+  echo "WARP software, service and network integration will be removed."
+  echo "Cloudflare account data will not be changed."
+  if ((assume_yes == 0)); then
+    gum confirm "Remove the enrolled qvCORE WARP stack?" || {
+      echo "WARP removal canceled; nothing was changed."
+      return 130
+    }
+  fi
+
+  restore_enrollment() {
+    if ((removal_started)); then
+      install -D -m 0644 /dev/null "$state_file"
+    fi
+  }
+  trap restore_enrollment ERR
+  removal_started=1
+  omarchy-qvos-setup-dns DHCP
+  if omarchy-pkg-present cloudflare-warp-nox-bin; then
+    omarchy-pkg-drop cloudflare-warp-nox-bin
+  fi
+  omarchy-pkg-missing cloudflare-warp-nox-bin || {
+    echo "WARP removal failed: cloudflare-warp-nox-bin remains installed." >&2
+    return 1
+  }
+  removal_started=0
+  rm -f "$state_file"
+  trap - ERR
+  echo "Removed qvCORE WARP; Cloudflare account data was preserved."
 }
 
-print_inventory() {
-  local ready_count=$((package_ready + \
-    service_ready + \
-    registration_ready + \
-    connection_ready + \
-    maintenance_ready))
-
-  echo ""
-  echo "qvCORE WARP inventory: $ready_count/5 ready"
-  printf '  %-20s %s\n' "WARP CLI" "$(status_label "$package_ready")"
-  printf '  %-20s %s\n' "WARP service" "$(status_label "$service_ready")"
-  printf '  %-20s %s\n' "Registration" "$(status_label "$registration_ready")"
-  printf '  %-20s %s\n' "Connection" "$(status_label "$connection_ready")"
-  printf '  %-20s %s\n' "Update tracking" \
-    "$(status_label "$maintenance_ready")"
-}
-
-if (($# > 1)); then
+if (($# < 1 || $# > 2)); then
   usage
   exit 2
 fi
+if (($# == 2)); then
+  [[ $2 == "--yes" && $1 == "remove" ]] || {
+    usage
+    exit 2
+  }
+  assume_yes=1
+fi
 
-case ${1:-} in
-"") ;;
---status) mode="status" ;;
---integration-status) mode="integration-status" ;;
---repair) mode="repair" ;;
---adopt) mode="adopt" ;;
---disable) mode="disable" ;;
---prepare-remove) mode="prepare-remove" ;;
+case $1 in
+install) install_stack ;;
+remove) remove_stack ;;
 *)
   usage
   exit 2
   ;;
 esac
-
-inventory_warp
-if [[ $mode != "install" ]]; then
-  print_inventory
-fi
-
-if [[ $mode == "status" || $mode == "integration-status" ]]; then
-  ((package_ready && service_ready && registration_ready && \
-  connection_ready && maintenance_ready))
-  exit
-fi
-
-if [[ $mode == "disable" ]]; then
-  rm -f "$state_file"
-  echo "qvCORE WARP maintenance is disabled; the current network choice was not changed."
-  exit
-fi
-
-if [[ $mode == "prepare-remove" ]]; then
-  if ((package_ready)) || [[ -f $state_file ]]; then
-    omarchy-qvos-setup-dns DHCP
-  fi
-  rm -f "$state_file"
-  echo "WARP setup integration is ready for software removal."
-  exit
-fi
-
-if [[ $mode == "adopt" ]]; then
-  if ((package_ready == 0 || service_ready == 0 || \
-    registration_ready == 0 || connection_ready == 0)); then
-    echo "The current WARP setup is not ready to adopt." >&2
-    echo 'Run "omarchy install qvcore warp" to configure it.' >&2
-    exit 1
-  fi
-  install -D -m 0644 /dev/null "$state_file"
-elif [[ $mode == "repair" ]]; then
-  if [[ ! -f $state_file ]]; then
-    echo "qvCORE WARP maintenance is not enabled; nothing was repaired."
-    exit
-  fi
-  omarchy-qvos-setup-dns WARP
-else
-  omarchy-qvos-setup-dns WARP
-fi
-
-inventory_warp
-print_inventory
-if ((package_ready == 0 || service_ready == 0 || registration_ready == 0 || \
-  connection_ready == 0 || maintenance_ready == 0)); then
-  echo "qvCORE WARP is incomplete." >&2
-  exit 1
-fi
-
-echo ""
-echo "qvCORE WARP is ready: 5/5."

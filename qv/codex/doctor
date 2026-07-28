@@ -122,8 +122,8 @@ codex_doctor_file="$work_dir/codex-doctor.json"
 
 base_total=0
 base_ready=0
-devel_total=0
-devel_ready=0
+qvdev_total=0
+qvdev_ready=0
 avoid_present=0
 duplicate_count=0
 
@@ -146,9 +146,9 @@ while IFS=$'\t' read -r capability layer profile owner repair extra; do
     fi
     ;;
   qvcore)
-    if [[ $profile == "devel" ]]; then
-      devel_total=$((devel_total + 1))
-      ((present)) && devel_ready=$((devel_ready + 1))
+    if [[ $profile == "qvdev" ]]; then
+      qvdev_total=$((qvdev_total + 1))
+      ((present)) && qvdev_ready=$((qvdev_ready + 1))
     fi
     if ((present)); then
       capability_status="ready"
@@ -419,8 +419,8 @@ report_json=$(
     --argjson doctor_ready "$(bool_json "$codex_doctor_ready")" \
     --argjson sandbox_ready "$(bool_json "$sandbox_ready")" \
     --argjson user_namespace_limit "$user_namespace_limit" \
-    --argjson devel_ready "$devel_ready" \
-    --argjson devel_total "$devel_total" \
+    --argjson qvdev_ready "$qvdev_ready" \
+    --argjson qvdev_total "$qvdev_total" \
     --argjson wayland_session "$(bool_json "$wayland_session")" \
     --argjson hyprland_session "$(bool_json "$hyprland_session")" \
     --argjson wayland_ready "$wayland_ready" \
@@ -454,8 +454,8 @@ report_json=$(
         owner: $owner,
         version: (if $version == "" then null else $version end),
         ready: $canonical_ready,
-        install_route: "omarchy install qvcore codex",
-        update_route: "codex update"
+        install_route: "qvOS base installation",
+        update_route: "automatic direct-tool update"
       },
       codex_doctor: {
         ready: $doctor_ready,
@@ -472,16 +472,16 @@ report_json=$(
         proof: "codex sandbox /usr/bin/true"
       },
       profiles: {
-        devel: {
+        qvdev: {
           status: (
-            if $devel_ready == $devel_total then "ready"
-            elif $devel_ready == 0 then "missing"
+            if $qvdev_ready == $qvdev_total then "ready"
+            elif $qvdev_ready == 0 then "missing"
             else "partial"
             end
           ),
-          ready: $devel_ready,
-          total: $devel_total,
-          install_route: "omarchy install qvcore dev"
+          ready: $qvdev_ready,
+          total: $qvdev_total,
+          install_route: "omarchy install qvcore qvdev"
         },
         browser: {
           status: "planned",
@@ -535,8 +535,8 @@ else
   printf '  Codex doctor    %s\n' "$codex_doctor_status"
   printf '  Linux sandbox   %s\n' \
     "$([[ $sandbox_ready == "1" ]] && echo "ready" || echo "missing")"
-  printf '  Devel           %d/%d commands ready\n' \
-    "$devel_ready" "$devel_total"
+  printf '  qvDEV           %d/%d commands ready\n' \
+    "$qvdev_ready" "$qvdev_total"
   printf '  Browser         planned for Phase 2\n'
   printf '  Documents       planned for Phase 4\n'
   printf '  Wayland tools   %d/%d ready\n' \

@@ -5,7 +5,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 doctor="$root/qv/codex/doctor"
 registry="$root/qv/codex/capabilities.tsv"
 base_packages="$root/qv/install/packaging/base.packages"
-dev_packages="$root/qv/core/dev/packages.tsv"
+qvdev_packages="$root/qv/core/qvdev/packages.tsv"
 test_root="$(mktemp -d)"
 test_home="$test_root/home"
 test_bin="$test_root/bin"
@@ -48,11 +48,13 @@ while IFS=$'\t' read -r command_name layer _ owner repair extra; do
   [[ -n $command_name && $command_name != "#"* ]] || continue
   [[ -z ${extra:-} && -n $repair ]] || fail "capability repair route"
 
-  if [[ $layer == "base" ]]; then
+  if [[ $layer == "base" && $owner == "package:"* ]]; then
     package=${owner#package:}
-    [[ $package != "$owner" ]] || fail "base capability package owner"
     grep -Fqx "$package" "$base_packages" ||
       fail "base capability is not manifested: $command_name"
+  elif [[ $layer == "base" ]]; then
+    [[ $command_name == "codex" && $owner == "direct:openai" ]] ||
+      fail "non-package base capability owner: $command_name"
   fi
 
   if [[ $layer == "qvcore" && $owner == "package:"* ]]; then
@@ -60,20 +62,18 @@ while IFS=$'\t' read -r command_name layer _ owner repair extra; do
     awk -F '\t' -v package="$package" '
       $2 == package { found = 1 }
       END { exit !found }
-    ' "$dev_packages" ||
-      fail "Devel package capability has no owner: $command_name"
+    ' "$qvdev_packages" ||
+      fail "qvDEV package capability has no owner: $command_name"
   fi
 done <"$registry"
 
 if grep -Eq '^(wrangler|convex|playwright|playwright-cli|ydotool)$' \
-  "$base_packages" "$dev_packages"; then
+  "$base_packages" "$qvdev_packages"; then
   fail "project or avoid capability leaked into qvOS ownership"
 fi
-expected_dev_packages=$'# id\tpackage\tlabel\tcommands\nlldb\tlldb\tLLDB\tlldb\nvalgrind\tvalgrind\tValgrind\tvalgrind'
-[[ $(<"$dev_packages") == "$expected_dev_packages" ]] ||
-  fail "Devel package boundary"
-promoted_base_packages=(
+qvdev_packages=(
   7zip
+  clang
   cmake
   dos2unix
   gdb
@@ -81,33 +81,39 @@ promoted_base_packages=(
   go-yq
   hyperfine
   just
+  lldb
+  llvm
   lsof
   ninja
   pacman-contrib
-  python
+  postgresql-libs
+  ruby
+  rust
   shellcheck
   shfmt
   strace
   time
   tinyxxd
+  valgrind
   zip
 )
-for package in "${promoted_base_packages[@]}"; do
-  grep -Fqx "$package" "$base_packages" ||
-    fail "promoted Codex base package: $package"
+for package in "${qvdev_packages[@]}"; do
+  awk -F '\t' -v package="$package" '$2 == package { found = 1 } END { exit !found }' \
+    "$root/qv/core/qvdev/packages.tsv" ||
+    fail "qvDEV package boundary: $package"
+  if grep -Fqx "$package" "$base_packages"; then
+    fail "qvDEV package leaked into base: $package"
+  fi
 done
-if grep -Fq 'omarchy-pkg-aur-add' "$root/qv/core/dev.sh"; then
-  fail "Devel requires an AUR package owner"
+if awk -F '\t' '$1 == "aur" { found = 1 } END { exit !found }' \
+  "$root/qv/core/qvdev/packages.tsv"; then
+  fail "qvDEV requires an AUR package owner"
 fi
-# shellcheck disable=SC2016
-grep -Fq 'npm install --global "@devcontainers/cli@$version"' \
-  "$root/qv/core/dev.sh" ||
+grep -Fq $'devcontainer\tqvdev\tDev Container CLI\tnpm' \
+  "$root/qv/direct/manifest.tsv" ||
   fail "official Dev Container CLI install owner"
-# shellcheck disable=SC2016
-grep -Fq 'mise use --global "${id}@latest"' "$root/qv/core/dev.sh" ||
-  fail "persistent uv and Go owner"
-if grep -Fq 'python@latest' "$root/qv/core/dev.sh"; then
-  fail "Devel configures a redundant global Python runtime"
+if grep -Fq 'python@latest' "$root/qv/direct/manifest.tsv"; then
+  fail "qvDEV configures a redundant global Python runtime"
 fi
 pass "capabilities have one layer, owner, and exact route"
 
@@ -161,6 +167,7 @@ while IFS=$'\t' read -r command_name layer _ _ _; do
   [[ $command_name != /* ]] || continue
   [[ $command_name != "gh" ]] || continue
   [[ $command_name != "jq" ]] || continue
+  [[ $command_name != "codex" ]] || continue
   install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
 #!/bin/bash
 exit 0
@@ -168,7 +175,7 @@ SCRIPT
 done <"$registry"
 
 while IFS=$'\t' read -r command_name layer profile _ _; do
-  [[ $layer == "qvcore" && $profile == "devel" ]] || continue
+  [[ $layer == "qvcore" && $profile == "qvdev" ]] || continue
   [[ $command_name != /* ]] || continue
   install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
 #!/bin/bash
@@ -197,20 +204,26 @@ run_doctor() {
 }
 
 report=$(run_doctor --json)
-jq -e '
+base_total=$(awk -F '\t' '$1 !~ /^#/ && $2 == "base" { count++ } END { print count + 0 }' "$registry")
+qvdev_total=$(awk -F '\t' '$1 !~ /^#/ && $3 == "qvdev" { count++ } END { print count + 0 }' "$registry")
+foundation_total=$((base_total + 3))
+jq -e \
+  --argjson base_total "$base_total" \
+  --argjson qvdev_total "$qvdev_total" \
+  --argjson foundation_total "$foundation_total" '
   .schema_version == 1
   and .foundation.ready == true
-  and .foundation.ready_count == 63
-  and .foundation.total == 63
-  and .foundation.base_capabilities.ready == 60
-  and .foundation.base_capabilities.total == 60
+  and .foundation.ready_count == $foundation_total
+  and .foundation.total == $foundation_total
+  and .foundation.base_capabilities.ready == $base_total
+  and .foundation.base_capabilities.total == $base_total
   and .installation.owner == "openai-standalone"
   and .installation.version == "9.9.9"
   and .codex_doctor.status == "ok"
   and .sandbox.ready == true
-  and .profiles.devel.status == "ready"
-  and .profiles.devel.ready == 21
-  and .profiles.devel.total == 21
+  and .profiles.qvdev.status == "ready"
+  and .profiles.qvdev.ready == $qvdev_total
+  and .profiles.qvdev.total == $qvdev_total
   and .profiles.browser.status == "planned"
   and .profiles.browser.available == false
   and .profiles.documents.status == "planned"

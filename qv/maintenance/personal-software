@@ -5,11 +5,8 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/software"
 baseline="$state_dir/baseline.tsv"
 baseline_owner="$OMARCHY_PATH/qv/maintenance/personal-software-baseline"
-qvcore_catalog="$OMARCHY_PATH/qv/core/catalog.tsv"
-qvcore_ownership="$OMARCHY_PATH/qv/core/software-ownership.tsv"
-qvcore_removal_groups="$OMARCHY_PATH/qv/core/software-removal-groups"
 protected_user_bin_policy="$OMARCHY_PATH/qv/maintenance/protected-user-bin"
-qvcore_owner_dir=${QVOS_PERSONAL_QVCORE_OWNER_DIR:-$OMARCHY_PATH/qv/core}
+direct_tool_manifest="$OMARCHY_PATH/qv/direct/manifest.tsv"
 user_bin_dir=${QVOS_PERSONAL_USER_BIN_DIR:-$HOME/.local/bin}
 applications_dir=${QVOS_PERSONAL_APPLICATIONS_DIR:-$HOME/Applications}
 system_bin_dir=${QVOS_PERSONAL_SYSTEM_BIN_DIR:-/usr/local/bin}
@@ -22,13 +19,6 @@ declare -A foreign_package=()
 declare -A qvos_package=()
 declare -A qvos_npx_wrapper=()
 declare -A qvos_protected_user_bin=()
-declare -A qvcore_owner=()
-declare -A qvcore_component_name=()
-declare -a grouped_components=()
-declare -A grouped_component_count=()
-declare -A grouped_component_present=()
-declare -A grouped_component_preservation=()
-declare -A grouped_component_removable=()
 declare -a entry_ids=()
 declare -A entry_source=()
 declare -A entry_name=()
@@ -36,11 +26,10 @@ declare -A entry_detail=()
 declare -A entry_kind=()
 declare -A entry_value=()
 declare -A entry_removable=()
-declare -A entry_cleanup_owner=()
 declare -A entry_scope=()
 
 usage() {
-  echo "Usage: personal-software [--status|--remove|--remove-standalone|--remove-qvcore|--initialize] [--yes]" >&2
+  echo "Usage: personal-software [--status|--remove|--remove-standalone|--initialize] [--yes]" >&2
 }
 
 valid_field() {
@@ -63,8 +52,7 @@ add_entry() {
   local kind=$4
   local value=$5
   local removable=$6
-  local cleanup_owner=${7:-}
-  local scope=${8:-standalone}
+  local scope=${7:-standalone}
   local id="entry-$((${#entry_ids[@]} + 1))"
 
   entry_ids+=("$id")
@@ -74,7 +62,6 @@ add_entry() {
   entry_kind[$id]=$kind
   entry_value[$id]=$value
   entry_removable[$id]=$removable
-  entry_cleanup_owner[$id]=$cleanup_owner
   entry_scope[$id]=$scope
 }
 
@@ -151,7 +138,9 @@ load_qvos_owners() {
 }
 
 load_protected_user_bin() {
-  local name extra
+  local name extra id scope _label _method commands source _x86 _arm kind
+  local command_name
+  local command_list=()
 
   while read -r name extra; do
     [[ -n $name && $name != "#"* ]] || continue
@@ -162,105 +151,23 @@ load_protected_user_bin() {
     fi
     qvos_protected_user_bin[$name]=1
   done <"$protected_user_bin_policy"
-}
 
-grouped_qvcore_component() {
-  [[ -n ${grouped_component_present["policy:$1"]+grouped} ]]
-}
-
-record_grouped_component_item() {
-  local component=$1
-  local removable=$2
-
-  grouped_component_count[$component]=$((
-    ${grouped_component_count[$component]:-0} + 1
-  ))
-  grouped_component_present[$component]=1
-  if ((removable == 0)); then
-    grouped_component_removable[$component]=0
-  elif [[ -z ${grouped_component_removable[$component]+known} ]]; then
-    grouped_component_removable[$component]=1
-  fi
-}
-
-add_grouped_qvcore_entries() {
-  local component
-
-  for component in "${grouped_components[@]}"; do
-    [[ -n ${grouped_component_present[$component]+present} ]] || continue
-    add_entry \
-      "qvCORE · Setup" \
-      "${qvcore_component_name[$component]}" \
-      "${grouped_component_count[$component]} local component(s) installed; coordinated removal; ${grouped_component_preservation[$component]}" \
-      qvcore-setup \
-      "$component" \
-      "${grouped_component_removable[$component]}" \
-      "" \
-      qvcore
-  done
-}
-
-load_qvcore_owners() {
-  local type component label icon kind name extra
-
-  while IFS=$'\t' read -r type component label icon extra; do
-    [[ -n $type && $type != "#"* ]] || continue
-    if [[ $type != "app" && $type != "setup" ]] ||
-      [[ -z $component || -z $label || -z $icon || -n $extra ]] ||
-      [[ -n ${qvcore_component_name[$component]+known} ]]; then
-      echo "Invalid qvCORE catalog entry." >&2
+  while IFS=$'\t' read -r \
+    id scope _label _method commands source _x86 _arm kind extra; do
+    [[ -n $id && $id != "#"* ]] || continue
+    [[ -z ${extra:-} ]] || {
+      echo "Invalid qvOS direct-tool manifest entry: $id" >&2
       exit 1
-    fi
-    qvcore_component_name[$component]=$label
-  done <"$qvcore_catalog"
-
-  while IFS=$'\t' read -r component preservation extra; do
-    [[ -n $component && $component != "#"* ]] || continue
-    if [[ -z $preservation || -n $extra ]] ||
-      [[ -z ${qvcore_component_name[$component]+known} ]] ||
-      [[ -n ${grouped_component_present["policy:$component"]+known} ]] ||
-      ! valid_field "$preservation"; then
-      echo "Invalid qvCORE grouped software-removal owner: $component" >&2
-      exit 1
-    fi
-    if [[ ! -x $qvcore_owner_dir/$component.sh ]]; then
-      echo "Missing qvCORE grouped software-removal owner: $component" >&2
-      exit 1
-    fi
-    grouped_components+=("$component")
-    grouped_component_present["policy:$component"]=1
-    grouped_component_preservation[$component]=$preservation
-  done <"$qvcore_removal_groups"
-
-  while IFS=$'\t' read -r component kind name extra; do
-    [[ -n $component && $component != "#"* ]] || continue
-    if [[ -z ${qvcore_component_name[$component]+known} ]]; then
-      echo "Unknown qvCORE software owner: $component" >&2
-      exit 1
-    fi
-    if [[ -z $name || -n $extra ]] ||
-      ! valid_field "$kind" || ! valid_field "$name"; then
-      echo "Invalid qvCORE software ownership entry." >&2
-      exit 1
-    fi
-    case $kind in
-    pacman | user-bin) ;;
-    *)
-      echo "Unknown qvCORE software ownership type: $kind" >&2
-      exit 1
-      ;;
-    esac
-    if [[ -n ${qvcore_owner["$kind"$'\t'"$name"]+known} ]]; then
-      echo "Duplicate qvCORE software ownership entry: $kind $name" >&2
-      exit 1
-    fi
-    qvcore_owner["$kind"$'\t'"$name"]=$component
-  done <"$qvcore_ownership"
+    }
+    read -r -a command_list <<<"$commands"
+    for command_name in "${command_list[@]}"; do
+      qvos_protected_user_bin[$command_name]=1
+    done
+  done <"$direct_tool_manifest"
 }
 
 scan_pacman() {
-  local package source required_by description detail removable component scope
-  local cleanup_owner
+  local package source required_by description detail removable
 
   while IFS= read -r package; do
     [[ -n $package ]] && foreign_package[$package]=1
@@ -269,10 +176,7 @@ scan_pacman() {
   while IFS= read -r package; do
     [[ -n $package ]] || continue
     [[ -z ${qvos_package[$package]+owned} ]] || continue
-    component=${qvcore_owner["pacman"$'\t'"$package"]:-}
-    if [[ -z $component ]] && baseline_has pacman "$package"; then
-      continue
-    fi
+    baseline_has pacman "$package" && continue
 
     source="Pacman"
     [[ -z ${foreign_package[$package]+foreign} ]] || source="AUR/foreign"
@@ -280,35 +184,12 @@ scan_pacman() {
     description=$(expac -Q '%d' "$package" 2>/dev/null || true)
     detail=${description:-explicit package}
     removable=1
-    cleanup_owner=""
-    scope="package"
-    if [[ -n $component ]]; then
-      scope="qvcore"
-      if [[ $source == "AUR/foreign" ]]; then
-        source="qvCORE · AUR"
-      else
-        source="qvCORE · Pacman"
-      fi
-      detail="${qvcore_component_name[$component]}; $detail"
-      case $component in
-      warp | share | codex | proton)
-        detail="$detail; integration cleanup included"
-        cleanup_owner=$component
-        ;;
-      esac
-    fi
     if [[ -n $required_by ]]; then
       detail="$detail; required by $required_by"
       removable=0
     fi
-    if [[ -n $component ]] && grouped_qvcore_component "$component"; then
-      record_grouped_component_item "$component" "$removable"
-      continue
-    fi
-
     add_entry \
-      "$source" "$package" "$detail" pacman "$package" "$removable" \
-      "$cleanup_owner" "$scope"
+      "$source" "$package" "$detail" pacman "$package" "$removable" package
   done < <(pacman -Qqe | sort -u)
 }
 
@@ -361,7 +242,7 @@ qvos_owned_path() {
 }
 
 scan_user_bin() {
-  local path name package component cleanup_owner
+  local path name package
 
   [[ -d $user_bin_dir ]] || return 0
   while IFS= read -r -d '' path; do
@@ -371,26 +252,7 @@ scan_user_bin() {
     [[ -z ${qvos_protected_user_bin[$name]+owned} ]] || continue
     [[ -z ${qvos_npx_wrapper[$name]+owned} ]] || continue
     qvos_owned_path "$path" && continue
-    component=${qvcore_owner["user-bin"$'\t'"$name"]:-}
-    if [[ -z $component ]] && baseline_has user-bin "$name"; then
-      continue
-    fi
-    if [[ -n $component ]]; then
-      if grouped_qvcore_component "$component"; then
-        record_grouped_component_item "$component" 1
-        continue
-      fi
-      cleanup_owner=""
-      case $component in
-      codex | proton)
-        cleanup_owner=$component
-        ;;
-      esac
-      add_entry "qvCORE · Direct" "$name" \
-        "${qvcore_component_name[$component]}; $path${cleanup_owner:+; integration cleanup included}" \
-        user-path "$path" 1 "$cleanup_owner" qvcore
-      continue
-    fi
+    baseline_has user-bin "$name" && continue
 
     if package=$(npx_wrapper_package "$path" "$name"); then
       add_entry "npx wrapper" "$name" "runs $package on demand" \
@@ -473,29 +335,21 @@ print_inventory() {
     echo ""
     echo "Standalone commands, global packages, and AppImages outside package ownership."
     ;;
-  qvcore)
-    echo "Installed qvCORE Software"
-    echo ""
-    echo "qvCORE-curated applications and coordinated setups."
-    ;;
   *)
     echo "qvOS Personal Software"
     echo ""
     echo "Personal software outside current qvOS base ownership."
-    echo "qvCORE-curated software remains visible even if the baseline captured it."
     echo "npx execution caches are ignored; persistent wrappers are listed."
     echo "Standalone discovery is limited to standard executable locations."
     ;;
   esac
   echo ""
   echo "Bindings, web apps, and personal data are never changed."
-  echo "Selected qvCORE software may clean only its qvOS-owned integration."
   echo ""
 
   if ((${#entry_ids[@]} == 0)); then
     case $requested_scope in
     standalone) echo "No removable standalone tools were detected." ;;
-    qvcore) echo "No installed qvCORE software was detected." ;;
     *) echo "No personal software additions were detected." ;;
     esac
     return
@@ -542,14 +396,6 @@ for argument in "$@"; do
     mode="remove"
     requested_scope="standalone"
     ;;
-  --remove-qvcore)
-    [[ $mode == "status" ]] || {
-      usage
-      exit 2
-    }
-    mode="remove"
-    requested_scope="qvcore"
-    ;;
   --initialize)
     [[ $mode == "status" ]] || {
       usage
@@ -573,9 +419,7 @@ fi
 for source_path in \
   "$baseline_owner" \
   "$protected_user_bin_policy" \
-  "$qvcore_catalog" \
-  "$qvcore_ownership" \
-  "$qvcore_removal_groups" \
+  "$direct_tool_manifest" \
   "$OMARCHY_PATH/qv/install/packaging/base.packages" \
   "$OMARCHY_PATH/qv/install/packaging/other.packages" \
   "$OMARCHY_PATH/qv/install/packaging/npx"; do
@@ -619,14 +463,12 @@ done
 load_baseline
 load_qvos_owners
 load_protected_user_bin
-load_qvcore_owners
 scan_pacman
 scan_bun
 scan_npm
 scan_user_bin
 scan_applications
 scan_system_bin
-add_grouped_qvcore_entries
 filter_entries_by_scope "$requested_scope"
 print_inventory
 
@@ -645,7 +487,6 @@ done
 if ((${#options[@]} == 0)); then
   case $requested_scope in
   standalone) echo "No removable standalone tools were detected." ;;
-  qvcore) echo "No removable qvCORE software was detected." ;;
   *) echo "No removable personal software was detected." ;;
   esac
   exit
@@ -653,7 +494,6 @@ fi
 
 case $requested_scope in
 standalone) selection_header="Choose standalone tools to remove; Esc keeps everything" ;;
-qvcore) selection_header="Choose qvCORE software to remove; Esc keeps everything" ;;
 *) selection_header="Choose personal software to remove; Esc keeps everything" ;;
 esac
 
@@ -709,14 +549,6 @@ for id in "${selected_ids[@]}"; do
     required_command[rm]=1
     required_command[sudo]=1
     ;;
-  qvcore-setup)
-    component=${entry_value[$id]}
-    if [[ ! -x $qvcore_owner_dir/$component.sh ]]; then
-      echo "Missing qvCORE removal owner: $component" >&2
-      exit 1
-    fi
-    "$qvcore_owner_dir/$component.sh" --remove --check
-    ;;
   esac
 done
 for command in omarchy-pkg-drop bun npm gio rm sudo; do
@@ -728,23 +560,9 @@ for command in omarchy-pkg-drop bun npm gio rm sudo; do
 done
 
 selected_packages=()
-cleanup_components=()
-declare -A cleanup_component=()
 for id in "${selected_ids[@]}"; do
   [[ ${entry_kind[$id]} == "pacman" ]] || continue
   selected_packages+=("${entry_value[$id]}")
-done
-for id in "${selected_ids[@]}"; do
-  component=${entry_cleanup_owner[$id]}
-  [[ -n $component ]] || continue
-  if [[ ! -x $qvcore_owner_dir/$component.sh ]]; then
-    echo "Missing qvCORE cleanup owner: $component" >&2
-    exit 1
-  fi
-  if [[ -z ${cleanup_component[$component]+selected} ]]; then
-    cleanup_components+=("$component")
-    cleanup_component[$component]=1
-  fi
 done
 if ((${#selected_packages[@]} > 0)); then
   if ! pacman -Rs --print "${selected_packages[@]}" >/dev/null; then
@@ -761,25 +579,12 @@ done
 echo ""
 echo "Pacman/AUR may also clean dependencies made unused by these selections."
 echo "User-owned standalone files move to Trash; system paths remove only the exact file."
-if ((${#cleanup_components[@]} > 0)); then
-  echo "Selected qvCORE software will clean its integration first."
-fi
 gum confirm \
   "Remove these ${#selected_ids[@]} explicitly selected item(s)?" ||
   {
     echo "Personal software removal canceled; nothing was changed."
     exit 130
   }
-
-for component in "${cleanup_components[@]}"; do
-  "$qvcore_owner_dir/$component.sh" --prepare-remove
-done
-
-for id in "${selected_ids[@]}"; do
-  [[ ${entry_kind[$id]} == "qvcore-setup" ]] || continue
-  component=${entry_value[$id]}
-  "$qvcore_owner_dir/$component.sh" --remove --yes
-done
 
 if ((${#selected_packages[@]} > 0)); then
   omarchy-pkg-drop "${selected_packages[@]}"
@@ -789,7 +594,7 @@ for id in "${selected_ids[@]}"; do
   kind=${entry_kind[$id]}
   value=${entry_value[$id]}
   case $kind in
-  pacman | qvcore-setup) ;;
+  pacman) ;;
   bun)
     bun remove --global "$value"
     ;;
@@ -837,7 +642,6 @@ for id in "${selected_ids[@]}"; do
       exit 1
     fi
     ;;
-  qvcore-setup) ;;
   esac
 done
 

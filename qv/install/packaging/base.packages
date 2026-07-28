@@ -73,28 +73,6 @@ goverlay
 lib32-pipewire-jack
 # qvos:gaming-base:end
 
-# qvos:codex-base:start
-# Stable coding, build, inspection, and archive primitives guaranteed by qvOS.
-7zip
-cmake
-dos2unix
-gdb
-git-lfs
-go-yq
-hyperfine
-just
-lsof
-ninja
-pacman-contrib
-python
-shellcheck
-shfmt
-strace
-time
-tinyxxd
-zip
-# qvos:codex-base:end
-
 # 1password-beta
 # 1password-cli
 # aether
@@ -110,7 +88,6 @@ brightnessctl
 btop
 bubblewrap
 chromium
-clang
 # Disabled personal AI package: claude-code
 # cliamp
 # code
@@ -172,7 +149,6 @@ libsecret
 libyaml
 libqalculate
 # libreoffice-fresh
-llvm
 # localsend
 luarocks
 mako
@@ -202,9 +178,10 @@ plocate
 plymouth
 polkit-gnome
 poppler
-postgresql-libs
 power-profiles-daemon
 pv
+# qvOS and inherited Omarchy Python utilities.
+python
 python-gobject
 python-poetry-core
 python-terminaltexteffects
@@ -212,8 +189,6 @@ qpdf
 qt5-wayland
 ripgrep
 rsync
-ruby
-rust
 satty
 sddm
 # signal-desktop

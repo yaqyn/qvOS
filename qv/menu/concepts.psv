@@ -15,7 +15,7 @@ input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.co
 keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
-qvcore|󰏖|qvCORE|Settings · Software|optional,personal software,managed setups|Browse|menu:qvcore|Install|present:omarchy-install-qvcore|Remove|present:omarchy-qvcore-remove
+qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,share,proton,brave,media,qvdev|Browse|menu:qvcore
 web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:omarchy-webapp-remove
 tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:omarchy-tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Install|menu:install-development|Remove|menu:remove-development
@@ -38,7 +38,7 @@ password||Password|Settings · Security|user,login,luks,encryption|User|prese
 fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
 fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2
 passwordless-sudo|󰟵|Passwordless Sudo|Settings · Security|sudo,password,security|Configure|present:omarchy-sudo-passwordless
-share||Share|More · Share|localsend,send|Send|menu:share|Install|present:omarchy-install-qvcore share
+share||Share|More · Share|localsend,send,qvcore|Send|menu:share|Browse|menu:qvcore
 ruby-on-rails|󰫏|Ruby on Rails|Settings · Software · Development|ruby,rails|Install|present:omarchy-install-dev-env ruby|Remove|present:omarchy-remove-dev-env ruby|Learn|web:https://www.ruby-lang.org/en/documentation/
 javascript||JavaScript|Settings · Software · Development|node,bun,deno,js|Install|menu:install-javascript|Remove|menu:remove-javascript|Learn|web:https://developer.mozilla.org/en-US/docs/Web/JavaScript
 go||Go|Settings · Software · Development|golang,runtime|Install|present:omarchy-install-dev-env go|Remove|present:omarchy-remove-dev-env go|Learn|web:https://go.dev/doc/
@@ -61,7 +61,7 @@ phoenix||Phoenix|Settings · Software · Development · Elixir|elixir,framewo
 chrome||Chrome|Settings · Software · Browser|google,web|Install|present:omarchy-install-browser chrome|Remove|present:omarchy-remove-browser chrome|Learn|web:https://support.google.com/chrome/
 edge||Edge|Settings · Software · Browser|microsoft,web|Install|present:omarchy-install-browser edge|Remove|present:omarchy-remove-browser edge|Learn|web:https://support.microsoft.com/microsoft-edge
 brave||Brave|Settings · Software · Browser|web,browser|Install|present:omarchy-install-browser brave|Remove|present:omarchy-remove-browser brave|Learn|web:https://brave.com/learn/
-brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser,qvcore|Install|present:omarchy-install-qvcore brave-origin|Remove|component-remove:brave-origin|Learn|web:https://brave.com/learn/
+brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser,qvcore|Browse|menu:qvcore|Learn|web:https://brave.com/learn/
 firefox||Firefox|Settings · Software · Browser|mozilla,web|Install|present:omarchy-install-browser firefox|Remove|present:omarchy-remove-browser firefox|Learn|web:https://support.mozilla.org/products/firefox
 zen|󰖟|Zen|Settings · Software · Browser|firefox,web|Install|present:omarchy-install-browser zen|Remove|present:omarchy-remove-browser zen|Learn|web:https://docs.zen-browser.app/
 steam||Steam|Settings · Software · Gaming|games,valve|Install|present:omarchy-install-gaming-steam|Remove|present:omarchy-remove-gaming-steam|Learn|web:https://help.steampowered.com/
@@ -73,5 +73,7 @@ xbox-controller|󰂯|Xbox Controller|Settings · Software · Gaming|games,gamepa
 moonlight|󰍹|Moonlight|Settings · Software · Gaming|games,gamestream|Install|present:omarchy-install-gaming-moonlight|Remove|present:omarchy-remove-gaming-moonlight|Learn|web:https://github.com/moonlight-stream/moonlight-docs/wiki
 lutris||Lutris|Settings · Software · Gaming|games,battle.net|Install|present:omarchy-install-gaming-lutris|Remove|present:omarchy-remove-gaming-lutris|Learn|web:https://github.com/lutris/lutris/wiki
 heroic|󱓟|Heroic|Settings · Software · Gaming|games,epic|Install|present:omarchy-install-gaming-heroic|Remove|present:omarchy-remove-gaming-heroic|Learn|web:https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki
-warp|󰖂|WARP|Settings · Software · qvCORE|cloudflare,dns,vpn,qvcore|Install|present:omarchy-install-qvcore warp|Remove|component-remove:warp|Learn|web:https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/
-proton|󰌾|Proton|Settings · Software · qvCORE|pass,drive,mail,vpn,qvcore,proton cli,proton docs,documentation,guide|Install|present:omarchy-install-qvcore proton|Remove|component-remove:proton|Learn|web:https://proton.me/support/drive-cli
+warp|󰖂|WARP|Settings · Software · qvCORE|cloudflare,dns,vpn,qvcore|Browse|menu:qvcore|Learn|web:https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/
+proton|󰌾|Proton|Settings · Software · qvCORE|pass,drive,mail,vpn,qvcore,proton cli,proton docs,documentation,guide|Browse|menu:qvcore|Learn|web:https://proton.me/support/drive-cli
+media|󰕧|Media|Settings · Software · qvCORE|gimp,inkscape,krita,kdenlive,obs,audacity,blender,qvcore|Browse|menu:qvcore
+qvdev|󰵮|qvDEV|Settings · Software · qvCORE|development,codex,workbench,tools,qvcore|Browse|menu:qvcore

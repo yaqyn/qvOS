@@ -839,10 +839,12 @@ inspect_source() {
     bin/omarchy-qvos-personal-software
     bin/omarchy-qvos-repair
     bin/omarchy-qvos-system
-    bin/omarchy-qvcore-remove
-    qv/core/software-removal-groups
+    qv/codex/install
     qv/config/files
     qv/config/refresh
+    qv/direct/manifest.tsv
+    qv/direct/tool
+    qv/direct/update
     qv/install/desktop
     qv/install/desktop-status
     qv/install/packaging/base.packages

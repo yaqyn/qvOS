@@ -2,147 +2,65 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-component="$root/qv/core/warp.sh"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
-state="$test_root/state"
-action_log="$test_root/actions.log"
+installed="$test_root/warp-installed"
+log="$test_root/actions.log"
 
 cleanup() {
-  rm -rf "$test_root"
+  [[ ! -d $test_root ]] || rm -rf -- "$test_root"
 }
 trap cleanup EXIT
-
-pass() {
-  printf 'ok - %s\n' "$1"
-}
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-install -d "$test_bin" "$state"
-touch "$action_log"
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
+install -d "$test_bin"
+for name in omarchy-qvos-setup-dns omarchy-cmd-present omarchy-pkg-present \
+  omarchy-pkg-missing omarchy-pkg-drop systemctl warp-cli pacman gum; do
+  install -m 0755 /dev/stdin "$test_bin/$name" <<'SCRIPT'
 #!/bin/bash
-[[ $1 == "warp-cli" && -f $QVOS_TEST_WARP_STATE/package ]]
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
-#!/bin/bash
-case $1 in
-is-enabled) [[ -f $QVOS_TEST_WARP_STATE/enabled ]] ;;
-is-active) [[ -f $QVOS_TEST_WARP_STATE/active ]] ;;
-*) exit 2 ;;
-esac
-SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/warp-cli" <<'SCRIPT'
-#!/bin/bash
-case $* in
-"--json registration show")
-  [[ -f $QVOS_TEST_WARP_STATE/registered ]]
+case ${0##*/} in
+omarchy-qvos-setup-dns)
+  printf 'dns\t%s\n' "$1" >>"$QVOS_TEST_LOG"
+  [[ $1 != "WARP" ]] || install -m 0644 /dev/null "$QVOS_TEST_INSTALLED"
   ;;
-"--json status")
-  if [[ -f $QVOS_TEST_WARP_STATE/connected ]]; then
-    printf '{"status":"Connected","reason":"NetworkHealthy"}\n'
+omarchy-cmd-present) [[ -f $QVOS_TEST_INSTALLED ]] ;;
+omarchy-pkg-present) [[ -f $QVOS_TEST_INSTALLED ]] ;;
+omarchy-pkg-missing) [[ ! -f $QVOS_TEST_INSTALLED ]] ;;
+omarchy-pkg-drop) rm -f "$QVOS_TEST_INSTALLED"; echo drop >>"$QVOS_TEST_LOG" ;;
+systemctl | pacman | gum) exit 0 ;;
+warp-cli)
+  if [[ $* == *status* ]]; then
+    printf '{"status":"Connected"}\n'
   else
-    printf '{"status":"Disconnected","reason":"Manual"}\n'
+    printf '{"registration":"ready"}\n'
   fi
   ;;
-*)
-  exit 2
-  ;;
 esac
 SCRIPT
-
-install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-setup-dns" <<'SCRIPT'
-#!/bin/bash
-printf 'setup\t%s\n' "$1" >>"$QVOS_TEST_WARP_ACTION_LOG"
-case $1 in
-WARP)
-  touch \
-    "$QVOS_TEST_WARP_STATE/package" \
-    "$QVOS_TEST_WARP_STATE/enabled" \
-    "$QVOS_TEST_WARP_STATE/active" \
-    "$QVOS_TEST_WARP_STATE/registered" \
-    "$QVOS_TEST_WARP_STATE/connected"
-  install -D -m 0644 /dev/null "$HOME/.local/state/qvos/qvcore/warp"
-  ;;
-DHCP)
-  rm -f "$QVOS_TEST_WARP_STATE/connected"
-  ;;
-*)
-  exit 2
-  ;;
-esac
-SCRIPT
+done
 
 run_warp() {
-  QVOS_TEST_WARP_ACTION_LOG="$action_log" \
-    QVOS_TEST_WARP_STATE="$state" \
-    HOME="$test_root" \
+  HOME="$test_root/home" \
     PATH="$test_bin:/usr/bin" \
-    "$component" "$@"
+    QVOS_TEST_INSTALLED="$installed" \
+    QVOS_TEST_LOG="$log" \
+    "$root/qv/core/warp.sh" "$@"
 }
 
-if run_warp --status >/dev/null 2>&1; then
-  fail "missing WARP status succeeds"
-fi
-pass "WARP health rejects an absent optional setup without installing it"
+run_warp install >/dev/null
+[[ -f $test_root/home/.local/state/qvos/qvcore/warp ]] ||
+  fail "WARP enrollment"
+grep -Fqx $'dns\tWARP' "$log" || fail "WARP network configuration"
 
-install_output=$(run_warp)
-grep -Fqx $'setup\tWARP' "$action_log" || fail "WARP owner delegation"
-grep -Fq 'qvCORE WARP is ready: 5/5.' <<<"$install_output" ||
-  fail "WARP install verification"
-[[ -f $test_root/.local/state/qvos/qvcore/warp ]] ||
-  fail "WARP maintenance state"
-run_warp --status >/dev/null
-pass "WARP installation delegates once and verifies the complete integration"
+run_warp remove --yes >/dev/null
+[[ ! -f $installed ]] || fail "WARP package removal"
+[[ ! -e $test_root/home/.local/state/qvos/qvcore/warp ]] ||
+  fail "WARP enrollment removal"
+grep -Fqx $'dns\tDHCP' "$log" || fail "WARP network cleanup"
+grep -Fqx 'drop' "$log" || fail "WARP software cleanup"
 
-rm -f "$state/connected"
-: >"$action_log"
-if run_warp --integration-status >/dev/null 2>&1; then
-  fail "disconnected WARP integration succeeds"
-fi
-repair_output=$(run_warp --repair)
-grep -Fqx $'setup\tWARP' "$action_log" || fail "WARP repair delegation"
-grep -Fq 'qvCORE WARP is ready: 5/5.' <<<"$repair_output" ||
-  fail "WARP repair verification"
-pass "enabled WARP repair restores real service and connection state"
-
-: >"$action_log"
-disable_output=$(run_warp --disable)
-[[ ! -e $test_root/.local/state/qvos/qvcore/warp ]] ||
-  fail "WARP disable maintenance state"
-[[ -f $state/connected ]] || fail "WARP disable changes network state"
-[[ ! -s $action_log ]] || fail "WARP disable invokes setup"
-grep -Fq 'current network choice was not changed' <<<"$disable_output" ||
-  fail "WARP disable preservation result"
-pass "disabling WARP integration preserves the active network choice"
-
-adopt_output=$(run_warp --adopt)
-[[ -f $test_root/.local/state/qvos/qvcore/warp ]] ||
-  fail "WARP adoption state"
-grep -Fq 'qvCORE WARP is ready: 5/5.' <<<"$adopt_output" ||
-  fail "WARP adoption verification"
-pass "an existing healthy WARP setup can be adopted without reconfiguration"
-
-: >"$action_log"
-prepare_output=$(run_warp --prepare-remove)
-grep -Fqx $'setup\tDHCP' "$action_log" ||
-  fail "WARP pre-removal network handoff"
-[[ ! -e $test_root/.local/state/qvos/qvcore/warp ]] ||
-  fail "WARP pre-removal maintenance state"
-grep -Fq 'ready for software removal' <<<"$prepare_output" ||
-  fail "WARP pre-removal result"
-pass "WARP hands networking back to DHCP before package removal"
-
-if run_warp --adopt >/dev/null 2>&1; then
-  fail "unhealthy WARP adoption succeeds"
-fi
-[[ ! -e $test_root/.local/state/qvos/qvcore/warp ]] ||
-  fail "unhealthy WARP adoption state"
-pass "WARP adoption refuses incomplete network state"
+printf 'ok - WARP Install verifies networking and Remove restores DHCP\n'

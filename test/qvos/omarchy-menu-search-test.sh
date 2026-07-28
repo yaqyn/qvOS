@@ -9,6 +9,7 @@ apps_args_log="$test_root/apps-args.log"
 settings_options_log="$test_root/settings-options.log"
 area_options_log="$test_root/area-options.log"
 concept_options_log="$test_root/concept-options.log"
+qvcore_options_log="$test_root/qvcore-options.log"
 presentation_log="$test_root/presentation.log"
 web_log="$test_root/web.log"
 elephant_log="$test_root/elephant.log"
@@ -536,6 +537,10 @@ case $* in
   cat >"$QVOS_TEST_CONCEPT_OPTIONS_LOG"
   printf '%s\n' "$QVOS_TEST_CONCEPT_CHOICE"
   ;;
+*"qvCORE…"*)
+  cat >"$QVOS_TEST_QVCORE_OPTIONS_LOG"
+  printf '%s\n' "$QVOS_TEST_QVCORE_CHOICE"
+  ;;
 esac
 SCRIPT
 
@@ -568,6 +573,8 @@ run_menu() {
     QVOS_TEST_AREA_CHOICE="${QVOS_TEST_AREA_CHOICE:-}" \
     QVOS_TEST_CONCEPT_OPTIONS_LOG="$concept_options_log" \
     QVOS_TEST_CONCEPT_CHOICE="${QVOS_TEST_CONCEPT_CHOICE:-}" \
+    QVOS_TEST_QVCORE_OPTIONS_LOG="$qvcore_options_log" \
+    QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-}" \
     QVOS_TEST_PRESENTATION_LOG="$presentation_log" \
     QVOS_TEST_WEB_LOG="$web_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
@@ -608,12 +615,13 @@ QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:go
 [[ $(<"$web_log") == "https://go.dev/doc/" ]] ||
   fail "Go documentation"
 
-QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:proton
+QVOS_TEST_CONCEPT_CHOICE=Browse QVOS_TEST_QVCORE_CHOICE=Proton run_menu concept:proton
+[[ $(<"$concept_options_log") == $'󰈈  Browse\n󰧑  Learn' ]] ||
+  fail "Proton concept actions"
+grep -Fqx '󰌾  Proton — Install' "$qvcore_options_log" ||
+  fail "Proton qvCORE row"
 [[ $(<"$presentation_log") == "omarchy-install-qvcore proton" ]] ||
-  fail "Proton install owner"
-QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:proton
-[[ $(<"$presentation_log") == "$root/qv/core/proton.sh --remove" ]] ||
-  fail "Proton remove owner"
+  fail "Proton stack install owner"
 QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:proton
 [[ $(<"$web_log") == "https://proton.me/support/drive-cli" ]] ||
   fail "official Proton CLI documentation"

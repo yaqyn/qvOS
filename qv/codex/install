@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+direct_tool="$OMARCHY_PATH/qv/direct/tool"
+
+[[ -x $direct_tool ]] || {
+  echo "qvOS Codex installer is unavailable: $direct_tool" >&2
+  exit 1
+}
+
+"$direct_tool" install codex
+"$direct_tool" verify codex

@@ -26,7 +26,7 @@ grep -qx 'alacritty' "$root/qv/install/packaging/base.packages" || fail "Alacrit
 grep -qx 'neovim' "$root/qv/install/packaging/base.packages" || fail "Neovim package contract"
 grep -qx 'omarchy-nvim' "$root/qv/install/packaging/base.packages" || fail "qvOS Neovim package contract"
 grep -qx 'wtype' "$root/qv/install/packaging/base.packages" || fail "Codex Wayland input contract"
-for codex_base_package in \
+for independent_base_package in \
   bubblewrap \
   bind \
   openssh \
@@ -34,27 +34,11 @@ for codex_base_package in \
   openbsd-netcat \
   poppler \
   qpdf \
-  7zip \
-  cmake \
-  dos2unix \
-  gdb \
-  git-lfs \
-  go-yq \
-  hyperfine \
-  just \
-  lsof \
-  ninja \
-  pacman-contrib \
   python \
-  shellcheck \
-  shfmt \
-  strace \
-  time \
-  tinyxxd \
-  zip; do
-  grep -Fqx "$codex_base_package" \
+  mise; do
+  grep -Fqx "$independent_base_package" \
     "$root/qv/install/packaging/base.packages" ||
-    fail "Codex base package contract: $codex_base_package"
+    fail "independent base package contract: $independent_base_package"
 done
 
 editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$root/qv/config/files/uwsm/default")
@@ -107,64 +91,48 @@ grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qv/network/setup-dns" || fail "on-demand WARP package contract"
 pass "WARP stays optional and installs only when selected"
 
-if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared|codex|codex-cli|gitleaks|hurl|infisical|localsend|mkcert|osv-scanner|pass-cli|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|semgrep|sentry-cli|sops|steam|supabase)$' "$root"/qv/install/packaging/*.packages ||
+if grep -Eq '^(7zip|act|age|brave-origin-beta-bin|clang|cloudflare-warp-nox-bin|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|localsend|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
   grep -RqsF '@openai/codex' "$root/qv/install"; then
-  fail "qvCORE application leaked into the base installation"
+  fail "qvCORE stack software leaked into the base package manifest"
 fi
-expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t󰖂\napp\tbrave-origin\tBrave\t󰖟\nsetup\tshare\tShare\t\napp\tdev\tDevel\t󰵮\napp\tcodex\tCodex\t󱚤\nsetup\tproton\tProton\t󰌾\napp\tmedia\tMedia\t󰕧'
+expected_qvcore_catalog=$'# component\tlabel\ticon\nwarp\tWARP\t󰖂\nshare\tShare\t\nproton\tProton\t󰌾\nbrave\tBrave\t󰖟\nmedia\tMedia\t󰕧\nqvdev\tqvDEV\t󰵮'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
-  fail "qvCORE catalog classification"
+  fail "six-stack qvCORE catalog"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
   fail "qvOS regular user command protection inventory"
-[[ $(sed '/^#/d;/^$/d' "$root/qv/core/software-removal-groups") == \
-  $'brave-origin\tbrowser profile and personal data are preserved\nproton\tcloud data and saved authentication are preserved' ]] ||
-  fail "qvCORE coordinated software-removal inventory"
-while IFS=$'\t' read -r type component _; do
-  [[ $type == "setup" ]] || continue
-  ownership_count=$(
-    awk -F '\t' -v component="$component" '
-      $1 == component { count++ }
-      END { print count + 0 }
-    ' "$root/qv/core/software-ownership.tsv"
-  )
-  if ((ownership_count > 1)) &&
-    ! grep -q "^${component}"$'\t' "$root/qv/core/software-removal-groups"; then
-    fail "multi-artifact setup lacks coordinated removal: $component"
-  fi
-done <"$root/qv/core/catalog.tsv"
 while IFS=$'\t' read -r component _; do
   [[ -n $component && $component != "#"* ]] || continue
   [[ -x $root/qv/core/$component.sh ]] ||
-    fail "coordinated removal owner is unavailable: $component"
-  grep -Fq -- '--remove [--check|--yes]' "$root/qv/core/$component.sh" ||
-    fail "coordinated removal owner lacks preflight and confirmation: $component"
-done <"$root/qv/core/software-removal-groups"
-grep -Fq 'qvcore-setup' "$root/qv/maintenance/personal-software" ||
-  fail "multi-artifact qvCORE setup removal grouping"
-grep -Fq '"$qvcore_owner_dir/$component.sh" --remove --check' \
-  "$root/qv/maintenance/personal-software" ||
-  fail "grouped qvCORE removal owner preflight"
-grep -Fqx '  install_group app' "$root/qv/core/install" ||
-  fail "qvCORE application install group"
-grep -Fqx '  install_group setup' "$root/qv/core/install" ||
-  fail "qvCORE managed setup install group"
-[[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
-grep -Fqx '# qvcore:managed-setup=1' "$root/qv/core/warp.sh" ||
-  fail "qvCORE WARP managed setup"
-grep -Fqx '# qvcore:app-integration=1' "$root/qv/core/codex.sh" ||
-  fail "qvCORE Codex app integration"
-grep -Fqx '    [[ $type == "setup" ]] || continue' "$root/qv/core/health.sh" ||
-  fail "qvCORE setup-only health catalog"
-if grep -Eq 'dev|codex|media|brave-origin' \
-  <(sed -n '/^setup_components=/,/^declare -A/p' "$root/qv/core/health.sh"); then
-  fail "qvCORE app hard-coded into setup health"
+    fail "qvCORE stack owner is unavailable: $component"
+  grep -Eq 'install\) install_stack ;;|\[\[ \$1 != "install" \]\]' \
+    "$root/qv/core/$component.sh" ||
+    fail "qvCORE stack lacks Install: $component"
+  grep -Eq 'remove\) remove_stack ;;|\[\[ \$1 == "remove" \]\]' \
+    "$root/qv/core/$component.sh" ||
+    fail "qvCORE stack lacks Remove: $component"
+done <"$root/qv/core/catalog.tsv"
+for retired_qvcore_source in \
+  qv/core/health.sh \
+  qv/core/post-update-hook \
+  qv/core/software-ownership.tsv \
+  qv/core/software-removal-groups \
+  qv/core/dev.sh \
+  qv/core/codex.sh \
+  bin/omarchy-qvcore-status \
+  bin/omarchy-qvcore-repair \
+  bin/omarchy-qvcore-disable; do
+  [[ ! -e $root/$retired_qvcore_source ]] ||
+    fail "retired qvCORE source remains: $retired_qvcore_source"
+done
+if grep -Fq -- '--remove-qvcore' "$root/qv/maintenance/personal-software"; then
+  fail "personal-software still owns qvCORE removal"
 fi
-grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-status" ||
+[[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
+grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-remove" ||
   fail "qvCORE command group"
-[[ -x $root/bin/omarchy-qvcore-status &&
-  -x $root/bin/omarchy-qvcore-repair &&
+[[ -x $root/bin/omarchy-install-qvcore &&
   -x $root/bin/omarchy-qvcore-remove ]] ||
-  fail "qvCORE health commands"
+  fail "qvCORE Install and Remove commands"
 [[ -x $root/bin/omarchy-qvos-health ]] ||
   fail "qvOS base health command"
 [[ -x $root/bin/omarchy-qvos-system &&
@@ -196,7 +164,7 @@ fi
 grep -Fqx 'xdg-desktop-portal-hyprland' \
   "$root/qv/maintenance/essential-packages" ||
   fail "qvOS recovery essential policy"
-pass "qvCORE apps stay personal while managed setups own lifecycle health"
+pass "qvCORE exposes six independently enrolled Install and Remove stacks"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"

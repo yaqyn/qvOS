@@ -1,0 +1,42 @@
+#!/bin/bash
+set -uo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+manifest="$script_dir/manifest.tsv"
+tool="$script_dir/tool"
+updated=0
+skipped=0
+failed=0
+failed_labels=()
+
+while IFS=$'\t' read -r \
+  id scope label method _commands _source _x86 _arm _kind extra; do
+  [[ -n $id && $id != "#"* ]] || continue
+  if [[ -n ${extra:-} ]] || [[ -z $scope || -z $label || -z $method ]]; then
+    echo "Invalid direct-tool manifest entry: $id" >&2
+    exit 1
+  fi
+
+  if ! "$tool" installed "$id"; then
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  printf 'Updating %s...\n' "$label"
+  if "$tool" update "$id"; then
+    updated=$((updated + 1))
+  else
+    status=$?
+    failed=$((failed + 1))
+    failed_labels+=("$label (exit $status)")
+    printf 'Direct update failed: %s (exit %d)\n' "$label" "$status" >&2
+  fi
+done <"$manifest"
+
+printf 'Direct tools: %d updated, %d absent and skipped, %d failed.\n' \
+  "$updated" "$skipped" "$failed"
+if ((failed)); then
+  printf 'Failed direct tools:\n' >&2
+  printf '  %s\n' "${failed_labels[@]}" >&2
+  exit 1
+fi
