@@ -15,7 +15,7 @@ input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.co
 keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
-qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,share,proton,brave,media,qvdev|Browse|menu:qvcore
+qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,share,proton,media,qvdev|Browse|menu:qvcore
 web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:omarchy-webapp-remove
 tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:omarchy-tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Install|menu:install-development|Remove|menu:remove-development
@@ -61,7 +61,7 @@ phoenix||Phoenix|Settings · Software · Development · Elixir|elixir,framewo
 chrome||Chrome|Settings · Software · Browser|google,web|Install|present:omarchy-install-browser chrome|Remove|present:omarchy-remove-browser chrome|Learn|web:https://support.google.com/chrome/
 edge||Edge|Settings · Software · Browser|microsoft,web|Install|present:omarchy-install-browser edge|Remove|present:omarchy-remove-browser edge|Learn|web:https://support.microsoft.com/microsoft-edge
 brave||Brave|Settings · Software · Browser|web,browser|Install|present:omarchy-install-browser brave|Remove|present:omarchy-remove-browser brave|Learn|web:https://brave.com/learn/
-brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser,qvcore|Browse|menu:qvcore|Learn|web:https://brave.com/learn/
+brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser|Install|present:omarchy-install-browser brave-origin|Remove|present:omarchy-remove-browser brave-origin|Learn|web:https://brave.com/learn/
 firefox||Firefox|Settings · Software · Browser|mozilla,web|Install|present:omarchy-install-browser firefox|Remove|present:omarchy-remove-browser firefox|Learn|web:https://support.mozilla.org/products/firefox
 zen|󰖟|Zen|Settings · Software · Browser|firefox,web|Install|present:omarchy-install-browser zen|Remove|present:omarchy-remove-browser zen|Learn|web:https://docs.zen-browser.app/
 steam||Steam|Settings · Software · Gaming|games,valve|Install|present:omarchy-install-gaming-steam|Remove|present:omarchy-remove-gaming-steam|Learn|web:https://help.steampowered.com/

@@ -3,8 +3,8 @@
 Read this file completely when changing the qvCORE catalog, stack lifecycle,
 direct-tool updater, removal, migration, or menu integration.
 
-`Settings > Software > qvCORE` exposes exactly six optional stacks: WARP,
-Share, Proton, Brave, Media, and qvDEV. qvOS must remain complete and healthy
+`Settings > Software > qvCORE` exposes exactly five optional stacks: WARP,
+Share, Proton, Media, and qvDEV. qvOS must remain complete and healthy
 with none installed.
 
 ## Stack Contract
@@ -27,6 +27,8 @@ with none installed.
   removal. Wrangler, Convex, and Playwright stay project-local.
 - Steam and the reviewed gaming runtime are not qvCORE. qvOS Recovery is a
   separate base subsystem and never grades, installs, or repairs qvCORE.
+- Browsers already owned by Omarchy, including Brave Origin, stay on
+  Omarchy's native browser Install and Remove surfaces and out of qvCORE.
 
 ## Direct Tools
 

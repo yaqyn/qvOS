@@ -45,9 +45,9 @@ run_menu() {
 }
 
 run_menu WARP
-expected_install=$'󰖂  WARP — Install\n  Share — Install\n󰌾  Proton — Install\n󰖟  Brave — Install\n󰕧  Media — Install\n󰵮  qvDEV — Install'
+expected_install=$'󰖂  WARP — Install\n  Share — Install\n󰌾  Proton — Install\n󰕧  Media — Install\n󰵮  qvDEV — Install'
 [[ $(<"$menu_log") == "$expected_install" ]] ||
-  fail "six direct Install rows"
+  fail "five direct Install rows"
 [[ $(<"$action_log") == "omarchy-install-qvcore warp" ]] ||
   fail "WARP Install action"
 
@@ -69,4 +69,4 @@ if rg -q 'Status|Repair|Disable|Applications|Managed Setups|Install Everything' 
   fail "retired qvCORE menu complexity"
 fi
 
-printf 'ok - qvCORE menu shows six dynamic Install or Remove actions\n'
+printf 'ok - qvCORE menu shows five dynamic Install or Remove actions\n'

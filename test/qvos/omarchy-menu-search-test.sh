@@ -533,7 +533,7 @@ case $* in
   cat >"$QVOS_TEST_AREA_OPTIONS_LOG"
   printf '%s\n' "$QVOS_TEST_AREA_CHOICE"
   ;;
-*"Go…"* | *"Proton…"* | *"Theme…"* | *"Password…"* | *"Wi-Fi…"*)
+*"Go…"* | *"Proton…"* | *"Brave Origin…"* | *"Theme…"* | *"Password…"* | *"Wi-Fi…"*)
   cat >"$QVOS_TEST_CONCEPT_OPTIONS_LOG"
   printf '%s\n' "$QVOS_TEST_CONCEPT_CHOICE"
   ;;
@@ -625,6 +625,15 @@ grep -Fqx '󰌾  Proton — Install' "$qvcore_options_log" ||
 QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:proton
 [[ $(<"$web_log") == "https://proton.me/support/drive-cli" ]] ||
   fail "official Proton CLI documentation"
+
+QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:brave-origin
+[[ $(<"$concept_options_log") == $'󰐕  Install\n󰆴  Remove\n󰧑  Learn' ]] ||
+  fail "Brave Origin native browser actions"
+[[ $(<"$presentation_log") == "omarchy-install-browser brave-origin" ]] ||
+  fail "Brave Origin native Install owner"
+QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:brave-origin
+[[ $(<"$presentation_log") == "omarchy-remove-browser brave-origin" ]] ||
+  fail "Brave Origin native Remove owner"
 
 QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||

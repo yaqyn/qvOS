@@ -3,7 +3,7 @@
 # omarchy:summary=Remove one enrolled qvCORE stack while preserving personal data
 # omarchy:group=qvcore
 # omarchy:name=remove
-# omarchy:args=<warp|share|proton|brave|media|qvdev>
+# omarchy:args=<warp|share|proton|media|qvdev>
 # omarchy:examples=omarchy qvcore remove qvdev
 # omarchy:requires-sudo=true
 

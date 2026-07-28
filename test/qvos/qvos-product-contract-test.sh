@@ -91,13 +91,13 @@ grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qv/network/setup-dns" || fail "on-demand WARP package contract"
 pass "WARP stays optional and installs only when selected"
 
-if grep -Eq '^(7zip|act|age|brave-origin-beta-bin|clang|cloudflare-warp-nox-bin|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|localsend|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
+if grep -Eq '^(7zip|act|age|clang|cloudflare-warp-nox-bin|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|localsend|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
   grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "qvCORE stack software leaked into the base package manifest"
 fi
-expected_qvcore_catalog=$'# component\tlabel\ticon\nwarp\tWARP\t󰖂\nshare\tShare\t\nproton\tProton\t󰌾\nbrave\tBrave\t󰖟\nmedia\tMedia\t󰕧\nqvdev\tqvDEV\t󰵮'
+expected_qvcore_catalog=$'# component\tlabel\ticon\nwarp\tWARP\t󰖂\nshare\tShare\t\nproton\tProton\t󰌾\nmedia\tMedia\t󰕧\nqvdev\tqvDEV\t󰵮'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
-  fail "six-stack qvCORE catalog"
+  fail "five-stack qvCORE catalog"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
   fail "qvOS regular user command protection inventory"
 while IFS=$'\t' read -r component _; do
@@ -116,6 +116,7 @@ for retired_qvcore_source in \
   qv/core/post-update-hook \
   qv/core/software-ownership.tsv \
   qv/core/software-removal-groups \
+  qv/core/brave.sh \
   qv/core/dev.sh \
   qv/core/codex.sh \
   bin/omarchy-qvcore-status \
@@ -164,7 +165,7 @@ fi
 grep -Fqx 'xdg-desktop-portal-hyprland' \
   "$root/qv/maintenance/essential-packages" ||
   fail "qvOS recovery essential policy"
-pass "qvCORE exposes six independently enrolled Install and Remove stacks"
+pass "qvCORE exposes five independently enrolled Install and Remove stacks"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
