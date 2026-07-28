@@ -95,10 +95,30 @@ if [[ -z $focused ]]; then
   focused="$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name' | head -n 1)"
 fi
 
+cursor_inactive_timeout="$(
+  hyprctl getoption cursor:inactive_timeout -j 2>/dev/null |
+    jq -er '.float' 2>/dev/null || true
+)"
+cursor_timeout_changed=false
+
 restore_monitor() {
   [[ -n $focused ]] && hyprctl dispatch focusmonitor "$focused" >/dev/null 2>&1 || true
 }
-trap restore_monitor EXIT
+
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  if [[ $cursor_timeout_changed == "true" ]]; then
+    hyprctl keyword cursor:inactive_timeout "$cursor_inactive_timeout" >/dev/null 2>&1 || true
+  fi
+  restore_monitor
+
+  return "$status"
+}
+
+trap cleanup EXIT
+trap 'exit 0' SIGINT SIGTERM SIGHUP SIGQUIT
 
 mapfile -t monitors < <(hyprctl monitors -j | jq -r '.[].name')
 if ((${#monitors[@]} == 0)); then
@@ -115,4 +135,15 @@ for _ in {1..20}; do
   current_count="$(screensaver_count)"
   ((current_count >= ${#monitors[@]})) && break
   sleep 0.1
+done
+
+if ((current_count > 0)) &&
+  [[ -n $cursor_inactive_timeout ]] &&
+  hyprctl keyword cursor:inactive_timeout 0.1 >/dev/null 2>&1; then
+  cursor_timeout_changed=true
+fi
+
+while ((current_count > 0)); do
+  sleep 0.1
+  current_count="$(screensaver_count)"
 done

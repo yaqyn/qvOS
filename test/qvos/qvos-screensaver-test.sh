@@ -10,6 +10,8 @@ launch_log="$test_root/launches"
 focus_log="$test_root/focus"
 effect_log="$test_root/effect"
 cursor_log="$test_root/cursor"
+cursor_keyword_log="$test_root/cursor-keywords"
+client_poll_log="$test_root/client-polls"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -44,11 +46,22 @@ clients)
   else
     count=0
     [[ -f $QVOS_TEST_LAUNCH_LOG ]] && count="$(wc -l <"$QVOS_TEST_LAUNCH_LOG")"
-    jq -cn --argjson count "$count" '[range(0; $count) | {class: "org.omarchy.screensaver", address: ("0x" + (.|tostring))}]'
+    polls=0
+    [[ -f $QVOS_TEST_CLIENT_POLL_LOG ]] && polls="$(wc -l <"$QVOS_TEST_CLIENT_POLL_LOG")"
+    if ((count > 0 && polls == 0)); then
+      jq -cn --argjson count "$count" '[range(0; $count) | {class: "org.omarchy.screensaver", address: ("0x" + (.|tostring))}]'
+      printf 'active\n' >>"$QVOS_TEST_CLIENT_POLL_LOG"
+    else
+      printf '[]\n'
+    fi
   fi
   ;;
 monitors)
   printf '[{"name":"DP-1","focused":true},{"name":"DP-2","focused":false}]\n'
+  ;;
+getoption)
+  [[ ${2:-} == "cursor:inactive_timeout" && ${3:-} == "-j" ]] || exit 1
+  printf '{"float":7.5}\n'
   ;;
 dispatch)
   case $2 in
@@ -73,7 +86,9 @@ cursorpos)
     printf '{"x":0,"y":0}\n'
   fi
   ;;
-keyword) : ;;
+keyword)
+  printf '%s=%s\n' "${2:-}" "${3:-}" >>"$QVOS_TEST_CURSOR_KEYWORD_LOG"
+  ;;
 *) exit 1 ;;
 esac
 SCRIPT
@@ -119,10 +134,13 @@ exec sleep 5
 SCRIPT
 
 run_launcher() {
+  : >"$client_poll_log"
   QVOS_TEST_EXISTING="${QVOS_TEST_EXISTING:-0}" \
     QVOS_TEST_TERMINAL="${QVOS_TEST_TERMINAL:-Alacritty}" \
     QVOS_TEST_LAUNCH_LOG="$launch_log" \
     QVOS_TEST_FOCUS_LOG="$focus_log" \
+    QVOS_TEST_CLIENT_POLL_LOG="$client_poll_log" \
+    QVOS_TEST_CURSOR_KEYWORD_LOG="$cursor_keyword_log" \
     HOME="$test_root" \
     XDG_RUNTIME_DIR="$test_root/runtime" \
     PATH="$test_bin:/usr/bin" \
@@ -131,11 +149,16 @@ run_launcher() {
 
 : >"$launch_log"
 : >"$focus_log"
+: >"$cursor_keyword_log"
 run_launcher force
 [[ "$(wc -l <"$launch_log")" == "2" ]] || fail "monitor launch count"
 grep -F -- $'alacritty\t--class=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Alacritty command"
 [[ "$(tail -n 1 "$focus_log")" == "DP-1" ]] || fail "focused monitor restoration"
 pass "screensaver launches once per monitor and restores focus"
+
+[[ $(cat "$cursor_keyword_log") == $'cursor:inactive_timeout=0.1\ncursor:inactive_timeout=7.5' ]] ||
+  fail "cursor inactivity timeout lifecycle"
+pass "external screensaver closure restores the previous cursor timeout"
 
 : >"$launch_log"
 QVOS_TEST_EXISTING="1" run_launcher force
@@ -199,3 +222,8 @@ if rg -q 'on-resume\s*=\s*pkill.*org\.omarchy\.screensaver' "$root/qv/config/fil
   fail "idle resume can terminate a screensaver during launch"
 fi
 pass "idle config does not race screensaver startup"
+
+if rg -q 'cursor:invisible\s+true' "$launcher" "$runner"; then
+  fail "screensaver can leak a globally invisible cursor"
+fi
+pass "screensaver cursor hiding remains recoverable through pointer movement"

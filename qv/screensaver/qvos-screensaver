@@ -18,7 +18,6 @@ cleanup() {
     wait "$effect_pid" 2>/dev/null || true
   fi
   [[ -n $terminal_state ]] && stty "$terminal_state" 2>/dev/null || true
-  hyprctl keyword cursor:invisible false &>/dev/null || true
 
   return "$status"
 }
@@ -216,7 +215,6 @@ run_qvos_effect() {
 printf '\033]11;rgb:00/00/00\007'
 
 stty -echo 2>/dev/null || true
-hyprctl keyword cursor:invisible true &>/dev/null || true
 
 last_effect=-1
 while true; do
