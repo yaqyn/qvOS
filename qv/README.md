@@ -73,7 +73,10 @@ identity or base readiness.
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
   base-owned system Python and mise, creates no global mise Python, and cannot
-  remove base Codex. Wrangler, Convex, and Playwright remain project-local.
+  remove base Codex. It also owns the official global Playwright CLI; Wrangler,
+  Convex, Playwright dependencies, and Playwright browser assets remain
+  project-local. Install checks every inventory entry and installs only what is
+  missing before verifying the complete stack.
 - The qvOS TUI exposes Update and ISO Build only. ISO Build stages the
   qvOS source over Omarchy's `main` ISO for its matching `master` installer,
   adds the qvOS configurator and progress surfaces, and preserves Omarchy's

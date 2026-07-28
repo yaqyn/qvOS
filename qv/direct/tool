@@ -155,9 +155,21 @@ semgrep_installed() {
 }
 
 npm_installed() {
-  command -v npm >/dev/null 2>&1 &&
-    command_works devcontainer &&
-    run_bounded 20s npm list --global --depth=0 "$tool_source" >/dev/null 2>&1
+  local command_name
+  local global_prefix
+  local commands=()
+
+  command -v npm >/dev/null 2>&1 || return 1
+  run_bounded 20s npm list --global --depth=0 "$tool_source" \
+    >/dev/null 2>&1 || return 1
+  global_prefix=$(run_bounded 15s npm prefix --global) || return 1
+  [[ -n $global_prefix ]] || return 1
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    command_works "$command_name" "$global_prefix/bin/$command_name" ||
+      return 1
+  done
 }
 
 exact_binary_installed() {
@@ -482,13 +494,19 @@ remove_semgrep() {
 }
 
 install_npm() {
-  if command -v devcontainer >/dev/null 2>&1 && ! npm_installed; then
-    echo "The existing Dev Container CLI is not the qvDEV npm installation." >&2
-    return 1
-  fi
+  local command_name
+  local commands=()
+
   npm_installed && return 0
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+      echo "The existing $tool_label command is not the qvDEV npm installation." >&2
+      return 1
+    fi
+  done
   command -v npm >/dev/null 2>&1 || {
-    echo "Dev Container CLI requires qvDEV Node.js and npm." >&2
+    echo "$tool_label requires qvDEV Node.js and npm." >&2
     return 1
   }
   run_bounded 600s npm install --global "$tool_source@latest"

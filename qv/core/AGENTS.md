@@ -22,7 +22,12 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
   final verification. Do not add a coordinated cross-stack removal layer.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex
   workbench integration. Codex itself is base-owned and must survive qvDEV
-  removal. Wrangler, Convex, and Playwright stay project-local.
+  removal. Wrangler, Convex, Playwright dependencies, and Playwright browser
+  assets stay project-local. qvDEV owns the official global Playwright CLI.
+- qvDEV Install is convergent and never short-circuits on enrollment state.
+  Check every manifest entry, reuse each compatible managed installation,
+  install only missing entries, reconcile the workbench integration, then
+  verify the complete stack.
 - Steam and the reviewed gaming runtime are not qvCORE.
 - Browsers already owned by Omarchy, including Brave Origin, stay on
   Omarchy's native browser Install and Remove surfaces and out of qvCORE.

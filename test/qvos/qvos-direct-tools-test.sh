@@ -32,8 +32,45 @@ manifest_count=$(
   fail "Codex is the base direct tool"
 [[ $("$root/qv/direct/tool" list-scope proton) == $'pass-cli\nproton-drive' ]] ||
   fail "Proton direct-tool inventory"
-[[ $("$root/qv/direct/tool" list-scope qvdev | wc -l) == "17" ]] ||
+expected_qvdev=$'node\nbun\nuv\ngo\nmkcert\nhurl\nsupabase\ninfisical\ncloudflared\nsentry-cli\nact\nsops\nage\ngitleaks\nosv-scanner\nsemgrep\ndevcontainer\nplaywright-cli'
+[[ $("$root/qv/direct/tool" list-scope qvdev) == "$expected_qvdev" ]] ||
   fail "qvDEV direct-tool inventory"
+grep -Fqx $'playwright-cli\tqvdev\tPlaywright CLI\tnpm\tplaywright-cli\t@playwright/cli\t-\t-\t-' \
+  "$root/qv/direct/manifest.tsv" ||
+  fail "Playwright CLI direct-tool ownership"
+
+npm_runtime="$test_root/npm-direct"
+npm_prefix="$test_root/npm-prefix"
+npm_bin="$test_root/npm-bin"
+install -d "$npm_runtime" "$npm_prefix/bin" "$npm_bin"
+cp "$root/qv/direct/tool" "$npm_runtime/tool"
+install -m 0644 /dev/stdin "$npm_runtime/manifest.tsv" <<'MANIFEST'
+# id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
+playwright-cli	qvdev	Playwright CLI	npm	playwright-cli	@playwright/cli	-	-	-
+MANIFEST
+install -m 0755 /dev/stdin "$npm_bin/npm" <<'SCRIPT'
+#!/bin/bash
+case $1 in
+list)
+  [[ $2 == "--global" && $3 == "--depth=0" && $4 == "@playwright/cli" ]]
+  ;;
+prefix)
+  [[ $2 == "--global" ]] && printf '%s\n' "$QVOS_TEST_NPM_PREFIX"
+  ;;
+*)
+  exit 1
+  ;;
+esac
+SCRIPT
+install -m 0755 /dev/stdin "$npm_prefix/bin/playwright-cli" <<'SCRIPT'
+#!/bin/bash
+[[ $1 == "--version" ]] && printf '0.1.17\n'
+SCRIPT
+HOME="$test_root/home" \
+  PATH="$npm_bin:/usr/bin" \
+  QVOS_TEST_NPM_PREFIX="$npm_prefix" \
+  "$npm_runtime/tool" installed playwright-cli ||
+  fail "generic npm direct-tool detection"
 
 install -d "$runtime"
 cp "$root/qv/direct/update" "$runtime/update"

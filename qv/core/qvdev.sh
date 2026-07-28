@@ -127,7 +127,9 @@ install_stack() {
   fi
 
   while IFS= read -r tool_id; do
-    "$direct_tool" install "$tool_id"
+    if ! "$direct_tool" installed "$tool_id"; then
+      "$direct_tool" install "$tool_id"
+    fi
   done < <("$direct_tool" list-scope qvdev)
 
   install_integration

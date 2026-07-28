@@ -41,7 +41,8 @@ action=$1
 target=$2
 case $action in
 list-scope)
-  [[ $target == "qvdev" ]] && printf 'node\nuv\nsemgrep\ndevcontainer\n'
+  [[ $target == "qvdev" ]] &&
+    printf 'node\nuv\nsemgrep\ndevcontainer\nplaywright-cli\n'
   ;;
 install)
   install -m 0644 /dev/null "$QVOS_TEST_TOOLS/$target"
@@ -92,12 +93,15 @@ run_qvdev() {
 
 install -m 0644 /dev/null "$installed_packages/7zip"
 install -m 0644 /dev/null "$installed_tools/codex"
+install -m 0644 /dev/null "$installed_tools/node"
 run_qvdev install >/dev/null
 [[ -f $test_root/home/.local/state/qvos/qvcore/qvdev ]] ||
   fail "qvDEV enrollment"
 [[ $(grep -c $'^package-add\t7zip$' "$log" || true) == "0" ]] ||
   fail "qvDEV reinstalls compatible Pacman software"
-for tool_id in node uv semgrep devcontainer; do
+[[ $(grep -c $'^tool-install\tnode$' "$log" || true) == "0" ]] ||
+  fail "qvDEV reinstalls a compatible direct tool"
+for tool_id in node uv semgrep devcontainer playwright-cli; do
   [[ -f $installed_tools/$tool_id ]] || fail "qvDEV direct tool: $tool_id"
 done
 [[ -x $test_root/home/.local/share/qvos/thunar/codex ]] ||
@@ -109,8 +113,8 @@ run_qvdev remove --yes >/dev/null
   fail "qvDEV enrollment removal"
 [[ ! -e $test_root/home/.local/share/qvos/thunar/codex ]] ||
   fail "qvDEV workbench integration removal"
-[[ $(grep $'^tool-remove' "$log" | tail -n 4) == \
-  $'tool-remove\tdevcontainer\ntool-remove\tsemgrep\ntool-remove\tuv\ntool-remove\tnode' ]] ||
+[[ $(grep $'^tool-remove' "$log" | tail -n 5) == \
+  $'tool-remove\tplaywright-cli\ntool-remove\tdevcontainer\ntool-remove\tsemgrep\ntool-remove\tuv\ntool-remove\tnode' ]] ||
   fail "qvDEV direct removal dependency order"
 [[ -z $(find "$installed_packages" -type f -print -quit) ]] ||
   fail "qvDEV Pacman removal"
@@ -119,11 +123,14 @@ if awk -F '\t' '$1 == "aur" { found = 1 } END { exit !found }' \
   "$root/qv/core/qvdev/packages.tsv"; then
   fail "qvDEV unexpectedly owns AUR packages"
 fi
-if rg -q 'python@latest|wrangler|convex|playwright' \
+if rg -q 'python@latest|wrangler|convex|@playwright/test' \
   "$root/qv/core/qvdev.sh" \
   "$root/qv/core/qvdev/packages.tsv" \
   "$root/qv/direct/manifest.tsv"; then
   fail "qvDEV violates Python or project-local boundaries"
 fi
+grep -Fqx $'playwright-cli\tqvdev\tPlaywright CLI\tnpm\tplaywright-cli\t@playwright/cli\t-\t-\t-' \
+  "$root/qv/direct/manifest.tsv" ||
+  fail "qvDEV Playwright CLI ownership"
 
 printf 'ok - qvDEV merges developer tools and workbench without owning Codex\n'

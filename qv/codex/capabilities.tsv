@@ -83,8 +83,8 @@ gitleaks	qvcore	qvdev	direct:gitleaks	omarchy install qvcore qvdev
 osv-scanner	qvcore	qvdev	direct:osv-scanner	omarchy install qvcore qvdev
 semgrep	qvcore	qvdev	direct:semgrep	omarchy install qvcore qvdev
 devcontainer	qvcore	qvdev	direct:devcontainer	omarchy install qvcore qvdev
+playwright-cli	qvcore	qvdev	direct:playwright-cli	omarchy install qvcore qvdev
 wrangler	project	project	bun:wrangler	bun add -d wrangler@latest
 convex	project	project	bun:convex	bun add convex
 playwright	project	project	bun:playwright	bun add -d @playwright/test
-playwright-cli	avoid	global	unsupported:global-wrapper	remove the global wrapper and install Playwright in each project
 ydotool	avoid	desktop	unsafe:privileged-input	do not install an always-on privileged input daemon

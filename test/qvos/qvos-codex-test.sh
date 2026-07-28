@@ -114,6 +114,12 @@ fi
 grep -Fq $'devcontainer\tqvdev\tDev Container CLI\tnpm' \
   "$root/qv/direct/manifest.tsv" ||
   fail "official Dev Container CLI install owner"
+grep -Fq $'playwright-cli\tqvdev\tPlaywright CLI\tnpm' \
+  "$root/qv/direct/manifest.tsv" ||
+  fail "official Playwright CLI install owner"
+if rg -q 'omarchy-npx-install playwright' "$root/qv/install/packaging/npx"; then
+  fail "Playwright CLI remains in qvOS base packaging"
+fi
 if grep -Fq 'python@latest' "$root/qv/direct/manifest.tsv"; then
   fail "qvDEV configures a redundant global Python runtime"
 fi

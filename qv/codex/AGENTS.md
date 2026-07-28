@@ -17,7 +17,8 @@ contract, doctor, runtime deployment, sandbox checks, or qvDEV boundary.
   Container CLI, and Codex workbench integration.
 - System Python and mise are base-owned. qvDEV owns uv and its isolated
   Semgrep runtime but must not configure a global mise Python. Wrangler,
-  Convex, and Playwright remain project-local.
+  Convex, Playwright dependencies, and Playwright browser assets remain
+  project-local. qvDEV owns the official global Playwright CLI.
 - qvDEV removal must leave canonical Codex, `~/.codex`, projects, credentials,
   and personal files untouched.
 - `doctor` is read-only and secret-safe. It may prove authentication by exit
