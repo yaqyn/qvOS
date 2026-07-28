@@ -2,10 +2,10 @@
 set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-assume_yes=0
+mode=interactive
 
 usage() {
-  echo "Usage: omarchy-qvos-update [-y]" >&2
+  echo "Usage: omarchy-qvos-update [-y|--check]" >&2
 }
 
 if (($# > 1)); then
@@ -14,20 +14,45 @@ if (($# > 1)); then
 fi
 case ${1:-} in
 "") ;;
--y) assume_yes=1 ;;
+-y) mode=noninteractive ;;
+--check) mode=check ;;
 *)
   usage
   exit 2
   ;;
 esac
 
-branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
-if [[ $branch != "OS" ]]; then
-  echo "qvOS update requires the live checkout on branch OS; found '${branch:-none}'." >&2
-  exit 1
+preflight() {
+  local branch
+
+  branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
+  if [[ $branch != "OS" ]]; then
+    echo "qvOS update requires the live checkout on branch OS; found '${branch:-none}'." >&2
+    return 1
+  fi
+  if ! command -v omarchy-update >/dev/null 2>&1; then
+    echo "qvOS update cannot find the original Omarchy updater." >&2
+    return 1
+  fi
+}
+
+if [[ $mode == "interactive" ]]; then
+  tui=${QVOS_TUI_BINARY:-}
+  if [[ -z $tui ]]; then
+    tui=$(command -v qvos-tui || true)
+  fi
+  if [[ -n $tui && -x $tui ]]; then
+    exec "$tui" --update
+  fi
 fi
 
-if ((assume_yes == 0)); then
+preflight
+
+if [[ $mode == "check" ]]; then
+  exit 0
+fi
+
+if [[ $mode == "interactive" ]]; then
   gum style --border normal --padding "1 2" \
     "Ready to update qvOS?" \
     "" \

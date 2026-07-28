@@ -123,7 +123,7 @@ local function home_entries()
     {
       Text = "󱅾  Update qvOS",
       Keywords = { "update", "upgrade", "sync" },
-      Actions = { activate = present("omarchy-qvos-update") },
+      Actions = { activate = "omarchy-launch-qvos-update" },
     },
     {
       Text = "  Settings",
@@ -262,7 +262,7 @@ function GetEntries(query)
 
   -- Home and first-level destinations.
   add(entries, "󰀻", "All Apps", "Home", { "apps", "applications", "launch" }, route("apps"))
-  add(entries, "󱅾", "Update qvOS", "Home", { "update", "upgrade", "sync" }, present("omarchy-qvos-update"))
+  add(entries, "󱅾", "Update qvOS", "Home", { "update", "upgrade", "sync" }, "omarchy-launch-qvos-update")
   add(entries, "", "Settings", "Home", { "setup", "configure", "software", "appearance" }, route("settings"))
   add(entries, "󰍜", "More", "Home", { "learn", "capture", "share", "about", "power" }, route("more"))
   add(entries, "󰧑", "Learn", "More", { "docs", "help", "manual" }, route("learn"))

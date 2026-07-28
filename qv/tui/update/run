@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+case ${1:-} in
+"")
+  exec omarchy-qvos-update -y
+  ;;
+--check)
+  exec omarchy-qvos-update --check
+  ;;
+*)
+  echo "Usage: qv/tui/update/run [--check]" >&2
+  exit 2
+  ;;
+esac

@@ -66,6 +66,11 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-pres
 printf '%s\n' "$*" >"$QVOS_TEST_ROUTE_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-qvos-update" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "omarchy-launch-qvos-update" >"$QVOS_TEST_ROUTE_LOG"
+SCRIPT
+
 run_menu() {
   QVOS_TEST_MENU_CHOICE="${QVOS_TEST_MENU_CHOICE:-Update qvOS}" \
     QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-Install Everything}" \
@@ -121,7 +126,7 @@ run_qvcore_route() {
   [[ $(<"$route_log") == "$expected" ]] || fail "$choice route"
 }
 
-run_route "Update qvOS" "omarchy-qvos-update"
+run_route "Update qvOS" "omarchy-launch-qvos-update"
 [[ $(<"$qvos_menu_log") == $'󱅾  Update qvOS\n󰒓  System\n󰏖  qvCORE (Optional)' ]] ||
   fail "qvOS quick-access menu"
 grep -Fq -- '--width 360' "$menu_args_log" || fail "qvOS menu width"
@@ -138,12 +143,12 @@ if grep -Fq "Personal Software" "$remove_menu_log"; then
 fi
 : >"$route_log"
 run_menu update
-[[ $(<"$route_log") == "omarchy-qvos-update" ]] ||
+[[ $(<"$route_log") == "omarchy-launch-qvos-update" ]] ||
   fail "Update qvOS route"
 update_override=$(
   sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
-[[ $update_override == $'show_update_menu() {\n  present_terminal omarchy-qvos-update\n}' ]] ||
+[[ $update_override == $'show_update_menu() {\n  omarchy-launch-qvos-update\n}' ]] ||
   fail "Update qvOS stays direct"
 pass "qvOS menus keep update, system, package, and standalone ownership distinct"
 

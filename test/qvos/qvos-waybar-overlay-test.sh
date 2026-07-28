@@ -55,7 +55,7 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy".format == "󱅾") and
   (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
-  (."custom/update"."on-click" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-update") and
+  (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
   (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
@@ -233,7 +233,7 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy".format == "󱅾") and
   (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
-  (."custom/update"."on-click" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-update") and
+  (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
   (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"

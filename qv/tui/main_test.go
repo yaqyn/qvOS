@@ -80,14 +80,19 @@ func TestUpdateActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update action spec: %v", err)
 	}
-	if script != "bin/qvos-update" {
+	if script != "update/run" {
 		t.Fatalf("update script = %q", script)
 	}
 	if environment != "QVOS_UPDATE_SCRIPT" {
 		t.Fatalf("update environment = %q", environment)
 	}
 
-	status, progress := scriptProgressFromLine(actionUpdate, "Update system packages")
+	status, progress := scriptProgressFromLine(actionUpdate, "Update Omarchy")
+	if status != "updating qvOS source" || progress <= 0 {
+		t.Fatalf("source update progress = %q, %f", status, progress)
+	}
+
+	status, progress = scriptProgressFromLine(actionUpdate, "Update system packages")
 	if status != "updating system packages" || progress <= 0 {
 		t.Fatalf("update progress = %q, %f", status, progress)
 	}
@@ -95,6 +100,107 @@ func TestUpdateActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 	status, progress = scriptProgressFromLine(actionUpdate, "qvOS update is complete.")
 	if status != "update complete" || progress != 1 {
 		t.Fatalf("update completion = %q, %f", status, progress)
+	}
+
+	status, progress = scriptProgressFromLine(actionUpdate, "downloading package")
+	if status != "" || progress >= 0 {
+		t.Fatalf("unknown output fabricated progress = %q, %f", status, progress)
+	}
+}
+
+func TestUpdateStartsWithConfirmationBeforePreflightOrSudo(t *testing.T) {
+	m, command := (model{tab: 0, cursor: 0}).activateMenuItem()
+	if command != nil {
+		t.Fatal("opening Update started work before confirmation")
+	}
+	if !m.updateConfirm || !m.loading {
+		t.Fatalf("confirmation state = loading:%t confirm:%t", m.loading, m.updateConfirm)
+	}
+	if m.sudoChecking || m.updatePreflight || m.scriptRunning {
+		t.Fatal("opening Update performed preflight, sudo, or mutation")
+	}
+
+	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+	if command == nil {
+		t.Fatal("confirmed Update did not schedule preflight")
+	}
+	if m.updateConfirm || !m.updatePreflight || m.sudoChecking {
+		t.Fatalf(
+			"confirmed state = confirm:%t preflight:%t sudo:%t",
+			m.updateConfirm,
+			m.updatePreflight,
+			m.sudoChecking,
+		)
+	}
+}
+
+func TestUpdateCancellationNeverStartsWork(t *testing.T) {
+	m, _ := (model{}).beginUpdateConfirmation(true)
+	m.updateChoice = 1
+	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+
+	if command == nil {
+		t.Fatal("dedicated cancellation did not exit the TUI")
+	}
+	if !m.updateCanceled {
+		t.Fatal("dedicated cancellation lost exit status")
+	}
+	if m.updatePreflight || m.sudoChecking || m.scriptRunning {
+		t.Fatal("canceled Update started preflight, sudo, or mutation")
+	}
+}
+
+func TestRunningUpdateCannotBeCanceledFromTheTUI(t *testing.T) {
+	canceled := false
+	m := model{
+		loading:       true,
+		action:        actionUpdate,
+		scriptRunning: true,
+		scriptCancel:  func() { canceled = true },
+	}
+
+	next, _ := m.Update(tea.KeyPressMsg{Text: "ctrl+c", Code: 'c', Mod: tea.ModCtrl})
+	m = next.(model)
+	if canceled || m.scriptCanceling {
+		t.Fatal("running Update exposed unsafe cancellation")
+	}
+}
+
+func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
+	sizes := []struct {
+		name          string
+		width, height int
+	}{
+		{"desktop", 120, 42},
+		{"tablet", 72, 30},
+		{"mobile", 44, 18},
+		{"compact wide", 80, 20},
+		{"fullscreen cinematic", 270, 61},
+	}
+
+	for _, size := range sizes {
+		t.Run(size.name, func(t *testing.T) {
+			m, _ := (model{width: size.width, height: size.height}).
+				beginUpdateConfirmation(true)
+			view := m.View()
+			lines := strings.Split(view.Content, "\n")
+			if len(lines) > size.height {
+				t.Fatalf("view height = %d, terminal height = %d", len(lines), size.height)
+			}
+			for index, line := range lines {
+				if width := lipgloss.Width(line); width > size.width {
+					t.Fatalf("line %d width = %d, terminal width = %d", index, width, size.width)
+				}
+			}
+			content := stripANSI(view.Content)
+			if !strings.Contains(content, "UPDATE QVOS") ||
+				!strings.Contains(content, "Update qvOS") ||
+				!strings.Contains(content, "Cancel") {
+				t.Fatalf("confirmation copy is incomplete: %q", content)
+			}
+		})
 	}
 }
 

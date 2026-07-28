@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-# The TUI action is the confirmation surface and holds sudo authorization.
-exec omarchy-qvos-update -y
+# Compatibility adapter. Update TUI ownership lives under qv/tui/update.
+exec "$(dirname -- "${BASH_SOURCE[0]}")/../update/run" "$@"

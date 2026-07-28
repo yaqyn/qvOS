@@ -211,6 +211,7 @@ Read every matching route completely before editing:
 - qvOS architecture and lifecycle boundaries: `qv/README.md`
 - qvCORE catalog and component lifecycle: `qv/core/AGENTS.md`
 - Menu, search, Walker, and Elephant: `qv/menu/AGENTS.md`
+- qvOS terminal interface and action flows: `qv/tui/AGENTS.md`
 - ISO construction and release images: `qv/iso/AGENTS.md`
 - Hyprland refresh and keybindings: `qv/hyprland/AGENTS.md`
 - Commit and qvsync command mechanics: `qv/git/AGENTS.md`

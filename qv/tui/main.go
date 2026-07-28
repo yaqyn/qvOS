@@ -18,6 +18,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	updateflow "github.com/Yaqyn-qvOS/qvOS/update"
 )
 
 // -- palette --
@@ -44,6 +45,8 @@ var (
 	sHot     = lipgloss.NewStyle().Foreground(lipgloss.Color(hotRed)).Bold(true)
 	sDeepRed = lipgloss.NewStyle().Foreground(lipgloss.Color(deepRed))
 )
+
+var buildSourceHash = "unmanaged"
 
 func tuiEnvironment() []string {
 	// The qvOS TUI owns its branded palette; keep terminal capability detection
@@ -304,6 +307,11 @@ type model struct {
 	scriptCanceling bool
 	scriptCanceled  bool
 	logOverlay      bool
+	updateConfirm   bool
+	updateChoice    int
+	updatePreflight bool
+	dedicatedAction bool
+	updateCanceled  bool
 }
 
 func isRootAction(action actionMode) bool {
@@ -340,7 +348,7 @@ func (m model) loadProgress() float64 {
 		if m.scriptDone {
 			return 1
 		}
-		if m.sudoPrompt || m.sudoChecking {
+		if m.sudoPrompt || m.sudoChecking || m.updatePreflight {
 			return 0
 		}
 		progress := m.scriptProgress
@@ -517,6 +525,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.startRootScriptRun(msg.action, msg.script)
 
+	case updatePreflightDoneMsg:
+		if m.action != actionUpdate || m.scriptPath != msg.script {
+			return m, nil
+		}
+		m.updatePreflight = false
+		if msg.err != nil {
+			m.scriptDone = true
+			m.scriptErr = msg.err
+			m.scriptStatus = shortError(msg.err)
+			return m, nil
+		}
+		m.sudoChecking = true
+		m.scriptStatus = "authorizing sudo"
+		return m, checkSudoCachedCmd(actionUpdate, msg.script)
+
 	case sudoAuthDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
 			return m, nil
@@ -540,12 +563,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if m.loading {
+			if m.updateConfirm {
+				return m.handleUpdateConfirmationKey(msg)
+			}
 			if m.sudoPrompt {
 				return m.handleSudoKey(msg)
 			}
 			phase := m.loadPhase()
 			switch msg.String() {
 			case "ctrl+c":
+				if m.action == actionUpdate &&
+					(m.scriptRunning || m.sudoChecking || m.updatePreflight) {
+					return m, nil
+				}
 				if m.scriptRunning && m.scriptCancel != nil {
 					m.scriptCanceling = true
 					m.scriptStatus = "cleaning build stage"
@@ -553,17 +583,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.scriptCancel()
 					return m, nil
 				}
-				if m.scriptRunning || m.sudoChecking {
+				if m.scriptRunning || m.sudoChecking || m.updatePreflight {
 					return m, nil
 				}
 				return m, tea.Quit
 			case "esc":
-				if !m.scriptRunning && !m.sudoChecking {
-					m.loading = false
+				if !m.scriptRunning && !m.sudoChecking && !m.updatePreflight {
+					return m.leaveRootAction()
 				}
 			case "enter":
 				if phase != loadRun {
-					m.loading = false
+					return m.leaveRootAction()
 				}
 			case "v":
 				if isScriptAction(m.action) {
@@ -599,7 +629,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			if m.tab == 0 && m.cursor == 0 {
-				return m.startRootAction(actionUpdate)
+				return m.beginUpdateConfirmation(false)
 			}
 			if m.tab == 0 && m.cursor == 1 {
 				return m.startRootAction(actionRepair)
@@ -988,7 +1018,7 @@ func (m model) mainMouse(msg tea.MouseClickMsg) (model, tea.Cmd) {
 // activateMenuItem mirrors the keyboard Enter branch for the main menu.
 func (m model) activateMenuItem() (model, tea.Cmd) {
 	if m.tab == 0 && m.cursor == 0 {
-		return m.startRootAction(actionUpdate)
+		return m.beginUpdateConfirmation(false)
 	}
 	if m.tab == 0 && m.cursor == 1 {
 		return m.startRootAction(actionRepair)
@@ -1040,6 +1070,84 @@ type sudoAuthDoneMsg struct {
 	err    error
 }
 
+type updatePreflightDoneMsg struct {
+	script string
+	err    error
+}
+
+func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
+	clearRunes(m.sudoPassword)
+	m.loading = true
+	m.action = actionUpdate
+	m.loadStart = m.frame
+	m.scriptRunning = false
+	m.scriptDone = false
+	m.scriptErr = nil
+	m.scriptPath = ""
+	m.sudoChecking = false
+	m.sudoPrompt = false
+	m.sudoPassword = nil
+	m.sudoErr = nil
+	m.scriptCancel = nil
+	m.scriptEvents = nil
+	m.scriptStatus = ""
+	m.scriptProgress = 0
+	m.scriptTarget = 0
+	m.scriptLogLines = nil
+	m.scriptArtifact = ""
+	m.scriptRelease = ""
+	m.scriptCanceling = false
+	m.scriptCanceled = false
+	m.logOverlay = false
+	m.updateConfirm = true
+	m.updateChoice = 0
+	m.updatePreflight = false
+	m.dedicatedAction = dedicated
+	m.updateCanceled = false
+	return m, nil
+}
+
+func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "left", "h", "up", "k", "shift+tab":
+		m.updateChoice = 0
+	case "right", "l", "down", "j", "tab":
+		m.updateChoice = 1
+	case "esc", "ctrl+c":
+		return m.cancelUpdate()
+	case "enter":
+		if m.updateChoice == 1 {
+			return m.cancelUpdate()
+		}
+		m.updateConfirm = false
+		return m.startRootAction(actionUpdate)
+	}
+	return m, nil
+}
+
+func (m model) cancelUpdate() (model, tea.Cmd) {
+	clearRunes(m.sudoPassword)
+	m.sudoPassword = nil
+	m.sudoPrompt = false
+	m.sudoChecking = false
+	m.updatePreflight = false
+	m.updateConfirm = false
+	m.updateCanceled = true
+	if m.dedicatedAction {
+		return m, tea.Quit
+	}
+	m.loading = false
+	return m, nil
+}
+
+func (m model) leaveRootAction() (model, tea.Cmd) {
+	if m.dedicatedAction {
+		return m, tea.Quit
+	}
+	m.loading = false
+	return m, nil
+}
+
 func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	script, err := findRootScript(action)
 	m.loading = true
@@ -1049,7 +1157,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptDone = false
 	m.scriptErr = nil
 	m.scriptPath = script
-	m.sudoChecking = true
+	m.sudoChecking = action != actionUpdate
 	m.sudoPrompt = false
 	m.sudoPassword = nil
 	m.sudoErr = nil
@@ -1064,14 +1172,22 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.updateConfirm = false
+	m.updatePreflight = action == actionUpdate
+	m.updateCanceled = false
 
 	if err != nil {
 		m.sudoChecking = false
+		m.updatePreflight = false
 		m.scriptDone = true
 		m.scriptErr = err
 		return m, nil
 	}
 
+	if action == actionUpdate {
+		m.scriptStatus = "checking update readiness"
+		return m, checkUpdatePreflightCmd(script)
+	}
 	return m, checkSudoCachedCmd(action, script)
 }
 
@@ -1139,8 +1255,14 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
+		if m.action == actionUpdate {
+			return m.cancelUpdate()
+		}
 		return m, tea.Quit
 	case "esc":
+		if m.action == actionUpdate {
+			return m.cancelUpdate()
+		}
 		m.sudoPassword = nil
 		m.loading = false
 		return m, nil
@@ -1174,6 +1296,15 @@ func checkSudoCachedCmd(action actionMode, script string) tea.Cmd {
 	return func() tea.Msg {
 		err := exec.Command("sudo", "-n", "-v").Run()
 		return sudoCheckDoneMsg{action: action, script: script, err: err}
+	}
+}
+
+func checkUpdatePreflightCmd(script string) tea.Cmd {
+	return func() tea.Msg {
+		return updatePreflightDoneMsg{
+			script: script,
+			err:    updateflow.Preflight(script),
+		}
 	}
 }
 
@@ -1433,7 +1564,7 @@ func scriptProgressFromLine(action actionMode, line string) (string, float64) {
 	case actionRepair:
 		return domainProgressFromLine(clean, "qvOS repair:", repairDomainOrder)
 	case actionUpdate:
-		return updateProgressFromLine(clean)
+		return updateflow.ProgressFromLine(clean)
 	default:
 		return clean, -1
 	}
@@ -1551,29 +1682,6 @@ var installDomainOrder = []string{
 
 var repairDomainOrder = []string{
 	"Inspect", "Source", "Packages", "Runtime", "Config", "Complete",
-}
-
-var updateStages = []struct {
-	token    string
-	status   string
-	progress float64
-}{
-	{"Update qvOS", "updating qvOS source", 0.10},
-	{"Update Arch signing keys", "updating signing keys", 0.20},
-	{"Update system packages", "updating system packages", 0.38},
-	{"Update AUR packages", "updating AUR packages", 0.56},
-	{"Running migration (", "running migrations", 0.68},
-	{"Remove orphan system packages", "removing package orphans", 0.84},
-	{"qvOS update is complete.", "update complete", 1.00},
-}
-
-func updateProgressFromLine(line string) (string, float64) {
-	for _, stage := range updateStages {
-		if strings.HasPrefix(line, stage.token) {
-			return stage.status, stage.progress
-		}
-	}
-	return line, -1
 }
 
 func domainProgressFromLine(line string, prefix string, order []string) (string, float64) {
@@ -1773,6 +1881,9 @@ func renderReducedProgress(label string, phase loadPhase, progress float64, mode
 }
 
 func (m model) renderRootActionFor(mode layoutMode) string {
+	if m.updateConfirm {
+		return m.renderUpdateConfirmationFor(mode)
+	}
 	if m.sudoPrompt {
 		return m.renderSudoPromptFor(mode)
 	}
@@ -1785,6 +1896,52 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 		"",
 		centerCanvas(m.renderRootLogOverlayFor(mode)),
 	}, "\n")
+}
+
+func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
+	title := centerCanvas(sWhite.Render(updateflow.Title))
+	summary := centerCanvas(sGray.Render(updateflow.Summary))
+	actions := centerCanvas(lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		renderConfirmationAction(updateflow.PrimaryAction, m.updateChoice == 0),
+		"   ",
+		renderConfirmationAction(updateflow.CancelAction, m.updateChoice == 1),
+	))
+
+	if mode == layoutMobile {
+		return strings.Join([]string{title, "", actions}, "\n")
+	}
+
+	hint := centerCanvas(
+		sDim.Render("←→") + sGray.Render("  choose    ") +
+			sDim.Render("⏎") + sGray.Render("  continue    ") +
+			sDim.Render("esc") + sGray.Render("  cancel"),
+	)
+	if mode == layoutTablet {
+		return strings.Join([]string{title, "", summary, "", actions, "", hint}, "\n")
+	}
+
+	notice := centerCanvas(sMid.Render(updateflow.PowerNotice))
+	history := centerCanvas(sDim.Render(updateflow.SourceHistoryLabel))
+	return strings.Join([]string{
+		title,
+		"",
+		summary,
+		notice,
+		"",
+		actions,
+		"",
+		history,
+		"",
+		hint,
+	}, "\n")
+}
+
+func renderConfirmationAction(label string, selected bool) string {
+	if selected {
+		return sRed.Render("▐ ") + sWhite.Render(label) + sRed.Render(" ▌")
+	}
+	return sDim.Render("  ") + sGray.Render(label) + sDim.Render("  ")
 }
 
 func (m model) renderSudoPromptFor(mode layoutMode) string {
@@ -1889,7 +2046,9 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 			sDim.Render("esc") + sGray.Render("  return")
 	default:
 		op = sWhite.Render(rootActionActiveTitle(m.action))
-		if m.sudoChecking {
+		if m.updatePreflight {
+			stageRaw = "checking update readiness"
+		} else if m.sudoChecking {
 			stageRaw = "authorizing sudo"
 		} else if m.scriptCanceling {
 			stageRaw = "cleaning build stage"
@@ -1898,8 +2057,13 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		} else {
 			stageRaw = rootActionRunningStatus(m.action)
 		}
-		hint = sDim.Render("ctrl+c") + sGray.Render("  cancel    ") +
-			sDim.Render("v") + sGray.Render("  logs")
+		if m.action == actionUpdate {
+			hint = sDim.Render("v") + sGray.Render("  logs    ") +
+				sDim.Render("keep this terminal open")
+		} else {
+			hint = sDim.Render("ctrl+c") + sGray.Render("  cancel    ") +
+				sDim.Render("v") + sGray.Render("  logs")
+		}
 	}
 
 	if stageRaw == "" {
@@ -2064,7 +2228,7 @@ func rootActionRunningStatus(action actionMode) string {
 	case actionRepair:
 		return "repair running in background"
 	case actionUpdate:
-		return "update running in background"
+		return updateflow.RunningStatus
 	default:
 		return "script running in background"
 	}
@@ -2077,7 +2241,7 @@ func rootActionCompleteStatus(action actionMode) string {
 	case actionRepair:
 		return "repair complete"
 	case actionUpdate:
-		return "update complete"
+		return updateflow.CompleteStatus
 	default:
 		return "complete"
 	}
@@ -2808,7 +2972,7 @@ func rootScriptSpec(action actionMode) (scriptName string, envName string, err e
 	case actionRepair:
 		return "bin/qvos-repair", "QVOS_REPAIR_SCRIPT", nil
 	case actionUpdate:
-		return "bin/qvos-update", "QVOS_UPDATE_SCRIPT", nil
+		return updateflow.ScriptPath, updateflow.ScriptEnvironment, nil
 	default:
 		return "", "", fmt.Errorf("action %d does not have a root script", action)
 	}
@@ -2897,7 +3061,36 @@ func shouldDefaultToISOInstaller() bool {
 
 // -- main --
 
+func runDedicatedUpdate() int {
+	initial, _ := (model{}).beginUpdateConfirmation(true)
+	result, err := newTUIProgram(initial).Run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	final, ok := result.(model)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "qvOS Update returned an unexpected TUI model")
+		return 1
+	}
+	if final.updateCanceled {
+		return 130
+	}
+	if final.scriptErr != nil {
+		return 1
+	}
+	return 0
+}
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--source-hash" {
+		fmt.Println(buildSourceHash)
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--update" {
+		os.Exit(runDedicatedUpdate())
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--prototype" {
 		if err := runPrototype(); err != nil {
 			fmt.Fprintln(os.Stderr, err)

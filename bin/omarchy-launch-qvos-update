@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# omarchy:summary=Open the qvOS Update interface
+# omarchy:group=launch
+# omarchy:name=qvos-update
+# omarchy:hidden=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/tui/update/launch" "$@"

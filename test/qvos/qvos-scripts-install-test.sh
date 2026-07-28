@@ -3,6 +3,8 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
+export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
+export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -42,7 +44,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop maintenance power screensaver shell thunar tmux waybar; do
+for feature in desktop maintenance power screensaver shell thunar tmux tui waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -179,6 +181,16 @@ for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe;
     fail "$command_name runtime installation"
 done
 pass "power guards are installed with the desktop runtime"
+
+tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
+[[ -x $tui_binary && ! -L $tui_binary ]] ||
+  fail "qvOS TUI managed binary"
+[[ $(readlink "$test_root/.local/bin/qvos-tui") == "$tui_binary" ]] ||
+  fail "qvOS TUI command link"
+HOME="$test_root" OMARCHY_PATH="$root" \
+  "$root/qv/tui/install" --status ||
+  fail "qvOS TUI source parity"
+pass "qvOS TUI builds once and installs from its domain owner"
 
 cmp -s \
   "$root/qv/maintenance/essential-packages" \

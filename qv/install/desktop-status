@@ -94,6 +94,9 @@ check_file \
 if ! "$OMARCHY_PATH/qv/shell/status"; then
   report_drift "qvOS runtime shell overlay or Bash source line differs"
 fi
+if ! "$OMARCHY_PATH/qv/tui/install" --status; then
+  report_drift "qvOS TUI binary differs from tracked source"
+fi
 
 thunar_features=(
   actions.sh

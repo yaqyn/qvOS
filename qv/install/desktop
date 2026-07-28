@@ -15,7 +15,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in desktop maintenance power screensaver shell thunar tmux waybar; do
+  for feature in desktop maintenance power screensaver shell thunar tmux tui waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -72,6 +72,9 @@
     qv/thunar/set-background
     qv/thunar/share
     qv/thunar/transcode
+    qv/tui/install
+    qv/tui/update/launch
+    qv/tui/update/run
     qv/tmux/qvos-tmux
     qv/waybar/clock.sh
     qv/waybar/overrides.jsonc
@@ -152,6 +155,7 @@
 
   rm -rf -- "$qvos_screensaver"
   install -d "$qvos_bin" "$qvos_maintenance" "$qvos_screensaver" "$local_bin"
+  "$OMARCHY_PATH/qv/tui/install" --build-if-available
   install -m 0644 \
     "$OMARCHY_PATH/qv/maintenance/essential-packages" \
     "$qvos_maintenance/essential-packages.tmp.$$"

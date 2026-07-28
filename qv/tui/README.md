@@ -6,6 +6,8 @@ modes:
 
 - default: qvOS actions and navigation
 - `--prototype`: safe fake script, sudo, application, and boot sessions
+- `--update`: qvOS Update confirmation, preflight, authorization, progress,
+  logs, and result
 - `--iso-installer`: boot installation information and confirmation
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
@@ -27,6 +29,22 @@ yield first when space is constrained; complete rows share one measured width
 so identifiers, titles, and descriptions stay aligned.
 Opening logs prioritizes progress and log content over the 3D stage.
 Every mode uses the same `#020202` background.
+
+## Update
+
+`update/` owns the TUI-specific Update contract and thin engine adapter. The
+main hub and `--update` direct mode reuse one flow:
+
+1. Confirm `Update qvOS` or cancel before any work starts.
+2. Run the qvOS update owner's read-only preflight.
+3. Reuse the shared sudo authorization surface.
+4. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
+   retain all other output in the optional log view.
+5. End on an explicit success or actionable failure screen.
+
+Update cannot be canceled after the original Omarchy updater starts. If the TUI
+is unavailable, `omarchy-qvos-update` retains its plain terminal confirmation
+and update path.
 
 ## Boot phases
 

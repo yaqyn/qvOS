@@ -399,7 +399,7 @@ show_qvcore_setups_menu() {
 
 show_qvos_menu() {
   case $(menu "qvOS" "󱅾  Update qvOS\n󰒓  System\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
-  *"Update qvOS"*) present_terminal omarchy-qvos-update ;;
+  *"Update qvOS"*) omarchy-launch-qvos-update ;;
   *System*) present_terminal omarchy-qvos-system ;;
   *qvCORE*) show_qvcore_menu show_qvos_menu ;;
   *) back_to show_main_menu ;;
@@ -439,7 +439,7 @@ show_remove_gaming_menu() {
 }
 
 show_update_menu() {
-  present_terminal omarchy-qvos-update
+  omarchy-launch-qvos-update
 }
 
 show_update_config_menu() {

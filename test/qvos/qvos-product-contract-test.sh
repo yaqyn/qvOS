@@ -188,7 +188,7 @@ pass "desktop keyring support stays complete"
 grep -Fq 'Text = "󱅾  Update qvOS"' \
   "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
   fail "qvOS update menu icon"
-grep -Fq 'Actions = { activate = present("omarchy-qvos-update") }' \
+grep -Fq 'Actions = { activate = "omarchy-launch-qvos-update" }' \
   "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
   fail "qvOS update menu route"
 grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
@@ -197,7 +197,7 @@ grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
 update_override=$(
   sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
-[[ $update_override == $'show_update_menu() {\n  present_terminal omarchy-qvos-update\n}' ]] ||
+[[ $update_override == $'show_update_menu() {\n  omarchy-launch-qvos-update\n}' ]] ||
   fail "Update qvOS is not direct"
 if grep -Fq 'omarchy-qvos-system --software' "$root/qv/menu/extension.sh" ||
   grep -Fq 'qvOS System' <<<"$update_override"; then

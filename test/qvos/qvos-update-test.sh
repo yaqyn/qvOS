@@ -5,7 +5,10 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 adapter="$root/bin/omarchy-qvos-update"
 owner="$root/qv/update/qvos-update"
 availability_owner="$root/qv/update/update-available"
-tui_update="$root/qv/tui/bin/qvos-update"
+tui_update="$root/qv/tui/update/run"
+tui_update_compat="$root/qv/tui/bin/qvos-update"
+tui_launch="$root/qv/tui/update/launch"
+launch_adapter="$root/bin/omarchy-launch-qvos-update"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 action_log="$test_root/actions.log"
@@ -71,6 +74,7 @@ run_owner() {
     QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
     QVOS_TEST_CONFIRM_STATUS="${QVOS_TEST_CONFIRM_STATUS:-0}" \
     QVOS_TEST_DISPLAY_LOG="$display_log" \
+    QVOS_TUI_BINARY="${QVOS_TEST_TUI_BINARY:-}" \
     QVOS_TEST_UPDATE_STATUS="${QVOS_TEST_UPDATE_STATUS:-0}" \
     OMARCHY_PATH="$test_root/live" \
     PATH="$test_bin:/usr/bin" \
@@ -94,6 +98,12 @@ run_owner -y >/dev/null
 [[ $(<"$action_log") == $'omarchy-update\t-y' ]] ||
   fail "non-interactive qvOS update delegation"
 pass "qvOS non-interactive mode skips only its wrapper confirmation"
+
+: >"$action_log"
+run_owner --check >/dev/null
+[[ ! -s $action_log ]] ||
+  fail "read-only qvOS update preflight entered the updater"
+pass "qvOS exposes a read-only preflight for the TUI before sudo"
 
 : >"$action_log"
 set +e
@@ -129,7 +139,7 @@ invalid_status=$?
 set -e
 ((invalid_status == 2)) ||
   fail "qvOS update invalid argument status"
-grep -Fq 'Usage: omarchy-qvos-update [-y]' <<<"$invalid_output" ||
+grep -Fq 'Usage: omarchy-qvos-update [-y|--check]' <<<"$invalid_output" ||
   fail "qvOS update invalid argument usage"
 [[ ! -s $action_log ]] ||
   fail "qvOS update invalid argument mutation"
@@ -174,6 +184,21 @@ set -e
   fail "qvOS current-version presentation"
 pass "qvOS relabels only the original update-availability result"
 
+install -m 0755 /dev/stdin "$test_bin/qvos-tui" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_TUI_BINARY_LOG"
+SCRIPT
+tui_binary_log="$test_root/tui-binary.log"
+: >"$action_log"
+QVOS_TEST_TUI_BINARY="$test_bin/qvos-tui" \
+  QVOS_TEST_TUI_BINARY_LOG="$tui_binary_log" \
+  run_owner >/dev/null
+[[ $(<"$tui_binary_log") == "--update" ]] ||
+  fail "interactive qvOS update TUI mode"
+[[ ! -s $action_log ]] ||
+  fail "interactive qvOS update bypassed TUI confirmation"
+pass "interactive qvOS update delegates presentation to the shared TUI"
+
 fixture="$test_root/fixture"
 install -d "$fixture/qv/update"
 install -m 0755 /dev/stdin "$fixture/qv/update/qvos-update" <<'SCRIPT'
@@ -195,7 +220,38 @@ SCRIPT
 tui_update_log="$test_root/tui-update.log"
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
   PATH="$test_bin:/usr/bin" \
-  "$tui_update"
+"$tui_update"
 [[ $(<"$tui_update_log") == "-y" ]] ||
   fail "qvOS TUI update delegation"
-pass "qvOS TUI delegates its confirmed action to the owned wrapper"
+QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$tui_update" --check
+[[ $(<"$tui_update_log") == "--check" ]] ||
+  fail "qvOS TUI update preflight delegation"
+QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$tui_update_compat"
+[[ $(<"$tui_update_log") == "-y" ]] ||
+  fail "legacy qvOS TUI update adapter"
+pass "qvOS TUI delegates preflight and confirmed execution to the owned wrapper"
+
+install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_TUI_LAUNCH_LOG"
+SCRIPT
+tui_launch_log="$test_root/tui-launch.log"
+QVOS_TEST_TUI_LAUNCH_LOG="$tui_launch_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$tui_launch"
+[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e omarchy-qvos-update" ]] ||
+  fail "qvOS TUI update terminal launch"
+pass "qvOS Update opens the shared TUI without the legacy presentation wrapper"
+
+install -D -m 0755 "$tui_launch" "$fixture/qv/tui/update/launch"
+QVOS_TEST_TUI_LAUNCH_LOG="$tui_launch_log" \
+  OMARCHY_PATH="$fixture" \
+  PATH="$test_bin:/usr/bin" \
+  "$launch_adapter"
+[[ $(<"$tui_launch_log") == "uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e omarchy-qvos-update" ]] ||
+  fail "public qvOS Update launch adapter"
+pass "public qvOS Update launcher remains a thin TUI-domain adapter"

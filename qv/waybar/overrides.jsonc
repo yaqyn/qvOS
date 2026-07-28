@@ -6,7 +6,7 @@
   },
   "custom/update": {
     "exec": "omarchy-qvos-update-available",
-    "on-click": "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-update",
+    "on-click": "omarchy-launch-qvos-update",
     "tooltip-format": "qvOS update available"
   },
   "network": {

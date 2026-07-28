@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # omarchy:summary=Safely update qvOS through the original Omarchy updater
-# omarchy:args=[-y]
+# omarchy:args=[-y|--check]
 # omarchy:group=qvos
 # omarchy:name=update
-# omarchy:examples=omarchy qvos update | omarchy qvos update -y
+# omarchy:examples=omarchy qvos update | omarchy qvos update --check
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}

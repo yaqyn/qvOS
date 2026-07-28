@@ -1,0 +1,107 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+source_dir="$OMARCHY_PATH/qv/tui"
+runtime_dir="$HOME/.local/share/qvos/tui"
+target="$runtime_dir/qvos-tui"
+command_link="$HOME/.local/bin/qvos-tui"
+mode=${1:---build-if-available}
+
+usage() {
+  echo "Usage: qv/tui/install [--build|--build-if-available|--status]" >&2
+}
+
+source_hash() {
+  (
+    cd "$source_dir"
+    find . -type f \
+      \( -name '*.go' -o -name go.mod -o -name go.sum \) \
+      ! -name '*_test.go' \
+      -print0 |
+      sort -z |
+      xargs -0 sha256sum |
+      sha256sum |
+      awk '{print $1}'
+  )
+}
+
+installed_hash() {
+  "$target" --source-hash 2>/dev/null
+}
+
+ensure_link() {
+  install -d "$(dirname -- "$command_link")"
+  ln -sfn "$target" "$command_link"
+}
+
+status() {
+  local expected_hash
+
+  if [[ -x $target && ! -L $target ]]; then
+    expected_hash=$(source_hash)
+    [[ $(installed_hash) == "$expected_hash" ]] || return 1
+    [[ -L $command_link ]] || return 1
+    [[ $(readlink -- "$command_link") == "$target" ]] || return 1
+    return 0
+  fi
+
+  # The ISO currently supplies the same binary through /usr/local/bin. Its
+  # source-stamp contract will move here when the ISO flow enters qv/tui/iso.
+  [[ -x /usr/local/bin/qvos-tui ]]
+}
+
+build() {
+  local expected_hash
+  local temporary
+
+  command -v go >/dev/null 2>&1 || {
+    echo "Building qvos-tui requires Go on this development installation." >&2
+    return 1
+  }
+
+  expected_hash=$(source_hash)
+  install -d "$runtime_dir" "$(dirname -- "$command_link")"
+  temporary=$(mktemp "$runtime_dir/.qvos-tui.XXXXXX")
+  trap '[[ ! -e $temporary ]] || rm -f -- "$temporary"' RETURN
+
+  (
+    cd "$source_dir"
+    go build \
+      -buildvcs=false \
+      -trimpath \
+      -ldflags="-s -w -X main.buildSourceHash=$expected_hash" \
+      -o "$temporary" \
+      .
+  )
+  chmod 0755 "$temporary"
+  mv -f -- "$temporary" "$target"
+  ensure_link
+  trap - RETURN
+}
+
+case $mode in
+--build)
+  build
+  ;;
+--build-if-available)
+  if [[ -x $target && ! -L $target ]] && status; then
+    exit 0
+  fi
+  if command -v go >/dev/null 2>&1; then
+    build
+  elif status; then
+    exit 0
+  else
+    echo "qvOS TUI is unavailable or differs from source; the terminal fallback remains usable." >&2
+    exit 1
+  fi
+  ;;
+--status)
+  status
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
