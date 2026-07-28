@@ -57,18 +57,18 @@ When the isolated session is healthy and the vault is correctly scoped, report
 the empty or missing grant and ask the user to add or grant the item. Do not
 reauthenticate or broaden access to work around missing content.
 
-On qvOS with no isolated session, have the user run
-`omarchy install qvcore proton` in an interactive terminal. Its authenticated
-wizard first inventories Pass, Drive, Mail Bridge, the Proton account CLI, and
-this skill, then installs only missing or stale components. With no existing
-authentication it continues directly; otherwise it offers one `reset` or
-`skip` choice. `skip` keeps ready services and configures only missing ones.
-`reset` revokes the exact PAT backing this isolated session, signs Drive out,
-guides the user through Bridge account removal, and reauthenticates all three.
-The Pass flow creates or reuses `Codex Vault`, creates a one-year viewer PAT,
-passes it directly into `pass-cli login` inside the isolated XDG environment,
-clears it, and verifies all three checks above. Never display the PAT or create
-another one outside that explicitly invoked setup flow.
+On qvOS with no isolated session, have the user open
+`Settings > Software > qvCORE` and choose `Proton — Install`. The authenticated
+wizard inventories Pass, Drive, Mail Bridge, the Proton account CLI, and this
+skill, then installs only missing components. It reuses verified
+authentication and configures only missing services. If the isolated Pass
+session has an incompatible vault scope, the same Install flow resolves and
+revokes its exact PAT before replacing it; unverifiable session data is
+preserved and stops the install safely. The Pass flow creates or reuses
+`Codex Vault`, creates a one-year viewer PAT, passes it directly into
+`pass-cli login` inside the isolated XDG environment, clears it, and verifies
+all three checks above. Never display the PAT or create another one outside
+that explicitly invoked setup flow.
 
 Use these patterns:
 

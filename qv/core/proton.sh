@@ -424,7 +424,41 @@ pass_codex_ready() {
   ' <<<"$vault_json" >/dev/null
 }
 
+replace_incompatible_pass_session() {
+  local existing_pat_name=$1
+  local existing_pat_id
+  local pat_count
+  local pat_list
+
+  pat_list=$(run_pass_admin pat list --output json)
+  pat_count=$(
+    jq --arg name "$existing_pat_name" \
+      '[.[] | select(.name == $name)] | length' <<<"$pat_list"
+  )
+
+  if ((pat_count == 0)); then
+    echo "The incompatible Codex PAT was not found; its local session was preserved." >&2
+    return 1
+  elif ((pat_count > 1)); then
+    echo "Multiple PATs match the Codex session; none were changed." >&2
+    return 1
+  fi
+
+  existing_pat_id=$(
+    jq -er --arg name "$existing_pat_name" '
+      [.[] | select(.name == $name)]
+      | if length == 1 then .[0].pat_id else error("PAT is not unique") end
+    ' <<<"$pat_list"
+  )
+  run_pass_admin pat delete \
+    --personal-access-token-id "$existing_pat_id" >/dev/null
+  run_pass_codex logout --force >/dev/null 2>&1 || true
+  echo "Replaced the incompatible isolated Proton Pass session."
+}
+
 setup_pass_auth() {
+  local existing_pat_name=""
+  local info_json
   local pat_env=""
   local pat_json=""
   local pat_name
@@ -437,7 +471,7 @@ setup_pass_auth() {
     return
   fi
 
-  if run_pass_codex info --output json >/dev/null 2>&1; then
+  if info_json=$(run_pass_codex info --output json 2>/dev/null); then
     if ! run_pass_codex test >/dev/null 2>&1; then
       echo "Existing Proton Pass Codex access could not be verified." >&2
       echo "Retry when Proton Pass is reachable; the session was not changed." >&2
@@ -449,8 +483,16 @@ setup_pass_auth() {
       return 1
     fi
 
-    echo "Replacing an isolated Proton Pass session with an unexpected vault scope."
-    run_pass_codex logout --force >/dev/null
+    existing_pat_name=$(
+      jq -er '
+        .personal_access_token_name
+        | select(type == "string" and length > 0)
+      ' <<<"$info_json"
+    )
+    if [[ $existing_pat_name == "[Agent] "* ]]; then
+      existing_pat_name=${existing_pat_name#"[Agent] "}
+    fi
+    echo "The isolated Proton Pass session has an incompatible vault scope."
   elif find "$codex_pass_root/data" -type f -print -quit | grep -q .; then
     echo "Existing Proton Pass Codex session data could not be verified." >&2
     echo "The session was preserved; resolve or remove it before retrying." >&2
@@ -458,6 +500,9 @@ setup_pass_auth() {
   fi
 
   open_pass_admin
+  if [[ -n $existing_pat_name ]]; then
+    replace_incompatible_pass_session "$existing_pat_name"
+  fi
 
   vault_json=$(run_pass_admin vault list --output json)
   vault_count=$(
