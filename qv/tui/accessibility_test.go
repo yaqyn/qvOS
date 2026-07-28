@@ -44,8 +44,8 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 	if strings.Contains(content, "v close logs") {
 		t.Fatalf("open log view exposes a secondary action persistently: %q", content)
 	}
-	if m.View().MouseMode != tea.MouseModeNone {
-		t.Fatal("open log view captures the mouse instead of allowing terminal text selection")
+	if m.View().MouseMode != tea.MouseModeCellMotion {
+		t.Fatal("open side log releases the mouse outside full terminal output")
 	}
 }
 
@@ -258,7 +258,7 @@ func TestLogOutputScrollsAndReturnsToFollowingTheNewestLine(t *testing.T) {
 	}
 }
 
-func TestLogHelpDocumentsScrollingAndTerminalNativeCopy(t *testing.T) {
+func TestLogHelpKeepsSelectionAndCopyInFullTerminalOutput(t *testing.T) {
 	for _, size := range []struct {
 		name          string
 		width, height int
@@ -283,13 +283,151 @@ func TestLogHelpDocumentsScrollingAndTerminalNativeCopy(t *testing.T) {
 				"scroll lines",
 				"scroll pages",
 				"oldest / newest",
-				"copy + paste",
 			} {
 				if !strings.Contains(content, expected) {
 					t.Fatalf("log help is missing %q: %q", expected, content)
 				}
 			}
+			for _, hidden := range []string{"copy visible text", "copy full log"} {
+				if strings.Contains(content, hidden) {
+					t.Fatalf("side log help exposes terminal-only action %q: %q", hidden, content)
+				}
+			}
 			assertViewFits(t, view.Content, size.width, size.height)
+		})
+	}
+
+	m := model{
+		width:          140,
+		height:         31,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptLogLines: []string{"captured output"},
+		terminalView:   true,
+	}
+	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	content := stripANSI(next.(model).View().Content)
+	for _, expected := range []string{
+		"scroll lines",
+		"scroll pages",
+		"oldest / newest",
+		"copy visible text",
+		"copy full log",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("terminal help is missing %q: %q", expected, content)
+		}
+	}
+}
+
+func TestCopyFullLogUsesCapturedOutputOutsideTheVisibleViewport(t *testing.T) {
+	var lines []string
+	for index := 0; index < 30; index++ {
+		lines = append(lines, fmt.Sprintf("log line %02d", index))
+	}
+
+	text := tuiLogClipboardText(lines)
+	for _, expected := range []string{"log line 00", "log line 29"} {
+		if !strings.Contains(text, expected) {
+			t.Fatalf("clipboard text is missing offscreen line %q: %q", expected, text)
+		}
+	}
+
+	m := model{
+		width:          140,
+		height:         31,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptLogLines: lines,
+		terminalView:   true,
+	}
+	next, command := m.Update(tea.KeyPressMsg{Code: 'y'})
+	if command == nil {
+		t.Fatal("y did not start full-log copy")
+	}
+	m = next.(model)
+	if m.logCopyStatus != "copying full log" || !m.terminalView {
+		t.Fatalf("copy state = %q, terminal = %t", m.logCopyStatus, m.terminalView)
+	}
+
+	next, command = m.Update(tuiLogCopiedMsg{})
+	if command != nil {
+		t.Fatal("copy result launched another command")
+	}
+	m = next.(model)
+	if m.logCopyStatus != "full log copied" {
+		t.Fatalf("copy result status = %q", m.logCopyStatus)
+	}
+	if content := stripANSI(m.View().Content); !strings.Contains(content, "full log copied") {
+		t.Fatalf("terminal output does not confirm full-log copy: %q", content)
+	}
+}
+
+func TestEveryFullTerminalSurfaceOffersFullLogCopy(t *testing.T) {
+	prototype := prototypeSessionModel{
+		terminalView: true,
+		logLines:     []string{"prototype output"},
+	}
+	nextPrototype, prototypeCommand := prototype.Update(tea.KeyPressMsg{Code: 'y'})
+	if prototypeCommand == nil || nextPrototype.(prototypeSessionModel).logCopyStatus != "copying full log" {
+		t.Fatal("prototype terminal did not start full-log copy")
+	}
+
+	iso := isoProgressModel{
+		terminalView: true,
+		logLines:     []string{"ISO output"},
+	}
+	nextISO, isoCommand := iso.Update(tea.KeyPressMsg{Code: 'y'})
+	if isoCommand == nil || nextISO.(isoProgressModel).logCopyStatus != "copying full log" {
+		t.Fatal("ISO terminal did not start full-log copy")
+	}
+}
+
+func TestOnlyFullTerminalOutputEnablesNativeSelection(t *testing.T) {
+	tests := []struct {
+		name     string
+		sideView tea.View
+		fullView tea.View
+	}{
+		{
+			name: "update",
+			sideView: (model{
+				width: 140, height: 31, loading: true, action: actionUpdate, logOverlay: true,
+			}).View(),
+			fullView: (model{
+				width: 140, height: 31, loading: true, action: actionUpdate, terminalView: true,
+			}).View(),
+		},
+		{
+			name: "prototype",
+			sideView: (prototypeSessionModel{
+				width: 140, height: 31, logOverlay: true,
+			}).View(),
+			fullView: (prototypeSessionModel{
+				width: 140, height: 31, terminalView: true,
+			}).View(),
+		},
+		{
+			name: "ISO progress",
+			sideView: (isoProgressModel{
+				width: 140, height: 31, logOverlay: true,
+			}).View(),
+			fullView: (isoProgressModel{
+				width: 140, height: 31, terminalView: true,
+			}).View(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.sideView.MouseMode != tea.MouseModeCellMotion {
+				t.Fatal("side log releases mouse capture")
+			}
+			if test.fullView.MouseMode != tea.MouseModeNone {
+				t.Fatal("full terminal output does not release mouse capture")
+			}
 		})
 	}
 }

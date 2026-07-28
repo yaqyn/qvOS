@@ -57,9 +57,11 @@ Open log views show a quiet, non-red `ctrl+v switch` cue below the log pane.
 The full terminal view promotes that switch to the normal high-contrast
 control row. Arrow or `j`/`k` keys scroll one line, Page Up and Page Down scroll
 one page, Home opens the oldest retained output, and End resumes the newest
-output. Mouse capture is disabled in log views so terminal-native selection
-and `Ctrl+Shift+C` copy work normally; copied text can be pasted into another
-terminal or application. Captured output is read-only.
+output. Mouse capture is disabled only in full terminal output, where
+terminal-native selection and `Ctrl+Shift+C` copy work normally. Native
+selection covers the currently rendered cells; press `y` to copy the full
+captured log, including output outside the viewport. Captured output is
+read-only.
 
 The four model roles carry meaning across surfaces:
 

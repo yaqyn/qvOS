@@ -411,6 +411,7 @@ type prototypeSessionModel struct {
 	logOverlay    bool
 	terminalView  bool
 	logScroll     int
+	logCopyStatus string
 	helpOverlay   bool
 	failed        bool
 	done          bool
@@ -456,6 +457,9 @@ func (m prototypeSessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, detectFullscreenCmd()
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
+	case tuiLogCopiedMsg:
+		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
+		return m, nil
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
@@ -498,11 +502,17 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	}
 	if m.terminalView {
 		switch msg.String() {
+		case "y", "Y":
+			var cmd tea.Cmd
+			m.logCopyStatus, cmd = beginTUILogCopy(m.logLines)
+			return m, cmd
 		case "ctrl+v":
 			m.terminalView = false
+			m.logCopyStatus = ""
 		case "v", "V":
 			m.terminalView = false
 			m.logOverlay = true
+			m.logCopyStatus = ""
 		case "ctrl+c", "esc":
 			clearRunes(m.password)
 			m.password = nil
@@ -551,6 +561,7 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		m.logOverlay = !m.logOverlay
 	case "ctrl+v":
 		m.terminalView = true
+		m.logCopyStatus = ""
 	case "r":
 		if m.failed {
 			m.attempt++
@@ -583,6 +594,7 @@ func (m prototypeSessionModel) View() tea.View {
 			"PROTOTYPE / "+m.profile.title,
 			m.logLines,
 			m.logScroll,
+			m.logCopyStatus,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -609,7 +621,11 @@ func (m prototypeSessionModel) View() tea.View {
 
 	view := tea.NewView(renderViewport(termWidth, termHeight, body))
 	view.AltScreen = true
-	view.MouseMode = tea.MouseModeNone
+	if m.terminalView {
+		view.MouseMode = tea.MouseModeNone
+	} else {
+		view.MouseMode = tea.MouseModeCellMotion
+	}
 	view.BackgroundColor = lipgloss.Color(bgTerm)
 	view.WindowTitle = "qvOS session prototype"
 	return view
@@ -661,7 +677,7 @@ func (m prototypeSessionModel) helpHints() []tuiHint {
 			{Key: "v", Action: "return with the log panel open"},
 			{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
 		}
-		return append(hints, tuiLogInteractionHints()...)
+		return append(hints, tuiTerminalLogHints()...)
 	}
 	if m.awaitingAuthorization() {
 		return []tuiHint{
@@ -679,7 +695,7 @@ func (m prototypeSessionModel) helpHints() []tuiHint {
 		{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
 	}
 	if m.logOverlay {
-		hints = append(hints, tuiLogInteractionHints()...)
+		hints = append(hints, tuiLogScrollHints()...)
 	}
 	if m.failed {
 		hints = append([]tuiHint{

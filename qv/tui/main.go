@@ -354,6 +354,7 @@ type model struct {
 	logOverlay        bool
 	terminalView      bool
 	logScroll         int
+	logCopyStatus     string
 	helpOverlay       bool
 	updateConfirm     bool
 	updateChoice      int
@@ -493,6 +494,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, detectFullscreenCmd()
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
+
+	case tuiLogCopiedMsg:
+		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
+		return m, nil
 
 	case scriptDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -642,12 +647,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.terminalView {
 			switch msg.String() {
+			case "y", "Y":
+				var cmd tea.Cmd
+				m.logCopyStatus, cmd = beginTUILogCopy(m.scriptLogLines)
+				return m, cmd
 			case "ctrl+v":
 				m.terminalView = false
+				m.logCopyStatus = ""
 				return m, nil
 			case "v", "V":
 				m.terminalView = false
 				m.logOverlay = true
+				m.logCopyStatus = ""
 				return m, nil
 			case "ctrl+c", "ctrl+z":
 				if m.loadPhase() != loadRun {
@@ -703,6 +714,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+v":
 				if isScriptAction(m.action) {
 					m.terminalView = true
+					m.logCopyStatus = ""
 				}
 			case "r":
 				if isRootAction(m.action) && phase == loadErr {
@@ -762,6 +774,7 @@ func (m model) View() tea.View {
 			rootActionName(m.action),
 			m.scriptLogLines,
 			m.logScroll,
+			m.logCopyStatus,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -797,7 +810,7 @@ func (m model) View() tea.View {
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
-	if m.logOverlay || m.terminalView {
+	if m.terminalView {
 		v.MouseMode = tea.MouseModeNone
 	} else {
 		v.MouseMode = tea.MouseModeCellMotion
@@ -933,7 +946,7 @@ func (m model) helpHints() []tuiHint {
 		{Key: "ctrl+v", Action: "toggle original terminal output"},
 	}
 	if m.logOverlay {
-		hints = append(hints, tuiLogInteractionHints()...)
+		hints = append(hints, tuiLogScrollHints()...)
 	}
 	switch phase {
 	case loadErr:
@@ -1008,7 +1021,7 @@ func (m model) terminalHelpHints() []tuiHint {
 		{Key: "ctrl+v", Action: "switch to the qvOS view"},
 		{Key: "v", Action: "return with the log panel open"},
 	}
-	hints = append(hints, tuiLogInteractionHints()...)
+	hints = append(hints, tuiTerminalLogHints()...)
 	if m.loadPhase() == loadRun {
 		action := "cancel the action"
 		if m.action == actionUpdate {
@@ -1405,6 +1418,7 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	m.logOverlay = false
 	m.terminalView = false
 	m.logScroll = 0
+	m.logCopyStatus = ""
 	m.helpOverlay = false
 	m.updateConfirm = true
 	m.updateChoice = 0
@@ -1511,6 +1525,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.logOverlay = false
 	m.terminalView = false
 	m.logScroll = 0
+	m.logCopyStatus = ""
 	m.helpOverlay = false
 	m.updateConfirm = false
 	m.updateStopConfirm = false
@@ -1559,6 +1574,7 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	m.logOverlay = false
 	m.terminalView = false
 	m.logScroll = 0
+	m.logCopyStatus = ""
 	m.helpOverlay = false
 
 	if err != nil {
@@ -1596,6 +1612,7 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.logOverlay = false
 	m.terminalView = false
 	m.logScroll = 0
+	m.logCopyStatus = ""
 	m.helpOverlay = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0

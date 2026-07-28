@@ -52,9 +52,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   characters before rendering captured output so child processes cannot move
   the TUI cursor or break panel geometry. Log views follow the newest output by
   default and support line, page, oldest, and newest navigation. Disable
-  application mouse capture while logs are visible so users can select and
-  copy text with normal terminal controls, then paste it elsewhere; logs remain
-  read-only and never execute pasted content.
+  application mouse capture only in full terminal output so normal terminal
+  selection and copy work there. Native selection covers rendered cells, not
+  internally scrolled history; provide `y` to copy the full captured log.
+  Logs remain read-only and never execute pasted content.
 
 ## Change Workflow
 

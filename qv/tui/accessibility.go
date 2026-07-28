@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +12,10 @@ import (
 type tuiHint struct {
 	Key    string
 	Action string
+}
+
+type tuiLogCopiedMsg struct {
+	err error
 }
 
 func handleTUIHelpKey(open bool, msg tea.KeyPressMsg) (bool, bool) {
@@ -138,13 +143,46 @@ func appendTUILogSwitchCue(panel string, width int, offset int) string {
 	return panel + "\n" + lipgloss.PlaceHorizontal(width, lipgloss.Center, sGray.Render(cue))
 }
 
-func tuiLogInteractionHints() []tuiHint {
+func tuiLogScrollHints() []tuiHint {
 	return []tuiHint{
 		{Key: "↑ / ↓  or  j / k", Action: "scroll lines"},
 		{Key: "pgup / pgdown", Action: "scroll pages"},
 		{Key: "home / end", Action: "oldest / newest"},
-		{Key: "drag / ctrl+shift+c", Action: "copy + paste"},
 	}
+}
+
+func tuiTerminalLogHints() []tuiHint {
+	return append(tuiLogScrollHints(),
+		tuiHint{Key: "drag / ctrl+shift+c", Action: "copy visible text"},
+		tuiHint{Key: "y", Action: "copy full log"},
+	)
+}
+
+func tuiLogClipboardText(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func beginTUILogCopy(lines []string) (string, tea.Cmd) {
+	text := tuiLogClipboardText(lines)
+	if text == "" {
+		return "nothing to copy", nil
+	}
+
+	return "copying full log", func() tea.Msg {
+		cmd := exec.Command("wl-copy", "--type", "text/plain;charset=utf-8")
+		cmd.Stdin = strings.NewReader(text)
+		return tuiLogCopiedMsg{err: cmd.Run()}
+	}
+}
+
+func tuiLogCopyResultStatus(err error) string {
+	if err != nil {
+		return "copy failed · clipboard unavailable"
+	}
+	return "full log copied"
 }
 
 func terminalOutputContentHeight(height int) int {
@@ -186,7 +224,14 @@ func renderTUIHelp(width int, title string, hints []tuiHint) string {
 		Render(strings.Join(rows, "\n"))
 }
 
-func renderTUITerminalOutput(width, height int, page string, lines []string, scrollOffset int, hints []tuiHint) string {
+func renderTUITerminalOutput(
+	width, height int,
+	page string,
+	lines []string,
+	scrollOffset int,
+	copyStatus string,
+	hints []tuiHint,
+) string {
 	panelWidth := min(112, max(20, width-6))
 	contentWidth := max(1, panelWidth-4)
 	contentHeight := terminalOutputContentHeight(height)
@@ -199,10 +244,20 @@ func renderTUITerminalOutput(width, height int, page string, lines []string, scr
 
 	body := make([]string, 0, len(lines)+5)
 	title := sWhite.Render("qvOS  " + strings.ToUpper(page) + " / TERMINAL OUTPUT")
+	var metadata []string
 	if scrollOffset > 0 {
-		position := sGray.Render(fmt.Sprintf("%d newer", scrollOffset))
-		gap := max(1, contentWidth-lipgloss.Width(title)-lipgloss.Width(position))
-		title += strings.Repeat(" ", gap) + position
+		metadata = append(metadata, fmt.Sprintf("%d newer", scrollOffset))
+	}
+	if copyStatus != "" {
+		metadata = append(metadata, copyStatus)
+	}
+	if len(metadata) > 0 {
+		available := contentWidth - lipgloss.Width(title) - 1
+		if available > 0 {
+			status := sGray.Render(trimDisplay(strings.Join(metadata, " · "), available))
+			gap := max(1, contentWidth-lipgloss.Width(title)-lipgloss.Width(status))
+			title += strings.Repeat(" ", gap) + status
+		}
 	}
 	body = append(body, title, sDeepRed.Render(strings.Repeat("━", contentWidth)))
 	for _, line := range lines {

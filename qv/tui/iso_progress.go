@@ -18,22 +18,23 @@ const (
 )
 
 type isoProgressModel struct {
-	frame        int
-	width        int
-	height       int
-	fullscreen   bool
-	logPath      string
-	noInput      bool
-	prototype    bool
-	previewAge   int
-	progress     float64
-	target       float64
-	status       string
-	logLines     []string
-	logOverlay   bool
-	terminalView bool
-	logScroll    int
-	helpOverlay  bool
+	frame         int
+	width         int
+	height        int
+	fullscreen    bool
+	logPath       string
+	noInput       bool
+	prototype     bool
+	previewAge    int
+	progress      float64
+	target        float64
+	status        string
+	logLines      []string
+	logOverlay    bool
+	terminalView  bool
+	logScroll     int
+	logCopyStatus string
+	helpOverlay   bool
 }
 
 type isoProgressSnapshotMsg struct {
@@ -144,6 +145,9 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		}
 		m.logLines = msg.lines
+	case tuiLogCopiedMsg:
+		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
+		return m, nil
 	case tea.KeyPressMsg:
 		if m.noInput {
 			return m, nil
@@ -165,11 +169,17 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.terminalView {
 			switch msg.String() {
+			case "y", "Y":
+				var cmd tea.Cmd
+				m.logCopyStatus, cmd = beginTUILogCopy(m.logLines)
+				return m, cmd
 			case "ctrl+v":
 				m.terminalView = false
+				m.logCopyStatus = ""
 			case "v", "V":
 				m.terminalView = false
 				m.logOverlay = true
+				m.logCopyStatus = ""
 			case "esc", "ctrl+c":
 				if m.prototype {
 					return m, tea.Quit
@@ -192,6 +202,7 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.String() == "ctrl+v" {
 			m.terminalView = true
+			m.logCopyStatus = ""
 		}
 	}
 	return m, nil
@@ -249,6 +260,7 @@ func (m isoProgressModel) View() tea.View {
 			"INSTALL",
 			m.logLines,
 			m.logScroll,
+			m.logCopyStatus,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -281,7 +293,11 @@ func (m isoProgressModel) View() tea.View {
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
-	v.MouseMode = tea.MouseModeNone
+	if m.terminalView {
+		v.MouseMode = tea.MouseModeNone
+	} else {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	v.BackgroundColor = lipgloss.Color(bgTerm)
 	v.WindowTitle = "qvOS install"
 	return v
@@ -328,7 +344,7 @@ func (m isoProgressModel) helpHints() []tuiHint {
 			{Key: "ctrl+v", Action: "switch to the qvOS install view"},
 			{Key: "v", Action: "return with the log panel open"},
 		}
-		hints = append(hints, tuiLogInteractionHints()...)
+		hints = append(hints, tuiTerminalLogHints()...)
 		if m.prototype {
 			hints = append(hints, tuiHint{Key: "esc / ctrl+c", Action: "return to the prototype hub"})
 		}
@@ -340,7 +356,7 @@ func (m isoProgressModel) helpHints() []tuiHint {
 		{Key: "ctrl+v", Action: "toggle original terminal output"},
 	}
 	if m.logOverlay {
-		hints = append(hints, tuiLogInteractionHints()...)
+		hints = append(hints, tuiLogScrollHints()...)
 	}
 	if m.prototype {
 		hints = append(hints,
