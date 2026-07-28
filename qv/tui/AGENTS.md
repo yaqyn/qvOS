@@ -19,7 +19,9 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   stays in logs and must not fabricate progress or overwrite the active stage.
 - Complete confirmation and non-mutating preflight before sudo. Cancellation
   remains available for normal desktop actions and must stop the full owned
-  process group. Only boot/ISO installation is intentionally non-interruptible.
+  process group. During Update, interruption keys open a confirmation while
+  mutation continues; only an explicit `Stop Update` choice may cancel it.
+  Only boot/ISO installation is intentionally non-interruptible.
 - Put runnable snapshots under the user runtime directory, never inside the
   Omarchy checkout, and stop active children when a TUI window exits.
 

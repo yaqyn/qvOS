@@ -45,4 +45,10 @@ func TestUpdateCopyNamesTheWholeProductOperation(t *testing.T) {
 	if CancelingStatus != "stopping update" || CanceledStatus != "update stopped" {
 		t.Fatalf("cancellation copy = %q / %q", CancelingStatus, CanceledStatus)
 	}
+	if KeepUpdatingAction != "Keep Updating" || StopUpdateAction != "Stop Update" {
+		t.Fatalf("stop confirmation actions = %q / %q", KeepUpdatingAction, StopUpdateAction)
+	}
+	if StopPromptNotice != "Update keeps running until you confirm" {
+		t.Fatalf("stop confirmation notice = %q", StopPromptNotice)
+	}
 }

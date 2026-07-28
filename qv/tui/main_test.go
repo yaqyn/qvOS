@@ -155,7 +155,7 @@ func TestUpdateCancellationNeverStartsWork(t *testing.T) {
 	}
 }
 
-func TestRunningUpdateCanBeCanceledFromTheTUI(t *testing.T) {
+func TestRunningUpdateInterruptionKeysOpenStopConfirmation(t *testing.T) {
 	for _, code := range []rune{'c', 'z'} {
 		t.Run(string(code), func(t *testing.T) {
 			canceled := false
@@ -168,13 +168,81 @@ func TestRunningUpdateCanBeCanceledFromTheTUI(t *testing.T) {
 
 			next, _ := m.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModCtrl})
 			m = next.(model)
-			if !canceled || !m.scriptCanceling {
-				t.Fatal("running Update did not start controlled cancellation")
+			if canceled || m.scriptCanceling {
+				t.Fatal("interruption key stopped the running Update before confirmation")
 			}
-			if m.scriptStatus != "stopping update" {
-				t.Fatalf("cancellation status = %q", m.scriptStatus)
+			if !m.updateStopConfirm || m.updateStopChoice != 0 {
+				t.Fatal("interruption key did not open the safe default stop confirmation")
 			}
 		})
+	}
+}
+
+func TestRunningUpdateOnlyStopsAfterExplicitConfirmation(t *testing.T) {
+	canceled := false
+	m := model{
+		loading:           true,
+		action:            actionUpdate,
+		scriptRunning:     true,
+		scriptCancel:      func() { canceled = true },
+		updateStopConfirm: true,
+	}
+
+	next, _ := m.handleUpdateStopConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+	if canceled || m.scriptCanceling || m.updateStopConfirm {
+		t.Fatal("default Keep Updating choice did not return safely to progress")
+	}
+
+	m.updateStopConfirm = true
+	next, _ = m.handleUpdateStopConfirmationKey(tea.KeyPressMsg{Code: tea.KeyRight})
+	m = next.(model)
+	next, _ = m.handleUpdateStopConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+	if !canceled || !m.scriptCanceling || m.updateStopConfirm {
+		t.Fatal("explicit Stop Update confirmation did not start controlled cancellation")
+	}
+	if m.scriptStatus != "stopping update" {
+		t.Fatalf("cancellation status = %q", m.scriptStatus)
+	}
+}
+
+func TestUpdateStopConfirmationEscapeKeepsUpdateRunning(t *testing.T) {
+	canceled := false
+	m := model{
+		loading:           true,
+		action:            actionUpdate,
+		scriptRunning:     true,
+		scriptCancel:      func() { canceled = true },
+		updateStopConfirm: true,
+		updateStopChoice:  1,
+	}
+
+	next, _ := m.handleUpdateStopConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = next.(model)
+	if canceled || m.scriptCanceling || m.updateStopConfirm {
+		t.Fatal("Escape did not return to the running Update")
+	}
+}
+
+func TestCompletedUpdateClosesStopConfirmation(t *testing.T) {
+	m := model{
+		loading:           true,
+		action:            actionUpdate,
+		scriptRunning:     true,
+		scriptPath:        "/tmp/update",
+		updateStopConfirm: true,
+	}
+
+	next, _ := m.Update(scriptEventMsg{event: scriptEvent{
+		action:   actionUpdate,
+		script:   "/tmp/update",
+		progress: 1,
+		done:     true,
+	}})
+	m = next.(model)
+	if m.updateStopConfirm || !m.scriptDone {
+		t.Fatal("completed Update left the stop confirmation open")
 	}
 }
 
@@ -305,7 +373,7 @@ func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 	}
 }
 
-func TestUpdateProgressShowsCancellationAtEveryResponsiveSize(t *testing.T) {
+func TestUpdateProgressShowsStopOptionsAtEveryResponsiveSize(t *testing.T) {
 	sizes := []struct {
 		name          string
 		width, height int
@@ -327,8 +395,49 @@ func TestUpdateProgressShowsCancellationAtEveryResponsiveSize(t *testing.T) {
 			}
 			view := m.View()
 			if content := stripANSI(view.Content); !strings.Contains(content, "ctrl+c/z") ||
-				!strings.Contains(content, "cancel") {
-				t.Fatalf("cancellation hint is missing: %q", content)
+				!strings.Contains(content, "stop options") {
+				t.Fatalf("stop-options hint is missing: %q", content)
+			}
+			for index, line := range strings.Split(view.Content, "\n") {
+				if width := lipgloss.Width(line); width > size.width {
+					t.Fatalf("line %d width = %d, terminal width = %d", index, width, size.width)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateStopConfirmationFitsResponsiveShapes(t *testing.T) {
+	sizes := []struct {
+		name          string
+		width, height int
+	}{
+		{"desktop", 120, 42},
+		{"tablet", 72, 30},
+		{"mobile", 44, 18},
+	}
+
+	for _, size := range sizes {
+		t.Run(size.name, func(t *testing.T) {
+			m := model{
+				width:             size.width,
+				height:            size.height,
+				loading:           true,
+				action:            actionUpdate,
+				scriptRunning:     true,
+				updateStopConfirm: true,
+			}
+			view := m.View()
+			content := stripANSI(view.Content)
+			for _, expected := range []string{
+				"STOP UPDATE?",
+				"Update keeps running until you confirm",
+				"Keep Updating",
+				"Stop Update",
+			} {
+				if !strings.Contains(content, expected) {
+					t.Fatalf("stop confirmation is missing %q: %q", expected, content)
+				}
 			}
 			for index, line := range strings.Split(view.Content, "\n") {
 				if width := lipgloss.Width(line); width > size.width {

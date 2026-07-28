@@ -280,38 +280,40 @@ const (
 )
 
 type model struct {
-	tab             int
-	cursor          int
-	frame           int
-	width, height   int
-	fullscreen      bool
-	loading         bool
-	action          actionMode
-	loadStart       int
-	scriptRunning   bool
-	scriptDone      bool
-	scriptErr       error
-	scriptPath      string
-	sudoChecking    bool
-	sudoPrompt      bool
-	sudoPassword    []rune
-	sudoErr         error
-	scriptCancel    context.CancelFunc
-	scriptEvents    <-chan scriptEvent
-	scriptStatus    string
-	scriptProgress  float64
-	scriptTarget    float64
-	scriptLogLines  []string
-	scriptArtifact  string
-	scriptRelease   string
-	scriptCanceling bool
-	scriptCanceled  bool
-	logOverlay      bool
-	updateConfirm   bool
-	updateChoice    int
-	updatePreflight bool
-	dedicatedAction bool
-	updateCanceled  bool
+	tab               int
+	cursor            int
+	frame             int
+	width, height     int
+	fullscreen        bool
+	loading           bool
+	action            actionMode
+	loadStart         int
+	scriptRunning     bool
+	scriptDone        bool
+	scriptErr         error
+	scriptPath        string
+	sudoChecking      bool
+	sudoPrompt        bool
+	sudoPassword      []rune
+	sudoErr           error
+	scriptCancel      context.CancelFunc
+	scriptEvents      <-chan scriptEvent
+	scriptStatus      string
+	scriptProgress    float64
+	scriptTarget      float64
+	scriptLogLines    []string
+	scriptArtifact    string
+	scriptRelease     string
+	scriptCanceling   bool
+	scriptCanceled    bool
+	logOverlay        bool
+	updateConfirm     bool
+	updateChoice      int
+	updateStopConfirm bool
+	updateStopChoice  int
+	updatePreflight   bool
+	dedicatedAction   bool
+	updateCanceled    bool
 }
 
 func isRootAction(action actionMode) bool {
@@ -454,6 +456,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scriptCancel = nil
 		m.scriptEvents = nil
 		m.scriptCanceling = false
+		m.updateStopConfirm = false
 		if msg.err == nil {
 			m.scriptProgress = 1
 			m.scriptTarget = 1
@@ -506,6 +509,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scriptCancel = nil
 			m.scriptEvents = nil
 			m.scriptCanceling = false
+			m.updateStopConfirm = false
 			if msg.event.err == nil || canceled {
 				m.scriptProgress = 1
 				m.scriptTarget = 1
@@ -563,6 +567,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if m.loading {
+			if m.updateStopConfirm {
+				return m.handleUpdateStopConfirmationKey(msg)
+			}
 			if m.updateConfirm {
 				return m.handleUpdateConfirmationKey(msg)
 			}
@@ -573,6 +580,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
+					if m.action == actionUpdate && !m.scriptCanceling {
+						m.updateStopConfirm = true
+						m.updateStopChoice = 0
+						return m, nil
+					}
 					m.scriptCanceling = true
 					m.scriptStatus = rootActionCancelingStatus(m.action)
 					m.scriptTarget = max(m.scriptTarget, 0.98)
@@ -1097,6 +1109,8 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	m.logOverlay = false
 	m.updateConfirm = true
 	m.updateChoice = 0
+	m.updateStopConfirm = false
+	m.updateStopChoice = 0
 	m.updatePreflight = false
 	m.dedicatedAction = dedicated
 	m.updateCanceled = false
@@ -1121,6 +1135,29 @@ func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.
 	return m, nil
 }
 
+func (m model) handleUpdateStopConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "left", "h", "up", "k", "shift+tab":
+		m.updateStopChoice = 0
+	case "right", "l", "down", "j", "tab":
+		m.updateStopChoice = 1
+	case "esc":
+		m.updateStopConfirm = false
+	case "enter":
+		m.updateStopConfirm = false
+		if m.updateStopChoice == 0 {
+			return m, nil
+		}
+		if m.scriptRunning && m.scriptCancel != nil && !m.scriptCanceling {
+			m.scriptCanceling = true
+			m.scriptStatus = rootActionCancelingStatus(m.action)
+			m.scriptTarget = max(m.scriptTarget, 0.98)
+			m.scriptCancel()
+		}
+	}
+	return m, nil
+}
+
 func (m model) cancelUpdate() (model, tea.Cmd) {
 	clearRunes(m.sudoPassword)
 	m.sudoPassword = nil
@@ -1128,6 +1165,7 @@ func (m model) cancelUpdate() (model, tea.Cmd) {
 	m.sudoChecking = false
 	m.updatePreflight = false
 	m.updateConfirm = false
+	m.updateStopConfirm = false
 	m.updateCanceled = true
 	if m.dedicatedAction {
 		return m, tea.Quit
@@ -1169,6 +1207,8 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptCanceled = false
 	m.logOverlay = false
 	m.updateConfirm = false
+	m.updateStopConfirm = false
+	m.updateStopChoice = 0
 	m.updatePreflight = action == actionUpdate
 	m.updateCanceled = false
 
@@ -1245,6 +1285,8 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.updateStopConfirm = false
+	m.updateStopChoice = 0
 	return m, runRootScriptCmd(action, script)
 }
 
@@ -1890,6 +1932,9 @@ func renderReducedProgress(label string, phase loadPhase, progress float64, mode
 }
 
 func (m model) renderRootActionFor(mode layoutMode) string {
+	if m.updateStopConfirm {
+		return m.renderUpdateStopConfirmationFor(mode)
+	}
 	if m.updateConfirm {
 		return m.renderUpdateConfirmationFor(mode)
 	}
@@ -1905,6 +1950,28 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 		"",
 		centerCanvas(m.renderRootLogOverlayFor(mode)),
 	}, "\n")
+}
+
+func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
+	title := centerCanvas(sWhite.Render(updateflow.StopPromptTitle))
+	notice := centerCanvas(sMid.Render(updateflow.StopPromptNotice))
+	actions := centerCanvas(lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		renderConfirmationAction(updateflow.KeepUpdatingAction, m.updateStopChoice == 0),
+		"   ",
+		renderConfirmationAction(updateflow.StopUpdateAction, m.updateStopChoice == 1),
+	))
+
+	if mode == layoutMobile {
+		return strings.Join([]string{title, "", notice, "", actions}, "\n")
+	}
+
+	hint := centerCanvas(
+		sDim.Render("←→") + sGray.Render("  choose    ") +
+			sDim.Render("⏎") + sGray.Render("  confirm    ") +
+			sDim.Render("esc") + sGray.Render("  keep updating"),
+	)
+	return strings.Join([]string{title, "", notice, "", actions, "", hint}, "\n")
 }
 
 func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
@@ -2031,8 +2098,12 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	if mode != layoutDesktop {
 		reduced := renderReducedProgress(rootActionName(m.action), phase, progress, mode)
 		if phase == loadRun {
+			interruptAction := "cancel"
+			if m.action == actionUpdate {
+				interruptAction = "stop options"
+			}
 			hint := centerCanvas(
-				sDim.Render("ctrl+c/z") + sGray.Render("  cancel"),
+				sDim.Render("ctrl+c/z") + sGray.Render("  "+interruptAction),
 			)
 			return strings.Join([]string{reduced, "", hint}, "\n")
 		}
@@ -2073,7 +2144,11 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		} else {
 			stageRaw = rootActionRunningStatus(m.action)
 		}
-		hint = sDim.Render("ctrl+c/z") + sGray.Render("  cancel    ") +
+		interruptAction := "cancel"
+		if m.action == actionUpdate {
+			interruptAction = "stop options"
+		}
+		hint = sDim.Render("ctrl+c/z") + sGray.Render("  "+interruptAction+"    ") +
 			sDim.Render("v") + sGray.Render("  logs")
 	}
 
