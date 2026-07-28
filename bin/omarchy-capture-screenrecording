@@ -239,8 +239,11 @@ stop_screenrecording() {
     # Generate a preview thumbnail from the first frame
     ffmpeg -y -i "$filename" -ss 00:00:00.1 -vframes 1 -q:v 2 "$preview" -loglevel quiet 2>/dev/null
 
-    "$OMARCHY_PATH/qv/share/notification" \
-      recording "$filename" "$preview" &
+    (
+      ACTION=$(notify-send "Screen recording saved" "Open with Super + Alt + , (or click this)" -t 10000 -i "${preview:-$filename}" -A "default=open")
+      [[ $ACTION == "default" ]] && mpv "$filename"
+      rm -f "$preview"
+    ) &
   fi
 
   rm -f "$RECORDING_FILE"

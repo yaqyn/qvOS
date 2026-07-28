@@ -23,10 +23,7 @@ fi
 inherited_seams=(
   bin/omarchy-branding-about
   bin/omarchy-branding-screensaver
-  bin/omarchy-capture-screenrecording
-  bin/omarchy-capture-screenshot
   bin/omarchy-config-direct-boot
-  bin/omarchy-debug
   bin/omarchy-first-run
   bin/omarchy-install-browser
   bin/omarchy-install-gaming-retroarch
@@ -40,7 +37,6 @@ inherited_seams=(
   bin/omarchy-refresh-sddm
   bin/omarchy-show-logo
   bin/omarchy-theme-bg-install
-  bin/omarchy-transcode
   install/config/all.sh
   install/helpers/all.sh
   install/login/limine-snapper.sh
@@ -133,7 +129,6 @@ pass "every inherited exception is a small qvOS integration seam"
 
 fallback_seams=(
   bin/omarchy-config-direct-boot
-  bin/omarchy-debug
   bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-plymouth-reset
   bin/omarchy-plymouth-set

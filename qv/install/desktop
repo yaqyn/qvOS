@@ -32,8 +32,6 @@
     qv/install/desktop-status
     qv/install/post-update-hook
     qv/launcher/install
-    qv/launcher/elephant/omarchy_background_selector.lua
-    qv/launcher/elephant/omarchy_themes.lua
     qv/launcher/elephant/omarchy_unlocks.lua
     qv/menu/concepts.psv
     qv/menu/elephant/qvos_omarchy_menu.lua

@@ -6,6 +6,8 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 menu_log="$test_root/menu.log"
+base_packages="$test_root/base.packages"
+other_packages="$test_root/other.packages"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -21,11 +23,23 @@ fail() {
   exit 1
 }
 
-grep -qx 'chromium' "$root/qv/install/packaging/base.packages" || fail "Chromium package contract"
-grep -qx 'alacritty' "$root/qv/install/packaging/base.packages" || fail "Alacritty package contract"
-grep -qx 'neovim' "$root/qv/install/packaging/base.packages" || fail "Neovim package contract"
-grep -qx 'omarchy-nvim' "$root/qv/install/packaging/base.packages" || fail "qvOS Neovim package contract"
-grep -qx 'wtype' "$root/qv/install/packaging/base.packages" || fail "Codex Wayland input contract"
+"$root/qv/install/packaging/resolve" base >"$base_packages"
+"$root/qv/install/packaging/resolve" other >"$other_packages"
+
+[[ ! -e $root/qv/install/packaging/base.packages &&
+  ! -e $root/qv/install/packaging/other.packages ]] ||
+  fail "copied Omarchy package manifest remains"
+[[ -x $root/qv/install/packaging/resolve ]] ||
+  fail "qvOS package resolver mode"
+grep -qx 'localsend' "$base_packages" ||
+  fail "inherited LocalSend package resolution"
+pass "qvOS resolves small deltas over the original Omarchy manifests"
+
+grep -qx 'chromium' "$base_packages" || fail "Chromium package contract"
+grep -qx 'alacritty' "$base_packages" || fail "Alacritty package contract"
+grep -qx 'neovim' "$base_packages" || fail "Neovim package contract"
+grep -qx 'omarchy-nvim' "$base_packages" || fail "qvOS Neovim package contract"
+grep -qx 'wtype' "$base_packages" || fail "Codex Wayland input contract"
 for independent_base_package in \
   bubblewrap \
   bind \
@@ -36,8 +50,7 @@ for independent_base_package in \
   qpdf \
   python \
   mise; do
-  grep -Fqx "$independent_base_package" \
-    "$root/qv/install/packaging/base.packages" ||
+  grep -Fqx "$independent_base_package" "$base_packages" ||
     fail "independent base package contract: $independent_base_package"
 done
 
@@ -65,8 +78,8 @@ fi
 pass "Chromium, Alacritty, and Neovim are the qvOS defaults"
 
 for retired_file_manager_package in nautilus nautilus-python sushi; do
-  grep -Fqx "# $retired_file_manager_package" \
-    "$root/qv/install/packaging/base.packages" ||
+  grep -Fqx "$retired_file_manager_package" \
+    "$root/qv/install/packaging/base.exclusions" ||
     fail "$retired_file_manager_package disabled base package"
 done
 grep -Fq 'omarchy-cmd-missing nautilus && return 0' \
@@ -79,7 +92,7 @@ if grep -Eq '^[[:space:]]*nautilus([[:space:]]|$)' \
 fi
 pass "Thunar is singular while inherited Nautilus hooks remain safe to sync"
 
-grep -qx 'gnome-keyring' "$root/qv/install/packaging/base.packages" || fail "desktop keyring package contract"
+grep -qx 'gnome-keyring' "$base_packages" || fail "desktop keyring package contract"
 grep -Fqx 'run_logged $OMARCHY_INSTALL/login/default-keyring.sh' "$root/install/login/all.sh" || fail "default keyring setup contract"
 grep -Fq "pam_gnome_keyring\\.so/d" "$root/install/login/sddm.sh" || fail "SDDM keyring setup contract"
 if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; then
@@ -97,7 +110,7 @@ grep -Fqx 'dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Co
   fail "WARP remains available through DNS configuration"
 pass "WARP stays DNS-owned and installs only when selected"
 
-if grep -Eq '^(7zip|act|age|clang|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
+if grep -Eq '^(7zip|act|age|clang|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$base_packages" "$other_packages" ||
   grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "qvCORE stack software leaked into the base package manifest"
 fi
@@ -189,7 +202,7 @@ if grep -Eq '^((repair|system)\)|.*runtime_(repair|system))' \
 fi
 pass "qvCORE exposes two independently enrolled Install and Remove stacks"
 
-grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
+grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
 
 keyring_home="$test_root/keyring-home"
@@ -299,9 +312,10 @@ grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart Omarchy components"' \
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle Omarchy features"' \
   "$root/bin/omarchy" || fail "original Omarchy toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qv/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
-grep -Fq 'NamePretty = "qvOS Themes"' "$root/qv/launcher/elephant/omarchy_themes.lua" || fail "qvOS theme provider label"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qv/launcher/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
-grep -Fq 'NamePretty = "qvOS Background Selector"' "$root/qv/launcher/elephant/omarchy_background_selector.lua" || fail "qvOS background provider label"
+grep -Fq 'dofile(omarchy_path .. "/default/elephant/omarchy_unlocks.lua")' \
+  "$root/qv/launcher/elephant/omarchy_unlocks.lua" ||
+  fail "qvOS unlock provider inherits Omarchy"
 grep -Fq -- '--app-id=org.omarchy.terminal' "$root/qv/presentation/run" ||
   fail "inherited terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qv/presentation/run" ||
@@ -352,9 +366,9 @@ grep -Fq -- '-buildvcs=false' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO reproducible TUI build"
 grep -Fq 'for attempt in 1 2 3' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO bounded package download retries"
-grep -Fq '/omarchy/qv/install/packaging/base.packages' \
+grep -Fq '/omarchy/qv/install/packaging/resolve' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
-  fail "qvOS ISO base package ownership"
+  fail "qvOS ISO package resolution"
 grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO configurator integration"
@@ -411,8 +425,15 @@ grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "i
 grep -Fq 'GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"' "$root/bin/omarchy" || fail "upstream branch identity"
 pass "visible system branding is qvOS without renaming Omarchy internals"
 
-grep -Fq 'ping -c 1 9.9.9.9' "$root/qv/diagnostics/debug" || fail "Quad9 diagnostic probe"
-pass "diagnostics follow the qvOS Quad9 policy"
+for retired_duplicate in \
+  qv/diagnostics/debug \
+  qv/share/notification \
+  qv/launcher/elephant/omarchy_background_selector.lua \
+  qv/launcher/elephant/omarchy_themes.lua; do
+  [[ ! -e $root/$retired_duplicate ]] ||
+    fail "duplicated Omarchy implementation remains: $retired_duplicate"
+done
+pass "debug, capture notifications, and inherited launcher providers stay Omarchy-owned"
 
 if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/qv/shell/aliases"; then
   fail "disabled AI aliases"
@@ -499,25 +520,12 @@ run_menu 1
 grep -q 'Share' "$menu_log" || fail "LocalSend menu shown when available"
 pass "LocalSend menu follows command availability"
 
-for capture_command in \
-  "$root/bin/omarchy-capture-screenshot" \
-  "$root/bin/omarchy-capture-screenrecording"; do
-  grep -Fq '"$OMARCHY_PATH/qv/share/notification"' "$capture_command" ||
-    fail "$(basename "$capture_command") qvOS notification seam"
-done
-grep -Fq '"$OMARCHY_PATH/qv/share/notification"' "$root/bin/omarchy-transcode" ||
-  fail "transcode qvOS notification seam"
-grep -Fq 'notification_args+=("${share_action[@]}")' \
-  "$root/qv/share/notification" ||
-  fail "shared notification Share action"
-grep -Fq 'omarchy-menu-share file "$path"' "$root/qv/share/notification" ||
-  fail "shared notification delegation"
 jq -e '
   ."network"."on-click-right"
     == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns"
 ' "$root/qv/waybar/overrides.jsonc" >/dev/null ||
   fail "Waybar network DNS route"
-pass "capture, transcode, and network surfaces reuse their established owners"
+pass "network surfaces reuse their established owners"
 
 set +e
 share_output=$(
@@ -546,7 +554,7 @@ pass "Yaqyn is layered over the complete Omarchy theme catalog"
 HOME="$test_root" OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "qvOS Style entries"
 local root = arg[1]
 
-dofile(root .. "/qv/launcher/elephant/omarchy_themes.lua")
+dofile(root .. "/default/elephant/omarchy_themes.lua")
 local themes = GetEntries()
 assert(#themes > 1)
 local yaqyn_theme

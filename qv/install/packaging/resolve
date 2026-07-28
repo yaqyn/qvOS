@@ -1,0 +1,105 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
+declare -A emitted=()
+
+usage() {
+  echo "Usage: $(basename "$0") <base|other|all>" >&2
+  exit 2
+}
+
+read_manifest() {
+  local path=$1
+  local output_name=$2
+  local line
+  local -n output=$output_name
+  local -A seen=()
+
+  [[ -f $path ]] || {
+    echo "Missing package manifest: $path" >&2
+    return 1
+  }
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ -z $line || $line == "#"* ]] && continue
+    if [[ ! $line =~ ^[-[:alnum:]@._+]+$ ]]; then
+      echo "Invalid package entry in $path: $line" >&2
+      return 1
+    fi
+    if [[ -n ${seen[$line]:-} ]]; then
+      echo "Duplicate package entry in $path: $line" >&2
+      return 1
+    fi
+    seen[$line]=1
+    output+=("$line")
+  done <"$path"
+}
+
+resolve_layer() {
+  local inherited_path=$1
+  local additions_path=$2
+  local exclusions_path=$3
+  local package
+  local -a inherited=()
+  local -a additions=()
+  local -a exclusions=()
+  local -A inherited_set=()
+  local -A excluded=()
+
+  read_manifest "$inherited_path" inherited
+  read_manifest "$additions_path" additions
+  read_manifest "$exclusions_path" exclusions
+
+  for package in "${inherited[@]}"; do
+    inherited_set[$package]=1
+  done
+  for package in "${exclusions[@]}"; do
+    [[ -n ${inherited_set[$package]:-} ]] || {
+      echo "Stale package exclusion is not inherited: $package" >&2
+      return 1
+    }
+    excluded[$package]=1
+  done
+  for package in "${additions[@]}"; do
+    [[ -z ${inherited_set[$package]:-} ]] || {
+      echo "Stale package addition is now inherited: $package" >&2
+      return 1
+    }
+  done
+
+  for package in "${inherited[@]}" "${additions[@]}"; do
+    [[ -z ${excluded[$package]:-} ]] || continue
+    [[ -z ${emitted[$package]:-} ]] || continue
+    printf '%s\n' "$package"
+    emitted[$package]=1
+  done
+}
+
+case ${1:-} in
+  base)
+    resolve_layer \
+      "$root/install/omarchy-base.packages" \
+      "$root/qv/install/packaging/base.additions" \
+      "$root/qv/install/packaging/base.exclusions"
+    ;;
+  other)
+    resolve_layer \
+      "$root/install/omarchy-other.packages" \
+      "$root/qv/install/packaging/other.additions" \
+      "$root/qv/install/packaging/other.exclusions"
+    ;;
+  all)
+    resolve_layer \
+      "$root/install/omarchy-base.packages" \
+      "$root/qv/install/packaging/base.additions" \
+      "$root/qv/install/packaging/base.exclusions"
+    resolve_layer \
+      "$root/install/omarchy-other.packages" \
+      "$root/qv/install/packaging/other.additions" \
+      "$root/qv/install/packaging/other.exclusions"
+    ;;
+  *)
+    usage
+    ;;
+esac

@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 
-mapfile -t packages < <(
-  sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-    "$OMARCHY_PATH/qv/install/packaging/base.packages"
-)
+resolved_packages=$("$OMARCHY_PATH/qv/install/packaging/resolve" base) ||
+  return 1
+mapfile -t packages <<<"$resolved_packages"
 omarchy-pkg-add "${packages[@]}"

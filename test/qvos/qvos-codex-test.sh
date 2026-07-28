@@ -4,7 +4,6 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 doctor="$root/qv/codex/doctor"
 registry="$root/qv/codex/capabilities.tsv"
-base_packages="$root/qv/install/packaging/base.packages"
 qvdev_packages="$root/qv/core/qvdev/packages.tsv"
 test_root="$(mktemp -d)"
 test_home="$test_root/home"
@@ -12,6 +11,7 @@ test_bin="$test_root/bin"
 capability_bin="$test_root/capability-bin"
 runtime="$test_home/.local/share/qvos/codex"
 standalone="$test_home/.codex/packages/standalone/releases/test/bin/codex"
+base_packages="$test_root/base.packages"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf -- "$test_root"
@@ -26,6 +26,8 @@ fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
+
+"$root/qv/install/packaging/resolve" base >"$base_packages"
 
 registry_rows=$(
   awk -F '\t' '

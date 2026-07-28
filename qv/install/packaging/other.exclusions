@@ -1,0 +1,4 @@
+# These inherited offline packages are promoted into the qvOS base.
+base-devel
+git
+libpulse

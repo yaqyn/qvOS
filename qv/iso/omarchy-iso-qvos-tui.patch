@@ -91,18 +91,20 @@
 -all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages" | grep -v '^$'))
 -all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages" | grep -v '^$'))
 -all_packages+=($(grep -v '^#' /builder/archinstall.packages | grep -v '^$'))
-+# Prefer the qvOS base manifest while retaining the inherited Omarchy fallback.
-+if [[ -f "$build_cache_dir/airootfs/root/omarchy/qv/install/packaging/base.packages" &&
-+  -f "$build_cache_dir/airootfs/root/omarchy/qv/install/packaging/other.packages" ]]; then
-+  omarchy_package_lists=(
-+    "$build_cache_dir/airootfs/root/omarchy/qv/install/packaging/base.packages"
-+    "$build_cache_dir/airootfs/root/omarchy/qv/install/packaging/other.packages"
-+  )
++# Resolve the inherited Omarchy manifests plus the validated qvOS deltas.
++qvos_package_resolver="$build_cache_dir/airootfs/root/omarchy/qv/install/packaging/resolve"
++if [[ -x $qvos_package_resolver ]]; then
++  mapfile -t omarchy_packages < <("$qvos_package_resolver" all)
 +else
-+  omarchy_package_lists=(
-+    "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages"
-+    "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages"
++  mapfile -t omarchy_base_packages < <(
++    sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
++      "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages"
 +  )
++  mapfile -t omarchy_other_packages < <(
++    sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
++      "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages"
++  )
++  omarchy_packages=("${omarchy_base_packages[@]}" "${omarchy_other_packages[@]}")
 +fi
  
 -# Download all the packages to the offline mirror inside the ISO
@@ -111,10 +113,8 @@
 -repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "$offline_mirror_dir/"*.pkg.tar.zst
 +# Build list of all the packages needed for the offline mirror.
 +mapfile -t all_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$build_cache_dir/packages.x86_64")
-+mapfile -t omarchy_base_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "${omarchy_package_lists[0]}")
-+mapfile -t omarchy_other_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "${omarchy_package_lists[1]}")
 +mapfile -t archinstall_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' /builder/archinstall.packages)
-+all_packages+=("${omarchy_base_packages[@]}" "${omarchy_other_packages[@]}" "${archinstall_packages[@]}")
++all_packages+=("${omarchy_packages[@]}" "${archinstall_packages[@]}")
 +
 +# Download packages into the reusable host cache, then copy only this build's
 +# resolved package files into the offline mirror inside the ISO filesystem.

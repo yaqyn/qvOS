@@ -18,13 +18,13 @@ replace its judgment.
 4. When adaptation is required, create a backup branch and integrate upstream
    locally without pushing. Finish, verify, and commit the adaptation before
    qvsync may publish.
-5. Before every qvsync, refresh the block between
-   `qvos:gaming-base:start` and `qvos:gaming-base:end` in
-   `qv/install/packaging/base.packages` and
+5. Before every qvsync, refresh the effective reviewed gaming set in
    `test/qvos/qvos-gaming-base-test.sh` against Linutil's current Arch list in
-   `core/tabs/system-setup/gaming-setup.sh`. Use current package names, keep the
-   matching 32-bit PipeWire JACK package, and leave hardware-specific GPU
-   drivers to Omarchy's Steam installer.
+   `core/tabs/system-setup/gaming-setup.sh`. Keep only packages not already
+   inherited from Omarchy between `qvos:gaming-base:start` and
+   `qvos:gaming-base:end` in `qv/install/packaging/base.additions`. Use current
+   package names, keep the matching 32-bit PipeWire JACK package, and leave
+   hardware-specific GPU drivers to Omarchy's Steam installer.
 
 ## Verification And Publication
 

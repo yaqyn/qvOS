@@ -14,20 +14,19 @@ qv/
   codex/       Codex workstation capability contract and read-only doctor.
   config/      qvOS config helpers and files installed after Omarchy defaults.
   core/        qvCORE two-stack catalog and lifecycle owners.
-  diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
   git/         Private git helper source and installers.
   hyprland/    qvOS Hyprland refresh reconciliation.
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
-  launcher/    qvOS Elephant providers.
+  launcher/    Small qvOS delta over inherited Elephant providers.
   menu/        qvOS menus installed through Omarchy's extension seam.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
   presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
-  share/       Shared notification and LocalSend request routing.
+  share/       LocalSend request routing.
   shell/       qvOS shell additions.
   theme/       The Yaqyn qvOS theme overlay.
   thunar/      Thunar feature entry points.
@@ -45,6 +44,8 @@ catalog is Proton and qvDEV. Every stack exposes only Install and Remove.
 qvOS has one supported base: a solid, gaming-ready Arch system curated through
 Omarchy. The base includes canonical OpenAI Codex plus software with an
 independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
+The package resolver layers validated qvOS additions and exclusions over
+Omarchy's original manifests; qvOS does not copy or replace those manifests.
 Steam remains optional and uses Omarchy's standard gaming installer and
 remover. qvCORE adds optional integrated stacks without changing qvOS
 identity or base readiness.

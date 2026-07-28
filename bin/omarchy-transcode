@@ -196,13 +196,11 @@ main() {
     omarchy-notification-send "" "Transcoding video…" "$(basename -- "$input") to $format ($resolution)"
     transcode_video "$input" "$format" "$resolution" "$output"
     copy_to_clipboard "$output"
-    "$OMARCHY_PATH/qv/share/notification" \
-      transcode "$output" "" "Transcoded to $resolution $format" &
+    omarchy-notification-send "" "Transcoded to $resolution $format" "Saved and copied to clipboard."
   else
     transcode_picture "$input" "$format" "$resolution" "$output"
     copy_to_clipboard "$output"
-    "$OMARCHY_PATH/qv/share/notification" \
-      transcode "$output" "" "Transcoded to $resolution $format" &
+    omarchy-notification-send "" "Transcoded to $resolution $format" "Saved and copied to clipboard."
   fi
 }
 

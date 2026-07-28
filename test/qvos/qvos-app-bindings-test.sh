@@ -4,7 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 bindings="$root/qv/config/files/hypr/qv/bindings.conf"
 clipboard="$root/default/hypr/bindings/clipboard.conf"
-packages="$root/qv/install/packaging/base.packages"
+packages=$("$root/qv/install/packaging/resolve" base)
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -92,8 +92,9 @@ assert_binding 'bindd = SUPER ALT, E, Obsidian, exec, uwsm-app -- obsidian' "Obs
 assert_binding 'bindd = SUPER SHIFT ALT, E, Standard Notes, exec, omarchy-launch-webapp "https://app.standardnotes.com/"' "Standard Notes binding"
 assert_binding 'bindd = SUPER CTRL ALT, E, Google Workspace, exec, omarchy-launch-webapp "https://workspace.google.com/dashboard"' "Google Workspace binding"
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, E, Google Docs, exec, omarchy-launch-webapp "https://docs.google.com/"' "Google Docs binding"
-grep -qx 'obsidian' "$packages" || fail "Obsidian binding requires the default notes package"
-grep -qx '# libreoffice-fresh' "$packages" || fail "LibreOffice must stay disabled in the default package manifest"
+grep -qx 'obsidian' <<<"$packages" || fail "Obsidian binding requires the default notes package"
+grep -qx 'libreoffice-fresh' "$root/qv/install/packaging/base.exclusions" ||
+  fail "LibreOffice must stay disabled in the default package manifest"
 pass "the E Alt family owns notes and office tools"
 
 if grep -Eq '^bindd = SUPER( SHIFT)?, (M|P),|^bindd = SUPER SHIFT, C, Proton' "$bindings" ||
@@ -117,6 +118,8 @@ if grep -Eq 'Proton Wallet|Codex Docs|Signal|signal-desktop|LibreOffice|uwsm-app
   fail "retired app action"
 fi
 
-grep -qx '# signal-desktop' "$packages" || fail "Signal must stay disabled in the default package manifest"
-grep -qx '# spotify' "$packages" || fail "Spotify must stay disabled in the default package manifest"
+grep -qx 'signal-desktop' "$root/qv/install/packaging/base.exclusions" ||
+  fail "Signal must stay disabled in the default package manifest"
+grep -qx 'spotify' "$root/qv/install/packaging/base.exclusions" ||
+  fail "Spotify must stay disabled in the default package manifest"
 pass "retired app and control routes stay absent or disabled"

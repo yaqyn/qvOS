@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-manifest="$root/qv/install/packaging/base.packages"
+additions="$root/qv/install/packaging/base.additions"
+manifest=$("$root/qv/install/packaging/resolve" base)
+all_packages=$("$root/qv/install/packaging/resolve" all)
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -24,19 +26,21 @@ expected_packages+=$'\nvulkan-icd-loader\nlib32-vulkan-icd-loader\nocl-icd\nlib3
 expected_packages+=$'\ncups\nsamba\nlib32-mesa\ngamescope\nmangohud\nlib32-mangohud\ngamemode\nlib32-gamemode'
 expected_packages+=$'\nwine\ngoverlay\nlib32-pipewire-jack'
 
-actual_packages=$(
+while IFS= read -r package; do
+  grep -Fqx "$package" <<<"$manifest" ||
+    fail "reviewed gaming base package is missing: $package"
+done <<<"$expected_packages"
+pass "qvOS base owns the complete reviewed gaming runtime"
+
+actual_additions=$(
   sed -n \
     '/^# qvos:gaming-base:start$/,/^# qvos:gaming-base:end$/p' \
-    "$manifest" |
+    "$additions" |
     sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d'
 )
 
-[[ $actual_packages == "$expected_packages" ]] ||
-  fail "reviewed gaming base package snapshot"
-pass "qvOS base owns the complete reviewed gaming runtime"
-
 duplicate_packages=$(
-  sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$manifest" |
+  printf '%s\n' "$manifest" |
     sort |
     uniq -d
 )
@@ -44,23 +48,19 @@ duplicate_packages=$(
   fail "base package manifest contains duplicates: $duplicate_packages"
 pass "gaming promotion keeps every base package singular"
 
-cross_manifest_duplicates=$(
-  comm -12 \
-    <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$manifest" | sort -u) \
-    <(
-      sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' \
-        "$root/qv/install/packaging/other.packages" |
-        sort -u
-    )
+all_duplicates=$(
+  printf '%s\n' "$all_packages" |
+    sort |
+    uniq -d
 )
-[[ -z $cross_manifest_duplicates ]] ||
-  fail "base packages remain duplicated in the offline-only manifest: $cross_manifest_duplicates"
+[[ -z $all_duplicates ]] ||
+  fail "resolved package inventory contains duplicates: $all_duplicates"
 pass "promoted gaming packages have one packaging owner"
 
-grep -Fq 'Reviewed at Linutil commit ' "$manifest" ||
+grep -Fq 'Reviewed at Linutil commit ' "$additions" ||
   fail "gaming package review provenance"
 if grep -Eq '^(steam|lib32-jack2|lib32-gst-plugins-base-libs|lib32-vulkan-(intel|radeon)|lib32-nvidia)' \
-  <<<"$actual_packages"; then
+  <<<"$actual_additions"; then
   fail "gaming base crosses the Steam or hardware-specific ownership boundary"
 fi
 pass "Steam and hardware-specific GPU drivers remain with Omarchy"
