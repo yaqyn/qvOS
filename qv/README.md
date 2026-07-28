@@ -13,7 +13,7 @@ qv/
   browser/     Secure browser policy ownership.
   codex/       Codex workstation capability contract and read-only doctor.
   config/      qvOS config helpers and files installed after Omarchy defaults.
-  core/        qvCORE five-stack catalog and lifecycle owners.
+  core/        qvCORE four-stack catalog and lifecycle owners.
   diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
@@ -38,8 +38,8 @@ qv/
   waybar/      qvOS prayer clock modules.
 ```
 
-qvCORE is an optional five-stack collection, not a qvOS subsystem. Its complete
-catalog is WARP, Share, Proton, Media, and qvDEV. Every stack exposes
+qvCORE is an optional four-stack collection, not a qvOS subsystem. Its complete
+catalog is WARP, Proton, Media, and qvDEV. Every stack exposes
 only Install and Remove.
 
 ## Product lifecycle
@@ -86,7 +86,7 @@ identity, readiness, health, or Recovery ownership.
   module, UKI, Limine, and mkinitcpio rebuilds; mounted-filesystem repair;
   comprehensive snapshot restore; networking mutation; and offline/unbootable
   rescue remain outside this phase. qvCORE is never graded or repaired.
-- The qvCORE menu shows the five stacks directly. Each row is Install when
+- The qvCORE menu shows the four stacks directly. Each row is Install when
   unenrolled and Remove when enrolled. Install converges only missing pieces,
   configures and verifies the stack, then records enrollment. Remove deletes
   the complete enrolled stack and its qvOS integration while preserving
@@ -127,9 +127,9 @@ Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
 
 `qv/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
-The base desktop installs only default Thunar helpers and preserves optional
-stack payloads without repairing them. Share, Proton, and qvDEV install and
-remove their own actions.
+The base desktop installs its default helpers, including the LocalSend Share
+action for Omarchy's base package, and preserves optional stack payloads
+without repairing them. Proton and qvDEV install and remove their own actions.
 
 ## Upstream boundary
 

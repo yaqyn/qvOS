@@ -112,13 +112,13 @@ thunar_features=(
   open-here
   reconcile-default-actions
   set-background
+  share
   transcode
 )
 checked_thunar_features=("${thunar_features[@]}")
 optional_thunar_features=(
   codex
   proton-drive-upload
-  share
 )
 for feature in "${optional_thunar_features[@]}"; do
   [[ -e $runtime_root/thunar/$feature ]] || continue

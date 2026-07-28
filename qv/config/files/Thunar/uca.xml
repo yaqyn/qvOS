@@ -45,4 +45,19 @@
   <image-files/>
   <video-files/>
 </action>
+<action>
+  <icon>localsend</icon>
+  <name>Send via LocalSend</name>
+  <unique-id>qvos-localsend-share</unique-id>
+  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/share" "$@"' qvos-thunar %F</command>
+  <description>Send the selected files and folders to nearby devices.</description>
+  <range></range>
+  <patterns>*</patterns>
+  <directories/>
+  <audio-files/>
+  <image-files/>
+  <other-files/>
+  <text-files/>
+  <video-files/>
+</action>
 </actions>

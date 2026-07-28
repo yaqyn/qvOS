@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Install one qvCORE stack
-# omarchy:args=<warp|share|proton|media|qvdev>
+# omarchy:args=<warp|proton|media|qvdev>
 # omarchy:examples=omarchy install qvcore qvdev | omarchy install qvcore proton
 # omarchy:requires-sudo=true
 

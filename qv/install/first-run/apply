@@ -3,5 +3,4 @@ set -euo pipefail
 
 bash "$OMARCHY_PATH/qv/install/first-run/gnome-theme"
 bash "$OMARCHY_PATH/qv/install/first-run/icons"
-"$OMARCHY_PATH/qv/core/share/reconcile-inherited-firewall"
 "$OMARCHY_PATH/qv/launcher/install"

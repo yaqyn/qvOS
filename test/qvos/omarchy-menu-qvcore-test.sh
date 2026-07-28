@@ -45,23 +45,16 @@ run_menu() {
 }
 
 run_menu WARP
-expected_install=$'󰖂  WARP — Install\n  Share — Install\n󰌾  Proton — Install\n󰕧  Media — Install\n󰵮  qvDEV — Install'
+expected_install=$'󰖂  WARP — Install\n󰌾  Proton — Install\n󰕧  Media — Install\n󰵮  qvDEV — Install'
 [[ $(<"$menu_log") == "$expected_install" ]] ||
-  fail "five direct Install rows"
+  fail "four direct Install rows"
 [[ $(<"$action_log") == "omarchy-install-qvcore warp" ]] ||
   fail "WARP Install action"
 
-install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/share"
 install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/qvdev"
-run_menu Share
-grep -Fqx '  Share — Remove' "$menu_log" ||
-  fail "enrolled Share Remove row"
+run_menu qvDEV
 grep -Fqx '󰵮  qvDEV — Remove' "$menu_log" ||
   fail "enrolled qvDEV Remove row"
-[[ $(<"$action_log") == "omarchy-qvcore-remove share" ]] ||
-  fail "Share Remove action"
-
-run_menu qvDEV
 [[ $(<"$action_log") == "omarchy-qvcore-remove qvdev" ]] ||
   fail "qvDEV Remove action"
 
@@ -69,4 +62,4 @@ if rg -q 'Status|Repair|Disable|Applications|Managed Setups|Install Everything' 
   fail "retired qvCORE menu complexity"
 fi
 
-printf 'ok - qvCORE menu shows five dynamic Install or Remove actions\n'
+printf 'ok - qvCORE menu shows four dynamic Install or Remove actions\n'

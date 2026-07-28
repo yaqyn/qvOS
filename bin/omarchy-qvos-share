@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Share clipboard, files, or folders through qvCORE Share
+# omarchy:summary=Share clipboard, files, or folders through LocalSend
 # omarchy:args=<clipboard|file|folder> [path...]
 # omarchy:group=qvos
 # omarchy:name=share

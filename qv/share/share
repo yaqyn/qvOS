@@ -35,7 +35,7 @@ case $mode in
     [[ ! -f $clipboard_candidate ]] ||
     [[ ! -O $clipboard_candidate ]] ||
     [[ $(stat -c '%a' "$clipboard_candidate") != "600" ]]; then
-    echo "Refusing unsafe qvCORE Share clipboard cleanup path." >&2
+    echo "Refusing unsafe LocalSend clipboard cleanup path." >&2
     exit 1
   fi
 

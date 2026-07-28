@@ -155,21 +155,24 @@ done
 installed_thunar_inventory="$(
   find "$test_root/.local/share/qvos/thunar" -type f -printf '%P\n' | sort
 )"
-[[ $installed_thunar_inventory == $'actions.sh\nlaunch\nopen-here\nreconcile-default-actions\nset-background\ntranscode' ]] ||
+[[ $installed_thunar_inventory == $'actions.sh\nlaunch\nopen-here\nreconcile-default-actions\nset-background\nshare\ntranscode' ]] ||
   fail "default Thunar feature inventory"
-for optional_thunar_feature in codex proton-drive-upload share; do
+for optional_thunar_feature in codex proton-drive-upload; do
   [[ ! -e $test_root/.local/share/qvos/thunar/$optional_thunar_feature ]] ||
     fail "optional Thunar $optional_thunar_feature base payload"
 done
+[[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-localsend-share'])" \
+  "$test_root/.config/Thunar/uca.xml") == "1" ]] ||
+  fail "base LocalSend Thunar action"
 pass "installed feature payloads match tracked source"
 
-for optional_thunar_feature in codex proton-drive-upload share; do
+for optional_thunar_feature in codex proton-drive-upload; do
   cp "$root/qv/thunar/$optional_thunar_feature" \
     "$test_root/.local/share/qvos/thunar/$optional_thunar_feature"
 done
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qv/install/desktop"
-for optional_thunar_feature in codex proton-drive-upload share; do
+for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qv/thunar/$optional_thunar_feature" \
     "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
@@ -274,6 +277,7 @@ for feature in \
   open-here \
   reconcile-default-actions \
   set-background \
+  share \
   transcode; do
   [[ -x $test_root/.local/share/qvos/thunar/$feature ]] ||
     fail "Thunar $feature mode"

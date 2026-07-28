@@ -107,7 +107,7 @@
   thunar_source="$OMARCHY_PATH/qv/thunar"
   thunar_runtime="$HOME/.local/share/qvos/thunar"
   preserved_thunar=$(mktemp -d)
-  for feature in codex proton-drive-upload share; do
+  for feature in codex proton-drive-upload; do
     [[ -e $thunar_runtime/$feature ]] || continue
     cp -a "$thunar_runtime/$feature" "$preserved_thunar/$feature"
   done
@@ -119,6 +119,7 @@
     open-here \
     reconcile-default-actions \
     set-background \
+    share \
     transcode; do
     cp -a "$thunar_source/$feature" "$thunar_runtime/$feature"
   done

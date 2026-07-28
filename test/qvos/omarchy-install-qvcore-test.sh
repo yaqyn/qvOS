@@ -43,7 +43,7 @@ run_remove() {
     "$root/bin/omarchy-qvcore-remove" "$@"
 }
 
-for component in warp share proton media qvdev; do
+for component in warp proton media qvdev; do
   run_install "$component"
   [[ $(tail -n 1 "$action_log") == "$component.sh"$'\tinstall\t' ]] ||
     fail "Install route: $component"
@@ -52,13 +52,16 @@ for component in warp share proton media qvdev; do
     fail "Remove route: $component"
 done
 
-for retired in "" all apps setups brave brave-origin dev codex; do
+for retired in "" all apps setups brave brave-origin share dev codex; do
   if run_install "$retired" >/dev/null 2>&1; then
     fail "retired Install route accepted: ${retired:-empty}"
+  fi
+  if run_remove "$retired" >/dev/null 2>&1; then
+    fail "retired Remove route accepted: ${retired:-empty}"
   fi
 done
 if run_remove qvdev --check >/dev/null 2>&1; then
   fail "retired removal preflight mode accepted"
 fi
 
-printf 'ok - qvCORE routes exactly five stacks through Install and Remove\n'
+printf 'ok - qvCORE routes exactly four stacks through Install and Remove\n'

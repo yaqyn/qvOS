@@ -91,13 +91,13 @@ grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qv/network/setup-dns" || fail "on-demand WARP package contract"
 pass "WARP stays optional and installs only when selected"
 
-if grep -Eq '^(7zip|act|age|clang|cloudflare-warp-nox-bin|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|localsend|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
+if grep -Eq '^(7zip|act|age|clang|cloudflare-warp-nox-bin|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$root"/qv/install/packaging/*.packages ||
   grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "qvCORE stack software leaked into the base package manifest"
 fi
-expected_qvcore_catalog=$'# component\tlabel\ticon\nwarp\tWARP\t󰖂\nshare\tShare\t\nproton\tProton\t󰌾\nmedia\tMedia\t󰕧\nqvdev\tqvDEV\t󰵮'
+expected_qvcore_catalog=$'# component\tlabel\ticon\nwarp\tWARP\t󰖂\nproton\tProton\t󰌾\nmedia\tMedia\t󰕧\nqvdev\tqvDEV\t󰵮'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
-  fail "five-stack qvCORE catalog"
+  fail "four-stack qvCORE catalog"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
   fail "qvOS regular user command protection inventory"
 while IFS=$'\t' read -r component _; do
@@ -117,6 +117,8 @@ for retired_qvcore_source in \
   qv/core/software-ownership.tsv \
   qv/core/software-removal-groups \
   qv/core/brave.sh \
+  qv/core/share.sh \
+  qv/core/share \
   qv/core/dev.sh \
   qv/core/codex.sh \
   bin/omarchy-qvcore-status \
@@ -129,6 +131,23 @@ if grep -Fq -- '--remove-qvcore' "$root/qv/maintenance/personal-software"; then
   fail "personal-software still owns qvCORE removal"
 fi
 [[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
+grep -Fqx 'localsend' "$root/install/omarchy-base.packages" ||
+  fail "Omarchy base LocalSend package"
+grep -Fqx 'sudo ufw allow 53317/udp' "$root/install/first-run/firewall.sh" ||
+  fail "Omarchy LocalSend UDP firewall ownership"
+grep -Fqx 'sudo ufw allow 53317/tcp' "$root/install/first-run/firewall.sh" ||
+  fail "Omarchy LocalSend TCP firewall ownership"
+grep -Fqx 'share||Share|More · Share|localsend,send|Send|menu:share' \
+  "$root/qv/menu/concepts.psv" ||
+  fail "LocalSend concept stays independent from qvCORE"
+if rg -q -i 'qvcore share|qv/core/share' \
+  "$root/bin/omarchy-qvos-share" \
+  "$root/qv/install" \
+  "$root/qv/menu" \
+  "$root/qv/share"; then
+  fail "retired qvCORE Share ownership reference"
+fi
+pass "LocalSend and its network policy remain Omarchy-owned"
 grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-remove" ||
   fail "qvCORE command group"
 [[ -x $root/bin/omarchy-install-qvcore &&
@@ -165,7 +184,7 @@ fi
 grep -Fqx 'xdg-desktop-portal-hyprland' \
   "$root/qv/maintenance/essential-packages" ||
   fail "qvOS recovery essential policy"
-pass "qvCORE exposes five independently enrolled Install and Remove stacks"
+pass "qvCORE exposes four independently enrolled Install and Remove stacks"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"

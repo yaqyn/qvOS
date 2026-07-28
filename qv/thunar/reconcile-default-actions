@@ -40,3 +40,12 @@ qvos_thunar_ensure_action \
   "Convert this image or video for sharing." \
   "*.avif;*.avi;*.gif;*.heic;*.jpeg;*.jpg;*.m4v;*.mkv;*.mov;*.mp4;*.png;*.webm;*.webp" \
   image-files video-files
+
+qvos_thunar_ensure_action \
+  "qvos-localsend-share" \
+  "localsend" \
+  "Send via LocalSend" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/share\" \"\$@\"' qvos-thunar %F" \
+  "Send the selected files and folders to nearby devices." \
+  "*" \
+  directories audio-files image-files other-files text-files video-files

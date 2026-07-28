@@ -34,7 +34,7 @@ assert_action() {
 
 xmlstarlet val -e "$actions" >/dev/null ||
   fail "valid Thunar actions XML"
-[[ $(xmlstarlet sel -t -v "count(/actions/action)" "$actions") == "4" ]] ||
+[[ $(xmlstarlet sel -t -v "count(/actions/action)" "$actions") == "5" ]] ||
   fail "default Thunar action count"
 pass "tracked Thunar actions XML is valid and intentionally scoped"
 
@@ -54,6 +54,10 @@ assert_action \
   qvos-transcode \
   "Transcode" \
   "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/transcode\" \"\$1\"' qvos-thunar %f"
+assert_action \
+  qvos-localsend-share \
+  "Send via LocalSend" \
+  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/share\" \"\$@\"' qvos-thunar %F"
 pass "every default qvOS action is direct in Thunar's custom-action section"
 
 grep -Fqx 'menu separator {' "$gtk_css" ||

@@ -3,8 +3,8 @@
 Read this file completely when changing the qvCORE catalog, stack lifecycle,
 direct-tool updater, removal, migration, or menu integration.
 
-`Settings > Software > qvCORE` exposes exactly five optional stacks: WARP,
-Share, Proton, Media, and qvDEV. qvOS must remain complete and healthy
+`Settings > Software > qvCORE` exposes exactly four optional stacks: WARP,
+Proton, Media, and qvDEV. qvOS must remain complete and healthy
 with none installed.
 
 ## Stack Contract
@@ -29,6 +29,9 @@ with none installed.
   separate base subsystem and never grades, installs, or repairs qvCORE.
 - Browsers already owned by Omarchy, including Brave Origin, stay on
   Omarchy's native browser Install and Remove surfaces and out of qvCORE.
+- Software guaranteed by Omarchy, including LocalSend, stays base-owned and
+  out of qvCORE. qvOS-only desktop adapters for it belong to their base feature
+  owner and must never uninstall the inherited package.
 
 ## Direct Tools
 

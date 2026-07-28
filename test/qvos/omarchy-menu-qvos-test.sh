@@ -48,8 +48,8 @@ grep -Fqx 'qvOS' "$menu_log" || fail "qvOS menu opened"
 grep -Fqx '󰏖  qvCORE (Optional)' "$menu_log" ||
   fail "qvCORE route remains under qvOS"
 grep -Fqx '󰕧  Media — Install' "$menu_log" ||
-  fail "qvOS route opens the five-stack qvCORE menu"
+  fail "qvOS route opens the four-stack qvCORE menu"
 [[ $(<"$action_log") == "omarchy-install-qvcore media" ]] ||
   fail "qvOS qvCORE route executes selected stack action"
 
-printf 'ok - qvOS menu routes directly into the five-stack qvCORE surface\n'
+printf 'ok - qvOS menu routes directly into the four-stack qvCORE surface\n'

@@ -15,7 +15,7 @@ input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.co
 keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
-qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,share,proton,media,qvdev|Browse|menu:qvcore
+qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,warp,proton,media,qvdev|Browse|menu:qvcore
 web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:omarchy-webapp-remove
 tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:omarchy-tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Install|menu:install-development|Remove|menu:remove-development
@@ -38,7 +38,7 @@ password||Password|Settings · Security|user,login,luks,encryption|User|prese
 fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
 fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2
 passwordless-sudo|󰟵|Passwordless Sudo|Settings · Security|sudo,password,security|Configure|present:omarchy-sudo-passwordless
-share||Share|More · Share|localsend,send,qvcore|Send|menu:share|Browse|menu:qvcore
+share||Share|More · Share|localsend,send|Send|menu:share
 ruby-on-rails|󰫏|Ruby on Rails|Settings · Software · Development|ruby,rails|Install|present:omarchy-install-dev-env ruby|Remove|present:omarchy-remove-dev-env ruby|Learn|web:https://www.ruby-lang.org/en/documentation/
 javascript||JavaScript|Settings · Software · Development|node,bun,deno,js|Install|menu:install-javascript|Remove|menu:remove-javascript|Learn|web:https://developer.mozilla.org/en-US/docs/Web/JavaScript
 go||Go|Settings · Software · Development|golang,runtime|Install|present:omarchy-install-dev-env go|Remove|present:omarchy-remove-dev-env go|Learn|web:https://go.dev/doc/
