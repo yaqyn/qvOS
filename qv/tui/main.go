@@ -2372,7 +2372,7 @@ func renderConfirmationAction(label string, selected bool) string {
 }
 
 func (m model) renderSudoPromptFor(mode layoutMode) string {
-	title := sWhite.Render(rootActionName(m.action) + " AUTH")
+	title := renderAuthorizationTitle(rootActionName(m.action), canvasW)
 	status := sGray.Render("sudo password required")
 	if m.sudoErr != nil {
 		status = sRed.Render(shortError(m.sudoErr))
@@ -2382,13 +2382,14 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 	if mode == layoutMobile {
 		content := strings.Join([]string{
 			centerCanvas(title),
+			"",
 			centerCanvas(field),
 		}, "\n")
 		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
 	if mode == layoutTablet {
-		lines := []string{centerCanvas(title)}
+		lines := []string{centerCanvas(title), ""}
 		if m.sudoErr != nil {
 			lines = append(lines, centerCanvas(status))
 		}
@@ -2411,6 +2412,11 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
+func renderAuthorizationTitle(label string, width int) string {
+	title := strings.ToUpper(strings.TrimSpace(label)) + " AUTHORIZATION"
+	return sWhite.Render(trimDisplay(title, max(1, width)))
+}
+
 func renderPasswordField(password []rune, mode layoutMode) string {
 	fieldWidth := 28
 	if mode == layoutTablet {
@@ -2420,19 +2426,13 @@ func renderPasswordField(password []rune, mode layoutMode) string {
 		fieldWidth = 10
 	}
 
-	count := len(password)
-	if count > fieldWidth {
-		count = fieldWidth
+	count := min(len(password), fieldWidth)
+	if count == 0 {
+		return sDim.Render(strings.Repeat("─", fieldWidth))
 	}
-	leftPad := (fieldWidth - count) / 2
-	rightPad := fieldWidth - count - leftPad
-	filled := strings.Repeat("●", count)
 
-	return sDeepRed.Render("▐ ") +
-		sDim.Render(strings.Repeat("─", leftPad)) +
-		sDeepRed.Render(filled) +
-		sDim.Render(strings.Repeat("─", rightPad)) +
-		sDeepRed.Render(" ▌")
+	return sBright.Render(strings.Repeat("•", count)) +
+		sDim.Render(strings.Repeat("─", fieldWidth-count))
 }
 
 func (m model) renderRootProgressFor(mode layoutMode) string {

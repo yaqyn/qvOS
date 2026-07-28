@@ -43,6 +43,9 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   contextual help overlay. Use `?` outside text fields and `F1` everywhere so
   passwords and filters keep their full character set. Labels describe the
   action result, not implementation details.
+- Authorization surfaces use the shared frameless, left-origin password rail
+  and one blank row between the title and field. The mask never shifts while
+  typing. Do not add a cursor, side brackets, or an input box.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
   mutating command to imitate a terminal view. An open side log may show one

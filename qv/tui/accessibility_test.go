@@ -157,6 +157,78 @@ func TestHelpShortcutsDoNotStealPasswordCharacters(t *testing.T) {
 	}
 }
 
+func TestAuthorizationInputUsesTheSharedFramelessRail(t *testing.T) {
+	tests := []struct {
+		name  string
+		mode  layoutMode
+		width int
+	}{
+		{"desktop", layoutDesktop, 28},
+		{"tablet", layoutTablet, 18},
+		{"mobile", layoutMobile, 10},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			field := renderPasswordField([]rune("secret"), test.mode)
+			content := stripANSI(field)
+			if strings.Contains(content, "secret") {
+				t.Fatal("authorization field rendered the password as plaintext")
+			}
+			for _, retired := range []string{"▐", "▌"} {
+				if strings.Contains(content, retired) {
+					t.Fatalf("authorization field restored retired bracket %q: %q", retired, content)
+				}
+			}
+			if strings.Contains(content, "▏") {
+				t.Fatalf("authorization field restored a decorative cursor: %q", content)
+			}
+			if strings.Count(content, "•") != len("secret") {
+				t.Fatalf("authorization mask is missing: %q", content)
+			}
+			if got := lipgloss.Width(field); got != test.width {
+				t.Fatalf("authorization field width = %d, want %d", got, test.width)
+			}
+		})
+	}
+}
+
+func TestAuthorizationTitleBreathesBeforeTheField(t *testing.T) {
+	m := model{
+		width:      140,
+		height:     31,
+		loading:    true,
+		action:     actionUpdate,
+		sudoPrompt: true,
+	}
+	previousCanvasWidth := canvasW
+	canvasW = 48
+	content := stripANSI(m.renderSudoPromptFor(layoutTablet))
+	canvasW = previousCanvasWidth
+	lines := strings.Split(content, "\n")
+	titleRow := -1
+	for index, line := range lines {
+		if strings.Contains(line, "UPDATE AUTHORIZATION") {
+			titleRow = index
+			break
+		}
+	}
+	if titleRow < 0 {
+		t.Fatalf("authorization title is missing: %q", content)
+	}
+	if titleRow+1 >= len(lines) || strings.TrimSpace(lines[titleRow+1]) != "" {
+		t.Fatalf("authorization title has no breathing room: %q", content)
+	}
+	for _, retired := range []string{"▐", "▌"} {
+		if strings.Contains(content, retired) {
+			t.Fatalf("authorization view restored retired bracket %q: %q", retired, content)
+		}
+	}
+
+	view := m.View()
+	assertViewFits(t, view.Content, m.width, m.height)
+}
+
 func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 	const (
 		width  = 140

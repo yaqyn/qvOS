@@ -743,13 +743,13 @@ func (m prototypeSessionModel) terminalHints() []tuiHint {
 
 func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 	if m.awaitingAuthorization() {
-		title := centerCanvas(sWhite.Render(m.profile.title + " AUTH"))
+		title := centerCanvas(renderAuthorizationTitle(m.profile.title, canvasW))
 		status := centerCanvas(sGray.Render("prototype only · no command will run"))
 		if m.authError != "" {
 			status = centerCanvas(sRed.Render(m.authError))
 		}
 		if mode == layoutMobile {
-			content := strings.Join([]string{title, centerCanvas(renderPasswordField(m.password, mode))}, "\n")
+			content := strings.Join([]string{title, "", centerCanvas(renderPasswordField(m.password, mode))}, "\n")
 			return appendTUIHints(content, canvasW, m.persistentHints()...)
 		}
 		content := strings.Join([]string{
