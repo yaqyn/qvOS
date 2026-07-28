@@ -32,8 +32,8 @@ fail() {
 registry_rows=$(
   awk -F '\t' '
     /^#/ || NF == 0 { next }
-    NF != 5 { exit 1 }
-    $2 !~ /^(base|qvcore|project|avoid)$/ { exit 1 }
+    NF != 4 { exit 1 }
+    $2 !~ /^(base|qvdev|project|avoid)$/ { exit 1 }
     seen[$1]++ { exit 1 }
     { count++ }
     END {
@@ -46,9 +46,9 @@ registry_rows=$(
 ) || fail "capability registry schema"
 ((registry_rows >= 80)) || fail "capability registry size"
 
-while IFS=$'\t' read -r command_name layer _ owner repair extra; do
+while IFS=$'\t' read -r command_name layer owner action extra; do
   [[ -n $command_name && $command_name != "#"* ]] || continue
-  [[ -z ${extra:-} && -n $repair ]] || fail "capability repair route"
+  [[ -z ${extra:-} && -n $action ]] || fail "capability action route"
 
   if [[ $layer == "base" && $owner == "package:"* ]]; then
     package=${owner#package:}
@@ -59,7 +59,7 @@ while IFS=$'\t' read -r command_name layer _ owner repair extra; do
       fail "non-package base capability owner: $command_name"
   fi
 
-  if [[ $layer == "qvcore" && $owner == "package:"* ]]; then
+  if [[ $layer == "qvdev" && $owner == "package:"* ]]; then
     package=${owner#package:}
     awk -F '\t' -v package="$package" '
       $2 == package { found = 1 }
@@ -170,7 +170,7 @@ esac
 SCRIPT
 ln -s "$standalone" "$test_home/.local/bin/codex"
 
-while IFS=$'\t' read -r command_name layer _ _ _; do
+while IFS=$'\t' read -r command_name layer _ _; do
   [[ $layer == "base" ]] || continue
   [[ $command_name != /* ]] || continue
   [[ $command_name != "gh" ]] || continue
@@ -182,8 +182,8 @@ exit 0
 SCRIPT
 done <"$registry"
 
-while IFS=$'\t' read -r command_name layer profile _ _; do
-  [[ $layer == "qvcore" && $profile == "qvdev" ]] || continue
+while IFS=$'\t' read -r command_name layer _ _; do
+  [[ $layer == "qvdev" ]] || continue
   [[ $command_name != /* ]] || continue
   install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
 #!/bin/bash
@@ -213,7 +213,7 @@ run_doctor() {
 
 report=$(run_doctor --json)
 base_total=$(awk -F '\t' '$1 !~ /^#/ && $2 == "base" { count++ } END { print count + 0 }' "$registry")
-qvdev_total=$(awk -F '\t' '$1 !~ /^#/ && $3 == "qvdev" { count++ } END { print count + 0 }' "$registry")
+qvdev_total=$(awk -F '\t' '$1 !~ /^#/ && $2 == "qvdev" { count++ } END { print count + 0 }' "$registry")
 foundation_total=$((base_total + 3))
 jq -e \
   --argjson base_total "$base_total" \
@@ -229,13 +229,10 @@ jq -e \
   and .installation.version == "9.9.9"
   and .codex_doctor.status == "ok"
   and .sandbox.ready == true
-  and .profiles.qvdev.status == "ready"
-  and .profiles.qvdev.ready == $qvdev_total
-  and .profiles.qvdev.total == $qvdev_total
-  and .profiles.browser.status == "planned"
-  and .profiles.browser.available == false
-  and .profiles.documents.status == "planned"
-  and .profiles.documents.available == false
+  and .qvdev.status == "ready"
+  and .qvdev.ready == $qvdev_total
+  and .qvdev.total == $qvdev_total
+  and (has("profiles") | not)
   and .wayland.session == true
   and .wayland.hyprland_session == true
   and .credentials.github == true
@@ -253,22 +250,22 @@ run_doctor --check >/dev/null ||
 pass "doctor proves the canonical install without leaking parent-session state"
 
 mv "$test_bin/dig" "$test_bin/dig.missing"
-repair_report=$(run_doctor --json)
+missing_report=$(run_doctor --json)
 jq -e '
-  .status == "repairable"
+  .status == "missing"
   and .foundation.ready == false
   and any(
     .foundation.base_capabilities.missing[];
-    .command == "dig" and .repair == "omarchy pkg add bind"
+    .command == "dig" and .action == "omarchy pkg add bind"
   )
-' <<<"$repair_report" >/dev/null ||
-  fail "missing base repair route"
+' <<<"$missing_report" >/dev/null ||
+  fail "missing base action route"
 set +e
 run_doctor --check >/dev/null
 check_status=$?
 set -e
-((check_status == 1)) || fail "repairable doctor check status"
-pass "doctor reports exact missing-capability repair without mutating state"
+((check_status == 1)) || fail "missing-capability doctor check status"
+pass "doctor reports the exact action for a missing capability without mutating state"
 
 mv "$runtime/doctor" "$runtime/doctor.missing"
 set +e

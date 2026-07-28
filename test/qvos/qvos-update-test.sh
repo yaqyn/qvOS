@@ -6,7 +6,6 @@ adapter="$root/bin/omarchy-qvos-update"
 owner="$root/qv/update/qvos-update"
 availability_owner="$root/qv/update/update-available"
 tui_update="$root/qv/tui/update/run"
-tui_update_compat="$root/qv/tui/bin/qvos-update"
 tui_shared_launch="$root/qv/tui/launch"
 tui_launch="$root/qv/tui/update/launch"
 launch_adapter="$root/bin/omarchy-launch-qvos-update"
@@ -253,12 +252,6 @@ QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
   "$tui_update" --check
 [[ $(<"$tui_update_log") == "--check" ]] ||
   fail "qvOS TUI update preflight delegation"
-QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
-  QVOS_UPDATE_LOG_PATH="$tui_session_log" \
-  PATH="$test_bin:/usr/bin" \
-  "$tui_update_compat"
-[[ $(<"$tui_update_log") == "-y" ]] ||
-  fail "legacy qvOS TUI update adapter"
 set +e
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
   QVOS_TEST_TUI_UPDATE_STATUS=7 \

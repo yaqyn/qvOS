@@ -164,7 +164,7 @@ Every qvOS change must leave one traceable lifecycle.
   outside `~/.local/share/omarchy`; keep that checkout clean.
 - Use thin, absent-safe adapters only when they complete a user task. qvOS must
   remain complete and healthy with no qvCORE stack installed. Shared refresh
-  paths preserve optional integrations without installing or repairing stacks.
+  paths preserve optional integrations without installing stacks.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
   Verify fresh install, update, removal, and live behavior where applicable.

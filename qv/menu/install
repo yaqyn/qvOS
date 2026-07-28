@@ -33,11 +33,6 @@ walker_subtext_source="$menu_source_dir/walker-subtext.css"
 providers=(
   qvos_omarchy_menu.lua
 )
-retired_providers=(
-  qvos_apps.lua
-  qvos_omarchy_menu_home.lua
-  qvos_omarchy_menu_search.lua
-)
 # shellcheck disable=SC2016
 source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
 walker_config_backed_up=false
@@ -106,19 +101,10 @@ install_qvos_menu() {
 
 install_menu_providers() {
   local provider
-  local provider_link
   local runtime_provider
 
   rm -rf -- "$provider_runtime_dir"
   install -d "$provider_runtime_dir" "$provider_menu_dir"
-
-  for provider in "${retired_providers[@]}"; do
-    provider_link="$provider_menu_dir/$provider"
-    if [[ -L $provider_link ]] &&
-      [[ $(readlink "$provider_link") == "$provider_runtime_dir/$provider" ]]; then
-      rm -f -- "$provider_link"
-    fi
-  done
 
   for provider in "${providers[@]}"; do
     runtime_provider="$provider_runtime_dir/$provider"
@@ -288,16 +274,7 @@ menu_extension_ready() {
 
 menu_providers_ready() {
   local provider
-  local provider_link
   local runtime_provider
-
-  for provider in "${retired_providers[@]}"; do
-    provider_link="$provider_menu_dir/$provider"
-    if [[ -L $provider_link ]] &&
-      [[ $(readlink "$provider_link") == "$provider_runtime_dir/$provider" ]]; then
-      return 1
-    fi
-  done
 
   for provider in "${providers[@]}"; do
     runtime_provider="$provider_runtime_dir/$provider"

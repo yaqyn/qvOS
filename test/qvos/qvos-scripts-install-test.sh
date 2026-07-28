@@ -67,26 +67,18 @@ install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/share/qvos/bin" \
   "$test_root/.local/share/qvos/desktop/context" \
-  "$test_root/.local/share/qvos/maintenance" \
   "$test_root/.local/share/qvos/screensaver" \
   "$test_root/.local/share/qvos/thunar" \
   "$test_root/.local/share/qvos/tmux" \
   "$test_root/.local/share/qvos/waybar"
 touch \
-  "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore" \
   "$test_root/.local/share/qvos/desktop/context/removed-helper" \
-  "$test_root/.local/share/qvos/maintenance/essential-packages" \
-  "$test_root/.local/share/qvos/maintenance/qvos-repair" \
-  "$test_root/.local/share/qvos/maintenance/qvos-system" \
   "$test_root/.local/share/qvos/screensaver/removed-launcher" \
   "$test_root/.local/share/qvos/thunar/removed-feature" \
   "$test_root/.local/share/qvos/tmux/removed-feature" \
   "$test_root/.local/share/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
-# shellcheck disable=SC2016
-printf '%s\n' \
-  'source "$HOME/.local/share/omarchy/qv/shell/aliases"' \
-  >"$test_root/.bashrc"
+install -m 0644 /dev/null "$test_root/.bashrc"
 
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qv/install/desktop"
@@ -119,8 +111,6 @@ cmp -s \
   "$root/qv/direct/post-update-hook" \
   "$test_root/.config/omarchy/hooks/post-update.d/qvos-direct-tools" ||
   fail "direct-tool post-update hook install"
-[[ ! -e $test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore ]] ||
-  fail "obsolete qvCORE post-update hook cleanup"
 cmp -s \
   "$root/qv/waybar/post-update-hook" \
   "$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
@@ -183,7 +173,7 @@ for optional_thunar_feature in codex proton-drive-upload; do
     "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
     fail "enabled Thunar $optional_thunar_feature preservation"
 done
-pass "desktop refresh preserves optional helpers without repairing stacks"
+pass "desktop refresh preserves optional helpers without reinstalling stacks"
 
 waybar_source_inventory="$(find "$root/qv/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||
@@ -224,9 +214,7 @@ cmp -s \
   fail "qv Codex front door installation"
 [[ -x $test_root/.local/bin/qv && ! -L $test_root/.local/bin/qv ]] ||
   fail "qv Codex front door is not a real executable"
-[[ ! -e $test_root/.local/share/qvos/maintenance ]] ||
-  fail "retired qvOS Recovery runtime directory"
-pass "qv Codex front door installs without retired Recovery runtime"
+pass "qv Codex front door installs independently"
 
 cmp -s \
   "$root/qv/shell/aliases" \
@@ -237,14 +225,8 @@ grep -Fqx \
   'source "$HOME/.local/share/qvos/shell/aliases"' \
   "$test_root/.bashrc" ||
   fail "runtime shell source line"
-# shellcheck disable=SC2016
-if grep -Fqx \
-  'source "$HOME/.local/share/omarchy/qv/shell/aliases"' \
-  "$test_root/.bashrc"; then
-  fail "source-tree shell source line"
-fi
 compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
-  fail "legacy Bash source line backup"
+  fail "Bash configuration backup"
 pass "Bash loads the source-independent qvOS shell overlay"
 
 [[ "$(stat -c '%a' "$test_root/.local/share/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
@@ -272,28 +254,3 @@ for feature in \
     fail "Thunar $feature mode"
 done
 pass "tracked script and data modes are preserved"
-
-status_output=$(
-  HOME="$test_root" \
-    OMARCHY_PATH="$root" \
-    "$root/qv/install/desktop-status"
-)
-[[ -z $status_output ]] || fail "clean desktop status output"
-
-printf '\n# test drift\n' \
-  >>"$test_root/.local/share/qvos/tmux/qvos-tmux"
-drift_before=$(sha256sum "$test_root/.local/share/qvos/tmux/qvos-tmux")
-set +e
-drift_output=$(
-  HOME="$test_root" \
-    OMARCHY_PATH="$root" \
-    "$root/qv/install/desktop-status" 2>&1
-)
-drift_status=$?
-set -e
-((drift_status == 1)) || fail "desktop drift status"
-grep -Fq 'tmux runtime differs from tracked qvOS source' <<<"$drift_output" ||
-  fail "desktop drift status detail"
-[[ $(sha256sum "$test_root/.local/share/qvos/tmux/qvos-tmux") == "$drift_before" ]] ||
-  fail "desktop status mutates drifted runtime"
-pass "qvOS desktop status detects runtime drift without changing it"

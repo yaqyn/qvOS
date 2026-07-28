@@ -39,7 +39,7 @@ replace its judgment.
 - Before runtime checks, back up and apply changed user config, then install
   desktop payloads with
   `OMARCHY_PATH=$PWD bash -c 'source qv/install/desktop'`. Preserve optional
-  qvCORE runtime integrations without repairing them, verify the direct-tool
+  qvCORE runtime integrations without reinstalling them, verify the direct-tool
   runtime and hook, confirm the live checkout is clean, and run the relevant
   reload or smoke test.
 - Stage with `git add -A`; inspect `git diff --cached --check` and

@@ -87,15 +87,6 @@ show_more_menu() {
   esac
 }
 
-# Compatibility routes now resolve into the canonical browse surfaces.
-show_setup_hub_menu() {
-  show_settings_menu
-}
-
-show_misc_menu() {
-  show_more_menu
-}
-
 run_concept_action() {
   local action="$1"
 
@@ -264,7 +255,7 @@ show_setup_menu() {
   *DNS*) present_terminal omarchy-qvos-setup-dns ;;
   *Security*) show_setup_security_menu ;;
   *Config*) show_setup_config_menu ;;
-  *) show_setup_hub_menu ;;
+  *) show_settings_menu ;;
   esac
 }
 
@@ -278,7 +269,7 @@ show_install_menu() {
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
   *Easy*) show_install_easy_list_menu ;;
-  *) show_setup_hub_menu ;;
+  *) show_settings_menu ;;
   esac
 }
 
@@ -412,7 +403,7 @@ show_remove_menu() {
   *Gaming*) show_remove_gaming_menu ;;
   *Windows*) present_terminal "omarchy-windows-vm remove" ;;
   *Security*) show_remove_security_menu ;;
-  *) show_setup_hub_menu ;;
+  *) show_settings_menu ;;
   esac
 }
 
@@ -465,8 +456,6 @@ go_to_menu() {
     ;;
   *settings*) show_settings_menu ;;
   *more*) show_more_menu ;;
-  *setup-hub*) show_setup_hub_menu ;;
-  *misc*) show_misc_menu ;;
   *learn*) show_learn_menu ;;
   *trigger*) show_trigger_menu ;;
   *toggle*) show_toggle_menu ;;

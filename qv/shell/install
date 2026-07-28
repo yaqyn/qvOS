@@ -7,8 +7,6 @@ bashrc="$HOME/.bashrc"
 bashrc_existed=0
 backup_done=0
 # shellcheck disable=SC2016
-legacy_source='source "$HOME/.local/share/omarchy/qv/shell/aliases"'
-# shellcheck disable=SC2016
 runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
 
 backup_bashrc() {
@@ -40,13 +38,6 @@ else
   install -m 0644 /dev/null "$bashrc"
 fi
 
-if grep -Fqx "$legacy_source" "$bashrc"; then
-  backup_bashrc
-  # shellcheck disable=SC2016
-  sed -i \
-    's|^source "$HOME/.local/share/omarchy/qv/shell/aliases"$|source "$HOME/.local/share/qvos/shell/aliases"|' \
-    "$bashrc"
-fi
 if ! grep -Fqx "$runtime_source" "$bashrc"; then
   backup_bashrc
   printf '\n%s\n' "$runtime_source" >>"$bashrc"

@@ -46,9 +46,9 @@ resolve_command() {
 validate_registry() {
   awk -F '\t' '
     /^#/ || NF == 0 { next }
-    NF != 5 { invalid = 1; next }
-    $2 !~ /^(base|qvcore|project|avoid)$/ { invalid = 1 }
-    $1 == "" || $3 == "" || $4 == "" || $5 == "" { invalid = 1 }
+    NF != 4 { invalid = 1; next }
+    $2 !~ /^(base|qvdev|project|avoid)$/ { invalid = 1 }
+    $1 == "" || $3 == "" || $4 == "" { invalid = 1 }
     seen[$1]++ { invalid = 1 }
     END { exit invalid }
   ' "$capability_registry"
@@ -127,7 +127,7 @@ qvdev_ready=0
 avoid_present=0
 duplicate_count=0
 
-while IFS=$'\t' read -r capability layer profile owner repair extra; do
+while IFS=$'\t' read -r capability layer owner action extra; do
   [[ -n $capability && $capability != "#"* ]] || continue
   [[ -z ${extra:-} ]] || continue
 
@@ -145,11 +145,9 @@ while IFS=$'\t' read -r capability layer profile owner repair extra; do
       capability_status="missing"
     fi
     ;;
-  qvcore)
-    if [[ $profile == "qvdev" ]]; then
-      qvdev_total=$((qvdev_total + 1))
-      ((present)) && qvdev_ready=$((qvdev_ready + 1))
-    fi
+  qvdev)
+    qvdev_total=$((qvdev_total + 1))
+    ((present)) && qvdev_ready=$((qvdev_ready + 1))
     if ((present)); then
       capability_status="ready"
     else
@@ -176,24 +174,22 @@ while IFS=$'\t' read -r capability layer profile owner repair extra; do
   jq -cn \
     --arg command "$capability" \
     --arg layer "$layer" \
-    --arg profile "$profile" \
     --arg owner "$owner" \
     --arg status "$capability_status" \
     --arg path "$resolved_path" \
-    --arg repair "$repair" \
+    --arg action "$action" \
     --argjson present "$(bool_json "$present")" \
     '{
       command: $command,
       layer: $layer,
-      profile: $profile,
       owner: $owner,
       status: $status,
       present: $present,
       path: (if $path == "" then null else $path end),
-      repair: (
+      action: (
         if $status == "ready" or $status == "present" or $status == "avoided"
         then null
-        else $repair
+        else $action
         end
       )
     }' >>"$capabilities_file"
@@ -374,12 +370,12 @@ foundation_ready_count=$((base_ready +
   canonical_ready +
   codex_doctor_ready +
   sandbox_ready))
-foundation_repairable=0
-((foundation_ready_count == foundation_total)) || foundation_repairable=1
+foundation_missing=0
+((foundation_ready_count == foundation_total)) || foundation_missing=1
 
 report_status="ready"
-if ((foundation_repairable)); then
-  report_status="repairable"
+if ((foundation_missing)); then
+  report_status="missing"
 elif [[ $codex_doctor_status == "warning" ]] ||
   ((duplicate_count > 0 || avoid_present > 0)); then
   report_status="warning"
@@ -392,7 +388,7 @@ missing_base_json=$(
     [
       .[]
       | select(.layer == "base" and .present == false)
-      | {command, owner, repair}
+      | {command, owner, action}
     ]
   ' "$capabilities_file"
 )
@@ -410,7 +406,7 @@ report_json=$(
     --argjson capabilities "$capabilities_json" \
     --argjson duplicates "$duplicates_json" \
     --argjson missing_base "$missing_base_json" \
-    --argjson foundation_ready "$(bool_json "$((foundation_repairable == 0))")" \
+    --argjson foundation_ready "$(bool_json "$((foundation_missing == 0))")" \
     --argjson foundation_ready_count "$foundation_ready_count" \
     --argjson foundation_total "$foundation_total" \
     --argjson base_ready "$base_ready" \
@@ -471,30 +467,16 @@ report_json=$(
         user_namespace_limit: $user_namespace_limit,
         proof: "codex sandbox /usr/bin/true"
       },
-      profiles: {
-        qvdev: {
-          status: (
-            if $qvdev_ready == $qvdev_total then "ready"
-            elif $qvdev_ready == 0 then "missing"
-            else "partial"
-            end
-          ),
-          ready: $qvdev_ready,
-          total: $qvdev_total,
-          install_route: "omarchy install qvcore qvdev"
-        },
-        browser: {
-          status: "planned",
-          available: false,
-          planned_phase: 2,
-          install_route: null
-        },
-        documents: {
-          status: "planned",
-          available: false,
-          planned_phase: 4,
-          install_route: null
-        }
+      qvdev: {
+        status: (
+          if $qvdev_ready == $qvdev_total then "ready"
+          elif $qvdev_ready == 0 then "missing"
+          else "partial"
+          end
+        ),
+        ready: $qvdev_ready,
+        total: $qvdev_total,
+        install_route: "omarchy install qvcore qvdev"
       },
       wayland: {
         session: $wayland_session,
@@ -537,8 +519,6 @@ else
     "$([[ $sandbox_ready == "1" ]] && echo "ready" || echo "missing")"
   printf '  qvDEV           %d/%d commands ready\n' \
     "$qvdev_ready" "$qvdev_total"
-  printf '  Browser         planned for Phase 2\n'
-  printf '  Documents       planned for Phase 4\n'
   printf '  Wayland tools   %d/%d ready\n' \
     "$wayland_ready" "$wayland_total"
   printf '  MCP / skills    %d configured / %d installed\n' \
@@ -551,7 +531,7 @@ else
     echo "Missing guaranteed base capabilities:"
     jq -r '
       select(.layer == "base" and .present == false)
-      | "  \(.command): \(.repair)"
+      | "  \(.command): \(.action)"
     ' "$capabilities_file"
   fi
 
@@ -567,11 +547,11 @@ else
     echo "Commands that should stay absent:"
     jq -r '
       select(.status == "avoid-present")
-      | "  \(.command): \(.repair)"
+      | "  \(.command): \(.action)"
     ' "$capabilities_file"
   fi
 fi
 
-if ((check_mode && foundation_repairable)); then
+if ((check_mode && foundation_missing)); then
   exit 1
 fi

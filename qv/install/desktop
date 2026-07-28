@@ -29,7 +29,6 @@
     qv/direct/post-update-hook
     qv/direct/tool
     qv/direct/update
-    qv/install/desktop-status
     qv/install/post-update-hook
     qv/launcher/install
     qv/launcher/elephant/omarchy_unlocks.lua
@@ -50,7 +49,6 @@
     qv/screensaver/qvos-screensaver
     qv/shell/aliases
     qv/shell/install
-    qv/shell/status
     qv/thunar/actions.sh
     qv/thunar/codex
     qv/thunar/launch
@@ -118,7 +116,6 @@
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/direct/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-direct-tools"
-  rm -f "$HOME/.config/omarchy/hooks/post-update.d/qvos-qvcore"
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/waybar/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
@@ -136,7 +133,6 @@
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
-  rm -rf -- "$HOME/.local/share/qvos/maintenance"
   install -d \
     "$qvos_bin" \
     "$qvos_codex" \

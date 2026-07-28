@@ -82,4 +82,3 @@ for asset in entry lock; do
   magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e,#f7768e" "$staging_dir/$asset-failed.png"
   sudo cp "$staging_dir/$asset-failed.png" "$sddm_dir/$asset-failed.png"
 done
-sudo rm -f "$sddm_dir/logo.svg"

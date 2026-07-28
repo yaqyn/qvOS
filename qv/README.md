@@ -56,7 +56,7 @@ identity or base readiness.
   analysis, and restarts. After Pacman/AUR, one direct-tool hook updates only
   already-installed manifest entries belonging to Codex base, qvDEV, and
   Proton. It never restores missing tools, installs stacks, authenticates
-  accounts, repairs integrations, or changes networking.
+  accounts, changes integrations, or changes networking.
 - The qvCORE menu shows the two stacks directly. Each row is Install when
   unenrolled and Remove when enrolled. Install converges only missing pieces,
   configures and verifies the stack, then records enrollment. Remove deletes
@@ -67,8 +67,7 @@ identity or base readiness.
   capability contract separates guaranteed base capabilities, qvDEV,
   project-local tools, and commands that should stay absent. `--json` emits the
   stable machine-readable report; `--check` fails only when the guaranteed
-  Codex foundation needs repair. Optional Browser and Documents profiles remain
-  explicitly unavailable until their owners ship.
+  Codex foundation is missing a required capability.
 - qvDEV unifies developer and Codex workstation ownership. It owns
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
@@ -88,7 +87,8 @@ separate documented installation rather than a source, branch, or config reset.
 `qv/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs its default helpers, including the LocalSend Share
 action for Omarchy's base package, and preserves optional stack payloads
-without repairing them. Proton and qvDEV install and remove their own actions.
+without reinstalling them. Proton and qvDEV install and remove their own
+actions.
 
 ## Upstream boundary
 

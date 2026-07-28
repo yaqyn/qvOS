@@ -47,17 +47,7 @@ case $* in
   ;;
 esac
 SCRIPT
-install -d \
-  "$test_root/.config/elephant/menus" \
-  "$test_root/.local/share/qvos/menu/elephant"
-for retired_provider in \
-  qvos_apps.lua \
-  qvos_omarchy_menu_home.lua \
-  qvos_omarchy_menu_search.lua; do
-  ln -s \
-    "$test_root/.local/share/qvos/menu/elephant/$retired_provider" \
-    "$test_root/.config/elephant/menus/$retired_provider"
-done
+install -d "$test_root/.config/elephant/menus"
 
 HOME="$test_root" \
   OMARCHY_PATH="$root" \
@@ -71,14 +61,6 @@ HOME="$test_root" \
   fail "installed menu status"
 [[ $(<"$systemctl_log") == $'--user restart elephant.service\n--user restart app-walker@autostart.service' ]] ||
   fail "active menu service reload"
-for retired_provider in \
-  qvos_apps.lua \
-  qvos_omarchy_menu_home.lua \
-  qvos_omarchy_menu_search.lua; do
-  [[ ! -L $test_root/.config/elephant/menus/$retired_provider ]] ||
-    fail "retired $retired_provider provider"
-done
-
 python3 - "$test_root/.config/walker/config.toml" <<'PY'
 import pathlib
 import sys

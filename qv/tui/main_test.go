@@ -340,6 +340,7 @@ while true; do sleep 1; done
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	events := make(chan scriptEvent, 32)
 	go runRootScriptStream(ctx, actionUpdate, script, events)
 

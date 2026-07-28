@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set -euo pipefail
-
-# Compatibility adapter. Update TUI ownership lives under qv/tui/update.
-exec "$(dirname -- "${BASH_SOURCE[0]}")/../update/run" "$@"
