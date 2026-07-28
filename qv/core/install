@@ -9,7 +9,7 @@ components=()
 declare -A component_type=()
 
 usage() {
-  echo "Usage: omarchy-install-qvcore [all|apps|setups|brave-origin|warp|share|dev|codex|proton|steam|media]" >&2
+  echo "Usage: omarchy-install-qvcore [all|apps|setups|brave-origin|warp|share|dev|codex|proton|media]" >&2
 }
 
 install_component() {

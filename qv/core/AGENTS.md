@@ -9,6 +9,9 @@ component installed.
 
 - Keep new integrations out of base install and package lists unless explicitly
   promoted to the base system.
+- The reviewed gaming runtime is explicitly promoted to
+  `qv/install/packaging/base.packages`. Steam is not a qvCORE component; use
+  Omarchy's standard Steam install and removal commands.
 - Reuse an existing `omarchy-install-*` or `omarchy-setup-*` owner. Add
   `qv/core/<component>.sh` only when qvOS must own persistent integration.
 - Ordinary apps remain personal software. Only managed setups participate in
@@ -27,4 +30,6 @@ component installed.
 Verify the affected component independently, then run its focused tests,
 `test/qvos/qvcore-health-test.sh`, personal-software coverage when removal
 changes, post-update coverage when maintenance changes, and the full qvOS suite
-for shared contracts.
+for shared contracts. Gaming-base changes additionally run
+`test/qvos/qvos-gaming-base-test.sh` and prove Steam has no qvCORE catalog,
+health, removal, or menu route.

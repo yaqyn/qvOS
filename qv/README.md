@@ -41,14 +41,16 @@ two layers:
 
 - Apps (`Brave`, `Devel`, `Codex`, and `Media`) are curated shortcuts for
   installing ordinary personal software.
-- Managed setups (`WARP`, `Share`, `Proton`, and Gaming Dependencies) have extra
-  configuration or dependency ownership. Only these setups participate in
-  qvCORE status, repair, disable, and post-update integration maintenance.
+- Managed setups (`WARP`, `Share`, and `Proton`) have extra configuration
+  ownership. Only these setups participate in qvCORE status, repair, disable,
+  and post-update integration maintenance.
 
 ## Product lifecycle
 
-qvOS has one supported base: a solid, unbloated Arch system curated through
-Omarchy. qvCORE is separate and adds optional personal software without
+qvOS has one supported base: a solid, gaming-ready Arch system curated through
+Omarchy. Its reviewed gaming runtime is installed from the qvOS base package
+manifest. Steam remains optional and uses Omarchy's standard gaming installer
+and remover. qvCORE is separate and adds optional personal software without
 changing qvOS identity, readiness, health, or base ownership.
 
 - `omarchy qvos update` confirms the operation and verifies branch `OS`, then
@@ -89,16 +91,13 @@ changing qvOS identity, readiness, health, or base ownership.
   curated app catalog, `setups` installs only managed setups, and every
   component remains independently installable.
 - `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
-  Proton, and Gaming Dependencies. `omarchy qvcore disable` removes only enabled
-  setup ownership or integration state while preserving software and personal
-  data. Independently installed Steam remains disabled until the curated
-  Gaming Dependencies setup is explicitly installed. Status reports exit
-  successfully when inspection completes; `status --check` returns nonzero
-  when a managed setup needs attention.
+  and Proton. `omarchy qvcore disable` removes only enabled setup ownership or
+  integration state while preserving software and personal data. Status
+  reports exit successfully when inspection completes; `status --check`
+  returns nonzero when a managed setup needs attention.
 - `omarchy qvcore remove` is the removal surface for curated qvCORE software.
   Coordinated owners remove together. Brave Origin reuses Omarchy's browser
-  cleanup while preserving its profile and personal data. Steam removal
-  preserves game libraries, configuration, and shared gaming dependencies.
+  cleanup while preserving its profile and personal data.
 - `omarchy qvos software` inventories software added after the immutable
   fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
   npm globals, persistent npx wrappers, AppImages, and standalone executables

@@ -456,7 +456,7 @@ print(#entries, #menu_entries, #chromium, #empty)
 LUA
 )
 read -r installed_app_count returned_menu_count alias_count empty_count <<<"$apps_audit"
-((installed_app_count == 2 && returned_menu_count >= 190 &&
+((installed_app_count == 2 && returned_menu_count == search_count &&
   alias_count == 1 && empty_count == 1)) ||
   fail "query-preserving app and menu modes"
 pass "the same query returns installed apps or menu concepts by mode"

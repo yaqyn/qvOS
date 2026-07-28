@@ -19,7 +19,6 @@ proton	pacman	protonmail-bridge-core
 proton	pacman	proton-vpn-cli
 proton	user-bin	pass-cli
 proton	user-bin	proton-drive
-steam	pacman	steam
 media	pacman	gimp
 media	pacman	inkscape
 media	pacman	krita

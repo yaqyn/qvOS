@@ -22,13 +22,13 @@ declare -A issue_detail=()
 declare -A issue_present=()
 
 usage() {
-  echo "Usage: health.sh [status [--check]|check|repair [warp|share|proton|steam]|maintain|disable]" >&2
+  echo "Usage: health.sh [status [--check]|check|repair [warp|share|proton]|maintain|disable]" >&2
 }
 
 load_setups() {
   local type component label icon extra
   local required_setup
-  local required_setups=(warp share proton steam)
+  local required_setups=(warp share proton)
 
   [[ -f $catalog ]] || {
     echo "Missing qvCORE catalog: $catalog" >&2
@@ -51,7 +51,7 @@ load_setups() {
 
   integrated_setups=(warp share proton)
   if ((${#setup_components[@]} != ${#required_setups[@]})); then
-    echo "qvCORE catalog must define exactly four managed setups." >&2
+    echo "qvCORE catalog must define exactly three managed setups." >&2
     return 1
   fi
   for required_setup in "${required_setups[@]}"; do
@@ -125,50 +125,13 @@ inspect_integrated_setup() {
   fi
 }
 
-inspect_steam_setup() {
-  local state
-
-  if ! state=$("$component_dir/steam.sh" --state 2>/dev/null); then
-    state="unknown"
-  fi
-  case $state in
-  ready)
-    setup_state[steam]="ready"
-    setup_detail[steam]="Steam and curated gaming dependencies are installed"
-    ;;
-  partial)
-    setup_state[steam]="partial"
-    setup_detail[steam]="Steam is installed; gaming dependencies are incomplete"
-    ;;
-  available)
-    setup_state[steam]="available"
-    setup_detail[steam]="Steam is present; curated dependency ownership is disabled"
-    ;;
-  removed)
-    setup_state[steam]="removed"
-    setup_detail[steam]="Steam was removed; qvCORE setup ownership remains"
-    ;;
-  not-installed)
-    setup_state[steam]="not-installed"
-    setup_detail[steam]="Steam setup is not installed"
-    ;;
-  *)
-    setup_state[steam]="needs-repair"
-    setup_detail[steam]="Steam setup inventory could not be read"
-    ;;
-  esac
-}
-
 inspect_setups() {
   local component
 
   setup_state=()
   setup_detail=()
   for component in "${setup_components[@]}"; do
-    case $component in
-    steam) inspect_steam_setup ;;
-    *) inspect_integrated_setup "$component" ;;
-    esac
+    inspect_integrated_setup "$component"
   done
 }
 
@@ -241,11 +204,7 @@ repair_setup() {
   needs-repair)
     confirm_action "Repair the ${component_name[$component]} setup?" ||
       return $?
-    if [[ $component == "steam" ]]; then
-      "$component_dir/install" steam
-    else
-      "$component_dir/$component.sh" --repair
-    fi
+    "$component_dir/$component.sh" --repair
     ;;
   available)
     if [[ $component == "warp" ]]; then
@@ -255,11 +214,6 @@ repair_setup() {
           return $?
         "$component_dir/install" warp
       fi
-    elif [[ $component == "steam" ]]; then
-      confirm_action \
-        "Enable the curated ${component_name[$component]} setup?" ||
-        return $?
-      "$component_dir/install" steam
     else
       confirm_action \
         "Enable the ${component_name[$component]} setup integration?" ||

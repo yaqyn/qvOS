@@ -231,14 +231,6 @@ case $* in
 esac
 SCRIPT
 
-install -m 0755 /dev/stdin "$qvcore_owner_dir/steam.sh" <<'SCRIPT'
-#!/bin/bash
-case $* in
-"--remove --check" | "--remove --yes") exit ;;
-*) exit 2 ;;
-esac
-SCRIPT
-
 install -m 0755 /dev/null "$user_bin/existing-tool"
 install -m 0755 /dev/null "$applications/Existing.AppImage"
 install -m 0755 /dev/null "$system_bin/existing-system-tool"
@@ -570,7 +562,6 @@ for ownership in \
   $'proton\tpacman\tproton-vpn-cli' \
   $'proton\tuser-bin\tpass-cli' \
   $'proton\tuser-bin\tproton-drive' \
-  $'steam\tpacman\tsteam' \
   $'media\tpacman\tkdenlive'; do
   grep -Fqx "$ownership" "$root/qv/core/software-ownership.tsv" ||
     fail "qvCORE software ownership: $ownership"

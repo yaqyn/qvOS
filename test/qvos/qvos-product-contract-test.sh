@@ -81,13 +81,13 @@ if grep -Eq '^(act|age|brave-origin-beta-bin|cloudflare-warp-nox-bin|cloudflared
   grep -RqsF '@openai/codex' "$root/qv/install"; then
   fail "qvCORE application leaked into the base installation"
 fi
-expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t󰖂\napp\tbrave-origin\tBrave\t󰖟\nsetup\tshare\tShare\t\napp\tdev\tDevel\t󰵮\napp\tcodex\tCodex\t󱚤\nsetup\tproton\tProton\t󰌾\nsetup\tsteam\tGaming Dependencies\t\napp\tmedia\tMedia\t󰕧'
+expected_qvcore_catalog=$'# type\tcomponent\tlabel\ticon\nsetup\twarp\tWARP\t󰖂\napp\tbrave-origin\tBrave\t󰖟\nsetup\tshare\tShare\t\napp\tdev\tDevel\t󰵮\napp\tcodex\tCodex\t󱚤\nsetup\tproton\tProton\t󰌾\napp\tmedia\tMedia\t󰕧'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
   fail "qvCORE catalog classification"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
   fail "qvOS regular user command protection inventory"
 [[ $(sed '/^#/d;/^$/d' "$root/qv/core/software-removal-groups") == \
-  $'brave-origin\tbrowser profile and personal data are preserved\nproton\tcloud data and saved authentication are preserved\nsteam\tgame libraries, configuration, and shared gaming dependencies are preserved' ]] ||
+  $'brave-origin\tbrowser profile and personal data are preserved\nproton\tcloud data and saved authentication are preserved' ]] ||
   fail "qvCORE coordinated software-removal inventory"
 while IFS=$'\t' read -r type component _; do
   [[ $type == "setup" ]] || continue
@@ -118,12 +118,7 @@ grep -Fqx '  install_group app' "$root/qv/core/install" ||
   fail "qvCORE application install group"
 grep -Fqx '  install_group setup' "$root/qv/core/install" ||
   fail "qvCORE managed setup install group"
-grep -Fqx 'omarchy-install-gaming-steam' "$root/qv/core/steam.sh" || fail "qvCORE Steam delegates to Omarchy"
-grep -Fq 'state_file="$HOME/.local/state/qvos/qvcore/steam"' \
-  "$root/qv/core/steam.sh" ||
-  fail "qvCORE Steam explicit ownership state"
-grep -Fq 'echo "available"' "$root/qv/core/steam.sh" ||
-  fail "independent Steam availability state"
+[[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
 grep -Fqx '# qvcore:managed-setup=1' "$root/qv/core/warp.sh" ||
   fail "qvCORE WARP managed setup"
 grep -Fqx '# qvcore:app-integration=1' "$root/qv/core/codex.sh" ||
@@ -210,14 +205,12 @@ install_gaming_override=$(
 remove_gaming_override=$(
   sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
-grep -Fq '*Steam*) present_terminal "omarchy-install-qvcore steam" ;;' \
+grep -Fq '*Steam*) present_terminal omarchy-install-gaming-steam ;;' \
   <<<"$install_gaming_override" ||
-  fail "Steam install bypasses its qvCORE owner"
-grep -Fq '/qv/core/steam.sh --remove" ;;' <<<"$remove_gaming_override" ||
-  fail "Steam removal bypasses its preservation-safe qvCORE owner"
-if grep -Fq 'omarchy-remove-gaming-steam' <<<"$remove_gaming_override"; then
-  fail "qvOS menu exposes destructive inherited Steam removal"
-fi
+  fail "Steam install bypasses Omarchy's owner"
+grep -Fq '*Steam*) present_terminal omarchy-remove-gaming-steam ;;' \
+  <<<"$remove_gaming_override" ||
+  fail "Steam removal bypasses Omarchy's owner"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
 grep -Fq '"01", "REPAIR", "Repair qvOS"' "$root/qv/tui/main.go" || fail "qvOS repair identity"
 grep -Fq '"format": "󱅾"' "$root/qv/waybar/overrides.jsonc" ||

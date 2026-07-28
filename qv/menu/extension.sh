@@ -343,7 +343,7 @@ show_install_easy_list_menu() {
 
 show_install_gaming_menu() {
   case $(menu "Install" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰂯  Xbox Controller\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
-  *Steam*) present_terminal "omarchy-install-qvcore steam" ;;
+  *Steam*) present_terminal omarchy-install-gaming-steam ;;
   *RetroArch*) present_terminal omarchy-install-gaming-retroarch ;;
   *Minecraft*) install_and_launch "Minecraft" "minecraft-launcher" "minecraft-launcher" ;;
   *GeForce*) present_terminal omarchy-install-gaming-geforce-now ;;
@@ -384,7 +384,7 @@ show_qvcore_apps_menu() {
 show_qvcore_setups_menu() {
   local back_menu=${1:-show_qvcore_menu}
 
-  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton\n  Gaming Dependencies") in
+  case $(menu "qvCORE — Managed Setups" "󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton") in
   *Status*) present_terminal omarchy-qvcore-status ;;
   *Repair*) present_terminal omarchy-qvcore-repair ;;
   *Disable*) present_terminal omarchy-qvcore-disable ;;
@@ -392,7 +392,6 @@ show_qvcore_setups_menu() {
   *WARP*) present_terminal "omarchy-install-qvcore warp" ;;
   *Share*) present_terminal "omarchy-install-qvcore share" ;;
   *Proton*) present_terminal "omarchy-install-qvcore proton" ;;
-  *Gaming*) present_terminal "omarchy-install-qvcore steam" ;;
   *) "$back_menu" ;;
   esac
 }
@@ -425,7 +424,7 @@ show_remove_menu() {
 
 show_remove_gaming_menu() {
   case $(menu "Remove" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰖺  Xbox Controller (󰂯)\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
-  *Steam*) present_terminal "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/steam.sh --remove" ;;
+  *Steam*) present_terminal omarchy-remove-gaming-steam ;;
   *RetroArch*) present_terminal omarchy-remove-gaming-retroarch ;;
   *Minecraft*) present_terminal omarchy-remove-gaming-minecraft ;;
   *GeForce*) present_terminal omarchy-remove-gaming-geforce-now ;;

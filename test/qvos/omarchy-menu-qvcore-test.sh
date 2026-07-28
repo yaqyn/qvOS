@@ -116,7 +116,6 @@ run_route setups "Install All Setups" "omarchy-install-qvcore setups"
 run_route setups WARP "omarchy-install-qvcore warp"
 run_route setups Share "omarchy-install-qvcore share"
 run_route setups Proton "omarchy-install-qvcore proton"
-run_route setups "Gaming Dependencies" "omarchy-install-qvcore steam"
-[[ $(<"$setups_menu_log") == $'󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton\n  Gaming Dependencies' ]] ||
+[[ $(<"$setups_menu_log") == $'󰋼  Setup Status\n󰑓  Repair Setup\n󰐕  Disable Setup\n  Install All Setups\n󰖂  WARP\n  Share\n󰌾  Proton' ]] ||
   fail "qvCORE managed setup list"
-pass "health, repair, and disable share the four managed setup owners"
+pass "health, repair, and disable share the three managed setup owners"

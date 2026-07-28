@@ -64,7 +64,7 @@ brave||Brave|Settings · Software · Browser|web,browser|Install|present:omar
 brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser,qvcore|Install|present:omarchy-install-qvcore brave-origin|Remove|component-remove:brave-origin|Learn|web:https://brave.com/learn/
 firefox||Firefox|Settings · Software · Browser|mozilla,web|Install|present:omarchy-install-browser firefox|Remove|present:omarchy-remove-browser firefox|Learn|web:https://support.mozilla.org/products/firefox
 zen|󰖟|Zen|Settings · Software · Browser|firefox,web|Install|present:omarchy-install-browser zen|Remove|present:omarchy-remove-browser zen|Learn|web:https://docs.zen-browser.app/
-steam||Steam|Settings · Software · Gaming|games,valve,qvcore|Install|present:omarchy-install-qvcore steam|Remove|component-remove:steam|Learn|web:https://help.steampowered.com/
+steam||Steam|Settings · Software · Gaming|games,valve|Install|present:omarchy-install-gaming-steam|Remove|present:omarchy-remove-gaming-steam|Learn|web:https://help.steampowered.com/
 retroarch||RetroArch|Settings · Software · Gaming|games,emulator|Install|present:omarchy-install-gaming-retroarch|Remove|present:omarchy-remove-gaming-retroarch|Learn|web:https://docs.libretro.com/
 minecraft|󰍳|Minecraft|Settings · Software · Gaming|games,launcher|Install|present:echo 'Installing Minecraft...'; omarchy-pkg-add minecraft-launcher && setsid gtk-launch minecraft-launcher|Remove|present:omarchy-remove-gaming-minecraft|Learn|web:https://minecraft.wiki/w/Tutorials
 geforce-now|󰢹|NVIDIA GeForce NOW|Settings · Software · Gaming|games,cloud,nvidia|Install|present:omarchy-install-gaming-geforce-now|Remove|present:omarchy-remove-gaming-geforce-now|Learn|web:https://www.nvidia.com/en-us/geforce-now/support/

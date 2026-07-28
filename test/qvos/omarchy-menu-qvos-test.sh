@@ -158,7 +158,6 @@ run_qvcore_route main "Install Everything" "omarchy-install-qvcore"
 run_qvcore_route main "Remove qvCORE Software" "omarchy-qvcore-remove"
 run_qvcore_route apps Devel "omarchy-install-qvcore dev"
 run_qvcore_route setups "Setup Status" "omarchy-qvcore-status"
-run_qvcore_route setups "Gaming Dependencies" "omarchy-install-qvcore steam"
 pass "qvCORE owns installation, setup lifecycle, and curated removal"
 
 grep -Fqx \

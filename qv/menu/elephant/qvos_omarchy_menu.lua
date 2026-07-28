@@ -406,7 +406,6 @@ function GetEntries(query)
   add(entries, "󰋼", "qvCORE Status", "Settings · Software · qvCORE", { "health", "check" }, present("omarchy-qvcore-status"))
   add(entries, "󰑓", "Repair qvCORE", "Settings · Software · qvCORE", { "fix", "health" }, present("omarchy-qvcore-repair"))
   add(entries, "󰐕", "Disable qvCORE", "Settings · Software · qvCORE", { "integration", "off" }, present("omarchy-qvcore-disable"))
-  add(entries, "", "Gaming Dependencies", "Settings · Software · qvCORE", { "steam", "linutil" }, present("omarchy-install-qvcore steam"))
 
   -- Install services.
   add(entries, "", "Dropbox", "Settings · Software · Services", { "cloud", "storage" }, present("omarchy-install-dropbox"))
