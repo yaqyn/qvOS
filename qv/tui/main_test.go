@@ -457,6 +457,25 @@ func TestReducedProgressKeepsBarOutsideMobile(t *testing.T) {
 	}
 }
 
+func TestDefaultLandscapeUpdateKeepsVisibleProgressBar(t *testing.T) {
+	view := (model{
+		width:          140,
+		height:         31,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptProgress: 0.38,
+		scriptTarget:   0.38,
+	}).View()
+	content := stripANSI(view.Content)
+
+	if !strings.Contains(content, "UPDATE") || !strings.Contains(content, "38%") ||
+		!strings.Contains(content, "━━━━━━━━━━━━━") ||
+		!strings.Contains(content, "────────────────────") {
+		t.Fatalf("default landscape progress is missing its loading bar: %q", content)
+	}
+}
+
 func TestConfirmationActionsUseQuietSelectionMarker(t *testing.T) {
 	selected := stripANSI(renderConfirmationAction("Update qvOS", true))
 	unselected := stripANSI(renderConfirmationAction("Cancel", false))

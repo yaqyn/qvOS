@@ -755,7 +755,12 @@ func (m model) renderSideBody(width, height int) string {
 	}
 
 	canvasW, canvasH = leftWidth, 0
-	left := m.renderMiddle(layoutMobile)
+	middleMode := layoutMobile
+	if m.loading && isScriptAction(m.action) &&
+		!m.updateConfirm && !m.updateStopConfirm && !m.sudoPrompt {
+		middleMode = layoutTablet
+	}
+	left := m.renderMiddle(middleMode)
 	right := renderIdentity("qvOS", page)
 
 	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
