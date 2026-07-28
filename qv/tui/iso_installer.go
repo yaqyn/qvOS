@@ -56,6 +56,7 @@ type isoInstallerModel struct {
 	shutdownChoice int
 	allowQuit      bool
 	errorText      string
+	helpOverlay    bool
 	keyboards      []isoChoice
 	timezones      []isoChoice
 	disks          []isoDiskChoice
@@ -159,6 +160,10 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyPressMsg:
+		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.capturesTextInput()); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
 		return m.handleISOKey(msg)
 	}
 	return m, nil
@@ -594,7 +599,9 @@ func (m isoInstallerModel) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, "ISO "+m.stepTitle()+" controls", m.helpHints())
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, fullCanvasReserveRows)
@@ -664,29 +671,151 @@ func (m isoInstallerModel) renderISOBody(mode layoutMode, icon string) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
+func (m isoInstallerModel) capturesTextInput() bool {
 	if m.shutdownPrompt {
-		return m.renderISOShutdownPrompt(mode)
-	}
-	if m.step == isoStepIntro {
-		return m.renderISOIntro(mode)
-	}
-	if m.step == isoStepWriting {
-		return renderReducedProgress("CONFIG", loadRun, realisticProgress(float64(m.frame%buildFrames)/float64(buildFrames)), mode)
-	}
-	if m.step == isoStepError {
-		return centerCanvas(sRed.Render("ERROR") + sGray.Render("  ") + sMid.Render(m.errorText))
+		return false
 	}
 	if m.isListStep() {
-		return m.renderISOListStep(mode)
+		return true
 	}
-	if m.step == isoStepReview {
-		return m.renderISOReview(mode)
+	switch m.step {
+	case isoStepUsername,
+		isoStepFullName,
+		isoStepEmail,
+		isoStepPassword,
+		isoStepPasswordConfirm,
+		isoStepHostname:
+		return true
+	default:
+		return false
 	}
-	if m.step == isoStepConfirm {
-		return m.renderISOStaticChoice(mode)
+}
+
+func (m isoInstallerModel) helpHints() []tuiHint {
+	exitHint := tuiHint{
+		Key:    "ctrl+c / ctrl+d / ctrl+z / ctrl+q / ctrl+\\",
+		Action: "open the guarded shutdown prompt",
 	}
-	return m.renderISOInputStep(mode)
+	if m.shutdownPrompt {
+		return []tuiHint{
+			{Key: "arrows", Action: "choose cancel or continue"},
+			{Key: "enter", Action: "confirm the selected option"},
+			{Key: "esc", Action: "continue installation"},
+		}
+	}
+	switch m.step {
+	case isoStepIntro:
+		return []tuiHint{
+			{Key: "enter", Action: "begin configuration"},
+			{Key: "esc", Action: "open the guarded shutdown prompt"},
+			exitHint,
+		}
+	case isoStepWriting:
+		return []tuiHint{exitHint}
+	case isoStepError:
+		return []tuiHint{
+			{Key: "enter / esc", Action: "close the installer"},
+			exitHint,
+		}
+	case isoStepReview, isoStepConfirm:
+		return []tuiHint{
+			{Key: "arrows", Action: "choose an option"},
+			{Key: "enter", Action: "continue with the selected option"},
+			{Key: "esc", Action: "return to the previous step"},
+			exitHint,
+		}
+	default:
+		if m.isListStep() {
+			return []tuiHint{
+				{Key: "type", Action: "filter the available choices"},
+				{Key: "↑ / ↓", Action: "move between choices"},
+				{Key: "backspace", Action: "edit the filter"},
+				{Key: "enter", Action: "use the selected choice"},
+				{Key: "esc", Action: "return to the previous step"},
+				exitHint,
+			}
+		}
+		return []tuiHint{
+			{Key: "type", Action: "enter the requested value"},
+			{Key: "backspace", Action: "delete one character"},
+			{Key: "ctrl+u", Action: "clear the field"},
+			{Key: "enter", Action: "continue"},
+			{Key: "esc", Action: "return to the previous step"},
+			exitHint,
+		}
+	}
+}
+
+func (m isoInstallerModel) persistentHints() []tuiHint {
+	if m.shutdownPrompt {
+		return []tuiHint{
+			{Key: "←→", Action: "choose"},
+			{Key: "enter", Action: "confirm"},
+			{Key: "esc", Action: "continue"},
+			{Key: "?", Action: "help"},
+		}
+	}
+	switch m.step {
+	case isoStepIntro:
+		return []tuiHint{
+			{Key: "enter", Action: "begin"},
+			{Key: "esc", Action: "cancel options"},
+			{Key: "?", Action: "help"},
+		}
+	case isoStepWriting:
+		return []tuiHint{
+			{Key: "ctrl+c/z", Action: "stop options"},
+			{Key: "?", Action: "help"},
+		}
+	case isoStepError:
+		return []tuiHint{
+			{Key: "enter", Action: "close"},
+			{Key: "?", Action: "help"},
+		}
+	case isoStepReview, isoStepConfirm:
+		return []tuiHint{
+			{Key: "←→", Action: "choose"},
+			{Key: "enter", Action: "continue"},
+			{Key: "esc", Action: "back"},
+			{Key: "?", Action: "help"},
+		}
+	default:
+		if m.isListStep() {
+			return []tuiHint{
+				{Key: "↑↓", Action: "choose"},
+				{Key: "enter", Action: "continue"},
+				{Key: "esc", Action: "back"},
+				{Key: "f1", Action: "help"},
+			}
+		}
+		return []tuiHint{
+			{Key: "enter", Action: "continue"},
+			{Key: "esc", Action: "back"},
+			{Key: "f1", Action: "help"},
+		}
+	}
+}
+
+func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
+	var content string
+	if m.shutdownPrompt {
+		content = m.renderISOShutdownPrompt(mode)
+	} else if m.step == isoStepIntro {
+		content = m.renderISOIntro(mode)
+	} else if m.step == isoStepWriting {
+		content = renderReducedProgress("CONFIG", loadRun, realisticProgress(float64(m.frame%buildFrames)/float64(buildFrames)), mode)
+	} else if m.step == isoStepError {
+		content = centerCanvas(sRed.Render("ERROR") + sGray.Render("  ") + sMid.Render(m.errorText))
+	} else if m.isListStep() {
+		content = m.renderISOListStep(mode)
+	} else if m.step == isoStepReview {
+		content = m.renderISOReview(mode)
+	} else if m.step == isoStepConfirm {
+		content = m.renderISOStaticChoice(mode)
+	} else {
+		content = m.renderISOInputStep(mode)
+	}
+	return appendTUIHints(content, canvasW, m.persistentHints()...)
 }
 
 func (m isoInstallerModel) renderISOIntro(mode layoutMode) string {
@@ -700,11 +829,7 @@ func (m isoInstallerModel) renderISOIntro(mode layoutMode) string {
 		}, "\n")
 	}
 
-	lines := []string{centerCanvas(begin)}
-	if mode == layoutDesktop {
-		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
-	}
-	return strings.Join(lines, "\n")
+	return centerCanvas(begin)
 }
 
 func (m isoInstallerModel) renderISOInputStep(mode layoutMode) string {
@@ -720,9 +845,6 @@ func (m isoInstallerModel) renderISOInputStep(mode layoutMode) string {
 	}
 	if m.errorText != "" {
 		lines = append(lines, "", centerCanvas(sRed.Render(m.errorText)))
-	}
-	if mode == layoutDesktop {
-		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -740,9 +862,6 @@ func (m isoInstallerModel) renderISOShutdownPrompt(mode layoutMode) string {
 	lines = append(lines, centerLines(choices)...)
 	if m.errorText != "" {
 		lines = append(lines, "", centerCanvas(sRed.Render(m.errorText)))
-	}
-	if mode == layoutDesktop {
-		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -777,9 +896,6 @@ func (m isoInstallerModel) renderISOListStep(mode layoutMode) string {
 	lines = append(lines, centerLines(m.visibleChoiceRows(choices, mode))...)
 	if m.errorText != "" {
 		lines = append(lines, centerCanvas(sRed.Render(m.errorText)))
-	}
-	if mode == layoutDesktop {
-		lines = append(lines, "", centerCanvas(isoHelpLine()))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -896,9 +1012,6 @@ func (m isoInstallerModel) renderISOStaticChoice(mode layoutMode) string {
 		lines = append(lines, centerCanvas(sGray.Render("disk encryption: "+encryptionLabel(m.config.EncryptInstallation))), "")
 	}
 	lines = append(lines, centerLines(renderISOOptionRows(m.staticStepChoices(), m.choiceIndex, mode))...)
-	if mode == layoutDesktop {
-		lines = append(lines, "", "", centerCanvas(isoHelpLine()))
-	}
 	return strings.Join(lines, "\n")
 }
 
@@ -1085,12 +1198,6 @@ func renderISOSearchField(filter string, mode layoutMode) string {
 
 func isoShutdownChoices() []isoChoice {
 	return []isoChoice{{Label: "cancel", Value: "shutdown"}, {Label: "continue", Value: "continue"}}
-}
-
-func isoHelpLine() string {
-	return sDim.Render("←↑↓→") + sGray.Render("  cycle    ") +
-		sDim.Render("⏎") + sGray.Render("  next    ") +
-		sDim.Render("esc") + sGray.Render("  back")
 }
 
 func trimDisplay(value string, maxWidth int) string {

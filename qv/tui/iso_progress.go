@@ -18,19 +18,21 @@ const (
 )
 
 type isoProgressModel struct {
-	frame      int
-	width      int
-	height     int
-	fullscreen bool
-	logPath    string
-	noInput    bool
-	prototype  bool
-	previewAge int
-	progress   float64
-	target     float64
-	status     string
-	logLines   []string
-	logOverlay bool
+	frame        int
+	width        int
+	height       int
+	fullscreen   bool
+	logPath      string
+	noInput      bool
+	prototype    bool
+	previewAge   int
+	progress     float64
+	target       float64
+	status       string
+	logLines     []string
+	logOverlay   bool
+	terminalView bool
+	helpOverlay  bool
 }
 
 type isoProgressSnapshotMsg struct {
@@ -139,6 +141,24 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.noInput {
 			return m, nil
 		}
+		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
+		if m.terminalView {
+			switch msg.String() {
+			case "ctrl+v":
+				m.terminalView = false
+			case "v", "V":
+				m.terminalView = false
+				m.logOverlay = true
+			case "esc", "ctrl+c":
+				if m.prototype {
+					return m, tea.Quit
+				}
+			}
+			return m, nil
+		}
 		if m.prototype {
 			switch msg.String() {
 			case "esc", "ctrl+c":
@@ -151,6 +171,9 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.String() == "v" || msg.String() == "V" {
 			m.logOverlay = !m.logOverlay
+		}
+		if msg.String() == "ctrl+v" {
+			m.terminalView = true
 		}
 	}
 	return m, nil
@@ -193,7 +216,17 @@ func (m isoProgressModel) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, "install progress controls", m.helpHints())
+	} else if m.terminalView {
+		body = renderTUITerminalOutput(
+			width,
+			height,
+			"INSTALL",
+			m.logLines,
+			m.terminalHints(),
+		)
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
 		reserveRows := fullCanvasReserveRows
@@ -264,9 +297,69 @@ func (m isoProgressModel) renderISOProgressBody(mode layoutMode, icon string) st
 	return strings.Join(lines, "\n")
 }
 
+func (m isoProgressModel) helpHints() []tuiHint {
+	if m.terminalView {
+		hints := []tuiHint{
+			{Key: "ctrl+v", Action: "return to the qvOS install view"},
+			{Key: "v", Action: "return with the log panel open"},
+		}
+		if m.prototype {
+			hints = append(hints, tuiHint{Key: "esc / ctrl+c", Action: "return to the prototype hub"})
+		}
+		return hints
+	}
+
+	hints := []tuiHint{
+		{Key: "v", Action: "toggle the qvOS install log panel"},
+		{Key: "ctrl+v", Action: "toggle original terminal output"},
+	}
+	if m.prototype {
+		hints = append(hints,
+			tuiHint{Key: "enter", Action: "return when the prototype completes"},
+			tuiHint{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
+		)
+	}
+	return hints
+}
+
+func (m isoProgressModel) persistentHints() []tuiHint {
+	if m.noInput {
+		return nil
+	}
+	logAction := "logs"
+	if m.logOverlay {
+		logAction = "close logs"
+	}
+	hints := []tuiHint{
+		{Key: "v", Action: logAction},
+		{Key: "ctrl+v", Action: "terminal"},
+		{Key: "?", Action: "help"},
+	}
+	if m.prototype && m.progress >= 1 {
+		hints = append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
+	}
+	return hints
+}
+
+func (m isoProgressModel) terminalHints() []tuiHint {
+	hints := []tuiHint{
+		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "v", Action: "logs"},
+		{Key: "?", Action: "help"},
+	}
+	if m.prototype {
+		hints = append(hints, tuiHint{Key: "esc", Action: "return"})
+	}
+	return hints
+}
+
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 	if mode == layoutMobile {
-		return renderReducedProgress("INSTALLING", loadRun, m.progress, mode)
+		return appendTUIHints(
+			renderReducedProgress("INSTALLING", loadRun, m.progress, mode),
+			canvasW,
+			m.persistentHints()...,
+		)
 	}
 
 	progress := m.progress
@@ -282,38 +375,31 @@ func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 
 	bar := renderProgressBar(loadRun, progress, m.frame)
 	statusLine := sGray.Render(statusRaw) + strings.Repeat(" ", gap) + sMid.Render(percentRaw)
-	hint := sRed.Render("v") + sBright.Render(" logs")
-	if m.noInput {
-		hint = sBright.Render("logs")
-	} else if m.prototype && m.progress >= 1 {
-		hint = sRed.Render("enter") + sBright.Render(" return")
-	}
-
 	ctr := func(s string) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
 
 	if mode == layoutTablet {
-		return strings.Join([]string{
+		content := strings.Join([]string{
 			ctr(sWhite.Render("INSTALLING")),
 			"",
 			ctr(statusLine),
 			"",
 			ctr(bar),
 			"",
-			ctr(hint),
 		}, "\n")
+		return appendTUIHints(content, canvasW, m.persistentHints()...)
 	}
 
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		ctr(sWhite.Render("INSTALLING")),
 		"",
 		ctr(statusLine),
 		"",
 		ctr(bar),
 		"",
-		ctr(hint),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.persistentHints()...)
 }
 
 func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {

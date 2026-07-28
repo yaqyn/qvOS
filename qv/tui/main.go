@@ -351,6 +351,8 @@ type model struct {
 	scriptCanceling   bool
 	scriptCanceled    bool
 	logOverlay        bool
+	terminalView      bool
+	helpOverlay       bool
 	updateConfirm     bool
 	updateChoice      int
 	updateStopConfirm bool
@@ -601,6 +603,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.startRootScriptRun(msg.action, msg.script)
 
 	case tea.MouseClickMsg:
+		if m.helpOverlay || m.terminalView {
+			return m, nil
+		}
 		if !m.loading {
 			return m.mainMouse(msg)
 		}
@@ -610,6 +615,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.sudoPrompt); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
+		if m.terminalView {
+			switch msg.String() {
+			case "ctrl+v":
+				m.terminalView = false
+				return m, nil
+			case "v", "V":
+				m.terminalView = false
+				m.logOverlay = true
+				return m, nil
+			case "ctrl+c", "ctrl+z":
+				if m.loadPhase() != loadRun {
+					return m, nil
+				}
+				m.terminalView = false
+			default:
+				return m, nil
+			}
+		}
 		if m.loading {
 			if m.updateStopConfirm {
 				return m.handleUpdateStopConfirmationKey(msg)
@@ -625,6 +652,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
 					if m.action == actionUpdate && !m.scriptCanceling {
+						m.terminalView = false
 						m.updateStopConfirm = true
 						m.updateStopChoice = 0
 						return m, nil
@@ -647,9 +675,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if phase != loadRun {
 					return m.leaveRootAction()
 				}
-			case "v":
+			case "v", "V":
 				if isScriptAction(m.action) {
 					m.logOverlay = !m.logOverlay
+				}
+			case "ctrl+v":
+				if isScriptAction(m.action) {
+					m.terminalView = true
 				}
 			case "r":
 				if isRootAction(m.action) && phase == loadErr {
@@ -700,7 +732,17 @@ func (m model) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, m.helpTitle(), m.helpHints())
+	} else if m.terminalView && m.loading && isScriptAction(m.action) {
+		body = renderTUITerminalOutput(
+			width,
+			height,
+			rootActionName(m.action),
+			m.scriptLogLines,
+			m.terminalHints(),
+		)
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderSideBody(width, height)
 	} else {
 		reserveRows := fullCanvasReserveRows
@@ -798,6 +840,187 @@ func (m model) activeModelRole() modelRole {
 	return modelCore
 }
 
+func (m model) helpTitle() string {
+	if m.terminalView && m.loading {
+		return rootActionName(m.action) + " terminal output"
+	}
+	if m.loading {
+		return rootActionName(m.action) + " controls"
+	}
+	if m.tab != 0 {
+		return sections[m.tab].name + " / coming later"
+	}
+	return "controls"
+}
+
+func (m model) helpHints() []tuiHint {
+	if !m.loading {
+		hints := []tuiHint{
+			{Key: "↑ / ↓  or  j / k", Action: "move between items"},
+			{Key: "← / →  or  h / l", Action: "change page"},
+			{Key: "tab / shift+tab", Action: "change page"},
+		}
+		if m.tab == 0 {
+			hints = append(hints, tuiHint{Key: "enter", Action: "open the selected item"})
+		}
+		hints = append(hints, tuiHint{Key: "ctrl+c", Action: "exit qvOS"})
+		if layoutFor(m.width, m.height) == layoutDesktop {
+			action := "select an item"
+			if m.tab == 0 {
+				action = "select or open an item"
+			}
+			hints = append(hints, tuiHint{Key: "mouse", Action: action})
+		}
+		return hints
+	}
+	if m.terminalView {
+		return m.terminalHelpHints()
+	}
+	if m.updateStopConfirm {
+		return []tuiHint{
+			{Key: "arrows / hjkl / tab", Action: "choose an option"},
+			{Key: "enter", Action: "confirm the selected option"},
+			{Key: "esc", Action: "keep updating"},
+		}
+	}
+	if m.updateConfirm {
+		return []tuiHint{
+			{Key: "arrows / hjkl / tab", Action: "choose an option"},
+			{Key: "enter", Action: "continue with the selected option"},
+			{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before updating"},
+		}
+	}
+	if m.sudoPrompt {
+		return []tuiHint{
+			{Key: "type", Action: "enter the sudo password"},
+			{Key: "backspace", Action: "delete one character"},
+			{Key: "ctrl+u", Action: "clear the password"},
+			{Key: "enter", Action: "authorize"},
+			{Key: "esc", Action: "cancel and return"},
+			{Key: "ctrl+c / ctrl+z", Action: "cancel or exit"},
+		}
+	}
+
+	phase := m.loadPhase()
+	hints := []tuiHint{
+		{Key: "v", Action: "toggle the qvOS log panel"},
+		{Key: "ctrl+v", Action: "toggle original terminal output"},
+	}
+	switch phase {
+	case loadErr:
+		hints = append([]tuiHint{
+			{Key: "r", Action: "retry the action"},
+			{Key: "enter / esc", Action: "return"},
+		}, hints...)
+	case loadOK:
+		hints = append([]tuiHint{{Key: "enter / esc", Action: "return"}}, hints...)
+	default:
+		action := "cancel the action"
+		if m.action == actionUpdate {
+			action = "open safe stop options"
+		}
+		hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: action}}, hints...)
+	}
+	return hints
+}
+
+func (m model) hubPersistentHints() []tuiHint {
+	if m.tab == 0 {
+		return []tuiHint{
+			{Key: "↑↓", Action: "move"},
+			{Key: "enter", Action: "open"},
+			{Key: "?", Action: "help"},
+			{Key: "ctrl+c", Action: "exit"},
+		}
+	}
+	return []tuiHint{
+		{Key: "↑↓", Action: "move"},
+		{Key: "?", Action: "help"},
+		{Key: "ctrl+c", Action: "exit"},
+	}
+}
+
+func (m model) rootPersistentHints() []tuiHint {
+	if m.updateStopConfirm {
+		return []tuiHint{
+			{Key: "←→", Action: "choose"},
+			{Key: "enter", Action: "confirm"},
+			{Key: "esc", Action: "keep updating"},
+			{Key: "?", Action: "help"},
+		}
+	}
+	if m.updateConfirm {
+		return []tuiHint{
+			{Key: "←→", Action: "choose"},
+			{Key: "enter", Action: "continue"},
+			{Key: "esc", Action: "cancel"},
+			{Key: "?", Action: "help"},
+		}
+	}
+	if m.sudoPrompt {
+		return []tuiHint{
+			{Key: "enter", Action: "authorize"},
+			{Key: "esc", Action: "cancel"},
+			{Key: "f1", Action: "help"},
+		}
+	}
+
+	logAction := "logs"
+	if m.logOverlay {
+		logAction = "close logs"
+	}
+	hints := []tuiHint{
+		{Key: "v", Action: logAction},
+		{Key: "ctrl+v", Action: "terminal"},
+		{Key: "?", Action: "help"},
+	}
+	switch m.loadPhase() {
+	case loadErr:
+		return append([]tuiHint{
+			{Key: "r", Action: "retry"},
+			{Key: "enter", Action: "return"},
+		}, hints...)
+	case loadOK:
+		return append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
+	default:
+		action := "cancel"
+		if m.action == actionUpdate {
+			action = "stop options"
+		}
+		return append([]tuiHint{{Key: "ctrl+c/z", Action: action}}, hints...)
+	}
+}
+
+func (m model) terminalHelpHints() []tuiHint {
+	hints := []tuiHint{
+		{Key: "ctrl+v", Action: "return to the qvOS view"},
+		{Key: "v", Action: "return with the log panel open"},
+	}
+	if m.loadPhase() == loadRun {
+		action := "cancel the action"
+		if m.action == actionUpdate {
+			action = "open safe stop options"
+		}
+		hints = append(hints, tuiHint{Key: "ctrl+c / ctrl+z", Action: action})
+	}
+	return hints
+}
+
+func (m model) terminalHints() []tuiHint {
+	hints := []tuiHint{
+		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "v", Action: "logs"},
+	}
+	if m.loadPhase() == loadRun {
+		action := "cancel"
+		if m.action == actionUpdate {
+			action = "stop options"
+		}
+		hints = append(hints, tuiHint{Key: "ctrl+c/z", Action: action})
+	}
+	return append(hints, tuiHint{Key: "?", Action: "help"})
+}
+
 func (m model) renderMiddle(mode layoutMode) string {
 	if m.loading {
 		if isScriptAction(m.action) {
@@ -879,20 +1102,19 @@ func (m model) renderFullMenu() string {
 	showDesc := menuDescriptionsFit(canvasW)
 	menu := m.renderMenuRows(showDesc)
 
-	help := sDim.Render("←↑↓→") + sGray.Render("  move    ") +
-		sDim.Render("⏎") + sGray.Render(" select    ") +
-		sDim.Render("⌖") + sGray.Render("  click    ") +
-		sDim.Render("ctrl+c") + sGray.Render(" exit")
+	help := renderTUIHints(canvasW, m.hubPersistentHints()...)
 
 	ctr := func(s string) string { return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s) }
-	return strings.Join([]string{
+	lines := []string{
 		ctr(tabs),
 		"",
 		ctr(menu),
-		"",
-		"",
-		ctr(help),
-	}, "\n")
+	}
+	if m.tab != 0 {
+		lines = append(lines, "", ctr(sMid.Render("COMING LATER")))
+	}
+	lines = append(lines, "", ctr(help))
+	return strings.Join(lines, "\n")
 }
 
 func (m model) renderMidMenu() string {
@@ -900,17 +1122,18 @@ func (m model) renderMidMenu() string {
 	showDesc := menuDescriptionsFit(canvasW)
 	menu := m.renderMenuRows(showDesc)
 
-	help := sDim.Render("←↑↓→") + sGray.Render(" move   ") +
-		sDim.Render("⏎") + sGray.Render(" select   ") +
-		sDim.Render("ctrl+c") + sGray.Render(" exit")
+	help := renderTUIHints(canvasW, m.hubPersistentHints()...)
 
-	return strings.Join([]string{
+	lines := []string{
 		centerCanvas(tabs),
 		"",
 		centerCanvas(menu),
-		"",
-		centerCanvas(help),
-	}, "\n")
+	}
+	if m.tab != 0 {
+		lines = append(lines, "", centerCanvas(sMid.Render("COMING LATER")))
+	}
+	lines = append(lines, "", centerCanvas(help))
+	return strings.Join(lines, "\n")
 }
 
 func (m model) renderReducedMenu(mode layoutMode) string {
@@ -928,11 +1151,21 @@ func (m model) renderReducedMenu(mode layoutMode) string {
 		for i, it := range active.items {
 			rows = append(rows, centerCanvas(renderCompactMenuRow(it, i == m.cursor, metrics, canvasW, showDescriptions)))
 		}
+		if m.tab != 0 {
+			rows = append(rows, "", centerCanvas(sMid.Render("COMING LATER")))
+		}
+		rows = append(rows, "", centerCanvas(renderTUIHints(canvasW, m.hubPersistentHints()...)))
 		return strings.Join(rows, "\n")
 	}
 
 	selected := active.items[m.cursor]
 	rows = append(rows, centerCanvas(renderCompactMenuRow(selected, true, metrics, canvasW, showDescriptions)))
+	if m.height >= 4 {
+		if m.tab != 0 {
+			rows = append(rows, centerCanvas(sMid.Render("COMING LATER")))
+		}
+		rows = append(rows, centerCanvas(renderTUIHints(canvasW, m.hubPersistentHints()...)))
+	}
 	return strings.Join(rows, "\n")
 }
 
@@ -1165,6 +1398,8 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.terminalView = false
+	m.helpOverlay = false
 	m.updateConfirm = true
 	m.updateChoice = 0
 	m.updateStopConfirm = false
@@ -1224,6 +1459,8 @@ func (m model) cancelUpdate() (model, tea.Cmd) {
 	m.updatePreflight = false
 	m.updateConfirm = false
 	m.updateStopConfirm = false
+	m.terminalView = false
+	m.helpOverlay = false
 	m.updateCanceled = true
 	if m.dedicatedAction {
 		return m, tea.Quit
@@ -1233,6 +1470,8 @@ func (m model) cancelUpdate() (model, tea.Cmd) {
 }
 
 func (m model) leaveRootAction() (model, tea.Cmd) {
+	m.terminalView = false
+	m.helpOverlay = false
 	if m.dedicatedAction {
 		return m, tea.Quit
 	}
@@ -1264,6 +1503,8 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.terminalView = false
+	m.helpOverlay = false
 	m.updateConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
@@ -1309,6 +1550,8 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.terminalView = false
+	m.helpOverlay = false
 
 	if err != nil {
 		m.scriptDone = true
@@ -1343,6 +1586,8 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.scriptCanceling = false
 	m.scriptCanceled = false
 	m.logOverlay = false
+	m.terminalView = false
+	m.helpOverlay = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	return m, runRootScriptCmd(action, script)
@@ -1379,6 +1624,9 @@ func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.sudoPassword[len(m.sudoPassword)-1] = 0
 			m.sudoPassword = m.sudoPassword[:len(m.sudoPassword)-1]
 		}
+	case "ctrl+u":
+		clearRunes(m.sudoPassword)
+		m.sudoPassword = nil
 	default:
 		if text := msg.Key().Text; text != "" {
 			m.sudoPassword = append(m.sudoPassword, []rune(text)...)
@@ -2021,16 +2269,8 @@ func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
 		renderConfirmationAction(updateflow.StopUpdateAction, m.updateStopChoice == 1),
 	))
 
-	if mode == layoutMobile {
-		return strings.Join([]string{title, "", notice, "", actions}, "\n")
-	}
-
-	hint := centerCanvas(
-		sDim.Render("←→") + sGray.Render("  choose    ") +
-			sDim.Render("⏎") + sGray.Render("  confirm    ") +
-			sDim.Render("esc") + sGray.Render("  keep updating"),
-	)
-	return strings.Join([]string{title, "", notice, "", actions, "", hint}, "\n")
+	content := strings.Join([]string{title, "", notice, "", actions}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
@@ -2044,21 +2284,18 @@ func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
 	))
 
 	if mode == layoutMobile {
-		return strings.Join([]string{title, "", actions}, "\n")
+		content := strings.Join([]string{title, "", actions}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
-	hint := centerCanvas(
-		sDim.Render("←→") + sGray.Render("  choose    ") +
-			sDim.Render("⏎") + sGray.Render("  continue    ") +
-			sDim.Render("esc") + sGray.Render("  cancel"),
-	)
 	if mode == layoutTablet {
-		return strings.Join([]string{title, "", summary, "", actions, "", hint}, "\n")
+		content := strings.Join([]string{title, "", summary, "", actions}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
 	notice := centerCanvas(sMid.Render(updateflow.PowerNotice))
 	history := centerCanvas(sDim.Render(updateflow.SourceHistoryLabel))
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		title,
 		"",
 		summary,
@@ -2068,8 +2305,8 @@ func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
 		"",
 		history,
 		"",
-		hint,
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func renderConfirmationAction(label string, selected bool) string {
@@ -2088,10 +2325,11 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 	field := renderPasswordField(m.sudoPassword, mode)
 
 	if mode == layoutMobile {
-		return strings.Join([]string{
+		content := strings.Join([]string{
 			centerCanvas(title),
 			centerCanvas(field),
 		}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
 	if mode == layoutTablet {
@@ -2100,27 +2338,22 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 			lines = append(lines, centerCanvas(status))
 		}
 		lines = append(lines, centerCanvas(field))
-		return strings.Join(lines, "\n")
+		return appendTUIHints(strings.Join(lines, "\n"), canvasW, m.rootPersistentHints()...)
 	}
-
-	hint := sDim.Render("⏎") + sGray.Render("  authorize    ") +
-		sDim.Render("esc") + sGray.Render("  cancel    ") +
-		sDim.Render("ctrl+c") + sGray.Render("  exit")
 
 	ctr := func(s string) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
 
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		ctr(title),
 		"",
 		ctr(status),
 		"",
 		ctr(field),
 		"",
-		"",
-		ctr(hint),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func renderPasswordField(password []rune, mode layoutMode) string {
@@ -2159,35 +2392,20 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	}
 	if mode != layoutDesktop {
 		reduced := renderReducedProgress(rootActionName(m.action), phase, progress, mode)
-		if phase == loadRun {
-			interruptAction := "cancel"
-			if m.action == actionUpdate {
-				interruptAction = "stop options"
-			}
-			hint := centerCanvas(
-				sDim.Render("ctrl+c/z") + sGray.Render("  "+interruptAction),
-			)
-			return strings.Join([]string{reduced, "", hint}, "\n")
-		}
-		return reduced
+		return appendTUIHints(reduced, canvasW, m.rootPersistentHints()...)
 	}
 
 	bar := renderProgressBar(phase, progress, elapsed)
 	percentRaw := fmt.Sprintf("%3d%%", int(progress*100))
 
-	var op, stageRaw, hint string
+	var op, stageRaw string
 	switch phase {
 	case loadOK:
 		op = sWhite.Render(rootActionPastTense(m.action))
 		stageRaw = rootActionCompleteStatus(m.action)
-		hint = sDim.Render("⏎") + sGray.Render("  return    ") +
-			sDim.Render("v") + sGray.Render("  logs")
 	case loadErr:
 		op = sRed.Render(rootActionName(m.action) + " FAILED")
 		stageRaw = shortError(m.scriptErr)
-		hint = sDim.Render("r") + sGray.Render("  retry    ") +
-			sDim.Render("v") + sGray.Render("  logs    ") +
-			sDim.Render("esc") + sGray.Render("  return")
 	default:
 		op = sWhite.Render(rootActionActiveTitle(m.action))
 		if m.updatePreflight {
@@ -2201,12 +2419,6 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		} else {
 			stageRaw = rootActionRunningStatus(m.action)
 		}
-		interruptAction := "cancel"
-		if m.action == actionUpdate {
-			interruptAction = "stop options"
-		}
-		hint = sDim.Render("ctrl+c/z") + sGray.Render("  "+interruptAction+"    ") +
-			sDim.Render("v") + sGray.Render("  logs")
 	}
 
 	if stageRaw == "" {
@@ -2228,36 +2440,37 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
 
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		ctr(op),
 		"",
 		ctr(statusLine),
 		"",
 		ctr(bar),
 		"",
-		"",
-		ctr(hint),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func (m model) renderRootCanceledFor(mode layoutMode) string {
 	title := rootActionName(m.action) + " CANCELED"
 	if mode != layoutDesktop {
-		return centerCanvas(sWhite.Render(title))
+		content := strings.Join([]string{
+			centerCanvas(sWhite.Render(title)),
+			centerCanvas(sGray.Render(rootActionCanceledStatus(m.action))),
+		}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
 	ctr := func(s string) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
-	hint := sDim.Render("⏎") + sGray.Render("  return    ") +
-		sDim.Render("v") + sGray.Render("  logs")
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		ctr(sWhite.Render(title)),
 		"",
 		ctr(sGray.Render(rootActionCanceledStatus(m.action))),
 		"",
-		ctr(hint),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func (m model) renderBuildFinishedFor(mode layoutMode) string {
@@ -2275,13 +2488,18 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 	}
 
 	if mode == layoutMobile {
-		return centerCanvas(sWhite.Render("BUILD FINISHED"))
+		return appendTUIHints(
+			centerCanvas(sWhite.Render("BUILD FINISHED")),
+			canvasW,
+			m.rootPersistentHints()...,
+		)
 	}
 	if mode == layoutTablet {
-		return strings.Join([]string{
+		content := strings.Join([]string{
 			centerCanvas(sWhite.Render("BUILD FINISHED")),
 			centerCanvas(sGray.Render(trimDisplay(releaseName, canvasW))),
 		}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 	}
 
 	labelWidth := 8
@@ -2289,21 +2507,18 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 	dirWidth := max(12, canvasW-labelWidth-2)
 	nameLine := sGray.Render("release ") + sWhite.Render(trimDisplay(releaseName, nameWidth))
 	dirLine := sGray.Render("folder  ") + sMid.Render(trimDisplay(releaseDir, dirWidth))
-	hint := sDim.Render("⏎") + sGray.Render("  return    ") +
-		sDim.Render("v") + sGray.Render("  logs")
-
 	ctr := func(s string) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
 	}
 
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		ctr(sWhite.Render("BUILD FINISHED")),
 		"",
 		ctr(nameLine),
 		ctr(dirLine),
 		"",
-		ctr(hint),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func (m model) renderRootLogOverlayFor(mode layoutMode) string {

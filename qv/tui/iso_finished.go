@@ -9,13 +9,14 @@ import (
 )
 
 type isoFinishedModel struct {
-	frame      int
-	width      int
-	height     int
-	fullscreen bool
-	logPath    string
-	duration   string
-	allowQuit  bool
+	frame       int
+	width       int
+	height      int
+	fullscreen  bool
+	logPath     string
+	duration    string
+	allowQuit   bool
+	helpOverlay bool
 }
 
 func runISOFinished(args []string) error {
@@ -76,6 +77,10 @@ func (m isoFinishedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
 	case tea.KeyPressMsg:
+		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
 		if msg.String() == "enter" {
 			m.allowQuit = true
 			return m, tea.Quit
@@ -90,7 +95,11 @@ func (m isoFinishedModel) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, "install finale controls", []tuiHint{
+			{Key: "enter", Action: "reboot into the installed qvOS system"},
+		})
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, fullCanvasReserveRows)
@@ -162,9 +171,10 @@ func (m isoFinishedModel) renderISOFinishedPanel(mode layoutMode, includeProduct
 		centerCanvas(renderISOActionRow("00", "REBOOT NOW", true, mode)),
 	)
 
-	if mode == layoutDesktop {
-		lines = append(lines, "", centerCanvas(sDim.Render("enter  reboot")))
-	}
+	lines = append(lines, "", centerTUIHints(canvasW,
+		tuiHint{Key: "enter", Action: "reboot"},
+		tuiHint{Key: "?", Action: "help"},
+	))
 	return strings.Join(lines, "\n")
 }
 

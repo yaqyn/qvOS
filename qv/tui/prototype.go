@@ -58,6 +58,7 @@ type prototypeHubModel struct {
 	width, height int
 	fullscreen    bool
 	launch        prototypeLaunch
+	helpOverlay   bool
 }
 
 func runPrototype() error {
@@ -108,6 +109,10 @@ func (m prototypeHubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
 	case tea.KeyPressMsg:
+		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
 		switch msg.String() {
 		case "ctrl+c", "esc", "q":
 			return m, tea.Quit
@@ -139,7 +144,9 @@ func (m prototypeHubModel) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, "prototype controls", m.helpHints())
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderSideBody(width, height)
 	} else {
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, fullCanvasReserveRows)
@@ -167,6 +174,25 @@ func (m prototypeHubModel) View() tea.View {
 
 func (m prototypeHubModel) renderIcon() string {
 	return renderModelRole(modelCore, m.frame)
+}
+
+func (m prototypeHubModel) helpHints() []tuiHint {
+	return []tuiHint{
+		{Key: "↑ / ↓  or  j / k", Action: "move between items"},
+		{Key: "← / →  or  h / l", Action: "change page"},
+		{Key: "tab / shift+tab", Action: "change page"},
+		{Key: "enter", Action: "open the selected prototype"},
+		{Key: "esc / q / ctrl+c", Action: "exit the prototype"},
+	}
+}
+
+func (m prototypeHubModel) persistentHints() []tuiHint {
+	return []tuiHint{
+		{Key: "↑↓", Action: "move"},
+		{Key: "enter", Action: "open"},
+		{Key: "?", Action: "help"},
+		{Key: "esc", Action: "exit"},
+	}
 }
 
 func (m prototypeHubModel) renderSideBody(width, height int) string {
@@ -212,15 +238,14 @@ func (m prototypeHubModel) renderMenu(mode layoutMode) string {
 		} else {
 			rows = append(rows, centerCanvas(renderCompactMenuRow(active.items[m.cursor], true, metrics, canvasW, showDescriptions)))
 		}
+		rows = append(rows, "", centerCanvas(renderTUIHints(canvasW, m.persistentHints()...)))
 		return strings.Join(rows, "\n")
 	}
 
 	availableWidth := canvasW
 	showDescriptions := prototypeMenuWidth(true) <= availableWidth
 	rows := renderPrototypeMenuRows(m.tab, m.cursor, showDescriptions)
-	help := sDim.Render("←↑↓→") + sGray.Render("  move    ") +
-		sDim.Render("⏎") + sGray.Render("  open    ") +
-		sDim.Render("esc") + sGray.Render("  exit")
+	help := renderTUIHints(canvasW, m.persistentHints()...)
 
 	return strings.Join([]string{
 		centerCanvas(renderPrototypeTabs(m.tab)),
@@ -386,6 +411,8 @@ type prototypeSessionModel struct {
 	stageIndex    int
 	logLines      []string
 	logOverlay    bool
+	terminalView  bool
+	helpOverlay   bool
 	failed        bool
 	done          bool
 	attempt       int
@@ -445,6 +472,24 @@ func (m *prototypeSessionModel) advanceStages() {
 }
 
 func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.awaitingAuthorization()); handled {
+		m.helpOverlay = helpOverlay
+		return m, nil
+	}
+	if m.terminalView {
+		switch msg.String() {
+		case "ctrl+v":
+			m.terminalView = false
+		case "v", "V":
+			m.terminalView = false
+			m.logOverlay = true
+		case "ctrl+c", "esc":
+			clearRunes(m.password)
+			m.password = nil
+			return m, tea.Quit
+		}
+		return m, nil
+	}
 	if msg.String() == "ctrl+c" || msg.String() == "esc" {
 		clearRunes(m.password)
 		m.password = nil
@@ -482,8 +527,10 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	}
 
 	switch msg.String() {
-	case "v":
+	case "v", "V":
 		m.logOverlay = !m.logOverlay
+	case "ctrl+v":
+		m.terminalView = true
 	case "r":
 		if m.failed {
 			m.attempt++
@@ -507,7 +554,17 @@ func (m prototypeSessionModel) View() tea.View {
 	mode := layoutFor(width, height)
 
 	var body string
-	if isSideComposition(width, height, m.fullscreen) {
+	if m.helpOverlay {
+		body = renderTUIHelp(width, m.profile.title+" controls", m.helpHints())
+	} else if m.terminalView {
+		body = renderTUITerminalOutput(
+			width,
+			height,
+			"PROTOTYPE / "+m.profile.title,
+			m.logLines,
+			m.terminalHints(),
+		)
+	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderSideBody(width, height)
 	} else {
 		reserveRows := fullCanvasReserveRows
@@ -572,25 +629,103 @@ func (m prototypeSessionModel) renderBody(mode layoutMode, icon string) string {
 	return strings.Join(lines, "\n")
 }
 
+func (m prototypeSessionModel) awaitingAuthorization() bool {
+	return m.profile.requiresSudo && !m.running && !m.failed && !m.done && m.attempt == 0
+}
+
+func (m prototypeSessionModel) helpHints() []tuiHint {
+	if m.terminalView {
+		return []tuiHint{
+			{Key: "ctrl+v", Action: "return to the qvOS view"},
+			{Key: "v", Action: "return with the log panel open"},
+			{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
+		}
+	}
+	if m.awaitingAuthorization() {
+		return []tuiHint{
+			{Key: "type", Action: "enter the prototype password"},
+			{Key: "backspace", Action: "delete one character"},
+			{Key: "ctrl+u", Action: "clear the password"},
+			{Key: "enter", Action: "authorize the prototype"},
+			{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
+		}
+	}
+
+	hints := []tuiHint{
+		{Key: "v", Action: "toggle the qvOS log panel"},
+		{Key: "ctrl+v", Action: "toggle original terminal output"},
+		{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
+	}
+	if m.failed {
+		hints = append([]tuiHint{
+			{Key: "r", Action: "retry the prototype"},
+			{Key: "enter", Action: "return to the prototype hub"},
+		}, hints...)
+	} else if m.done {
+		hints = append([]tuiHint{{Key: "enter", Action: "return to the prototype hub"}}, hints...)
+	}
+	return hints
+}
+
+func (m prototypeSessionModel) persistentHints() []tuiHint {
+	if m.awaitingAuthorization() {
+		return []tuiHint{
+			{Key: "enter", Action: "authorize"},
+			{Key: "esc", Action: "return"},
+			{Key: "f1", Action: "help"},
+		}
+	}
+
+	logAction := "logs"
+	if m.logOverlay {
+		logAction = "close logs"
+	}
+	hints := []tuiHint{
+		{Key: "v", Action: logAction},
+		{Key: "ctrl+v", Action: "terminal"},
+		{Key: "?", Action: "help"},
+	}
+	if m.failed {
+		return append([]tuiHint{
+			{Key: "r", Action: "retry"},
+			{Key: "enter", Action: "return"},
+		}, hints...)
+	}
+	if m.done {
+		return append([]tuiHint{{Key: "enter", Action: "return"}}, hints...)
+	}
+	return append([]tuiHint{{Key: "esc", Action: "return"}}, hints...)
+}
+
+func (m prototypeSessionModel) terminalHints() []tuiHint {
+	return []tuiHint{
+		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "v", Action: "logs"},
+		{Key: "?", Action: "help"},
+		{Key: "esc", Action: "return"},
+	}
+}
+
 func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
-	if m.profile.requiresSudo && !m.running && !m.failed && !m.done && m.attempt == 0 {
+	if m.awaitingAuthorization() {
 		title := centerCanvas(sWhite.Render(m.profile.title + " AUTH"))
 		status := centerCanvas(sGray.Render("prototype only · no command will run"))
 		if m.authError != "" {
 			status = centerCanvas(sRed.Render(m.authError))
 		}
 		if mode == layoutMobile {
-			return strings.Join([]string{title, centerCanvas(renderPasswordField(m.password, mode))}, "\n")
+			content := strings.Join([]string{title, centerCanvas(renderPasswordField(m.password, mode))}, "\n")
+			return appendTUIHints(content, canvasW, m.persistentHints()...)
 		}
-		return strings.Join([]string{
+		content := strings.Join([]string{
 			title,
 			"",
 			status,
 			"",
 			centerCanvas(renderPasswordField(m.password, mode)),
 			"",
-			centerCanvas(sDim.Render("enter  authorize    esc  return")),
 		}, "\n")
+		return appendTUIHints(content, canvasW, m.persistentHints()...)
 	}
 
 	if mode == layoutMobile {
@@ -601,22 +736,23 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 		if m.done {
 			phase = loadOK
 		}
-		return renderReducedProgress(m.profile.title, phase, m.progress, mode)
+		return appendTUIHints(
+			renderReducedProgress(m.profile.title, phase, m.progress, mode),
+			canvasW,
+			m.persistentHints()...,
+		)
 	}
 
 	title := m.profile.title
 	status := m.currentStatus()
 	phase := loadRun
-	hint := "v  logs    esc  return"
 	if m.failed {
 		title += " FAILED"
 		status = errPrototypeFailure.Error()
 		phase = loadErr
-		hint = "r  retry    enter  return    v  logs"
 	} else if m.done {
 		title = m.profile.complete
 		phase = loadOK
-		hint = "enter  return    v  logs"
 	}
 
 	percent := fmt.Sprintf("%3d%%", int(m.progress*100))
@@ -630,15 +766,15 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 		statusStyle = sRed
 	}
 
-	return strings.Join([]string{
+	content := strings.Join([]string{
 		centerCanvas(sWhite.Render(strings.ToUpper(title))),
 		"",
 		centerCanvas(statusStyle.Render(status) + strings.Repeat(" ", gap) + sMid.Render(percent)),
 		"",
 		centerCanvas(renderProgressBar(phase, m.progress, m.frame)),
 		"",
-		centerCanvas(sDim.Render(hint)),
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.persistentHints()...)
 }
 
 func (m prototypeSessionModel) currentStatus() string {

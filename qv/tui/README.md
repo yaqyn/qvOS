@@ -36,6 +36,21 @@ Non-mobile progress views keep both the percentage and a visible loading bar.
 Confirmation choices use one quiet marker instead of framed terminal buttons.
 Every mode uses the same `#020202` background.
 
+## Accessibility
+
+Every responsive surface keeps its essential controls visible with bright key
+labels and plain-language actions. `?` opens contextual help outside text
+fields; `F1` opens it everywhere so passwords, search filters, and other input
+retain the `?` character. The help screen inventories the current state's
+navigation, confirmation, editing, exit, retry, log, and interruption keys.
+Scaffold pages without a wired owner are labeled `COMING LATER` and do not
+advertise an inactive Enter action.
+
+`v` toggles the composed qvOS log panel and changes its visible label to
+`close logs` while open. `Ctrl+V` switches log-producing flows to a
+same-process `TERMINAL OUTPUT` view of the captured original command stream.
+It never spawns a second terminal or duplicates the running action.
+
 The four model roles carry meaning across surfaces:
 
 - CORE: beating red/grayscale hub identity
@@ -89,8 +104,9 @@ Run the prototype without real system actions:
 go run . --prototype
 ```
 
-Use arrow keys or `hjkl`, Enter to open, `v` to toggle logs, `r` to retry the
-fake failure session, and Escape to return or exit.
+Use arrow keys or `hjkl`, Enter to open, `v` to toggle logs, `Ctrl+V` for
+terminal output, `r` to retry the fake failure session, and Escape to return
+or exit. Press `?` or `F1` for the complete contextual control list.
 
 Run the focused checks and renderer benchmarks from this directory:
 
