@@ -8,6 +8,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - Keep Home to `All Apps`, `Update qvOS`, `Settings`, and `More`.
 - Global search is exhaustive. Tab switches Apps/Menu without clearing the
   query.
+- Keep natural-language aliases in `search-intents.psv`. Exact intents must be
+  high-confidence and map to one unique visible result; leave ambiguous words
+  to exhaustive fuzzy search.
 - Organize browse screens by nouns. Verbs are actions on one canonical concept
   sheet, never duplicate Install, Remove, Style, or Update folders.
 - Keep each concept and breadcrumb in `qv/menu/concepts.psv`; browse screens

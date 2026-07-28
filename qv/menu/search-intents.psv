@@ -1,0 +1,156 @@
+# intent|target
+# Exact, high-confidence user intents only. Targets are unique visible search names.
+store|Package
+app store|Package
+software center|Package
+package manager|Package
+install|Package
+install apps|Package
+install package|Package
+download apps|Package
+add software|Package
+remove package|Package
+pacman|Package
+aur|Package
+update|Update qvOS
+upgrade|Update qvOS
+system update|Update qvOS
+update system|Update qvOS
+software update|Update qvOS
+package updates|Update qvOS
+check for updates|Update qvOS
+applications|All Apps
+installed apps|All Apps
+launch app|All Apps
+system health|qvOS System
+health check|qvOS System
+system repair|qvOS System
+repair system|qvOS System
+system recovery|qvOS System
+system diagnostics|qvOS System
+dark mode|Theme
+light mode|Theme
+change theme|Theme
+color scheme|Theme
+change wallpaper|Background
+desktop wallpaper|Background
+wallpaper settings|Background
+change font|Font
+system font|Font
+window appearance|Look & Feel
+window animations|Look & Feel
+screen saver|Screensaver
+idle screen|Screensaver
+wifi settings|Wi-Fi
+wireless network|Wi-Fi
+connect wifi|Wi-Fi
+bluetooth settings|Bluetooth
+pair bluetooth|Bluetooth
+pair device|Bluetooth
+wireless devices|Bluetooth
+sound settings|Audio
+audio settings|Audio
+volume mixer|Audio
+microphone settings|Audio
+speaker settings|Audio
+display settings|Monitors
+monitor settings|Monitors
+screen resolution|Monitors
+external display|Monitors
+mouse settings|Input
+keyboard settings|Input
+trackpad settings|Input
+touchpad settings|Input
+keyboard shortcuts|Keybindings
+shortcut keys|Keybindings
+hotkeys|Keybindings
+display scaling|Monitor Scaling
+dpi scaling|Monitor Scaling
+internal display|Laptop Display
+built in screen|Laptop Display
+mirror screen|Mirror Display
+duplicate screen|Mirror Display
+power mode|Power Profile
+battery mode|Power Profile
+performance mode|Power Profile
+power saver|Power Profile
+sleep settings|System Sleep
+suspend settings|System Sleep
+hibernate settings|System Sleep
+default apps|Defaults
+preferred apps|Defaults
+choose default apps|Defaults
+time settings|Date & Time
+date settings|Date & Time
+change timezone|Date & Time
+firmware update|Firmware
+device firmware|Firmware
+change password|Password
+user password|Password
+disk encryption|Password
+fingerprint login|Fingerprint
+biometric login|Fingerprint
+security key|Fido2
+hardware key|Fido2
+yubikey|Fido2
+developer tools|Development
+programming languages|Development
+coding setup|Development
+local ai|AI
+local llm|AI
+ai tools|AI
+voice typing|Dictation
+speech to text|Dictation
+voice dictation|Dictation
+windows vm|Windows
+virtual machine|Windows
+run windows|Windows
+proton docs|Proton
+proton cli docs|Proton
+proton documentation|Proton
+nearby share|Share
+send files|Share
+share files|Share
+file transfer|Share
+screen capture|Screenshot
+snipping tool|Screenshot
+capture screen|Screenshot
+take screenshot|Screenshot
+screen recorder|Screenrecord
+record screen|Screenrecord
+screen recording|Screenrecord
+copy text from screen|Text Extraction
+screen ocr|Text Extraction
+image text|Text Extraction
+extract text|Text Extraction
+eyedropper|Color Picker
+pick color|Color Picker
+hex color|Color Picker
+remind me|Reminder
+set reminder|Reminder
+convert media|Transcode
+convert video|Transcode
+convert audio|Transcode
+blue light|Nightlight
+eye comfort|Nightlight
+warm screen|Nightlight
+do not disturb|Notifications
+mute notifications|Notifications
+silence notifications|Notifications
+status bar|Top Bar
+taskbar|Top Bar
+waybar|Top Bar
+tiling layout|Workspace Layout
+window layout|Workspace Layout
+google account|Chromium Account
+google sync|Chromium Account
+browser sync|Chromium Account
+user manual|Learn
+documentation|Learn
+help center|Learn
+skip boot menu|Direct Boot
+boot straight to system|Direct Boot
+sign out|Logout
+reboot|Restart
+power off|Shutdown
+turn off computer|Shutdown

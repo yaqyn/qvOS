@@ -50,6 +50,7 @@
     qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
     qv/menu/install
+    qv/menu/search-intents.psv
     qv/menu/wait-for-elephant
     qv/menu/walker-elephant-ready.conf
     qv/menu/walker-provider-set.toml

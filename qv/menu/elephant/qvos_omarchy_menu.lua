@@ -222,6 +222,79 @@ local function split(value, separator)
   return parts
 end
 
+local function normalize_intent(value)
+  return value:lower():gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+end
+
+local function entry_name(entry)
+  return entry.Text:match("^.-  (.*)$") or entry.Text
+end
+
+local search_intents_cache
+
+local function load_search_intents()
+  if search_intents_cache then
+    return search_intents_cache
+  end
+
+  search_intents_cache = {
+    aliases_by_target = {},
+    target_by_intent = {},
+  }
+
+  local home = os.getenv("HOME")
+  local intents = home
+    and io.open(home .. "/.local/share/qvos/menu/search-intents.psv", "r")
+
+  if not intents then
+    return search_intents_cache
+  end
+
+  for line in intents:lines() do
+    if line ~= "" and line:sub(1, 1) ~= "#" then
+      local intent, target = line:match("^([^|]+)|([^|]+)$")
+
+      if intent and target then
+        local normalized_intent = normalize_intent(intent)
+        local aliases = search_intents_cache.aliases_by_target
+        aliases[target] = aliases[target] or {}
+        table.insert(aliases[target], normalized_intent)
+        search_intents_cache.target_by_intent[normalized_intent] = target
+      end
+    end
+  end
+
+  intents:close()
+  return search_intents_cache
+end
+
+local function apply_search_intents(entries, query)
+  local intents = load_search_intents()
+  local exact_target = intents.target_by_intent[normalize_intent(query)]
+  local exact_entries = {}
+
+  for _, entry in ipairs(entries) do
+    local name = entry_name(entry)
+    local aliases = intents.aliases_by_target[name]
+
+    if aliases then
+      for _, alias in ipairs(aliases) do
+        table.insert(entry.Keywords, alias)
+      end
+    end
+
+    if exact_target == name then
+      table.insert(exact_entries, entry)
+    end
+  end
+
+  if exact_target and #exact_entries == 1 then
+    return exact_entries
+  end
+
+  return entries
+end
+
 local function add_concepts(entries)
   local home = os.getenv("HOME")
   local catalog = home and io.open(home .. "/.local/share/qvos/menu/concepts.psv", "r")
@@ -400,5 +473,5 @@ function GetEntries(query)
   add(entries, "󰜉", "Restart", "More · Power", { "reboot", "power" }, "omarchy-system-reboot")
   add(entries, "󰐥", "Shutdown", "More · Power", { "power", "off" }, "omarchy-system-shutdown")
 
-  return entries
+  return apply_search_intents(entries, query)
 end

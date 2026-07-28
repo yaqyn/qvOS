@@ -25,6 +25,7 @@ grep -qx 'chromium' "$root/qv/install/packaging/base.packages" || fail "Chromium
 grep -qx 'alacritty' "$root/qv/install/packaging/base.packages" || fail "Alacritty package contract"
 grep -qx 'neovim' "$root/qv/install/packaging/base.packages" || fail "Neovim package contract"
 grep -qx 'omarchy-nvim' "$root/qv/install/packaging/base.packages" || fail "qvOS Neovim package contract"
+grep -qx 'wtype' "$root/qv/install/packaging/base.packages" || fail "Codex Wayland input contract"
 
 editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$root/qv/config/files/uwsm/default")
 [[ $editor_env == $'nvim\nnvim\nnvim' ]] || fail "editor environment contract"

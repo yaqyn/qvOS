@@ -74,4 +74,4 @@ moonlight|󰍹|Moonlight|Settings · Software · Gaming|games,gamestream|Install
 lutris||Lutris|Settings · Software · Gaming|games,battle.net|Install|present:omarchy-install-gaming-lutris|Remove|present:omarchy-remove-gaming-lutris|Learn|web:https://github.com/lutris/lutris/wiki
 heroic|󱓟|Heroic|Settings · Software · Gaming|games,epic|Install|present:omarchy-install-gaming-heroic|Remove|present:omarchy-remove-gaming-heroic|Learn|web:https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/wiki
 warp|󰖂|WARP|Settings · Software · qvCORE|cloudflare,dns,vpn,qvcore|Install|present:omarchy-install-qvcore warp|Remove|component-remove:warp|Learn|web:https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/
-proton|󰌾|Proton|Settings · Software · qvCORE|pass,drive,mail,vpn,qvcore|Install|present:omarchy-install-qvcore proton|Remove|component-remove:proton|Learn|web:https://docs.proton.me
+proton|󰌾|Proton|Settings · Software · qvCORE|pass,drive,mail,vpn,qvcore,proton cli,proton docs,documentation,guide|Install|present:omarchy-install-qvcore proton|Remove|component-remove:proton|Learn|web:https://proton.me/support/drive-cli

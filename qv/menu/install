@@ -13,6 +13,8 @@ provider_runtime_dir="$menu_runtime_dir/elephant"
 provider_menu_dir="$HOME/.config/elephant/menus"
 concept_source="$menu_source_dir/concepts.psv"
 concept_runtime="$menu_runtime_dir/concepts.psv"
+search_intents_source="$menu_source_dir/search-intents.psv"
+search_intents_runtime="$menu_runtime_dir/search-intents.psv"
 elephant_ready_source="$menu_source_dir/wait-for-elephant"
 elephant_ready_runtime="$menu_runtime_dir/wait-for-elephant"
 walker_ready_source="$menu_source_dir/walker-elephant-ready.conf"
@@ -45,6 +47,7 @@ require_sources() {
   local required_sources=(
     "$source_path"
     "$concept_source"
+    "$search_intents_source"
     "$elephant_ready_source"
     "$walker_ready_source"
     "$provider_set_source"
@@ -128,6 +131,7 @@ install_menu_runtime() {
   local manager_home
 
   install -D -m 0644 "$concept_source" "$concept_runtime"
+  install -D -m 0644 "$search_intents_source" "$search_intents_runtime"
   install -D -m 0755 "$elephant_ready_source" "$elephant_ready_runtime"
   install -D -m 0644 "$walker_ready_source" "$walker_ready_target"
 
@@ -308,6 +312,7 @@ menu_providers_ready() {
 
 menu_runtime_ready() {
   cmp -s "$concept_source" "$concept_runtime" &&
+    cmp -s "$search_intents_source" "$search_intents_runtime" &&
     cmp -s "$elephant_ready_source" "$elephant_ready_runtime" &&
     [[ -x $elephant_ready_runtime ]] &&
     cmp -s "$walker_ready_source" "$walker_ready_target"

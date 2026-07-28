@@ -242,6 +242,112 @@ read -r search_count concept_count go_matches proton_matches style_matches theme
 ((old_breadcrumbs == 0)) || fail "obsolete verb breadcrumbs"
 pass "typed search presents every concept exactly once"
 
+intent_audit=$(
+  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+dofile(arg[1])
+
+local function normalize(value)
+  return value:lower():gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
+end
+
+local function entry_name(entry)
+  return entry.Text:match("^.-  (.*)$") or entry.Text
+end
+
+local intent_path = os.getenv("HOME") .. "/.local/share/qvos/menu/search-intents.psv"
+local seen_intents = {}
+local target_counts = {}
+local intent_count = 0
+local required = {
+  ["store"] = "Package",
+  ["install"] = "Package",
+  ["system update"] = "Update qvOS",
+  ["system health"] = "qvOS System",
+  ["volume mixer"] = "Audio",
+  ["wifi settings"] = "Wi-Fi",
+  ["display settings"] = "Monitors",
+  ["keyboard shortcuts"] = "Keybindings",
+  ["default apps"] = "Defaults",
+  ["change password"] = "Password",
+  ["developer tools"] = "Development",
+  ["voice typing"] = "Dictation",
+  ["send files"] = "Share",
+  ["screen capture"] = "Screenshot",
+  ["record screen"] = "Screenrecord",
+  ["copy text from screen"] = "Text Extraction",
+  ["do not disturb"] = "Notifications",
+  ["blue light"] = "Nightlight",
+  ["sign out"] = "Logout",
+  ["power off"] = "Shutdown",
+  ["proton docs"] = "Proton",
+}
+
+for line in io.lines(intent_path) do
+  if line ~= "" and line:sub(1, 1) ~= "#" then
+    local intent, target = line:match("^([^|]+)|([^|]+)$")
+    assert(intent and target, "invalid search intent: " .. line)
+
+    local normalized = normalize(intent)
+    assert(intent == normalized, "search intent is not normalized: " .. intent)
+    assert(not seen_intents[normalized], "duplicate search intent: " .. intent)
+    seen_intents[normalized] = target
+    target_counts[target] = 0
+    intent_count = intent_count + 1
+  end
+end
+
+for _, entry in ipairs(GetEntries("all")) do
+  local name = entry_name(entry)
+  if target_counts[name] then
+    target_counts[name] = target_counts[name] + 1
+  end
+end
+
+for target, count in pairs(target_counts) do
+  assert(count == 1, target .. " search target appears " .. count .. " times")
+end
+
+for intent, expected in pairs(required) do
+  assert(seen_intents[intent] == expected, intent .. " should target " .. expected)
+end
+
+for _, ambiguous in ipairs({
+  "browser",
+  "cloud",
+  "network",
+  "password",
+  "power",
+  "screen",
+  "settings",
+  "sleep",
+  "vpn",
+}) do
+  assert(not seen_intents[ambiguous], "ambiguous intent should stay fuzzy: " .. ambiguous)
+end
+
+for intent, expected in pairs(seen_intents) do
+  local entries = GetEntries("  " .. intent:upper() .. "  ")
+  assert(#entries == 1, intent .. " should return one exact intent")
+  assert(entry_name(entries[1]) == expected, intent .. " returned the wrong target")
+
+  local tagged = false
+  for _, keyword in ipairs(entries[1].Keywords) do
+    if keyword == intent then
+      tagged = true
+      break
+    end
+  end
+  assert(tagged, intent .. " is missing from target keywords")
+end
+
+print(intent_count, #GetEntries("not-an-exact-intent"))
+LUA
+)
+read -r intent_count fuzzy_catalog_count <<<"$intent_audit"
+((intent_count >= 140)) || fail "high-value search intent coverage"
+((fuzzy_catalog_count == search_count)) || fail "unmapped query keeps exhaustive fuzzy search"
+pass "exact natural intents resolve once without claiming ambiguous words"
+
 menu_agents="$root/qv/menu/AGENTS.md"
 grep -Fq 'qv/menu/AGENTS.md' "$root/AGENTS.md" ||
   fail "root menu workflow route"
@@ -249,6 +355,8 @@ grep -Fqx '# qvOS Menu Workflow' "$menu_agents" ||
   fail "owner-local menu workflow heading"
 grep -Fq 'Verbs are actions on one canonical concept' "$menu_agents" ||
   fail "canonical concept policy"
+grep -Fq 'leave ambiguous words' "$menu_agents" ||
+  fail "high-confidence search intent policy"
 grep -Fq 'During qvsync, compare upstream menu behavior' "$menu_agents" ||
   fail "qvsync menu audit policy"
 pass "owner-local AGENTS keeps the compact menu contract durable across qvsync"
@@ -507,8 +615,8 @@ QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:proton
 [[ $(<"$presentation_log") == "$root/qv/core/proton.sh --remove" ]] ||
   fail "Proton remove owner"
 QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:proton
-[[ $(<"$web_log") == "https://docs.proton.me" ]] ||
-  fail "Proton documentation"
+[[ $(<"$web_log") == "https://proton.me/support/drive-cli" ]] ||
+  fail "official Proton CLI documentation"
 
 QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||
