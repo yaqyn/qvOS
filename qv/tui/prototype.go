@@ -686,7 +686,7 @@ func (m prototypeSessionModel) persistentHints() []tuiHint {
 		}
 	}
 	return []tuiHint{
-		{Key: "esc", Action: "return"},
+		{Key: "esc", Action: "cancel"},
 		{Key: "?", Action: "help"},
 	}
 }

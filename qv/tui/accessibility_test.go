@@ -271,6 +271,9 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 			if test.hints[1].Action != "help" {
 				t.Fatalf("second hint = %#v, want Help", test.hints[1])
 			}
+			if test.name == "prototype running" && test.hints[0].Action != "cancel" {
+				t.Fatalf("running prototype primary hint = %#v, want cancel", test.hints[0])
+			}
 		})
 	}
 }
