@@ -6,8 +6,6 @@ if [[ -z $tui ]]; then
   tui=$(command -v qvos-tui || true)
 fi
 
-"$OMARCHY_PATH/qv/maintenance/personal-software-baseline" --capture
-
 if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || -z $tui || ! -x $tui ]]; then
   exit 1
 fi

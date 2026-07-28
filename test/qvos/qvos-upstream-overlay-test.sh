@@ -175,7 +175,6 @@ public_adapters=(
   bin/omarchy-install-qvcore
   bin/omarchy-launch-qvos-update
   bin/omarchy-qvcore-remove
-  bin/omarchy-qvos-personal-software
   bin/omarchy-qvos-refresh-waybar
   bin/omarchy-qvos-setup-dns
   bin/omarchy-qvos-share

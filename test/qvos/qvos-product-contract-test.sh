@@ -104,8 +104,6 @@ fi
 expected_qvcore_catalog=$'# component\tlabel\ticon\nproton\tProton\t󰌾\nqvdev\tqvDEV\t󰵮'
 [[ $(<"$root/qv/core/catalog.tsv") == "$expected_qvcore_catalog" ]] ||
   fail "two-stack qvCORE catalog"
-[[ $(sed '/^#/d;/^$/d' "$root/qv/maintenance/protected-user-bin") == "qv" ]] ||
-  fail "qvOS regular user command protection inventory"
 while IFS=$'\t' read -r component _; do
   [[ -n $component && $component != "#"* ]] || continue
   [[ -x $root/qv/core/$component.sh ]] ||
@@ -135,9 +133,6 @@ for retired_qvcore_source in \
   [[ ! -e $root/$retired_qvcore_source ]] ||
     fail "retired qvCORE source remains: $retired_qvcore_source"
 done
-if grep -Fq -- '--remove-qvcore' "$root/qv/maintenance/personal-software"; then
-  fail "personal-software still owns qvCORE removal"
-fi
 [[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
 grep -Fqx 'localsend' "$root/install/omarchy-base.packages" ||
   fail "Omarchy base LocalSend package"

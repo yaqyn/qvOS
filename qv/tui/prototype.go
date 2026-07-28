@@ -28,25 +28,25 @@ var prototypeSections = []section{
 	{
 		name: "SESSIONS",
 		items: []item{
-			{"00", "SCRIPT", "Progress + logs"},
-			{"01", "SUDO", "Masked authorization"},
-			{"02", "FAILURE", "Error + retry"},
+			{id: "00", title: "SCRIPT", desc: "Progress + logs"},
+			{id: "01", title: "SUDO", desc: "Masked authorization"},
+			{id: "02", title: "FAILURE", desc: "Error + retry"},
 		},
 	},
 	{
 		name: "APPS",
 		items: []item{
-			{"00", "INSTALL", "Fake package setup"},
-			{"01", "SYNC", "Fake application sync"},
-			{"02", "REMOVE", "Fake cleanup"},
+			{id: "00", title: "INSTALL", desc: "Fake package setup"},
+			{id: "01", title: "SYNC", desc: "Fake application sync"},
+			{id: "02", title: "REMOVE", desc: "Fake cleanup"},
 		},
 	},
 	{
 		name: "BOOT",
 		items: []item{
-			{"00", "INFO", "Installer questions"},
-			{"01", "LOADING", "Persistent install"},
-			{"02", "FINALE", "Installed + reboot"},
+			{id: "00", title: "INFO", desc: "Installer questions"},
+			{id: "01", title: "LOADING", desc: "Persistent install"},
+			{id: "02", title: "FINALE", desc: "Installed + reboot"},
 		},
 	},
 }

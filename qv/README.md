@@ -22,7 +22,6 @@ qv/
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
   launcher/    qvOS Elephant providers.
-  maintenance/ Personal-software inventory and removal ownership.
   menu/        qvOS menus installed through Omarchy's extension seam.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
@@ -74,21 +73,6 @@ identity or base readiness.
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
   base-owned system Python and mise, creates no global mise Python, and cannot
   remove base Codex. Wrangler, Convex, and Playwright remain project-local.
-- `omarchy qvos software` inventories software added after the immutable
-  fresh-install qvOS baseline. It covers explicit Pacman/AUR packages, Bun and
-  npm globals, persistent npx wrappers, AppImages, and standalone executables
-  in standard user or system locations, including common single-binary
-  curl/GitHub installs. Active qvOS package manifests, direct-tool manifest
-  commands, and qvOS-owned runtime remain protected. qvCORE has no
-  personal-software ownership or coordinated-removal layer;
-  `--remove-standalone` limits the visible inventory to global packages,
-  AppImages, and standalone paths. The broad `--remove` route remains
-  compatibility-only. Removal changes only explicit selections after
-  confirmation; package managers retain ownership of their packages, user
-  files move to Trash, and system standalone removal targets one exact path.
-- Existing installations without a fresh-install baseline must run
-  `omarchy qvos software --initialize` explicitly. qvOS does not fabricate
-  historical ownership from the current package list.
 - The qvOS TUI exposes Update and ISO Build only. ISO Build stages the
   qvOS source over Omarchy's `main` ISO for its matching `master` installer,
   adds the qvOS configurator and progress surfaces, and preserves Omarchy's

@@ -4,7 +4,7 @@ This directory owns the qvOS terminal interface, its ISO installer surfaces,
 and the ISO build entry point. The Go program is one visual shell with these
 modes:
 
-- default: qvOS actions and navigation
+- default: qvOS Update and ISO Build
 - `--prototype`: safe fake script, sudo, application, and boot sessions
 - `--update`: qvOS Update confirmation, preflight, authorization, progress,
   logs, and result
@@ -44,8 +44,9 @@ contextual help outside text fields; `F1` opens it everywhere so passwords,
 search filters, and other input retain the `?` character. The help screen
 inventories the current state's navigation, confirmation, editing, exit,
 retry, log, and interruption keys.
-Scaffold pages without a wired owner are labeled `COMING LATER` and do not
-advertise an inactive Enter action.
+The production hub lists only complete working actions. Each row has a stable
+action key, so navigation coordinates never define behavior. Future actions
+must delegate to their real qvOS or Omarchy owner.
 
 `v` toggles the composed qvOS log panel. `Ctrl+V` switches log-producing flows
 to a same-process `TERMINAL OUTPUT` view of the captured original command

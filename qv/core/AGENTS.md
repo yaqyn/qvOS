@@ -19,8 +19,7 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
   qvOS-owned integrations, and preserve personal files, browser profiles,
   credentials, authentication state, projects, and cloud data.
 - Stack scripts own package preflight, confirmation, resumable removal, and
-  final verification. Do not route qvCORE through personal-software ownership
-  or coordinated removal machinery.
+  final verification. Do not add a coordinated cross-stack removal layer.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex
   workbench integration. Codex itself is base-owned and must survive qvDEV
   removal. Wrangler, Convex, and Playwright stay project-local.

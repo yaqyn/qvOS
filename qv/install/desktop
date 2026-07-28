@@ -6,7 +6,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in codex desktop direct maintenance power screensaver shell thunar tmux tui waybar; do
+  for feature in codex desktop direct power screensaver shell thunar tmux tui waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -35,9 +35,6 @@
     qv/launcher/elephant/omarchy_background_selector.lua
     qv/launcher/elephant/omarchy_themes.lua
     qv/launcher/elephant/omarchy_unlocks.lua
-    qv/maintenance/personal-software
-    qv/maintenance/personal-software-baseline
-    qv/maintenance/protected-user-bin
     qv/menu/concepts.psv
     qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
@@ -141,12 +138,7 @@
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
-  rm -f -- \
-    "$HOME/.local/share/qvos/maintenance/essential-packages" \
-    "$HOME/.local/share/qvos/maintenance/qvos-repair" \
-    "$HOME/.local/share/qvos/maintenance/qvos-system"
-  rmdir --ignore-fail-on-non-empty \
-    "$HOME/.local/share/qvos/maintenance" 2>/dev/null || true
+  rm -rf -- "$HOME/.local/share/qvos/maintenance"
   install -d \
     "$qvos_bin" \
     "$qvos_codex" \

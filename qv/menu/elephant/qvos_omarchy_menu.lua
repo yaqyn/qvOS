@@ -433,8 +433,6 @@ function GetEntries(query)
   add(entries, "󱚤", "Ollama", "Settings · Software · AI", { "llm", "local" }, route("install-ai"))
   add(entries, "󱚤", "Crush", "Settings · Software · AI", { "agent", "terminal" }, install_package("Crush", "crush-bin"))
 
-  add(entries, "", "Standalone Tools", "Settings · Software", { "personal software", "uninstall" }, present("omarchy-qvos-personal-software --remove-standalone"))
-
   -- Restore and restart actions stay searchable under their owning object.
   add(entries, "", "Refresh Hyprland", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hyprland"))
   add(entries, "", "Refresh Hypridle", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hypridle"))

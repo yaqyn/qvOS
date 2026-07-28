@@ -401,9 +401,8 @@ show_qvos_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n  Standalone Tools\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *"Standalone Tools"*) present_terminal "omarchy-qvos-personal-software --remove-standalone" ;;
   *Web*) present_terminal omarchy-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;

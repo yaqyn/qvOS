@@ -536,20 +536,11 @@ func TestLogSwitchCueFitsEveryResponsiveShape(t *testing.T) {
 	}
 }
 
-func TestFutureHubPagesDoNotLookActionable(t *testing.T) {
-	for tab := 1; tab < len(sections); tab++ {
-		m := model{width: 140, height: 31, tab: tab}
-		content := stripANSI(m.View().Content)
-		if !strings.Contains(content, "COMING LATER") {
-			t.Fatalf("%s page is not labeled as unavailable: %q", sections[tab].name, content)
-		}
-		if strings.Contains(content, "enter open") {
-			t.Fatalf("%s page advertises an inactive Enter action: %q", sections[tab].name, content)
-		}
-
-		next, command := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-		if command != nil || next.(model).loading {
-			t.Fatalf("%s page unexpectedly started an action", sections[tab].name)
+func TestProductionHubShowsOnlyWorkingActions(t *testing.T) {
+	content := stripANSI((model{width: 140, height: 31}).View().Content)
+	for _, label := range []string{"UPDATE", "BUILD"} {
+		if !strings.Contains(content, label) {
+			t.Fatalf("production hub lost %s: %q", label, content)
 		}
 	}
 }

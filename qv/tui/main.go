@@ -69,7 +69,17 @@ func newTUIProgram(model tea.Model, options ...tea.ProgramOption) *tea.Program {
 
 // -- menu data --
 
-type item struct{ id, title, desc string }
+type hubAction string
+
+const (
+	hubActionUpdate hubAction = "qvos.update"
+	hubActionBuild  hubAction = "qvos.iso.build"
+)
+
+type item struct {
+	id, title, desc string
+	action          hubAction
+}
 
 type section struct {
 	name  string
@@ -78,36 +88,56 @@ type section struct {
 
 var sections = []section{
 	{
-		name: "INSTALL",
-		items: []item{
-			{"00", "UPDATE", "Sync qvOS"},
-			{"01", "BUILD", "Build qvOS ISO"},
-		},
-	},
-	{
 		name: "SYSTEM",
 		items: []item{
-			{"00", "DOCTOR", "Run checks"},
-			{"01", "UPDATE", "Sync qvOS"},
-			{"02", "BACKUP", "Save snapshot"},
+			{id: "00", title: "UPDATE", desc: "Sync qvOS", action: hubActionUpdate},
+			{id: "01", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
 		},
 	},
-	{
-		name: "TWEAK",
-		items: []item{
-			{"00", "KEYBIND", "Edit bindings"},
-			{"01", "BROWSER", "Set browser"},
-			{"02", "SOFTWARE", "Review personal"},
-		},
-	},
-	{
-		name: "ABOUT",
-		items: []item{
-			{"00", "YAQYN", "Creator"},
-			{"01", "EMAIL", "Contact"},
-			{"02", "TOOLS", "Credits"},
-		},
-	},
+}
+
+func validateHubCatalog(catalog []section) error {
+	if len(catalog) == 0 {
+		return errors.New("qvOS hub has no sections")
+	}
+
+	seenSections := make(map[string]struct{}, len(catalog))
+	seenActions := make(map[hubAction]struct{})
+	for _, section := range catalog {
+		if strings.TrimSpace(section.name) == "" {
+			return errors.New("qvOS hub has an unnamed section")
+		}
+		if _, exists := seenSections[section.name]; exists {
+			return fmt.Errorf("qvOS hub section is duplicated: %s", section.name)
+		}
+		seenSections[section.name] = struct{}{}
+		if len(section.items) == 0 {
+			return fmt.Errorf("qvOS hub section has no actions: %s", section.name)
+		}
+
+		seenIDs := make(map[string]struct{}, len(section.items))
+		for _, entry := range section.items {
+			if strings.TrimSpace(entry.id) == "" ||
+				strings.TrimSpace(entry.title) == "" ||
+				strings.TrimSpace(entry.desc) == "" {
+				return fmt.Errorf("qvOS hub section %s has incomplete action metadata", section.name)
+			}
+			if _, exists := seenIDs[entry.id]; exists {
+				return fmt.Errorf("qvOS hub action id is duplicated in %s: %s", section.name, entry.id)
+			}
+			seenIDs[entry.id] = struct{}{}
+			switch entry.action {
+			case hubActionUpdate, hubActionBuild:
+			default:
+				return fmt.Errorf("qvOS hub action is unsupported: %s", entry.action)
+			}
+			if _, exists := seenActions[entry.action]; exists {
+				return fmt.Errorf("qvOS hub action is duplicated: %s", entry.action)
+			}
+			seenActions[entry.action] = struct{}{}
+		}
+	}
+	return nil
 }
 
 type layoutMode int
@@ -743,12 +773,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case "enter":
-			if m.tab == 0 && m.cursor == 0 {
-				return m.beginUpdateConfirmation(false)
-			}
-			if m.tab == 0 && m.cursor == 1 {
-				return m.startBuildAction()
-			}
+			return m.activateMenuItem()
 		}
 	}
 	return m, nil
@@ -868,9 +893,6 @@ func (m model) activeModelRole() modelRole {
 		}
 		return modelTwoRings
 	}
-	if m.tab == 3 {
-		return modelOneRing
-	}
 	return modelCore
 }
 
@@ -881,8 +903,8 @@ func (m model) helpTitle() string {
 	if m.loading {
 		return rootActionName(m.action) + " controls"
 	}
-	if m.tab != 0 {
-		return sections[m.tab].name + " / coming later"
+	if m.tab >= 0 && m.tab < len(sections) {
+		return sections[m.tab].name + " controls"
 	}
 	return "controls"
 }
@@ -891,19 +913,17 @@ func (m model) helpHints() []tuiHint {
 	if !m.loading {
 		hints := []tuiHint{
 			{Key: "↑ / ↓  or  j / k", Action: "move between items"},
-			{Key: "← / →  or  h / l", Action: "change page"},
-			{Key: "tab / shift+tab", Action: "change page"},
 		}
-		if m.tab == 0 {
-			hints = append(hints, tuiHint{Key: "enter", Action: "open the selected item"})
+		if len(sections) > 1 {
+			hints = append(hints,
+				tuiHint{Key: "← / →  or  h / l", Action: "change page"},
+				tuiHint{Key: "tab / shift+tab", Action: "change page"},
+			)
 		}
+		hints = append(hints, tuiHint{Key: "enter", Action: "open the selected item"})
 		hints = append(hints, tuiHint{Key: "ctrl+c", Action: "exit qvOS"})
 		if layoutFor(m.width, m.height) == layoutDesktop {
-			action := "select an item"
-			if m.tab == 0 {
-				action = "select or open an item"
-			}
-			hints = append(hints, tuiHint{Key: "mouse", Action: action})
+			hints = append(hints, tuiHint{Key: "mouse", Action: "select or open an item"})
 		}
 		return hints
 	}
@@ -1123,9 +1143,6 @@ func (m model) renderFullMenu() string {
 		"",
 		ctr(menu),
 	}
-	if m.tab != 0 {
-		lines = append(lines, "", ctr(sMid.Render("COMING LATER")))
-	}
 	lines = append(lines, "", ctr(help))
 	return strings.Join(lines, "\n")
 }
@@ -1141,9 +1158,6 @@ func (m model) renderMidMenu() string {
 		centerCanvas(tabs),
 		"",
 		centerCanvas(menu),
-	}
-	if m.tab != 0 {
-		lines = append(lines, "", centerCanvas(sMid.Render("COMING LATER")))
 	}
 	lines = append(lines, "", centerCanvas(help))
 	return strings.Join(lines, "\n")
@@ -1164,9 +1178,6 @@ func (m model) renderReducedMenu(mode layoutMode) string {
 		for i, it := range active.items {
 			rows = append(rows, centerCanvas(renderCompactMenuRow(it, i == m.cursor, metrics, canvasW, showDescriptions)))
 		}
-		if m.tab != 0 {
-			rows = append(rows, "", centerCanvas(sMid.Render("COMING LATER")))
-		}
 		rows = append(rows, "", centerCanvas(renderTUIHints(canvasW, m.hubPersistentHints()...)))
 		return strings.Join(rows, "\n")
 	}
@@ -1174,9 +1185,6 @@ func (m model) renderReducedMenu(mode layoutMode) string {
 	selected := active.items[m.cursor]
 	rows = append(rows, centerCanvas(renderCompactMenuRow(selected, true, metrics, canvasW, showDescriptions)))
 	if m.height >= 4 {
-		if m.tab != 0 {
-			rows = append(rows, centerCanvas(sMid.Render("COMING LATER")))
-		}
 		rows = append(rows, centerCanvas(renderTUIHints(canvasW, m.hubPersistentHints()...)))
 	}
 	return strings.Join(rows, "\n")
@@ -1184,6 +1192,9 @@ func (m model) renderReducedMenu(mode layoutMode) string {
 
 func renderActiveTab(active int) string {
 	name := sections[active].name
+	if len(sections) == 1 {
+		return sWhite.Render(name)
+	}
 	return sDim.Render("< ") + sWhite.Render(name) + sDim.Render(" >")
 }
 
@@ -1327,15 +1338,22 @@ func (m model) mainMouse(msg tea.MouseClickMsg) (model, tea.Cmd) {
 	return m, nil
 }
 
-// activateMenuItem mirrors the keyboard Enter branch for the main menu.
+// activateMenuItem resolves a stable catalog action. Its tab and cursor are
+// presentation state only and never define behavior.
 func (m model) activateMenuItem() (model, tea.Cmd) {
-	if m.tab == 0 && m.cursor == 0 {
+	if m.tab < 0 || m.tab >= len(sections) ||
+		m.cursor < 0 || m.cursor >= len(sections[m.tab].items) {
+		return m, nil
+	}
+
+	switch sections[m.tab].items[m.cursor].action {
+	case hubActionUpdate:
 		return m.beginUpdateConfirmation(false)
-	}
-	if m.tab == 0 && m.cursor == 1 {
+	case hubActionBuild:
 		return m.startBuildAction()
+	default:
+		return m, nil
 	}
-	return m, nil
 }
 
 type scriptDoneMsg struct {
@@ -3070,7 +3088,7 @@ func (sc *scene) String() string {
 	return sb.String()
 }
 
-// -- INSTALL: bloom — animated displaced sphere --
+// -- CORE: bloom — animated displaced sphere --
 
 const (
 	bloomUN  = 240
@@ -3217,7 +3235,7 @@ func renderBloom(frame int) string {
 	return sc.String()
 }
 
-// -- ABOUT: torus --
+// -- one ring: torus --
 
 const (
 	torusR   = 1.00
@@ -3258,7 +3276,7 @@ func renderTorus(frame int) string {
 	return sc.String()
 }
 
-// -- SYSTEM: trefoil knot tubular surface --
+// -- three rings: trefoil knot tubular surface --
 
 const (
 	knotCurveN = 520
@@ -3335,7 +3353,7 @@ func renderKnot(frame int) string {
 	return sc.String()
 }
 
-// -- TWEAK: Hopf link (two interlocked rings) --
+// -- two rings: Hopf link (two interlocked rings) --
 
 const (
 	hopfUN     = 200
@@ -3628,6 +3646,10 @@ func main() {
 		return
 	}
 
+	if err := validateHubCatalog(sections); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	p := newTUIProgram(model{})
 	result, err := p.Run()
 	if final, ok := result.(model); ok {

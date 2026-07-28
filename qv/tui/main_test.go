@@ -14,38 +14,63 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func TestInstallMenuContainsOnlySupportedLifecycleActions(t *testing.T) {
+func TestHubCatalogContainsOnlyRealStableActions(t *testing.T) {
+	if len(sections) != 1 {
+		t.Fatalf("hub section count = %d, want 1", len(sections))
+	}
+	if sections[0].name != "SYSTEM" {
+		t.Fatalf("hub section = %q, want SYSTEM", sections[0].name)
+	}
+
 	got := sections[0].items
 	want := []item{
-		{"00", "UPDATE", "Sync qvOS"},
-		{"01", "BUILD", "Build qvOS ISO"},
+		{id: "00", title: "UPDATE", desc: "Sync qvOS", action: hubActionUpdate},
+		{id: "01", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("install action count = %d, want %d", len(got), len(want))
+		t.Fatalf("hub action count = %d, want %d", len(got), len(want))
 	}
 	for index := range want {
 		if got[index] != want[index] {
-			t.Fatalf("install action %d = %#v, want %#v", index, got[index], want[index])
+			t.Fatalf("hub action %d = %#v, want %#v", index, got[index], want[index])
 		}
+	}
+	if err := validateHubCatalog(sections); err != nil {
+		t.Fatalf("hub catalog validation: %v", err)
 	}
 }
 
-func TestTweakMenuNamesPersonalSoftwareWithoutLegacyDebloatLanguage(t *testing.T) {
-	got := sections[2].items
-	want := []item{
-		{"00", "KEYBIND", "Edit bindings"},
-		{"01", "BROWSER", "Set browser"},
-		{"02", "SOFTWARE", "Review personal"},
+func TestHubCatalogRejectsIncompleteOrDuplicateActions(t *testing.T) {
+	tests := []struct {
+		name    string
+		catalog []section
+	}{
+		{
+			name: "missing action key",
+			catalog: []section{{
+				name:  "TEST",
+				items: []item{{id: "00", title: "ACTION", desc: "Description"}},
+			}},
+		},
+		{
+			name: "duplicate action key",
+			catalog: []section{{
+				name: "TEST",
+				items: []item{
+					{id: "00", title: "ONE", desc: "First", action: hubActionUpdate},
+					{id: "01", title: "TWO", desc: "Second", action: hubActionUpdate},
+				},
+			}},
+		},
 	}
 
-	if len(got) != len(want) {
-		t.Fatalf("tweak action count = %d, want %d", len(got), len(want))
-	}
-	for index := range want {
-		if got[index] != want[index] {
-			t.Fatalf("tweak action %d = %#v, want %#v", index, got[index], want[index])
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateHubCatalog(test.catalog); err == nil {
+				t.Fatal("invalid hub catalog passed validation")
+			}
+		})
 	}
 }
 
@@ -570,9 +595,6 @@ func TestModelRolesStaySemanticAcrossTUISurfaces(t *testing.T) {
 		want  modelRole
 	}{
 		{"hub", model{tab: 0}, modelCore},
-		{"system hub", model{tab: 1}, modelCore},
-		{"tweak hub", model{tab: 2}, modelCore},
-		{"about", model{tab: 3}, modelOneRing},
 		{"update", model{loading: true, action: actionUpdate}, modelThreeRings},
 		{"build", model{loading: true, action: actionBuild}, modelTwoRings},
 	}

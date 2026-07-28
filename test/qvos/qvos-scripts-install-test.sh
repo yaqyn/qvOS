@@ -44,7 +44,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in codex desktop direct maintenance power screensaver shell thunar tmux tui waybar; do
+for feature in codex desktop direct power screensaver shell thunar tmux tui waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"

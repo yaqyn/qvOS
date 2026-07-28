@@ -30,6 +30,15 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   one ring is About only.
 - About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
   Keep those values in its future owner contract rather than duplicating them.
+- Keep the production hub catalog limited to working actions. Give every row a
+  stable action key and route activation by that key, never by tab or cursor
+  coordinates. Add a section only with its first complete vertical slice.
+- Future state-aware Install and Remove labels come from read-only detection by
+  the real qvOS or Omarchy owner. The TUI delegates the selected mutation once;
+  it does not copy package or lifecycle logic.
+- Keep `--prototype` as the Codex design and interaction harness. Its simulated
+  actions are intentionally separate from the production catalog and do not
+  establish product availability.
 - Important loading or mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly
   to cancellation. Open a safe-default confirmation, keep unpausable work
   running until an explicit stop choice, then stop the full owned process
