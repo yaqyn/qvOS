@@ -41,7 +41,7 @@ retired_providers=(
 # shellcheck disable=SC2016
 source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
 walker_config_backed_up=false
-mode=${1:---repair}
+mode=${1:---install}
 
 require_sources() {
   local required_sources=(
@@ -354,7 +354,7 @@ case $mode in
     [[ $(walker_config_theme) != "omarchy-default" ]] &&
     menu_theme_ready
   ;;
---repair | --install)
+--install)
   require_sources
   install -d "$extension_dir"
   ensure_walker_config
@@ -367,7 +367,7 @@ case $mode in
   reload_active_menu_services
   ;;
 *)
-  echo "Usage: install [--status|--repair|--install]" >&2
+  echo "Usage: install [--status|--install]" >&2
   exit 2
   ;;
 esac

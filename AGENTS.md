@@ -167,7 +167,7 @@ Every qvOS change must leave one traceable lifecycle.
   paths preserve optional integrations without installing or repairing stacks.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
-  Verify fresh install, update, repair, and live behavior where applicable.
+  Verify fresh install, update, removal, and live behavior where applicable.
 - Preserve safe upstream capability during conflicts. Omit it only when broken,
   unsafe, incompatible, or intentionally out of scope, and state why.
 
@@ -193,7 +193,7 @@ keeping qvOS cleaner, integrated, and deliberately differentiated.
    unshipped work.
 6. A clean merge is not compatibility proof. If adaptation is needed, integrate
    locally without publishing, update owners and guards, verify affected fresh
-   install, update, repair, and live paths, then commit the complete adaptation.
+   install, update, removal, and live paths, then commit the complete adaptation.
 7. Approve only the exact audit target with `--reviewed-upstream <full-sha>`;
    audit again if it advances and stop before pushing unresolved risk.
 8. Run qvsync only from a clean verified post-commit tree. Require the upstream

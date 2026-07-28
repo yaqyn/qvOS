@@ -21,12 +21,10 @@ else
 fi
 
 inherited_seams=(
-  bin/omarchy-branch-set
   bin/omarchy-branding-about
   bin/omarchy-branding-screensaver
   bin/omarchy-capture-screenrecording
   bin/omarchy-capture-screenshot
-  bin/omarchy-channel-set
   bin/omarchy-config-direct-boot
   bin/omarchy-debug
   bin/omarchy-first-run
@@ -40,15 +38,9 @@ inherited_seams=(
   bin/omarchy-refresh-limine
   bin/omarchy-refresh-plymouth
   bin/omarchy-refresh-sddm
-  bin/omarchy-reinstall
-  bin/omarchy-reinstall-configs
-  bin/omarchy-reinstall-git
-  bin/omarchy-reinstall-pkgs
-  bin/omarchy-remove-preinstalls
   bin/omarchy-show-logo
   bin/omarchy-theme-bg-install
   bin/omarchy-transcode
-  bin/omarchy-update-branch
   install/config/all.sh
   install/helpers/all.sh
   install/login/limine-snapper.sh
@@ -171,32 +163,6 @@ for path in "${fallback_seams[@]}"; do
 done
 pass "inherited qvOS delegations preserve Omarchy fallbacks"
 
-guarded_routes=(
-  "bin/omarchy-branch-set|omarchy branch set"
-  "bin/omarchy-channel-set|omarchy channel set"
-  "bin/omarchy-reinstall|omarchy reinstall"
-  "bin/omarchy-reinstall-configs|omarchy reinstall configs"
-  "bin/omarchy-reinstall-git|omarchy reinstall git"
-  "bin/omarchy-reinstall-pkgs|omarchy reinstall pkgs"
-  "bin/omarchy-remove-preinstalls|omarchy remove preinstalls"
-  "bin/omarchy-update-branch|omarchy update branch"
-)
-
-for route_spec in "${guarded_routes[@]}"; do
-  IFS='|' read -r path route <<<"$route_spec"
-  # shellcheck disable=SC2016
-  delegation='exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance"'
-
-  [[ $(grep -Fc "$delegation" "$root/$path") == "1" ]] ||
-    fail "$path does not contain one stable qvOS guard delegation"
-  grep -Fq "\"$route\"" "$root/$path" ||
-    fail "$path guard route identity"
-  if grep -Eq 'qvos_(root|guard)=|Blocked on qvOS:' "$root/$path"; then
-    fail "$path contains qvOS guard implementation"
-  fi
-done
-pass "unavoidable inherited safety edits remain thin delegations"
-
 [[ ! -e $root/install/config/qvos-scripts.sh ]] ||
   fail "qvOS desktop implementation remains under inherited install config"
 # shellcheck disable=SC2016
@@ -209,14 +175,10 @@ public_adapters=(
   bin/omarchy-install-qvcore
   bin/omarchy-launch-qvos-update
   bin/omarchy-qvcore-remove
-  bin/omarchy-qvos-block-upstream-maintenance
-  bin/omarchy-qvos-health
   bin/omarchy-qvos-personal-software
   bin/omarchy-qvos-refresh-waybar
-  bin/omarchy-qvos-repair
   bin/omarchy-qvos-setup-dns
   bin/omarchy-qvos-share
-  bin/omarchy-qvos-system
   bin/omarchy-qvos-update
   bin/omarchy-qvos-update-available
   bin/omarchy-show-failed

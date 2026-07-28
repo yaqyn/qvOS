@@ -33,7 +33,6 @@ defaults||Defaults|Settings · System|browser,terminal,editor|Configure|menu:
 config||Config|Settings · System|defaults,refresh,reset|Edit|menu:setup-config|Restore|menu:update-config
 date-time||Date & Time|Settings · System|clock,timezone,sync|Timezone|present:omarchy-tz-select|Sync|present:omarchy-update-time
 firmware||Firmware|Settings · System|fwupd,upgrade|Update|present:omarchy-update-firmware
-qvos-system|󰒓|qvOS System|Settings · System|health,repair,software|Open|present:omarchy-qvos-system
 password||Password|Settings · Security|user,login,luks,encryption|User|present:passwd|Drive Encryption|present:omarchy-drive-password
 fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
 fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2

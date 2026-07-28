@@ -1,10 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Unavailable on qvOS: upstream preinstall removal and binding reset
-# omarchy:hidden=true
-
-# shellcheck disable=SC2093
-exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance" "omarchy remove preinstalls"
+# omarchy:summary=Remove preinstalled Omarchy applications (web apps, TUIs, and selected packages).
 
 if gum confirm "Are you sure you want to remove all preinstalled web apps, TUI wrappers, and desktop applications?"; then
   echo -e "Removing preinstalled Omarchy applications...\n"

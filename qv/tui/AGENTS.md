@@ -11,10 +11,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   confirmation, authorization, progress, logs, and result presentation.
 - Put each action-specific contract and adapter under `qv/tui/<action>/`.
   Every direct mode and the main hub must reuse the same action flow.
-- Keep mutation, recovery, package, and update behavior in its existing qvOS or
-  Omarchy owner. TUI adapters delegate once and never reproduce an engine.
+- Keep mutation, package, and update behavior in its existing qvOS or Omarchy
+  owner. TUI adapters delegate once and never reproduce an engine.
 - Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
-  for update or recovery, and ISO flows retain their inherited fallback.
+  for update, and ISO flows retain their inherited fallback.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
 - Complete confirmation and non-mutating preflight before sudo.

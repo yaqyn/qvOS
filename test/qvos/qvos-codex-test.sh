@@ -127,7 +127,7 @@ install -d \
   "$test_home/.codex/sessions/2026/01/01"
 install -m 0755 "$doctor" "$runtime/doctor"
 install -m 0644 "$registry" "$runtime/capabilities.tsv"
-install -m 0755 "$root/qv/maintenance/qv" "$test_home/.local/bin/qv"
+install -m 0755 "$root/qv/codex/qv" "$test_home/.local/bin/qv"
 ln -s /usr/bin/jq "$capability_bin/jq"
 printf '[mcp_servers.one]\n[mcp_servers.two]\n' \
   >"$test_home/.codex/config.toml"

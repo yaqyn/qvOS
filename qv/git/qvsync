@@ -578,5 +578,5 @@ fi
 
 git status --short --branch >&2
 printf "Inspect with: git status --short --branch && git diff\n" >&2
-printf "Recovery options: resolve and commit the merge, or run git merge --abort. Backup branch remains at %s.\n" "$backup" >&2
+printf "Next steps: resolve and commit the merge, or run git merge --abort. Backup branch remains at %s.\n" "$backup" >&2
 exit 1

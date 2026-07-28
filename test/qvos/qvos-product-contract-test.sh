@@ -164,37 +164,34 @@ grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-remove" ||
 [[ -x $root/bin/omarchy-install-qvcore &&
   -x $root/bin/omarchy-qvcore-remove ]] ||
   fail "qvCORE Install and Remove commands"
-[[ -x $root/bin/omarchy-qvos-health ]] ||
-  fail "qvOS base health command"
-[[ -x $root/bin/omarchy-qvos-system &&
-  -x $root/qv/maintenance/qvos-system ]] ||
-  fail "qvOS unified system hub"
-[[ -x $root/qv/maintenance/qv ]] ||
-  fail "qvOS TTY recovery front door"
-grep -Fqx '  runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"' \
-  "$root/qv/maintenance/qv" ||
-  fail "qv repair runtime location"
-grep -Fqx '  exec "$runtime_repair" "$@"' \
-  "$root/qv/maintenance/qv" ||
-  fail "qv repair runtime delegation"
-grep -Fqx '  runtime_system="$HOME/.local/share/qvos/maintenance/qvos-system"' \
-  "$root/qv/maintenance/qv" ||
-  fail "qv system runtime location"
-grep -Fqx '  exec "$runtime_system" "$@"' \
-  "$root/qv/maintenance/qv" ||
-  fail "qv system runtime delegation"
+[[ -x $root/qv/codex/qv ]] ||
+  fail "qv Codex front door"
 grep -Fqx '    runtime_doctor="$HOME/.local/share/qvos/codex/doctor"' \
-  "$root/qv/maintenance/qv" ||
+  "$root/qv/codex/qv" ||
   fail "qv Codex doctor runtime location"
 grep -Fqx '    exec "$runtime_doctor" "$@"' \
-  "$root/qv/maintenance/qv" ||
+  "$root/qv/codex/qv" ||
   fail "qv Codex doctor runtime delegation"
 if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
   fail "fragile qv alias remains"
 fi
-grep -Fqx 'xdg-desktop-portal-hyprland' \
-  "$root/qv/maintenance/essential-packages" ||
-  fail "qvOS recovery essential policy"
+for retired_path in \
+  bin/omarchy-qvos-block-upstream-maintenance \
+  bin/omarchy-qvos-health \
+  bin/omarchy-qvos-repair \
+  bin/omarchy-qvos-system \
+  qv/maintenance/essential-packages \
+  qv/maintenance/qvos-block-upstream-maintenance \
+  qv/maintenance/qvos-repair \
+  qv/maintenance/qvos-system \
+  qv/tui/bin/qvos-repair; do
+  [[ ! -e $root/$retired_path ]] ||
+    fail "retired qvOS Recovery path remains: $retired_path"
+done
+if grep -Eq '^((repair|system)\)|.*runtime_(repair|system))' \
+  "$root/qv/codex/qv"; then
+  fail "retired qv repair or qv system route remains"
+fi
 pass "qvCORE exposes two independently enrolled Install and Remove stacks"
 
 grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" || fail "Framework 16 offline package contract"
@@ -222,17 +219,16 @@ grep -Fq 'Text = "󱅾  Update qvOS"' \
 grep -Fq 'Actions = { activate = "omarchy-launch-qvos-update" }' \
   "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
   fail "qvOS update menu route"
-grep -Fq '*System*) present_terminal omarchy-qvos-system ;;' \
-  "$root/qv/menu/extension.sh" ||
-  fail "qvOS unified system menu route"
 update_override=$(
   sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
 [[ $update_override == $'show_update_menu() {\n  omarchy-launch-qvos-update\n}' ]] ||
   fail "Update qvOS is not direct"
-if grep -Fq 'omarchy-qvos-system --software' "$root/qv/menu/extension.sh" ||
-  grep -Fq 'qvOS System' <<<"$update_override"; then
-  fail "software or maintenance action appears in a competing menu domain"
+if rg -q 'qvos-system|qvOS System' \
+  "$root/qv/menu/extension.sh" \
+  "$root/qv/menu/concepts.psv" \
+  "$root/qv/menu/search-intents.psv"; then
+  fail "retired qvOS System menu route remains"
 fi
 install_gaming_override=$(
   sed -n '/^show_install_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
@@ -247,7 +243,10 @@ grep -Fq '*Steam*) present_terminal omarchy-remove-gaming-steam ;;' \
   <<<"$remove_gaming_override" ||
   fail "Steam removal bypasses Omarchy's owner"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
-grep -Fq '"01", "REPAIR", "Repair qvOS"' "$root/qv/tui/main.go" || fail "qvOS repair identity"
+if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
+  "$root/qv/tui"; then
+  fail "retired qvOS Repair TUI action remains"
+fi
 grep -Fq '"format": "󱅾"' "$root/qv/waybar/overrides.jsonc" ||
   fail "qvOS Waybar noodle icon"
 if grep -Fq '' "$root/qv/menu/extension.sh"; then
@@ -342,8 +341,8 @@ grep -Fq 'configure_arch_mirror "$staged_iso"' "$iso_build" ||
   fail "qvOS ISO staged Arch repository override"
 grep -Fq 'cp --reflink=auto -- "$latest_iso" "$partial_iso"' "$iso_build" ||
   fail "qvOS ISO atomic release copy"
-grep -Fq 'qvOS ISO recovery stage retained:' "$iso_build" ||
-  fail "qvOS ISO publish failure recovery"
+grep -Fq 'qvOS ISO failed stage retained:' "$iso_build" ||
+  fail "qvOS ISO publish failure stage retention"
 grep -Fq 'DisableDownloadTimeout' "$iso_build" ||
   fail "qvOS ISO slow-link repository support"
 grep -Fq 'print "ParallelDownloads = 2"' "$iso_build" ||
@@ -476,7 +475,7 @@ SCRIPT
 
 printf '%s\n' 'show_about() { printf "personal menu\n"; }' \
   >"$test_root/.config/omarchy/extensions/menu.sh"
-HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/menu/install" --repair
+HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/menu/install" --install
 grep -Fqx 'show_about() { printf "personal menu\n"; }' \
   "$test_root/.config/omarchy/extensions/menu.sh" ||
   fail "personal Omarchy menu extension preservation"

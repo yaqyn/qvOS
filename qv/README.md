@@ -22,7 +22,7 @@ qv/
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
   launcher/    qvOS Elephant providers.
-  maintenance/ qvOS base repair, personal-software inventory, and upstream guards.
+  maintenance/ Personal-software inventory and removal ownership.
   menu/        qvOS menus installed through Omarchy's extension seam.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
@@ -45,10 +45,10 @@ catalog is Proton and qvDEV. Every stack exposes only Install and Remove.
 
 qvOS has one supported base: a solid, gaming-ready Arch system curated through
 Omarchy. The base includes canonical OpenAI Codex plus software with an
-independent qvOS, Omarchy, gaming, hardware, desktop, or Recovery purpose.
+independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
 Steam remains optional and uses Omarchy's standard gaming installer and
 remover. qvCORE adds optional integrated stacks without changing qvOS
-identity, readiness, health, or Recovery ownership.
+identity or base readiness.
 
 - `omarchy qvos update` confirms the operation and verifies branch `OS`, then
   delegates once to the original `omarchy update` implementation. Omarchy owns
@@ -57,34 +57,6 @@ identity, readiness, health, or Recovery ownership.
   already-installed manifest entries belonging to Codex base, qvDEV, and
   Proton. It never restores missing tools, installs stacks, authenticates
   accounts, repairs integrations, or changes networking.
-- `omarchy qvos health` is the read-only qvOS Recovery v2 inspection. Stable
-  findings are Ready, Repairable, Blocked, or Informational across Pacman,
-  essential and running-hardware packages, source integrity, runtime and
-  config, storage, network readiness, and the Hyprland login session. A
-  completed report exits successfully; `--check` returns nonzero only for
-  Repairable or Blocked findings. Offline readiness and intentionally removed
-  defaults remain informational.
-- `qv repair` is a real `~/.local/bin` recovery front door suitable for a TTY.
-  Its engine and essential-package policy run from
-  `~/.local/share/qvos/maintenance`, independently of optional UI tools and
-  source-tree health. Other `qv` arguments pass through to Omarchy.
-- `omarchy qvos repair` and `qv repair` use the same runtime engine. Safe Repair
-  restores damaged essential or selected hardware packages, runtime bytes and
-  modes, missing config, same-byte config mode drift, and only affected
-  services. It preserves removed defaults and customized config. Before the
-  first persistent change, repair revalidates Pacman, storage, and source after
-  sudo, then proves a newer root Snapper snapshot. `--reset` additionally
-  reinstalls removable defaults and backup-restores qvOS-owned config.
-  `--yes` selects Safe Repair and can never unlock a session.
-- Hyprland recovery can wake all-asleep outputs, start a replacement locker
-  for an exact same-user compositor signature, and—only after replacement
-  failure plus explicit sad-face confirmation—ask Hyprland to clear its
-  crashed lock. It never clears a healthy locker, restarts SDDM, stops UWSM, or
-  kills the active compositor.
-- Recovery v2 Phase 1 targets a booted but damaged installation. Kernel,
-  module, UKI, Limine, and mkinitcpio rebuilds; mounted-filesystem repair;
-  comprehensive snapshot restore; networking mutation; and offline/unbootable
-  rescue remain outside this phase. qvCORE is never graded or repaired.
 - The qvCORE menu shows the two stacks directly. Each row is Install when
   unenrolled and Remove when enrolled. Install converges only missing pieces,
   configures and verifies the stack, then records enrollment. Remove deletes
@@ -117,7 +89,7 @@ identity, readiness, health, or Recovery ownership.
 - Existing installations without a fresh-install baseline must run
   `omarchy qvos software --initialize` explicitly. qvOS does not fabricate
   historical ownership from the current package list.
-- The qvOS TUI exposes Update, Repair, and ISO Build only. ISO Build stages the
+- The qvOS TUI exposes Update and ISO Build only. ISO Build stages the
   qvOS source over Omarchy's `main` ISO for its matching `master` installer,
   adds the qvOS configurator and progress surfaces, and preserves Omarchy's
   disk-install and post-install orchestration.

@@ -99,7 +99,7 @@ fi
 
 cleanup() {
   if [[ $preserve_stage == "true" ]]; then
-    echo "qvOS ISO recovery stage retained: $stage_root" >&2
+    echo "qvOS ISO failed stage retained: $stage_root" >&2
   else
     rm -rf "$stage_root"
   fi

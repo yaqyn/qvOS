@@ -47,6 +47,9 @@ HOME="$test_root/home" \
 grep -Fqx 'qvOS' "$menu_log" || fail "qvOS menu opened"
 grep -Fqx '󰏖  qvCORE (Optional)' "$menu_log" ||
   fail "qvCORE route remains under qvOS"
+if grep -Fq 'System' "$menu_log"; then
+  fail "retired qvOS System route remains"
+fi
 grep -Fqx '󰌾  Proton — Install' "$menu_log" ||
   fail "qvOS route opens the two-stack qvCORE menu"
 [[ $(<"$action_log") == "omarchy-install-qvcore proton" ]] ||

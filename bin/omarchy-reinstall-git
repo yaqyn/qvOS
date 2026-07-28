@@ -1,12 +1,8 @@
 #!/bin/bash
 
-# omarchy:summary=Unavailable on qvOS: replace the live source with upstream Omarchy
-# omarchy:hidden=true
+# omarchy:summary=Reinstall the Omarchy source directory from git
 
 set -e
-
-# shellcheck disable=SC2093
-exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance" "omarchy reinstall git"
 
 # Reinstall the Omarchy configuration directory from the git source.
 

@@ -12,7 +12,7 @@ contract, doctor, runtime deployment, sandbox checks, or qvDEV boundary.
   has one layer (`base`, `qvcore`, `project`, or `avoid`), one profile, one
   owner, and an exact install route.
 - Base capabilities must have an independent qvOS, inherited Omarchy, gaming,
-  hardware, desktop, or Recovery purpose. qvDEV owns developer-specific
+  hardware, or desktop purpose. qvDEV owns developer-specific
   Pacman/AUR packages, mise tools, verified direct tools, Semgrep, Dev
   Container CLI, and Codex workbench integration.
 - System Python and mise are base-owned. qvDEV owns uv and its isolated

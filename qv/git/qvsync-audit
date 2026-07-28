@@ -195,5 +195,5 @@ printf "  2. Search current qvOS owners, installed payloads, tests, and qvOS his
 printf "  3. Inspect relevant roadmap signals for impending replacement architecture.\n"
 printf "  4. Classify each capability: adopt, combine, retire-qvos, preserve, or no-impact.\n"
 printf "  5. Port qvOS differentiators onto the best upstream seam and remove superseded code.\n"
-printf "  6. Verify fresh install, update, repair, live runtime, and cleanup paths that changed.\n"
+printf "  6. Verify fresh install, update, removal, live runtime, and cleanup paths that changed.\n"
 printf "\nFull patch: git diff --find-renames %s %s\n" "$base_sha" "$target_sha"

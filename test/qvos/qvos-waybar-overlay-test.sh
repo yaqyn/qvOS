@@ -156,42 +156,6 @@ jq -e '
   ."future-omarchy-setting" == true
 ' "$sparse_live" >/dev/null || fail "future sparse Omarchy layout"
 
-repair_home="$test_root/repair-home"
-repair_config="$repair_home/.config/waybar/config.jsonc"
-repair_style="$repair_home/.config/waybar/style.css"
-install -D -m 0644 "$source_config" "$repair_config"
-printf 'personal Waybar style\n' >"$repair_style"
-jq '."personal-setting" = true' "$repair_config" >"$repair_config.tmp"
-mv "$repair_config.tmp" "$repair_config"
-PATH="$test_bin:$PATH" HOME="$repair_home" OMARCHY_PATH="$root" \
-  bash "$root/qv/waybar/refresh" --repair >/dev/null
-jq -e '
-  ."personal-setting" == true and
-  (."modules-left" + ."modules-center" + ."modules-right"
-    | index("group/prayer-clock") != null)
-' "$repair_config" >/dev/null || fail "preservation-safe Waybar repair"
-[[ $(<"$repair_style") == "personal Waybar style" ]] ||
-  fail "preservation-safe Waybar style"
-PATH="$test_bin:$PATH" HOME="$repair_home" OMARCHY_PATH="$root" \
-  bash "$root/qv/waybar/refresh" --status ||
-  fail "Waybar repair status"
-printf 'ok - qvOS repair preserves customized Waybar configuration\n'
-
-malformed_home="$test_root/malformed-repair-home"
-malformed_config="$malformed_home/.config/waybar/config.jsonc"
-install -D -m 0644 /dev/stdin "$malformed_config" <<'JSON'
-[]
-JSON
-if PATH="$test_bin:$PATH" HOME="$malformed_home" OMARCHY_PATH="$root" \
-  bash "$root/qv/waybar/refresh" --repair >/dev/null 2>&1; then
-  fail "malformed customized Waybar repair succeeds"
-fi
-[[ $(<"$malformed_config") == "[]" ]] ||
-  fail "malformed customized Waybar preservation"
-[[ ! -e $malformed_home/waybar-restarted ]] ||
-  fail "malformed customized Waybar restart"
-printf 'ok - qvOS repair refuses to replace malformed customized Waybar config\n'
-
 custom_home="$test_root/custom-home"
 custom_config="$custom_home/.config/waybar/config.jsonc"
 install -D -m 0644 "$source_config" "$custom_config"

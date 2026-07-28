@@ -1,13 +1,9 @@
 #!/bin/bash
 
-# omarchy:summary=Unavailable on qvOS: overwrite all user configs
-# omarchy:hidden=true
+# omarchy:summary=Reset all Omarchy user configs to the defaults
 # omarchy:requires-sudo=true
 
 set -e
-
-# shellcheck disable=SC2093
-exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance" "omarchy reinstall configs"
 
 # Overwrite all user configs with the Omarchy defaults.
 

@@ -84,21 +84,9 @@ check_file \
   "$runtime_root/codex/doctor" \
   "Codex doctor differs from tracked source"
 check_file \
-  "$OMARCHY_PATH/qv/maintenance/essential-packages" \
-  "$runtime_root/maintenance/essential-packages" \
-  "recovery essential-package policy differs from tracked source"
-check_file \
-  "$OMARCHY_PATH/qv/maintenance/qvos-repair" \
-  "$runtime_root/maintenance/qvos-repair" \
-  "recovery engine differs from tracked source"
-check_file \
-  "$OMARCHY_PATH/qv/maintenance/qvos-system" \
-  "$runtime_root/maintenance/qvos-system" \
-  "qvOS system hub differs from tracked source"
-check_file \
-  "$OMARCHY_PATH/qv/maintenance/qv" \
+  "$OMARCHY_PATH/qv/codex/qv" \
   "$HOME/.local/bin/qv" \
-  "qv recovery front door differs from tracked source"
+  "qv Codex front door differs from tracked source"
 if ! "$OMARCHY_PATH/qv/shell/status"; then
   report_drift "qvOS runtime shell overlay or Bash source line differs"
 fi
@@ -206,7 +194,7 @@ for command_name in \
 done
 
 if ! "$OMARCHY_PATH/qv/waybar/refresh" --status; then
-  report_drift "Waybar qvOS integration needs repair"
+  report_drift "Waybar qvOS integration differs from expected state"
 fi
 
 ((issue_count == 0))

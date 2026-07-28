@@ -393,9 +393,8 @@ show_qvcore_menu() {
 }
 
 show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰒓  System\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
+  case $(menu "qvOS" "󱅾  Update qvOS\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
   *"Update qvOS"*) omarchy-launch-qvos-update ;;
-  *System*) present_terminal omarchy-qvos-system ;;
   *qvCORE*) show_qvcore_menu show_qvos_menu ;;
   *) back_to show_main_menu ;;
   esac

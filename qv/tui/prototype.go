@@ -325,14 +325,14 @@ func prototypeProfileFor(launch prototypeLaunch) prototypeProfile {
 	switch launch {
 	case prototypeSudo:
 		return prototypeProfile{
-			title:        "REPAIR",
-			complete:     "repair prototype complete",
+			title:        "SYSTEM",
+			complete:     "authorized action complete",
 			requiresSudo: true,
 			stages: []prototypeStage{
 				{0.08, "checking qvOS source", "source checkout verified"},
-				{0.34, "repairing desktop payloads", "desktop payloads reconciled"},
-				{0.70, "checking enabled integrations", "enabled integrations healthy"},
-				{0.94, "final verification", "repair smoke test passed"},
+				{0.34, "applying desktop payloads", "desktop payloads applied"},
+				{0.70, "checking enabled integrations", "enabled integrations verified"},
+				{0.94, "final verification", "system action verified"},
 			},
 		}
 	case prototypeFailure:
@@ -366,8 +366,8 @@ func prototypeProfileFor(launch prototypeLaunch) prototypeProfile {
 			stages: []prototypeStage{
 				{0.10, "reading application state", "application state loaded"},
 				{0.40, "synchronizing configuration", "configuration synchronized"},
-				{0.76, "repairing adapters", "application adapters repaired"},
-				{0.94, "checking health", "application health check passed"},
+				{0.76, "applying adapters", "application adapters applied"},
+				{0.94, "checking result", "application verification passed"},
 			},
 		}
 	case prototypeAppRemove:

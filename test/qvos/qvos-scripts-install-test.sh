@@ -67,6 +67,7 @@ install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/share/qvos/bin" \
   "$test_root/.local/share/qvos/desktop/context" \
+  "$test_root/.local/share/qvos/maintenance" \
   "$test_root/.local/share/qvos/screensaver" \
   "$test_root/.local/share/qvos/thunar" \
   "$test_root/.local/share/qvos/tmux" \
@@ -74,6 +75,9 @@ install -d \
 touch \
   "$test_root/.config/omarchy/hooks/post-update.d/qvos-qvcore" \
   "$test_root/.local/share/qvos/desktop/context/removed-helper" \
+  "$test_root/.local/share/qvos/maintenance/essential-packages" \
+  "$test_root/.local/share/qvos/maintenance/qvos-repair" \
+  "$test_root/.local/share/qvos/maintenance/qvos-system" \
   "$test_root/.local/share/qvos/screensaver/removed-launcher" \
   "$test_root/.local/share/qvos/thunar/removed-feature" \
   "$test_root/.local/share/qvos/tmux/removed-feature" \
@@ -214,30 +218,14 @@ HOME="$test_root" OMARCHY_PATH="$root" \
 pass "qvOS TUI builds once and installs from its domain owner"
 
 cmp -s \
-  "$root/qv/maintenance/essential-packages" \
-  "$test_root/.local/share/qvos/maintenance/essential-packages" ||
-  fail "recovery essential-package policy installation"
-cmp -s \
-  "$root/qv/maintenance/qvos-repair" \
-  "$test_root/.local/share/qvos/maintenance/qvos-repair" ||
-  fail "recovery engine installation"
-cmp -s \
-  "$root/qv/maintenance/qvos-system" \
-  "$test_root/.local/share/qvos/maintenance/qvos-system" ||
-  fail "qvOS system hub installation"
-cmp -s \
-  "$root/qv/maintenance/qv" \
+  "$root/qv/codex/qv" \
   "$test_root/.local/bin/qv" ||
-  fail "qv recovery front door installation"
-[[ -x $test_root/.local/share/qvos/maintenance/qvos-repair ]] ||
-  fail "recovery engine mode"
-[[ -x $test_root/.local/share/qvos/maintenance/qvos-system ]] ||
-  fail "qvOS system hub mode"
-[[ ! -x $test_root/.local/share/qvos/maintenance/essential-packages ]] ||
-  fail "recovery package policy mode"
+  fail "qv Codex front door installation"
 [[ -x $test_root/.local/bin/qv && ! -L $test_root/.local/bin/qv ]] ||
-  fail "qv recovery front door is not a real executable"
-pass "recovery engine, system hub, policy, and qv front door install independently"
+  fail "qv Codex front door is not a real executable"
+[[ ! -e $test_root/.local/share/qvos/maintenance ]] ||
+  fail "retired qvOS Recovery runtime directory"
+pass "qv Codex front door installs without retired Recovery runtime"
 
 cmp -s \
   "$root/qv/shell/aliases" \
@@ -284,12 +272,12 @@ for feature in \
 done
 pass "tracked script and data modes are preserved"
 
-health_output=$(
+status_output=$(
   HOME="$test_root" \
     OMARCHY_PATH="$root" \
     "$root/qv/install/desktop-status"
 )
-[[ -z $health_output ]] || fail "healthy desktop status output"
+[[ -z $status_output ]] || fail "clean desktop status output"
 
 printf '\n# test drift\n' \
   >>"$test_root/.local/share/qvos/tmux/qvos-tmux"
@@ -302,9 +290,9 @@ drift_output=$(
 )
 drift_status=$?
 set -e
-((drift_status == 1)) || fail "desktop drift health status"
+((drift_status == 1)) || fail "desktop drift status"
 grep -Fq 'tmux runtime differs from tracked qvOS source' <<<"$drift_output" ||
-  fail "desktop drift health detail"
+  fail "desktop drift status detail"
 [[ $(sha256sum "$test_root/.local/share/qvos/tmux/qvos-tmux") == "$drift_before" ]] ||
-  fail "desktop health mutates drifted runtime"
-pass "qvOS desktop health detects runtime drift without changing it"
+  fail "desktop status mutates drifted runtime"
+pass "qvOS desktop status detects runtime drift without changing it"

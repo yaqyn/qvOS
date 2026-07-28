@@ -81,8 +81,7 @@ var sections = []section{
 		name: "INSTALL",
 		items: []item{
 			{"00", "UPDATE", "Sync qvOS"},
-			{"01", "REPAIR", "Repair qvOS"},
-			{"02", "BUILD", "Build qvOS ISO"},
+			{"01", "BUILD", "Build qvOS ISO"},
 		},
 	},
 	{
@@ -311,7 +310,6 @@ type actionMode int
 
 const (
 	actionBuild actionMode = iota
-	actionRepair
 	actionUpdate
 )
 
@@ -366,7 +364,7 @@ type model struct {
 }
 
 func isRootAction(action actionMode) bool {
-	return action == actionRepair || action == actionUpdate
+	return action == actionUpdate
 }
 
 func isScriptAction(action actionMode) bool {
@@ -749,9 +747,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.beginUpdateConfirmation(false)
 			}
 			if m.tab == 0 && m.cursor == 1 {
-				return m.startRootAction(actionRepair)
-			}
-			if m.tab == 0 && m.cursor == 2 {
 				return m.startBuildAction()
 			}
 		}
@@ -1338,9 +1333,6 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 		return m.beginUpdateConfirmation(false)
 	}
 	if m.tab == 0 && m.cursor == 1 {
-		return m.startRootAction(actionRepair)
-	}
-	if m.tab == 0 && m.cursor == 2 {
 		return m.startBuildAction()
 	}
 	return m, nil
@@ -1944,8 +1936,6 @@ func scriptProgressFromLine(action actionMode, line string) (string, float64) {
 	switch action {
 	case actionBuild:
 		return buildProgressFromLine(clean)
-	case actionRepair:
-		return domainProgressFromLine(clean, "qvOS repair:", repairDomainOrder)
 	case actionUpdate:
 		return updateflow.ProgressFromLine(clean)
 	default:
@@ -2061,26 +2051,6 @@ func countedBuildProgressFromLine(line, prefix, status string, start, end float6
 
 var installDomainOrder = []string{
 	"Runtime", "Defaults", "Icons", "Hyprland", "Theme", "Branding", "SDDM", "Fastfetch", "Screensaver", "GTK", "Waybar", "Tmux",
-}
-
-var repairDomainOrder = []string{
-	"Inspect", "Source", "Packages", "Runtime", "Config", "Complete",
-}
-
-func domainProgressFromLine(line string, prefix string, order []string) (string, float64) {
-	if !strings.HasPrefix(line, prefix) {
-		return line, -1
-	}
-	name := strings.TrimSpace(strings.TrimPrefix(line, prefix))
-	if name == "" {
-		return line, -1
-	}
-	for i, step := range order {
-		if name == step || strings.HasPrefix(name, step+" ") {
-			return strings.ToLower(name), float64(i+1) / float64(len(order)+1)
-		}
-	}
-	return strings.ToLower(name), -1
 }
 
 const maxScriptLogLines = 240
@@ -2647,8 +2617,6 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 
 func rootActionName(action actionMode) string {
 	switch action {
-	case actionRepair:
-		return "REPAIR"
 	case actionUpdate:
 		return "UPDATE"
 	default:
@@ -2660,8 +2628,6 @@ func rootActionPastTense(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "BUILT"
-	case actionRepair:
-		return "REPAIRED"
 	case actionUpdate:
 		return "UPDATED"
 	default:
@@ -2673,8 +2639,6 @@ func rootActionActiveTitle(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "BUILDING"
-	case actionRepair:
-		return "REPAIRING"
 	case actionUpdate:
 		return "UPDATING"
 	default:
@@ -2686,8 +2650,6 @@ func rootActionRunningStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "ISO build running in background"
-	case actionRepair:
-		return "repair running in background"
 	case actionUpdate:
 		return updateflow.RunningStatus
 	default:
@@ -2699,8 +2661,6 @@ func rootActionCompleteStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "ISO build complete"
-	case actionRepair:
-		return "repair complete"
 	case actionUpdate:
 		return updateflow.CompleteStatus
 	default:
@@ -2712,8 +2672,6 @@ func rootActionCancelingStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "cleaning build stage"
-	case actionRepair:
-		return "stopping repair"
 	case actionUpdate:
 		return updateflow.CancelingStatus
 	default:
@@ -2725,8 +2683,6 @@ func rootActionCanceledStatus(action actionMode) string {
 	switch action {
 	case actionBuild:
 		return "cleanup complete - good to go"
-	case actionRepair:
-		return "repair stopped"
 	case actionUpdate:
 		return updateflow.CanceledStatus
 	default:
@@ -3481,8 +3437,6 @@ func rootScriptSpec(action actionMode) (scriptName string, envName string, err e
 	switch action {
 	case actionBuild:
 		return "bin/qvos-build", "QVOS_BUILD_SCRIPT", nil
-	case actionRepair:
-		return "bin/qvos-repair", "QVOS_REPAIR_SCRIPT", nil
 	case actionUpdate:
 		return updateflow.ScriptPath, updateflow.ScriptEnvironment, nil
 	default:

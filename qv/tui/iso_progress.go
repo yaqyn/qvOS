@@ -226,7 +226,7 @@ func (m *isoProgressModel) advancePrototype() {
 		{0.38, "installing system packages", "base packages installed"},
 		{0.58, "installing qvOS", "started qvOS installation"},
 		{0.76, "applying desktop configuration", "desktop configuration applied"},
-		{0.90, "repairing qvOS integrations", "qvOS integrations repaired"},
+		{0.90, "applying qvOS integrations", "qvOS integrations applied"},
 		{1.00, "install complete", "installation completed successfully"},
 	}
 

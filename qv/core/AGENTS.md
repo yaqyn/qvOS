@@ -24,8 +24,7 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex
   workbench integration. Codex itself is base-owned and must survive qvDEV
   removal. Wrangler, Convex, and Playwright stay project-local.
-- Steam and the reviewed gaming runtime are not qvCORE. qvOS Recovery is a
-  separate base subsystem and never grades, installs, or repairs qvCORE.
+- Steam and the reviewed gaming runtime are not qvCORE.
 - Browsers already owned by Omarchy, including Brave Origin, stay on
   Omarchy's native browser Install and Remove surfaces and out of qvCORE.
 - Software guaranteed by Omarchy, including LocalSend, stays base-owned and

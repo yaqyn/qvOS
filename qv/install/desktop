@@ -4,15 +4,6 @@
 (
   set -euo pipefail
 
-  desktop_mode=${QVOS_DESKTOP_MODE:-install}
-  case $desktop_mode in
-  install | repair | reset) ;;
-  *)
-    echo "Unknown qvOS desktop install mode: $desktop_mode" >&2
-    exit 2
-    ;;
-  esac
-
   mkdir -p "$HOME/.local/share/qvos"
 
   for feature in codex desktop direct maintenance power screensaver shell thunar tmux tui waybar; do
@@ -33,6 +24,7 @@
     qv/desktop/web/qvos-website-open
     qv/codex/capabilities.tsv
     qv/codex/doctor
+    qv/codex/qv
     qv/direct/manifest.tsv
     qv/direct/post-update-hook
     qv/direct/tool
@@ -43,13 +35,9 @@
     qv/launcher/elephant/omarchy_background_selector.lua
     qv/launcher/elephant/omarchy_themes.lua
     qv/launcher/elephant/omarchy_unlocks.lua
-    qv/maintenance/essential-packages
     qv/maintenance/personal-software
     qv/maintenance/personal-software-baseline
     qv/maintenance/protected-user-bin
-    qv/maintenance/qv
-    qv/maintenance/qvos-repair
-    qv/maintenance/qvos-system
     qv/menu/concepts.psv
     qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
@@ -127,7 +115,7 @@
   rm -rf -- "$preserved_thunar"
 
   "$OMARCHY_PATH/qv/launcher/install"
-  "$OMARCHY_PATH/qv/menu/install" --repair
+  "$OMARCHY_PATH/qv/menu/install" --install
 
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/install/post-update-hook" \
@@ -139,12 +127,8 @@
   install -D -m 0644 \
     "$OMARCHY_PATH/qv/waybar/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
-  if [[ $desktop_mode == "repair" || $desktop_mode == "reset" ]]; then
-    "$OMARCHY_PATH/qv/waybar/refresh" "--$desktop_mode"
-  else
-    QVOS_WAYBAR_SKIP_RESTART=1 \
-      "$OMARCHY_PATH/qv/waybar/refresh" --reset
-  fi
+  QVOS_WAYBAR_SKIP_RESTART=1 \
+    "$OMARCHY_PATH/qv/waybar/refresh" --reset
 
   if ! "$HOME/.local/share/qvos/thunar/reconcile-default-actions"; then
     echo "qvOS preserved the current Thunar actions because they could not be reconciled." >&2
@@ -153,15 +137,19 @@
   screensaver_source="$OMARCHY_PATH/qv/screensaver"
   qvos_bin="$HOME/.local/share/qvos/bin"
   qvos_codex="$HOME/.local/share/qvos/codex"
-  qvos_maintenance="$HOME/.local/share/qvos/maintenance"
   qvos_screensaver="$HOME/.local/share/qvos/screensaver"
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
+  rm -f -- \
+    "$HOME/.local/share/qvos/maintenance/essential-packages" \
+    "$HOME/.local/share/qvos/maintenance/qvos-repair" \
+    "$HOME/.local/share/qvos/maintenance/qvos-system"
+  rmdir --ignore-fail-on-non-empty \
+    "$HOME/.local/share/qvos/maintenance" 2>/dev/null || true
   install -d \
     "$qvos_bin" \
     "$qvos_codex" \
-    "$qvos_maintenance" \
     "$qvos_screensaver" \
     "$local_bin"
   "$OMARCHY_PATH/qv/tui/install" --build-if-available
@@ -175,26 +163,8 @@
     "$OMARCHY_PATH/qv/codex/doctor" \
     "$qvos_codex/doctor.tmp.$$"
   mv -f -- "$qvos_codex/doctor.tmp.$$" "$qvos_codex/doctor"
-  install -m 0644 \
-    "$OMARCHY_PATH/qv/maintenance/essential-packages" \
-    "$qvos_maintenance/essential-packages.tmp.$$"
-  mv -f -- \
-    "$qvos_maintenance/essential-packages.tmp.$$" \
-    "$qvos_maintenance/essential-packages"
   install -m 0755 \
-    "$OMARCHY_PATH/qv/maintenance/qvos-repair" \
-    "$qvos_maintenance/qvos-repair.tmp.$$"
-  mv -f -- \
-    "$qvos_maintenance/qvos-repair.tmp.$$" \
-    "$qvos_maintenance/qvos-repair"
-  install -m 0755 \
-    "$OMARCHY_PATH/qv/maintenance/qvos-system" \
-    "$qvos_maintenance/qvos-system.tmp.$$"
-  mv -f -- \
-    "$qvos_maintenance/qvos-system.tmp.$$" \
-    "$qvos_maintenance/qvos-system"
-  install -m 0755 \
-    "$OMARCHY_PATH/qv/maintenance/qv" \
+    "$OMARCHY_PATH/qv/codex/qv" \
     "$local_bin/qv.tmp.$$"
   mv -f -- "$local_bin/qv.tmp.$$" "$local_bin/qv"
   "$OMARCHY_PATH/qv/shell/install"

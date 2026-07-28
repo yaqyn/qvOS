@@ -1,12 +1,8 @@
 #!/bin/bash
 
-# omarchy:summary=Unavailable on qvOS: switch upstream source and package channels
-# omarchy:hidden=true
+# omarchy:summary=Set the Omarchy channel, which dictates what git branch and package repository is used.
 # omarchy:args=<stable|rc|edge|dev>
 # omarchy:requires-sudo=true
-
-# shellcheck disable=SC2093
-exec "$(dirname -- "${BASH_SOURCE[0]}")/omarchy-qvos-block-upstream-maintenance" "omarchy channel set"
 
 if (($# == 0)); then
   echo "Usage: omarchy-channel-set [stable|rc|edge|dev]"
