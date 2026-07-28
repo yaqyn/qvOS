@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -92,21 +93,80 @@ func appendTUIHints(content string, width int, hints ...tuiHint) string {
 	return content + "\n\n" + rendered
 }
 
+func updateTUILogScroll(offset int, key string, lineCount int, visibleRows int) (int, bool) {
+	maxOffset := max(0, lineCount-max(1, visibleRows))
+	pageRows := max(1, visibleRows-1)
+
+	switch key {
+	case "up", "k":
+		offset++
+	case "down", "j":
+		offset--
+	case "pgup":
+		offset += pageRows
+	case "pgdown":
+		offset -= pageRows
+	case "home":
+		offset = maxOffset
+	case "end":
+		offset = 0
+	default:
+		return offset, false
+	}
+
+	return min(max(offset, 0), maxOffset), true
+}
+
+func visibleTUILogLines(lines []string, visibleRows int, offset int, empty string) ([]string, int) {
+	visibleRows = max(1, visibleRows)
+	if len(lines) == 0 {
+		return []string{empty}, 0
+	}
+
+	maxOffset := max(0, len(lines)-visibleRows)
+	offset = min(max(offset, 0), maxOffset)
+	end := len(lines) - offset
+	start := max(0, end-visibleRows)
+	return append([]string(nil), lines[start:end]...), offset
+}
+
+func appendTUILogSwitchCue(panel string, width int, offset int) string {
+	cue := "ctrl+v  switch"
+	if offset > 0 {
+		cue = fmt.Sprintf("%d newer  ·  %s", offset, cue)
+	}
+	return panel + "\n" + lipgloss.PlaceHorizontal(width, lipgloss.Center, sGray.Render(cue))
+}
+
+func tuiLogInteractionHints() []tuiHint {
+	return []tuiHint{
+		{Key: "↑ / ↓  or  j / k", Action: "scroll lines"},
+		{Key: "pgup / pgdown", Action: "scroll pages"},
+		{Key: "home / end", Action: "oldest / newest"},
+		{Key: "drag / ctrl+shift+c", Action: "copy + paste"},
+	}
+}
+
+func terminalOutputContentHeight(height int) int {
+	return max(3, height-8)
+}
+
 func renderTUIHelp(width int, title string, hints []tuiHint) string {
 	panelWidth := min(72, max(18, width-8))
+	contentWidth := max(1, panelWidth-6)
 	keyWidth := 0
 	for _, hint := range hints {
 		keyWidth = max(keyWidth, lipgloss.Width(hint.Key))
 	}
-	keyWidth = min(keyWidth, max(4, panelWidth/3))
+	keyWidth = min(keyWidth, max(4, contentWidth/3))
 
 	rows := []string{
 		sWhite.Render("qvOS  " + strings.ToUpper(title)),
-		sDeepRed.Render(strings.Repeat("━", panelWidth)),
+		sDeepRed.Render(strings.Repeat("━", contentWidth)),
 	}
 	for _, hint := range hints {
 		key := trimDisplay(strings.TrimSpace(hint.Key), keyWidth)
-		actionWidth := max(1, panelWidth-keyWidth-3)
+		actionWidth := max(1, contentWidth-keyWidth-5)
 		action := trimDisplay(strings.TrimSpace(hint.Action), actionWidth)
 		rows = append(rows,
 			lipgloss.PlaceHorizontal(keyWidth, lipgloss.Right, sHot.Render(key))+
@@ -114,7 +174,7 @@ func renderTUIHelp(width int, title string, hints []tuiHint) string {
 				sBright.Render(action),
 		)
 	}
-	rows = append(rows, "", centerTUIHints(panelWidth,
+	rows = append(rows, "", centerTUIHints(contentWidth,
 		tuiHint{Key: "f1 / ? / esc", Action: "close help"},
 	))
 
@@ -126,23 +186,25 @@ func renderTUIHelp(width int, title string, hints []tuiHint) string {
 		Render(strings.Join(rows, "\n"))
 }
 
-func renderTUITerminalOutput(width, height int, page string, lines []string, hints []tuiHint) string {
+func renderTUITerminalOutput(width, height int, page string, lines []string, scrollOffset int, hints []tuiHint) string {
 	panelWidth := min(112, max(20, width-6))
 	contentWidth := max(1, panelWidth-4)
-	contentHeight := max(3, height-8)
-
-	if len(lines) == 0 {
-		lines = []string{"waiting for command output"}
-	}
-	if len(lines) > contentHeight {
-		lines = lines[len(lines)-contentHeight:]
-	}
+	contentHeight := terminalOutputContentHeight(height)
+	lines, scrollOffset = visibleTUILogLines(
+		lines,
+		contentHeight,
+		scrollOffset,
+		"waiting for command output",
+	)
 
 	body := make([]string, 0, len(lines)+5)
-	body = append(body,
-		sWhite.Render("qvOS  "+strings.ToUpper(page)+" / TERMINAL OUTPUT"),
-		sDeepRed.Render(strings.Repeat("━", contentWidth)),
-	)
+	title := sWhite.Render("qvOS  " + strings.ToUpper(page) + " / TERMINAL OUTPUT")
+	if scrollOffset > 0 {
+		position := sGray.Render(fmt.Sprintf("%d newer", scrollOffset))
+		gap := max(1, contentWidth-lipgloss.Width(title)-lipgloss.Width(position))
+		title += strings.Repeat(" ", gap) + position
+	}
+	body = append(body, title, sDeepRed.Render(strings.Repeat("━", contentWidth)))
 	for _, line := range lines {
 		body = append(body, sBright.Render(trimDisplay(line, contentWidth)))
 	}

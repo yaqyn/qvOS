@@ -32,6 +32,7 @@ type isoProgressModel struct {
 	logLines     []string
 	logOverlay   bool
 	terminalView bool
+	logScroll    int
 	helpOverlay  bool
 }
 
@@ -136,6 +137,12 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.progress >= 0 {
 			m.target = max(m.target, msg.progress)
 		}
+		if m.logScroll > 0 && len(msg.lines) > len(m.logLines) {
+			m.logScroll = min(
+				m.logScroll+len(msg.lines)-len(m.logLines),
+				max(0, len(msg.lines)-m.logViewportRows()),
+			)
+		}
 		m.logLines = msg.lines
 	case tea.KeyPressMsg:
 		if m.noInput {
@@ -144,6 +151,17 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
 			m.helpOverlay = helpOverlay
 			return m, nil
+		}
+		if m.logOverlay || m.terminalView {
+			if offset, handled := updateTUILogScroll(
+				m.logScroll,
+				msg.String(),
+				len(m.logLines),
+				m.logViewportRows(),
+			); handled {
+				m.logScroll = offset
+				return m, nil
+			}
 		}
 		if m.terminalView {
 			switch msg.String() {
@@ -206,6 +224,12 @@ func (m *isoProgressModel) advancePrototype() {
 		stage := stages[completed]
 		m.status = stage.status
 		m.logLines = append(m.logLines, stage.log)
+		if m.logScroll > 0 {
+			m.logScroll = min(
+				m.logScroll+1,
+				max(0, len(m.logLines)-m.logViewportRows()),
+			)
+		}
 		completed++
 	}
 }
@@ -224,6 +248,7 @@ func (m isoProgressModel) View() tea.View {
 			height,
 			"INSTALL",
 			m.logLines,
+			m.logScroll,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -300,9 +325,10 @@ func (m isoProgressModel) renderISOProgressBody(mode layoutMode, icon string) st
 func (m isoProgressModel) helpHints() []tuiHint {
 	if m.terminalView {
 		hints := []tuiHint{
-			{Key: "ctrl+v", Action: "return to the qvOS install view"},
+			{Key: "ctrl+v", Action: "switch to the qvOS install view"},
 			{Key: "v", Action: "return with the log panel open"},
 		}
+		hints = append(hints, tuiLogInteractionHints()...)
 		if m.prototype {
 			hints = append(hints, tuiHint{Key: "esc / ctrl+c", Action: "return to the prototype hub"})
 		}
@@ -312,6 +338,9 @@ func (m isoProgressModel) helpHints() []tuiHint {
 	hints := []tuiHint{
 		{Key: "v", Action: "toggle the qvOS install log panel"},
 		{Key: "ctrl+v", Action: "toggle original terminal output"},
+	}
+	if m.logOverlay {
+		hints = append(hints, tuiLogInteractionHints()...)
 	}
 	if m.prototype {
 		hints = append(hints,
@@ -344,7 +373,7 @@ func (m isoProgressModel) persistentHints() []tuiHint {
 
 func (m isoProgressModel) terminalHints() []tuiHint {
 	return []tuiHint{
-		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "ctrl+v", Action: "switch"},
 		{Key: "?", Action: "help"},
 	}
 }
@@ -398,12 +427,27 @@ func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 	return appendTUIHints(content, canvasW, m.persistentHints()...)
 }
 
-func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
-	width := canvasW
+func isoProgressLogRows(mode layoutMode) int {
 	height := 9
 	if mode == layoutTablet {
 		height = 6
 	}
+	return height
+}
+
+func (m isoProgressModel) logViewportRows() int {
+	if m.terminalView {
+		return terminalOutputContentHeight(m.height)
+	}
+	mode := layoutFor(m.width, m.height)
+	if isSideComposition(m.width, m.height, m.fullscreen) {
+		mode = layoutTablet
+	}
+	return isoProgressLogRows(mode)
+}
+
+func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
+	width := canvasW
 	if width < 1 {
 		width = 1
 	}
@@ -411,25 +455,26 @@ func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
 		width = 82
 	}
 
+	height := isoProgressLogRows(mode)
 	contentWidth := max(1, width-2)
-	lines := m.logLines
-	if len(lines) == 0 {
-		lines = []string{"waiting for install log"}
-	}
-	if len(lines) > height {
-		lines = lines[len(lines)-height:]
-	}
+	lines, scrollOffset := visibleTUILogLines(
+		m.logLines,
+		height,
+		m.logScroll,
+		"waiting for install log",
+	)
 
 	var body []string
 	for _, line := range lines {
 		body = append(body, trimDisplay(line, contentWidth))
 	}
 
-	return lipgloss.NewStyle().
+	panel := lipgloss.NewStyle().
 		Width(width).
 		Foreground(lipgloss.Color(mid)).
 		Padding(0, 1).
 		Render(strings.Join(body, "\n"))
+	return appendTUILogSwitchCue(panel, width, scrollOffset)
 }
 
 func readISOProgressSnapshotCmd(logPath string) tea.Cmd {

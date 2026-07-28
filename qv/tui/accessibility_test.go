@@ -38,8 +38,14 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 	if !strings.Contains(content, "ctrl+c/z stop options") || !strings.Contains(content, "? help") {
 		t.Fatalf("open log view lost the primary action and Help: %q", content)
 	}
+	if !strings.Contains(content, "ctrl+v  switch") {
+		t.Fatalf("open log view is missing its quiet switch cue: %q", content)
+	}
 	if strings.Contains(content, "v close logs") {
 		t.Fatalf("open log view exposes a secondary action persistently: %q", content)
+	}
+	if m.View().MouseMode != tea.MouseModeNone {
+		t.Fatal("open log view captures the mouse instead of allowing terminal text selection")
 	}
 }
 
@@ -66,7 +72,7 @@ func TestTerminalOutputViewUsesTheSameRunningModel(t *testing.T) {
 		"UPDATE / TERMINAL OUTPUT",
 		"first update line",
 		"latest update line",
-		"ctrl+v qvOS view",
+		"ctrl+v switch",
 		"? help",
 	} {
 		if !strings.Contains(content, expected) {
@@ -79,6 +85,9 @@ func TestTerminalOutputViewUsesTheSameRunningModel(t *testing.T) {
 		}
 	}
 	assertViewFits(t, m.View().Content, m.width, m.height)
+	if m.View().MouseMode != tea.MouseModeNone {
+		t.Fatal("terminal output captures the mouse instead of allowing terminal text selection")
+	}
 
 	next, _ = m.Update(tea.KeyPressMsg{Code: 'v'})
 	m = next.(model)
@@ -197,6 +206,112 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 				t.Fatalf("%s has no visible help route: %q", name, content)
 			}
 			assertViewFits(t, view.Content, width, height)
+		})
+	}
+}
+
+func TestLogOutputScrollsAndReturnsToFollowingTheNewestLine(t *testing.T) {
+	var lines []string
+	for index := 0; index < 30; index++ {
+		lines = append(lines, fmt.Sprintf("log line %02d", index))
+	}
+	m := model{
+		width:          140,
+		height:         31,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptLogLines: lines,
+		logOverlay:     true,
+	}
+
+	content := stripANSI(m.View().Content)
+	if !strings.Contains(content, "log line 29") || strings.Contains(content, "log line 00") {
+		t.Fatalf("log view did not begin at the newest output: %q", content)
+	}
+
+	next, command := m.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+	if command != nil {
+		t.Fatal("log scrolling launched a command")
+	}
+	m = next.(model)
+	content = stripANSI(m.View().Content)
+	if !strings.Contains(content, "log line 00") || !strings.Contains(content, "newer") {
+		t.Fatalf("Home did not open the oldest retained output: %q", content)
+	}
+
+	next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
+	m = next.(model)
+	content = stripANSI(m.View().Content)
+	if !strings.Contains(content, "log line 29") || strings.Contains(content, "newer") {
+		t.Fatalf("End did not resume the newest output: %q", content)
+	}
+}
+
+func TestLogHelpDocumentsScrollingAndTerminalNativeCopy(t *testing.T) {
+	for _, size := range []struct {
+		name          string
+		width, height int
+	}{
+		{"side", 140, 31},
+		{"mobile", 44, 18},
+	} {
+		t.Run(size.name, func(t *testing.T) {
+			m := model{
+				width:         size.width,
+				height:        size.height,
+				loading:       true,
+				action:        actionUpdate,
+				scriptRunning: true,
+				logOverlay:    true,
+			}
+
+			next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+			view := next.(model).View()
+			content := stripANSI(view.Content)
+			for _, expected := range []string{
+				"scroll lines",
+				"scroll pages",
+				"oldest / newest",
+				"copy + paste",
+			} {
+				if !strings.Contains(content, expected) {
+					t.Fatalf("log help is missing %q: %q", expected, content)
+				}
+			}
+			assertViewFits(t, view.Content, size.width, size.height)
+		})
+	}
+}
+
+func TestLogSwitchCueFitsEveryResponsiveShape(t *testing.T) {
+	sizes := []struct {
+		name          string
+		width, height int
+	}{
+		{"side", 140, 31},
+		{"desktop", 120, 42},
+		{"tablet", 72, 30},
+		{"mobile", 44, 18},
+		{"fullscreen", 270, 61},
+	}
+
+	for _, size := range sizes {
+		t.Run(size.name, func(t *testing.T) {
+			view := (model{
+				width:          size.width,
+				height:         size.height,
+				fullscreen:     size.name == "fullscreen",
+				loading:        true,
+				action:         actionUpdate,
+				scriptRunning:  true,
+				scriptLogLines: []string{"stable log output"},
+				logOverlay:     true,
+			}).View()
+			if content := stripANSI(view.Content); !strings.Contains(content, "ctrl+v  switch") {
+				t.Fatalf("%s log view lost its switch cue: %q", size.name, content)
+			}
+			assertViewFits(t, view.Content, size.width, size.height)
 		})
 	}
 }

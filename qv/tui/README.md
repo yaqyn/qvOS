@@ -53,6 +53,14 @@ stream. Both remain documented in contextual Help without competing with the
 screen's primary action. The terminal view never spawns a second terminal or
 duplicates the running action.
 
+Open log views show a quiet, non-red `ctrl+v switch` cue below the log pane.
+The full terminal view promotes that switch to the normal high-contrast
+control row. Arrow or `j`/`k` keys scroll one line, Page Up and Page Down scroll
+one page, Home opens the oldest retained output, and End resumes the newest
+output. Mouse capture is disabled in log views so terminal-native selection
+and `Ctrl+Shift+C` copy work normally; copied text can be pasted into another
+terminal or application. Captured output is read-only.
+
 The four model roles carry meaning across surfaces:
 
 - CORE: beating red/grayscale hub identity

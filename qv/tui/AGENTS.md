@@ -45,7 +45,16 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   action result, not implementation details.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
-  mutating command to imitate a terminal view.
+  mutating command to imitate a terminal view. An open side log may show one
+  borderless, non-red `ctrl+v switch` cue directly below its panel; the full
+  terminal view renders the same action as a normal persistent control.
+- Normalize ANSI redraws, carriage returns, backspaces, tabs, and other control
+  characters before rendering captured output so child processes cannot move
+  the TUI cursor or break panel geometry. Log views follow the newest output by
+  default and support line, page, oldest, and newest navigation. Disable
+  application mouse capture while logs are visible so users can select and
+  copy text with normal terminal controls, then paste it elsewhere; logs remain
+  read-only and never execute pasted content.
 
 ## Change Workflow
 

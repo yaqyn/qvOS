@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -352,6 +353,7 @@ type model struct {
 	scriptCanceled    bool
 	logOverlay        bool
 	terminalView      bool
+	logScroll         int
 	helpOverlay       bool
 	updateConfirm     bool
 	updateChoice      int
@@ -523,8 +525,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.event.line != "" {
 			cleanLine := sanitizeLogLine(msg.event.line)
-			m.scriptLogLines = appendLimited(m.scriptLogLines, cleanLine, maxScriptLogLines)
-			if m.action == actionBuild {
+			if cleanLine != "" {
+				m.scriptLogLines = appendLimited(m.scriptLogLines, cleanLine, maxScriptLogLines)
+				if m.logScroll > 0 {
+					m.logScroll = min(
+						m.logScroll+1,
+						max(0, len(m.scriptLogLines)-m.logViewportRows()),
+					)
+				}
+			}
+			if cleanLine != "" && m.action == actionBuild {
 				if artifact, ok := buildArtifactFromLine(cleanLine); ok {
 					m.scriptArtifact = artifact
 				}
@@ -618,6 +628,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.sudoPrompt); handled {
 			m.helpOverlay = helpOverlay
 			return m, nil
+		}
+		if m.loading && isScriptAction(m.action) && (m.logOverlay || m.terminalView) {
+			if offset, handled := updateTUILogScroll(
+				m.logScroll,
+				msg.String(),
+				len(m.scriptLogLines),
+				m.logViewportRows(),
+			); handled {
+				m.logScroll = offset
+				return m, nil
+			}
 		}
 		if m.terminalView {
 			switch msg.String() {
@@ -740,6 +761,7 @@ func (m model) View() tea.View {
 			height,
 			rootActionName(m.action),
 			m.scriptLogLines,
+			m.logScroll,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -775,7 +797,11 @@ func (m model) View() tea.View {
 
 	v := tea.NewView(placed)
 	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
+	if m.logOverlay || m.terminalView {
+		v.MouseMode = tea.MouseModeNone
+	} else {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	v.BackgroundColor = lipgloss.Color(bgTerm)
 	v.WindowTitle = "qvOS"
 	return v
@@ -906,6 +932,9 @@ func (m model) helpHints() []tuiHint {
 		{Key: "v", Action: "toggle the qvOS log panel"},
 		{Key: "ctrl+v", Action: "toggle original terminal output"},
 	}
+	if m.logOverlay {
+		hints = append(hints, tuiLogInteractionHints()...)
+	}
 	switch phase {
 	case loadErr:
 		hints = append([]tuiHint{
@@ -976,9 +1005,10 @@ func (m model) rootPersistentHints() []tuiHint {
 
 func (m model) terminalHelpHints() []tuiHint {
 	hints := []tuiHint{
-		{Key: "ctrl+v", Action: "return to the qvOS view"},
+		{Key: "ctrl+v", Action: "switch to the qvOS view"},
 		{Key: "v", Action: "return with the log panel open"},
 	}
+	hints = append(hints, tuiLogInteractionHints()...)
 	if m.loadPhase() == loadRun {
 		action := "cancel the action"
 		if m.action == actionUpdate {
@@ -991,7 +1021,7 @@ func (m model) terminalHelpHints() []tuiHint {
 
 func (m model) terminalHints() []tuiHint {
 	return []tuiHint{
-		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "ctrl+v", Action: "switch"},
 		{Key: "?", Action: "help"},
 	}
 }
@@ -1374,6 +1404,7 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	m.scriptCanceled = false
 	m.logOverlay = false
 	m.terminalView = false
+	m.logScroll = 0
 	m.helpOverlay = false
 	m.updateConfirm = true
 	m.updateChoice = 0
@@ -1479,6 +1510,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptCanceled = false
 	m.logOverlay = false
 	m.terminalView = false
+	m.logScroll = 0
 	m.helpOverlay = false
 	m.updateConfirm = false
 	m.updateStopConfirm = false
@@ -1526,6 +1558,7 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	m.scriptCanceled = false
 	m.logOverlay = false
 	m.terminalView = false
+	m.logScroll = 0
 	m.helpOverlay = false
 
 	if err != nil {
@@ -1562,6 +1595,7 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.scriptCanceled = false
 	m.logOverlay = false
 	m.terminalView = false
+	m.logScroll = 0
 	m.helpOverlay = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
@@ -2049,9 +2083,38 @@ func appendLimited(lines []string, line string, limit int) []string {
 func sanitizeLogLine(line string) string {
 	line = strings.ReplaceAll(line, `\033[0m`, "")
 	line = strings.ReplaceAll(line, `\e[0m`, "")
-	line = strings.TrimSpace(stripANSI(line))
-	if len(line) > 180 {
-		line = line[:177] + "..."
+	line = stripANSI(line)
+
+	frames := strings.Split(line, "\r")
+	line = ""
+	for index := len(frames) - 1; index >= 0; index-- {
+		if strings.TrimSpace(frames[index]) != "" {
+			line = frames[index]
+			break
+		}
+	}
+
+	var clean []rune
+	for _, character := range line {
+		switch character {
+		case '\t':
+			clean = append(clean, ' ', ' ')
+		case '\b':
+			if len(clean) > 0 {
+				clean = clean[:len(clean)-1]
+			}
+		default:
+			if !unicode.IsControl(character) {
+				clean = append(clean, character)
+			}
+		}
+	}
+
+	line = strings.TrimSpace(string(clean))
+	const maxLogLineRunes = 1024
+	runes := []rune(line)
+	if len(runes) > maxLogLineRunes {
+		line = string(runes[:maxLogLineRunes-1]) + "…"
 	}
 	return line
 }
@@ -2496,27 +2559,18 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
-func (m model) renderRootLogOverlayFor(mode layoutMode) string {
-	width := canvasW
+func rootLogPanelHeight(mode layoutMode, terminalHeight int) int {
 	height := 18
 	if mode == layoutTablet {
-		width = canvasW
 		height = 16
 	}
 	if mode == layoutMobile {
-		width = canvasW
 		height = 7
 	}
-	if width < 1 {
-		width = 1
-	}
-	if width > logSideRightMax {
-		width = logSideRightMax
-	}
-	if m.height > 0 {
-		heightLimit := m.height - 4
+	if terminalHeight > 0 {
+		heightLimit := terminalHeight - 4
 		if mode == layoutDesktop {
-			heightLimit = m.height - 12
+			heightLimit = terminalHeight - 12
 		}
 		if heightLimit < 3 {
 			heightLimit = 3
@@ -2525,23 +2579,45 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 			height = heightLimit
 		}
 	}
+	return height
+}
 
+func (m model) logViewportRows() int {
+	if m.terminalView {
+		return terminalOutputContentHeight(m.height)
+	}
+	mode := layoutFor(m.width, m.height)
+	if isSideComposition(m.width, m.height, m.fullscreen) {
+		mode = layoutTablet
+	}
+	return max(1, rootLogPanelHeight(mode, m.height)-2)
+}
+
+func (m model) renderRootLogOverlayFor(mode layoutMode) string {
+	width := canvasW
+	if width < 1 {
+		width = 1
+	}
+	if width > logSideRightMax {
+		width = logSideRightMax
+	}
+
+	height := rootLogPanelHeight(mode, m.height)
 	contentWidth := max(1, width-4)
 	contentHeight := max(1, height-2)
-	lines := m.scriptLogLines
-	if len(lines) == 0 {
-		lines = []string{"waiting for logs"}
-	}
-	if len(lines) > contentHeight {
-		lines = lines[len(lines)-contentHeight:]
-	}
+	lines, scrollOffset := visibleTUILogLines(
+		m.scriptLogLines,
+		contentHeight,
+		m.logScroll,
+		"waiting for logs",
+	)
 
 	var body []string
 	for _, line := range lines {
 		body = append(body, trimDisplay(line, contentWidth))
 	}
 
-	return lipgloss.NewStyle().
+	panel := lipgloss.NewStyle().
 		Width(width).
 		Height(height).
 		Border(lipgloss.NormalBorder()).
@@ -2549,6 +2625,7 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 		Foreground(lipgloss.Color(mid)).
 		Padding(0, 1).
 		Render(strings.Join(body, "\n"))
+	return appendTUILogSwitchCue(panel, width, scrollOffset)
 }
 
 func rootActionName(action actionMode) string {

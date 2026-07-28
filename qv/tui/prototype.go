@@ -410,6 +410,7 @@ type prototypeSessionModel struct {
 	logLines      []string
 	logOverlay    bool
 	terminalView  bool
+	logScroll     int
 	helpOverlay   bool
 	failed        bool
 	done          bool
@@ -439,7 +440,7 @@ func (m prototypeSessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.progress = 0.56
 				m.running = false
 				m.failed = true
-				m.logLines = append(m.logLines, "error: "+errPrototypeFailure.Error())
+				m.appendLog("error: " + errPrototypeFailure.Error())
 			} else {
 				m.advanceStages()
 				if m.progress >= 1 {
@@ -464,8 +465,18 @@ func (m prototypeSessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *prototypeSessionModel) advanceStages() {
 	for m.stageIndex < len(m.profile.stages) && m.progress >= m.profile.stages[m.stageIndex].at {
 		stage := m.profile.stages[m.stageIndex]
-		m.logLines = append(m.logLines, stage.log)
+		m.appendLog(stage.log)
 		m.stageIndex++
+	}
+}
+
+func (m *prototypeSessionModel) appendLog(line string) {
+	m.logLines = append(m.logLines, line)
+	if m.logScroll > 0 {
+		m.logScroll = min(
+			m.logScroll+1,
+			max(0, len(m.logLines)-m.logViewportRows()),
+		)
 	}
 }
 
@@ -473,6 +484,17 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 	if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.awaitingAuthorization()); handled {
 		m.helpOverlay = helpOverlay
 		return m, nil
+	}
+	if m.logOverlay || m.terminalView {
+		if offset, handled := updateTUILogScroll(
+			m.logScroll,
+			msg.String(),
+			len(m.logLines),
+			m.logViewportRows(),
+		); handled {
+			m.logScroll = offset
+			return m, nil
+		}
 	}
 	if m.terminalView {
 		switch msg.String() {
@@ -506,7 +528,7 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.authError = ""
 			m.running = true
 			m.attempt = 1
-			m.logLines = append(m.logLines, "prototype authorization accepted")
+			m.appendLog("prototype authorization accepted")
 		case "backspace", "ctrl+h":
 			if len(m.password) > 0 {
 				m.password[len(m.password)-1] = 0
@@ -536,7 +558,7 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 			m.stageIndex = 0
 			m.failed = false
 			m.running = true
-			m.logLines = append(m.logLines, "retrying with cached prototype data")
+			m.appendLog("retrying with cached prototype data")
 		}
 	case "enter":
 		if m.done || m.failed {
@@ -560,6 +582,7 @@ func (m prototypeSessionModel) View() tea.View {
 			height,
 			"PROTOTYPE / "+m.profile.title,
 			m.logLines,
+			m.logScroll,
 			m.terminalHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
@@ -633,11 +656,12 @@ func (m prototypeSessionModel) awaitingAuthorization() bool {
 
 func (m prototypeSessionModel) helpHints() []tuiHint {
 	if m.terminalView {
-		return []tuiHint{
-			{Key: "ctrl+v", Action: "return to the qvOS view"},
+		hints := []tuiHint{
+			{Key: "ctrl+v", Action: "switch to the qvOS view"},
 			{Key: "v", Action: "return with the log panel open"},
 			{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
 		}
+		return append(hints, tuiLogInteractionHints()...)
 	}
 	if m.awaitingAuthorization() {
 		return []tuiHint{
@@ -653,6 +677,9 @@ func (m prototypeSessionModel) helpHints() []tuiHint {
 		{Key: "v", Action: "toggle the qvOS log panel"},
 		{Key: "ctrl+v", Action: "toggle original terminal output"},
 		{Key: "esc / ctrl+c", Action: "return to the prototype hub"},
+	}
+	if m.logOverlay {
+		hints = append(hints, tuiLogInteractionHints()...)
 	}
 	if m.failed {
 		hints = append([]tuiHint{
@@ -693,7 +720,7 @@ func (m prototypeSessionModel) persistentHints() []tuiHint {
 
 func (m prototypeSessionModel) terminalHints() []tuiHint {
 	return []tuiHint{
-		{Key: "ctrl+v", Action: "qvOS view"},
+		{Key: "ctrl+v", Action: "switch"},
 		{Key: "?", Action: "help"},
 	}
 }
@@ -780,11 +807,7 @@ func (m prototypeSessionModel) currentStatus() string {
 	return m.profile.stages[index].status
 }
 
-func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
-	width := min(canvasW, 74)
-	if width < 1 {
-		width = 1
-	}
+func prototypeLogRows(mode layoutMode) int {
 	height := 9
 	if mode == layoutTablet {
 		height = 6
@@ -792,26 +815,46 @@ func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
 	if mode == layoutMobile {
 		height = 3
 	}
+	return height
+}
+
+func (m prototypeSessionModel) logViewportRows() int {
+	if m.terminalView {
+		return terminalOutputContentHeight(m.height)
+	}
+	mode := layoutFor(m.width, m.height)
+	if isSideComposition(m.width, m.height, m.fullscreen) {
+		mode = layoutTablet
+	}
+	return prototypeLogRows(mode)
+}
+
+func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
+	width := min(canvasW, 74)
+	if width < 1 {
+		width = 1
+	}
+	height := prototypeLogRows(mode)
 
 	contentWidth := max(1, width-4)
-	lines := append([]string(nil), m.logLines...)
-	if len(lines) == 0 {
-		lines = []string{"waiting for prototype logs"}
-	}
-	if len(lines) > height {
-		lines = lines[len(lines)-height:]
-	}
+	lines, scrollOffset := visibleTUILogLines(
+		m.logLines,
+		height,
+		m.logScroll,
+		"waiting for prototype logs",
+	)
 	for index, line := range lines {
 		lines[index] = trimDisplay(line, contentWidth)
 	}
 
-	return lipgloss.NewStyle().
+	panel := lipgloss.NewStyle().
 		Width(width).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color(deepRed)).
 		Foreground(lipgloss.Color(mid)).
 		Padding(0, 1).
 		Render(strings.Join(lines, "\n"))
+	return appendTUILogSwitchCue(panel, width, scrollOffset)
 }
 
 func runISOProgressPrototype() error {

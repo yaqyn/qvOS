@@ -643,13 +643,25 @@ func TestUpdateLogPanelUsesTheExpandedLandscapeBudget(t *testing.T) {
 	if width := lipgloss.Width(panel); width != rightWidth {
 		t.Fatalf("log panel width = %d, want %d", width, rightWidth)
 	}
-	if height := len(strings.Split(panel, "\n")); height != 16 {
-		t.Fatalf("log panel height = %d, want 16", height)
+	if height := len(strings.Split(panel, "\n")); height != 17 {
+		t.Fatalf("log panel and switch cue height = %d, want 17", height)
 	}
 	content := stripANSI(panel)
 	if !strings.Contains(content, "update log line 06") ||
-		!strings.Contains(content, "update log line 19") {
+		!strings.Contains(content, "update log line 19") ||
+		!strings.Contains(content, "ctrl+v  switch") {
 		t.Fatalf("expanded log history is incomplete: %q", content)
+	}
+}
+
+func TestSanitizeLogLineCollapsesTerminalRedrawControls(t *testing.T) {
+	line := "\x1b[2Kstale frame\r\x1b[2K68%\tready\b!"
+	got := sanitizeLogLine(line)
+	if got != "68%  read!" {
+		t.Fatalf("sanitized redraw line = %q, want final printable frame", got)
+	}
+	if strings.ContainsAny(got, "\x1b\r\t\b") {
+		t.Fatalf("sanitized line retained terminal controls: %q", got)
 	}
 }
 
