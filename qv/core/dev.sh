@@ -22,7 +22,6 @@ development_action="install"
 component_ids=(
   node
   bun
-  python
   uv
   go
   mkcert
@@ -58,7 +57,6 @@ provider_ids=(
 declare -A component_names=(
   [node]="Node.js LTS"
   [bun]="Bun"
-  [python]="Python"
   [uv]="uv"
   [go]="Go"
   [mkcert]="mkcert"
@@ -82,7 +80,6 @@ declare -A component_current=()
 declare -A component_latest=()
 declare -A mise_expected=()
 declare -A package_commands=()
-declare -A package_kind=()
 declare -A package_name=()
 declare -A provider_display=()
 declare -A provider_repository=()
@@ -97,17 +94,16 @@ declare -A provider_asset_digest=()
 declare -A update_selected=()
 
 load_package_components() {
-  local id package kind label commands extra
+  local id package label commands extra
 
   [[ -f $package_manifest ]] || {
     echo "Missing Devel package manifest: $package_manifest" >&2
     return 1
   }
 
-  while IFS=$'\t' read -r id package kind label commands extra; do
+  while IFS=$'\t' read -r id package label commands extra; do
     [[ -n $id && $id != "#"* ]] || continue
     if [[ -z $package || -z $label || -z $commands || -n ${extra:-} ]] ||
-      [[ $kind != "repo" && $kind != "aur" ]] ||
       [[ -n ${component_names[$id]+known} ]]; then
       echo "Invalid Devel package manifest entry: $id" >&2
       return 1
@@ -117,7 +113,6 @@ load_package_components() {
     component_ids+=("$id")
     component_names[$id]=$label
     package_name[$id]=$package
-    package_kind[$id]=$kind
     package_commands[$id]=$commands
   done <"$package_manifest"
 
@@ -302,7 +297,7 @@ component_present_for_update() {
   local binaries=()
 
   case $id in
-  node | bun | python | uv | go | mkcert)
+  node | bun | uv | go | mkcert)
     run_bounded 15s mise which "$id" >/dev/null 2>&1
     ;;
   hurl)
@@ -510,7 +505,7 @@ resolve_expected_versions() {
     mise_expected[bun]=$(run_bounded 30s mise latest bun)
     component_latest[bun]=${mise_expected[bun]}
   fi
-  for id in python uv go; do
+  for id in uv go; do
     if ((update_only == 0)) || ((update_selected[$id])); then
       mise_expected[$id]=$(run_bounded 30s mise latest "$id")
       component_latest[$id]=${mise_expected[$id]}
@@ -582,7 +577,7 @@ inspect_mise_component() {
   local secondary
 
   case $id in
-  node | bun | python | uv | go | mkcert)
+  node | bun | uv | go | mkcert)
     if [[ $id == "mkcert" ]]; then
       current_key="aqua:FiloSottile/mkcert"
     fi
@@ -756,7 +751,7 @@ inspect_component() {
   local id=$1
 
   case $id in
-  node | bun | python | uv | go | mkcert | hurl | semgrep)
+  node | bun | uv | go | mkcert | hurl | semgrep)
     inspect_mise_component "$id"
     ;;
   supabase | infisical | cloudflared | sentry-cli | act | sops | age | gitleaks | osv-scanner)
@@ -932,7 +927,7 @@ install_mise_component() {
   bun)
     omarchy-install-dev-env bun
     ;;
-  python | uv | go)
+  uv | go)
     mise use --global "${id}@latest"
     ;;
   mkcert)
@@ -956,11 +951,7 @@ install_package_component() {
   local id=$1
   local package=${package_name[$id]}
 
-  if [[ ${package_kind[$id]} == "aur" ]]; then
-    omarchy-pkg-aur-add "$package"
-  else
-    omarchy-pkg-add "$package"
-  fi
+  omarchy-pkg-add "$package"
 }
 
 install_devcontainer_component() {
@@ -1001,7 +992,7 @@ apply_component_changes() {
       "${component_names[$id]}" "$action" "${component_latest[$id]}"
 
     case $id in
-    node | bun | python | uv | go | mkcert | hurl | semgrep)
+    node | bun | uv | go | mkcert | hurl | semgrep)
       install_mise_component "$id"
       ;;
     supabase | infisical | cloudflared | sentry-cli | act | sops | age | gitleaks | osv-scanner)
@@ -1063,7 +1054,6 @@ for required_command in \
   mise \
   timeout \
   omarchy-pkg-add \
-  omarchy-pkg-aur-add \
   omarchy-pkg-present; do
   require_command "$required_command"
 done

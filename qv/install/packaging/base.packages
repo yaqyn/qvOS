@@ -73,6 +73,28 @@ goverlay
 lib32-pipewire-jack
 # qvos:gaming-base:end
 
+# qvos:codex-base:start
+# Stable coding, build, inspection, and archive primitives guaranteed by qvOS.
+7zip
+cmake
+dos2unix
+gdb
+git-lfs
+go-yq
+hyperfine
+just
+lsof
+ninja
+pacman-contrib
+python
+shellcheck
+shfmt
+strace
+time
+tinyxxd
+zip
+# qvos:codex-base:end
+
 # 1password-beta
 # 1password-cli
 # aether

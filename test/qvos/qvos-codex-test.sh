@@ -69,13 +69,46 @@ if grep -Eq '^(wrangler|convex|playwright|playwright-cli|ydotool)$' \
   "$base_packages" "$dev_packages"; then
   fail "project or avoid capability leaked into qvOS ownership"
 fi
+expected_dev_packages=$'# id\tpackage\tlabel\tcommands\nlldb\tlldb\tLLDB\tlldb\nvalgrind\tvalgrind\tValgrind\tvalgrind'
+[[ $(<"$dev_packages") == "$expected_dev_packages" ]] ||
+  fail "Devel package boundary"
+promoted_base_packages=(
+  7zip
+  cmake
+  dos2unix
+  gdb
+  git-lfs
+  go-yq
+  hyperfine
+  just
+  lsof
+  ninja
+  pacman-contrib
+  python
+  shellcheck
+  shfmt
+  strace
+  time
+  tinyxxd
+  zip
+)
+for package in "${promoted_base_packages[@]}"; do
+  grep -Fqx "$package" "$base_packages" ||
+    fail "promoted Codex base package: $package"
+done
+if grep -Fq 'omarchy-pkg-aur-add' "$root/qv/core/dev.sh"; then
+  fail "Devel requires an AUR package owner"
+fi
 # shellcheck disable=SC2016
 grep -Fq 'npm install --global "@devcontainers/cli@$version"' \
   "$root/qv/core/dev.sh" ||
   fail "official Dev Container CLI install owner"
 # shellcheck disable=SC2016
 grep -Fq 'mise use --global "${id}@latest"' "$root/qv/core/dev.sh" ||
-  fail "persistent Python, uv, and Go owner"
+  fail "persistent uv and Go owner"
+if grep -Fq 'python@latest' "$root/qv/core/dev.sh"; then
+  fail "Devel configures a redundant global Python runtime"
+fi
 pass "capabilities have one layer, owner, and exact route"
 
 install -d \
@@ -134,6 +167,15 @@ exit 0
 SCRIPT
 done <"$registry"
 
+while IFS=$'\t' read -r command_name layer profile _ _; do
+  [[ $layer == "qvcore" && $profile == "devel" ]] || continue
+  [[ $command_name != /* ]] || continue
+  install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+done <"$registry"
+
 install -m 0755 /dev/stdin "$test_bin/gh" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "auth" ]]
@@ -158,12 +200,17 @@ report=$(run_doctor --json)
 jq -e '
   .schema_version == 1
   and .foundation.ready == true
-  and .foundation.base_capabilities.ready
-    == .foundation.base_capabilities.total
+  and .foundation.ready_count == 63
+  and .foundation.total == 63
+  and .foundation.base_capabilities.ready == 60
+  and .foundation.base_capabilities.total == 60
   and .installation.owner == "openai-standalone"
   and .installation.version == "9.9.9"
   and .codex_doctor.status == "ok"
   and .sandbox.ready == true
+  and .profiles.devel.status == "ready"
+  and .profiles.devel.ready == 21
+  and .profiles.devel.total == 21
   and .profiles.browser.status == "planned"
   and .profiles.browser.available == false
   and .profiles.documents.status == "planned"

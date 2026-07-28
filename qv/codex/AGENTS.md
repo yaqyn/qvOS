@@ -12,6 +12,12 @@ runtime deployment, sandbox checks, or Workbench profile boundaries.
   `qv/install/packaging/base.packages`. qvCORE capabilities delegate to their
   independently rerunnable component. Project tools stay version-pinned in the
   project; avoid entries must never leak into base or Devel.
+- Stable coding, build, inspection, archive, shell-lint, and system Python
+  primitives belong to the Pacman-only base manifest so the ISO can mirror
+  them. Devel owns fast-moving managed or direct tools plus LLDB and Valgrind;
+  it must not require an AUR helper.
+- System Python is base-owned. Devel owns uv and may let uv manage isolated
+  tool Python runtimes, but must not configure a redundant global mise Python.
 - `doctor` is read-only and secret-safe. It may prove authentication by exit
   status with output suppressed, but never prints tokens, environment values,
   credential contents, or private configuration.

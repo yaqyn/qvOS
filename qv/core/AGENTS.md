@@ -12,6 +12,10 @@ component installed.
 - The reviewed gaming runtime is explicitly promoted to
   `qv/install/packaging/base.packages`. Steam is not a qvCORE component; use
   Omarchy's standard Steam install and removal commands.
+- Stable Codex coding, build, inspection, archive, shell-lint, and system
+  Python primitives are also explicitly base-owned. Devel retains fast-moving
+  managed or direct tools and the advanced LLDB and Valgrind packages; it does
+  not own AUR packages or a global mise Python runtime.
 - Reuse an existing `omarchy-install-*` or `omarchy-setup-*` owner. Add
   `qv/core/<component>.sh` only when qvOS must own persistent integration.
 - Ordinary apps remain personal software. Only managed setups participate in

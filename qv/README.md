@@ -49,10 +49,11 @@ two layers:
 ## Product lifecycle
 
 qvOS has one supported base: a solid, gaming-ready Arch system curated through
-Omarchy. Its reviewed gaming runtime is installed from the qvOS base package
-manifest. Steam remains optional and uses Omarchy's standard gaming installer
-and remover. qvCORE is separate and adds optional personal software without
-changing qvOS identity, readiness, health, or base ownership.
+Omarchy. Its reviewed gaming runtime and stable Codex coding, build, inspection,
+archive, shell-lint, and system Python primitives are installed from the qvOS
+base package manifest. Steam remains optional and uses Omarchy's standard
+gaming installer and remover. qvCORE is separate and adds optional personal
+software without changing qvOS identity, readiness, health, or base ownership.
 
 - `omarchy qvos update` confirms the operation and verifies branch `OS`, then
   delegates once to the original `omarchy update` implementation. Omarchy owns
@@ -97,6 +98,10 @@ changing qvOS identity, readiness, health, or base ownership.
   stable machine-readable report; `--check` fails only when the guaranteed
   Codex foundation needs repair. Optional Browser and Documents profiles remain
   explicitly unavailable until their owners ship.
+- qvCORE Devel owns fast-moving managed runtimes, verified provider binaries,
+  Semgrep, the Dev Container CLI, and the advanced LLDB and Valgrind packages.
+  It uses base-owned system Python and does not create a redundant global mise
+  Python runtime.
 - `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
   and Proton. `omarchy qvcore disable` removes only enabled setup ownership or
   integration state while preserving software and personal data. Status

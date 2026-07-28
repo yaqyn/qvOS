@@ -33,7 +33,25 @@ for codex_base_package in \
   rsync \
   openbsd-netcat \
   poppler \
-  qpdf; do
+  qpdf \
+  7zip \
+  cmake \
+  dos2unix \
+  gdb \
+  git-lfs \
+  go-yq \
+  hyperfine \
+  just \
+  lsof \
+  ninja \
+  pacman-contrib \
+  python \
+  shellcheck \
+  shfmt \
+  strace \
+  time \
+  tinyxxd \
+  zip; do
   grep -Fqx "$codex_base_package" \
     "$root/qv/install/packaging/base.packages" ||
     fail "Codex base package contract: $codex_base_package"

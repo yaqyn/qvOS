@@ -1,20 +1,3 @@
-# id	package	kind	label	commands
-shellcheck	shellcheck-bin	aur	ShellCheck	shellcheck
-shfmt	shfmt	repo	shfmt	shfmt
-yq	go-yq	repo	yq	yq
-just	just	repo	just	just
-git-lfs	git-lfs	repo	Git LFS	git-lfs
-xxd	tinyxxd	repo	xxd	xxd
-dos2unix	dos2unix	repo	dos2unix	dos2unix
-gnu-time	time	repo	GNU time	/usr/bin/time
-pacman-contrib	pacman-contrib	repo	pacman-contrib	pactree
-cmake	cmake	repo	CMake	cmake
-ninja	ninja	repo	Ninja	ninja
-gdb	gdb	repo	GDB	gdb
-lldb	lldb	repo	LLDB	lldb
-valgrind	valgrind	repo	Valgrind	valgrind
-strace	strace	repo	strace	strace
-lsof	lsof	repo	lsof	lsof
-hyperfine	hyperfine	repo	hyperfine	hyperfine
-zip	zip	repo	zip	zip
-7zip	7zip	repo	7-Zip	7z
+# id	package	label	commands
+lldb	lldb	LLDB	lldb
+valgrind	valgrind	Valgrind	valgrind
