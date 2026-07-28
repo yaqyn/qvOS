@@ -89,6 +89,11 @@ grep -Fq 'original Omarchy updater' "$display_log" ||
   fail "qvOS confirmation explains upstream ownership"
 grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/commits/OS' "$display_log" ||
   fail "qvOS update history link"
+grep -Fq 'Press Ctrl+C to stop the update if needed' "$display_log" ||
+  fail "qvOS fallback cancellation guidance"
+if grep -Fq 'cannot stop the update' "$display_log"; then
+  fail "qvOS fallback retained the ISO-only interruption guard"
+fi
 grep -Fq 'qvOS update is complete.' <<<"$confirmed_output" ||
   fail "qvOS update completion result"
 pass "qvOS confirms once and delegates once to the original Omarchy updater"
@@ -216,24 +221,85 @@ pass "public qvOS command remains a thin adapter to its feature owner"
 install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-update" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >"$QVOS_TEST_TUI_UPDATE_LOG"
+if [[ -n ${QVOS_TEST_TUI_UPDATE_ENV_LOG:-} ]]; then
+  printf '%s\n' "${OMARCHY_UPDATE_LOGGED:-}" >"$QVOS_TEST_TUI_UPDATE_ENV_LOG"
+fi
+if [[ -n ${QVOS_TEST_TUI_CANCEL_LOG:-} ]]; then
+  trap 'printf "%s\n" stopped >"$QVOS_TEST_TUI_CANCEL_LOG"; exit 130' INT TERM
+  printf '%s\n' ready >"$QVOS_TEST_TUI_CANCEL_LOG"
+  while true; do
+    sleep 0.1
+  done
+fi
+exit "${QVOS_TEST_TUI_UPDATE_STATUS:-0}"
 SCRIPT
 tui_update_log="$test_root/tui-update.log"
+tui_update_env_log="$test_root/tui-update-env.log"
+tui_session_log="$test_root/tui-session.log"
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  QVOS_TEST_TUI_UPDATE_ENV_LOG="$tui_update_env_log" \
+  QVOS_UPDATE_LOG_PATH="$tui_session_log" \
   PATH="$test_bin:/usr/bin" \
-"$tui_update"
+  "$tui_update"
 [[ $(<"$tui_update_log") == "-y" ]] ||
   fail "qvOS TUI update delegation"
+[[ $(<"$tui_update_env_log") == "1" ]] ||
+  fail "qvOS TUI update process-group mode"
+[[ -f $tui_session_log ]] ||
+  fail "qvOS TUI update session log"
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
   PATH="$test_bin:/usr/bin" \
   "$tui_update" --check
 [[ $(<"$tui_update_log") == "--check" ]] ||
   fail "qvOS TUI update preflight delegation"
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  QVOS_UPDATE_LOG_PATH="$tui_session_log" \
   PATH="$test_bin:/usr/bin" \
   "$tui_update_compat"
 [[ $(<"$tui_update_log") == "-y" ]] ||
   fail "legacy qvOS TUI update adapter"
-pass "qvOS TUI delegates preflight and confirmed execution to the owned wrapper"
+set +e
+QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  QVOS_TEST_TUI_UPDATE_STATUS=7 \
+  QVOS_UPDATE_LOG_PATH="$tui_session_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$tui_update" >/dev/null
+tui_update_status=$?
+set -e
+((tui_update_status == 7)) ||
+  fail "qvOS TUI update failure status"
+cancel_log="$test_root/tui-cancel.log"
+set +e
+QVOS_TEST_TUI_CANCEL_LOG="$cancel_log" \
+  QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
+  QVOS_UPDATE_LOG_PATH="$tui_session_log" \
+  PATH="$test_bin:/usr/bin" \
+  setsid bash -c 'trap - INT TERM; exec "$@"' _ "$tui_update" >/dev/null 2>&1 &
+cancel_pid=$!
+for ((attempt = 0; attempt < 50; attempt++)); do
+  [[ -f $cancel_log ]] && break
+  sleep 0.02
+done
+if [[ $(<"$cancel_log") != "ready" ]]; then
+  kill -TERM -- "-$cancel_pid" 2>/dev/null || true
+  wait "$cancel_pid" 2>/dev/null
+  set -e
+  fail "qvOS TUI update cancellation fixture"
+fi
+kill -TERM -- "-$cancel_pid"
+wait "$cancel_pid"
+tui_cancel_status=$?
+set -e
+((tui_cancel_status == 143)) ||
+  fail "qvOS TUI update cancellation status"
+for ((attempt = 0; attempt < 50; attempt++)); do
+  ! kill -0 -- "-$cancel_pid" 2>/dev/null && break
+  sleep 0.02
+done
+if kill -0 -- "-$cancel_pid" 2>/dev/null; then
+  fail "qvOS TUI update process-group cancellation"
+fi
+pass "qvOS TUI owns cancellable logging and preserves wrapper results"
 
 install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 #!/bin/bash

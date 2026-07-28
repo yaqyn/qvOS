@@ -1,9 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+stop_update_tree() {
+  trap - HUP TERM
+  kill -TERM -- "-$$" 2>/dev/null || true
+}
+
+trap stop_update_tree HUP TERM
+
 case ${1:-} in
 "")
-  exec omarchy-qvos-update -y
+  update_log=${QVOS_UPDATE_LOG_PATH:-/tmp/omarchy-update.log}
+  set +e
+  OMARCHY_UPDATE_LOGGED=1 omarchy-qvos-update -y 2>&1 |
+    tee "$update_log"
+  statuses=("${PIPESTATUS[@]}")
+  if ((statuses[0] != 0)); then
+    exit "${statuses[0]}"
+  fi
+  exit "${statuses[1]}"
   ;;
 --check)
   exec omarchy-qvos-update --check

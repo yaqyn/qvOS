@@ -11,6 +11,8 @@ const (
 	ScriptPath         = "update/run"
 	ScriptEnvironment  = "QVOS_UPDATE_SCRIPT"
 	RunningStatus      = "updating qvOS"
+	CancelingStatus    = "stopping update"
+	CanceledStatus     = "update stopped"
 	CompleteStatus     = "update complete"
 	SourceHistoryLabel = "github.com/Yaqyn-qvOS/qvOS/commits/OS"
 )

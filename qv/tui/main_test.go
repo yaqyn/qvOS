@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -152,19 +155,117 @@ func TestUpdateCancellationNeverStartsWork(t *testing.T) {
 	}
 }
 
-func TestRunningUpdateCannotBeCanceledFromTheTUI(t *testing.T) {
-	canceled := false
-	m := model{
-		loading:       true,
-		action:        actionUpdate,
-		scriptRunning: true,
-		scriptCancel:  func() { canceled = true },
+func TestRunningUpdateCanBeCanceledFromTheTUI(t *testing.T) {
+	for _, code := range []rune{'c', 'z'} {
+		t.Run(string(code), func(t *testing.T) {
+			canceled := false
+			m := model{
+				loading:       true,
+				action:        actionUpdate,
+				scriptRunning: true,
+				scriptCancel:  func() { canceled = true },
+			}
+
+			next, _ := m.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModCtrl})
+			m = next.(model)
+			if !canceled || !m.scriptCanceling {
+				t.Fatal("running Update did not start controlled cancellation")
+			}
+			if m.scriptStatus != "stopping update" {
+				t.Fatalf("cancellation status = %q", m.scriptStatus)
+			}
+		})
+	}
+}
+
+func TestBootISOInterruptionKeysRemainGuarded(t *testing.T) {
+	for _, code := range []rune{'c', 'z'} {
+		t.Run(string(code), func(t *testing.T) {
+			initial := isoInstallerModel{step: isoStepWriting}
+			next, command := initial.handleISOKey(
+				tea.KeyPressMsg{Code: code, Mod: tea.ModCtrl},
+			)
+			model := next.(isoInstallerModel)
+			if command != nil || !model.shutdownPrompt || model.step != isoStepWriting {
+				t.Fatal("boot ISO interruption key bypassed the guarded shutdown flow")
+			}
+		})
+	}
+}
+
+func TestDedicatedUpdateReturnsCancellationStatusAfterStopping(t *testing.T) {
+	if status := dedicatedUpdateExitCode(model{scriptCanceled: true}); status != 130 {
+		t.Fatalf("stopped update status = %d", status)
+	}
+	if status := dedicatedUpdateExitCode(model{updateCanceled: true}); status != 130 {
+		t.Fatalf("preflight cancellation status = %d", status)
+	}
+	if status := dedicatedUpdateExitCode(model{scriptErr: errors.New("failed")}); status != 1 {
+		t.Fatalf("failed update status = %d", status)
+	}
+}
+
+func TestRunnableSnapshotsStayOutsideTheSourceCheckout(t *testing.T) {
+	runtimeDir := t.TempDir()
+	sourceDir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
+	script := filepath.Join(sourceDir, "update")
+	if err := os.WriteFile(script, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
 	}
 
-	next, _ := m.Update(tea.KeyPressMsg{Text: "ctrl+c", Code: 'c', Mod: tea.ModCtrl})
-	m = next.(model)
-	if canceled || m.scriptCanceling {
-		t.Fatal("running Update exposed unsafe cancellation")
+	snapshot, cleanup, err := snapshotRunnableScript(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshotDir := filepath.Dir(snapshot)
+	if filepath.Dir(snapshotDir) != runtimeDir {
+		t.Fatalf("snapshot directory = %q, runtime directory = %q", snapshotDir, runtimeDir)
+	}
+	if strings.HasPrefix(snapshot, sourceDir+string(filepath.Separator)) {
+		t.Fatalf("snapshot dirtied source directory: %s", snapshot)
+	}
+	cleanup()
+	if _, err := os.Stat(snapshotDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("snapshot cleanup error = %v", err)
+	}
+}
+
+func TestUpdateCancellationStopsTheOwnedProcessGroup(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	script := filepath.Join(t.TempDir(), "update")
+	if err := os.WriteFile(script, []byte(`#!/bin/bash
+trap 'exit 0' INT TERM
+echo ready
+while true; do sleep 1; done
+`), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	events := make(chan scriptEvent, 32)
+	go runRootScriptStream(ctx, actionUpdate, script, events)
+
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event, ok := <-events:
+			if !ok {
+				t.Fatal("update event stream closed without a result")
+			}
+			if event.line == "ready" {
+				cancel()
+			}
+			if event.done {
+				if !errors.Is(event.err, errScriptCanceled) {
+					t.Fatalf("cancellation error = %v", event.err)
+				}
+				return
+			}
+		case <-timer.C:
+			t.Fatal("update process group did not stop")
+		}
 	}
 }
 
@@ -199,6 +300,40 @@ func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 				!strings.Contains(content, "Update qvOS") ||
 				!strings.Contains(content, "Cancel") {
 				t.Fatalf("confirmation copy is incomplete: %q", content)
+			}
+		})
+	}
+}
+
+func TestUpdateProgressShowsCancellationAtEveryResponsiveSize(t *testing.T) {
+	sizes := []struct {
+		name          string
+		width, height int
+	}{
+		{"desktop", 120, 42},
+		{"tablet", 72, 30},
+		{"mobile", 44, 18},
+	}
+
+	for _, size := range sizes {
+		t.Run(size.name, func(t *testing.T) {
+			m := model{
+				width:         size.width,
+				height:        size.height,
+				loading:       true,
+				action:        actionUpdate,
+				scriptRunning: true,
+				scriptStatus:  "updating qvOS",
+			}
+			view := m.View()
+			if content := stripANSI(view.Content); !strings.Contains(content, "ctrl+c/z") ||
+				!strings.Contains(content, "cancel") {
+				t.Fatalf("cancellation hint is missing: %q", content)
+			}
+			for index, line := range strings.Split(view.Content, "\n") {
+				if width := lipgloss.Width(line); width > size.width {
+					t.Fatalf("line %d width = %d, terminal width = %d", index, width, size.width)
+				}
 			}
 		})
 	}

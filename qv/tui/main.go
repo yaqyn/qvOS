@@ -501,7 +501,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scriptErr = msg.event.err
 			if canceled {
 				m.scriptErr = nil
-				m.scriptStatus = "cleanup complete - good to go"
+				m.scriptStatus = rootActionCanceledStatus(m.action)
 			}
 			m.scriptCancel = nil
 			m.scriptEvents = nil
@@ -571,14 +571,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			phase := m.loadPhase()
 			switch msg.String() {
-			case "ctrl+c":
-				if m.action == actionUpdate &&
-					(m.scriptRunning || m.sudoChecking || m.updatePreflight) {
-					return m, nil
-				}
+			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
 					m.scriptCanceling = true
-					m.scriptStatus = "cleaning build stage"
+					m.scriptStatus = rootActionCancelingStatus(m.action)
 					m.scriptTarget = max(m.scriptTarget, 0.98)
 					m.scriptCancel()
 					return m, nil
@@ -1113,7 +1109,7 @@ func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.
 		m.updateChoice = 0
 	case "right", "l", "down", "j", "tab":
 		m.updateChoice = 1
-	case "esc", "ctrl+c":
+	case "esc", "ctrl+c", "ctrl+z":
 		return m.cancelUpdate()
 	case "enter":
 		if m.updateChoice == 1 {
@@ -1254,7 +1250,7 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 
 func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
+	case "ctrl+c", "ctrl+z":
 		if m.action == actionUpdate {
 			return m.cancelUpdate()
 		}
@@ -1399,7 +1395,10 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		}
 	}
 	cmd.Dir = filepath.Dir(script)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid:   true,
+		Pdeathsig: syscall.SIGTERM,
+	}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
 			return os.ErrProcessDone
@@ -1491,12 +1490,22 @@ func snapshotRunnableScript(script string) (string, func(), error) {
 		return "", func() {}, err
 	}
 
-	tmp, err := os.CreateTemp(filepath.Dir(script), ".qvos-run-*.sh")
+	runtimeBase := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR"))
+	if runtimeBase == "" {
+		runtimeBase = os.TempDir()
+	}
+	runtimeDir, err := os.MkdirTemp(runtimeBase, "qvos-tui-run-")
 	if err != nil {
 		return "", func() {}, err
 	}
+	cleanup := func() { _ = os.RemoveAll(runtimeDir) }
+
+	tmp, err := os.CreateTemp(runtimeDir, ".qvos-run-*.sh")
+	if err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
 	tmpPath := tmp.Name()
-	cleanup := func() { _ = os.Remove(tmpPath) }
 
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
@@ -2020,7 +2029,14 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		return m.renderBuildFinishedFor(mode)
 	}
 	if mode != layoutDesktop {
-		return renderReducedProgress(rootActionName(m.action), phase, progress, mode)
+		reduced := renderReducedProgress(rootActionName(m.action), phase, progress, mode)
+		if phase == loadRun {
+			hint := centerCanvas(
+				sDim.Render("ctrl+c/z") + sGray.Render("  cancel"),
+			)
+			return strings.Join([]string{reduced, "", hint}, "\n")
+		}
+		return reduced
 	}
 
 	bar := renderProgressBar(phase, progress, elapsed)
@@ -2031,7 +2047,7 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	case loadOK:
 		if m.scriptCanceled {
 			op = sWhite.Render("CANCELED")
-			stageRaw = "cleanup complete - good to go"
+			stageRaw = rootActionCanceledStatus(m.action)
 		} else {
 			op = sWhite.Render(rootActionPastTense(m.action))
 			stageRaw = rootActionCompleteStatus(m.action)
@@ -2051,19 +2067,14 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		} else if m.sudoChecking {
 			stageRaw = "authorizing sudo"
 		} else if m.scriptCanceling {
-			stageRaw = "cleaning build stage"
+			stageRaw = rootActionCancelingStatus(m.action)
 		} else if m.scriptStatus != "" {
 			stageRaw = m.scriptStatus
 		} else {
 			stageRaw = rootActionRunningStatus(m.action)
 		}
-		if m.action == actionUpdate {
-			hint = sDim.Render("v") + sGray.Render("  logs    ") +
-				sDim.Render("keep this terminal open")
-		} else {
-			hint = sDim.Render("ctrl+c") + sGray.Render("  cancel    ") +
-				sDim.Render("v") + sGray.Render("  logs")
-		}
+		hint = sDim.Render("ctrl+c/z") + sGray.Render("  cancel    ") +
+			sDim.Render("v") + sGray.Render("  logs")
 	}
 
 	if stageRaw == "" {
@@ -2244,6 +2255,32 @@ func rootActionCompleteStatus(action actionMode) string {
 		return updateflow.CompleteStatus
 	default:
 		return "complete"
+	}
+}
+
+func rootActionCancelingStatus(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return "cleaning build stage"
+	case actionRepair:
+		return "stopping repair"
+	case actionUpdate:
+		return updateflow.CancelingStatus
+	default:
+		return "stopping action"
+	}
+}
+
+func rootActionCanceledStatus(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return "cleanup complete - good to go"
+	case actionRepair:
+		return "repair stopped"
+	case actionUpdate:
+		return updateflow.CanceledStatus
+	default:
+		return "action stopped"
 	}
 }
 
@@ -3061,26 +3098,61 @@ func shouldDefaultToISOInstaller() bool {
 
 // -- main --
 
+func stopActiveScript(m model) {
+	if !m.scriptRunning || m.scriptCancel == nil {
+		return
+	}
+
+	m.scriptCancel()
+	if m.scriptEvents == nil {
+		return
+	}
+
+	timer := time.NewTimer(35 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event, ok := <-m.scriptEvents:
+			if !ok || event.done {
+				return
+			}
+		case <-timer.C:
+			return
+		}
+	}
+}
+
+func dedicatedUpdateExitCode(m model) int {
+	if m.updateCanceled || m.scriptCanceled {
+		return 130
+	}
+	if m.scriptErr != nil {
+		return 1
+	}
+	return 0
+}
+
 func runDedicatedUpdate() int {
 	initial, _ := (model{}).beginUpdateConfirmation(true)
 	result, err := newTUIProgram(initial).Run()
+	final, ok := result.(model)
+	interrupted := ok && final.scriptRunning
+	if interrupted {
+		stopActiveScript(final)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 
-	final, ok := result.(model)
 	if !ok {
 		fmt.Fprintln(os.Stderr, "qvOS Update returned an unexpected TUI model")
 		return 1
 	}
-	if final.updateCanceled {
+	if interrupted {
 		return 130
 	}
-	if final.scriptErr != nil {
-		return 1
-	}
-	return 0
+	return dedicatedUpdateExitCode(final)
 }
 
 func main() {
@@ -3128,7 +3200,11 @@ func main() {
 	}
 
 	p := newTUIProgram(model{})
-	if _, err := p.Run(); err != nil {
+	result, err := p.Run()
+	if final, ok := result.(model); ok {
+		stopActiveScript(final)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

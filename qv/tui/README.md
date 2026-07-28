@@ -42,9 +42,11 @@ main hub and `--update` direct mode reuse one flow:
    retain all other output in the optional log view.
 5. End on an explicit success or actionable failure screen.
 
-Update cannot be canceled after the original Omarchy updater starts. If the TUI
-is unavailable, `omarchy-qvos-update` retains its plain terminal confirmation
-and update path.
+`Ctrl+C` or `Ctrl+Z` stops the owned update process group and returns an
+explicit canceled result. Closing the Update window also stops an active
+update. The non-interruptible keyboard guard remains exclusive to boot/ISO
+installation. If the TUI is unavailable, `omarchy-qvos-update` retains its
+plain terminal confirmation and update path.
 
 ## Boot phases
 

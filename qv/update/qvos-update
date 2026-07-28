@@ -57,7 +57,7 @@ if [[ $mode == "interactive" ]]; then
     "Ready to update qvOS?" \
     "" \
     "• The original Omarchy updater will update qvOS and system packages" \
-    "• You cannot stop the update once it starts" \
+    "• Press Ctrl+C to stop the update if needed" \
     "• Make sure you're connected to power or have a full battery" \
     "" \
     "What's new: https://github.com/Yaqyn-qvOS/qvOS/commits/OS"

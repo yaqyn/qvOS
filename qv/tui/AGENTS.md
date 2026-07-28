@@ -18,8 +18,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
 - Complete confirmation and non-mutating preflight before sudo. Cancellation
-  is safe before mutation; do not offer cancellation after a non-interruptible
-  owner starts.
+  remains available for normal desktop actions and must stop the full owned
+  process group. Only boot/ISO installation is intentionally non-interruptible.
+- Put runnable snapshots under the user runtime directory, never inside the
+  Omarchy checkout, and stop active children when a TUI window exits.
 
 ## Change Workflow
 
