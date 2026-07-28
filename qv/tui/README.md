@@ -32,6 +32,8 @@ so identifiers, titles, and descriptions stay aligned.
 Opening logs prioritizes progress and log content over the 3D stage.
 Landscape logs use a dedicated 3:7 progress/log split, up to a 96x16-cell log
 panel, instead of inheriting the compact identity-column limits.
+Non-mobile progress views keep both the percentage and a visible loading bar.
+Confirmation choices use one quiet marker instead of framed terminal buttons.
 Every mode uses the same `#020202` background.
 
 The four model roles carry meaning across surfaces:

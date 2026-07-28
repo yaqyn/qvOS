@@ -441,6 +441,34 @@ func TestUpdateProgressShowsStopOptionsAtEveryResponsiveSize(t *testing.T) {
 	}
 }
 
+func TestReducedProgressKeepsBarOutsideMobile(t *testing.T) {
+	canvasW = 40
+
+	tablet := stripANSI(renderReducedProgress("UPDATE", loadRun, 0.38, layoutTablet))
+	if !strings.Contains(tablet, "UPDATE") || !strings.Contains(tablet, "38%") ||
+		!strings.Contains(tablet, "━━━━━━━━━━━━━") ||
+		!strings.Contains(tablet, "────────────────────") {
+		t.Fatalf("tablet progress is missing its readable loading bar: %q", tablet)
+	}
+
+	mobile := stripANSI(renderReducedProgress("UPDATE", loadRun, 0.38, layoutMobile))
+	if strings.ContainsAny(mobile, "━─") {
+		t.Fatalf("mobile progress should remain compact: %q", mobile)
+	}
+}
+
+func TestConfirmationActionsUseQuietSelectionMarker(t *testing.T) {
+	selected := stripANSI(renderConfirmationAction("Update qvOS", true))
+	unselected := stripANSI(renderConfirmationAction("Cancel", false))
+
+	if selected != "● Update qvOS" {
+		t.Fatalf("selected action = %q", selected)
+	}
+	if strings.ContainsAny(selected+unselected, "▐▌|") {
+		t.Fatalf("confirmation actions retained framed button decoration: %q / %q", selected, unselected)
+	}
+}
+
 func TestUpdateStopConfirmationFitsResponsiveShapes(t *testing.T) {
 	sizes := []struct {
 		name          string

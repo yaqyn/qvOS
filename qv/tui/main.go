@@ -1981,6 +1981,7 @@ func renderReducedProgress(label string, phase loadPhase, progress float64, mode
 	return strings.Join([]string{
 		centerCanvas(sWhite.Render(label)),
 		centerCanvas(percentStyle.Render(percent)),
+		centerCanvas(renderProgressBar(phase, progress, 0)),
 	}, "\n")
 }
 
@@ -2068,9 +2069,9 @@ func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
 
 func renderConfirmationAction(label string, selected bool) string {
 	if selected {
-		return sRed.Render("▐ ") + sWhite.Render(label) + sRed.Render(" ▌")
+		return sRed.Render("● ") + sWhite.Render(label)
 	}
-	return sDim.Render("  ") + sGray.Render(label) + sDim.Render("  ")
+	return sDim.Render("  ") + sGray.Render(label)
 }
 
 func (m model) renderSudoPromptFor(mode layoutMode) string {

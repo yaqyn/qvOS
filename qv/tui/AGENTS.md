@@ -36,6 +36,8 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   group. Boot/ISO installation keeps its stricter interruption guard.
 - Give logs responsive priority over the model and use the shared expanded
   panel. Canceled results must say canceled, never `100%` or success.
+- Keep a visible bar with the percentage in non-mobile progress views. Use one
+  quiet selection marker for choices; do not frame action labels as buttons.
 
 ## Change Workflow
 
