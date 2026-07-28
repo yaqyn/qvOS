@@ -1,9 +1,12 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 install_dir="$HOME/.local/bin"
+package_manifest="$component_dir/dev/packages.tsv"
 python_tools_dir="$HOME/.local/share/qvos/dev-tools"
 semgrep_binary="$python_tools_dir/semgrep/bin/semgrep"
+system_root=${QVOS_DEV_SYSTEM_ROOT:-}
 work_dir=""
 update_only=0
 use_authenticated_gh=0
@@ -19,6 +22,9 @@ development_action="install"
 component_ids=(
   node
   bun
+  python
+  uv
+  go
   mkcert
   hurl
   supabase
@@ -31,10 +37,12 @@ component_ids=(
   gitleaks
   osv-scanner
   semgrep
+  devcontainer
   gh
   docker
 )
-total_components=${#component_ids[@]}
+package_ids=()
+total_components=0
 provider_ids=(
   supabase
   infisical
@@ -50,6 +58,9 @@ provider_ids=(
 declare -A component_names=(
   [node]="Node.js LTS"
   [bun]="Bun"
+  [python]="Python"
+  [uv]="uv"
+  [go]="Go"
   [mkcert]="mkcert"
   [hurl]="Hurl + Hurlfmt"
   [supabase]="Supabase CLI"
@@ -62,6 +73,7 @@ declare -A component_names=(
   [gitleaks]="Gitleaks"
   [osv-scanner]="OSV-Scanner"
   [semgrep]="Semgrep"
+  [devcontainer]="Dev Container CLI"
   [gh]="GitHub CLI"
   [docker]="Docker + Compose"
 )
@@ -69,6 +81,9 @@ declare -A component_state=()
 declare -A component_current=()
 declare -A component_latest=()
 declare -A mise_expected=()
+declare -A package_commands=()
+declare -A package_kind=()
+declare -A package_name=()
 declare -A provider_display=()
 declare -A provider_repository=()
 declare -A provider_asset_template=()
@@ -80,6 +95,38 @@ declare -A provider_asset_name=()
 declare -A provider_asset_url=()
 declare -A provider_asset_digest=()
 declare -A update_selected=()
+
+load_package_components() {
+  local id package kind label commands extra
+
+  [[ -f $package_manifest ]] || {
+    echo "Missing Devel package manifest: $package_manifest" >&2
+    return 1
+  }
+
+  while IFS=$'\t' read -r id package kind label commands extra; do
+    [[ -n $id && $id != "#"* ]] || continue
+    if [[ -z $package || -z $label || -z $commands || -n ${extra:-} ]] ||
+      [[ $kind != "repo" && $kind != "aur" ]] ||
+      [[ -n ${component_names[$id]+known} ]]; then
+      echo "Invalid Devel package manifest entry: $id" >&2
+      return 1
+    fi
+
+    package_ids+=("$id")
+    component_ids+=("$id")
+    component_names[$id]=$label
+    package_name[$id]=$package
+    package_kind[$id]=$kind
+    package_commands[$id]=$commands
+  done <"$package_manifest"
+
+  ((${#package_ids[@]} > 0)) || {
+    echo "Devel package manifest is empty." >&2
+    return 1
+  }
+  total_components=${#component_ids[@]}
+}
 
 cleanup() {
   if [[ -n $work_dir && -d $work_dir ]]; then
@@ -255,7 +302,7 @@ component_present_for_update() {
   local binaries=()
 
   case $id in
-  node | bun | mkcert)
+  node | bun | python | uv | go | mkcert)
     run_bounded 15s mise which "$id" >/dev/null 2>&1
     ;;
   hurl)
@@ -278,6 +325,16 @@ component_present_for_update() {
     ;;
   gh | docker)
     return 1
+    ;;
+  devcontainer)
+    omarchy-cmd-present devcontainer
+    ;;
+  *)
+    if [[ -n ${package_name[$id]+known} ]]; then
+      omarchy-pkg-present "${package_name[$id]}"
+    else
+      return 1
+    fi
     ;;
   esac
 }
@@ -440,6 +497,8 @@ install_verified_release() {
 
 resolve_expected_versions() {
   local id
+  local devcontainer_metadata
+  local devcontainer_version
 
   echo "Checking the latest Devel component versions..."
 
@@ -451,6 +510,12 @@ resolve_expected_versions() {
     mise_expected[bun]=$(run_bounded 30s mise latest bun)
     component_latest[bun]=${mise_expected[bun]}
   fi
+  for id in python uv go; do
+    if ((update_only == 0)) || ((update_selected[$id])); then
+      mise_expected[$id]=$(run_bounded 30s mise latest "$id")
+      component_latest[$id]=${mise_expected[$id]}
+    fi
+  done
   if ((update_only == 0)) || ((update_selected[mkcert])); then
     mise_expected[mkcert]=$(run_bounded 30s mise latest aqua:FiloSottile/mkcert)
     component_latest[mkcert]=${mise_expected[mkcert]}
@@ -468,6 +533,26 @@ resolve_expected_versions() {
     mise_expected[semgrep]=$(run_bounded 30s mise latest pipx:semgrep)
     component_latest[semgrep]=${mise_expected[semgrep]}
   fi
+  if ((update_only == 0)) || ((update_selected[devcontainer])); then
+    devcontainer_metadata=$(
+      run_bounded 20s curl \
+        --connect-timeout 10 \
+        --max-time 20 \
+        --retry 2 \
+        --retry-delay 1 \
+        -fsSL \
+        "https://registry.npmjs.org/@devcontainers%2fcli/latest"
+    )
+    devcontainer_version=$(
+      jq -er '.version | select(type == "string")' \
+        <<<"$devcontainer_metadata"
+    )
+    if [[ ! $devcontainer_version =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+      echo "Invalid Dev Container CLI release version: $devcontainer_version" >&2
+      return 1
+    fi
+    component_latest[devcontainer]=$devcontainer_version
+  fi
 
   for id in "${provider_ids[@]}"; do
     if ((update_only)) && ((${update_selected[$id]} == 0)); then
@@ -478,6 +563,9 @@ resolve_expected_versions() {
 
   component_latest[gh]="qvOS base"
   component_latest[docker]="qvOS base"
+  for id in "${package_ids[@]}"; do
+    component_latest[$id]=${package_name[$id]}
+  done
 }
 
 mise_current_version() {
@@ -494,7 +582,7 @@ inspect_mise_component() {
   local secondary
 
   case $id in
-  node | bun | mkcert)
+  node | bun | python | uv | go | mkcert)
     if [[ $id == "mkcert" ]]; then
       current_key="aqua:FiloSottile/mkcert"
     fi
@@ -538,6 +626,57 @@ inspect_mise_component() {
     fi
     ;;
   esac
+}
+
+inspect_package_component() {
+  local id=$1
+  local command_path
+  local commands=()
+  local version
+
+  read -r -a commands <<<"${package_commands[$id]}"
+  if ! omarchy-pkg-present "${package_name[$id]}"; then
+    component_current[$id]="missing"
+    component_state[$id]="missing"
+    return
+  fi
+  version=$(
+    pacman -Q "${package_name[$id]}" 2>/dev/null |
+      awk 'NR == 1 { print $2 }' ||
+      true
+  )
+  component_current[$id]=${version:-missing}
+  if [[ -z $version ]]; then
+    component_state[$id]="missing"
+    return
+  fi
+
+  for command_path in "${commands[@]}"; do
+    if [[ $command_path == /* ]]; then
+      [[ -x $system_root$command_path ]] || {
+        component_state[$id]="missing"
+        return
+      }
+    elif omarchy-cmd-missing "$command_path"; then
+      component_state[$id]="missing"
+      return
+    fi
+  done
+  component_state[$id]="ready"
+}
+
+inspect_devcontainer_component() {
+  local current
+
+  current=$(binary_version "$(command -v devcontainer 2>/dev/null)" 2>/dev/null || true)
+  component_current[devcontainer]=${current:-missing}
+  if [[ -z $current ]]; then
+    component_state[devcontainer]="missing"
+  elif [[ $current == "${component_latest[devcontainer]}" ]]; then
+    component_state[devcontainer]="ready"
+  else
+    component_state[devcontainer]="outdated"
+  fi
 }
 
 inspect_provider_component() {
@@ -617,7 +756,7 @@ inspect_component() {
   local id=$1
 
   case $id in
-  node | bun | mkcert | hurl | semgrep)
+  node | bun | python | uv | go | mkcert | hurl | semgrep)
     inspect_mise_component "$id"
     ;;
   supabase | infisical | cloudflared | sentry-cli | act | sops | age | gitleaks | osv-scanner)
@@ -625,6 +764,17 @@ inspect_component() {
     ;;
   gh | docker)
     inspect_base_component "$id"
+    ;;
+  devcontainer)
+    inspect_devcontainer_component
+    ;;
+  *)
+    if [[ -n ${package_name[$id]+known} ]]; then
+      inspect_package_component "$id"
+    else
+      echo "Unknown Devel component: $id" >&2
+      return 1
+    fi
     ;;
   esac
 }
@@ -679,6 +829,8 @@ component_status_label() {
       printf 'not installed (kept absent)\n'
     elif [[ $id == "gh" || $id == "docker" ]]; then
       printf 'missing (qvOS base)\n'
+    elif [[ -n ${package_name[$id]+known} ]]; then
+      printf 'missing (%s)\n' "${package_name[$id]}"
     else
       printf 'missing (latest %s)\n' "${component_latest[$id]}"
     fi
@@ -780,6 +932,9 @@ install_mise_component() {
   bun)
     omarchy-install-dev-env bun
     ;;
+  python | uv | go)
+    mise use --global "${id}@latest"
+    ;;
   mkcert)
     mise use -g aqua:FiloSottile/mkcert@latest
     ;;
@@ -795,6 +950,25 @@ install_mise_component() {
       "semgrep==${mise_expected[semgrep]}"
     ;;
   esac
+}
+
+install_package_component() {
+  local id=$1
+  local package=${package_name[$id]}
+
+  if [[ ${package_kind[$id]} == "aur" ]]; then
+    omarchy-pkg-aur-add "$package"
+  else
+    omarchy-pkg-add "$package"
+  fi
+}
+
+install_devcontainer_component() {
+  local version=${component_latest[devcontainer]}
+
+  require_command npm
+  run_bounded 300s \
+    npm install --global "@devcontainers/cli@$version"
 }
 
 apply_component_changes() {
@@ -827,7 +1001,7 @@ apply_component_changes() {
       "${component_names[$id]}" "$action" "${component_latest[$id]}"
 
     case $id in
-    node | bun | mkcert | hurl | semgrep)
+    node | bun | python | uv | go | mkcert | hurl | semgrep)
       install_mise_component "$id"
       ;;
     supabase | infisical | cloudflared | sentry-cli | act | sops | age | gitleaks | osv-scanner)
@@ -836,6 +1010,17 @@ apply_component_changes() {
     gh | docker)
       echo "${component_names[$id]} must be restored through the qvOS base system." >&2
       return 1
+      ;;
+    devcontainer)
+      install_devcontainer_component
+      ;;
+    *)
+      if [[ -n ${package_name[$id]+known} ]]; then
+        install_package_component "$id"
+      else
+        echo "Unknown Devel component: $id" >&2
+        return 1
+      fi
       ;;
     esac
 
@@ -866,7 +1051,20 @@ case ${1:-} in
   ;;
 esac
 
-for required_command in curl jq tar sha256sum awk find mise timeout; do
+load_package_components
+
+for required_command in \
+  curl \
+  jq \
+  tar \
+  sha256sum \
+  awk \
+  find \
+  mise \
+  timeout \
+  omarchy-pkg-add \
+  omarchy-pkg-aur-add \
+  omarchy-pkg-present; do
   require_command "$required_command"
 done
 

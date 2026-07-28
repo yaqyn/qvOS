@@ -26,6 +26,18 @@ grep -qx 'alacritty' "$root/qv/install/packaging/base.packages" || fail "Alacrit
 grep -qx 'neovim' "$root/qv/install/packaging/base.packages" || fail "Neovim package contract"
 grep -qx 'omarchy-nvim' "$root/qv/install/packaging/base.packages" || fail "qvOS Neovim package contract"
 grep -qx 'wtype' "$root/qv/install/packaging/base.packages" || fail "Codex Wayland input contract"
+for codex_base_package in \
+  bubblewrap \
+  bind \
+  openssh \
+  rsync \
+  openbsd-netcat \
+  poppler \
+  qpdf; do
+  grep -Fqx "$codex_base_package" \
+    "$root/qv/install/packaging/base.packages" ||
+    fail "Codex base package contract: $codex_base_package"
+done
 
 editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$root/qv/config/files/uwsm/default")
 [[ $editor_env == $'nvim\nnvim\nnvim' ]] || fail "editor environment contract"
@@ -154,6 +166,12 @@ grep -Fqx '  runtime_system="$HOME/.local/share/qvos/maintenance/qvos-system"' \
 grep -Fqx '  exec "$runtime_system" "$@"' \
   "$root/qv/maintenance/qv" ||
   fail "qv system runtime delegation"
+grep -Fqx '    runtime_doctor="$HOME/.local/share/qvos/codex/doctor"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv Codex doctor runtime location"
+grep -Fqx '    exec "$runtime_doctor" "$@"' \
+  "$root/qv/maintenance/qv" ||
+  fail "qv Codex doctor runtime delegation"
 if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
   fail "fragile qv alias remains"
 fi

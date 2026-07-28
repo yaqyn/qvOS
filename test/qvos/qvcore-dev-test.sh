@@ -11,6 +11,8 @@ action_log="$test_root/actions"
 network_log="$test_root/network"
 timeout_log="$test_root/timeouts"
 mise_state="$test_root/mise-state"
+package_state="$test_root/package-state"
+system_root="$test_root/system-root"
 install_output="$test_root/install-output"
 
 cleanup() {
@@ -129,8 +131,15 @@ create_binary_release() {
   write_release_metadata "$repository" "$tag" "$asset"
 }
 
-install -d "$test_bin" "$test_home" "$test_omarchy_path/qv/core"
+install -d \
+  "$test_bin" \
+  "$test_home" \
+  "$test_omarchy_path/qv/core/dev" \
+  "$system_root/usr/bin"
 install -m 0755 "$root/qv/core/dev.sh" "$test_omarchy_path/qv/core/dev.sh"
+install -m 0644 \
+  "$root/qv/core/dev/packages.tsv" \
+  "$test_omarchy_path/qv/core/dev/packages.tsv"
 
 create_archive_release \
   supabase/cli v1.2.3 supabase_1.2.3_linux_amd64.tar.gz 1.2.3 \
@@ -189,11 +198,15 @@ create_binary_release \
   osv-scanner 2.4.0
 
 : >"$mise_state"
+: >"$package_state"
 set_mise_state node 24.18.0
 set_mise_state bun 1.3.14
 
 create_fake_binary "$test_bin/node" node 24.18.0
 create_fake_binary "$test_bin/bun" bun 1.3.14
+create_fake_binary "$test_bin/python" python 3.14.1
+create_fake_binary "$test_bin/uv" uv 0.9.27
+create_fake_binary "$test_bin/go" go 1.26.0
 create_fake_binary "$test_bin/mkcert" mkcert 1.4.4
 create_fake_binary "$test_bin/hurl" hurl 8.1.2
 create_fake_binary "$test_bin/hurlfmt" hurlfmt 8.1.2
@@ -257,6 +270,9 @@ latest_version() {
   case $1 in
   node@lts) echo "24.18.0" ;;
   bun) echo "1.3.14" ;;
+  python) echo "3.14.1" ;;
+  uv) echo "0.9.27" ;;
+  go) echo "1.26.0" ;;
   aqua:FiloSottile/mkcert) echo "1.4.4" ;;
   cargo:hurl | cargo:hurlfmt) echo "8.1.2" ;;
   pipx:semgrep) echo "1.171.0" ;;
@@ -266,7 +282,7 @@ latest_version() {
 
 state_key_for_command() {
   case $1 in
-  node | bun) echo "$1" ;;
+  node | bun | python | uv | go) echo "$1" ;;
   mkcert) echo "aqua:FiloSottile/mkcert" ;;
   hurl) echo "cargo:hurl" ;;
   hurlfmt) echo "cargo:hurlfmt" ;;
@@ -301,6 +317,15 @@ use)
   printf 'mise\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
   ref=${*: -1}
   case $ref in
+  python@latest)
+    set_state python 3.14.1
+    ;;
+  uv@latest)
+    set_state uv 0.9.27
+    ;;
+  go@latest)
+    set_state go 1.26.0
+    ;;
   aqua:FiloSottile/mkcert@latest)
     set_state aqua:FiloSottile/mkcert 1.4.4
     ;;
@@ -346,6 +371,88 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-missing" <<'SCRIPT'
 #!/bin/bash
 ! command -v "$1" >/dev/null 2>&1
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-present" <<'SCRIPT'
+#!/bin/bash
+for package in "$@"; do
+  grep -Fqx "$package" "$QVOS_TEST_PACKAGE_STATE" || exit 1
+done
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/qvos-test-package-install" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+kind=$1
+package=$2
+manifest="$OMARCHY_PATH/qv/core/dev/packages.tsv"
+row=$(
+  awk -F '\t' -v package="$package" '
+    $2 == package {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$manifest"
+)
+IFS=$'\t' read -r _ _ _ _ commands <<<"$row"
+printf 'package\t%s\t%s\n' "$kind" "$package" >>"$QVOS_TEST_ACTION_LOG"
+grep -Fqx "$package" "$QVOS_TEST_PACKAGE_STATE" ||
+  printf '%s\n' "$package" >>"$QVOS_TEST_PACKAGE_STATE"
+
+read -r -a command_list <<<"$commands"
+for command_name in "${command_list[@]}"; do
+  if [[ $command_name == /* ]]; then
+    command_path="$QVOS_DEV_SYSTEM_ROOT$command_name"
+  else
+    command_path="$QVOS_TEST_BIN/$command_name"
+  fi
+  install -D -m 0755 /dev/stdin "$command_path" <<COMMAND
+#!/bin/bash
+exit 0
+COMMAND
+done
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+for package in "$@"; do
+  qvos-test-package-install repo "$package"
+done
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-aur-add" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+for package in "$@"; do
+  qvos-test-package-install aur "$package"
+done
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+[[ $1 == "-Q" ]]
+grep -Fqx "$2" "$QVOS_TEST_PACKAGE_STATE"
+printf '%s %s\n' "$2" "1.0.0"
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/npm" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+[[ $1 == "install" ]]
+[[ $2 == "--global" ]]
+[[ $3 == "@devcontainers/cli@0.88.0" ]]
+printf 'npm\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+install -m 0755 /dev/stdin "$QVOS_TEST_BIN/devcontainer" <<'COMMAND'
+#!/bin/bash
+[[ $1 == "--version" ]]
+printf '0.88.0\n'
+COMMAND
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/docker" <<'SCRIPT'
@@ -414,6 +521,12 @@ if [[ $url == "https://api.github.com/repos/"*"/releases/latest" ]]; then
   exit
 fi
 
+if [[ $url == "https://registry.npmjs.org/@devcontainers%2fcli/latest" ]]; then
+  printf 'metadata-npm\t%s\n' "@devcontainers/cli" >>"$QVOS_TEST_NETWORK_LOG"
+  printf '{"version":"0.88.0"}\n'
+  exit
+fi
+
 repository=${url#https://github.com/}
 repository=${repository%%/releases/download/*}
 asset=${url##*/}
@@ -430,7 +543,9 @@ run_dev() {
     QVOS_TEST_GH_AUTH="${QVOS_TEST_GH_AUTH:-0}" \
     QVOS_TEST_DOCKER_MISSING="${QVOS_TEST_DOCKER_MISSING:-0}" \
     QVOS_TEST_MISE_STATE="$mise_state" \
+    QVOS_TEST_PACKAGE_STATE="$package_state" \
     QVOS_TEST_BIN="$test_bin" \
+    QVOS_DEV_SYSTEM_ROOT="$system_root" \
     HOME="$test_home" \
     OMARCHY_PATH="$test_omarchy_path" \
     PATH="$test_home/.local/bin:$test_bin:/usr/bin" \
@@ -445,10 +560,10 @@ cancel_output=$(printf 'cancel\n' | QVOS_TEST_GH_AUTH=1 run_dev 2>&1)
 cancel_status=$?
 set -e
 ((cancel_status == 130)) || fail "cancellation status"
-grep -Fq 'qvCORE Devel inventory: 4/16 ready' <<<"$cancel_output" ||
+grep -Fq 'qvCORE Devel inventory: 4/39 ready' <<<"$cancel_output" ||
   fail "four-component initial inventory"
 grep -Fq 'Outdated: 0' <<<"$cancel_output" || fail "fresh outdated count"
-grep -Fq 'Missing:  12' <<<"$cancel_output" || fail "fresh missing count"
+grep -Fq 'Missing:  35' <<<"$cancel_output" || fail "fresh missing count"
 grep -Fq 'Devel changes canceled; no components were modified.' <<<"$cancel_output" ||
   fail "explicit cancellation"
 [[ ! -s $action_log ]] || fail "cancellation performs tool actions"
@@ -459,14 +574,14 @@ fi
   fail "cancellation writes completion state"
 [[ $("$test_home/.local/bin/semgrep" --version) == "semgrep 1.0.0" ]] ||
   fail "cancellation replaces unmanaged Semgrep"
-pass "qvCORE previews a 4/16 inventory and cancels without changes"
+pass "qvCORE previews a 4/39 inventory and cancels without changes"
 
 : >"$action_log"
 : >"$network_log"
 : >"$timeout_log"
 printf '\n' | QVOS_TEST_GH_AUTH=1 run_dev >"$install_output"
 
-expected_actions=$'mise\tuse -g aqua:FiloSottile/mkcert@latest\nmise\tuse -g cargo:hurl@latest\nmise\tuse -g cargo:hurlfmt@latest\nmise\tx uv@latest -- uv tool install --force --managed-python semgrep==1.171.0'
+expected_actions=$'mise\tuse --global python@latest\nmise\tuse --global uv@latest\nmise\tuse --global go@latest\nmise\tuse -g aqua:FiloSottile/mkcert@latest\nmise\tuse -g cargo:hurl@latest\nmise\tuse -g cargo:hurlfmt@latest\nmise\tx uv@latest -- uv tool install --force --managed-python semgrep==1.171.0\nnpm\tinstall --global @devcontainers/cli@0.88.0\npackage\taur\tshellcheck-bin\npackage\trepo\tshfmt\npackage\trepo\tgo-yq\npackage\trepo\tjust\npackage\trepo\tgit-lfs\npackage\trepo\ttinyxxd\npackage\trepo\tdos2unix\npackage\trepo\ttime\npackage\trepo\tpacman-contrib\npackage\trepo\tcmake\npackage\trepo\tninja\npackage\trepo\tgdb\npackage\trepo\tlldb\npackage\trepo\tvalgrind\npackage\trepo\tstrace\npackage\trepo\tlsof\npackage\trepo\thyperfine\npackage\trepo\tzip\npackage\trepo\t7zip'
 [[ $(<"$action_log") == "$expected_actions" ]] ||
   fail "ready runtimes are preserved while missing mise tools install"
 [[ $(grep -c '^metadata-gh' "$network_log") == "9" ]] ||
@@ -475,15 +590,20 @@ expected_actions=$'mise\tuse -g aqua:FiloSottile/mkcert@latest\nmise\tuse -g car
   fail "verified provider downloads"
 grep -Fq $'20s\tgh api repos/supabase/cli/releases/latest' "$timeout_log" ||
   fail "bounded provider metadata discovery"
+grep -Fq $'20s\tcurl --connect-timeout 10 --max-time 20 --retry 2 --retry-delay 1 -fsSL https://registry.npmjs.org/@devcontainers%2fcli/latest' \
+  "$timeout_log" ||
+  fail "bounded Dev Container metadata discovery"
 grep -Fq $'300s\tcurl --connect-timeout 15 --max-time 300' "$timeout_log" ||
   fail "bounded provider download"
-grep -Fq '[01/16] Node.js LTS          ready (24.18.0)' "$install_output" ||
+grep -Fq '[01/39] Node.js LTS          ready (24.18.0)' "$install_output" ||
   fail "numbered ready progress"
-grep -Fq '[16/16] Docker + Compose     ready (29.6.2)' "$install_output" ||
+grep -Fq '[20/39] Docker + Compose     ready (29.6.2)' "$install_output" ||
   fail "complete numbered progress"
-grep -Fq 'qvCORE Devel inventory: 16/16 ready' "$install_output" ||
+grep -Fq '[39/39] 7-Zip                installing 7zip' "$install_output" ||
+  fail "package progress"
+grep -Fq 'qvCORE Devel inventory: 39/39 ready' "$install_output" ||
   fail "verified final inventory"
-grep -Fq 'qvCORE Devel is ready: 16/16.' "$install_output" ||
+grep -Fq 'qvCORE Devel is ready: 39/39.' "$install_output" ||
   fail "verified completion result"
 
 declare -A expected_versions=(
@@ -537,12 +657,12 @@ pass "Devel is an app installer, not a managed setup lifecycle"
 current_output=$(
   QVOS_TEST_GH_AUTH=0 run_dev --update
 )
-grep -Fq 'qvCORE Devel inventory: 14/16 ready' <<<"$current_output" ||
+grep -Fq 'qvCORE Devel inventory: 37/39 ready' <<<"$current_output" ||
   fail "current update inventory"
-grep -Fq 'All 14 tracked Devel component(s) are current; no changes are needed.' \
+grep -Fq 'All 37 tracked Devel component(s) are current; no changes are needed.' \
   <<<"$current_output" ||
   fail "current update no-op"
-grep -Fq 'qvCORE Devel refresh is complete: 14 tracked component(s) current.' \
+grep -Fq 'qvCORE Devel refresh is complete: 37 tracked component(s) current.' \
   <<<"$current_output" ||
   fail "current update completion"
 [[ ! -s $action_log ]] || fail "current update performs mise actions"
@@ -567,7 +687,7 @@ removed_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update)
 if grep -q '^download' "$network_log"; then
   fail "Devel refresh downloads a removed provider component"
 fi
-grep -Fq 'qvCORE Devel refresh is complete: 13 tracked component(s) current.' \
+grep -Fq 'qvCORE Devel refresh is complete: 36 tracked component(s) current.' \
   <<<"$removed_output" ||
   fail "removed Devel component tracking result"
 pass "post-update refresh respects intentionally removed Devel components"
@@ -589,13 +709,13 @@ interrupted_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update 2>&1)
 interrupted_status=$?
 set -e
 ((interrupted_status != 0)) || fail "tampered provider update succeeds"
-grep -Fq 'qvCORE Devel inventory: 10/16 ready' <<<"$interrupted_output" ||
+grep -Fq 'qvCORE Devel inventory: 33/39 ready' <<<"$interrupted_output" ||
   fail "partial ready inventory"
 grep -Fq 'Outdated: 2' <<<"$interrupted_output" ||
   fail "partial outdated inventory"
 grep -Fq 'Missing:  4' <<<"$interrupted_output" ||
   fail "partial missing inventory"
-grep -Fq 'qvCORE Devel stopped during [5/16] Supabase CLI.' \
+grep -Fq 'qvCORE Devel stopped during [8/39] Supabase CLI.' \
   <<<"$interrupted_output" ||
   fail "interrupted step report"
 grep -Fq 'Completed components were preserved.' <<<"$interrupted_output" ||
@@ -615,7 +735,7 @@ cp "$test_root/supabase-release.json" "$release_root/supabase/cli/release.json"
 : >"$network_log"
 : >"$timeout_log"
 resume_output=$(QVOS_TEST_GH_AUTH=1 run_dev --update)
-grep -Fq 'qvCORE Devel inventory: 12/16 ready' <<<"$resume_output" ||
+grep -Fq 'qvCORE Devel inventory: 35/39 ready' <<<"$resume_output" ||
   fail "resumed inventory"
 grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resumed outdated count"
@@ -625,7 +745,7 @@ grep -Fq 'Outdated: 1' <<<"$resume_output" ||
   fail "resume downloads more than the remaining component"
 [[ $("$test_home/.local/bin/supabase" --version) == "supabase 1.2.3" ]] ||
   fail "resumed Supabase update"
-grep -Fq 'qvCORE Devel refresh is complete: 13 tracked component(s) current.' \
+grep -Fq 'qvCORE Devel refresh is complete: 36 tracked component(s) current.' \
   <<<"$resume_output" ||
   fail "resumed completion"
 pass "rerun verifies completed work and continues only remaining updates"
@@ -640,7 +760,7 @@ missing_base_output=$(
 missing_base_status=$?
 set -e
 ((missing_base_status != 0)) || fail "missing Docker base succeeds"
-grep -Fq 'qvCORE Devel inventory: 14/16 ready' <<<"$missing_base_output" ||
+grep -Fq 'qvCORE Devel inventory: 37/39 ready' <<<"$missing_base_output" ||
   fail "missing base inventory"
 grep -Fq 'Docker + Compose     missing (qvOS base)' <<<"$missing_base_output" ||
   fail "missing base status"
@@ -676,13 +796,15 @@ arm_output=$(
       QVOS_TEST_GH_AUTH=1 \
       QVOS_TEST_DOCKER_MISSING=0 \
       QVOS_TEST_MISE_STATE="$arm_mise_state" \
+      QVOS_TEST_PACKAGE_STATE="$package_state" \
       QVOS_TEST_BIN="$test_bin" \
+      QVOS_DEV_SYSTEM_ROOT="$system_root" \
       HOME="$arm_home" \
       OMARCHY_PATH="$test_omarchy_path" \
       PATH="$arm_home/.local/bin:$test_bin:/usr/bin" \
       "$test_omarchy_path/qv/core/dev.sh"
 )
-grep -Fq 'qvCORE Devel is ready: 16/16.' <<<"$arm_output" ||
+grep -Fq 'qvCORE Devel is ready: 39/39.' <<<"$arm_output" ||
   fail "arm64 verified completion"
 [[ $(grep -c '^download' "$arm_network_log") == "9" ]] ||
   fail "arm64 provider download count"

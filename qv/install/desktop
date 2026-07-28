@@ -15,7 +15,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in desktop maintenance power screensaver shell thunar tmux tui waybar; do
+  for feature in codex desktop maintenance power screensaver shell thunar tmux tui waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -33,6 +33,8 @@
     qv/desktop/web/qvos-website-open
     qv/core/post-update-hook
     qv/core/software-removal-groups
+    qv/codex/capabilities.tsv
+    qv/codex/doctor
     qv/install/desktop-status
     qv/install/post-update-hook
     qv/launcher/install
@@ -151,13 +153,29 @@
 
   screensaver_source="$OMARCHY_PATH/qv/screensaver"
   qvos_bin="$HOME/.local/share/qvos/bin"
+  qvos_codex="$HOME/.local/share/qvos/codex"
   qvos_maintenance="$HOME/.local/share/qvos/maintenance"
   qvos_screensaver="$HOME/.local/share/qvos/screensaver"
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
-  install -d "$qvos_bin" "$qvos_maintenance" "$qvos_screensaver" "$local_bin"
+  install -d \
+    "$qvos_bin" \
+    "$qvos_codex" \
+    "$qvos_maintenance" \
+    "$qvos_screensaver" \
+    "$local_bin"
   "$OMARCHY_PATH/qv/tui/install" --build-if-available
+  install -m 0644 \
+    "$OMARCHY_PATH/qv/codex/capabilities.tsv" \
+    "$qvos_codex/capabilities.tsv.tmp.$$"
+  mv -f -- \
+    "$qvos_codex/capabilities.tsv.tmp.$$" \
+    "$qvos_codex/capabilities.tsv"
+  install -m 0755 \
+    "$OMARCHY_PATH/qv/codex/doctor" \
+    "$qvos_codex/doctor.tmp.$$"
+  mv -f -- "$qvos_codex/doctor.tmp.$$" "$qvos_codex/doctor"
   install -m 0644 \
     "$OMARCHY_PATH/qv/maintenance/essential-packages" \
     "$qvos_maintenance/essential-packages.tmp.$$"

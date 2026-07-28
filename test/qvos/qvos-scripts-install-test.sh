@@ -44,7 +44,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop maintenance power screensaver shell thunar tmux tui waybar; do
+for feature in codex desktop maintenance power screensaver shell thunar tmux tui waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -117,6 +117,20 @@ cmp -s \
   "$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
   fail "qvOS Waybar post-update hook install"
 pass "qvOS post-update hooks install from their feature owners"
+
+cmp -s \
+  "$root/qv/codex/capabilities.tsv" \
+  "$test_root/.local/share/qvos/codex/capabilities.tsv" ||
+  fail "Codex capability runtime"
+cmp -s \
+  "$root/qv/codex/doctor" \
+  "$test_root/.local/share/qvos/codex/doctor" ||
+  fail "Codex doctor runtime"
+[[ ! -x $test_root/.local/share/qvos/codex/capabilities.tsv ]] ||
+  fail "Codex capability data mode"
+[[ -x $test_root/.local/share/qvos/codex/doctor ]] ||
+  fail "Codex doctor mode"
+pass "Codex capability contract and doctor install together"
 
 [[ ! -e $test_root/.local/share/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
 [[ ! -e $test_root/.local/share/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"

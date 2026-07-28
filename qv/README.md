@@ -11,6 +11,7 @@ qv/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
   branding/    qvOS terminal and desktop branding.
   browser/     Secure browser policy ownership.
+  codex/       Codex workstation capability contract and read-only doctor.
   config/      qvOS config helpers and files installed after Omarchy defaults.
   core/        qvCORE personal-software catalog and managed setup owners.
   diagnostics/ qvOS diagnostic policy layered over Omarchy's command.
@@ -90,6 +91,12 @@ changing qvOS identity, readiness, health, or base ownership.
 - `omarchy install qvcore` installs everything. `apps` installs only the
   curated app catalog, `setups` installs only managed setups, and every
   component remains independently installable.
+- `qv codex doctor` is the read-only Codex workstation inspection. Its tracked
+  capability contract separates guaranteed base primitives, qvCORE Devel,
+  project-local tools, and commands that should stay absent. `--json` emits the
+  stable machine-readable report; `--check` fails only when the guaranteed
+  Codex foundation needs repair. Optional Browser and Documents profiles remain
+  explicitly unavailable until their owners ship.
 - `omarchy qvcore status` and `omarchy qvcore repair` cover only WARP, Share,
   and Proton. `omarchy qvcore disable` removes only enabled setup ownership or
   integration state while preserving software and personal data. Status

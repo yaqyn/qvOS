@@ -2,6 +2,24 @@
 set -euo pipefail
 
 case ${1:-} in
+codex)
+  shift
+  case ${1:-} in
+  doctor)
+    shift
+    runtime_doctor="$HOME/.local/share/qvos/codex/doctor"
+    if [[ ! -x $runtime_doctor ]]; then
+      echo "qvOS Codex doctor runtime is unavailable: $runtime_doctor" >&2
+      exit 1
+    fi
+    exec "$runtime_doctor" "$@"
+    ;;
+  *)
+    echo "Usage: qv codex doctor [--json] [--check]" >&2
+    exit 2
+    ;;
+  esac
+  ;;
 repair)
   shift
   runtime_repair="$HOME/.local/share/qvos/maintenance/qvos-repair"

@@ -76,6 +76,14 @@ for feature in desktop tmux waybar; do
 done
 
 check_file \
+  "$OMARCHY_PATH/qv/codex/capabilities.tsv" \
+  "$runtime_root/codex/capabilities.tsv" \
+  "Codex capability contract differs from tracked source"
+check_file \
+  "$OMARCHY_PATH/qv/codex/doctor" \
+  "$runtime_root/codex/doctor" \
+  "Codex doctor differs from tracked source"
+check_file \
   "$OMARCHY_PATH/qv/maintenance/essential-packages" \
   "$runtime_root/maintenance/essential-packages" \
   "recovery essential-package policy differs from tracked source"

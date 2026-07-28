@@ -81,10 +81,12 @@ asdcontrol
 avahi
 bash-completion
 bat
+bind
 bluetui
 bolt
 brightnessctl
 btop
+bubblewrap
 chromium
 clang
 # Disabled personal AI package: claude-code
@@ -110,6 +112,7 @@ fcitx5-gtk
 fcitx5-qt
 fd
 engrampa
+ffmpeg
 ffmpegthumbnailer
 fontconfig
 fzf
@@ -167,6 +170,8 @@ neovim
 obsidian
 omarchy-nvim
 omarchy-walker
+openbsd-netcat
+openssh
 pamixer
 papirus-icon-theme
 # pinta
@@ -174,14 +179,17 @@ playerctl
 plocate
 plymouth
 polkit-gnome
+poppler
 postgresql-libs
 power-profiles-daemon
 pv
 python-gobject
 python-poetry-core
 python-terminaltexteffects
+qpdf
 qt5-wayland
 ripgrep
+rsync
 ruby
 rust
 satty
