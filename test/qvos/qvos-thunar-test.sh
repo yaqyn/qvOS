@@ -99,6 +99,6 @@ pass "Thunar-owned scripts stay in one source domain"
 
 grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$HOME\"" "$bindings" ||
   fail "home Thunar binding"
-grep -Fqx "bindd = SUPER SHIFT, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
+grep -Fqx "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"

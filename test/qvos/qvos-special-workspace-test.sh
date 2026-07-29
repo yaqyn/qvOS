@@ -96,6 +96,6 @@ grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, omarchy-menu 
   fail "inherited background picker"
 grep -Fqx 'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' "$tiling" ||
   fail "inherited special workspace toggle"
-grep -Fqx 'bindd = SUPER SHIFT, S, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
+grep -Fqx 'bindd = SUPER CTRL, S, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
   fail "special window transfer binding"
-pass "Super+S and Super+Shift+S own the special workspace"
+pass "Super+S and Super+Ctrl+S own the special workspace"
