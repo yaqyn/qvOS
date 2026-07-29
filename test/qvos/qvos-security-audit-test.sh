@@ -132,7 +132,52 @@ if rg -q 'modules_disabled|kernel\\.sysrq|\\.forwarding|usb|firewire|compiler' \
   fail "security baseline restricts normal desktop capabilities"
 fi
 
+ambiguous_system_root="$test_root/ambiguous-security-system"
+install -d "$ambiguous_system_root/etc"
+install -m 0644 /dev/stdin "$ambiguous_system_root/etc/pacman.conf" <<'PACMAN'
+[omarchy]
+SigLevel = Optional TrustAll
+SigLevel = Required DatabaseOptional
+Server = https://pkgs.omarchy.org/stable/$arch
+PACMAN
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$ambiguous_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer" >/dev/null 2>&1; then
+  fail "ambiguous Omarchy repository policy accepted"
+fi
+[[ ! -e $ambiguous_system_root/etc/sysctl.d/60-qvos-security.conf ]] \
+  || fail "ambiguous repository policy causes partial installation"
+
 security_system_root="$test_root/security-system"
+system_install_tree="$security_system_root/usr/install"
+install -d \
+  "$security_system_root/etc" \
+  "$system_install_tree/cache/test-package/dist" \
+  "$system_install_tree/global/node_modules/test-package" \
+  "$security_system_root/usr/local/bin"
+install -m 0644 /dev/stdin "$security_system_root/etc/pacman.conf" <<'PACMAN'
+[core]
+SigLevel = Required DatabaseOptional
+
+[omarchy]
+SigLevel = Optional TrustAll
+Server = https://pkgs.omarchy.org/stable/$arch
+
+[local-test]
+SigLevel = Optional TrustAll
+PACMAN
+install -m 0777 /dev/null \
+  "$system_install_tree/cache/test-package/dist/program.js"
+install -m 0775 /dev/null \
+  "$system_install_tree/global/node_modules/test-package/program.js"
+install -m 0700 /dev/null \
+  "$system_install_tree/global/node_modules/test-package/private.js"
+install -m 0777 /dev/null \
+  "$security_system_root/usr/local/bin/outside-program"
+ln -s \
+  "$system_install_tree/cache/test-package/dist/program.js" \
+  "$system_install_tree/global/node_modules/test-package/program-link"
 QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
   OMARCHY_PATH="$root" \
@@ -142,6 +187,29 @@ cmp -s "$baseline" "$installed_baseline" \
   || fail "security baseline system install"
 [[ $(stat -c '%a' "$installed_baseline") == "644" ]] \
   || fail "security baseline mode"
+[[ $(awk '
+  /^\[omarchy\]$/ { in_omarchy = 1; next }
+  /^\[/ { in_omarchy = 0 }
+  in_omarchy && /^SigLevel/ { print }
+' "$security_system_root/etc/pacman.conf") == \
+  "SigLevel = Required DatabaseOptional" ]] \
+  || fail "Omarchy package signatures are required"
+[[ $(awk '
+  /^\[local-test\]$/ { in_local_test = 1; next }
+  /^\[/ { in_local_test = 0 }
+  in_local_test && /^SigLevel/ { print }
+' "$security_system_root/etc/pacman.conf") == "SigLevel = Optional TrustAll" ]] \
+  || fail "unrelated repository policy stays unchanged"
+[[ $(stat -c '%a' "$system_install_tree/cache/test-package/dist/program.js") == "755" ]] \
+  || fail "world-writable system package program mode"
+[[ $(stat -c '%a' "$system_install_tree/global/node_modules/test-package/program.js") == "755" ]] \
+  || fail "group-writable system package program mode"
+[[ $(stat -c '%a' "$system_install_tree/global/node_modules/test-package/private.js") == "700" ]] \
+  || fail "owner-only system package program mode"
+[[ $(stat -c '%a' "$security_system_root/usr/local/bin/outside-program") == "777" ]] \
+  || fail "files outside the system package tree stay unchanged"
+[[ -L $system_install_tree/global/node_modules/test-package/program-link ]] \
+  || fail "system package symlinks stay unchanged"
 
 resolved_base=$("$root/qv/install/packaging/resolve" base)
 grep -qx 'arch-audit' <<<"$resolved_base" \

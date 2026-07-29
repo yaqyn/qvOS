@@ -4,24 +4,99 @@ set -euo pipefail
 source_file="$OMARCHY_PATH/qv/security/60-qvos-security.conf"
 system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
 target_file="$system_root/etc/sysctl.d/60-qvos-security.conf"
+pacman_config="$system_root/etc/pacman.conf"
+system_install_tree="$system_root/usr/install"
+system_owner_uid=0
+system_owner_gid=0
+pacman_candidate=
+
+cleanup() {
+  [[ -z $pacman_candidate ]] || rm -f -- "$pacman_candidate"
+}
+trap cleanup EXIT
 
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
   echo "A custom qvOS security system root is only valid in tests." >&2
   exit 2
 fi
+if [[ -n $system_root ]]; then
+  system_owner_uid=$(id -u)
+  system_owner_gid=$(id -g)
+fi
 if [[ ! -f $source_file ]]; then
   echo "Missing qvOS security baseline: $source_file" >&2
   exit 1
 fi
+if [[ ! -f $pacman_config ]]; then
+  echo "Missing pacman configuration: $pacman_config" >&2
+  exit 1
+fi
+
+read -r omarchy_sections omarchy_siglevels < <(
+  awk '
+    /^[[:space:]]*\[omarchy\][[:space:]]*$/ {
+      in_omarchy = 1
+      sections++
+      next
+    }
+    /^[[:space:]]*\[[^]]+\][[:space:]]*$/ {
+      in_omarchy = 0
+    }
+    in_omarchy && /^[[:space:]]*SigLevel[[:space:]]*=/ {
+      siglevels++
+    }
+    END {
+      print sections + 0, siglevels + 0
+    }
+  ' "$pacman_config"
+)
+if ((omarchy_sections != 1 || omarchy_siglevels != 1)); then
+  echo "Expected one Omarchy repository and signature policy in $pacman_config." >&2
+  exit 1
+fi
+
+pacman_candidate=$(mktemp)
+awk '
+  /^[[:space:]]*\[omarchy\][[:space:]]*$/ {
+    in_omarchy = 1
+    print
+    next
+  }
+  /^[[:space:]]*\[[^]]+\][[:space:]]*$/ {
+    in_omarchy = 0
+  }
+  in_omarchy && /^[[:space:]]*SigLevel[[:space:]]*=/ {
+    print "SigLevel = Required DatabaseOptional"
+    next
+  }
+  {
+    print
+  }
+' "$pacman_config" >"$pacman_candidate"
 
 if [[ -n $system_root ]] || ((EUID == 0)); then
   install -D -m 0644 "$source_file" "$target_file"
+  install -m 0644 "$pacman_candidate" "$pacman_config"
   if ((EUID == 0)); then
-    chown root:root "$target_file"
+    chown root:root "$target_file" "$pacman_config"
   fi
 else
   /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0644 \
     "$source_file" "$target_file"
+  /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
+    "$pacman_candidate" "$pacman_config"
+fi
+
+if [[ -d $system_install_tree ]]; then
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    find -P "$system_install_tree" -xdev -type f \
+      -uid "$system_owner_uid" -gid "$system_owner_gid" -perm /0022 \
+      -exec chmod go-w -- {} +
+  else
+    /usr/bin/sudo /usr/bin/find -P "$system_install_tree" -xdev -type f \
+      -uid 0 -gid 0 -perm /0022 \
+      -exec /usr/bin/chmod go-w -- {} +
+  fi
 fi
 
 if [[ -z $system_root ]]; then

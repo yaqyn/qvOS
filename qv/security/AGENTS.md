@@ -13,6 +13,14 @@ It may protect common local boundaries without disabling user capabilities.
 Keep root debugging, hot-loadable modules, emergency SysRq, routing and
 hotspots, removable storage, compilers, and developer tooling available unless
 a concrete qvOS threat and explicit user approval justify a narrower system.
+`qv/security/install` also removes group and other write access from root-owned
+regular files under `/usr/install`. System package code must not remain
+writable by unprivileged users, and the reconciliation must run after package
+updates without following symlinks or changing files outside that tree.
+The same installer requires trusted signatures for packages from the Omarchy
+repository while leaving its unsigned database optional. Reject ambiguous
+repository configuration instead of weakening global policy or changing other
+repositories.
 
 1. Inspect the current source, worktree, installed state, and prior report,
    then run `qv/security/lynis-audit` before changing anything.

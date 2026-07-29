@@ -10,6 +10,16 @@ export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
+install -d "$QVOS_SECURITY_SYSTEM_ROOT/etc"
+install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" <<'PACMAN'
+[core]
+SigLevel = Required DatabaseOptional
+
+[omarchy]
+SigLevel = Optional TrustAll
+Server = https://pkgs.omarchy.org/stable/$arch
+PACMAN
+
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
 }
@@ -212,7 +222,10 @@ cmp -s \
   "$root/qv/security/60-qvos-security.conf" \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc/sysctl.d/60-qvos-security.conf" ||
   fail "qvOS security baseline payload"
-pass "security baseline installs without restricting desktop capabilities"
+grep -Fqx 'SigLevel = Required DatabaseOptional' \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" ||
+  fail "Omarchy repository package signature policy"
+pass "security baseline protects package trust without restricting desktop capabilities"
 
 tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
 [[ -x $tui_binary && ! -L $tui_binary ]] ||
