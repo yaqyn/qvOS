@@ -5,6 +5,8 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 export QVOS_POWER_TESTING=1
 export QVOS_POWER_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_SECURITY_TESTING=1
+export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
@@ -46,7 +48,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop direct power screensaver shell thunar tmux tui waybar; do
+for feature in desktop direct power screensaver security shell thunar tmux tui waybar; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -205,6 +207,12 @@ cmp -s \
 [[ ! -e $test_root/.local/state/qvos/battery-protection ]] ||
   fail "desktop install must not create Battery Protection intent"
 pass "Battery Protection installs dormant without touching charging state"
+
+cmp -s \
+  "$root/qv/security/60-qvos-security.conf" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/sysctl.d/60-qvos-security.conf" ||
+  fail "qvOS security baseline payload"
+pass "security baseline installs without restricting desktop capabilities"
 
 tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
 [[ -x $tui_binary && ! -L $tui_binary ]] ||

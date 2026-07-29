@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+source_file="$OMARCHY_PATH/qv/security/60-qvos-security.conf"
+system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
+target_file="$system_root/etc/sysctl.d/60-qvos-security.conf"
+
+if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
+  echo "A custom qvOS security system root is only valid in tests." >&2
+  exit 2
+fi
+if [[ ! -f $source_file ]]; then
+  echo "Missing qvOS security baseline: $source_file" >&2
+  exit 1
+fi
+
+if [[ -n $system_root ]] || ((EUID == 0)); then
+  install -D -m 0644 "$source_file" "$target_file"
+  if ((EUID == 0)); then
+    chown root:root "$target_file"
+  fi
+else
+  /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0644 \
+    "$source_file" "$target_file"
+fi
+
+if [[ -z $system_root ]]; then
+  if ((EUID == 0)); then
+    /usr/bin/sysctl -q -p "$target_file"
+  else
+    /usr/bin/sudo /usr/bin/sysctl -q -p "$target_file"
+  fi
+fi

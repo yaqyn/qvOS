@@ -70,6 +70,7 @@ goverlay
 lib32-pipewire-jack
 # qvos:gaming-base:end
 
+arch-audit
 bind
 bubblewrap
 curl

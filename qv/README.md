@@ -87,9 +87,10 @@ identity or base readiness.
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
 
-`qv/security/` owns the Codex-operated Lynis baseline and balanced-hardening
-workflow. Its reports contain private system inventory, stay outside Git under
-the user's state directory, and never authorize automatic hardening.
+`qv/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
+sysctl baseline, and the balanced-hardening workflow. Its reports contain
+private system inventory, stay outside Git under the user's state directory,
+and never authorize automatic hardening.
 
 `qv/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs its default helpers, including the LocalSend Share

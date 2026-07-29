@@ -8,6 +8,12 @@ live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
 
+`qv/security/60-qvos-security.conf` is the small default hardening baseline.
+It may protect common local boundaries without disabling user capabilities.
+Keep root debugging, hot-loadable modules, emergency SysRq, routing and
+hotspots, removable storage, compilers, and developer tooling available unless
+a concrete qvOS threat and explicit user approval justify a narrower system.
+
 1. Inspect the current source, worktree, installed state, and prior report,
    then run `qv/security/lynis-audit` before changing anything.
 2. Classify each result as an actionable qvOS issue, a user-choice tradeoff, a
@@ -35,4 +41,5 @@ without a concrete risk reduction.
 Run `bash -n` and ShellCheck on changed shell, then
 `test/qvos/qvos-security-audit-test.sh`. Re-run the full qvOS shell suite when
 package policy, install/update wiring, shared security defaults, or root
-instructions change.
+instructions change. After baseline changes, verify the installed file and
+effective values directly before rerunning Lynis.

@@ -4,6 +4,8 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 runner="$root/qv/security/lynis-audit"
 root_helper="$root/qv/security/lynis-audit-root"
+baseline="$root/qv/security/60-qvos-security.conf"
+installer="$root/qv/security/install"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 escalation_log="$test_root/escalation.log"
@@ -20,6 +22,8 @@ fail() {
 
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
+[[ -x $installer && -f $baseline ]] \
+  || fail "security baseline installer is available"
 grep -Fq 'qv/security/AGENTS.md' "$root/AGENTS.md" \
   || fail "root security workflow route"
 grep -Fq 'The Lynis hardening index is evidence, not a target.' \
@@ -119,6 +123,29 @@ if rg -q '^[[:space:]]*((/usr/bin/)?mv |(sudo )?pacman|omarchy-pkg-(add|remove))
   "$runner" "$root_helper"; then
   fail "audit mutates report ownership or packages"
 fi
+
+expected_baseline=$'# Protect named pipes and regular files in all world-writable sticky directories.\nfs.protected_fifos = 2\nfs.protected_regular = 2\n\n# Hide kernel pointers from unprivileged users while preserving root debugging.\nkernel.kptr_restrict = 1'
+[[ $(<"$baseline") == "$expected_baseline" ]] \
+  || fail "balanced sysctl baseline"
+if rg -q 'modules_disabled|kernel\\.sysrq|\\.forwarding|usb|firewire|compiler' \
+  "$baseline"; then
+  fail "security baseline restricts normal desktop capabilities"
+fi
+
+security_system_root="$test_root/security-system"
+QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer"
+installed_baseline="$security_system_root/etc/sysctl.d/60-qvos-security.conf"
+cmp -s "$baseline" "$installed_baseline" \
+  || fail "security baseline system install"
+[[ $(stat -c '%a' "$installed_baseline") == "644" ]] \
+  || fail "security baseline mode"
+
+resolved_base=$("$root/qv/install/packaging/resolve" base)
+grep -qx 'arch-audit' <<<"$resolved_base" \
+  || fail "Arch vulnerability audit package"
 
 if HOME="$test_root/omitted-home" \
   XDG_STATE_HOME="$test_root/omitted-state" \
