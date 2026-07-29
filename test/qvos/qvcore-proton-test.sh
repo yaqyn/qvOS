@@ -82,7 +82,7 @@ vault)
 pat)
   case ${2:-} in
   create)
-    echo '{"pat_id":"pat-1","env_var":"PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_test::key"}'
+    echo '{"pat_id":"pat-1","env_var":"pst_test::key"}'
     ;;
   access | delete) exit 0 ;;
   list) echo '[]' ;;

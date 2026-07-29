@@ -42,7 +42,7 @@ remove_codex_skill=0
 source "$thunar_actions_source"
 
 cleanup() {
-  unset codex_pat pat_env pat_json
+  unset codex_pat pat_json pat_value
 
   if [[ -n $created_pat_id && -n $pass_admin_root && -d $pass_admin_root ]]; then
     run_pass_admin pat delete \
@@ -479,9 +479,9 @@ replace_incompatible_pass_session() {
 setup_pass_auth() {
   local existing_pat_name=""
   local info_json
-  local pat_env=""
   local pat_json=""
   local pat_name
+  local pat_value=""
   local vault_count
   local vault_json
   local vault_share_id
@@ -557,16 +557,19 @@ setup_pass_auth() {
       --output json
   )
   created_pat_id=$(jq -er '.pat_id | select(length > 0)' <<<"$pat_json")
-  pat_env=$(jq -er '.env_var | select(length > 0)' <<<"$pat_json")
+  pat_value=$(jq -er '.env_var | select(length > 0)' <<<"$pat_json")
   unset pat_json
 
-  if [[ $pat_env != PROTON_PASS_PERSONAL_ACCESS_TOKEN=* ]]; then
+  if [[ $pat_value == PROTON_PASS_PERSONAL_ACCESS_TOKEN=* ]]; then
+    codex_pat=${pat_value#PROTON_PASS_PERSONAL_ACCESS_TOKEN=}
+  elif [[ $pat_value == pst_*::* ]]; then
+    codex_pat=$pat_value
+  else
+    unset pat_value
     echo "Proton Pass returned an unexpected PAT response." >&2
     return 1
   fi
-
-  codex_pat=${pat_env#PROTON_PASS_PERSONAL_ACCESS_TOKEN=}
-  unset pat_env
+  unset pat_value
 
   if [[ $codex_pat != pst_*::* ]]; then
     echo "Proton Pass returned an invalid PAT format." >&2
