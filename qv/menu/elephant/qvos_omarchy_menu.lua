@@ -367,13 +367,13 @@ local function software_group_matches(breadcrumb, view)
 end
 
 local software_selectors = {
-  package = true,
-  ["web-app"] = true,
-  tui = true,
-  services = true,
-  editor = true,
-  terminal = true,
-  ai = true,
+  package = "Manage",
+  ["web-app"] = "Manage",
+  tui = "Manage",
+  services = "Browse",
+  editor = "Browse",
+  terminal = "Browse",
+  ai = "Browse",
 }
 
 local function add_concepts(entries, software_view)
@@ -406,11 +406,15 @@ local function add_concepts(entries, software_view)
         if state then
           subtext = state == "install" and "Install" or "Uninstall"
           activation = software_action(fields[1])
-        elseif software_view and fields[6] == "Browse"
-          and fields[7] and fields[7]:match("^menu:")
+        elseif software_view == "software"
+          and software_selectors[fields[1]]
         then
-          subtext = "Browse"
-          activation = route(fields[7]:sub(6))
+          subtext = software_selectors[fields[1]]
+          if fields[6] == "Browse"
+            and fields[7] and fields[7]:match("^menu:")
+          then
+            activation = route(fields[7]:sub(6))
+          end
         end
 
         add(

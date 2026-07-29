@@ -107,7 +107,8 @@ pass "Walker binds Tab to a query-preserving mode reload"
 
 menu_provider="$root/qv/menu/elephant/qvos_omarchy_menu.lua"
 home_entries=$(
-  XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+  OMARCHY_PATH="$test_root/missing" XDG_RUNTIME_DIR="$test_root" \
+    lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
 assert(Name == "qvosOmarchyMenu")
 assert(Cache == false)
@@ -123,7 +124,8 @@ LUA
 pass "empty search stays focused on four real destinations"
 
 search_audit=$(
-  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+  HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
+    XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
 local entries = GetEntries("all")
 local concept_counts = {}
@@ -226,7 +228,8 @@ read -r search_count concept_count go_matches proton_matches style_matches theme
 pass "typed search presents every concept exactly once"
 
 software_action_audit=$(
-  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" "$root" <<'LUA'
+  HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
+    XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" "$root" <<'LUA'
 local real_popen = io.popen
 io.popen = function(command)
   if command:find("software-state", 1, true) then
@@ -278,6 +281,7 @@ local editor = assert(by_name(entries, "Editor"))
 local package = assert(by_name(entries, "Package"))
 assert(editor.Subtext == "Browse")
 assert(editor.Actions.activate == "omarchy-menu 'install-editor'")
+assert(package.Subtext == "Manage")
 assert(package.Actions.activate == "omarchy-menu 'concept:package'")
 assert(not by_name(entries, "Development"))
 
@@ -302,7 +306,8 @@ fi
 pass "software leaves expose one dynamic Install or Uninstall action"
 
 intent_audit=$(
-  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+  HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
+    XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
 
 local function normalize(value)
@@ -421,7 +426,8 @@ grep -Fq 'During qvsync, compare upstream menu behavior' "$menu_agents" ||
 pass "owner-local AGENTS keeps the compact menu contract durable across qvsync"
 
 apps_audit=$(
-  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
+  HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
+    XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 local responses = {
   first = {
     item = {
