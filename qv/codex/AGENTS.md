@@ -35,6 +35,8 @@ contract, doctor, runtime deployment, sandbox checks, or qvDEV boundary.
    command paths, session-storage totals, and exact missing-capability routes.
 4. Optional qvDEV absence never makes qvOS unhealthy. `--check` fails only for
    the guaranteed base, canonical Codex, or sandbox contract.
+5. Report shadowed command paths as informational inventory. Expected manager
+   shims and compatible fallbacks never change overall readiness.
 
 Deploy `doctor` and `capabilities.tsv` together under
 `~/.local/share/qvos/codex/`; the real `qv` front door delegates to that runtime.

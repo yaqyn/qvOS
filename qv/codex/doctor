@@ -377,7 +377,7 @@ report_status="ready"
 if ((foundation_missing)); then
   report_status="missing"
 elif [[ $codex_doctor_status == "warning" ]] ||
-  ((duplicate_count > 0 || avoid_present > 0)); then
+  ((avoid_present > 0)); then
   report_status="warning"
 fi
 

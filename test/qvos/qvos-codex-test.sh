@@ -181,6 +181,10 @@ while IFS=$'\t' read -r command_name layer _ _; do
 exit 0
 SCRIPT
 done <"$registry"
+install -m 0755 /dev/stdin "$capability_bin/git" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
 
 while IFS=$'\t' read -r command_name layer _ _; do
   [[ $layer == "qvdev" ]] || continue
@@ -220,6 +224,7 @@ jq -e \
   --argjson qvdev_total "$qvdev_total" \
   --argjson foundation_total "$foundation_total" '
   .schema_version == 1
+  and .status == "ready"
   and .foundation.ready == true
   and .foundation.ready_count == $foundation_total
   and .foundation.total == $foundation_total
@@ -240,6 +245,10 @@ jq -e \
   and .extensions.skill_count == 1
   and .session_storage.rollout_files == 1
   and .session_storage.retention == "informational-only"
+  and any(
+    .shadowed_commands[];
+    .command == "git" and (.paths | length) == 2
+  )
 ' <<<"$report" >/dev/null ||
   fail "ready doctor JSON contract"
 if grep -Fq '/private/test/package' <<<"$report"; then
@@ -247,7 +256,7 @@ if grep -Fq '/private/test/package' <<<"$report"; then
 fi
 run_doctor --check >/dev/null ||
   fail "ready doctor check status"
-pass "doctor proves the canonical install without leaking parent-session state"
+pass "doctor keeps shadowed command paths informational"
 
 mv "$test_bin/dig" "$test_bin/dig.missing"
 missing_report=$(run_doctor --json)
