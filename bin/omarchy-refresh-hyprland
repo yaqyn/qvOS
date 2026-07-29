@@ -9,6 +9,6 @@ omarchy-refresh-config hypr/looknfeel.conf
 omarchy-refresh-config hypr/hyprland.conf
 omarchy-refresh-config hypr/monitors.conf
 
-"$OMARCHY_PATH/qv/hyprland/refresh"
+"$OMARCHY_PATH/qv/config/refresh-hyprland"
 
 bash "$OMARCHY_PATH/install/config/detect-keyboard-layout.sh"

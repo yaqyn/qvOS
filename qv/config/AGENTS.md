@@ -1,4 +1,4 @@
-# qvOS Hyprland Workflow
+# qvOS Hyprland Config Workflow
 
 Read this file completely when changing qvOS-owned Hyprland bindings, refresh
 reconciliation, or installed Hyprland configuration.
@@ -18,7 +18,7 @@ bindings.
   and compare the live file, reload Hyprland, require no config errors, and show
   the updated qvOS-only inventory.
 
-`qv/hyprland/refresh` is the authoritative inventory of installed qvOS
+`qv/config/refresh-hyprland` is the authoritative inventory of installed qvOS
 Hyprland sources under `qv/config/files/hypr/`. Put additive overrides in its
 `qv/` sublayer where the include structure supports that; otherwise update the
 owned top-level source. Reconcile after upstream refresh and verify tracked and

@@ -16,7 +16,6 @@ qv/
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
   git/         Private git helper source and installers.
-  hyprland/    qvOS Hyprland refresh reconciliation.
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.

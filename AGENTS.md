@@ -213,7 +213,7 @@ Read every matching route completely before editing:
 - Menu, search, Walker, and Elephant: `qv/menu/AGENTS.md`
 - qvOS terminal interface and action flows: `qv/tui/AGENTS.md`
 - ISO construction and release images: `qv/iso/AGENTS.md`
-- Hyprland refresh and keybindings: `qv/hyprland/AGENTS.md`
+- qvOS Hyprland config and reconciliation: `qv/config/AGENTS.md`
 - Screensaver lifecycle and cursor handling: `qv/screensaver/AGENTS.md`
 - Commit and qvsync command mechanics: `qv/git/AGENTS.md`
 

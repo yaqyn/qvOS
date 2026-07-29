@@ -263,13 +263,20 @@ fi
 grep -Fq 'qvOS menu, exec, omarchy-menu qvos' \
   "$root/qv/config/files/hypr/qv/bindings.conf" ||
   fail "qvOS binding description"
-grep -Fq '`qv/hyprland/refresh` is the authoritative inventory' \
-  "$root/qv/hyprland/AGENTS.md" ||
+grep -Fq '`qv/config/refresh-hyprland` is the authoritative inventory' \
+  "$root/qv/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"
-grep -Fq 'otherwise update the' "$root/qv/hyprland/AGENTS.md" ||
+grep -Fq 'otherwise update the' "$root/qv/config/AGENTS.md" ||
   fail "qvOS Hyprland top-level source instruction"
-grep -Fq 'owned top-level source' "$root/qv/hyprland/AGENTS.md" ||
+grep -Fq 'owned top-level source' "$root/qv/config/AGENTS.md" ||
   fail "qvOS Hyprland top-level source instruction"
+[[ -x $root/qv/config/refresh-hyprland ]] ||
+  fail "qvOS Hyprland config reconciler"
+grep -Fqx '"$OMARCHY_PATH/qv/config/refresh-hyprland"' \
+  "$root/bin/omarchy-refresh-hyprland" ||
+  fail "Omarchy Hyprland refresh does not delegate to the config owner"
+[[ ! -e $root/qv/hyprland ]] ||
+  fail "redundant qvOS Hyprland domain remains"
 grep -Fq 'three rings is Update' "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI Update model role"
 grep -Fq 'one ring is About only' "$root/qv/tui/AGENTS.md" ||
