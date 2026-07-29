@@ -255,6 +255,11 @@ concept_action_icon() {
   Learn) printf '󰧑' ;;
   Choose) printf '󰄬' ;;
   View) printf '󰈈' ;;
+  Status) printf '󰋼' ;;
+  Enable) printf '󰐕' ;;
+  Disable) printf '󰆴' ;;
+  "Full Charge Once") printf '󰂄' ;;
+  Report) printf '󰈙' ;;
   Edit) printf '' ;;
   "Edit Text") printf '' ;;
   "Set Image") printf '' ;;

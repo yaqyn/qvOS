@@ -28,6 +28,7 @@ ai|󱚤|AI|Settings · Software|ollama,lm studio,dictation|Browse|menu:install-a
 dictation||Dictation|Settings · Software|voice,voxtype,ai
 windows|󰍲|Windows|Settings · Software|vm,virtual machine
 power-profile|󱐋|Power Profile|Settings · System|battery,performance|Configure|menu:power
+battery-protection|󰁹|Battery Protection|Settings · System|battery,charging,limit,conservation|Status|present:omarchy battery protection status|Enable|present:omarchy battery protection enable|Disable|present:omarchy battery protection disable|Full Charge Once|present:omarchy battery protection full-charge-once|Report|present:omarchy battery protection report
 system-sleep||System Sleep|Settings · System|suspend,hibernate|Configure|menu:system-sleep
 defaults||Defaults|Settings · System|browser,terminal,editor|Configure|menu:setup-defaults
 config||Config|Settings · System|defaults,refresh,reset|Edit|menu:setup-config|Restore|menu:update-config

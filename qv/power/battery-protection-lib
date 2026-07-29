@@ -1,0 +1,729 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034
+
+POWER_OWNER_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+POWER_BACKEND="$POWER_OWNER_DIR/battery-protection-backend"
+POWER_STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/battery-protection"
+POWER_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$UID}
+POWER_LOCK_FILE="$POWER_RUNTIME_DIR/qvos-battery-protection.lock"
+POWER_SERVICE=qvos-battery-full-charge-once.service
+POWER_ROOT_HELPER=/usr/lib/qvos/battery-protection-hwdb
+POWER_PKEXEC=/usr/bin/pkexec
+POWER_SYSTEMCTL=/usr/bin/systemctl
+POWER_SYSFS_ROOT=/sys
+POWER_HWDB_FILE=/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb
+POWER_VERIFY_ATTEMPTS=10
+
+if [[ ${QVOS_POWER_TESTING:-} == "1" ]]; then
+  if ((EUID == 0)) ||
+    [[ ${QVOS_POWER_BACKEND:-} != /tmp/* ||
+      ${QVOS_POWER_PKEXEC:-} != /tmp/* ||
+      ${QVOS_POWER_SYSTEMCTL:-} != /tmp/* ||
+      ${QVOS_POWER_SYSFS_ROOT:-} != /tmp/* ||
+      ${QVOS_POWER_STATE_ROOT:-} != /tmp/* ||
+      ${QVOS_POWER_SYSTEM_ROOT:-} != /tmp/* ]]; then
+    echo "Battery Protection test overrides require isolated non-root /tmp paths." >&2
+    return 1
+  fi
+  POWER_BACKEND=${QVOS_POWER_BACKEND:-$POWER_BACKEND}
+  POWER_ROOT_HELPER=${QVOS_POWER_ROOT_HELPER:-$POWER_ROOT_HELPER}
+  POWER_PKEXEC=${QVOS_POWER_PKEXEC:-$POWER_PKEXEC}
+  POWER_SYSTEMCTL=${QVOS_POWER_SYSTEMCTL:-$POWER_SYSTEMCTL}
+  POWER_SYSFS_ROOT=${QVOS_POWER_SYSFS_ROOT:-$POWER_SYSFS_ROOT}
+  POWER_STATE_ROOT=$QVOS_POWER_STATE_ROOT
+  POWER_VERIFY_ATTEMPTS=${QVOS_POWER_VERIFY_ATTEMPTS:-1}
+  if [[ -n ${QVOS_POWER_SYSTEM_ROOT:-} ]]; then
+    POWER_HWDB_FILE="$QVOS_POWER_SYSTEM_ROOT/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb"
+  fi
+fi
+
+declare -a BATTERY_OBJECTS=()
+declare -a BATTERY_PATHS=()
+declare -a BATTERY_MASKS=()
+declare -a BATTERY_ENABLED=()
+declare -a BATTERY_START=()
+declare -a BATTERY_END=()
+declare -a BATTERY_STATES=()
+
+DISCOVERY_REASON=""
+CAPABILITY_SHAPE=""
+CAPABILITY_DESCRIPTION=""
+OBSERVED_MODE=""
+OBSERVED_REASON=""
+INTENT_STATE=""
+INTENT_PRESET=""
+INTENT_SHAPE=""
+OVERRIDE_PRESET=""
+OVERRIDE_SHAPE=""
+OVERRIDE_DEADLINE=""
+
+power_backend() {
+  "$POWER_BACKEND" "$@"
+}
+
+property() {
+  power_backend get "$1" "$2"
+}
+
+resolve_battery_path() {
+  local native_path="$1"
+  local candidate
+  local resolved
+
+  if [[ $native_path =~ ^[A-Za-z0-9._-]+$ ]]; then
+    candidate="$POWER_SYSFS_ROOT/class/power_supply/$native_path"
+  elif [[ $native_path == "$POWER_SYSFS_ROOT/"* && $native_path != *"/../"* &&
+    $native_path != *"/.." ]]; then
+    candidate=$native_path
+  else
+    return 1
+  fi
+
+  resolved=$(readlink -f -- "$candidate") || return 1
+  [[ $resolved == "$POWER_SYSFS_ROOT/devices/"* ||
+    ${QVOS_POWER_TESTING:-} == "1" && $resolved == "$POWER_SYSFS_ROOT/"* ]] ||
+    return 1
+  [[ -d $resolved && -r $resolved/type && $(<"$resolved/type") == "Battery" ]] ||
+    return 1
+  [[ ! -r $resolved/present || $(<"$resolved/present") == "1" ]] || return 1
+  printf '%s\n' "$resolved"
+}
+
+discover_batteries() {
+  local object
+  local type
+  local power_supply
+  local present
+  local rechargeable
+  local native_path
+  local kernel_path
+  local supported
+  local mask
+  local enabled
+  local start
+  local end
+  local state
+  local devices
+
+  BATTERY_OBJECTS=()
+  BATTERY_PATHS=()
+  BATTERY_MASKS=()
+  BATTERY_ENABLED=()
+  BATTERY_START=()
+  BATTERY_END=()
+  BATTERY_STATES=()
+  DISCOVERY_REASON=""
+
+  if [[ ! -x $POWER_BACKEND ]]; then
+    DISCOVERY_REASON="UPower backend is unavailable"
+    return 1
+  fi
+  devices=$(power_backend enumerate) ||
+    {
+      DISCOVERY_REASON="UPower is unavailable"
+      return 1
+    }
+
+  while IFS= read -r object; do
+    [[ -n $object ]] || continue
+    [[ $object != "/org/freedesktop/UPower/devices/DisplayDevice" ]] || continue
+
+    type=$(property "$object" Type) ||
+      {
+        DISCOVERY_REASON="UPower did not return a device type"
+        return 1
+      }
+    [[ $type == "2" ]] || continue
+    power_supply=$(property "$object" PowerSupply) ||
+      {
+        DISCOVERY_REASON="UPower did not identify the battery power supply"
+        return 1
+      }
+    [[ $power_supply == "true" ]] || continue
+    present=$(property "$object" IsPresent) ||
+      {
+        DISCOVERY_REASON="UPower did not report whether a battery is present"
+        return 1
+      }
+    [[ $present == "true" ]] || continue
+    rechargeable=$(property "$object" IsRechargeable) ||
+      {
+        DISCOVERY_REASON="UPower did not report whether a battery is rechargeable"
+        return 1
+      }
+    if [[ $rechargeable != "true" ]]; then
+      DISCOVERY_REASON="A present system battery is not reported as rechargeable"
+      return 1
+    fi
+
+    native_path=$(property "$object" NativePath) ||
+      {
+        DISCOVERY_REASON="UPower did not provide a kernel battery path"
+        return 1
+      }
+    kernel_path=$(resolve_battery_path "$native_path") ||
+      {
+        DISCOVERY_REASON="A present system battery has no valid kernel power-supply path"
+        return 1
+      }
+    supported=$(property "$object" ChargeThresholdSupported) ||
+      {
+        DISCOVERY_REASON="UPower did not report charge-limit support"
+        return 1
+      }
+    mask=$(property "$object" ChargeThresholdSettingsSupported) ||
+      {
+        DISCOVERY_REASON="UPower did not report charge-limit settings"
+        return 1
+      }
+    enabled=$(property "$object" ChargeThresholdEnabled) ||
+      {
+        DISCOVERY_REASON="UPower did not report the charge-limit state"
+        return 1
+      }
+    start=$(property "$object" ChargeStartThreshold) ||
+      {
+        DISCOVERY_REASON="UPower did not report the start threshold"
+        return 1
+      }
+    end=$(property "$object" ChargeEndThreshold) ||
+      {
+        DISCOVERY_REASON="UPower did not report the end threshold"
+        return 1
+      }
+    state=$(property "$object" State) ||
+      {
+        DISCOVERY_REASON="UPower did not report the battery state"
+        return 1
+      }
+    if [[ $supported != "true" ]]; then
+      mask=0
+    fi
+    BATTERY_OBJECTS+=("$object")
+    BATTERY_PATHS+=("$kernel_path")
+    BATTERY_MASKS+=("$mask")
+    BATTERY_ENABLED+=("$enabled")
+    BATTERY_START+=("$start")
+    BATTERY_END+=("$end")
+    BATTERY_STATES+=("$state")
+  done <<<"$devices"
+
+  if ((${#BATTERY_OBJECTS[@]} == 0)); then
+    DISCOVERY_REASON="No present rechargeable system battery was found"
+    return 1
+  fi
+}
+
+active_charge_type() {
+  local charge_types="$1/charge_types"
+  local values
+
+  [[ -r $charge_types ]] || return 1
+  values=$(<"$charge_types")
+  [[ $values =~ \[([^][]+)\] ]] || return 1
+  printf '%s\n' "${BASH_REMATCH[1]}"
+}
+
+analyze_capability() {
+  local expected_shape=""
+  local index
+  local mask
+  local shape
+  local path
+  local charge_types
+
+  CAPABILITY_SHAPE=""
+  CAPABILITY_DESCRIPTION=""
+  DISCOVERY_REASON=""
+
+  for index in "${!BATTERY_OBJECTS[@]}"; do
+    mask=${BATTERY_MASKS[$index]}
+    path=${BATTERY_PATHS[$index]}
+    case $mask in
+    3)
+      [[ -r $path/charge_control_start_threshold &&
+        -r $path/charge_control_end_threshold ]] ||
+        {
+          DISCOVERY_REASON="UPower claims adjustable thresholds without complete kernel readback"
+          return 1
+        }
+      shape="start-end"
+      ;;
+    2)
+      [[ -r $path/charge_control_end_threshold ]] ||
+        {
+          DISCOVERY_REASON="UPower claims an end threshold without kernel readback"
+          return 1
+        }
+      shape="end-only"
+      ;;
+    4)
+      [[ -r $path/charge_types ]] ||
+        {
+          DISCOVERY_REASON="UPower claims firmware control without kernel charge-type readback"
+          return 1
+        }
+      charge_types=$(<"$path/charge_types")
+      [[ $charge_types == *"Standard"* && $charge_types == *"Long_Life"* ]] ||
+        {
+          DISCOVERY_REASON="Firmware charge types do not expose Standard and Long_Life"
+          return 1
+        }
+      shape=firmware
+      ;;
+    0)
+      DISCOVERY_REASON="Charge limiting is not supported by every battery"
+      return 1
+      ;;
+    1)
+      DISCOVERY_REASON="Start-threshold-only hardware has no safe maximum charge limit"
+      return 1
+      ;;
+    6 | 7)
+      DISCOVERY_REASON="Adjustable and firmware-controlled threshold capabilities conflict"
+      return 1
+      ;;
+    *)
+      DISCOVERY_REASON="UPower returned an unknown charge-limit capability"
+      return 1
+      ;;
+    esac
+
+    if [[ -n $expected_shape && $shape != "$expected_shape" ]]; then
+      DISCOVERY_REASON="System batteries do not share one safe charge-limit capability"
+      return 1
+    fi
+    expected_shape=$shape
+  done
+
+  CAPABILITY_SHAPE=$expected_shape
+  case $CAPABILITY_SHAPE in
+  start-end)
+    CAPABILITY_DESCRIPTION="adjustable start and end thresholds"
+    ;;
+  end-only)
+    CAPABILITY_DESCRIPTION="adjustable end threshold; restart remains firmware-controlled"
+    ;;
+  firmware)
+    CAPABILITY_DESCRIPTION="firmware Long Life mode (approximately 50-60%)"
+    ;;
+  esac
+}
+
+preset_values() {
+  case $1 in
+  balanced) printf '75 80\n' ;;
+  plugged-in) printf '55 60\n' ;;
+  *) return 2 ;;
+  esac
+}
+
+observe_mode() {
+  local index
+  local enabled_count=0
+  local active_type
+  local kernel_start
+  local kernel_end
+
+  OBSERVED_MODE=""
+  OBSERVED_REASON=""
+  for enabled in "${BATTERY_ENABLED[@]}"; do
+    [[ $enabled == "true" ]] && ((enabled_count += 1))
+  done
+
+  if ((enabled_count != 0 && enabled_count != ${#BATTERY_ENABLED[@]})); then
+    OBSERVED_MODE=drift
+    OBSERVED_REASON="UPower reports a partial state across batteries"
+    return
+  fi
+
+  if ((enabled_count == 0)); then
+    for index in "${!BATTERY_OBJECTS[@]}"; do
+      case $CAPABILITY_SHAPE in
+      firmware)
+        active_type=$(active_charge_type "${BATTERY_PATHS[$index]}") ||
+          {
+            OBSERVED_MODE=drift
+            OBSERVED_REASON="Kernel charge-type readback is unavailable"
+            return
+          }
+        [[ $active_type == "Standard" ]] ||
+          {
+            OBSERVED_MODE=drift
+            OBSERVED_REASON="UPower is disabled but the kernel is not in Standard mode"
+            return
+          }
+        ;;
+      start-end)
+        kernel_start=$(<"${BATTERY_PATHS[$index]}/charge_control_start_threshold")
+        kernel_end=$(<"${BATTERY_PATHS[$index]}/charge_control_end_threshold")
+        [[ $kernel_start == "0" && $kernel_end == "100" ]] ||
+          {
+            OBSERVED_MODE=drift
+            OBSERVED_REASON="UPower is disabled but kernel thresholds are not unlimited"
+            return
+          }
+        ;;
+      end-only)
+        kernel_end=$(<"${BATTERY_PATHS[$index]}/charge_control_end_threshold")
+        [[ $kernel_end == "100" ]] ||
+          {
+            OBSERVED_MODE=drift
+            OBSERVED_REASON="UPower is disabled but the kernel end threshold is not unlimited"
+            return
+          }
+        ;;
+      esac
+    done
+    OBSERVED_MODE=disabled
+    return
+  fi
+
+  for index in "${!BATTERY_OBJECTS[@]}"; do
+    case $CAPABILITY_SHAPE in
+    firmware)
+      active_type=$(active_charge_type "${BATTERY_PATHS[$index]}") ||
+        {
+          OBSERVED_MODE=drift
+          OBSERVED_REASON="Kernel charge-type readback is unavailable"
+          return
+        }
+      [[ $active_type == "Long_Life" ]] ||
+        {
+          OBSERVED_MODE=drift
+          OBSERVED_REASON="UPower is enabled but the kernel is not in Long_Life mode"
+          return
+        }
+      ;;
+    start-end)
+      kernel_start=$(<"${BATTERY_PATHS[$index]}/charge_control_start_threshold")
+      kernel_end=$(<"${BATTERY_PATHS[$index]}/charge_control_end_threshold")
+      [[ $kernel_start == "${BATTERY_START[$index]}" &&
+        $kernel_end == "${BATTERY_END[$index]}" ]] ||
+        {
+          OBSERVED_MODE=drift
+          OBSERVED_REASON="UPower and kernel adjustable thresholds disagree"
+          return
+        }
+      ;;
+    end-only)
+      kernel_end=$(<"${BATTERY_PATHS[$index]}/charge_control_end_threshold")
+      [[ $kernel_end == "${BATTERY_END[$index]}" ]] ||
+        {
+          OBSERVED_MODE=drift
+          OBSERVED_REASON="UPower and the kernel end threshold disagree"
+          return
+        }
+      ;;
+    esac
+  done
+  OBSERVED_MODE=enabled
+}
+
+verify_mode_once() {
+  local expected="$1"
+  local preset="${2:-}"
+  local shape="$3"
+  local expected_start=""
+  local expected_end=""
+  local index
+
+  discover_batteries && analyze_capability || return 1
+  [[ $CAPABILITY_SHAPE == "$shape" ]] || return 1
+  observe_mode
+  [[ $OBSERVED_MODE == "$expected" ]] || return 1
+
+  if [[ $expected == "enabled" && $shape != "firmware" ]]; then
+    read -r expected_start expected_end < <(preset_values "$preset")
+    for index in "${!BATTERY_OBJECTS[@]}"; do
+      [[ ${BATTERY_END[$index]} == "$expected_end" ]] || return 1
+      if [[ $shape == "start-end" ]]; then
+        [[ ${BATTERY_START[$index]} == "$expected_start" ]] || return 1
+      fi
+    done
+  fi
+}
+
+verify_mode() {
+  local expected="$1"
+  local preset="${2:-}"
+  local shape="$3"
+  local attempt
+
+  for ((attempt = 1; attempt <= POWER_VERIFY_ATTEMPTS; attempt++)); do
+    if verify_mode_once "$expected" "$preset" "$shape"; then
+      return 0
+    fi
+    ((attempt == POWER_VERIFY_ATTEMPTS)) || sleep 0.2
+  done
+  return 1
+}
+
+verify_configured_thresholds() {
+  local preset="$1"
+  local shape="$2"
+  local expected_start
+  local expected_end
+  local attempt
+  local index
+
+  read -r expected_start expected_end < <(preset_values "$preset")
+  for ((attempt = 1; attempt <= POWER_VERIFY_ATTEMPTS; attempt++)); do
+    if discover_batteries && analyze_capability &&
+      [[ $CAPABILITY_SHAPE == "$shape" ]]; then
+      configured=true
+      for index in "${!BATTERY_OBJECTS[@]}"; do
+        [[ ${BATTERY_END[$index]} == "$expected_end" ]] || configured=false
+        if [[ $shape == "start-end" &&
+          ${BATTERY_START[$index]} != "$expected_start" ]]; then
+          configured=false
+        fi
+      done
+      [[ $configured == "true" ]] && return 0
+    fi
+    ((attempt == POWER_VERIFY_ATTEMPTS)) || sleep 0.2
+  done
+  return 1
+}
+
+set_mode_all() {
+  local enabled="$1"
+  local object
+  local failed=false
+
+  for object in "${BATTERY_OBJECTS[@]}"; do
+    if ! power_backend set "$object" "$enabled"; then
+      failed=true
+    fi
+  done
+  if [[ $failed == "true" ]]; then
+    if [[ $enabled == "true" ]]; then
+      for object in "${BATTERY_OBJECTS[@]}"; do
+        power_backend set "$object" false >/dev/null 2>&1 || true
+      done
+    fi
+    return 1
+  fi
+}
+
+ensure_state_dir() {
+  if [[ ! -e $POWER_STATE_ROOT ]]; then
+    install -d -m 0700 "$POWER_STATE_ROOT"
+  fi
+  state_dir_safe ||
+    {
+      echo "Battery Protection state directory must be user-owned mode 0700." >&2
+      return 1
+    }
+}
+
+state_dir_safe() {
+  [[ ! -e $POWER_STATE_ROOT ]] && return 0
+  [[ -d $POWER_STATE_ROOT && ! -L $POWER_STATE_ROOT ]] || return 1
+  [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT") == "$UID:700" ]]
+}
+
+atomic_state_write() {
+  local name="$1"
+  local value="$2"
+  local temporary
+
+  ensure_state_dir
+  temporary=$(mktemp "$POWER_STATE_ROOT/.$name.XXXXXX")
+  printf '%s\n' "$value" >"$temporary"
+  chmod 0600 "$temporary"
+  mv -f "$temporary" "$POWER_STATE_ROOT/$name"
+}
+
+read_intent() {
+  local version
+  local extra
+
+  INTENT_STATE=""
+  INTENT_PRESET=""
+  INTENT_SHAPE=""
+  state_dir_safe || return 1
+  [[ -f $POWER_STATE_ROOT/intent && ! -L $POWER_STATE_ROOT/intent ]] || return 0
+  [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT/intent") == "$UID:600" ]] || return 1
+  IFS='|' read -r version INTENT_STATE INTENT_PRESET INTENT_SHAPE extra \
+    <"$POWER_STATE_ROOT/intent"
+  [[ $version == "1" && -z ${extra:-} ]] || return 1
+  case $INTENT_STATE in
+  enabled)
+    [[ $INTENT_PRESET == "balanced" || $INTENT_PRESET == "plugged-in" ]] ||
+      return 1
+    [[ $INTENT_SHAPE == "start-end" || $INTENT_SHAPE == "end-only" ||
+      $INTENT_SHAPE == "firmware" ]] || return 1
+    ;;
+  disabled)
+    [[ $INTENT_PRESET == "-" && $INTENT_SHAPE == "-" ]] || return 1
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+write_intent() {
+  local state="$1"
+  local preset="${2:--}"
+  local shape="${3:--}"
+
+  atomic_state_write intent "1|$state|$preset|$shape"
+}
+
+read_override() {
+  local version
+  local extra
+
+  OVERRIDE_PRESET=""
+  OVERRIDE_SHAPE=""
+  OVERRIDE_DEADLINE=""
+  state_dir_safe || return 1
+  [[ -f $POWER_STATE_ROOT/override && ! -L $POWER_STATE_ROOT/override ]] ||
+    return 0
+  [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT/override") == "$UID:600" ]] ||
+    return 1
+  IFS='|' read -r version OVERRIDE_PRESET OVERRIDE_SHAPE OVERRIDE_DEADLINE extra \
+    <"$POWER_STATE_ROOT/override"
+  [[ $version == "1" && -z ${extra:-} ]] || return 1
+  [[ $OVERRIDE_PRESET == "balanced" || $OVERRIDE_PRESET == "plugged-in" ]] ||
+    return 1
+  [[ $OVERRIDE_SHAPE == "start-end" || $OVERRIDE_SHAPE == "end-only" ||
+    $OVERRIDE_SHAPE == "firmware" ]] || return 1
+  [[ $OVERRIDE_DEADLINE =~ ^[0-9]+$ ]] || return 1
+}
+
+write_override() {
+  atomic_state_write override "1|$1|$2|$3"
+}
+
+remove_override() {
+  rm -f "$POWER_STATE_ROOT/override"
+}
+
+lock_mutation() {
+  [[ -d $POWER_RUNTIME_DIR ]] ||
+    {
+      echo "Battery Protection runtime directory is unavailable." >&2
+      return 1
+    }
+  [[ ! -L $POWER_LOCK_FILE ]] ||
+    {
+      echo "Battery Protection runtime lock must not be a symlink." >&2
+      return 1
+    }
+  exec 9>"$POWER_LOCK_FILE"
+  if ! flock -n 9; then
+    echo "Another Battery Protection operation is already running." >&2
+    return 1
+  fi
+}
+
+run_root_helper() {
+  if [[ ${QVOS_POWER_TESTING:-} != "1" ]]; then
+    [[ -f $POWER_ROOT_HELPER && ! -L $POWER_ROOT_HELPER &&
+      $(stat -c '%u:%g:%a' "$POWER_ROOT_HELPER") == "0:0:755" ]] ||
+      {
+        echo "The Battery Protection root helper is not trusted." >&2
+        return 1
+      }
+  fi
+  [[ -x $POWER_ROOT_HELPER ]] ||
+    {
+      echo "The root-owned Battery Protection helper is not installed." >&2
+      return 1
+    }
+  "$POWER_PKEXEC" "$POWER_ROOT_HELPER" "$@"
+}
+
+hwdb_state() {
+  local expected_identity="0:0:644"
+
+  if [[ ${QVOS_POWER_TESTING:-} == "1" && -n ${QVOS_POWER_SYSTEM_ROOT:-} ]]; then
+    expected_identity="$UID:$(id -g):644"
+  fi
+  if [[ -L $POWER_HWDB_FILE ]]; then
+    printf 'conflict\n'
+  elif [[ ! -e $POWER_HWDB_FILE ]]; then
+    printf 'absent\n'
+  elif [[ -f $POWER_HWDB_FILE &&
+    $(stat -c '%u:%g:%a' "$POWER_HWDB_FILE") == "$expected_identity" &&
+    $(sed -n '1p' "$POWER_HWDB_FILE") == "# qvOS Battery Protection - managed file" ]]; then
+    printf 'qvos\n'
+  else
+    printf 'conflict\n'
+  fi
+}
+
+conflicting_manager() {
+  local service
+
+  for service in tlp.service auto-cpufreq.service asusd.service; do
+    if "$POWER_SYSTEMCTL" is-active --quiet "$service" 2>/dev/null; then
+      printf '%s\n' "${service%.service}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ac_online() {
+  local object
+  local type
+  local power_supply
+  local online
+
+  while IFS= read -r object; do
+    [[ -n $object ]] || continue
+    [[ $object != "/org/freedesktop/UPower/devices/DisplayDevice" ]] || continue
+    type=$(property "$object" Type) || continue
+    [[ $type == "1" ]] || continue
+    power_supply=$(property "$object" PowerSupply) || continue
+    online=$(property "$object" Online) || continue
+    [[ $power_supply == "true" && $online == "true" ]] && return 0
+  done < <(power_backend enumerate)
+  return 1
+}
+
+all_batteries_full() {
+  local state
+
+  discover_batteries || return 1
+  for state in "${BATTERY_STATES[@]}"; do
+    [[ $state == "4" ]] || return 1
+  done
+}
+
+service_stop() {
+  "$POWER_SYSTEMCTL" --user stop "$POWER_SERVICE"
+}
+
+service_enable() {
+  "$POWER_SYSTEMCTL" --user enable "$POWER_SERVICE"
+}
+
+service_start() {
+  "$POWER_SYSTEMCTL" --user start "$POWER_SERVICE"
+}
+
+service_disable() {
+  "$POWER_SYSTEMCTL" --user disable "$POWER_SERVICE"
+}
+
+restore_protection_from_override() {
+  read_intent && read_override || return 1
+  [[ $INTENT_STATE == "enabled" && -n $OVERRIDE_PRESET &&
+    $INTENT_PRESET == "$OVERRIDE_PRESET" &&
+    $INTENT_SHAPE == "$OVERRIDE_SHAPE" ]] || return 1
+  discover_batteries && analyze_capability || return 1
+  [[ $CAPABILITY_SHAPE == "$OVERRIDE_SHAPE" ]] || return 1
+  if [[ $OVERRIDE_SHAPE != "firmware" ]]; then
+    [[ $(hwdb_state) == "qvos" ]] || return 1
+    verify_configured_thresholds "$OVERRIDE_PRESET" "$OVERRIDE_SHAPE" || return 1
+  elif [[ $(hwdb_state) != "absent" ]]; then
+    return 1
+  fi
+  set_mode_all true || return 1
+  verify_mode enabled "$OVERRIDE_PRESET" "$OVERRIDE_SHAPE"
+}

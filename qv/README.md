@@ -20,7 +20,7 @@ qv/
   iso/         ISO integration patches.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   network/     qvOS DNS policy and optional WARP routing.
-  power/       Sleep inhibition and guarded suspend.
+  power/       Sleep inhibition, guarded suspend, and opt-in battery protection.
   presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
   security/    Codex-operated security auditing and hardening workflow.

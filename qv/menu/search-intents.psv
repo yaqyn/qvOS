@@ -71,6 +71,9 @@ power mode|Power Profile
 battery mode|Power Profile
 performance mode|Power Profile
 power saver|Power Profile
+battery protection|Battery Protection
+charging limit|Battery Protection
+battery conservation|Battery Protection
 sleep settings|System Sleep
 suspend settings|System Sleep
 hibernate settings|System Sleep

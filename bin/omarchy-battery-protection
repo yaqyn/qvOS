@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Inspect or configure safe battery charge protection
+# omarchy:group=battery
+# omarchy:name=protection
+# omarchy:args=[status|enable [balanced|plugged-in]|disable|full-charge-once|report]
+# omarchy:examples=omarchy battery protection status | omarchy battery protection enable plugged-in | omarchy battery protection report
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/power/battery-protection" "$@"

@@ -1,0 +1,79 @@
+#!/bin/bash
+set -euo pipefail
+
+busctl=/usr/bin/busctl
+if [[ ${QVOS_POWER_TESTING:-} == "1" && -n ${QVOS_POWER_BUSCTL:-} ]]; then
+  busctl=$QVOS_POWER_BUSCTL
+fi
+
+interface=org.freedesktop.UPower.Device
+
+valid_object() {
+  [[ $1 =~ ^/org/freedesktop/UPower/devices/[A-Za-z0-9_]+$ ]]
+}
+
+valid_property() {
+  case $1 in
+  Type | PowerSupply | Online | IsPresent | IsRechargeable | NativePath | \
+    ChargeThresholdSupported | ChargeThresholdSettingsSupported | \
+    ChargeThresholdEnabled | ChargeStartThreshold | ChargeEndThreshold | State)
+    ;;
+  *) return 1 ;;
+  esac
+}
+
+case ${1:-} in
+enumerate)
+  output=$(
+    "$busctl" --system call \
+      org.freedesktop.UPower \
+      /org/freedesktop/UPower \
+      org.freedesktop.UPower \
+      EnumerateDevices
+  )
+  grep -oE '"/org/freedesktop/UPower/devices/[A-Za-z0-9_]+"' <<<"$output" |
+    tr -d '"'
+  ;;
+get)
+  object=${2:-}
+  property=${3:-}
+  valid_object "$object" && valid_property "$property" || exit 2
+
+  read -r property_type value rest < <(
+    "$busctl" --system get-property \
+      org.freedesktop.UPower "$object" "$interface" "$property"
+  )
+  [[ -z ${rest:-} ]] || exit 1
+  case $property_type in
+  b | u | d)
+    printf '%s\n' "$value"
+    ;;
+  s)
+    value=${value#\"}
+    value=${value%\"}
+    [[ $value =~ ^[A-Za-z0-9._/:+-]*$ ]] || exit 1
+    printf '%s\n' "$value"
+    ;;
+  *)
+    exit 1
+    ;;
+  esac
+  ;;
+set)
+  object=${2:-}
+  enabled=${3:-}
+  valid_object "$object" || exit 2
+  [[ $enabled == "true" || $enabled == "false" ]] || exit 2
+
+  "$busctl" --system call \
+    org.freedesktop.UPower \
+    "$object" \
+    "$interface" \
+    EnableChargeThreshold \
+    b "$enabled" >/dev/null
+  ;;
+*)
+  echo "Usage: battery-protection-backend <enumerate|get OBJECT PROPERTY|set OBJECT true|false>" >&2
+  exit 2
+  ;;
+esac

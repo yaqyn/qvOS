@@ -43,6 +43,12 @@
     qv/menu/walker-provider-set.toml
     qv/menu/walker-subtext.css
     qv/power/inhibit-sleep
+    qv/power/battery-protection
+    qv/power/battery-protection-backend
+    qv/power/battery-protection-hwdb
+    qv/power/battery-protection-lib
+    qv/power/install
+    qv/power/qvos-battery-full-charge-once.service
     qv/power/suspend-if-safe
     qv/screensaver/alacritty.toml
     qv/screensaver/omarchy-launch-screensaver
@@ -141,10 +147,7 @@
     "$local_bin"
   "$OMARCHY_PATH/qv/tui/install" --build-if-available
   "$OMARCHY_PATH/qv/shell/install"
-  for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
-    power_owner=${command_name#omarchy-system-}
-    install -m 0755 "$OMARCHY_PATH/qv/power/$power_owner" "$qvos_bin/$command_name"
-  done
+  "$OMARCHY_PATH/qv/power/install"
   install -m 0644 "$screensaver_source/alacritty.toml" "$qvos_screensaver/alacritty.toml"
   for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
     install -m 0755 "$screensaver_source/$command_name" "$qvos_bin/$command_name"

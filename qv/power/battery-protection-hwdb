@@ -1,0 +1,232 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+owner_marker="# qvOS Battery Protection - managed file"
+system_root=""
+systemd_hwdb=/usr/bin/systemd-hwdb
+udevadm=/usr/bin/udevadm
+
+if ((EUID != 0)); then
+  test_root=${QVOS_POWER_HELPER_TEST_ROOT:-}
+  test_bin=${QVOS_POWER_HELPER_TEST_BIN:-}
+  [[ ${QVOS_POWER_TESTING:-} == "1" ]] ||
+    {
+      echo "Battery Protection hwdb helper must run as root." >&2
+      exit 1
+    }
+  [[ $test_root == /tmp/* && -d $test_root && ! -L $test_root ]] ||
+    {
+      echo "Invalid Battery Protection helper test root." >&2
+      exit 1
+    }
+  [[ $(/usr/bin/stat -c '%u' "$test_root") == "$UID" ]] ||
+    {
+      echo "Battery Protection helper test root has the wrong owner." >&2
+      exit 1
+    }
+  [[ $test_bin == /tmp/* && -x $test_bin/systemd-hwdb &&
+    -x $test_bin/udevadm ]] ||
+    {
+      echo "Invalid Battery Protection helper test commands." >&2
+      exit 1
+    }
+  system_root=$test_root
+  systemd_hwdb=$test_bin/systemd-hwdb
+  udevadm=$test_bin/udevadm
+fi
+
+hwdb_dir="$system_root/etc/udev/hwdb.d"
+hwdb_file="$hwdb_dir/61-qvos-battery-protection.hwdb"
+transaction_dir="$system_root/run/qvos-battery-protection-hwdb"
+transaction_state="$transaction_dir/previous-state"
+transaction_file="$transaction_dir/previous.hwdb"
+lock_file="$system_root/run/qvos-battery-protection-hwdb.lock"
+
+/usr/bin/mkdir -p "$(/usr/bin/dirname -- "$lock_file")"
+[[ ! -L $lock_file ]] ||
+  {
+    echo "Refusing the symlinked Battery Protection helper lock." >&2
+    exit 1
+  }
+exec 9>"$lock_file"
+/usr/bin/flock 9
+
+validate_existing() {
+  local expected_identity="0:0:644"
+  local existing_identity
+
+  if ((EUID != 0)); then
+    expected_identity="$UID:$(/usr/bin/id -g):644"
+  fi
+  [[ ! -L $hwdb_dir ]] ||
+    {
+      echo "Refusing the symlinked Battery Protection hwdb directory." >&2
+      return 1
+    }
+  [[ ! -L $hwdb_file ]] ||
+    {
+      echo "Refusing the symlinked Battery Protection hwdb path." >&2
+      return 1
+    }
+  [[ -e $hwdb_file ]] || return 0
+  [[ -f $hwdb_file ]] ||
+    {
+      echo "Refusing the non-file Battery Protection hwdb path." >&2
+      return 1
+    }
+  existing_identity=$(/usr/bin/stat -c '%u:%g:%a' "$hwdb_file")
+  [[ $existing_identity == "$expected_identity" ]] ||
+    {
+      echo "Battery Protection hwdb has unexpected ownership or permissions." >&2
+      return 1
+    }
+  [[ $(/usr/bin/sed -n '1p' "$hwdb_file") == "$owner_marker" ]] ||
+    {
+      echo "Battery Protection hwdb is not owned by qvOS." >&2
+      return 1
+    }
+}
+
+reload_hwdb() {
+  "$systemd_hwdb" update || return
+  "$udevadm" trigger --subsystem-match=power_supply || return
+}
+
+write_preset() {
+  local shape="$1"
+  local preset="$2"
+  local start
+  local end
+  local limit
+  local temporary
+
+  case $preset in
+  balanced)
+    start=75
+    end=80
+    ;;
+  plugged-in)
+    start=55
+    end=60
+    ;;
+  *)
+    return 2
+    ;;
+  esac
+  case $shape in
+  start-end) limit="$start,$end" ;;
+  end-only) limit="_,$end" ;;
+  *) return 2 ;;
+  esac
+
+  /usr/bin/install -d -o "$(/usr/bin/id -u)" -g "$(/usr/bin/id -g)" -m 0755 "$hwdb_dir"
+  temporary=$(/usr/bin/mktemp "$hwdb_dir/.61-qvos-battery-protection.XXXXXX")
+  {
+    printf '%s\n' "$owner_marker"
+    printf '# Generated from fixed qvOS presets; do not edit.\n'
+    printf 'battery:*:*:dmi:*\n'
+    printf ' CHARGE_LIMIT=%s\n' "$limit"
+  } >"$temporary"
+  /usr/bin/chmod 0644 "$temporary"
+  if ((EUID == 0)); then
+    /usr/bin/chown root:root "$temporary"
+  fi
+  /usr/bin/mv -f "$temporary" "$hwdb_file"
+}
+
+save_transaction() {
+  [[ ! -e $transaction_dir && ! -L $transaction_dir ]] ||
+    {
+      echo "A Battery Protection hwdb transaction is already pending." >&2
+      return 1
+    }
+  /usr/bin/install -d -o "$(/usr/bin/id -u)" -g "$(/usr/bin/id -g)" -m 0700 "$transaction_dir"
+  if [[ -e $hwdb_file ]]; then
+    /usr/bin/cp -a "$hwdb_file" "$transaction_file"
+    printf 'present\n' >"$transaction_state"
+  else
+    printf 'absent\n' >"$transaction_state"
+  fi
+  /usr/bin/chmod 0600 "$transaction_state"
+}
+
+restore_transaction() {
+  local previous_state
+
+  [[ -d $transaction_dir && -f $transaction_state ]] || return 0
+  previous_state=$(<"$transaction_state")
+  case $previous_state in
+  present)
+    [[ -f $transaction_file && ! -L $transaction_file ]] || return 1
+    /usr/bin/install -d -o "$(/usr/bin/id -u)" -g "$(/usr/bin/id -g)" -m 0755 "$hwdb_dir"
+    /usr/bin/install -m 0644 "$transaction_file" "$hwdb_file"
+    if ((EUID == 0)); then
+      /usr/bin/chown root:root "$hwdb_file"
+    fi
+    ;;
+  absent)
+    /usr/bin/rm -f "$hwdb_file"
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+  reload_hwdb
+  /usr/bin/rm -rf "$transaction_dir"
+}
+
+case ${1:-} in
+apply)
+  (($# == 3)) || exit 2
+  validate_existing
+  save_transaction
+  status=0
+  write_preset "$2" "$3" || status=$?
+  if ((status == 0)); then
+    reload_hwdb || status=$?
+  fi
+  if ((status != 0)); then
+    restore_transaction || true
+    exit "$status"
+  fi
+  ;;
+commit)
+  (($# == 1)) || exit 2
+  validate_existing
+  [[ -d $transaction_dir && -f $transaction_state ]] ||
+    {
+      echo "No Battery Protection hwdb transaction is pending." >&2
+      exit 1
+    }
+  /usr/bin/rm -rf "$transaction_dir"
+  ;;
+rollback | recover)
+  (($# == 1)) || exit 2
+  validate_existing
+  restore_transaction
+  ;;
+remove)
+  (($# == 1)) || exit 2
+  validate_existing
+  [[ ! -e $transaction_dir ]] ||
+    {
+      echo "A Battery Protection hwdb transaction is pending." >&2
+      exit 1
+    }
+  [[ -e $hwdb_file ]] || exit 0
+  save_transaction
+  /usr/bin/rm -f "$hwdb_file"
+  status=0
+  reload_hwdb || status=$?
+  if ((status != 0)); then
+    restore_transaction || true
+    exit "$status"
+  fi
+  /usr/bin/rm -rf "$transaction_dir"
+  ;;
+*)
+  echo "Usage: battery-protection-hwdb <apply start-end|end-only balanced|plugged-in|commit|rollback|recover|remove>" >&2
+  exit 2
+  ;;
+esac

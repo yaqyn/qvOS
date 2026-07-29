@@ -3,6 +3,8 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
+export QVOS_POWER_TESTING=1
+export QVOS_POWER_SYSTEM_ROOT="$test_root/system-root"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
@@ -183,6 +185,26 @@ for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe;
     fail "$command_name runtime installation"
 done
 pass "power guards are installed with the desktop runtime"
+
+for runtime_file in battery-protection battery-protection-backend battery-protection-lib; do
+  cmp -s \
+    "$root/qv/power/$runtime_file" \
+    "$test_root/.local/share/qvos/power/$runtime_file" ||
+    fail "Battery Protection $runtime_file runtime"
+done
+cmp -s \
+  "$root/qv/power/qvos-battery-full-charge-once.service" \
+  "$test_root/.config/systemd/user/qvos-battery-full-charge-once.service" ||
+  fail "dormant Battery Protection user unit"
+cmp -s \
+  "$root/qv/power/battery-protection-hwdb" \
+  "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb" ||
+  fail "root-owned Battery Protection helper payload"
+[[ ! -e $QVOS_POWER_SYSTEM_ROOT/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb ]] ||
+  fail "desktop install must not enable Battery Protection"
+[[ ! -e $test_root/.local/state/qvos/battery-protection ]] ||
+  fail "desktop install must not create Battery Protection intent"
+pass "Battery Protection installs dormant without touching charging state"
 
 tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
 [[ -x $tui_binary && ! -L $tui_binary ]] ||

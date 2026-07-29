@@ -369,6 +369,9 @@ local required = {
   ["sign out"] = "Logout",
   ["power off"] = "Shutdown",
   ["proton docs"] = "Proton",
+  ["battery protection"] = "Battery Protection",
+  ["charging limit"] = "Battery Protection",
+  ["battery conservation"] = "Battery Protection",
 }
 
 for line in io.lines(intent_path) do
@@ -632,7 +635,7 @@ case $* in
   cat >"$QVOS_TEST_AREA_OPTIONS_LOG"
   printf '%s\n' "$QVOS_TEST_AREA_CHOICE"
   ;;
-*"Go…"* | *"Proton…"* | *"Brave Origin…"* | *"Theme…"* | *"Password…"* | *"Wi-Fi…"*)
+*"Go…"* | *"Proton…"* | *"Brave Origin…"* | *"Theme…"* | *"Password…"* | *"Wi-Fi…"* | *"Battery Protection…"*)
   cat >"$QVOS_TEST_CONCEPT_OPTIONS_LOG"
   printf '%s\n' "$QVOS_TEST_CONCEPT_CHOICE"
   ;;
@@ -799,6 +802,12 @@ QVOS_TEST_CONCEPT_CHOICE="Drive Encryption" run_menu concept:password
   fail "Password concept actions"
 [[ $(<"$presentation_log") == "omarchy-drive-password" ]] ||
   fail "Drive Encryption password owner"
+
+QVOS_TEST_CONCEPT_CHOICE=Report run_menu concept:battery-protection
+[[ $(<"$concept_options_log") == $'󰋼  Status\n󰐕  Enable\n󰆴  Disable\n󰂄  Full Charge Once\n󰈙  Report' ]] ||
+  fail "Battery Protection concept actions"
+[[ $(<"$presentation_log") == "omarchy battery protection report" ]] ||
+  fail "Battery Protection native report owner"
 pass "concept sheets delegate their named actions correctly"
 
 QVOS_TEST_SETTINGS_CHOICE=Appearance run_menu settings
@@ -825,4 +834,13 @@ QVOS_TEST_SETTINGS_CHOICE=Connections \
   fail "Wi-Fi concept owner"
 [[ $(<"$area_options_log") == $'  Wi-Fi\n󰂯  Bluetooth\n󰐕  DNS' ]] ||
   fail "catalog-derived Connections menu"
+
+QVOS_TEST_SETTINGS_CHOICE=System \
+  QVOS_TEST_AREA_CHOICE="Battery Protection" \
+  QVOS_TEST_CONCEPT_CHOICE=Status \
+  run_menu settings
+grep -Fqx '󰁹  Battery Protection' "$area_options_log" ||
+  fail "Battery Protection System concept"
+[[ $(<"$presentation_log") == "omarchy battery protection status" ]] ||
+  fail "Battery Protection native status route"
 pass "Settings browse is shallow, noun-based, and catalog-derived"

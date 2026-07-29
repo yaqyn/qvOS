@@ -214,6 +214,7 @@ Read every matching route completely before editing:
 - qvOS terminal interface and action flows: `qv/tui/AGENTS.md`
 - ISO construction and release images: `qv/iso/AGENTS.md`
 - qvOS Hyprland config and reconciliation: `qv/config/AGENTS.md`
+- qvOS battery protection and charging thresholds: `qv/power/AGENTS.md`
 - qvOS security auditing and balanced hardening: `qv/security/AGENTS.md`
 - Screensaver lifecycle and cursor handling: `qv/screensaver/AGENTS.md`
 - Commit and qvsync command mechanics: `qv/git/AGENTS.md`
