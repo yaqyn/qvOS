@@ -11,8 +11,7 @@ qv/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
   branding/    qvOS terminal and desktop branding.
   browser/     Secure browser policy ownership.
-  codex/       Codex workstation capability contract and read-only doctor.
-  config/      qvOS config helpers and files installed after Omarchy defaults.
+  config/      qvOS config sources and reconciliation after Omarchy defaults.
   core/        qvCORE two-stack catalog and lifecycle owners.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
@@ -62,11 +61,9 @@ identity or base readiness.
   the complete enrolled stack and its qvOS integration while preserving
   personal files, browser profiles, credentials, authentication state,
   projects, and cloud data.
-- `qv codex doctor` is the read-only Codex workstation inspection. Its tracked
-  capability contract separates guaranteed base capabilities, qvDEV,
-  project-local tools, and commands that should stay absent. `--json` emits the
-  stable machine-readable report; `--check` fails only when the guaranteed
-  Codex foundation is missing a required capability.
+- Codex is the sole base-scoped direct tool. Fresh installation and normal
+  updates use the shared direct-tool owner, while workstation inspection stays
+  with Codex's official `codex doctor`.
 - qvDEV unifies developer and Codex workstation ownership. It owns
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses

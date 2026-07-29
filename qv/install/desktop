@@ -6,7 +6,7 @@
 
   mkdir -p "$HOME/.local/share/qvos"
 
-  for feature in codex desktop direct power screensaver shell thunar tmux tui waybar; do
+  for feature in desktop direct power screensaver shell thunar tmux tui waybar; do
     feature_source="$OMARCHY_PATH/qv/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -22,9 +22,6 @@
     qv/desktop/open
     qv/desktop/web/qvos-localhost-open
     qv/desktop/web/qvos-website-open
-    qv/codex/capabilities.tsv
-    qv/codex/doctor
-    qv/codex/qv
     qv/direct/manifest.tsv
     qv/direct/post-update-hook
     qv/direct/tool
@@ -126,31 +123,15 @@
 
   screensaver_source="$OMARCHY_PATH/qv/screensaver"
   qvos_bin="$HOME/.local/share/qvos/bin"
-  qvos_codex="$HOME/.local/share/qvos/codex"
   qvos_screensaver="$HOME/.local/share/qvos/screensaver"
   local_bin="$HOME/.local/bin"
 
   rm -rf -- "$qvos_screensaver"
   install -d \
     "$qvos_bin" \
-    "$qvos_codex" \
     "$qvos_screensaver" \
     "$local_bin"
   "$OMARCHY_PATH/qv/tui/install" --build-if-available
-  install -m 0644 \
-    "$OMARCHY_PATH/qv/codex/capabilities.tsv" \
-    "$qvos_codex/capabilities.tsv.tmp.$$"
-  mv -f -- \
-    "$qvos_codex/capabilities.tsv.tmp.$$" \
-    "$qvos_codex/capabilities.tsv"
-  install -m 0755 \
-    "$OMARCHY_PATH/qv/codex/doctor" \
-    "$qvos_codex/doctor.tmp.$$"
-  mv -f -- "$qvos_codex/doctor.tmp.$$" "$qvos_codex/doctor"
-  install -m 0755 \
-    "$OMARCHY_PATH/qv/codex/qv" \
-    "$local_bin/qv.tmp.$$"
-  mv -f -- "$local_bin/qv.tmp.$$" "$local_bin/qv"
   "$OMARCHY_PATH/qv/shell/install"
   for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
     power_owner=${command_name#omarchy-system-}

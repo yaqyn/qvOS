@@ -54,6 +54,6 @@ a missing tool, authenticate an account, repair an integration, or change
 networking. Do not add one updater per tool.
 
 Verify catalog and manifest guards, affected stack Install/Remove tests, direct
-updater tests, menu tests, Bash syntax, ShellCheck, Codex doctor checks, and the
-full qvOS suite. Base-manifest changes additionally require ISO prepare-only
-verification.
+updater tests, menu tests, Bash syntax, ShellCheck, official `codex doctor`
+checks, and the full qvOS suite. Base-manifest changes additionally require ISO
+prepare-only verification.

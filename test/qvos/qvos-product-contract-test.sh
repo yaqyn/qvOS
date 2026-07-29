@@ -172,14 +172,11 @@ grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-remove" ||
 [[ -x $root/bin/omarchy-install-qvcore &&
   -x $root/bin/omarchy-qvcore-remove ]] ||
   fail "qvCORE Install and Remove commands"
-[[ -x $root/qv/codex/qv ]] ||
-  fail "qv Codex front door"
-grep -Fqx '    runtime_doctor="$HOME/.local/share/qvos/codex/doctor"' \
-  "$root/qv/codex/qv" ||
-  fail "qv Codex doctor runtime location"
-grep -Fqx '    exec "$runtime_doctor" "$@"' \
-  "$root/qv/codex/qv" ||
-  fail "qv Codex doctor runtime delegation"
+[[ ! -e $root/qv/codex ]] ||
+  fail "redundant qvOS Codex inspection domain remains"
+grep -Fqx '  "$OMARCHY_PATH/qv/direct/tool" install codex' \
+  "$root/qv/install/configure" ||
+  fail "base Codex does not install through the direct-tool owner"
 if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
   fail "fragile qv alias remains"
 fi
@@ -196,11 +193,14 @@ for retired_path in \
   [[ ! -e $root/$retired_path ]] ||
     fail "retired qvOS Recovery path remains: $retired_path"
 done
-if grep -Eq '^((repair|system)\)|.*runtime_(repair|system))' \
-  "$root/qv/codex/qv"; then
-  fail "retired qv repair or qv system route remains"
+if rg -q 'qv/codex|qvos/codex|qv codex doctor' \
+  "$root/qv" \
+  "$root/bin" \
+  "$root/install" \
+  "$root/migrations"; then
+  fail "retired qvOS Codex inspection reference remains"
 fi
-pass "qvCORE exposes two independently enrolled Install and Remove stacks"
+pass "qvCORE stays two-stack while Codex remains base direct software"
 
 grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
