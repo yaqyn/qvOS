@@ -33,9 +33,8 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   convergence checks.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
-- Keep qvOS actions in their normal product menus and mirror useful direct
-  access in `show_qvos_menu` for user-friendly direct access and testing. Both
-  surfaces delegate to the same owner.
+- Keep qvOS actions in their normal product menus. Do not maintain a parallel
+  qvOS feature submenu.
 - Keep qvOS Elephant provider deltas under `qv/menu/elephant/`. Install them
   through `qv/menu/install` and link inherited providers from Omarchy source.
 

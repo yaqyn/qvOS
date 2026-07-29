@@ -9,6 +9,8 @@ bindings.
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
   `unbind` for an override.
+- Keep `Super+Space` routed through `omarchy-menu apps`. It must open the shared
+  qvOS surface in Apps mode and preserve its Tab switch to Menu.
 - Letter keys use Family One (`SUPER` plus optional Shift/Ctrl) and Family Two
   (add Alt with the same variants). Inventories show qvOS-owned entries by
   family, a checkmark column, `—` for free slots, non-letter families, and a

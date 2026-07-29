@@ -433,14 +433,6 @@ show_qvcore_menu() {
   "$back_menu"
 }
 
-show_qvos_menu() {
-  case $(menu "qvOS" "󱅾  Update qvOS\n󰏖  qvCORE (Optional)" "--width 360 --maxheight 760") in
-  *"Update qvOS"*) omarchy-launch-qvos-update ;;
-  *qvCORE*) show_qvcore_menu show_qvos_menu ;;
-  *) back_to show_main_menu ;;
-  esac
-}
-
 show_remove_menu() {
   case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
@@ -542,7 +534,6 @@ go_to_menu() {
   *system-sleep*) show_setup_system_menu ;;
   *setup*) show_setup_menu ;;
   *power*) show_setup_power_menu ;;
-  *qvos*) show_qvos_menu ;;
   *qvcore*) show_qvcore_menu show_settings_software_menu ;;
   *install-easy*) show_install_easy_list_menu ;;
   *install-service*)

@@ -260,9 +260,12 @@ grep -Fq '"format": "󱅾"' "$root/qv/waybar/overrides.jsonc" ||
 if grep -Fq '' "$root/qv/menu/extension.sh"; then
   fail "retired Omarchy menu glyph"
 fi
-grep -Fq 'qvOS menu, exec, omarchy-menu qvos' \
-  "$root/qv/config/files/hypr/qv/bindings.conf" ||
-  fail "qvOS binding description"
+if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
+  "$root/qv/menu/extension.sh" \
+  "$root/qv/config/files/hypr/qv/bindings.conf" \
+  "$root/qv/waybar/overrides.jsonc"; then
+  fail "retired qvOS feature menu"
+fi
 grep -Fq '`qv/config/refresh-hyprland` is the authoritative inventory' \
   "$root/qv/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"

@@ -68,6 +68,10 @@ grep -Fqx 'bindd = SUPER, C, Universal copy, sendshortcut, CTRL, Insert, activew
 assert_binding 'bindd = SUPER SHIFT, PRINT, Capture menu, exec, omarchy-menu capture' "relocated Capture menu binding"
 pass "Universal copy stays inherited and Capture moves to Super+Shift+Print"
 
+assert_binding 'unbind = SUPER, SPACE' "inherited app launcher override"
+assert_binding 'bindd = SUPER, SPACE, qvOS apps, exec, omarchy-menu apps' "shared qvOS Apps menu binding"
+pass "Super+Space opens the shared qvOS menu in Apps mode"
+
 assert_binding 'bindd = SUPER SHIFT, W, Wifi controls, exec, omarchy-launch-wifi' "Wifi binding"
 assert_binding 'bindd = SUPER CTRL, W, Audio controls, exec, omarchy-launch-audio' "audio binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, W, Bluetooth controls, exec, omarchy-launch-bluetooth' "Bluetooth binding"

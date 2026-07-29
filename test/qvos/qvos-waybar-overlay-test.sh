@@ -53,7 +53,7 @@ jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("clock") == null) and
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
+  (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
   (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
   (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
@@ -195,7 +195,7 @@ PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
 jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."custom/omarchy"."on-click" == "omarchy-menu qvos") and
+  (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
   (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
   (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and

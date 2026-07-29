@@ -1,8 +1,8 @@
 {
   "custom/omarchy": {
     "format": "󱅾",
-    "on-click": "omarchy-menu qvos",
-    "tooltip-format": "qvOS Menu\n\nSuper + Shift + Alt + Space"
+    "on-click": "omarchy-menu",
+    "tooltip-format": "qvOS Menu\n\nSuper + Space"
   },
   "custom/update": {
     "exec": "omarchy-qvos-update-available",
