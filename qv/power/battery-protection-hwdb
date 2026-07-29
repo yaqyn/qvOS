@@ -55,6 +55,7 @@ exec 9>"$lock_file"
 validate_existing() {
   local expected_identity="0:0:644"
   local existing_identity
+  local -a lines=()
 
   if ((EUID != 0)); then
     expected_identity="$UID:$(/usr/bin/id -g):644"
@@ -81,9 +82,17 @@ validate_existing() {
       echo "Battery Protection hwdb has unexpected ownership or permissions." >&2
       return 1
     }
-  [[ $(/usr/bin/sed -n '1p' "$hwdb_file") == "$owner_marker" ]] ||
+  mapfile -t lines <"$hwdb_file"
+  ((${#lines[@]} == 4)) &&
+    [[ ${lines[0]} == "$owner_marker" &&
+      ${lines[1]} == "# Generated from fixed qvOS presets; do not edit." &&
+      ${lines[2]} == "battery:*:*:dmi:*" ]] &&
+    [[ ${lines[3]} == " CHARGE_LIMIT=75,80" ||
+      ${lines[3]} == " CHARGE_LIMIT=55,60" ||
+      ${lines[3]} == " CHARGE_LIMIT=_,80" ||
+      ${lines[3]} == " CHARGE_LIMIT=_,60" ]] ||
     {
-      echo "Battery Protection hwdb is not owned by qvOS." >&2
+      echo "Battery Protection hwdb content is not a fixed qvOS preset." >&2
       return 1
     }
 }
@@ -172,7 +181,7 @@ restore_transaction() {
     return 1
     ;;
   esac
-  reload_hwdb
+  reload_hwdb || return
   /usr/bin/rm -rf "$transaction_dir"
 }
 

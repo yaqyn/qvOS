@@ -36,6 +36,9 @@ status_command() {
   local inspect_status=0
   local configuration_state
   local configuration_matches=false
+  local now
+  local override_matches=false
+  local recovery_due=false
 
   inspect_supported_state || inspect_status=$?
   if ((inspect_status != 0)); then
@@ -51,9 +54,21 @@ status_command() {
     [[ $CAPABILITY_SHAPE != "firmware" && $configuration_state == "qvos" ]]; then
     configuration_matches=true
   fi
+  now=$(date +%s)
+  if [[ -n $OVERRIDE_PRESET ]] &&
+    { ! ac_online || all_batteries_full || ((OVERRIDE_DEADLINE <= now)); }; then
+    recovery_due=true
+  fi
+  if [[ $recovery_due == "false" && -n $OVERRIDE_PRESET &&
+    $INTENT_STATE == "enabled" &&
+    $OVERRIDE_PRESET == "$INTENT_PRESET" &&
+    $OVERRIDE_SHAPE == "$INTENT_SHAPE" ]] &&
+    service_is_enabled && service_is_active; then
+    override_matches=true
+  fi
 
   if [[ $INTENT_STATE == "enabled" ]]; then
-    if [[ -n $OVERRIDE_PRESET && $OBSERVED_MODE == "disabled" &&
+    if [[ $override_matches == "true" && $OBSERVED_MODE == "disabled" &&
       $configuration_matches == "true" ]]; then
       classification="Temporary full-charge override"
     elif [[ -z $OVERRIDE_PRESET && $OBSERVED_MODE == "enabled" &&
@@ -65,14 +80,15 @@ status_command() {
       classification="Requested but drifted"
     fi
   elif [[ $INTENT_STATE == "disabled" ]]; then
-    if [[ $OBSERVED_MODE == "disabled" && $configuration_state == "absent" ]]; then
+    if [[ -z $OVERRIDE_PRESET && $OBSERVED_MODE == "disabled" &&
+      $configuration_state == "absent" ]]; then
       classification="Disabled"
-    elif [[ $OBSERVED_MODE == "enabled" ]]; then
+    elif [[ -z $OVERRIDE_PRESET && $OBSERVED_MODE == "enabled" ]]; then
       classification="External or unmanaged enablement"
     else
       classification="Requested but drifted"
     fi
-  elif [[ $configuration_state == "qvos" ]]; then
+  elif [[ -n $OVERRIDE_PRESET || $configuration_state == "qvos" ]]; then
     classification="Requested but drifted"
   elif [[ $OBSERVED_MODE == "enabled" ]]; then
     classification="External or unmanaged enablement"
@@ -201,6 +217,10 @@ preflight_mutation() {
     echo "Battery Protection found a foreign or unsafe hwdb override." >&2
     return 1
   fi
+  if ! read_intent || ! read_override; then
+    echo "Battery Protection state is malformed or has unsafe permissions." >&2
+    return 1
+  fi
 }
 
 safe_disable() {
@@ -257,13 +277,9 @@ enable_command() {
     return 1
   fi
   ensure_state_dir
-  if [[ -f $POWER_STATE_ROOT/intent ]]; then
+  if [[ -n $INTENT_STATE ]]; then
     had_intent=true
     old_intent=$(<"$POWER_STATE_ROOT/intent")
-  fi
-  if ! read_override; then
-    echo "Battery Protection override state is malformed." >&2
-    return 1
   fi
   if [[ -n $OVERRIDE_PRESET ]]; then
     override_active=true
@@ -339,6 +355,7 @@ enable_command() {
 }
 
 disable_command() {
+  local configuration_state
   local shape
 
   preflight_mutation || return $?
@@ -349,12 +366,15 @@ disable_command() {
   lock_mutation
   preflight_mutation || return $?
   shape=$CAPABILITY_SHAPE
+  configuration_state=$(hwdb_state)
   ensure_state_dir
   service_stop || true
   safe_disable "$shape" || return 1
-  if ! run_root_helper recover || ! run_root_helper remove; then
-    echo "Battery Protection is disabled, but qvOS could not safely clean its hwdb override." >&2
-    return 1
+  if [[ $shape != "firmware" || $configuration_state == "qvos" ]]; then
+    if ! run_root_helper recover || ! run_root_helper remove; then
+      echo "Battery Protection is disabled, but qvOS could not safely clean its hwdb override." >&2
+      return 1
+    fi
   fi
   verify_mode disabled "" "$shape" ||
     {

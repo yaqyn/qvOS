@@ -279,7 +279,7 @@ analyze_capability() {
       DISCOVERY_REASON="Start-threshold-only hardware has no safe maximum charge limit"
       return 1
       ;;
-    6 | 7)
+    5 | 6 | 7)
       DISCOVERY_REASON="Adjustable and firmware-controlled threshold capabilities conflict"
       return 1
       ;;
@@ -507,7 +507,7 @@ set_mode_all() {
 }
 
 ensure_state_dir() {
-  if [[ ! -e $POWER_STATE_ROOT ]]; then
+  if [[ ! -e $POWER_STATE_ROOT && ! -L $POWER_STATE_ROOT ]]; then
     install -d -m 0700 "$POWER_STATE_ROOT"
   fi
   state_dir_safe ||
@@ -518,7 +518,7 @@ ensure_state_dir() {
 }
 
 state_dir_safe() {
-  [[ ! -e $POWER_STATE_ROOT ]] && return 0
+  [[ ! -e $POWER_STATE_ROOT && ! -L $POWER_STATE_ROOT ]] && return 0
   [[ -d $POWER_STATE_ROOT && ! -L $POWER_STATE_ROOT ]] || return 1
   [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT") == "$UID:700" ]]
 }
@@ -527,12 +527,23 @@ atomic_state_write() {
   local name="$1"
   local value="$2"
   local temporary
+  local target
+
+  [[ $name == "intent" || $name == "override" ]] || return 2
 
   ensure_state_dir
+  target="$POWER_STATE_ROOT/$name"
+  if [[ -e $target || -L $target ]]; then
+    [[ -f $target && ! -L $target &&
+      $(stat -c '%u:%a' "$target") == "$UID:600" ]] || return 1
+  fi
   temporary=$(mktemp "$POWER_STATE_ROOT/.$name.XXXXXX")
-  printf '%s\n' "$value" >"$temporary"
-  chmod 0600 "$temporary"
-  mv -f "$temporary" "$POWER_STATE_ROOT/$name"
+  if ! printf '%s\n' "$value" >"$temporary" ||
+    ! chmod 0600 "$temporary" ||
+    ! mv -fT "$temporary" "$target"; then
+    rm -f "$temporary"
+    return 1
+  fi
 }
 
 read_intent() {
@@ -543,7 +554,10 @@ read_intent() {
   INTENT_PRESET=""
   INTENT_SHAPE=""
   state_dir_safe || return 1
-  [[ -f $POWER_STATE_ROOT/intent && ! -L $POWER_STATE_ROOT/intent ]] || return 0
+  [[ ! -e $POWER_STATE_ROOT/intent && ! -L $POWER_STATE_ROOT/intent ]] &&
+    return 0
+  [[ -f $POWER_STATE_ROOT/intent && ! -L $POWER_STATE_ROOT/intent ]] ||
+    return 1
   [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT/intent") == "$UID:600" ]] || return 1
   IFS='|' read -r version INTENT_STATE INTENT_PRESET INTENT_SHAPE extra \
     <"$POWER_STATE_ROOT/intent"
@@ -580,8 +594,10 @@ read_override() {
   OVERRIDE_SHAPE=""
   OVERRIDE_DEADLINE=""
   state_dir_safe || return 1
-  [[ -f $POWER_STATE_ROOT/override && ! -L $POWER_STATE_ROOT/override ]] ||
+  [[ ! -e $POWER_STATE_ROOT/override && ! -L $POWER_STATE_ROOT/override ]] &&
     return 0
+  [[ -f $POWER_STATE_ROOT/override && ! -L $POWER_STATE_ROOT/override ]] ||
+    return 1
   [[ $(stat -c '%u:%a' "$POWER_STATE_ROOT/override") == "$UID:600" ]] ||
     return 1
   IFS='|' read -r version OVERRIDE_PRESET OVERRIDE_SHAPE OVERRIDE_DEADLINE extra \
@@ -591,7 +607,7 @@ read_override() {
     return 1
   [[ $OVERRIDE_SHAPE == "start-end" || $OVERRIDE_SHAPE == "end-only" ||
     $OVERRIDE_SHAPE == "firmware" ]] || return 1
-  [[ $OVERRIDE_DEADLINE =~ ^[0-9]+$ ]] || return 1
+  [[ $OVERRIDE_DEADLINE =~ ^[1-9][0-9]{0,10}$ ]] || return 1
 }
 
 write_override() {
@@ -639,6 +655,7 @@ run_root_helper() {
 
 hwdb_state() {
   local expected_identity="0:0:644"
+  local -a lines=()
 
   if [[ ${QVOS_POWER_TESTING:-} == "1" && -n ${QVOS_POWER_SYSTEM_ROOT:-} ]]; then
     expected_identity="$UID:$(id -g):644"
@@ -648,9 +665,20 @@ hwdb_state() {
   elif [[ ! -e $POWER_HWDB_FILE ]]; then
     printf 'absent\n'
   elif [[ -f $POWER_HWDB_FILE &&
-    $(stat -c '%u:%g:%a' "$POWER_HWDB_FILE") == "$expected_identity" &&
-    $(sed -n '1p' "$POWER_HWDB_FILE") == "# qvOS Battery Protection - managed file" ]]; then
-    printf 'qvos\n'
+    $(stat -c '%u:%g:%a' "$POWER_HWDB_FILE") == "$expected_identity" ]]; then
+    mapfile -t lines <"$POWER_HWDB_FILE"
+    if ((${#lines[@]} == 4)) &&
+      [[ ${lines[0]} == "# qvOS Battery Protection - managed file" &&
+        ${lines[1]} == "# Generated from fixed qvOS presets; do not edit." &&
+        ${lines[2]} == "battery:*:*:dmi:*" ]] &&
+      [[ ${lines[3]} == " CHARGE_LIMIT=75,80" ||
+        ${lines[3]} == " CHARGE_LIMIT=55,60" ||
+        ${lines[3]} == " CHARGE_LIMIT=_,80" ||
+        ${lines[3]} == " CHARGE_LIMIT=_,60" ]]; then
+      printf 'qvos\n'
+    else
+      printf 'conflict\n'
+    fi
   else
     printf 'conflict\n'
   fi
@@ -711,11 +739,27 @@ service_disable() {
   "$POWER_SYSTEMCTL" --user disable "$POWER_SERVICE"
 }
 
+service_is_enabled() {
+  "$POWER_SYSTEMCTL" --user is-enabled --quiet "$POWER_SERVICE" \
+    >/dev/null 2>&1
+}
+
+service_is_active() {
+  "$POWER_SYSTEMCTL" --user is-active --quiet "$POWER_SERVICE" \
+    >/dev/null 2>&1
+}
+
 restore_protection_from_override() {
+  local manager
+
   read_intent && read_override || return 1
   [[ $INTENT_STATE == "enabled" && -n $OVERRIDE_PRESET &&
     $INTENT_PRESET == "$OVERRIDE_PRESET" &&
     $INTENT_SHAPE == "$OVERRIDE_SHAPE" ]] || return 1
+  if manager=$(conflicting_manager); then
+    echo "Battery Protection restoration is waiting while $manager is active." >&2
+    return 1
+  fi
   discover_batteries && analyze_capability || return 1
   [[ $CAPABILITY_SHAPE == "$OVERRIDE_SHAPE" ]] || return 1
   if [[ $OVERRIDE_SHAPE != "firmware" ]]; then

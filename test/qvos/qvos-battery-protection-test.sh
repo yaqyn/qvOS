@@ -150,6 +150,7 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/pkexec" <<'SCRIPT'
 #!/bin/bash
+[[ ! -e $QVOS_TEST_FIXTURE/pkexec-deny ]] || exit 1
 export QVOS_POWER_TESTING=1
 export QVOS_POWER_HELPER_TEST_ROOT=$QVOS_POWER_SYSTEM_ROOT
 export QVOS_POWER_HELPER_TEST_BIN=$QVOS_TEST_BIN
@@ -161,6 +162,10 @@ install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 if [[ $* == "is-active --quiet tlp.service" &&
   -e $QVOS_TEST_FIXTURE/conflict-tlp ]]; then
   exit 0
+fi
+if [[ $* == "--user is-enabled --quiet qvos-battery-full-charge-once.service" &&
+  -e $QVOS_TEST_FIXTURE/service-disabled ]]; then
+  exit 1
 fi
 if [[ $1 == "--user" ]]; then
   printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
@@ -308,7 +313,7 @@ capture_power() {
   set -e
 }
 
-for mask in 0 1 6 7; do
+for mask in 0 1 5 6 7; do
   reset_fixture
   add_battery BAT0 "$mask"
   capture_power "$test_root/mask-$mask.log" status
@@ -387,6 +392,19 @@ pass "cancellation and malformed input leave no state"
 
 reset_fixture
 add_battery BAT0 4
+install -d -m 0700 "$state_root"
+printf 'not qvOS state\n' >"$test_root/foreign-intent"
+ln -s "$test_root/foreign-intent" "$state_root/intent"
+capture_power "$test_root/symlinked-state.log" enable plugged-in
+((CAPTURE_STATUS != 0)) || fail "symlinked intent mutation"
+[[ $(<"$sysfs_root/devices/BAT0/charge_types") == *"[Standard]"* ]] ||
+  fail "symlinked intent hardware mutation"
+grep -Fq 'malformed or has unsafe permissions' "$test_root/symlinked-state.log" ||
+  fail "symlinked intent disclosure"
+pass "mutations refuse unsafe state files before touching hardware"
+
+reset_fixture
+add_battery BAT0 4
 exec 8>"$runtime_root/qvos-battery-protection.lock"
 flock 8
 capture_power "$test_root/concurrent.log" enable plugged-in
@@ -431,6 +449,17 @@ grep -Fqx '1|enabled|plugged-in|firmware' "$state_root/intent" ||
 pass "managed intent is atomic and private"
 
 reset_fixture
+add_battery BAT0 4
+run_power enable plugged-in >/dev/null
+touch "$fixture/pkexec-deny"
+run_power disable >/dev/null
+grep -Fqx '1|disabled|-|-' "$state_root/intent" ||
+  fail "firmware disable intent"
+[[ $(<"$sysfs_root/devices/BAT0/charge_types") == *"[Standard]"* ]] ||
+  fail "firmware disable Standard state"
+pass "firmware-only disable needs no unnecessary root helper"
+
+reset_fixture
 add_battery BAT0 3
 run_power enable balanced >/dev/null
 grep -Fq 'CHARGE_LIMIT=75,80' \
@@ -473,19 +502,40 @@ pass "foreign hwdb content is never overwritten"
 
 reset_fixture
 add_battery BAT0 3
+install -D -m 0644 /dev/stdin \
+  "$system_root/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb" <<'EDITED'
+# qvOS Battery Protection - managed file
+# Generated from fixed qvOS presets; do not edit.
+battery:*:*:dmi:*
+ CHARGE_LIMIT=75,80
+ MALICIOUS_PROPERTY=1
+EDITED
+capture_power "$test_root/edited-hwdb.log" enable balanced
+((CAPTURE_STATUS != 0)) || fail "edited qvOS hwdb content"
+grep -Fq 'foreign or unsafe' "$test_root/edited-hwdb.log" ||
+  fail "edited qvOS hwdb disclosure"
+pass "only an exact fixed qvOS hwdb preset is trusted"
+
+reset_fixture
+add_battery BAT0 3
 touch "$fixture/hwdb-fail"
 capture_power "$test_root/hwdb-fail.log" enable balanced
 ((CAPTURE_STATUS != 0)) || fail "hwdb reload failure"
 [[ ! -e $system_root/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb ]] ||
   fail "hwdb reload rollback"
+[[ -d $system_root/run/qvos-battery-protection-hwdb ]] ||
+  fail "failed rollback recovery transaction"
 [[ $(<"$sysfs_root/devices/BAT0/charge_control_end_threshold") == "100" ]] ||
   fail "hwdb failure safe unlimited fallback"
-rm "$fixture/hwdb-fail"
+reset_fixture
+add_battery BAT0 3
 touch "$fixture/udev-fail"
 capture_power "$test_root/udev-fail.log" enable balanced
 ((CAPTURE_STATUS != 0)) || fail "udev trigger failure"
 [[ ! -e $system_root/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb ]] ||
   fail "udev trigger rollback"
+[[ -d $system_root/run/qvos-battery-protection-hwdb ]] ||
+  fail "failed udev rollback recovery transaction"
 pass "hwdb update and udev failures roll back to unlimited charging"
 
 reset_fixture
@@ -570,6 +620,34 @@ reset_fixture
 add_battery BAT0 4
 run_power enable plugged-in >/dev/null
 run_power full-charge-once >/dev/null
+touch "$fixture/service-disabled"
+[[ $(run_power status) == *"Requested but drifted"* ]] ||
+  fail "disabled recovery service drift"
+rm "$fixture/service-disabled"
+awk -F'|' 'BEGIN{OFS="|"} {$2="balanced"; print}' "$state_root/override" \
+  >"$state_root/override.tmp"
+mv "$state_root/override.tmp" "$state_root/override"
+chmod 0600 "$state_root/override"
+[[ $(run_power status) == *"Requested but drifted"* ]] ||
+  fail "mismatched recovery state drift"
+pass "temporary override status requires intact enabled recovery"
+
+reset_fixture
+add_battery BAT0 4
+run_power enable plugged-in >/dev/null
+run_power full-charge-once >/dev/null
+awk -F'|' 'BEGIN{OFS="|"} {$4=1; print}' "$state_root/override" \
+  >"$state_root/override.tmp"
+mv "$state_root/override.tmp" "$state_root/override"
+chmod 0600 "$state_root/override"
+[[ $(run_power status) == *"Requested but drifted"* ]] ||
+  fail "expired recovery deadline drift"
+pass "an overdue temporary override is reported as drift"
+
+reset_fixture
+add_battery BAT0 4
+run_power enable plugged-in >/dev/null
+run_power full-charge-once >/dev/null
 set_property "$fixture/battery_BAT0.properties" State 4
 QVOS_POWER_SERVICE=1 run_power override-watch
 [[ ! -e $state_root/override ]] || fail "full battery override cleanup"
@@ -602,6 +680,27 @@ rm "$fixture/polkit-deny"
 QVOS_POWER_SERVICE=1 run_power override-watch
 [[ ! -e $state_root/override ]] || fail "transient retry cleanup"
 pass "transient UPower restoration failures retain state for retry"
+
+reset_fixture
+add_battery BAT0 4
+run_power enable plugged-in >/dev/null
+run_power full-charge-once >/dev/null
+set_property "$fixture/line_power_AC.properties" Online false
+touch "$fixture/conflict-tlp"
+export QVOS_POWER_SERVICE=1
+capture_power "$test_root/restore-conflict.log" override-watch
+unset QVOS_POWER_SERVICE
+((CAPTURE_STATUS != 0)) || fail "conflicting manager restoration"
+[[ -e $state_root/override ]] || fail "conflict recovery state"
+[[ $(<"$sysfs_root/devices/BAT0/charge_types") == *"[Standard]"* ]] ||
+  fail "conflict hardware mutation"
+grep -Fq 'restoration is waiting while tlp is active' \
+  "$test_root/restore-conflict.log" ||
+  fail "restoration conflict disclosure"
+rm "$fixture/conflict-tlp"
+QVOS_POWER_SERVICE=1 run_power override-watch
+[[ ! -e $state_root/override ]] || fail "post-conflict retry cleanup"
+pass "automatic restoration never fights another charging manager"
 
 reset_fixture
 add_battery BAT0 4
@@ -662,6 +761,17 @@ grep -Fq 'Restart=on-failure' \
 grep -Fq 'WantedBy=default.target' \
   "$root/qv/power/qvos-battery-full-charge-once.service" ||
   fail "override unit reboot recovery"
+for hardening in \
+  'NoNewPrivileges=yes' \
+  'PrivateDevices=yes' \
+  'ProtectHome=read-only' \
+  'ProtectSystem=strict' \
+  'RestrictAddressFamilies=AF_UNIX' \
+  'UMask=0077'; do
+  grep -Fqx "$hardening" \
+    "$root/qv/power/qvos-battery-full-charge-once.service" ||
+    fail "override unit hardening: $hardening"
+done
 if rg -q 'EnableChargeThreshold|charge_control_(start|end)_threshold.*>|>.*charge_control_(start|end)_threshold|conservation_mode.*>' \
   "$root/qv/power/install" \
   "$root/qv/install/desktop" \

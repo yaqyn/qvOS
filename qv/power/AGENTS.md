@@ -22,8 +22,9 @@ the full-charge override, or another mutation under `qv/power/`.
   readback only.
 - Use the root-owned hwdb helper only for the fixed Balanced and Mostly plugged
   in presets. It accepts fixed verbs, owns one marked file, uses absolute
-  commands, refuses symlinks or foreign content, and keeps a root-only rollback
-  transaction until the caller verifies UPower and kernel readback.
+  commands, refuses symlinks or content other than an exact fixed preset, and
+  keeps a root-only rollback transaction until the caller verifies UPower and
+  kernel readback. Keep that transaction for retry if rollback reload fails.
 - Disable and verify unlimited charging before changing hwdb configuration.
   On any later failure, disable all batteries, roll back the configuration, and
   preserve the prior qvOS intent.
@@ -44,6 +45,11 @@ the full-charge override, or another mutation under `qv/power/`.
    after UPower and kernel readback agree.
 5. Explicit Disable cancels the override and remains disabled. Explicit Enable
    cancels it only after protection is verified again.
+
+Report an override as temporary only while its matching recovery state is
+unexpired and the hardened service is enabled and active. If a conflicting
+charging manager appears before restoration, preserve recovery state and retry
+without writing until the conflict is gone.
 
 ## Verification and live approval
 

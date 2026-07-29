@@ -9,6 +9,22 @@ Environment=QVOS_POWER_SERVICE=1
 ExecStart=%h/.local/share/qvos/power/battery-protection override-watch
 Restart=on-failure
 RestartSec=60
+UMask=0077
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=read-only
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+ReadWritePaths=%S/qvos/battery-protection %t
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=default.target
