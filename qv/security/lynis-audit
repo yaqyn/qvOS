@@ -1,0 +1,120 @@
+#!/bin/bash
+set -euo pipefail
+
+# LinUtil behavior reviewed at commit 104b2ad73595de52a2f92f0bb17160385bae0579:
+# https://github.com/ChrisTitusTech/linutil/blob/104b2ad73595de52a2f92f0bb17160385bae0579/core/tabs/security/lynis-audit.sh
+# LinUtil streams `lynis audit system` directly, then preserves its two reports.
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+root_helper="$script_dir/lynis-audit-root"
+output_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis"
+
+usage() {
+  printf 'Usage: %s\n' "${0##*/}" >&2
+}
+
+case "${1:-}" in
+  "")
+    ;;
+  --help | -h)
+    usage
+    exit 0
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+
+if [[ $output_dir != /* ]]; then
+  printf 'Refusing relative Lynis report directory: %s\n' "$output_dir" >&2
+  exit 1
+fi
+if ! command -v lynis >/dev/null 2>&1; then
+  printf 'Lynis is required. Install it with: omarchy-pkg-add lynis\n' >&2
+  exit 1
+fi
+if [[ ! -x $root_helper ]]; then
+  printf 'Missing qvOS Lynis root helper: %s\n' "$root_helper" >&2
+  exit 1
+fi
+
+install -d -m 0700 "$output_dir"
+chmod 0700 "$output_dir"
+
+timestamp="$(date '+%Y-%m-%d-%H-%M-%S')"
+counter=1
+while [[ -e $output_dir/lynis-$timestamp-$counter.log ]] \
+  || [[ -L $output_dir/lynis-$timestamp-$counter.log ]] \
+  || [[ -e $output_dir/lynis-report-$timestamp-$counter.dat ]] \
+  || [[ -L $output_dir/lynis-report-$timestamp-$counter.dat ]]; do
+  ((counter += 1))
+done
+
+audit_log="$output_dir/lynis-$timestamp-$counter.log"
+audit_report="$output_dir/lynis-report-$timestamp-$counter.dat"
+owner_uid="$(id -u)"
+owner_gid="$(id -g)"
+escalation=()
+
+if ((EUID == 0)); then
+  :
+elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  escalation=(sudo)
+elif command -v pkexec >/dev/null 2>&1 \
+  && [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; then
+  escalation=(pkexec)
+elif command -v sudo >/dev/null 2>&1; then
+  escalation=(sudo)
+else
+  printf 'A supported privilege escalation tool is required: sudo or pkexec\n' >&2
+  exit 1
+fi
+
+printf 'Running the full Lynis system audit...\n'
+audit_status=0
+"${escalation[@]}" "$root_helper" \
+  "$owner_uid" \
+  "$owner_gid" \
+  "$output_dir" \
+  "$audit_log" \
+  "$audit_report" || audit_status=$?
+
+if [[ ! -f $audit_log || ! -f $audit_report ]]; then
+  printf 'Lynis did not produce both saved reports.\n' >&2
+  ((audit_status == 0)) && audit_status=1
+  exit "$audit_status"
+fi
+
+report_value() {
+  local key=$1
+
+  awk -F= -v key="$key" '$1 == key { print $2; exit }' "$audit_report"
+}
+
+report_count() {
+  local prefix=$1
+
+  awk -v prefix="$prefix" '
+    index($0, prefix) == 1 { count++ }
+    END { print count + 0 }
+  ' "$audit_report"
+}
+
+tests="$(report_value lynis_tests_done)"
+hardening_index="$(report_value hardening_index)"
+warnings="$(report_count 'warning[]=')"
+suggestions="$(report_count 'suggestion[]=')"
+exceptions="$(report_count 'exception_event[]=')"
+
+printf '\nqvOS Lynis audit saved:\n'
+printf '  Log: %s\n' "$audit_log"
+printf '  Report: %s\n' "$audit_report"
+printf '  Tests: %s | Hardening index: %s | Warnings: %s | Suggestions: %s | Exceptions: %s\n' \
+  "${tests:-unknown}" \
+  "${hardening_index:-unknown}" \
+  "$warnings" \
+  "$suggestions" \
+  "$exceptions"
+
+exit "$audit_status"

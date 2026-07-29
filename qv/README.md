@@ -23,6 +23,7 @@ qv/
   power/       Sleep inhibition and guarded suspend.
   presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
+  security/    Codex-operated security auditing and hardening workflow.
   share/       LocalSend request routing.
   shell/       qvOS shell additions.
   theme/       The Yaqyn qvOS theme overlay.
@@ -85,6 +86,10 @@ identity or base readiness.
 
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
+
+`qv/security/` owns the Codex-operated Lynis baseline and balanced-hardening
+workflow. Its reports contain private system inventory, stay outside Git under
+the user's state directory, and never authorize automatic hardening.
 
 `qv/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs its default helpers, including the LocalSend Share

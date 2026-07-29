@@ -1,0 +1,74 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  printf 'Usage: %s <uid> <gid> <output-dir> <log-destination> <report-destination>\n' \
+    "${0##*/}" >&2
+}
+
+if (($# != 5)); then
+  usage
+  exit 2
+fi
+if ((EUID != 0)); then
+  printf 'The Lynis audit helper must run as root.\n' >&2
+  exit 1
+fi
+
+owner_uid=$1
+owner_gid=$2
+output_dir=$3
+audit_log=$4
+audit_report=$5
+
+if [[ ! $owner_uid =~ ^[0-9]+$ || ! $owner_gid =~ ^[0-9]+$ ]]; then
+  printf 'Invalid Lynis report owner.\n' >&2
+  exit 1
+fi
+if [[ $output_dir != /* ]] \
+  || [[ ! -d $output_dir ]] \
+  || [[ -L $output_dir ]] \
+  || [[ $(/usr/bin/stat -c '%u' "$output_dir") != "$owner_uid" ]] \
+  || [[ $(/usr/bin/stat -c '%g' "$output_dir") != "$owner_gid" ]] \
+  || [[ $(/usr/bin/stat -c '%a' "$output_dir") != "700" ]]; then
+  printf 'Unsafe Lynis report directory: %s\n' "$output_dir" >&2
+  exit 1
+fi
+if [[ $(/usr/bin/dirname -- "$audit_log") != "$output_dir" ]] \
+  || [[ $(/usr/bin/dirname -- "$audit_report") != "$output_dir" ]] \
+  || [[ ${audit_log##*/} != lynis-*.log ]] \
+  || [[ ${audit_report##*/} != lynis-report-*.dat ]] \
+  || [[ -e $audit_log ]] \
+  || [[ -L $audit_log ]] \
+  || [[ -e $audit_report ]] \
+  || [[ -L $audit_report ]]; then
+  printf 'Unsafe Lynis report destination.\n' >&2
+  exit 1
+fi
+if [[ ! -x /usr/bin/lynis ]]; then
+  printf 'Lynis is unavailable at /usr/bin/lynis.\n' >&2
+  exit 1
+fi
+
+audit_status=0
+audit_started=$(/usr/bin/date '+%s')
+/usr/bin/lynis audit system || audit_status=$?
+
+if [[ ! -f /var/log/lynis.log || ! -f /var/log/lynis-report.dat ]]; then
+  printf 'Lynis did not create its standard reports in /var/log.\n' >&2
+  exit 1
+fi
+for report_source in /var/log/lynis.log /var/log/lynis-report.dat; do
+  report_mtime=$(/usr/bin/stat -c '%Y' "$report_source")
+  if ((report_mtime < audit_started)); then
+    printf 'Lynis did not refresh its standard report: %s\n' "$report_source" >&2
+    exit 1
+  fi
+done
+
+/usr/bin/install -m 0600 -o "$owner_uid" -g "$owner_gid" \
+  /var/log/lynis.log "$audit_log"
+/usr/bin/install -m 0600 -o "$owner_uid" -g "$owner_gid" \
+  /var/log/lynis-report.dat "$audit_report"
+
+exit "$audit_status"
