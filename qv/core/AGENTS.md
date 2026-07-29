@@ -19,6 +19,9 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
   Remove only an enrolled stack, remove its entire declared software and
   qvOS-owned integrations, and preserve personal files, browser profiles,
   credentials, authentication state, projects, and cloud data.
+- Proton Pass readiness probes can create `pass-cli.db` without an authenticated
+  `session.json`. Treat only that exact database-only state as disposable probe
+  cache; preserve and stop on every other unverified Pass file.
 - Stack scripts own package preflight, confirmation, resumable removal, and
   final verification. Do not add a coordinated cross-stack removal layer.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex

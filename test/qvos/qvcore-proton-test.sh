@@ -53,11 +53,42 @@ if [[ ${1:-} != "--version" &&
   ${PROTON_PASS_LINUX_KEYRING:-} != "dbus" ]]; then
   exit 91
 fi
+session_dir="$XDG_DATA_HOME/proton-pass-cli/.session"
 case ${1:-} in
 --version) echo "pass-cli 1.0.0" ;;
-info) echo '{"personal_access_token_name":"qvOS Codex"}' ;;
-test) exit 0 ;;
-vault) echo '{"vaults":[{"name":"Codex Vault"}]}' ;;
+info)
+  install -d -m 0700 "$session_dir"
+  install -m 0600 /dev/null "$session_dir/pass-cli.db"
+  [[ -f $session_dir/session.json ]] || exit 1
+  echo '{"personal_access_token_name":"qvOS Codex"}'
+  ;;
+test) [[ -f $session_dir/session.json ]] ;;
+login)
+  install -d -m 0700 "$session_dir"
+  install -m 0600 /dev/null "$session_dir/pass-cli.db"
+  printf 'session\n' >"$session_dir/session.json"
+  chmod 0600 "$session_dir/session.json"
+  ;;
+logout)
+  rm -rf -- "$session_dir"
+  ;;
+vault)
+  case ${2:-} in
+  list) echo '{"vaults":[{"name":"Codex Vault","share_id":"share-1"}]}' ;;
+  create) exit 0 ;;
+  *) exit 1 ;;
+  esac
+  ;;
+pat)
+  case ${2:-} in
+  create)
+    echo '{"pat_id":"pat-1","env_var":"PROTON_PASS_PERSONAL_ACCESS_TOKEN=pst_test::key"}'
+    ;;
+  access | delete) exit 0 ;;
+  list) echo '[]' ;;
+  *) exit 1 ;;
+  esac
+  ;;
 *) exit 0 ;;
 esac
 PASS
@@ -150,6 +181,9 @@ run_proton install </dev/null >"$install_output" 2>&1
 if rg -qi 'choose .*reset|choose .*skip|reset or skip' "$install_output"; then
   fail "Proton Install-only authentication flow"
 fi
+grep -Fq 'Continuing past the unauthenticated Proton Pass probe cache.' \
+  "$install_output" ||
+  fail "Proton probe cache blocks fresh authentication"
 [[ -f $test_root/home/.local/state/qvos/qvcore/proton ]] ||
   fail "Proton enrollment"
 [[ -x $test_root/home/.local/bin/pass-cli &&
@@ -159,6 +193,8 @@ fi
   fail "Proton packages"
 [[ -f $test_root/home/.codex/skills/proton-cli/SKILL.md ]] ||
   fail "Proton Codex skill"
+[[ -f $auth_root/data/proton-pass-cli/.session/session.json ]] ||
+  fail "Proton Codex authentication"
 [[ -x $test_root/home/.local/share/qvos/thunar/proton-drive-upload ]] ||
   fail "Proton desktop integration"
 printf 'credential state\n' >"$auth_root/data/preserved"

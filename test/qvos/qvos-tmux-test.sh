@@ -65,6 +65,31 @@ install -d "$config_dir" "$TMUX_TMPDIR" "$project_dir/dev" "$project_dir/right" 
 
 # shellcheck disable=SC1090,SC1091
 source "$command_path"
+PATH="$test_root/stale:$HOME/.local/bin:/usr/bin"
+reconcile_tmux_path
+[[ ${PATH%%:*} == "$HOME/.local/bin" ]] ||
+  fail "manager process PATH canonicalization"
+[[ $(awk -F: -v local_bin="$HOME/.local/bin" '
+  {
+    count = 0
+    for (field_index = 1; field_index <= NF; field_index++) {
+      if ($field_index == local_bin) {
+        count++
+      }
+    }
+    print count
+  }
+' <<<"$PATH") == "1" ]] ||
+  fail "manager process PATH deduplication"
+tmux new-session -d -s PathTest
+tmux set-environment -g PATH "$test_root/stale:$HOME/.local/bin:/usr/bin"
+reconcile_tmux_path
+server_path="$(tmux show-environment -g PATH)"
+[[ ${server_path#PATH=} == "$HOME/.local/bin:$test_root/stale:/usr/bin" ]] ||
+  fail "tmux server PATH canonicalization"
+tmux kill-server
+pass "manager and tmux server prefer the canonical local bin"
+
 clear_last_session
 pass "missing last-session state clears cleanly"
 
@@ -102,36 +127,70 @@ wait "$temporary_command_pid" 2>/dev/null || true
 [[ $detected_command == "codex 30" ]] || fail "temporary package executable cleanup"
 pass "temporary package paths display as reusable commands"
 
+rm "$temporary_bin/codex"
+install -m 0644 /dev/stdin "$temporary_bin/codex" <<'SCRIPT'
+setTimeout(() => {}, 30000)
+SCRIPT
+node "$temporary_bin/codex" --yolo &
+temporary_command_pid=$!
+for _ in {1..100}; do
+  if tr '\0' '\n' <"/proc/$temporary_command_pid/cmdline" 2>/dev/null |
+    grep -Fqx "$temporary_bin/codex"; then
+    break
+  fi
+  sleep 0.01
+done
+detected_command="$(process_command_line "$temporary_command_pid")"
+kill "$temporary_command_pid"
+wait "$temporary_command_pid" 2>/dev/null || true
+[[ $detected_command == "codex --yolo" ]] ||
+  fail "npm Codex process capture normalization"
+pass "npm Codex process paths save as the canonical command"
+
 codex_command="node /tmp/node_modules/.bin/codex --yolo"
 protected_command="$(protect_startup_command "$codex_command")"
 [[ $protected_command == *".local/share/qvos/bin/omarchy-system-inhibit-sleep"* &&
-  $protected_command == *"Codex"* ]] ||
+  $protected_command == *"Codex"* &&
+  $protected_command != *"node /tmp/node_modules"* ]] ||
   fail "Codex startup sleep protection"
 [[ "$(protect_startup_command "bun run dev")" == "bun run dev" ]] ||
   fail "non-Codex startup command preservation"
 
 protected_log="$test_root/protected-command"
-install -d "$HOME/.local/share/qvos/bin" "$test_root/test-bin"
+install -d "$HOME/.local/bin" "$HOME/.local/share/qvos/bin" "$test_root/test-bin"
 install -m 0755 /dev/stdin "$HOME/.local/share/qvos/bin/omarchy-system-inhibit-sleep" <<'SCRIPT'
 #!/bin/bash
 printf 'reason=%s\n' "$QVOS_SLEEP_INHIBIT_REASON" >>"$QVOS_TEST_PROTECTED_LOG"
 exec "$@"
 SCRIPT
-install -m 0755 /dev/stdin "$test_root/test-bin/codex" <<'SCRIPT'
+install -m 0755 /dev/stdin "$HOME/.local/bin/codex" <<'SCRIPT'
 #!/bin/bash
-printf 'codex' >>"$QVOS_TEST_PROTECTED_LOG"
+[[ -z ${CODEX_MANAGED_PACKAGE_ROOT+x} &&
+  -z ${CODEX_MANAGED_BY_NPM+x} ]] ||
+  exit 91
+printf 'canonical-codex' >>"$QVOS_TEST_PROTECTED_LOG"
 printf ' %q' "$@" >>"$QVOS_TEST_PROTECTED_LOG"
 printf '\n' >>"$QVOS_TEST_PROTECTED_LOG"
 SCRIPT
+install -m 0755 /dev/stdin "$test_root/test-bin/codex" <<'SCRIPT'
+#!/bin/bash
+printf 'stale-codex\n' >>"$QVOS_TEST_PROTECTED_LOG"
+exit 92
+SCRIPT
 protected_command="$(protect_startup_command "codex --message 'two words'")"
 QVOS_TEST_PROTECTED_LOG="$protected_log" \
+  CODEX_MANAGED_PACKAGE_ROOT=/tmp/npm-codex \
+  CODEX_MANAGED_BY_NPM=1 \
   PATH="$test_root/test-bin:/usr/bin" \
   /bin/bash -c "$protected_command"
 grep -Fqx 'reason=Codex session is active' "$protected_log" ||
   fail "Codex startup inhibitor reason"
-grep -Fqx 'codex --message two\ words' "$protected_log" ||
+grep -Fqx 'canonical-codex --message two\ words' "$protected_log" ||
   fail "Codex startup command preservation"
-pass "Codex startup commands receive focused sleep protection without changing arguments"
+if grep -Fq 'stale-codex' "$protected_log"; then
+  fail "Codex startup resolved the stale tmux PATH"
+fi
+pass "Codex startup uses the canonical CLI with focused sleep protection"
 
 tile_log="$test_root/tile-dispatch"
 (
@@ -243,6 +302,17 @@ jq -e '
   .windows[1].panes[1].command == ""
 ' <<<"$reviewed_recipe" >/dev/null || fail "command sheet values"
 pass "startup-command editor preserves pipes and blank panes"
+
+reviewed_recipe="$(jq -c '
+  .windows[0].panes[0].command =
+    "node /tmp/node_modules/.bin/codex --yolo | tee /tmp/codex.log"
+' <<<"$recipe")"
+save_running_recipe Custom "$reviewed_recipe"
+[[ $(jq -r '.sessions[0].windows[0].panes[0].command' "$recipes_file") == \
+  "codex --yolo | tee /tmp/codex.log" ]] ||
+  fail "saved npm Codex recipe normalization"
+pass "saved recipes cannot retain an ephemeral npm Codex path"
+save_running_recipe Custom "$recipe"
 
 "$command_path" stop Custom
 "$command_path" ensure Custom

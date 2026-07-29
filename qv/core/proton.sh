@@ -7,6 +7,9 @@ direct_tool="$component_dir/../direct/tool"
 proton_skill_source="$component_dir/proton/skill"
 codex_skill_dir="$HOME/.codex/skills/proton-cli"
 codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
+codex_pass_session_dir="$codex_pass_root/data/proton-pass-cli/.session"
+codex_pass_session_file="$codex_pass_session_dir/session.json"
+codex_pass_probe_db="$codex_pass_session_dir/pass-cli.db"
 pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
@@ -426,6 +429,21 @@ pass_codex_ready() {
   ' <<<"$vault_json" >/dev/null
 }
 
+pass_codex_probe_cache_only() {
+  local unexpected
+
+  [[ -f $codex_pass_probe_db ]] || return 1
+  [[ ! -e $codex_pass_session_file && ! -L $codex_pass_session_file ]] ||
+    return 1
+  unexpected=$(
+    find "$codex_pass_root/data" \
+      -type f \
+      ! -path "$codex_pass_probe_db" \
+      -print -quit
+  )
+  [[ -z $unexpected ]]
+}
+
 replace_incompatible_pass_session() {
   local existing_pat_name=$1
   local existing_pat_id
@@ -496,9 +514,13 @@ setup_pass_auth() {
     fi
     echo "The isolated Proton Pass session has an incompatible vault scope."
   elif find "$codex_pass_root/data" -type f -print -quit | grep -q .; then
-    echo "Existing Proton Pass Codex session data could not be verified." >&2
-    echo "The session was preserved; resolve or remove it before retrying." >&2
-    return 1
+    if pass_codex_probe_cache_only; then
+      echo "Continuing past the unauthenticated Proton Pass probe cache."
+    else
+      echo "Existing Proton Pass Codex session data could not be verified." >&2
+      echo "The session was preserved; resolve or remove it before retrying." >&2
+      return 1
+    fi
   fi
 
   open_pass_admin
