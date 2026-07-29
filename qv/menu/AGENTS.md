@@ -54,6 +54,41 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
    Elephant and Walker active, query the live provider, and inspect a fullscreen
    screenshot.
 
-During qvsync, compare upstream menu behavior with this catalog. Adopt or
-combine better upstream capability, preserve qvOS differentiators on the new
-seam, and remove superseded provider, runtime, config, and test plumbing.
+## qvsync software reconciliation
+
+When the exact upstream target changes optional software, its menus, or an
+install/removal owner:
+
+1. Inspect `<reviewed-upstream-sha>:bin/omarchy-menu` plus every changed
+   `omarchy-install-*`, `omarchy-remove-*`, package helper, and setup owner at
+   that same exact SHA. Compare new, renamed, and removed software leaves with
+   `concepts.psv`, `software-actions.psv`, selectors, aliases, installed
+   payloads, and focused tests; do not infer coverage from filenames alone.
+2. Add a review-ledger row for each upstream leaf: upstream name and owners,
+   qvOS slug or selector, decision, state probe, per-operation presentation,
+   sudo requirement, cleanup, and verification. Use the root qvsync decisions
+   and explain every preserved selector, omission, and `no-impact`.
+3. Adopt a flat row only with a stable concept, real read-only state, and real
+   install and uninstall owners. Reuse those owners exactly once. If upstream
+   has no safe paired lifecycle, keep the software reachable through an
+   inherited `Manage` or `Browse` selector, reintroducing that selector when
+   its category was previously flattened; never invent an Uninstall owner from
+   a package name.
+4. Choose `tui` independently for Install and Uninstall only when that owner is
+   a safe captured command stream. Keep interactive questions, authentication,
+   configuration, reboot choices, and owner-controlled destructive
+   confirmations `native`.
+5. Determine sudo per operation by tracing the complete owner path, including
+   transitive helpers such as `omarchy-pkg-add` and `omarchy-pkg-drop`; do not
+   trust missing top-level command metadata as proof that sudo is unnecessary.
+6. Update the catalog, action registry, probes, selectors, intents, tests,
+   runtime payload, and stale residue as one adaptation. Retire a stale row
+   when its upstream owner disappears unless qvOS deliberately preserves a
+   complete independent owner. Verify unique global and focused search results,
+   both Install and Uninstall routing, state flips, source/runtime parity, the
+   live Elephant provider, and the shared two-ring TUI where selected before
+   approving the reviewed upstream SHA.
+
+Adopt or combine better upstream capability, preserve qvOS differentiators on
+the supported seam, and remove superseded provider, runtime, config, and test
+plumbing.

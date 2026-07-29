@@ -25,6 +25,9 @@ replace its judgment.
    `qvos:gaming-base:end` in `qv/install/packaging/base.additions`. Use current
    package names, keep the matching 32-bit PipeWire JACK package, and leave
    hardware-specific GPU drivers to Omarchy's Steam installer.
+6. When upstream changes optional software, its menu leaves, or lifecycle
+   owners, read `qv/menu/AGENTS.md` and complete its software reconciliation
+   ledger before approving the reviewed upstream SHA.
 
 ## Verification And Publication
 

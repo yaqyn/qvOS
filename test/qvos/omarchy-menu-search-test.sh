@@ -421,8 +421,18 @@ grep -Fq 'Verbs are actions on one canonical concept' "$menu_agents" ||
   fail "canonical concept policy"
 grep -Fq 'leave ambiguous words' "$menu_agents" ||
   fail "high-confidence search intent policy"
-grep -Fq 'During qvsync, compare upstream menu behavior' "$menu_agents" ||
-  fail "qvsync menu audit policy"
+grep -Fq '<reviewed-upstream-sha>:bin/omarchy-menu' "$menu_agents" ||
+  fail "qvsync upstream software source"
+grep -Fq 'new, renamed, and removed software leaves' "$menu_agents" ||
+  fail "qvsync software drift coverage"
+grep -Fq 'Add a review-ledger row for each upstream leaf' "$menu_agents" ||
+  fail "qvsync software reconciliation ledger"
+grep -Fq 'independently for Install and Uninstall' "$menu_agents" ||
+  fail "qvsync per-operation presentation review"
+grep -Fq 'transitive helpers such as' "$menu_agents" ||
+  fail "qvsync transitive sudo review"
+grep -Fq 'invent an Uninstall owner from' "$menu_agents" ||
+  fail "qvsync paired lifecycle boundary"
 pass "owner-local AGENTS keeps the compact menu contract durable across qvsync"
 
 apps_audit=$(

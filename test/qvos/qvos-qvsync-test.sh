@@ -171,6 +171,8 @@ grep -Fq 'maintainer roadmaps as advisory signals' "$root/AGENTS.md" ||
   fail "Codex upstream roadmap instruction"
 grep -Fq 'remove superseded source' "$root/AGENTS.md" ||
   fail "Codex superseded implementation cleanup"
+grep -Fq 'complete its software reconciliation' "$root/qv/git/AGENTS.md" ||
+  fail "qvsync software reconciliation route"
 grep -Fq 'qvOS as an overlay on Omarchy' "$root/AGENTS.md" ||
   fail "root overlay ownership contract"
 grep -Fq 'qv/<feature>/' "$root/AGENTS.md" ||
