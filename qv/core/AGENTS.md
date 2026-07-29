@@ -57,3 +57,8 @@ Verify catalog and manifest guards, affected stack Install/Remove tests, direct
 updater tests, menu tests, Bash syntax, ShellCheck, official `codex doctor`
 checks, and the full qvOS suite. Base-manifest changes additionally require ISO
 prepare-only verification.
+
+When Codex launches the verification session through npm, remove inherited
+`CODEX_MANAGED_PACKAGE_ROOT` and `CODEX_MANAGED_BY_NPM` from the doctor
+subprocess so it inspects the canonical base installation instead of the parent
+agent's launcher context. Report any remaining update-probe warning truthfully.
