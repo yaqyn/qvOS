@@ -12,11 +12,23 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   high-confidence and map to one unique visible result; leave ambiguous words
   to exhaustive fuzzy search.
 - Organize browse screens by nouns. Verbs are actions on one canonical concept
-  sheet, never duplicate Install, Remove, Style, or Update folders.
+  sheet, never duplicate Install, Uninstall, Style, or Update folders.
 - Keep each concept and breadcrumb in `qv/menu/concepts.psv`; browse screens
   derive from that catalog. Use no separator or placeholder rows.
 - Keep browsing curated and shallow while search exposes detailed actions.
   `Update qvOS` is direct; component updates belong to their concept sheet.
+- Keep `Settings > Software` as a focused Elephant view backed by
+  `software-actions.psv`. Each actionable software row has one read-only,
+  owner-derived `Install` or `Uninstall` subtext and activates that action
+  directly after a fresh state check. Do not add an intermediate action sheet
+  or per-app Learn action.
+- Preserve generic Package, Web App, and TUI workflows plus software selectors
+  that lack a paired lifecycle owner. Show selectors as `Browse` and delegate
+  directly to their inherited list; never invent an Uninstall owner from a
+  package name.
+- `software-state` owns batched menu detection only. It must not mutate state,
+  infer lifecycle state from menu history, or reproduce an installer's own
+  convergence checks.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus and mirror useful direct
@@ -30,7 +42,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 1. Read the catalog, extension, provider, installer, and one or two analogous
    routes before editing.
 2. Reuse command owners. Do not put install, removal, setup, or update
-   implementation in menu code.
+   implementation in menu code. Route stream-safe owners through the shared
+   two-ring TUI action adapter; keep owners that require interactive prompts,
+   authentication, or configuration in their native floating terminal.
 3. Update focused menu tests for catalog uniqueness, routing, query-preserving
    Tab behavior, runtime installation, and startup ordering.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.

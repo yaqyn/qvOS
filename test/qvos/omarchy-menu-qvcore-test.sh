@@ -33,13 +33,13 @@ run_menu() {
         printf "%b\n" "$2" >"$QVOS_TEST_MENU_LOG"
         printf "%s\n" "$QVOS_TEST_CHOICE"
       }
-      present_terminal() {
-        printf "%s\n" "$*" >"$QVOS_TEST_ACTION_LOG"
-      }
       back_menu() {
         printf "back\n" >"$QVOS_TEST_ACTION_LOG"
       }
       source "$1"
+      launch_software_action() {
+        printf "%s\n" "$1" >"$QVOS_TEST_ACTION_LOG"
+      }
       show_qvcore_menu back_menu
     ' _ "$root/qv/menu/extension.sh"
 }
@@ -48,18 +48,18 @@ run_menu Proton
 expected_install=$'󰌾  Proton — Install\n󰵮  qvDEV — Install'
 [[ $(<"$menu_log") == "$expected_install" ]] ||
   fail "two direct Install rows"
-[[ $(<"$action_log") == "omarchy-install-qvcore proton" ]] ||
+[[ $(<"$action_log") == "proton" ]] ||
   fail "Proton Install action"
 
 install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/qvdev"
 run_menu qvDEV
-grep -Fqx '󰵮  qvDEV — Remove' "$menu_log" ||
-  fail "enrolled qvDEV Remove row"
-[[ $(<"$action_log") == "omarchy-qvcore-remove qvdev" ]] ||
-  fail "qvDEV Remove action"
+grep -Fqx '󰵮  qvDEV — Uninstall' "$menu_log" ||
+  fail "enrolled qvDEV Uninstall row"
+[[ $(<"$action_log") == "qvdev" ]] ||
+  fail "qvDEV Uninstall action"
 
 if rg -q 'Status|Repair|Disable|Applications|Managed Setups|Install Everything' "$menu_log"; then
   fail "retired qvCORE menu complexity"
 fi
 
-printf 'ok - qvCORE menu shows two dynamic Install or Remove actions\n'
+printf 'ok - qvCORE menu shows two dynamic Install or Uninstall actions\n'

@@ -34,7 +34,7 @@ qv/
 ```
 
 qvCORE is an optional two-stack collection, not a qvOS subsystem. Its complete
-catalog is Proton and qvDEV. Every stack exposes only Install and Remove.
+catalog is Proton and qvDEV. Every stack exposes only Install and Uninstall.
 
 ## Product lifecycle
 
@@ -55,8 +55,9 @@ identity or base readiness.
   Proton. It never restores missing tools, installs stacks, authenticates
   accounts, changes integrations, or changes networking.
 - The qvCORE menu shows the two stacks directly. Each row is Install when
-  unenrolled and Remove when enrolled. Install converges only missing pieces,
-  configures and verifies the stack, then records enrollment. Remove deletes
+  unenrolled and Uninstall when enrolled. Install converges only missing
+  pieces, configures and verifies the stack, then records enrollment. The
+  underlying removal owner deletes
   the complete enrolled stack and its qvOS integration while preserving
   personal files, browser profiles, credentials, authentication state,
   projects, and cloud data.
@@ -71,10 +72,14 @@ identity or base readiness.
   Convex, Playwright dependencies, and Playwright browser assets remain
   project-local. Install checks every inventory entry and installs only what is
   missing before verifying the complete stack.
-- The qvOS TUI exposes Update and ISO Build only. ISO Build stages the
-  qvOS source over Omarchy's `main` ISO for its matching `master` installer,
-  adds the qvOS configurator and progress surfaces, and preserves Omarchy's
-  disk-install and post-install orchestration.
+- The qvOS TUI exposes Update, ISO Build, and state-aware Software actions.
+  Software actions reuse one shared two-ring confirmation, authorization,
+  progress, log, and result flow while delegating the mutation once to the
+  existing Omarchy or qvOS owner. Owners that require an interactive prompt,
+  authentication, or configuration session retain their native terminal.
+  ISO Build stages the qvOS source over Omarchy's `main` ISO for its matching
+  `master` installer, adds the qvOS configurator and progress surfaces, and
+  preserves Omarchy's disk-install and post-install orchestration.
 
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.

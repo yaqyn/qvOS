@@ -1,0 +1,106 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qv/menu/software-actions.psv"
+concepts="$HOME/.local/share/qvos/menu/concepts.psv"
+state_owner="$OMARCHY_PATH/qv/menu/software-state"
+tui_launch="$OMARCHY_PATH/qv/tui/launch"
+slug=${1:-}
+
+usage() {
+  echo "Usage: qv/tui/action/launch <software-slug>" >&2
+}
+
+action_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 9 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+concept_name() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && $1 == wanted && NF >= 5 {
+      print $3
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$concepts"
+}
+
+owner_metadata() {
+  local key=$1
+  local owner_path
+
+  owner_path=$(command -v "${owner_args[0]}") || return 1
+  sed -n "s/^# omarchy:${key}=//p" "$owner_path" | head -n 1
+}
+
+[[ -n $slug && $# == 1 ]] || {
+  usage
+  exit 2
+}
+[[ -f $catalog && -f $concepts && -x $state_owner && -x $tui_launch ]] || {
+  echo "The qvOS software action surface is incomplete." >&2
+  exit 1
+}
+
+record=$(action_record) || {
+  echo "Unknown qvOS software action: $slug" >&2
+  exit 2
+}
+IFS='|' read -r \
+  _ \
+  _ \
+  _ \
+  install_presentation \
+  install_sudo \
+  uninstall_presentation \
+  uninstall_sudo \
+  install_owner \
+  uninstall_owner <<<"$record"
+
+title=$(concept_name) || {
+  echo "Missing qvOS software concept: $slug" >&2
+  exit 1
+}
+operation=$("$state_owner" "$slug")
+if [[ $operation == "install" ]]; then
+  owner_command=$install_owner
+  presentation=$install_presentation
+  requires_sudo=$install_sudo
+else
+  owner_command=$uninstall_owner
+  presentation=$uninstall_presentation
+  requires_sudo=$uninstall_sudo
+fi
+read -r -a owner_args <<<"$owner_command"
+summary=$(owner_metadata summary || true)
+[[ -n $summary ]] || summary="${operation^} $title through its existing owner"
+
+if [[ $presentation == "native" ]]; then
+  exec omarchy-launch-floating-terminal-with-presentation "$owner_command"
+fi
+
+[[ $presentation == "tui" ]] || {
+  echo "Unsupported qvOS action presentation: $presentation" >&2
+  exit 1
+}
+
+export QVOS_ACTION_SLUG="$slug"
+export QVOS_ACTION_OPERATION="$operation"
+export QVOS_ACTION_TITLE="$title"
+export QVOS_ACTION_SUMMARY="$summary"
+if [[ $requires_sudo == "true" ]]; then
+  export QVOS_ACTION_REQUIRES_SUDO=1
+else
+  export QVOS_ACTION_REQUIRES_SUDO=0
+fi
+
+exec "$tui_launch" "$title" qvos-tui --action

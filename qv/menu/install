@@ -14,6 +14,8 @@ provider_runtime_dir="$menu_runtime_dir/elephant"
 provider_menu_dir="$HOME/.config/elephant/menus"
 concept_source="$menu_source_dir/concepts.psv"
 concept_runtime="$menu_runtime_dir/concepts.psv"
+software_actions_source="$menu_source_dir/software-actions.psv"
+software_state_source="$menu_source_dir/software-state"
 search_intents_source="$menu_source_dir/search-intents.psv"
 search_intents_runtime="$menu_runtime_dir/search-intents.psv"
 elephant_ready_source="$menu_source_dir/wait-for-elephant"
@@ -48,6 +50,8 @@ require_sources() {
   local required_sources=(
     "$source_path"
     "$concept_source"
+    "$software_actions_source"
+    "$software_state_source"
     "$search_intents_source"
     "$elephant_ready_source"
     "$walker_ready_source"
@@ -79,6 +83,10 @@ require_sources() {
     echo "Omarchy Walker theme import changed; qvOS menu theme needs review." >&2
     return 1
   fi
+  [[ -x $software_state_source ]] || {
+    echo "qvOS software state owner is not executable: $software_state_source" >&2
+    return 1
+  }
 
 }
 

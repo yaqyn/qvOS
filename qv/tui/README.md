@@ -8,6 +8,8 @@ modes:
 - `--prototype`: safe fake script, sudo, application, and boot sessions
 - `--update`: qvOS Update confirmation, preflight, authorization, progress,
   logs, and result
+- `--action`: state-aware Software confirmation, preflight, authorization,
+  progress, logs, and result
 - `--iso-installer`: boot installation information and confirmation
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
@@ -73,6 +75,24 @@ The four model roles carry meaning across surfaces:
 
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.
+
+## Software actions
+
+`action/` is the shared adapter for state-aware software leaves opened from
+Elephant:
+
+1. Refresh the selected software state at activation.
+2. Show `Install` or `Uninstall` with the two-ring operational model.
+3. Complete non-mutating preflight and optional sudo authorization.
+4. Delegate once to the existing Omarchy or qvOS owner and map only owned
+   milestones into progress.
+5. Verify that the real software state changed before rendering success.
+
+The registry selects this flow only for owners that are safe captured command
+streams. Installers that require an interactive prompt, authentication, or
+configuration retain their native floating terminal rather than receiving
+synthetic input. Both routes remain direct from the software row; neither adds
+an intermediate action sheet.
 
 ## Update
 

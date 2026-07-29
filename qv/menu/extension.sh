@@ -13,8 +13,17 @@ set_qvos_menu_mode() {
   printf '%s\n' "$mode" >"$runtime_dir/qvos-menu-mode"
 }
 
+set_qvos_menu_view() {
+  local view="$1"
+  local runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
+
+  [[ $view == "home" || $view == "software" || $view == software:* ]] || return 2
+  printf '%s\n' "$view" >"$runtime_dir/qvos-menu-view"
+}
+
 show_main_menu() {
   set_qvos_menu_mode menu
+  set_qvos_menu_view home
   omarchy-launch-walker \
     --theme qvos-omarchy-menu \
     --set qvos-omarchy-menu \
@@ -47,6 +56,11 @@ show_settings_area_menu() {
   local -a names=()
   local -a slugs=()
 
+  if [[ $area == "Software" ]]; then
+    show_software_menu
+    return
+  fi
+
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
     IFS='|' read -r -a fields <<<"$line"
@@ -71,7 +85,29 @@ show_settings_area_menu() {
 }
 
 show_settings_software_menu() {
-  show_settings_area_menu "Software"
+  show_software_menu
+}
+
+show_software_menu() {
+  local group=${1:-}
+  local view="software"
+
+  [[ -z $group ]] || view="software:$group"
+  set_qvos_menu_mode menu
+  set_qvos_menu_view "$view"
+  omarchy-launch-walker \
+    --theme qvos-omarchy-menu \
+    --set qvos-omarchy-menu \
+    --width 560 \
+    --minheight 1 \
+    --maxheight 630 \
+    --placeholder "Search software…"
+}
+
+launch_software_action() {
+  local launcher=${QVOS_SOFTWARE_ACTION_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/action/launch}
+
+  "$launcher" "$1"
 }
 
 show_more_menu() {
@@ -149,6 +185,14 @@ show_concept_menu() {
   local icon
   local index
   local options=""
+
+  if awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 9 && $1 == wanted { found = 1 }
+    END { exit !found }
+  ' "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/menu/software-actions.psv"; then
+    launch_software_action "$slug"
+    return
+  fi
 
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
@@ -356,7 +400,7 @@ show_qvcore_menu() {
     [[ -n $component && $component != "#"* ]] || continue
     [[ -n $label && -n $icon && -z ${extra:-} ]] || continue
     if [[ -f $state_dir/$component ]]; then
-      action="Remove"
+      action="Uninstall"
     else
       action="Install"
     fi
@@ -372,11 +416,7 @@ show_qvcore_menu() {
 
   for index in "${!labels[@]}"; do
     [[ $choice == "${labels[$index]}" ]] || continue
-    if [[ ${actions[$index]} == "Install" ]]; then
-      present_terminal "omarchy-install-qvcore ${components[$index]}"
-    else
-      present_terminal "omarchy-qvcore-remove ${components[$index]}"
-    fi
+    launch_software_action "${components[$index]}"
     return
   done
 
@@ -444,6 +484,12 @@ show_update_config_menu() {
 go_to_menu() {
   case "${1,,}" in
   concept:*) show_concept_menu "${1#concept:}" ;;
+  software-development*) show_software_menu development ;;
+  software-javascript*) show_software_menu javascript ;;
+  software-browser*) show_software_menu browser ;;
+  software-gaming*) show_software_menu gaming ;;
+  software-qvcore*) show_software_menu qvcore ;;
+  software*) show_software_menu ;;
   *apps*)
     set_qvos_menu_mode apps
     omarchy-launch-walker \

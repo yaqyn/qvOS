@@ -20,6 +20,11 @@ local function mode_path()
   return runtime_dir and runtime_dir .. "/qvos-menu-mode" or nil
 end
 
+local function view_path()
+  local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
+  return runtime_dir and runtime_dir .. "/qvos-menu-view" or nil
+end
+
 local function read_mode()
   local path = mode_path()
   local mode_file = path and io.open(path, "r")
@@ -32,6 +37,23 @@ local function read_mode()
   mode_file:close()
 
   return mode == "apps" and "apps" or "menu"
+end
+
+local function read_view()
+  local path = view_path()
+  local view_file = path and io.open(path, "r")
+
+  if not view_file then
+    return "home"
+  end
+
+  local view = view_file:read("*l")
+  view_file:close()
+
+  if view == "software" or view:match("^software:[%w-]+$") then
+    return view
+  end
+  return "home"
 end
 
 local function write_mode(mode)
@@ -295,9 +317,69 @@ local function apply_search_intents(entries, query)
   return entries
 end
 
-local function add_concepts(entries)
+local function software_action_states()
+  local home = os.getenv("HOME")
+  local source = os.getenv("OMARCHY_PATH")
+    or (home and home .. "/.local/share/omarchy")
+  local owner = source and source .. "/qv/menu/software-state"
+  local handle = owner and io.popen(shell_escape(owner) .. " --all 2>/dev/null")
+  local states = {}
+
+  if not handle then
+    return states
+  end
+  for line in handle:lines() do
+    local slug, state = line:match("^([%w-]+)\t([%a]+)$")
+    if slug and (state == "install" or state == "uninstall") then
+      states[slug] = state
+    end
+  end
+  handle:close()
+  return states
+end
+
+local function software_action(slug)
+  local home = os.getenv("HOME")
+  local source = os.getenv("OMARCHY_PATH")
+    or (home and home .. "/.local/share/omarchy")
+  local launch = source and source .. "/qv/tui/action/launch"
+
+  return launch and shell_escape(launch) .. " " .. shell_escape(slug)
+    or route("concept:" .. slug)
+end
+
+local function software_group_matches(breadcrumb, view)
+  if view == "software" then
+    return breadcrumb:match("^Settings · Software ·") ~= nil
+      or breadcrumb == "Settings · Software"
+  end
+
+  local group = view:match("^software:(.+)$")
+  local group_breadcrumbs = {
+    development = "Settings · Software · Development",
+    javascript = "Settings · Software · Development · JavaScript",
+    browser = "Settings · Software · Browser",
+    gaming = "Settings · Software · Gaming",
+    qvcore = "Settings · Software · qvCORE",
+  }
+  local expected = group and group_breadcrumbs[group]
+  return expected and breadcrumb:sub(1, #expected) == expected or false
+end
+
+local software_selectors = {
+  package = true,
+  ["web-app"] = true,
+  tui = true,
+  services = true,
+  editor = true,
+  terminal = true,
+  ai = true,
+}
+
+local function add_concepts(entries, software_view)
   local home = os.getenv("HOME")
   local catalog = home and io.open(home .. "/.local/share/qvos/menu/concepts.psv", "r")
+  local action_states = software_action_states()
 
   if not catalog then
     return
@@ -306,14 +388,40 @@ local function add_concepts(entries)
   for line in catalog:lines() do
     if line ~= "" and line:sub(1, 1) ~= "#" then
       local fields = split(line, "|")
-      add(
-        entries,
-        fields[2],
-        fields[3],
-        fields[4],
-        split(fields[5], ","),
-        route("concept:" .. fields[1])
-      )
+      local state = action_states[fields[1]]
+      local visible = not software_view
+        or (
+          software_view == "software"
+          and (state or software_selectors[fields[1]])
+        )
+        or (
+          state
+          and software_group_matches(fields[4], software_view)
+        )
+
+      if visible then
+        local subtext = fields[4]
+        local activation = route("concept:" .. fields[1])
+
+        if state then
+          subtext = state == "install" and "Install" or "Uninstall"
+          activation = software_action(fields[1])
+        elseif software_view and fields[6] == "Browse"
+          and fields[7] and fields[7]:match("^menu:")
+        then
+          subtext = "Browse"
+          activation = route(fields[7]:sub(6))
+        end
+
+        add(
+          entries,
+          fields[2],
+          fields[3],
+          subtext,
+          split(fields[5], ","),
+          activation
+        )
+      end
     end
   end
 
@@ -325,6 +433,13 @@ function GetEntries(query)
 
   if read_mode() == "apps" then
     return app_entries(query)
+  end
+
+  local view = read_view()
+  if view == "software" or view:match("^software:") then
+    local entries = {}
+    add_concepts(entries, view)
+    return apply_search_intents(entries, query)
   end
 
   if query == "" then

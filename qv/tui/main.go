@@ -19,6 +19,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
 	updateflow "github.com/Yaqyn-qvOS/qvOS/update"
 )
 
@@ -341,7 +342,10 @@ type actionMode int
 const (
 	actionBuild actionMode = iota
 	actionUpdate
+	actionGeneric
 )
+
+var currentActionSpec actionflow.Spec
 
 type modelRole uint8
 
@@ -394,7 +398,7 @@ type model struct {
 }
 
 func isRootAction(action actionMode) bool {
-	return action == actionUpdate
+	return action == actionUpdate || action == actionGeneric
 }
 
 func isScriptAction(action actionMode) bool {
@@ -618,8 +622,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.startRootScriptRun(msg.action, msg.script)
 
-	case updatePreflightDoneMsg:
-		if m.action != actionUpdate || m.scriptPath != msg.script {
+	case rootPreflightDoneMsg:
+		if m.action != msg.action || m.scriptPath != msg.script {
 			return m, nil
 		}
 		m.updatePreflight = false
@@ -629,9 +633,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scriptStatus = shortError(msg.err)
 			return m, nil
 		}
+		if msg.action == actionGeneric && !currentActionSpec.RequiresSudo {
+			return m.startRootScriptRun(msg.action, msg.script)
+		}
 		m.sudoChecking = true
 		m.scriptStatus = "authorizing sudo"
-		return m, checkSudoCachedCmd(actionUpdate, msg.script)
+		return m, checkSudoCachedCmd(msg.action, msg.script)
 
 	case sudoAuthDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -711,7 +718,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
-					if m.action == actionUpdate && !m.scriptCanceling {
+					if isRootAction(m.action) && !m.scriptCanceling {
 						m.terminalView = false
 						m.updateStopConfirm = true
 						m.updateStopChoice = 0
@@ -931,17 +938,25 @@ func (m model) helpHints() []tuiHint {
 		return m.terminalHelpHints()
 	}
 	if m.updateStopConfirm {
+		keepAction := "keep updating"
+		if m.action == actionGeneric {
+			keepAction = strings.ToLower(currentActionSpec.KeepRunningAction())
+		}
 		return []tuiHint{
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "confirm the selected option"},
-			{Key: "esc", Action: "keep updating"},
+			{Key: "esc", Action: keepAction},
 		}
 	}
 	if m.updateConfirm {
+		cancelAction := "cancel before updating"
+		if m.action == actionGeneric {
+			cancelAction = "cancel before starting"
+		}
 		return []tuiHint{
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "continue with the selected option"},
-			{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before updating"},
+			{Key: "esc / ctrl+c / ctrl+z", Action: cancelAction},
 		}
 	}
 	if m.sudoPrompt {
@@ -973,7 +988,7 @@ func (m model) helpHints() []tuiHint {
 		hints = append([]tuiHint{{Key: "enter / esc", Action: "return"}}, hints...)
 	default:
 		action := "cancel the action"
-		if m.action == actionUpdate {
+		if isRootAction(m.action) {
 			action = "open safe stop options"
 		}
 		hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: action}}, hints...)
@@ -1021,7 +1036,7 @@ func (m model) rootPersistentHints() []tuiHint {
 		}
 	default:
 		action := "cancel"
-		if m.action == actionUpdate {
+		if isRootAction(m.action) {
 			action = "stop options"
 		}
 		return []tuiHint{
@@ -1039,7 +1054,7 @@ func (m model) terminalHelpHints() []tuiHint {
 	hints = append(hints, tuiTerminalLogHints()...)
 	if m.loadPhase() == loadRun {
 		action := "cancel the action"
-		if m.action == actionUpdate {
+		if isRootAction(m.action) {
 			action = "open safe stop options"
 		}
 		hints = append(hints, tuiHint{Key: "ctrl+c / ctrl+z", Action: action})
@@ -1397,7 +1412,8 @@ type sudoAuthDoneMsg struct {
 	err    error
 }
 
-type updatePreflightDoneMsg struct {
+type rootPreflightDoneMsg struct {
+	action actionMode
 	script string
 	err    error
 }
@@ -1440,6 +1456,13 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) beginGenericAction(spec actionflow.Spec, dedicated bool) (model, tea.Cmd) {
+	currentActionSpec = spec
+	m, command := m.beginUpdateConfirmation(dedicated)
+	m.action = actionGeneric
+	return m, command
+}
+
 func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "left", "h", "up", "k", "shift+tab":
@@ -1453,7 +1476,7 @@ func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.
 			return m.cancelUpdate()
 		}
 		m.updateConfirm = false
-		return m.startRootAction(actionUpdate)
+		return m.startRootAction(m.action)
 	}
 	return m, nil
 }
@@ -1511,6 +1534,11 @@ func (m model) leaveRootAction() (model, tea.Cmd) {
 
 func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	script, err := findRootScript(action)
+	needsPreflight := action == actionUpdate || action == actionGeneric
+	needsSudo := action != actionUpdate
+	if action == actionGeneric {
+		needsSudo = currentActionSpec.RequiresSudo
+	}
 	m.loading = true
 	m.action = action
 	m.loadStart = m.frame
@@ -1518,7 +1546,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptDone = false
 	m.scriptErr = nil
 	m.scriptPath = script
-	m.sudoChecking = action != actionUpdate
+	m.sudoChecking = !needsPreflight && needsSudo
 	m.sudoPrompt = false
 	m.sudoPassword = nil
 	m.sudoErr = nil
@@ -1540,7 +1568,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.updateConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
-	m.updatePreflight = action == actionUpdate
+	m.updatePreflight = needsPreflight
 	m.updateCanceled = false
 
 	if err != nil {
@@ -1551,9 +1579,15 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 		return m, nil
 	}
 
-	if action == actionUpdate {
-		m.scriptStatus = "checking update readiness"
-		return m, checkUpdatePreflightCmd(script)
+	if needsPreflight {
+		m.scriptStatus = "checking action readiness"
+		if action == actionUpdate {
+			m.scriptStatus = "checking update readiness"
+		}
+		return m, checkRootPreflightCmd(action, script)
+	}
+	if !needsSudo {
+		return m.startRootScriptRun(action, script)
 	}
 	return m, checkSudoCachedCmd(action, script)
 }
@@ -1632,12 +1666,12 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "ctrl+z":
-		if m.action == actionUpdate {
+		if isRootAction(m.action) {
 			return m.cancelUpdate()
 		}
 		return m, tea.Quit
 	case "esc":
-		if m.action == actionUpdate {
+		if isRootAction(m.action) {
 			return m.cancelUpdate()
 		}
 		m.sudoPassword = nil
@@ -1679,11 +1713,21 @@ func checkSudoCachedCmd(action actionMode, script string) tea.Cmd {
 	}
 }
 
-func checkUpdatePreflightCmd(script string) tea.Cmd {
+func checkRootPreflightCmd(action actionMode, script string) tea.Cmd {
 	return func() tea.Msg {
-		return updatePreflightDoneMsg{
+		var err error
+		switch action {
+		case actionUpdate:
+			err = updateflow.Preflight(script)
+		case actionGeneric:
+			err = actionflow.Preflight(script)
+		default:
+			err = fmt.Errorf("action %d has no preflight", action)
+		}
+		return rootPreflightDoneMsg{
+			action: action,
 			script: script,
-			err:    updateflow.Preflight(script),
+			err:    err,
 		}
 	}
 }
@@ -1956,8 +2000,10 @@ func scriptProgressFromLine(action actionMode, line string) (string, float64) {
 		return buildProgressFromLine(clean)
 	case actionUpdate:
 		return updateflow.ProgressFromLine(clean)
+	case actionGeneric:
+		return actionflow.ProgressFromLine(clean, currentActionSpec)
 	default:
-		return clean, -1
+		return "", -1
 	}
 }
 
@@ -2303,13 +2349,24 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 }
 
 func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
-	title := centerCanvas(sWhite.Render(updateflow.StopPromptTitle))
-	notice := centerCanvas(sMid.Render(updateflow.StopPromptNotice))
+	titleText := updateflow.StopPromptTitle
+	noticeText := updateflow.StopPromptNotice
+	keepAction := updateflow.KeepUpdatingAction
+	stopAction := updateflow.StopUpdateAction
+	if m.action == actionGeneric {
+		titleText = currentActionSpec.StopPromptTitle()
+		noticeText = currentActionSpec.StopPromptNotice()
+		keepAction = currentActionSpec.KeepRunningAction()
+		stopAction = currentActionSpec.StopAction()
+	}
+
+	title := centerCanvas(sWhite.Render(titleText))
+	notice := centerCanvas(sMid.Render(noticeText))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		renderConfirmationAction(updateflow.KeepUpdatingAction, m.updateStopChoice == 0),
+		renderConfirmationAction(keepAction, m.updateStopChoice == 0),
 		"   ",
-		renderConfirmationAction(updateflow.StopUpdateAction, m.updateStopChoice == 1),
+		renderConfirmationAction(stopAction, m.updateStopChoice == 1),
 	))
 
 	content := strings.Join([]string{title, "", notice, "", actions}, "\n")
@@ -2317,6 +2374,10 @@ func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
 }
 
 func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
+	if m.action == actionGeneric {
+		return m.renderGenericActionConfirmationFor(mode)
+	}
+
 	title := centerCanvas(sWhite.Render(updateflow.Title))
 	summary := centerCanvas(sGray.Render(updateflow.Summary))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
@@ -2349,6 +2410,25 @@ func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
 		history,
 		"",
 	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+}
+
+func (m model) renderGenericActionConfirmationFor(mode layoutMode) string {
+	title := centerCanvas(sWhite.Render(currentActionSpec.Heading()))
+	summary := centerCanvas(sGray.Render(trimDisplay(currentActionSpec.Summary, max(1, canvasW))))
+	actions := centerCanvas(lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		renderConfirmationAction(currentActionSpec.PrimaryAction(), m.updateChoice == 0),
+		"   ",
+		renderConfirmationAction(actionflow.CancelAction, m.updateChoice == 1),
+	))
+
+	if mode == layoutMobile {
+		content := strings.Join([]string{title, "", actions}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	}
+
+	content := strings.Join([]string{title, "", summary, "", actions}, "\n")
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
@@ -2452,7 +2532,10 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	default:
 		op = sWhite.Render(rootActionActiveTitle(m.action))
 		if m.updatePreflight {
-			stageRaw = "checking update readiness"
+			stageRaw = "checking action readiness"
+			if m.action == actionUpdate {
+				stageRaw = "checking update readiness"
+			}
 		} else if m.sudoChecking {
 			stageRaw = "authorizing sudo"
 		} else if m.scriptCanceling {
@@ -2637,6 +2720,8 @@ func rootActionName(action actionMode) string {
 	switch action {
 	case actionUpdate:
 		return "UPDATE"
+	case actionGeneric:
+		return currentActionSpec.Heading()
 	default:
 		return "BUILD"
 	}
@@ -2648,6 +2733,8 @@ func rootActionPastTense(action actionMode) string {
 		return "BUILT"
 	case actionUpdate:
 		return "UPDATED"
+	case actionGeneric:
+		return currentActionSpec.PastTense()
 	default:
 		return "READY"
 	}
@@ -2659,6 +2746,8 @@ func rootActionActiveTitle(action actionMode) string {
 		return "BUILDING"
 	case actionUpdate:
 		return "UPDATING"
+	case actionGeneric:
+		return currentActionSpec.ActiveTitle()
 	default:
 		return "RUNNING"
 	}
@@ -2670,6 +2759,8 @@ func rootActionRunningStatus(action actionMode) string {
 		return "ISO build running in background"
 	case actionUpdate:
 		return updateflow.RunningStatus
+	case actionGeneric:
+		return currentActionSpec.RunningStatus()
 	default:
 		return "script running in background"
 	}
@@ -2681,6 +2772,8 @@ func rootActionCompleteStatus(action actionMode) string {
 		return "ISO build complete"
 	case actionUpdate:
 		return updateflow.CompleteStatus
+	case actionGeneric:
+		return currentActionSpec.CompleteStatus()
 	default:
 		return "complete"
 	}
@@ -2692,6 +2785,8 @@ func rootActionCancelingStatus(action actionMode) string {
 		return "cleaning build stage"
 	case actionUpdate:
 		return updateflow.CancelingStatus
+	case actionGeneric:
+		return currentActionSpec.CancelingStatus()
 	default:
 		return "stopping action"
 	}
@@ -2703,6 +2798,8 @@ func rootActionCanceledStatus(action actionMode) string {
 		return "cleanup complete - good to go"
 	case actionUpdate:
 		return updateflow.CanceledStatus
+	case actionGeneric:
+		return currentActionSpec.CanceledStatus()
 	default:
 		return "action stopped"
 	}
@@ -3457,6 +3554,8 @@ func rootScriptSpec(action actionMode) (scriptName string, envName string, err e
 		return "bin/qvos-build", "QVOS_BUILD_SCRIPT", nil
 	case actionUpdate:
 		return updateflow.ScriptPath, updateflow.ScriptEnvironment, nil
+	case actionGeneric:
+		return actionflow.ScriptPath, actionflow.ScriptEnvironment, nil
 	default:
 		return "", "", fmt.Errorf("action %d does not have a root script", action)
 	}
@@ -3602,6 +3701,34 @@ func runDedicatedUpdate() int {
 	return dedicatedUpdateExitCode(final)
 }
 
+func runDedicatedAction() int {
+	spec, err := actionflow.FromEnvironment()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	initial, _ := (model{}).beginGenericAction(spec, true)
+	result, err := newTUIProgram(initial).Run()
+	final, ok := result.(model)
+	interrupted := ok && final.scriptRunning
+	if interrupted {
+		stopActiveScript(final)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if !ok {
+		fmt.Fprintln(os.Stderr, "qvOS action returned an unexpected TUI model")
+		return 1
+	}
+	if interrupted {
+		return 130
+	}
+	return dedicatedUpdateExitCode(final)
+}
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--source-hash" {
 		fmt.Println(buildSourceHash)
@@ -3609,6 +3736,9 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "--update" {
 		os.Exit(runDedicatedUpdate())
+	}
+	if len(os.Args) > 1 && os.Args[1] == "--action" {
+		os.Exit(runDedicatedAction())
 	}
 	if len(os.Args) > 1 && os.Args[1] == "--prototype" {
 		if err := runPrototype(); err != nil {

@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
 )
 
 func TestHubCatalogContainsOnlyRealStableActions(t *testing.T) {
@@ -104,6 +105,95 @@ func TestUpdateActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 	status, progress = scriptProgressFromLine(actionUpdate, "downloading package")
 	if status != "" || progress >= 0 {
 		t.Fatalf("unknown output fabricated progress = %q, %f", status, progress)
+	}
+}
+
+func TestGenericSoftwareActionUsesOneSharedTwoRingFlow(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+	spec := actionflow.Spec{
+		Slug:         "rust",
+		Operation:    "install",
+		Title:        "Rust",
+		Summary:      "Install a supported development environment",
+		RequiresSudo: true,
+	}
+
+	m, command := (model{width: 120, height: 50}).beginGenericAction(spec, true)
+	if command != nil || !m.updateConfirm || m.action != actionGeneric {
+		t.Fatal("software action skipped the shared confirmation state")
+	}
+	if role := m.activeModelRole(); role != modelTwoRings {
+		t.Fatalf("software action model role = %d, want two rings", role)
+	}
+	content := stripANSI(m.View().Content)
+	for _, expected := range []string{
+		"INSTALL RUST",
+		"Install a supported development environment",
+		"Install",
+		"Cancel",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("software confirmation is missing %q: %q", expected, content)
+		}
+	}
+	if hints := fmt.Sprint(m.helpHints()); !strings.Contains(hints, "cancel before starting") ||
+		strings.Contains(hints, "cancel before updating") {
+		t.Fatalf("software confirmation help retained Update copy: %q", hints)
+	}
+
+	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(model)
+	if command == nil || !m.updatePreflight || m.sudoChecking || m.scriptRunning {
+		t.Fatal("software confirmation did not schedule preflight before sudo or mutation")
+	}
+
+	script, environment, err := rootScriptSpec(actionGeneric)
+	if err != nil {
+		t.Fatalf("software action script spec: %v", err)
+	}
+	if script != actionflow.ScriptPath || environment != actionflow.ScriptEnvironment {
+		t.Fatalf("software action script = %q / %q", script, environment)
+	}
+}
+
+func TestGenericSoftwareActionStopRequiresExplicitConfirmation(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+	currentActionSpec = actionflow.Spec{
+		Operation: "uninstall",
+		Title:     "Steam",
+	}
+
+	canceled := false
+	m := model{
+		width:         120,
+		height:        42,
+		loading:       true,
+		action:        actionGeneric,
+		scriptRunning: true,
+		scriptCancel:  func() { canceled = true },
+	}
+	next, _ := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	m = next.(model)
+	if canceled || m.scriptCanceling || !m.updateStopConfirm {
+		t.Fatal("software interruption bypassed the safe stop confirmation")
+	}
+
+	content := stripANSI(m.View().Content)
+	for _, expected := range []string{
+		"STOP UNINSTALL?",
+		"Steam keeps running until you confirm",
+		"Keep Uninstalling",
+		"Stop Uninstall",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("software stop confirmation is missing %q: %q", expected, content)
+		}
+	}
+	if hints := fmt.Sprint(m.helpHints()); !strings.Contains(hints, "keep uninstalling") ||
+		strings.Contains(hints, "keep updating") {
+		t.Fatalf("software stop help retained Update copy: %q", hints)
 	}
 }
 
@@ -598,6 +688,7 @@ func TestModelRolesStaySemanticAcrossTUISurfaces(t *testing.T) {
 		{"hub", model{tab: 0}, modelCore},
 		{"update", model{loading: true, action: actionUpdate}, modelThreeRings},
 		{"build", model{loading: true, action: actionBuild}, modelTwoRings},
+		{"software", model{loading: true, action: actionGeneric}, modelTwoRings},
 	}
 
 	for _, test := range tests {

@@ -8,9 +8,10 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
 
 ## Stack Contract
 
-- Every stack has exactly two user actions: Install and Remove. Keep detection,
-  convergence, and verification internal; do not expose status, health, repair,
-  adopt, disable, group-install, or partial-app lifecycle routes.
+- Every stack has exactly two user actions: Install and Uninstall. The
+  underlying command remains the stack removal owner. Keep detection,
+  convergence, and verification internal; do not expose status, health,
+  repair, adopt, disable, group-install, or partial-app lifecycle routes.
 - `catalog.tsv` is the stack source of truth. A successful Install writes
   `~/.local/state/qvos/qvcore/<stack>` only after all missing software,
   configuration, integrations, and verification complete.
@@ -30,7 +31,7 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
   verify the complete stack.
 - Steam and the reviewed gaming runtime are not qvCORE.
 - Browsers already owned by Omarchy, including Brave Origin, stay on
-  Omarchy's native browser Install and Remove surfaces and out of qvCORE.
+  Omarchy's native install and removal owners and out of qvCORE.
 - Software guaranteed by Omarchy, including LocalSend, stays base-owned and
   out of qvCORE. qvOS-only desktop adapters for it belong to their base feature
   owner and must never uninstall the inherited package.
@@ -53,10 +54,10 @@ nonzero after reporting every failure. It must never install a stack, restore
 a missing tool, authenticate an account, repair an integration, or change
 networking. Do not add one updater per tool.
 
-Verify catalog and manifest guards, affected stack Install/Remove tests, direct
-updater tests, menu tests, Bash syntax, ShellCheck, official `codex doctor`
-checks, and the full qvOS suite. Base-manifest changes additionally require ISO
-prepare-only verification.
+Verify catalog and manifest guards, affected stack Install/Uninstall tests,
+direct updater tests, menu tests, Bash syntax, ShellCheck, official
+`codex doctor` checks, and the full qvOS suite. Base-manifest changes
+additionally require ISO prepare-only verification.
 
 When Codex launches the verification session through npm, remove inherited
 `CODEX_MANAGED_PACKAGE_ROOT` and `CODEX_MANAGED_BY_NPM` from the doctor

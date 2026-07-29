@@ -225,6 +225,82 @@ read -r search_count concept_count go_matches proton_matches style_matches theme
 ((old_breadcrumbs == 0)) || fail "obsolete verb breadcrumbs"
 pass "typed search presents every concept exactly once"
 
+software_action_audit=$(
+  HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" "$root" <<'LUA'
+local real_popen = io.popen
+io.popen = function(command)
+  if command:find("software-state", 1, true) then
+    local values = {
+      "go\tuninstall",
+      "rust\tinstall",
+      "proton\tinstall",
+    }
+    local index = 0
+    return {
+      lines = function()
+        return function()
+          index = index + 1
+          return values[index]
+        end
+      end,
+      close = function() end,
+    }
+  end
+  return real_popen(command)
+end
+
+dofile(arg[1])
+
+local function by_name(entries, wanted)
+  for _, entry in ipairs(entries) do
+    if entry.Text:match("^.-  (.*)$") == wanted then
+      return entry
+    end
+  end
+end
+
+local entries = GetEntries("software")
+local go = assert(by_name(entries, "Go"))
+local rust = assert(by_name(entries, "Rust"))
+local proton = assert(by_name(entries, "Proton"))
+
+assert(go.Subtext == "Uninstall")
+assert(rust.Subtext == "Install")
+assert(proton.Subtext == "Install")
+assert(go.Actions.activate:find("/qv/tui/action/launch' 'go'", 1, true))
+assert(rust.Actions.activate:find("/qv/tui/action/launch' 'rust'", 1, true))
+
+local view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
+view_file:write("software\n")
+view_file:close()
+entries = GetEntries("")
+local editor = assert(by_name(entries, "Editor"))
+local package = assert(by_name(entries, "Package"))
+assert(editor.Subtext == "Browse")
+assert(editor.Actions.activate == "omarchy-menu 'install-editor'")
+assert(package.Actions.activate == "omarchy-menu 'concept:package'")
+assert(not by_name(entries, "Development"))
+
+view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
+view_file:write("software:development\n")
+view_file:close()
+entries = GetEntries("")
+assert(by_name(entries, "Go"))
+assert(by_name(entries, "Rust"))
+assert(not by_name(entries, "Steam"))
+view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
+view_file:write("home\n")
+view_file:close()
+print(#entries)
+LUA
+)
+((software_action_audit == 2)) ||
+  fail "state-aware Software action coverage"
+if rg -Fq '|Learn|' "$root/qv/menu/concepts.psv"; then
+  fail "per-app Learn actions remain in the concept catalog"
+fi
+pass "software leaves expose one dynamic Install or Uninstall action"
+
 intent_audit=$(
   HOME="$test_root" XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
@@ -536,6 +612,11 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-launch-webapp" <<'SCRIPT'
 printf '%s\n' "$*" >"$QVOS_TEST_WEB_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/qvos-software-action" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$1" >"$QVOS_TEST_PRESENTATION_LOG"
+SCRIPT
+
 for command_name in \
   omarchy-launch-audio \
   omarchy-launch-wifi \
@@ -560,6 +641,7 @@ run_menu() {
     QVOS_TEST_PRESENTATION_LOG="$presentation_log" \
     QVOS_TEST_WEB_LOG="$web_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
+    QVOS_SOFTWARE_ACTION_LAUNCH="$test_bin/qvos-software-action" \
     HOME="$test_root" \
     XDG_RUNTIME_DIR="$test_root" \
     OMARCHY_PATH="$root" \
@@ -585,37 +667,15 @@ grep -Fq -- 'Tab: Apps ↔ Menu' "$apps_args_log" ||
   fail "Apps launch mode"
 pass "Omarchy and Apps share one query-preserving Walker surface"
 
-QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:go
-[[ $(<"$concept_options_log") == $'󰐕  Install\n󰆴  Remove\n󰧑  Learn' ]] ||
-  fail "Go concept actions"
-[[ $(<"$presentation_log") == "omarchy-install-dev-env go" ]] ||
-  fail "Go install owner"
-QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:go
-[[ $(<"$presentation_log") == "omarchy-remove-dev-env go" ]] ||
-  fail "Go remove owner"
-QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:go
-[[ $(<"$web_log") == "https://go.dev/doc/" ]] ||
-  fail "Go documentation"
-
-QVOS_TEST_CONCEPT_CHOICE=Browse QVOS_TEST_QVCORE_CHOICE=Proton run_menu concept:proton
-[[ $(<"$concept_options_log") == $'󰈈  Browse\n󰧑  Learn' ]] ||
-  fail "Proton concept actions"
-grep -Fqx '󰌾  Proton — Install' "$qvcore_options_log" ||
-  fail "Proton qvCORE row"
-[[ $(<"$presentation_log") == "omarchy-install-qvcore proton" ]] ||
-  fail "Proton stack install owner"
-QVOS_TEST_CONCEPT_CHOICE=Learn run_menu concept:proton
-[[ $(<"$web_log") == "https://proton.me/support/drive-cli" ]] ||
-  fail "official Proton CLI documentation"
-
-QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:brave-origin
-[[ $(<"$concept_options_log") == $'󰐕  Install\n󰆴  Remove\n󰧑  Learn' ]] ||
-  fail "Brave Origin native browser actions"
-[[ $(<"$presentation_log") == "omarchy-install-browser brave-origin" ]] ||
-  fail "Brave Origin native Install owner"
-QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:brave-origin
-[[ $(<"$presentation_log") == "omarchy-remove-browser brave-origin" ]] ||
-  fail "Brave Origin native Remove owner"
+run_menu concept:go
+[[ $(<"$presentation_log") == "go" ]] ||
+  fail "Go concept direct action"
+run_menu concept:proton
+[[ $(<"$presentation_log") == "proton" ]] ||
+  fail "Proton concept direct action"
+run_menu concept:brave-origin
+[[ $(<"$presentation_log") == "brave-origin" ]] ||
+  fail "Brave Origin concept direct action"
 
 QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||
@@ -644,6 +704,12 @@ grep -Fqx '󱄄  Screensaver' "$area_options_log" || fail "Screensaver appearanc
 if grep -Eq '(^|  )(Install|Remove|Style|Update)$' "$settings_options_log" "$area_options_log"; then
   fail "verb folder in Settings browse"
 fi
+
+QVOS_TEST_SETTINGS_CHOICE=Software run_menu settings
+[[ $(<"$test_root/qvos-menu-view") == "software" ]] ||
+  fail "Software opens the focused Elephant view"
+grep -Fq -- 'Search software…' "$main_args_log" ||
+  fail "Software view search affordance"
 
 : >"$route_log"
 QVOS_TEST_SETTINGS_CHOICE=Connections \

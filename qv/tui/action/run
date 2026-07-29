@@ -1,0 +1,115 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qv/menu/software-actions.psv"
+state_owner="$OMARCHY_PATH/qv/menu/software-state"
+slug=${QVOS_ACTION_SLUG:-}
+operation=${QVOS_ACTION_OPERATION:-}
+
+action_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 9 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+load_action() {
+  local record
+
+  [[ $operation == "install" || $operation == "uninstall" ]] || {
+    echo "Invalid qvOS action operation." >&2
+    return 2
+  }
+  record=$(action_record) || {
+    echo "Unknown qvOS software action: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    _ \
+    _ \
+    install_presentation \
+    _ \
+    uninstall_presentation \
+    _ \
+    install_owner \
+    uninstall_owner <<<"$record"
+
+  if [[ $operation == "install" ]]; then
+    presentation=$install_presentation
+    owner_command=$install_owner
+  else
+    presentation=$uninstall_presentation
+    owner_command=$uninstall_owner
+  fi
+  [[ $presentation == "tui" ]] || {
+    echo "The $slug $operation owner requires its native interactive terminal." >&2
+    return 2
+  }
+  read -r -a owner_args <<<"$owner_command"
+  ((${#owner_args[@]} > 0)) || {
+    echo "Missing qvOS action owner for $slug." >&2
+    return 1
+  }
+}
+
+preflight() {
+  local current_state
+
+  [[ -f $catalog && -x $state_owner ]] || {
+    echo "The qvOS software action source is incomplete." >&2
+    return 1
+  }
+  command -v "${owner_args[0]}" >/dev/null 2>&1 || {
+    echo "The qvOS action owner is unavailable: ${owner_args[0]}" >&2
+    return 1
+  }
+  current_state=$("$state_owner" "$slug")
+  [[ $current_state == "$operation" ]] || {
+    echo "$slug is already ${current_state}ed; reopen Software to refresh its action." >&2
+    return 1
+  }
+}
+
+verify_result() {
+  local next_state
+
+  next_state=$("$state_owner" "$slug")
+  if [[ $operation == "install" && $next_state != "uninstall" ]]; then
+    echo "The $slug installation owner finished without an installed result." >&2
+    return 1
+  fi
+  if [[ $operation == "uninstall" && $next_state != "install" ]]; then
+    echo "The $slug uninstall owner finished without removing the software." >&2
+    return 1
+  fi
+}
+
+load_action
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  preflight
+  exit
+  ;;
+"")
+  ;;
+*)
+  echo "Usage: qv/tui/action/run [--check]" >&2
+  exit 2
+  ;;
+esac
+
+preflight
+echo "qvOS action: preparing"
+echo "qvOS action: applying"
+"${owner_args[@]}"
+echo "qvOS action: verifying"
+verify_result
+echo "qvOS action: complete"

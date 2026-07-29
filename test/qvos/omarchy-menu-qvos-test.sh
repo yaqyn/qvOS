@@ -34,13 +34,13 @@ HOME="$test_root/home" \
       sed -i "1d" "$QVOS_TEST_CHOICES"
       printf "%s\n" "$choice"
     }
-    present_terminal() {
-      printf "%s\n" "$*" >"$QVOS_TEST_ACTION_LOG"
-    }
     back_to() {
       :
     }
     source "$1"
+    launch_software_action() {
+      printf "%s\n" "$1" >"$QVOS_TEST_ACTION_LOG"
+    }
     show_qvos_menu
   ' _ "$root/qv/menu/extension.sh"
 
@@ -52,7 +52,7 @@ if grep -Fq 'System' "$menu_log"; then
 fi
 grep -Fqx '󰌾  Proton — Install' "$menu_log" ||
   fail "qvOS route opens the two-stack qvCORE menu"
-[[ $(<"$action_log") == "omarchy-install-qvcore proton" ]] ||
+[[ $(<"$action_log") == "proton" ]] ||
   fail "qvOS qvCORE route executes selected stack action"
 
 printf 'ok - qvOS menu routes directly into the two-stack qvCORE surface\n'
