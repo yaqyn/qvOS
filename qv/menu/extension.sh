@@ -214,6 +214,16 @@ show_concept_menu() {
     return 1
   fi
 
+  if ((${#actions[@]} == 0)); then
+    notify-send "This menu item has no available actions" "$name"
+    return 1
+  fi
+
+  if ((${#actions[@]} == 1)); then
+    run_concept_action "${actions[0]}"
+    return
+  fi
+
   for index in "${!labels[@]}"; do
     icon=$(concept_action_icon "${labels[$index]}")
     options="${options:+$options\n}$icon  ${labels[$index]}"

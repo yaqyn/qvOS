@@ -693,6 +693,70 @@ run_menu concept:brave-origin
 [[ $(<"$presentation_log") == "brave-origin" ]] ||
   fail "Brave Origin concept direct action"
 
+: >"$concept_options_log"
+run_menu concept:development
+[[ $(<"$test_root/qvos-menu-view") == "software:development" ]] ||
+  fail "Development concept direct browse"
+[[ ! -s $concept_options_log ]] ||
+  fail "Development concept has a redundant action sheet"
+
+single_action_routes=$(
+  HOME="$test_root" OMARCHY_PATH="$root" bash -s -- \
+    "$root/qv/menu/extension.sh" <<'SCRIPT'
+set -euo pipefail
+
+source "$1"
+
+active_slug=""
+
+menu() {
+  printf 'unexpected concept sheet for %s\n' "$active_slug" >&2
+  return 97
+}
+
+run_concept_action() {
+  printf '%s|%s\n' "$active_slug" "$1"
+}
+
+while IFS= read -r line || [[ -n $line ]]; do
+  [[ -z $line || $line == \#* ]] && continue
+  IFS='|' read -r -a fields <<<"$line"
+  action_count=0
+
+  for ((index = 5; index + 1 < ${#fields[@]}; index += 2)); do
+    if [[ -n ${fields[$index]} && -n ${fields[$((index + 1))]} ]]; then
+      ((action_count += 1))
+    fi
+  done
+
+  if ((action_count == 1)); then
+    active_slug=${fields[0]}
+    show_concept_menu "$active_slug"
+  fi
+done <"$HOME/.local/share/qvos/menu/concepts.psv"
+SCRIPT
+)
+expected_single_action_routes=$(
+  awk -F '|' '
+    $1 !~ /^#/ && NF >= 7 {
+      action_count = 0
+      action = ""
+      for (field = 6; field <= NF; field += 2) {
+        if ($field != "" && $(field + 1) != "") {
+          action_count++
+          action = $(field + 1)
+        }
+      }
+      if (action_count == 1) {
+        print $1 "|" action
+      }
+    }
+  ' "$root/qv/menu/concepts.psv"
+)
+[[ $single_action_routes == "$expected_single_action_routes" ]] ||
+  fail "all one-action concepts activate directly"
+pass "all one-action concepts skip redundant action sheets"
+
 QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||
   fail "Theme concept actions"

@@ -15,6 +15,8 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   sheet, never duplicate Install, Uninstall, Style, or Update folders.
 - Keep each concept and breadcrumb in `qv/menu/concepts.psv`; browse screens
   derive from that catalog. Use no separator or placeholder rows.
+- Activate a concept's sole action directly. Render a concept sheet only when
+  it presents two or more meaningful choices.
 - Keep browsing curated and shallow while search exposes detailed actions.
   `Update qvOS` is direct; component updates belong to their concept sheet.
 - Keep `Settings > Software` as a focused Elephant view backed by
