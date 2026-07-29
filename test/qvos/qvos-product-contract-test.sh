@@ -297,6 +297,9 @@ qvos_first_run_line=$(grep -nF 'bash "$OMARCHY_PATH/qv/install/first-run/apply"'
   "$root/bin/omarchy-first-run" | cut -d: -f1)
 ((qvos_first_run_line > elephant_line)) ||
   fail "qvOS first-run overlay runs before inherited configuration is complete"
+grep -Fqx '"$OMARCHY_PATH/qv/menu/install" --install' \
+  "$root/qv/install/first-run/apply" ||
+  fail "qvOS first-run menu reconciliation"
 grep -Fq 'output="qvOS ${output#Omarchy }"' \
   "$root/qv/update/update-available" || fail "qvOS update status"
 grep -Fq 'Update Omarchy' "$root/bin/omarchy-update-git" ||
@@ -312,9 +315,9 @@ grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart Omarchy components"' \
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle Omarchy features"' \
   "$root/bin/omarchy" || fail "original Omarchy toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qv/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
-grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qv/launcher/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
+grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qv/menu/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
 grep -Fq 'dofile(omarchy_path .. "/default/elephant/omarchy_unlocks.lua")' \
-  "$root/qv/launcher/elephant/omarchy_unlocks.lua" ||
+  "$root/qv/menu/elephant/omarchy_unlocks.lua" ||
   fail "qvOS unlock provider inherits Omarchy"
 grep -Fq -- '--app-id=org.omarchy.terminal' "$root/qv/presentation/run" ||
   fail "inherited terminal app ID"
@@ -428,12 +431,17 @@ pass "visible system branding is qvOS without renaming Omarchy internals"
 for retired_duplicate in \
   qv/diagnostics/debug \
   qv/share/notification \
-  qv/launcher/elephant/omarchy_background_selector.lua \
-  qv/launcher/elephant/omarchy_themes.lua; do
+  qv/menu/elephant/omarchy_background_selector.lua \
+  qv/menu/elephant/omarchy_themes.lua; do
   [[ ! -e $root/$retired_duplicate ]] ||
     fail "duplicated Omarchy implementation remains: $retired_duplicate"
 done
 pass "debug, capture notifications, and inherited launcher providers stay Omarchy-owned"
+[[ ! -e $root/qv/launcher ]] ||
+  fail "redundant qvOS launcher domain"
+if rg -q 'qv/launcher' "$root/qv" "$root/bin" "$root/install" "$root/migrations"; then
+  fail "qvOS launcher ownership reference"
+fi
 
 if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/qv/shell/aliases"; then
   fail "disabled AI aliases"
@@ -565,7 +573,7 @@ assert(yaqyn_theme)
 assert(yaqyn_theme.Preview:match("/%.config/omarchy/themes/yaqyn/preview%.png$"))
 assert(yaqyn_theme.Actions.activate == "omarchy-theme-set yaqyn")
 
-dofile(root .. "/qv/launcher/elephant/omarchy_unlocks.lua")
+dofile(root .. "/qv/menu/elephant/omarchy_unlocks.lua")
 local unlocks = GetEntries()
 local yaqyn_unlock
 for _, unlock in ipairs(unlocks) do

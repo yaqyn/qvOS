@@ -22,6 +22,8 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - Keep qvOS actions in their normal product menus and mirror useful direct
   access in `show_qvos_menu` for user-friendly direct access and testing. Both
   surfaces delegate to the same owner.
+- Keep qvOS Elephant provider deltas under `qv/menu/elephant/`. Install them
+  through `qv/menu/install` and link inherited providers from Omarchy source.
 
 ## Change workflow
 

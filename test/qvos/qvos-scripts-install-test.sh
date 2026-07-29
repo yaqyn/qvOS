@@ -94,18 +94,18 @@ grep -Fqx \
   fail "Omarchy user menu extension seam"
 pass "qvOS menu installs through the Omarchy user extension seam"
 
-runtime_provider="$test_root/.local/share/qvos/launcher/elephant/omarchy_unlocks.lua"
-cmp -s "$root/qv/launcher/elephant/omarchy_unlocks.lua" "$runtime_provider" ||
-  fail "qvOS unlock launcher runtime"
+runtime_provider="$test_root/.local/share/qvos/menu/elephant/omarchy_unlocks.lua"
+cmp -s "$root/qv/menu/elephant/omarchy_unlocks.lua" "$runtime_provider" ||
+  fail "qvOS unlock provider runtime"
 [[ $(readlink "$test_root/.config/elephant/menus/omarchy_unlocks.lua") == "$runtime_provider" ]] ||
-  fail "qvOS unlock launcher runtime link"
+  fail "qvOS unlock provider runtime link"
 for provider in omarchy_background_selector.lua omarchy_themes.lua; do
   [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$root/default/elephant/$provider" ]] ||
-    fail "$provider inherited launcher link"
+    fail "$provider inherited provider link"
 done
-[[ $(find "$test_root/.local/share/qvos/launcher/elephant" -maxdepth 1 -type f -printf '%f\n') == "omarchy_unlocks.lua" ]] ||
-  fail "qvOS launcher runtime inventory"
-pass "launcher uses original Omarchy providers plus the qvOS unlock delta"
+[[ $(find "$test_root/.local/share/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_omarchy_menu.lua' ]] ||
+  fail "qvOS menu provider runtime inventory"
+pass "menu uses original Omarchy providers plus qvOS deltas"
 
 cmp -s \
   "$root/qv/direct/post-update-hook" \

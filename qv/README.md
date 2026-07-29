@@ -20,8 +20,7 @@ qv/
   hyprland/    qvOS Hyprland refresh reconciliation.
   install/     qvOS stages applied after Omarchy installation.
   iso/         ISO integration patches.
-  launcher/    Small qvOS delta over inherited Elephant providers.
-  menu/        qvOS menus installed through Omarchy's extension seam.
+  menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   network/     qvOS DNS policy and optional WARP routing.
   power/       Sleep inhibition and guarded suspend.
   presentation/ qvOS terminal presentation and failure handling.

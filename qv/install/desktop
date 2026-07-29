@@ -30,9 +30,8 @@
     qv/direct/tool
     qv/direct/update
     qv/install/post-update-hook
-    qv/launcher/install
-    qv/launcher/elephant/omarchy_unlocks.lua
     qv/menu/concepts.psv
+    qv/menu/elephant/omarchy_unlocks.lua
     qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
     qv/menu/install
@@ -107,7 +106,6 @@
   cp -a "$preserved_thunar/." "$thunar_runtime/"
   rm -rf -- "$preserved_thunar"
 
-  "$OMARCHY_PATH/qv/launcher/install"
   "$OMARCHY_PATH/qv/menu/install" --install
 
   install -D -m 0644 \

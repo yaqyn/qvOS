@@ -8,6 +8,7 @@ extension_dir="$HOME/.config/omarchy/extensions"
 target_path="$extension_dir/menu.sh"
 qvos_target_path="$extension_dir/qvos-menu.sh"
 provider_source_dir="$menu_source_dir/elephant"
+omarchy_provider_source_dir="$OMARCHY_PATH/default/elephant"
 menu_runtime_dir="$HOME/.local/share/qvos/menu"
 provider_runtime_dir="$menu_runtime_dir/elephant"
 provider_menu_dir="$HOME/.config/elephant/menus"
@@ -31,7 +32,12 @@ walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
 walker_theme_import='@import "../../../omarchy/current/theme/walker.css";'
 walker_subtext_source="$menu_source_dir/walker-subtext.css"
 providers=(
+  omarchy_unlocks.lua
   qvos_omarchy_menu.lua
+)
+omarchy_providers=(
+  omarchy_background_selector.lua
+  omarchy_themes.lua
 )
 # shellcheck disable=SC2016
 source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
@@ -56,6 +62,9 @@ require_sources() {
 
   for provider in "${providers[@]}"; do
     required_sources+=("$provider_source_dir/$provider")
+  done
+  for provider in "${omarchy_providers[@]}"; do
+    required_sources+=("$omarchy_provider_source_dir/$provider")
   done
 
   for required_source in "${required_sources[@]}"; do
@@ -110,6 +119,11 @@ install_menu_providers() {
     runtime_provider="$provider_runtime_dir/$provider"
     install -m 0644 "$provider_source_dir/$provider" "$runtime_provider"
     ln -sfn "$runtime_provider" "$provider_menu_dir/$provider"
+  done
+  for provider in "${omarchy_providers[@]}"; do
+    ln -sfn \
+      "$omarchy_provider_source_dir/$provider" \
+      "$provider_menu_dir/$provider"
   done
 }
 
@@ -282,6 +296,12 @@ menu_providers_ready() {
       ! cmp -s "$provider_source_dir/$provider" "$runtime_provider" ||
       [[ ! -L $provider_menu_dir/$provider ]] ||
       [[ $(readlink "$provider_menu_dir/$provider") != "$runtime_provider" ]]; then
+      return 1
+    fi
+  done
+  for provider in "${omarchy_providers[@]}"; do
+    if [[ ! -L $provider_menu_dir/$provider ]] ||
+      [[ $(readlink "$provider_menu_dir/$provider") != "$omarchy_provider_source_dir/$provider" ]]; then
       return 1
     fi
   done
