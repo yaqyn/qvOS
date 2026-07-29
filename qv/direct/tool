@@ -414,6 +414,8 @@ install_codex() {
 update_codex() {
   codex_installed || return 0
   run_bounded 300s env \
+    -u CODEX_MANAGED_PACKAGE_ROOT \
+    -u CODEX_MANAGED_BY_NPM \
     CODEX_NON_INTERACTIVE=1 \
     "$install_dir/codex" update
   codex_installed
@@ -525,8 +527,81 @@ remove_npm() {
   ! npm_installed
 }
 
+install_pass_binary() {
+  local metadata
+  local platform
+  local version
+  local info
+  local url
+  local checksum
+  local expected_url
+  local actual_checksum
+  local download
+  local candidate_version
+  local pending
+  local pass_path="$install_dir/pass-cli"
+
+  case $(uname -m) in
+  x86_64 | amd64) platform="x86_64" ;;
+  aarch64 | arm64) platform="aarch64" ;;
+  *)
+    echo "Proton Pass CLI does not support architecture: $(uname -m)" >&2
+    return 1
+    ;;
+  esac
+
+  ensure_work_dir
+  metadata="$work_dir/pass-versions.json"
+  download_file "$tool_source" "$metadata"
+  info=$(
+    jq -er --arg platform "$platform" '
+      select(.formatVersion == 1)
+      | .passCliVersions as $release
+      | [
+          ($release.version // ""),
+          ($release.urls.linux[$platform].url // ""),
+          ($release.urls.linux[$platform].hash // "")
+        ]
+      | @tsv
+    ' "$metadata"
+  )
+  IFS=$'\t' read -r version url checksum <<<"$info"
+  if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    [[ ! $checksum =~ ^[[:xdigit:]]{64}$ ]]; then
+    echo "Could not resolve a verified Proton Pass CLI release." >&2
+    return 1
+  fi
+  expected_url="https://proton.me/download/pass-cli/$version/pass-cli-linux-$platform"
+  [[ $url == "$expected_url" ]] || {
+    echo "Unexpected Proton Pass CLI download URL." >&2
+    return 1
+  }
+
+  download="$work_dir/pass-cli-$version-$platform"
+  download_file "$url" "$download"
+  actual_checksum=$(sha256sum "$download" | awk '{print $1}')
+  [[ $actual_checksum == "$checksum" ]] || {
+    echo "Proton Pass CLI checksum verification failed." >&2
+    return 1
+  }
+  chmod 0755 "$download"
+  candidate_version=$(binary_version "$download" pass-cli) || {
+    echo "Could not verify the Proton Pass CLI candidate." >&2
+    return 1
+  }
+  [[ $candidate_version == "$version" ]] || {
+    echo "Proton Pass CLI candidate is $candidate_version, expected $version." >&2
+    return 1
+  }
+
+  install -d -m 0755 "$install_dir"
+  pending="$pass_path.next.$$"
+  install -m 0755 "$download" "$pending"
+  mv -f -- "$pending" "$pass_path"
+  exact_binary_installed
+}
+
 install_pass() {
-  local installer
   local pass_path="$install_dir/pass-cli"
 
   if [[ -e $pass_path || -L $pass_path ]]; then
@@ -535,21 +610,12 @@ install_pass() {
     return 1
   fi
 
-  ensure_work_dir
-  installer="$work_dir/pass-install.sh"
-  download_file "$tool_source" "$installer"
-  install -d -m 0755 "$install_dir"
-  run_bounded 300s env \
-    PROTON_PASS_CLI_INSTALL_DIR="$install_dir" \
-    bash "$installer"
-  chmod 0755 "$pass_path"
-  exact_binary_installed
+  install_pass_binary
 }
 
 update_pass() {
   exact_binary_installed || return 0
-  run_bounded 300s "$install_dir/pass-cli" update --yes
-  exact_binary_installed
+  install_pass_binary
 }
 
 install_proton_drive() {
@@ -690,10 +756,10 @@ if (($# != 2)); then
   exit 2
 fi
 
-[[ -f $manifest ]] && validate_manifest || {
+if [[ ! -f $manifest ]] || ! validate_manifest; then
   echo "The qvOS direct-tool manifest is missing or invalid: $manifest" >&2
   exit 1
-}
+fi
 
 action=$1
 target=$2

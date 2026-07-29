@@ -49,6 +49,10 @@ install)
   if [[ $tool_id == "pass-cli" ]]; then
     install -m 0755 /dev/stdin "$target" <<'PASS'
 #!/bin/bash
+if [[ ${1:-} != "--version" &&
+  ${PROTON_PASS_LINUX_KEYRING:-} != "dbus" ]]; then
+  exit 91
+fi
 case ${1:-} in
 --version) echo "pass-cli 1.0.0" ;;
 info) echo '{"personal_access_token_name":"qvOS Codex"}' ;;

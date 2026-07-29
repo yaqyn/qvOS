@@ -372,6 +372,7 @@ run_pass_codex() {
     XDG_DATA_HOME="$codex_pass_root/data" \
     XDG_CONFIG_HOME="$codex_pass_root/config" \
     XDG_CACHE_HOME="$codex_pass_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
     PROTON_PASS_AGENT_REASON="Set up qvOS Codex access" \
     "$pass_cli" "$@"
 }
@@ -381,6 +382,7 @@ run_pass_admin() {
     XDG_DATA_HOME="$pass_admin_root/data" \
     XDG_CONFIG_HOME="$pass_admin_root/config" \
     XDG_CACHE_HOME="$pass_admin_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
     PROTON_PASS_AGENT_REASON="Set up qvOS Codex Vault access" \
     "$pass_cli" "$@"
 }
@@ -558,6 +560,7 @@ setup_pass_auth() {
     XDG_DATA_HOME="$codex_pass_root/data" \
     XDG_CONFIG_HOME="$codex_pass_root/config" \
     XDG_CACHE_HOME="$codex_pass_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
     PROTON_PASS_AGENT_REASON="Authorize qvOS Codex Vault access" \
     PROTON_PASS_PERSONAL_ACCESS_TOKEN="$codex_pat" \
     "$pass_cli" login >/dev/null

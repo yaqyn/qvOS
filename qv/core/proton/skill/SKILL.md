@@ -43,9 +43,14 @@ env \
   XDG_DATA_HOME="$proton_pass_root/data" \
   XDG_CONFIG_HOME="$proton_pass_root/config" \
   XDG_CACHE_HOME="$proton_pass_root/cache" \
+  PROTON_PASS_LINUX_KEYRING=dbus \
   PROTON_PASS_AGENT_REASON="<specific task reason>" \
   pass-cli <command>
 ```
+
+The D-Bus keyring backend keeps this isolated session's local encryption key
+in the unlocked desktop Secret Service instead of the reboot-volatile Linux
+kernel keyring. Keep it on every invocation, including login and logout.
 
 Before access, run `info --output json` and `test`, then parse
 `vault list --output json` and require exactly one visible vault named

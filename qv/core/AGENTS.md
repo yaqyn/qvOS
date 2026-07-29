@@ -52,7 +52,9 @@ only already-installed direct tools in the base, qvDEV, and Proton scopes,
 skips absent tools, continues through independent failures, and returns
 nonzero after reporting every failure. It must never install a stack, restore
 a missing tool, authenticate an account, repair an integration, or change
-networking. Do not add one updater per tool.
+networking. Do not add one updater per tool. Update Proton Pass from its
+official release manifest without running the credential-aware CLI, and keep
+all qvOS Pass sessions on the persistent D-Bus keyring backend.
 
 Verify catalog and manifest guards, affected stack Install/Uninstall tests,
 direct updater tests, menu tests, Bash syntax, ShellCheck, official
@@ -62,4 +64,6 @@ additionally require ISO prepare-only verification.
 When Codex launches the verification session through npm, remove inherited
 `CODEX_MANAGED_PACKAGE_ROOT` and `CODEX_MANAGED_BY_NPM` from the doctor
 subprocess so it inspects the canonical base installation instead of the parent
-agent's launcher context. Report any remaining update-probe warning truthfully.
+agent's launcher context. The direct updater must clear the same markers and
+desktop launchers must call `~/.local/bin/codex` explicitly. Report any
+remaining update-probe warning truthfully.

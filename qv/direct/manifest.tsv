@@ -18,5 +18,5 @@ osv-scanner	qvdev	OSV-Scanner	github	osv-scanner	google/osv-scanner	osv-scanner_
 semgrep	qvdev	Semgrep	uv-tool	semgrep	semgrep	-	-	-
 devcontainer	qvdev	Dev Container CLI	npm	devcontainer	@devcontainers/cli	-	-	-
 playwright-cli	qvdev	Playwright CLI	npm	playwright-cli	@playwright/cli	-	-	-
-pass-cli	proton	Proton Pass CLI	pass	pass-cli	https://proton.me/download/pass-cli/install.sh	-	-	-
+pass-cli	proton	Proton Pass CLI	pass	pass-cli	https://proton.me/download/pass-cli/versions.json	-	-	-
 proton-drive	proton	Proton Drive CLI	proton-drive	proton-drive	https://proton.me/download/drive/cli/version.json	-	-	-

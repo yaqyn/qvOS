@@ -38,6 +38,9 @@ expected_qvdev=$'node\nbun\nuv\ngo\nmkcert\nhurl\nsupabase\ninfisical\ncloudflar
 grep -Fqx $'playwright-cli\tqvdev\tPlaywright CLI\tnpm\tplaywright-cli\t@playwright/cli\t-\t-\t-' \
   "$root/qv/direct/manifest.tsv" ||
   fail "Playwright CLI direct-tool ownership"
+grep -Fqx $'pass-cli\tproton\tProton Pass CLI\tpass\tpass-cli\thttps://proton.me/download/pass-cli/versions.json\t-\t-\t-' \
+  "$root/qv/direct/manifest.tsv" ||
+  fail "Proton Pass manifest update source"
 
 npm_runtime="$test_root/npm-direct"
 npm_prefix="$test_root/npm-prefix"
@@ -71,6 +74,117 @@ HOME="$test_root/home" \
   QVOS_TEST_NPM_PREFIX="$npm_prefix" \
   "$npm_runtime/tool" installed playwright-cli ||
   fail "generic npm direct-tool detection"
+
+codex_runtime="$test_root/codex-direct"
+codex_home="$test_root/codex-home"
+codex_release="$codex_home/.codex/packages/standalone/releases/1.0.0-test/bin"
+install -d "$codex_runtime" "$codex_home/.local/bin" "$codex_release"
+cp "$root/qv/direct/tool" "$codex_runtime/tool"
+install -m 0644 /dev/stdin "$codex_runtime/manifest.tsv" <<'MANIFEST'
+# id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
+codex	base	Codex	codex	codex	source	-	-	-
+MANIFEST
+install -m 0755 /dev/stdin "$codex_release/codex" <<'SCRIPT'
+#!/bin/bash
+case ${1:-} in
+--version) echo "codex-cli 1.0.0" ;;
+update)
+  [[ -z ${CODEX_MANAGED_PACKAGE_ROOT+x} &&
+    -z ${CODEX_MANAGED_BY_NPM+x} ]] ||
+    exit 91
+  ;;
+*) exit 1 ;;
+esac
+SCRIPT
+ln -s "$codex_release/codex" "$codex_home/.local/bin/codex"
+HOME="$codex_home" \
+  CODEX_MANAGED_PACKAGE_ROOT=/tmp/npm-codex \
+  CODEX_MANAGED_BY_NPM=1 \
+  "$codex_runtime/tool" update codex ||
+  fail "Codex updater clears inherited npm ownership"
+
+pass_runtime="$test_root/pass-direct"
+pass_home="$test_root/pass-home"
+pass_bin="$test_root/pass-bin"
+pass_candidate="$test_root/pass-candidate"
+pass_metadata="$test_root/pass-versions.json"
+pass_log="$test_root/pass-actions.log"
+pass_version="9.8.7"
+pass_url="https://proton.me/download/pass-cli/$pass_version/pass-cli-linux-x86_64"
+install -d "$pass_runtime" "$pass_home/.local/bin" "$pass_bin"
+cp "$root/qv/direct/tool" "$pass_runtime/tool"
+install -m 0644 /dev/stdin "$pass_runtime/manifest.tsv" <<'MANIFEST'
+# id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
+pass-cli	proton	Proton Pass CLI	pass	pass-cli	https://proton.me/download/pass-cli/versions.json	-	-	-
+MANIFEST
+install -m 0755 /dev/stdin "$pass_home/.local/bin/pass-cli" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_TEST_PASS_LOG"
+[[ ${1:-} == "--version" ]] && {
+  echo "Proton Pass CLI 1.0.0"
+  exit 0
+}
+exit 91
+SCRIPT
+install -m 0755 /dev/stdin "$pass_candidate" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--version" ]] && {
+  echo "Proton Pass CLI 9.8.7"
+  exit 0
+}
+exit 92
+SCRIPT
+pass_checksum=$(sha256sum "$pass_candidate" | awk '{print $1}')
+jq -n \
+  --arg version "$pass_version" \
+  --arg url "$pass_url" \
+  --arg hash "$pass_checksum" \
+  '{
+    formatVersion: 1,
+    passCliVersions: {
+      version: $version,
+      urls: {linux: {x86_64: {url: $url, hash: $hash}}}
+    }
+  }' >"$pass_metadata"
+install -m 0755 /dev/stdin "$pass_bin/curl" <<'SCRIPT'
+#!/bin/bash
+output=""
+url=""
+while (($#)); do
+  case $1 in
+  -o)
+    output=$2
+    shift 2
+    ;;
+  http*)
+    url=$1
+    shift
+    ;;
+  *) shift ;;
+  esac
+done
+case $url in
+https://proton.me/download/pass-cli/versions.json)
+  cp "$QVOS_TEST_PASS_METADATA" "$output"
+  ;;
+https://proton.me/download/pass-cli/9.8.7/pass-cli-linux-x86_64)
+  cp "$QVOS_TEST_PASS_CANDIDATE" "$output"
+  ;;
+*) exit 93 ;;
+esac
+SCRIPT
+HOME="$pass_home" \
+  PATH="$pass_bin:/usr/bin" \
+  QVOS_TEST_PASS_CANDIDATE="$pass_candidate" \
+  QVOS_TEST_PASS_LOG="$pass_log" \
+  QVOS_TEST_PASS_METADATA="$pass_metadata" \
+  "$pass_runtime/tool" update pass-cli ||
+  fail "Proton Pass manifest update"
+[[ $("$pass_home/.local/bin/pass-cli" --version) == "Proton Pass CLI $pass_version" ]] ||
+  fail "Proton Pass candidate replacement"
+if grep -Fq 'update' "$pass_log"; then
+  fail "Proton Pass update initialized credential-aware CLI state"
+fi
 
 install -d "$runtime"
 cp "$root/qv/direct/update" "$runtime/update"
@@ -132,7 +246,7 @@ grep -Fq 'sha256sum' "$root/qv/direct/tool" ||
   fail "GitHub release digest verification"
 grep -Fq 'sha512sum --check --status' "$root/qv/direct/tool" ||
   fail "Proton Drive checksum verification"
-grep -Fq 'mv -f -- "$pending"' "$root/qv/direct/tool" ||
+grep -Fq "mv -f -- \"\$pending\"" "$root/qv/direct/tool" ||
   fail "atomic direct-tool replacement"
 
 printf 'ok - one manifest updater skips absence and reports independent failures\n'
