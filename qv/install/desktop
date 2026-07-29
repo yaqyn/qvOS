@@ -34,6 +34,9 @@
     qv/menu/install
     qv/menu/search-intents.psv
     qv/menu/software-actions.psv
+    qv/menu/software-install
+    qv/menu/software-installer-state
+    qv/menu/software-installers.psv
     qv/menu/software-state
     qv/menu/wait-for-elephant
     qv/menu/walker-elephant-ready.conf
@@ -60,6 +63,7 @@
     qv/tui/launch
     qv/tui/action/launch
     qv/tui/action/run
+    qv/tui/action/run-installer
     qv/tui/update/launch
     qv/tui/update/run
     qv/tmux/qvos-tmux

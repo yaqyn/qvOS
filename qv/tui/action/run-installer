@@ -1,0 +1,100 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qv/menu/software-installers.psv"
+state_owner="$OMARCHY_PATH/qv/menu/software-installer-state"
+slug=${QVOS_ACTION_SLUG:-}
+operation=${QVOS_ACTION_OPERATION:-}
+
+installer_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+resolve_owner() {
+  if [[ ${owner_args[0]} == qv/* ]]; then
+    owner_args[0]="$OMARCHY_PATH/${owner_args[0]}"
+  fi
+}
+
+load_installer() {
+  local record
+
+  [[ $operation == "install" ]] || {
+    echo "Invalid qvOS installer operation." >&2
+    return 2
+  }
+  record=$(installer_record) || {
+    echo "Unknown qvOS software installer: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    presentation \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner_command <<<"$record"
+
+  [[ $presentation == "tui" ]] || {
+    echo "The $slug installer requires its native interactive terminal." >&2
+    return 2
+  }
+  read -r -a owner_args <<<"$owner_command"
+  ((${#owner_args[@]} > 0)) || {
+    echo "Missing qvOS installer owner for $slug." >&2
+    return 1
+  }
+  resolve_owner
+}
+
+preflight() {
+  [[ -f $catalog && -x $state_owner ]] || {
+    echo "The qvOS software installer source is incomplete." >&2
+    return 1
+  }
+  [[ -x ${owner_args[0]} ]] || command -v "${owner_args[0]}" >/dev/null 2>&1 || {
+    echo "The qvOS installer owner is unavailable: ${owner_args[0]}" >&2
+    return 1
+  }
+}
+
+verify_result() {
+  "$state_owner" "$slug" >/dev/null
+}
+
+load_installer
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  preflight
+  exit
+  ;;
+"")
+  ;;
+*)
+  echo "Usage: qv/tui/action/run-installer [--check]" >&2
+  exit 2
+  ;;
+esac
+
+preflight
+echo "qvOS action: preparing"
+echo "qvOS action: applying"
+"${owner_args[@]}"
+echo "qvOS action: verifying"
+verify_result
+echo "qvOS action: complete"

@@ -227,6 +227,31 @@ read -r search_count concept_count go_matches proton_matches style_matches theme
 ((old_breadcrumbs == 0)) || fail "obsolete verb breadcrumbs"
 pass "typed search presents every concept exactly once"
 
+install_only_route_audit=$(
+  HOME="$test_root" OMARCHY_PATH="$root" XDG_RUNTIME_DIR="$test_root" \
+    lua - "$menu_provider" <<'LUA'
+dofile(arg[1])
+
+for _, entry in ipairs(GetEntries("sublime")) do
+  if entry.Text:match("^.-  (.*)$") == "Sublime Text" then
+    assert(entry.Subtext == "Settings · Software · Editor")
+    assert(entry.Actions.activate:find(
+      "/qv/tui/action/launch' '--installer' 'sublime-text'",
+      1,
+      true
+    ))
+    print("shared-tui")
+    return
+  end
+end
+
+error("Sublime Text installer is missing")
+LUA
+)
+[[ $install_only_route_audit == "shared-tui" ]] ||
+  fail "Sublime Text shared TUI installer route"
+pass "install-only Software leaves use their audited qvOS action route"
+
 software_action_audit=$(
   HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" "$root" <<'LUA'

@@ -110,6 +110,111 @@ launch_software_action() {
   "$launcher" "$1"
 }
 
+launch_software_installer() {
+  local launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/action/launch}
+
+  "$launcher" --installer "$1"
+}
+
+show_software_installer_menu() {
+  local breadcrumb="$1"
+  local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/menu/software-installers.psv"
+  local slug
+  local icon
+  local name
+  local entry_breadcrumb
+  local extra
+  local choice
+  local index
+  local options=""
+  local -a slugs=()
+  local -a names=()
+
+  if [[ $breadcrumb == "Settings · Software · AI" ]]; then
+    slugs+=(dictation)
+    names+=(Dictation)
+    options="  Dictation"
+  fi
+
+  while IFS='|' read -r \
+    slug \
+    icon \
+    name \
+    entry_breadcrumb \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    extra; do
+    [[ -n $slug && $slug != "#"* ]] || continue
+    [[ $entry_breadcrumb == "$breadcrumb" && -z ${extra:-} ]] || continue
+    slugs+=("$slug")
+    names+=("$name")
+    options="${options:+$options\n}$icon  $name"
+  done <"$catalog"
+
+  choice=$(menu "Install" "$options")
+  choice=${choice#*  }
+  for index in "${!names[@]}"; do
+    [[ $choice == "${names[$index]}" ]] || continue
+    if [[ ${slugs[$index]} == "dictation" ]]; then
+      launch_software_action dictation
+    else
+      launch_software_installer "${slugs[$index]}"
+    fi
+    return
+  done
+
+  show_install_menu
+}
+
+show_install_service_menu() {
+  show_software_installer_menu "Settings · Software · Services"
+}
+
+show_install_editor_menu() {
+  show_software_installer_menu "Settings · Software · Editor"
+}
+
+show_install_terminal_menu() {
+  show_software_installer_menu "Settings · Software · Terminal"
+}
+
+show_install_ai_menu() {
+  show_software_installer_menu "Settings · Software · AI"
+}
+
+show_install_development_menu() {
+  show_software_menu development
+}
+
+show_install_javascript_menu() {
+  show_software_menu javascript
+}
+
+show_install_browser_menu() {
+  show_software_menu browser
+}
+
+show_install_gaming_menu() {
+  show_software_menu gaming
+}
+
+show_remove_development_menu() {
+  show_software_menu development
+}
+
+show_remove_browser_menu() {
+  show_software_menu browser
+}
+
+show_remove_gaming_menu() {
+  show_software_menu gaming
+}
+
 show_more_menu() {
   case $(menu "More" "󰧑  Learn\n  Capture\n  Share\n󰔛  Reminder\n󰔎  Toggles\n  About\n  Power") in
   *Learn*) show_learn_menu ;;
@@ -367,26 +472,11 @@ show_install_easy_list_menu() {
     INSTALL_EASY_LIST_ACTIVE=true
     show_install_gaming_menu
     ;;
-  *Windows*) present_terminal "omarchy-windows-vm install" ;;
+  *Windows*) launch_software_action windows ;;
   *)
     INSTALL_EASY_LIST_ACTIVE=false
     show_install_menu
     ;;
-  esac
-}
-
-show_install_gaming_menu() {
-  case $(menu "Install" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰂯  Xbox Controller\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
-  *Steam*) present_terminal omarchy-install-gaming-steam ;;
-  *RetroArch*) present_terminal omarchy-install-gaming-retroarch ;;
-  *Minecraft*) install_and_launch "Minecraft" "minecraft-launcher" "minecraft-launcher" ;;
-  *GeForce*) present_terminal omarchy-install-gaming-geforce-now ;;
-  *"Xbox Cloud"*) present_terminal omarchy-install-gaming-xbox-cloud ;;
-  *Xbox*) present_terminal omarchy-install-gaming-xbox-controllers ;;
-  *Lutris*) present_terminal omarchy-install-gaming-lutris ;;
-  *Heroic*) present_terminal omarchy-install-gaming-heroic ;;
-  *Moonlight*) present_terminal omarchy-install-gaming-moonlight ;;
-  *) show_install_menu ;;
   esac
 }
 
@@ -441,26 +531,11 @@ show_remove_menu() {
   *Development*) show_remove_development_menu ;;
   *Theme*) present_terminal omarchy-theme-remove ;;
   *Browser*) show_remove_browser_menu ;;
-  *Dictation*) present_terminal omarchy-voxtype-remove ;;
+  *Dictation*) launch_software_action dictation ;;
   *Gaming*) show_remove_gaming_menu ;;
-  *Windows*) present_terminal "omarchy-windows-vm remove" ;;
+  *Windows*) launch_software_action windows ;;
   *Security*) show_remove_security_menu ;;
   *) show_settings_menu ;;
-  esac
-}
-
-show_remove_gaming_menu() {
-  case $(menu "Remove" "  Steam\n  RetroArch\n󰍳  Minecraft\n󰢹  NVIDIA GeForce NOW\n  Xbox Cloud Gaming\n󰖺  Xbox Controller (󰂯)\n󰍹  Moonlight (GameStream)\n  Lutris (Battle.net)\n󱓟  Heroic (Epic Games)") in
-  *Steam*) present_terminal omarchy-remove-gaming-steam ;;
-  *RetroArch*) present_terminal omarchy-remove-gaming-retroarch ;;
-  *Minecraft*) present_terminal omarchy-remove-gaming-minecraft ;;
-  *GeForce*) present_terminal omarchy-remove-gaming-geforce-now ;;
-  *"Xbox Cloud"*) present_terminal omarchy-remove-gaming-xbox-cloud ;;
-  *Xbox*) present_terminal omarchy-remove-gaming-xbox-controllers ;;
-  *Moonlight*) present_terminal omarchy-remove-gaming-moonlight ;;
-  *Lutris*) present_terminal omarchy-remove-gaming-lutris ;;
-  *Heroic*) present_terminal omarchy-remove-gaming-heroic ;;
-  *) show_remove_menu ;;
   esac
 }
 

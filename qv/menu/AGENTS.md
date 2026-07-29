@@ -31,6 +31,11 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - `software-state` owns batched menu detection only. It must not mutate state,
   infer lifecycle state from menu history, or reproduce an installer's own
   convergence checks.
+- Keep install-only leaves in `software-installers.psv`. Route every
+  noninteractive captured stream through the shared two-ring TUI, retain
+  prompts, authentication, configuration sessions, and nested TUIs as
+  `native`, and verify TUI installs through `software-installer-state` with a
+  real declared probe.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus. Do not maintain a parallel
@@ -42,10 +47,11 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 
 1. Read the catalog, extension, provider, installer, and one or two analogous
    routes before editing.
-2. Reuse command owners. Do not put install, removal, setup, or update
-   implementation in menu code. Route stream-safe owners through the shared
-   two-ring TUI action adapter; keep owners that require interactive prompts,
-   authentication, or configuration in their native floating terminal.
+2. Reuse command owners. Keep only thin stable adapters for inherited inline
+   package routes. Route stream-safe owners through the shared two-ring TUI
+   action adapter; keep owners that require interactive prompts,
+   authentication, configuration, or their own TUI in the native floating
+   terminal.
 3. Update focused menu tests for catalog uniqueness, routing, query-preserving
    Tab behavior, runtime installation, and startup ordering.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.

@@ -1,0 +1,97 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qv/menu/software-installers.psv"
+slug=${1:-}
+declare -A package_inventory=()
+
+usage() {
+  echo "Usage: qv/menu/software-installer-state <software-slug>" >&2
+}
+
+installer_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+load_package_inventory() {
+  local package
+
+  while IFS= read -r package; do
+    [[ -n $package ]] && package_inventory["$package"]=1
+  done < <(pacman -Qq 2>/dev/null || true)
+}
+
+probe_ready() {
+  local kind=$1
+  local value=$2
+  local package
+  local -a packages=()
+
+  case $kind in
+  file)
+    [[ -e $HOME/$value ]]
+    ;;
+  package)
+    load_package_inventory
+    [[ -n ${package_inventory[$value]:-} ]]
+    ;;
+  package-any)
+    load_package_inventory
+    read -r -a packages <<<"$value"
+    for package in "${packages[@]}"; do
+      [[ -z ${package_inventory[$package]:-} ]] || return 0
+    done
+    return 1
+    ;;
+  *)
+    echo "Unsupported qvOS TUI installer probe: $kind" >&2
+    return 2
+    ;;
+  esac
+}
+
+[[ -n $slug && $# == 1 ]] || {
+  usage
+  exit 2
+}
+[[ -f $catalog ]] || {
+  echo "Missing software installer catalog: $catalog" >&2
+  exit 1
+}
+
+record=$(installer_record) || {
+  echo "Unknown software installer: $slug" >&2
+  exit 2
+}
+IFS='|' read -r \
+  _ \
+  _ \
+  _ \
+  _ \
+  _ \
+  presentation \
+  _ \
+  probe_kind \
+  probe_value \
+  _ \
+  _ <<<"$record"
+
+[[ $presentation == "tui" ]] || {
+  echo "The $slug installer does not use captured qvOS TUI output." >&2
+  exit 2
+}
+if probe_ready "$probe_kind" "$probe_value"; then
+  printf 'installed\n'
+  exit
+fi
+
+echo "The $slug installation owner finished without an installed result." >&2
+exit 1

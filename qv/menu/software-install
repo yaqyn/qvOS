@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+slug=${1:-}
+
+usage() {
+  echo "Usage: qv/menu/software-install <bitwarden|cursor|sublime-text|vim|emacs|lm-studio|ollama|crush>" >&2
+}
+
+launch_desktop() {
+  setsid gtk-launch "$1"
+}
+
+case $slug in
+bitwarden)
+  omarchy-pkg-add bitwarden bitwarden-cli
+  launch_desktop bitwarden
+  ;;
+cursor)
+  omarchy-pkg-add cursor-bin
+  launch_desktop cursor
+  ;;
+sublime-text)
+  omarchy-pkg-add sublime-text-4
+  launch_desktop sublime_text
+  ;;
+vim)
+  omarchy-pkg-add vim
+  ;;
+emacs)
+  omarchy-pkg-add emacs-wayland
+  systemctl --user enable --now emacs.service
+  ;;
+lm-studio)
+  omarchy-pkg-add lmstudio-bin
+  ;;
+ollama)
+  if omarchy-cmd-present nvidia-smi; then
+    package=ollama-cuda
+  elif omarchy-cmd-present rocminfo; then
+    package=ollama-rocm
+  else
+    package=ollama
+  fi
+  omarchy-pkg-add "$package"
+  ;;
+crush)
+  omarchy-pkg-add crush-bin
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac

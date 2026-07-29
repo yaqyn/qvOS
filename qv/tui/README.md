@@ -78,21 +78,27 @@ and guides without scattering those values through shared rendering code.
 
 ## Software actions
 
-`action/` is the shared adapter for state-aware software leaves opened from
-Elephant:
+`action/` is the shared adapter for software leaves opened from Elephant:
 
-1. Refresh the selected software state at activation.
-2. Show `Install` or `Uninstall` with the two-ring operational model.
+1. Resolve the selected owner contract and refresh paired lifecycle state at
+   activation.
+2. Show the selected operation with the two-ring operational model.
 3. Complete non-mutating preflight and optional sudo authorization.
 4. Delegate once to the existing Omarchy or qvOS owner and map only owned
    milestones into progress.
-5. Verify that the real software state changed before rendering success.
+5. Verify the paired state change or install-only result probe before rendering
+   success.
 
 The registry selects this flow only for owners that are safe captured command
 streams. Installers that require an interactive prompt, authentication, or
 configuration retain their native floating terminal rather than receiving
 synthetic input. Both routes remain direct from the software row; neither adds
 an intermediate action sheet.
+
+State-aware leaves use `software-actions.psv` for paired Install and Uninstall
+owners. Install-only selectors remain selectors and use
+`software-installers.psv`; their safe leaves share the same two-ring flow and
+must pass a real installed-result probe without inventing an Uninstall owner.
 
 ## Update
 

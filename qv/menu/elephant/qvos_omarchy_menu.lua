@@ -98,24 +98,6 @@ local function edit(relative_path)
     .. "\""
 end
 
-local function install_package(name, packages)
-  local command = "echo "
-    .. shell_escape("Installing " .. name .. "...")
-    .. "; omarchy-pkg-add "
-    .. packages
-  return present("bash -lc " .. shell_escape(command))
-end
-
-local function install_and_launch(name, packages, desktop)
-  local command = "echo "
-    .. shell_escape("Installing " .. name .. "...")
-    .. "; omarchy-pkg-add "
-    .. packages
-    .. " && setsid gtk-launch "
-    .. desktop
-  return present("bash -lc " .. shell_escape(command))
-end
-
 local function install_font(name, packages, font)
   local command = "echo "
     .. shell_escape("Installing " .. name .. "...")
@@ -348,6 +330,50 @@ local function software_action(slug)
     or route("concept:" .. slug)
 end
 
+local function software_installer(slug)
+  local home = os.getenv("HOME")
+  local source = os.getenv("OMARCHY_PATH")
+    or (home and home .. "/.local/share/omarchy")
+  local launch = source and source .. "/qv/tui/action/launch"
+
+  return launch
+      and shell_escape(launch)
+        .. " "
+        .. shell_escape("--installer")
+        .. " "
+        .. shell_escape(slug)
+    or route("install")
+end
+
+local function add_software_installers(entries, breadcrumb)
+  local home = os.getenv("HOME")
+  local path = home
+    and home .. "/.local/share/qvos/menu/software-installers.psv"
+  local catalog = path and io.open(path, "r")
+
+  if not catalog then
+    return
+  end
+
+  for line in catalog:lines() do
+    if line ~= "" and line:sub(1, 1) ~= "#" then
+      local fields = split(line, "|")
+      if #fields == 11 and fields[4] == breadcrumb then
+        add(
+          entries,
+          fields[2],
+          fields[3],
+          fields[4],
+          split(fields[5], ","),
+          software_installer(fields[1])
+        )
+      end
+    end
+  end
+
+  catalog:close()
+end
+
 local function software_group_matches(breadcrumb, view)
   if view == "software" then
     return breadcrumb:match("^Settings · Software ·") ~= nil
@@ -518,13 +544,9 @@ function GetEntries(query)
   add(entries, "󰍜", "Waybar Config", "Settings · System · Config", { "reset", "default", "bar" }, edit(".config/waybar/config.jsonc"))
   add(entries, "󰞅", "XCompose Config", "Settings · System · Config", { "reset", "default", "input" }, edit(".XCompose"))
 
-  -- Install services.
-  add(entries, "", "Dropbox", "Settings · Software · Services", { "cloud", "storage" }, present("omarchy-install-dropbox"))
-  add(entries, "", "Tailscale", "Settings · Software · Services", { "vpn", "network" }, present("omarchy-install-tailscale"))
-  add(entries, "󱇱", "NordVPN", "Settings · Software · Services", { "aur", "vpn" }, present("omarchy-install-nordvpn"))
-  add(entries, "󰏖", "ONCE", "Settings · Software · Services", { "37signals", "server" }, present("omarchy-install-once"))
-  add(entries, "󰟵", "Bitwarden", "Settings · Software · Services", { "password", "vault" }, install_and_launch("Bitwarden", "bitwarden bitwarden-cli", "bitwarden"))
-  add(entries, "", "Chromium Account", "Settings · Software · Services", { "google", "sync" }, present("omarchy-install-chromium-google-account"))
+  -- Install-only software keeps its audited TUI/native presentation contract
+  -- without inventing an Uninstall owner.
+  add_software_installers(entries, "Settings · Software · Services")
 
   -- Appearance add-ons.
   add(entries, "", "Cascadia Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("Cascadia Mono", "ttf-cascadia-mono-nerd", "CaskaydiaMono Nerd Font"))
@@ -534,23 +556,12 @@ function GetEntries(query)
   add(entries, "", "Bitstream Vera Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("Bitstream Vera Code", "ttf-bitstream-vera-mono-nerd", "BitstromWera Nerd Font"))
   add(entries, "", "Iosevka", "Settings · Appearance · Font", { "nerd font" }, install_font("Iosevka", "ttf-iosevka-nerd", "Iosevka Nerd Font Mono"))
 
-  add(entries, "", "Docker DB", "Settings · Software · Development", { "database", "container" }, present("omarchy-install-docker-dbs"))
+  add_software_installers(entries, "Settings · Software · Development")
 
   -- Editors, terminals, and AI.
-  add(entries, "", "VSCode", "Settings · Software · Editor", { "code", "ide" }, present("omarchy-install-vscode"))
-  add(entries, "", "Cursor", "Settings · Software · Editor", { "code", "ide", "ai" }, install_and_launch("Cursor", "cursor-bin", "cursor"))
-  add(entries, "", "Zed", "Settings · Software · Editor", { "code", "ide" }, present("omarchy-install-zed"))
-  add(entries, "", "Sublime Text", "Settings · Software · Editor", { "code", "ide" }, install_and_launch("Sublime Text", "sublime-text-4", "sublime_text"))
-  add(entries, "", "Helix", "Settings · Software · Editor", { "code", "terminal" }, present("omarchy-install-helix"))
-  add(entries, "", "Vim", "Settings · Software · Editor", { "code", "terminal" }, install_package("Vim", "vim"))
-  add(entries, "", "Emacs", "Settings · Software · Editor", { "code", "ide" }, present("bash -lc " .. shell_escape("echo 'Installing Emacs...'; omarchy-pkg-add emacs-wayland && systemctl --user enable --now emacs.service")))
-  add(entries, "", "Alacritty", "Settings · Software · Terminal", { "shell", "console" }, present("omarchy-install-terminal alacritty"))
-  add(entries, "", "Foot", "Settings · Software · Terminal", { "shell", "console" }, present("omarchy-install-terminal foot"))
-  add(entries, "", "Ghostty", "Settings · Software · Terminal", { "shell", "console" }, present("omarchy-install-terminal ghostty"))
-  add(entries, "", "Kitty", "Settings · Software · Terminal", { "shell", "console" }, present("omarchy-install-terminal kitty"))
-  add(entries, "󱚤", "LM Studio", "Settings · Software · AI", { "llm", "local" }, install_package("LM Studio", "lmstudio-bin"))
-  add(entries, "󱚤", "Ollama", "Settings · Software · AI", { "llm", "local" }, route("install-ai"))
-  add(entries, "󱚤", "Crush", "Settings · Software · AI", { "agent", "terminal" }, install_package("Crush", "crush-bin"))
+  add_software_installers(entries, "Settings · Software · Editor")
+  add_software_installers(entries, "Settings · Software · Terminal")
+  add_software_installers(entries, "Settings · Software · AI")
 
   -- Restore and restart actions stay searchable under their owning object.
   add(entries, "", "Refresh Hyprland", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hyprland"))

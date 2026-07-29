@@ -15,6 +15,10 @@ provider_menu_dir="$HOME/.config/elephant/menus"
 concept_source="$menu_source_dir/concepts.psv"
 concept_runtime="$menu_runtime_dir/concepts.psv"
 software_actions_source="$menu_source_dir/software-actions.psv"
+software_install_source="$menu_source_dir/software-install"
+software_installer_state_source="$menu_source_dir/software-installer-state"
+software_installers_source="$menu_source_dir/software-installers.psv"
+software_installers_runtime="$menu_runtime_dir/software-installers.psv"
 software_state_source="$menu_source_dir/software-state"
 search_intents_source="$menu_source_dir/search-intents.psv"
 search_intents_runtime="$menu_runtime_dir/search-intents.psv"
@@ -51,6 +55,9 @@ require_sources() {
     "$source_path"
     "$concept_source"
     "$software_actions_source"
+    "$software_install_source"
+    "$software_installer_state_source"
+    "$software_installers_source"
     "$software_state_source"
     "$search_intents_source"
     "$elephant_ready_source"
@@ -85,6 +92,14 @@ require_sources() {
   fi
   [[ -x $software_state_source ]] || {
     echo "qvOS software state owner is not executable: $software_state_source" >&2
+    return 1
+  }
+  [[ -x $software_install_source ]] || {
+    echo "qvOS software installer owner is not executable: $software_install_source" >&2
+    return 1
+  }
+  [[ -x $software_installer_state_source ]] || {
+    echo "qvOS software installer state owner is not executable: $software_installer_state_source" >&2
     return 1
   }
 
@@ -139,6 +154,7 @@ install_menu_runtime() {
   local manager_home
 
   install -D -m 0644 "$concept_source" "$concept_runtime"
+  install -D -m 0644 "$software_installers_source" "$software_installers_runtime"
   install -D -m 0644 "$search_intents_source" "$search_intents_runtime"
   install -D -m 0755 "$elephant_ready_source" "$elephant_ready_runtime"
   install -D -m 0644 "$walker_ready_source" "$walker_ready_target"
@@ -317,6 +333,7 @@ menu_providers_ready() {
 
 menu_runtime_ready() {
   cmp -s "$concept_source" "$concept_runtime" &&
+    cmp -s "$software_installers_source" "$software_installers_runtime" &&
     cmp -s "$search_intents_source" "$search_intents_runtime" &&
     cmp -s "$elephant_ready_source" "$elephant_ready_runtime" &&
     [[ -x $elephant_ready_runtime ]] &&

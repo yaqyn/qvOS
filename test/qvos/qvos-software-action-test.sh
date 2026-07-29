@@ -23,11 +23,17 @@ install -d \
   "$test_root/home/.local/share/qvos/menu" \
   "$test_bin"
 install -m 0755 "$root/qv/menu/software-state" "$source_root/qv/menu/software-state"
+install -m 0755 "$root/qv/menu/software-installer-state" "$source_root/qv/menu/software-installer-state"
 install -m 0755 "$root/qv/tui/action/run" "$source_root/qv/tui/action/run"
+install -m 0755 "$root/qv/tui/action/run-installer" "$source_root/qv/tui/action/run-installer"
 
 install -m 0644 /dev/stdin "$source_root/qv/menu/software-actions.psv" <<'CATALOG'
 # slug|probe kind|probe value|install presentation|install sudo|uninstall presentation|uninstall sudo|install owner|uninstall owner
 demo|file|.demo-installed|tui|true|tui|true|demo-install|demo-uninstall
+CATALOG
+install -m 0644 /dev/stdin "$source_root/qv/menu/software-installers.psv" <<'CATALOG'
+# slug|icon|name|breadcrumb|keywords|presentation|sudo|probe kind|probe value|summary|owner
+demo-installer|󰏖|Demo Installer|Settings · Software · Test|fixture|tui|true|file|.demo-installer-installed|Install the Demo installer fixture|demo-installer-install
 CATALOG
 install -m 0644 /dev/stdin "$test_root/home/.local/share/qvos/menu/concepts.psv" <<'CONCEPTS'
 demo|󰏖|Demo|Settings · Software · Test|fixture
@@ -44,6 +50,10 @@ install -m 0755 /dev/stdin "$test_bin/demo-uninstall" <<'SCRIPT'
 # omarchy:summary=Uninstall the Demo fixture
 # omarchy:requires-sudo=true
 rm -f "$HOME/.demo-installed"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/demo-installer-install" <<'SCRIPT'
+#!/bin/bash
+touch "$HOME/.demo-installer-installed"
 SCRIPT
 
 run_action() {
@@ -84,6 +94,31 @@ run_action uninstall
   fail "action delegated to the Uninstall owner"
 printf 'ok - software action preflight, owner delegation, and verification\n'
 
+HOME="$test_root/home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_ACTION_SLUG=demo-installer \
+  QVOS_ACTION_OPERATION=install \
+  "$source_root/qv/tui/action/run-installer" --check
+installer_output=$(
+  HOME="$test_root/home" \
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_ACTION_SLUG=demo-installer \
+    QVOS_ACTION_OPERATION=install \
+    "$source_root/qv/tui/action/run-installer"
+)
+grep -Fqx 'qvOS action: complete' <<<"$installer_output" ||
+  fail "install-only action completion milestone"
+[[ -f $test_root/home/.demo-installer-installed ]] ||
+  fail "install-only action delegated to its owner"
+HOME="$test_root/home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:/usr/bin" \
+  "$source_root/qv/menu/software-installer-state" demo-installer >/dev/null ||
+  fail "install-only action real-result probe"
+printf 'ok - install-only software uses the shared verified action stream\n'
+
 install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'SCRIPT'
 #!/bin/bash
 {
@@ -93,6 +128,7 @@ install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'SCRIPT'
   printf 'title\t%s\n' "$QVOS_ACTION_TITLE"
   printf 'summary\t%s\n' "$QVOS_ACTION_SUMMARY"
   printf 'sudo\t%s\n' "$QVOS_ACTION_REQUIRES_SUDO"
+  printf 'script\t%s\n' "${QVOS_ACTION_SCRIPT:-}"
 } >"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT
 install -m 0755 "$root/qv/tui/action/launch" "$source_root/qv/tui/action/launch"
@@ -116,6 +152,28 @@ grep -Fqx $'summary\tInstall the Demo fixture' "$launch_log" ||
 grep -Fqx $'sudo\t1' "$launch_log" ||
   fail "owner sudo contract"
 printf 'ok - action launcher derives the shared TUI contract from owners\n'
+
+HOME="$test_root/home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_LAUNCH_LOG="$launch_log" \
+  "$source_root/qv/tui/action/launch" --installer demo-installer
+
+grep -Fqx $'args\tDemo Installer qvos-tui --action' "$launch_log" ||
+  fail "install-only shared TUI launch route"
+grep -Fqx $'slug\tdemo-installer' "$launch_log" ||
+  fail "install-only action slug contract"
+grep -Fqx $'operation\tinstall' "$launch_log" ||
+  fail "install-only operation contract"
+grep -Fqx $'title\tDemo Installer' "$launch_log" ||
+  fail "install-only title contract"
+grep -Fqx $'summary\tInstall the Demo installer fixture' "$launch_log" ||
+  fail "install-only summary contract"
+grep -Fqx $'sudo\t1' "$launch_log" ||
+  fail "install-only sudo contract"
+grep -Fqx $'script\t'"$source_root"$'/qv/tui/action/run-installer' "$launch_log" ||
+  fail "install-only verified runner contract"
+printf 'ok - install-only launcher reuses the shared two-ring TUI\n'
 
 install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
 #!/bin/bash
@@ -172,3 +230,101 @@ if rg -Fq '|Learn|' "$root/qv/menu/concepts.psv"; then
   fail "per-app Learn action remains"
 fi
 printf 'ok - production software action catalog is unique and Learn-free\n'
+
+tui_installers=""
+native_installers=""
+while IFS='|' read -r \
+  slug \
+  icon \
+  name \
+  breadcrumb \
+  keywords \
+  presentation \
+  requires_sudo \
+  probe_kind \
+  probe_value \
+  summary \
+  owner \
+  extra; do
+  [[ -n $slug && $slug != "#"* ]] || continue
+  [[ -n $icon && -n $name && $breadcrumb == "Settings · Software ·"* ]] &&
+    [[ -n $keywords ]] &&
+    [[ $presentation == "tui" || $presentation == "native" ]] &&
+    [[ $requires_sudo == "true" || $requires_sudo == "false" ]] &&
+    [[ -n $probe_kind && -n $probe_value && -n $summary && -n $owner ]] &&
+    [[ -z ${extra:-} ]] ||
+    fail "invalid software installer entry: $slug"
+  if [[ $presentation == "tui" ]]; then
+    [[ $probe_kind != "none" ]] ||
+      fail "TUI installer lacks a real result probe: $slug"
+    tui_installers+="${tui_installers:+ }$slug"
+  else
+    native_installers+="${native_installers:+ }$slug"
+  fi
+done <"$root/qv/menu/software-installers.psv"
+
+[[ $tui_installers == "dropbox bitwarden vscode cursor zed sublime-text helix vim emacs alacritty foot ghostty kitty lm-studio ollama crush" ]] ||
+  fail "complete captured-stream software installer sweep"
+[[ $native_installers == "tailscale nordvpn once chromium-account docker-db" ]] ||
+  fail "interactive software installer native-terminal boundary"
+if awk -F '|' '
+  FNR == NR {
+    if ($1 !~ /^#/ && $1 != "") seen[$1] = 1
+    next
+  }
+  $1 !~ /^#/ && $1 != "" && seen[$1] { found = 1 }
+  END { exit found ? 0 : 1 }
+' "$root/qv/menu/software-actions.psv" "$root/qv/menu/software-installers.psv"; then
+  fail "state-aware and install-only software catalogs overlap"
+fi
+if rg -Fq '"Sublime Text", "Settings · Software' \
+  "$root/qv/menu/elephant/qvos_omarchy_menu.lua"; then
+  fail "Sublime Text bypasses the audited software installer registry"
+fi
+printf 'ok - every remaining Software installer has an explicit TUI or native contract\n'
+
+fallback_sublime_route=$(
+  HOME="$test_root/home" OMARCHY_PATH="$root" bash -s -- \
+    "$root/qv/menu/extension.sh" <<'SCRIPT'
+set -euo pipefail
+source "$1"
+
+menu() {
+  printf '  Sublime Text\n'
+}
+
+launch_software_installer() {
+  printf '%s\n' "$1"
+}
+
+show_install_editor_menu
+SCRIPT
+)
+[[ $fallback_sublime_route == "sublime-text" ]] ||
+  fail "fallback Editor selector shared TUI route"
+printf 'ok - Sublime Text uses the same installer route from every menu surface\n'
+
+fallback_stateful_routes=$(
+  bash -s -- "$root/qv/menu/extension.sh" <<'SCRIPT'
+set -euo pipefail
+source "$1"
+
+show_software_menu() {
+  printf '%s\n' "$1"
+}
+
+show_install_development_menu
+show_install_browser_menu
+show_install_gaming_menu
+show_remove_development_menu
+show_remove_browser_menu
+show_remove_gaming_menu
+SCRIPT
+)
+[[ $fallback_stateful_routes == $'development\nbrowser\ngaming\ndevelopment\nbrowser\ngaming' ]] ||
+  fail "fallback state-aware Software routes"
+if rg -q 'present_terminal omarchy-(install|remove)-(browser|dev-env|gaming)' \
+  "$root/qv/menu/extension.sh"; then
+  fail "fallback state-aware owner bypasses the shared action route"
+fi
+printf 'ok - legacy Install and Remove surfaces converge on state-aware Software\n'

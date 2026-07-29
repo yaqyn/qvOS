@@ -244,11 +244,13 @@ install_gaming_override=$(
 remove_gaming_override=$(
   sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
-grep -Fq '*Steam*) present_terminal omarchy-install-gaming-steam ;;' \
-  <<<"$install_gaming_override" ||
+grep -Fqx \
+  'steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|omarchy-remove-gaming-steam' \
+  "$root/qv/menu/software-actions.psv" ||
+  fail "Steam lifecycle bypasses Omarchy's owners"
+grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||
   fail "Steam install bypasses Omarchy's owner"
-grep -Fq '*Steam*) present_terminal omarchy-remove-gaming-steam ;;' \
-  <<<"$remove_gaming_override" ||
+grep -Fq 'show_software_menu gaming' <<<"$remove_gaming_override" ||
   fail "Steam removal bypasses Omarchy's owner"
 grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
 if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \

@@ -77,6 +77,8 @@ identity or base readiness.
   progress, log, and result flow while delegating the mutation once to the
   existing Omarchy or qvOS owner. Owners that require an interactive prompt,
   authentication, or configuration session retain their native terminal.
+  Install-only selectors keep their browse shape, but every stream-safe leaf
+  uses that same TUI flow and verifies its real installed result.
   ISO Build stages the qvOS source over Omarchy's `main` ISO for its matching
   `master` installer, adds the qvOS configurator and progress surfaces, and
   preserves Omarchy's disk-install and post-install orchestration.

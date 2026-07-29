@@ -37,6 +37,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   using real qvOS or Omarchy state. `qv/tui/action/launch` refreshes state at
   activation and `qv/tui/action/run` delegates the selected mutation once; the
   TUI does not copy package or lifecycle logic.
+- Install-only selectors keep their inherited browse shape and use
+  `software-installers.psv` to classify every leaf as `tui` or `native`.
+  Stream-safe leaves use the same action flow and verify their declared probe;
+  never invent an Uninstall owner merely to flatten a selector.
 - Route a software owner through `--action` only when it is safe to consume as
   a captured command stream. Keep owners that require interactive prompts,
   authentication, or configuration in their native terminal until they expose
