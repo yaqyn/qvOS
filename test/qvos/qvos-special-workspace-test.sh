@@ -4,6 +4,8 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 helper="$root/qv/desktop/hyprland/qvos-toggle-special-window"
 bindings="$root/qv/config/files/hypr/qv/bindings.conf"
+tiling="$root/default/hypr/bindings/tiling-v2.conf"
+utilities="$root/default/hypr/bindings/utilities.conf"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 dispatch_log="$test_root/dispatch"
@@ -87,13 +89,13 @@ fi
 [[ ! -s $dispatch_log ]] || fail "dispatch without active window"
 pass "a missing active window cannot change workspace state"
 
-grep -Fqx 'unbind = SUPER CTRL, SPACE' "$bindings" || fail "background picker override"
-if grep -Fqx 'unbind = SUPER SHIFT CTRL, SPACE' "$bindings"; then
-  fail "qvOS suppresses the inherited theme menu"
+if grep -Eq '^(unbind|bind[a-z]*) = SUPER (CTRL|CTRL ALT), SPACE(,|$)' "$bindings"; then
+  fail "retired special workspace Space binding"
 fi
-grep -Fqx 'bindd = SUPER CTRL, SPACE, Toggle special workspace, togglespecialworkspace, scratchpad' "$bindings" || fail "special workspace toggle binding"
-grep -Fqx 'bindd = SUPER CTRL ALT, SPACE, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" || fail "special window transfer binding"
-if grep -Eq '^bindd = SUPER[^,]*, S, .*(togglespecialworkspace|qvos-toggle-special-window|movetoworkspacesilent.*special)' "$bindings"; then
-  fail "retired special workspace S binding"
-fi
-pass "the Space family owns special workspace controls"
+grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, omarchy-menu background' "$utilities" ||
+  fail "inherited background picker"
+grep -Fqx 'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' "$tiling" ||
+  fail "inherited special workspace toggle"
+grep -Fqx 'bindd = SUPER SHIFT, S, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
+  fail "special window transfer binding"
+pass "Super+S and Super+Shift+S own the special workspace"

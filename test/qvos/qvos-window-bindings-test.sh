@@ -42,11 +42,10 @@ assert_binding 'bindd = SUPER SHIFT CTRL ALT, D, Move workspace to right monitor
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, S, Move workspace to down monitor, movecurrentworkspacetomonitor, d' "move workspace down binding"
 pass "Super+Shift+Ctrl+Alt+WASD moves workspaces between monitors"
 
-assert_binding 'bindd = SUPER, S, Toggle window floating/tiling, togglefloating,' "toggle floating binding"
-assert_binding 'bindd = SUPER SHIFT, S, Full screen, fullscreen, 0' "full screen binding"
+assert_binding 'bindd = SUPER SHIFT, F, Toggle window floating/tiling, togglefloating,' "toggle floating binding"
 assert_binding 'bindd = SUPER CTRL, S, Tiled full screen, fullscreenstate, 0 2' "tiled full screen binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, S, Pop window out (float & pin), exec, omarchy-hyprland-window-pop' "pop window binding"
-pass "the non-Alt S family controls window states"
+pass "Super+F and Super+Shift+F own full screen and floating"
 
 for binding in \
   'SUPER, T' \

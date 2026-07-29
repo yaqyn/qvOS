@@ -11,6 +11,9 @@ bindings.
   `unbind` for an override.
 - Keep `Super+Space` routed through `omarchy-menu apps`. It must open the shared
   qvOS surface in Apps mode and preserve its Tab switch to Menu.
+- Keep the special workspace on `Super+S` and window transfer on
+  `Super+Shift+S`; keep full screen on `Super+F` and floating on
+  `Super+Shift+F`.
 - Letter keys use Family One (`SUPER` plus optional Shift/Ctrl) and Family Two
   (add Alt with the same variants). Inventories show qvOS-owned entries by
   family, a checkmark column, `—` for free slots, non-letter families, and a
