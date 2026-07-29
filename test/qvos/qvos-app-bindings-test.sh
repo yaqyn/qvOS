@@ -104,9 +104,9 @@ grep -qx 'libreoffice-fresh' "$root/qv/install/packaging/base.exclusions" ||
 pass "the E Alt family owns notes and office tools"
 
 assert_binding 'bindd = SUPER, grave, Gaming workspace, workspace, name:G' "gaming workspace binding"
-assert_binding 'bindd = SUPER SHIFT, grave, Steam, exec, setsid gtk-launch steam >/dev/null 2>&1' "Steam binding"
-assert_binding 'bindd = SUPER CTRL, grave, Move window to gaming workspace, movetoworkspace, name:G' "gaming workspace transfer binding"
-pass "the grave family keeps the simple destination ahead of its Ctrl modifier"
+assert_binding 'bindd = SUPER SHIFT, grave, Move window to gaming workspace, movetoworkspace, name:G' "gaming workspace transfer binding"
+assert_binding 'bindd = SUPER CTRL, grave, Steam, exec, setsid gtk-launch steam >/dev/null 2>&1' "Steam binding"
+pass "the grave family uses Shift for workspace movement and Ctrl for Steam"
 
 if grep -Eq '^bindd = SUPER( SHIFT)?, (M|P),|^bindd = SUPER SHIFT, C, Proton|^bindd = SUPER CTRL, Q, Proton Pass,|^bindd = SUPER SHIFT CTRL, Q, Proton Account,|^bindd = SUPER ALT, Q, Proton Docs,|^bindd = SUPER SHIFT ALT, Q, Proton Meet,|^bindd = SUPER SHIFT CTRL ALT, Q, Proton Account Settings,|^bindd = SUPER( SHIFT)?, D, Proton (Drive|Docs),' "$bindings"; then
   fail "retired Proton route"
