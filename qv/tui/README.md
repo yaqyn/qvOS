@@ -6,11 +6,10 @@ modes:
 
 - default: qvOS Update and ISO Build
 - `--prototype`: safe fake script, sudo, application, and boot sessions
-- `--update`: qvOS Update confirmation, preflight, authorization, progress,
-  logs, and result
+- `--update`: qvOS Update preflight, authorization, progress, logs, and result
 - `--action`: classified Software or fixed-task presentation; two-/three-ring
-  actions use confirmation and progress, while one-ring actions run directly
-  into their information output after any required authorization
+  actions use progress and exactly one start gate, while one-ring actions run
+  directly into their information output after any required authorization
 - `--iso-installer`: boot installation information and confirmation
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
@@ -19,7 +18,8 @@ modes:
 
 The TUI root owns reusable presentation and capability configuration:
 
-- `flow.go` declares model, preflight, authorization, and progress needs
+- `flow.go` declares model, start confirmation, preflight, authorization, and
+  progress needs
 - `authorization.go` renders every password authorization surface
 - `progress.go` renders compact and full progress for Update, Software, ISO,
   and the prototype
@@ -139,7 +139,8 @@ and guides without scattering those values through shared rendering code.
 1. Resolve the selected owner contract and refresh paired lifecycle state at
    activation.
 2. Show the selected operation with the two-ring operational model.
-3. Complete non-mutating preflight and optional sudo authorization.
+3. Complete non-mutating preflight. Privileged actions proceed to sudo;
+   consequential unprivileged actions confirm before preflight.
 4. Delegate once to the existing Omarchy or qvOS owner and map only owned
    milestones into progress.
 5. Verify the paired state change or install-only result probe before rendering
@@ -169,20 +170,19 @@ adapter's synthetic progress milestones are reserved for guarded two- and
 three-ring transaction flows.
 
 Every configuration refresh is a three-ring transaction because it overwrites
-user state. Its owner may create backups, but the shared confirmation must
-still complete before delegation.
+user state. Its owner may create backups. An unprivileged refresh confirms
+before delegation; a privileged refresh uses sudo as its only start gate.
 
 ## Update
 
 `update/` owns the TUI-specific Update contract and thin engine adapter. The
 main hub and `--update` direct mode reuse one flow:
 
-1. Choose `Begin` or cancel before any work starts.
-2. Run the qvOS update owner's read-only preflight.
-3. Reuse the shared sudo authorization surface.
-4. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
+1. Run the qvOS update owner's read-only preflight.
+2. Reuse the shared sudo authorization surface as the only start gate.
+3. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
    retain all other output in the optional log view.
-5. End on an explicit success or actionable failure screen.
+4. End on an explicit success or actionable failure screen.
 
 `Ctrl+C` or `Ctrl+Z` opens a stop confirmation while the update continues in
 the background. `Keep Updating` is the safe default; only explicitly choosing

@@ -108,9 +108,15 @@ func TestUpdateActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 	}
 }
 
-func TestGenericSoftwareActionUsesOneSharedTwoRingFlow(t *testing.T) {
+func TestPrivilegedGenericActionSkipsDuplicateStartConfirmation(t *testing.T) {
 	previous := currentActionSpec
 	t.Cleanup(func() { currentActionSpec = previous })
+	script := filepath.Join(t.TempDir(), "privileged-action")
+	if err := os.WriteFile(script, []byte("#!/bin/bash\nexit 0\n"), 0o700); err != nil {
+		t.Fatalf("write privileged action: %v", err)
+	}
+	t.Setenv(actionflow.ScriptEnvironment, script)
+
 	spec := actionflow.Spec{
 		Slug:         "rust",
 		Operation:    "install",
@@ -120,16 +126,48 @@ func TestGenericSoftwareActionUsesOneSharedTwoRingFlow(t *testing.T) {
 	}
 
 	m, command := (model{width: 120, height: 50}).beginGenericAction(spec, true)
-	if command != nil || !m.updateConfirm || m.action != actionGeneric {
-		t.Fatal("software action skipped the shared confirmation state")
+	if command == nil || m.startConfirm || !m.startImmediately ||
+		m.action != actionGeneric {
+		t.Fatal("privileged software action retained a duplicate start confirmation")
 	}
 	if role := m.activeModelRole(); role != modelTwoRings {
 		t.Fatalf("software action model role = %d, want two rings", role)
 	}
+
+	next, command := m.Update(startImmediateActionMsg{})
+	m = next.(model)
+	if command == nil || !m.updatePreflight || m.sudoChecking || m.scriptRunning {
+		t.Fatal("privileged software action did not proceed directly to preflight")
+	}
+
+	script, environment, err := rootScriptSpec(actionGeneric)
+	if err != nil {
+		t.Fatalf("software action script spec: %v", err)
+	}
+	if script != actionflow.ScriptPath || environment != actionflow.ScriptEnvironment {
+		t.Fatalf("software action script = %q / %q", script, environment)
+	}
+}
+
+func TestUnprivilegedGenericTransactionRetainsStartConfirmation(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+	spec := actionflow.Spec{
+		Slug:      "xbox-cloud",
+		Operation: "install",
+		Title:     "Xbox Cloud",
+		Summary:   "Install the Xbox Cloud Gaming launcher",
+		Rings:     2,
+	}
+
+	m, command := (model{width: 120, height: 50}).beginGenericAction(spec, true)
+	if command != nil || !m.startConfirm || m.startImmediately {
+		t.Fatal("unprivileged software transaction lost its meaningful confirmation")
+	}
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
-		"INSTALL RUST",
-		"Install a supported development environment",
+		"INSTALL XBOX CLOUD",
+		"Install the Xbox Cloud Gaming launcher",
 		"Install",
 		"Cancel",
 	} {
@@ -139,21 +177,7 @@ func TestGenericSoftwareActionUsesOneSharedTwoRingFlow(t *testing.T) {
 	}
 	if hints := fmt.Sprint(m.helpHints()); !strings.Contains(hints, "cancel before starting") ||
 		strings.Contains(hints, "cancel before updating") {
-		t.Fatalf("software confirmation help retained Update copy: %q", hints)
-	}
-
-	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = next.(model)
-	if command == nil || !m.updatePreflight || m.sudoChecking || m.scriptRunning {
-		t.Fatal("software confirmation did not schedule preflight before sudo or mutation")
-	}
-
-	script, environment, err := rootScriptSpec(actionGeneric)
-	if err != nil {
-		t.Fatalf("software action script spec: %v", err)
-	}
-	if script != actionflow.ScriptPath || environment != actionflow.ScriptEnvironment {
-		t.Fatalf("software action script = %q / %q", script, environment)
+		t.Fatalf("software confirmation help is incorrect: %q", hints)
 	}
 }
 
@@ -179,13 +203,13 @@ func TestOneRingActionStartsDirectlyAndMakesOwnerOutputPrimary(t *testing.T) {
 		Complete:     "Inspected",
 	}
 	m, command := (model{width: 120, height: 50}).beginGenericAction(spec, true)
-	if command != nil || m.updateConfirm || !m.startImmediately {
+	if command == nil || m.startConfirm || !m.startImmediately {
 		t.Fatal("one-ring information action retained a confirmation step")
 	}
 
 	next, command := m.Update(startImmediateActionMsg{})
 	m = next.(model)
-	if command == nil || m.updateConfirm || !m.updatePreflight ||
+	if command == nil || m.startConfirm || !m.updatePreflight ||
 		m.sudoChecking || m.scriptRunning || m.startImmediately {
 		t.Fatal("one-ring information action did not begin with direct preflight")
 	}
@@ -257,47 +281,51 @@ func TestGenericSoftwareActionStopRequiresExplicitConfirmation(t *testing.T) {
 	}
 }
 
-func TestUpdateStartsWithConfirmationBeforePreflightOrSudo(t *testing.T) {
+func TestUpdateSkipsDuplicateConfirmationAndBeginsWithPreflight(t *testing.T) {
 	m, command := (model{tab: 0, cursor: 0}).activateMenuItem()
-	if command != nil {
-		t.Fatal("opening Update started work before confirmation")
-	}
-	if !m.updateConfirm || !m.loading {
-		t.Fatalf("confirmation state = loading:%t confirm:%t", m.loading, m.updateConfirm)
-	}
-	if m.sudoChecking || m.updatePreflight || m.scriptRunning {
-		t.Fatal("opening Update performed preflight, sudo, or mutation")
+	if command == nil || !m.loading || m.startConfirm || !m.startImmediately {
+		t.Fatal("Update retained a duplicate Begin confirmation")
 	}
 
-	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	next, command := m.Update(startImmediateActionMsg{})
 	m = next.(model)
 	if command == nil {
-		t.Fatal("confirmed Update did not schedule preflight")
+		t.Fatal("Update did not schedule its read-only preflight")
 	}
-	if m.updateConfirm || !m.updatePreflight || m.sudoChecking {
+	if m.startConfirm || !m.updatePreflight || m.sudoChecking ||
+		m.scriptRunning || m.startImmediately {
 		t.Fatalf(
-			"confirmed state = confirm:%t preflight:%t sudo:%t",
-			m.updateConfirm,
+			"direct state = confirm:%t preflight:%t sudo:%t",
+			m.startConfirm,
 			m.updatePreflight,
 			m.sudoChecking,
 		)
 	}
 }
 
-func TestUpdateCancellationNeverStartsWork(t *testing.T) {
-	m, _ := (model{}).beginUpdateConfirmation(true)
-	m.updateChoice = 1
-	next, command := m.handleUpdateConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+func TestUnprivilegedStartConfirmationCanCancelBeforeWork(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+	spec := actionflow.Spec{
+		Slug:      "xbox-cloud",
+		Operation: "uninstall",
+		Title:     "Xbox Cloud",
+		Summary:   "Remove the Xbox Cloud Gaming launcher",
+		Rings:     2,
+	}
+	m, _ := (model{}).beginGenericAction(spec, true)
+	m.startChoice = 1
+	next, command := m.handleStartConfirmationKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(model)
 
 	if command == nil {
 		t.Fatal("dedicated cancellation did not exit the TUI")
 	}
-	if !m.updateCanceled {
+	if !m.startCanceled {
 		t.Fatal("dedicated cancellation lost exit status")
 	}
 	if m.updatePreflight || m.sudoChecking || m.scriptRunning {
-		t.Fatal("canceled Update started preflight, sudo, or mutation")
+		t.Fatal("canceled action started preflight, sudo, or mutation")
 	}
 }
 
@@ -440,14 +468,14 @@ func TestBootISOInterruptionKeysRemainGuarded(t *testing.T) {
 	}
 }
 
-func TestDedicatedUpdateReturnsCancellationStatusAfterStopping(t *testing.T) {
-	if status := dedicatedUpdateExitCode(model{scriptCanceled: true}); status != 130 {
+func TestDedicatedActionReturnsCancellationStatusAfterStopping(t *testing.T) {
+	if status := dedicatedActionExitCode(model{scriptCanceled: true}); status != 130 {
 		t.Fatalf("stopped update status = %d", status)
 	}
-	if status := dedicatedUpdateExitCode(model{updateCanceled: true}); status != 130 {
+	if status := dedicatedActionExitCode(model{startCanceled: true}); status != 130 {
 		t.Fatalf("preflight cancellation status = %d", status)
 	}
-	if status := dedicatedUpdateExitCode(model{scriptErr: errors.New("failed")}); status != 1 {
+	if status := dedicatedActionExitCode(model{scriptErr: errors.New("failed")}); status != 1 {
 		t.Fatalf("failed update status = %d", status)
 	}
 }
@@ -585,7 +613,16 @@ func TestFastCommandOutputIsReadBeforeSuccess(t *testing.T) {
 	}
 }
 
-func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
+func TestUnprivilegedStartConfirmationFitsResponsiveShapes(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+	spec := actionflow.Spec{
+		Slug:      "xbox-cloud",
+		Operation: "install",
+		Title:     "Xbox Cloud",
+		Summary:   "Install the Xbox Cloud Gaming launcher",
+		Rings:     2,
+	}
 	sizes := []struct {
 		name          string
 		width, height int
@@ -600,7 +637,7 @@ func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 	for _, size := range sizes {
 		t.Run(size.name, func(t *testing.T) {
 			m, _ := (model{width: size.width, height: size.height}).
-				beginUpdateConfirmation(true)
+				beginGenericAction(spec, true)
 			view := m.View()
 			lines := strings.Split(view.Content, "\n")
 			if len(lines) > size.height {
@@ -612,8 +649,8 @@ func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 				}
 			}
 			content := stripANSI(view.Content)
-			if !strings.Contains(content, "UPDATE QVOS") ||
-				!strings.Contains(content, "Begin") ||
+			if !strings.Contains(content, "INSTALL XBOX CLOUD") ||
+				!strings.Contains(content, "Install") ||
 				!strings.Contains(content, "Cancel") {
 				t.Fatalf("confirmation copy is incomplete: %q", content)
 			}

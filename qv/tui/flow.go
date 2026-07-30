@@ -2,6 +2,7 @@ package main
 
 type flowRequirements struct {
 	Model         modelRole
+	Confirmation  bool
 	Preflight     bool
 	Authorization bool
 	ProgressBar   bool
@@ -20,6 +21,7 @@ func requirementsForAction(action actionMode) flowRequirements {
 		progressBar := currentActionSpec.Rings != 1
 		return flowRequirements{
 			Model:         modelRoleForRings(currentActionSpec.Rings),
+			Confirmation:  progressBar && !currentActionSpec.RequiresSudo,
 			Preflight:     true,
 			Authorization: currentActionSpec.RequiresSudo,
 			ProgressBar:   progressBar,
