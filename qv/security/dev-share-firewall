@@ -1,0 +1,277 @@
+#!/bin/bash
+set -euo pipefail
+
+ip_command=/usr/bin/ip
+iptables_command=/usr/bin/iptables
+ss_command=/usr/bin/ss
+systemd_run=/usr/bin/systemd-run
+ufw_command=/usr/bin/ufw
+helper_path=/usr/lib/qvos/dev-share-firewall
+proc_root=/proc
+poll_seconds=1
+
+if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
+  ip_command=${QVOS_DEV_SHARE_IP:-$ip_command}
+  iptables_command=${QVOS_DEV_SHARE_IPTABLES:-$iptables_command}
+  ss_command=${QVOS_DEV_SHARE_SS:-$ss_command}
+  systemd_run=${QVOS_DEV_SHARE_SYSTEMD_RUN:-$systemd_run}
+  ufw_command=${QVOS_DEV_SHARE_UFW:-$ufw_command}
+  helper_path=${QVOS_DEV_SHARE_ROOT_HELPER:-$helper_path}
+  proc_root=${QVOS_DEV_SHARE_PROC_ROOT:-$proc_root}
+  poll_seconds=${QVOS_DEV_SHARE_POLL_SECONDS:-$poll_seconds}
+fi
+
+usage() {
+  echo "Usage: dev-share-firewall <open|monitor> TOKEN UID INTERFACE CIDR IP DURATION PORT:PID..." >&2
+}
+
+valid_duration() {
+  local amount
+  local unit
+
+  [[ $1 =~ ^([1-9][0-9]*)([mh])$ ]] || return 1
+  amount=${BASH_REMATCH[1]}
+  unit=${BASH_REMATCH[2]}
+  if [[ $unit == "m" ]]; then
+    ((amount <= 480))
+  else
+    ((amount <= 8))
+  fi
+}
+
+private_ipv4() {
+  local address=$1
+  local first
+  local second
+  local third
+  local fourth
+
+  IFS=. read -r first second third fourth <<<"$address"
+  [[ $first =~ ^[0-9]+$ && $second =~ ^[0-9]+$ &&
+    $third =~ ^[0-9]+$ && $fourth =~ ^[0-9]+$ ]] || return 1
+  ((first <= 255 && second <= 255 && third <= 255 && fourth <= 255)) ||
+    return 1
+  ((first == 10)) ||
+    ((first == 172 && second >= 16 && second <= 31)) ||
+    ((first == 192 && second == 168))
+}
+
+proxy_matches() {
+  local port=$1
+  local pid=$2
+  local owner_uid=$3
+  local lan_ip=$4
+  local status_uid
+  local executable
+  local command_line=()
+
+  [[ -d $proc_root/$pid && ! -L $proc_root/$pid ]] || return 1
+  status_uid=$(
+    awk '$1 == "Uid:" {print $2; exit}' "$proc_root/$pid/status" 2>/dev/null
+  ) || return 1
+  [[ $status_uid == "$owner_uid" ]] || return 1
+  executable=$(readlink "$proc_root/$pid/exe" 2>/dev/null) || return 1
+  [[ $executable == "/usr/bin/socat" ]] || return 1
+  mapfile -d '' -t command_line 2>/dev/null \
+    <"$proc_root/$pid/cmdline" || return 1
+  ((${#command_line[@]} == 3)) &&
+    [[ ${command_line[0]} == "/usr/bin/socat" ]] &&
+    [[ ${command_line[1]} == \
+      "TCP4-LISTEN:$port,bind=$lan_ip,reuseaddr,fork" ]] &&
+    [[ ${command_line[2]} == "TCP4:127.0.0.1:$port" ]]
+}
+
+rule_for() {
+  local port=$1
+
+  firewall_rule=(
+    -i "$interface"
+    -p tcp
+    -s "$interface_cidr"
+    -d "$lan_ip"
+    --dport "$port"
+    -m conntrack
+    --ctstate NEW
+    -m comment
+    --comment "$rule_comment"
+    -j ACCEPT
+  )
+}
+
+remove_rules() {
+  local pair
+  local port
+
+  for pair in "${proxy_pairs[@]}"; do
+    port=${pair%%:*}
+    rule_for "$port"
+    while "$iptables_command" -w 5 -C ufw-user-input \
+      "${firewall_rule[@]}" >/dev/null 2>&1; do
+      "$iptables_command" -w 5 -D ufw-user-input \
+        "${firewall_rule[@]}" >/dev/null 2>&1 || break
+    done
+  done
+}
+
+if (($# < 8)); then
+  usage
+  exit 2
+fi
+action=$1
+token=$2
+owner_uid=$3
+interface=$4
+interface_cidr=$5
+lan_ip=$6
+duration=$7
+shift 7
+proxy_pairs=("$@")
+rule_comment="qvos-dev-share:$owner_uid:$token"
+
+if ((EUID != 0)) && [[ ${QVOS_DEV_SHARE_TESTING:-} != "1" ]]; then
+  echo "The qvOS LAN preview firewall helper must run as root." >&2
+  exit 1
+fi
+[[ $action == "open" || $action == "monitor" ]] || {
+  usage
+  exit 2
+}
+[[ $token =~ ^[a-f0-9]{16}$ ]] || {
+  echo "Invalid LAN preview identifier." >&2
+  exit 1
+}
+[[ $owner_uid =~ ^[1-9][0-9]*$ ]] || {
+  echo "Invalid LAN preview owner." >&2
+  exit 1
+}
+[[ $interface =~ ^[A-Za-z0-9_.:-]+$ ]] || {
+  echo "Invalid LAN preview interface." >&2
+  exit 1
+}
+if [[ $interface_cidr != "$lan_ip/"* ]] || ! private_ipv4 "$lan_ip"; then
+  echo "LAN preview requires a private IPv4 network." >&2
+  exit 1
+fi
+valid_duration "$duration" || {
+  echo "Invalid LAN preview duration." >&2
+  exit 1
+}
+((${#proxy_pairs[@]} >= 1 && ${#proxy_pairs[@]} <= 2)) || {
+  echo "LAN preview accepts one frontend and one API proxy." >&2
+  exit 1
+}
+
+declare -A seen_ports=()
+for pair in "${proxy_pairs[@]}"; do
+  [[ $pair =~ ^([0-9]+):([1-9][0-9]*)$ ]] || {
+    echo "Invalid LAN preview proxy." >&2
+    exit 1
+  }
+  port=${BASH_REMATCH[1]}
+  pid=${BASH_REMATCH[2]}
+  ((10#$port >= 1024 && 10#$port <= 65535)) || {
+    echo "Invalid LAN preview port." >&2
+    exit 1
+  }
+  [[ -z ${seen_ports[$port]:-} ]] || {
+    echo "Duplicate LAN preview port." >&2
+    exit 1
+  }
+  seen_ports[$port]=1
+done
+
+if [[ $action == "monitor" ]]; then
+  trap remove_rules EXIT
+  trap 'exit 0' INT TERM HUP
+fi
+
+for pair in "${proxy_pairs[@]}"; do
+  port=${pair%%:*}
+  pid=${pair#*:}
+  proxy_matches "$port" "$pid" "$owner_uid" "$lan_ip" || {
+    echo "Unverified LAN preview proxy for port $port." >&2
+    exit 1
+  }
+done
+
+if [[ $action == "monitor" ]]; then
+  while :; do
+    active=0
+    for pair in "${proxy_pairs[@]}"; do
+      port=${pair%%:*}
+      pid=${pair#*:}
+      if proxy_matches "$port" "$pid" "$owner_uid" "$lan_ip"; then
+        active=1
+        break
+      fi
+    done
+    ((active)) || exit 0
+    sleep "$poll_seconds"
+  done
+fi
+
+caller_uid=${PKEXEC_UID:-${SUDO_UID:-}}
+if [[ ${QVOS_DEV_SHARE_TESTING:-} != "1" && $caller_uid != "$owner_uid" ]]; then
+  echo "LAN preview authorization does not match its owner." >&2
+  exit 1
+fi
+mapfile -t live_cidrs < <(
+  "$ip_command" -o -4 address show dev "$interface" scope global |
+    awk '{print $4}'
+)
+[[ " ${live_cidrs[*]} " == *" $interface_cidr "* ]] || {
+  echo "The selected LAN address is no longer active." >&2
+  exit 1
+}
+"$ufw_command" status | grep -Fqx "Status: active" || {
+  echo "qvOS LAN preview requires the active UFW firewall." >&2
+  exit 1
+}
+"$iptables_command" -w 5 -n -L ufw-user-input >/dev/null
+
+for pair in "${proxy_pairs[@]}"; do
+  port=${pair%%:*}
+  "$ss_command" -H -ltn "sport = :$port" |
+    awk -v endpoint="$lan_ip:$port" '
+      $4 == endpoint { found = 1 }
+      END { exit !found }
+    ' || {
+    echo "LAN preview proxy is not listening on $lan_ip:$port." >&2
+    exit 1
+  }
+done
+
+added_pairs=()
+for pair in "${proxy_pairs[@]}"; do
+  port=${pair%%:*}
+  rule_for "$port"
+  if ! "$iptables_command" -w 5 -C ufw-user-input \
+    "${firewall_rule[@]}" >/dev/null 2>&1; then
+    if ! "$iptables_command" -w 5 -I ufw-user-input 1 \
+      "${firewall_rule[@]}"; then
+      proxy_pairs=("${added_pairs[@]}")
+      remove_rules
+      echo "Could not open the temporary LAN preview firewall." >&2
+      exit 1
+    fi
+    added_pairs+=("$pair")
+  fi
+done
+
+monitor_unit="qvos-dev-share-firewall-$owner_uid-$token"
+if ! "$systemd_run" --quiet --collect --unit="$monitor_unit" \
+  --service-type=exec \
+  --property="RuntimeMaxSec=$duration" \
+  --property=NoNewPrivileges=yes \
+  --property=PrivateTmp=yes \
+  --property=ProtectSystem=strict \
+  --property=ProtectHome=yes \
+  --property=RestrictSUIDSGID=yes \
+  --property=LockPersonality=yes \
+  "$helper_path" monitor \
+  "$token" "$owner_uid" "$interface" "$interface_cidr" "$lan_ip" "$duration" \
+  "${proxy_pairs[@]}"; then
+  remove_rules
+  echo "Could not start the LAN preview firewall monitor." >&2
+  exit 1
+fi

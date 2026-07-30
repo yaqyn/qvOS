@@ -10,7 +10,9 @@ export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
-install -d "$QVOS_SECURITY_SYSTEM_ROOT/etc"
+install -d \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker"
 install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" <<'PACMAN'
 [core]
 SigLevel = Required DatabaseOptional
@@ -19,6 +21,14 @@ SigLevel = Required DatabaseOptional
 SigLevel = Optional TrustAll
 Server = https://pkgs.omarchy.org/stable/$arch
 PACMAN
+install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker/daemon.json" <<'DOCKER'
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "5" },
+  "dns": ["172.17.0.1"],
+  "bip": "172.17.0.1/16"
+}
+DOCKER
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -225,6 +235,17 @@ cmp -s \
 grep -Fqx 'SigLevel = Required DatabaseOptional' \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" ||
   fail "Omarchy repository package signature policy"
+cmp -s \
+  "$root/qv/security/dev-share-firewall" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/dev-share-firewall" ||
+  fail "LAN preview root helper payload"
+jq -e '
+  .ip == "127.0.0.1" and
+  .["default-network-opts"].bridge[
+    "com.docker.network.bridge.host_binding_ipv4"
+  ] == "127.0.0.1"
+' "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker/daemon.json" >/dev/null ||
+  fail "Docker loopback publishing policy"
 pass "security baseline protects package trust without restricting desktop capabilities"
 
 tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"

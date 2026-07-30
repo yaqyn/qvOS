@@ -6,6 +6,8 @@ runner="$root/qv/security/lynis-audit"
 root_helper="$root/qv/security/lynis-audit-root"
 baseline="$root/qv/security/60-qvos-security.conf"
 installer="$root/qv/security/install"
+dev_share="$root/qv/security/dev-share"
+dev_share_helper="$root/qv/security/dev-share-firewall"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 escalation_log="$test_root/escalation.log"
@@ -22,7 +24,7 @@ fail() {
 
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
-[[ -x $installer && -f $baseline ]] \
+[[ -x $installer && -f $baseline && -x $dev_share && -x $dev_share_helper ]] \
   || fail "security baseline installer is available"
 grep -Fq 'qv/security/AGENTS.md' "$root/AGENTS.md" \
   || fail "root security workflow route"
@@ -152,6 +154,7 @@ fi
 security_system_root="$test_root/security-system"
 system_install_tree="$security_system_root/usr/install"
 install -d \
+  "$security_system_root/etc/docker" \
   "$security_system_root/etc" \
   "$system_install_tree/cache/test-package/dist" \
   "$system_install_tree/global/node_modules/test-package" \
@@ -167,6 +170,17 @@ Server = https://pkgs.omarchy.org/stable/$arch
 [local-test]
 SigLevel = Optional TrustAll
 PACMAN
+install -m 0644 /dev/stdin "$security_system_root/etc/docker/daemon.json" <<'DOCKER'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "5"
+  },
+  "dns": ["172.17.0.1"],
+  "bip": "172.17.0.1/16"
+}
+DOCKER
 install -m 0777 /dev/null \
   "$system_install_tree/cache/test-package/dist/program.js"
 install -m 0775 /dev/null \
@@ -187,6 +201,11 @@ cmp -s "$baseline" "$installed_baseline" \
   || fail "security baseline system install"
 [[ $(stat -c '%a' "$installed_baseline") == "644" ]] \
   || fail "security baseline mode"
+installed_dev_share_helper="$security_system_root/usr/lib/qvos/dev-share-firewall"
+cmp -s "$dev_share_helper" "$installed_dev_share_helper" \
+  || fail "LAN preview root helper system install"
+[[ $(stat -c '%a' "$installed_dev_share_helper") == "755" ]] \
+  || fail "LAN preview root helper mode"
 [[ $(awk '
   /^\[omarchy\]$/ { in_omarchy = 1; next }
   /^\[/ { in_omarchy = 0 }
@@ -200,6 +219,16 @@ cmp -s "$baseline" "$installed_baseline" \
   in_local_test && /^SigLevel/ { print }
 ' "$security_system_root/etc/pacman.conf") == "SigLevel = Optional TrustAll" ]] \
   || fail "unrelated repository policy stays unchanged"
+jq -e '
+  .ip == "127.0.0.1" and
+  .["default-network-opts"].bridge[
+    "com.docker.network.bridge.host_binding_ipv4"
+  ] == "127.0.0.1" and
+  .["log-driver"] == "json-file" and
+  .dns == ["172.17.0.1"] and
+  .bip == "172.17.0.1/16"
+' "$security_system_root/etc/docker/daemon.json" >/dev/null \
+  || fail "Docker defaults to loopback without losing inherited configuration"
 [[ $(stat -c '%a' "$system_install_tree/cache/test-package/dist/program.js") == "755" ]] \
   || fail "world-writable system package program mode"
 [[ $(stat -c '%a' "$system_install_tree/global/node_modules/test-package/program.js") == "755" ]] \

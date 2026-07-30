@@ -55,6 +55,8 @@
     qv/screensaver/qvos-launch-screensaver
     qv/screensaver/qvos-screensaver
     qv/security/60-qvos-security.conf
+    qv/security/dev-share
+    qv/security/dev-share-firewall
     qv/security/install
     qv/shell/aliases
     qv/shell/install

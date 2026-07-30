@@ -21,6 +21,14 @@ The same installer requires trusted signatures for packages from the Omarchy
 repository while leaving its unsigned database optional. Reject ambiguous
 repository configuration instead of weakening global policy or changing other
 repositories.
+Docker publishes to loopback by default. This is a base network boundary, not
+Supabase ownership: never install, enroll, or require Supabase from the
+security owner. `omarchy qvos dev-share` may temporarily proxy one existing
+localhost frontend and the current project's configured Supabase API port to
+one private IPv4 interface. It must never auto-share the database, Studio,
+mail, analytics, wildcard addresses, public addresses, or more than two ports.
+Keep its firewall rule runtime-only, subnet-scoped, process-bound, and
+automatically expiring.
 
 1. Inspect the current source, worktree, installed state, and prior report,
    then run `qv/security/lynis-audit` before changing anything.

@@ -2,16 +2,26 @@
 set -euo pipefail
 
 source_file="$OMARCHY_PATH/qv/security/60-qvos-security.conf"
+dev_share_helper_source="$OMARCHY_PATH/qv/security/dev-share-firewall"
 system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
 target_file="$system_root/etc/sysctl.d/60-qvos-security.conf"
 pacman_config="$system_root/etc/pacman.conf"
+docker_config="$system_root/etc/docker/daemon.json"
+dev_share_helper="$system_root/usr/lib/qvos/dev-share-firewall"
 system_install_tree="$system_root/usr/install"
 system_owner_uid=0
 system_owner_gid=0
 pacman_candidate=
+docker_candidate=
+docker_original=
+docker_changed=0
 
 cleanup() {
-  [[ -z $pacman_candidate ]] || rm -f -- "$pacman_candidate"
+  local temporary
+
+  for temporary in "$pacman_candidate" "$docker_candidate" "$docker_original"; do
+    [[ -z $temporary ]] || rm -f -- "$temporary"
+  done
 }
 trap cleanup EXIT
 
@@ -25,6 +35,10 @@ if [[ -n $system_root ]]; then
 fi
 if [[ ! -f $source_file ]]; then
   echo "Missing qvOS security baseline: $source_file" >&2
+  exit 1
+fi
+if [[ ! -x $dev_share_helper_source ]]; then
+  echo "Missing qvOS LAN preview firewall helper: $dev_share_helper_source" >&2
   exit 1
 fi
 if [[ ! -f $pacman_config ]]; then
@@ -74,17 +88,48 @@ awk '
   }
 ' "$pacman_config" >"$pacman_candidate"
 
+if [[ -f $docker_config ]]; then
+  /usr/bin/jq -e 'type == "object"' "$docker_config" >/dev/null || {
+    echo "Docker daemon configuration is not a JSON object: $docker_config" >&2
+    exit 1
+  }
+  docker_candidate=$(mktemp)
+  /usr/bin/jq '
+    .ip = "127.0.0.1" |
+    .["default-network-opts"].bridge[
+      "com.docker.network.bridge.host_binding_ipv4"
+    ] = "127.0.0.1"
+  ' "$docker_config" >"$docker_candidate"
+  /usr/bin/dockerd --validate --config-file="$docker_candidate" >/dev/null
+  if ! cmp -s "$docker_candidate" "$docker_config"; then
+    docker_original=$(mktemp)
+    cp "$docker_config" "$docker_original"
+    docker_changed=1
+  fi
+fi
+
 if [[ -n $system_root ]] || ((EUID == 0)); then
   install -D -m 0644 "$source_file" "$target_file"
   install -m 0644 "$pacman_candidate" "$pacman_config"
+  install -D -m 0755 "$dev_share_helper_source" "$dev_share_helper"
+  if [[ -n $docker_candidate ]]; then
+    install -m 0644 "$docker_candidate" "$docker_config"
+  fi
   if ((EUID == 0)); then
-    chown root:root "$target_file" "$pacman_config"
+    chown root:root "$target_file" "$pacman_config" "$dev_share_helper"
+    [[ -z $docker_candidate ]] || chown root:root "$docker_config"
   fi
 else
   /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0644 \
     "$source_file" "$target_file"
   /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
     "$pacman_candidate" "$pacman_config"
+  /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0755 \
+    "$dev_share_helper_source" "$dev_share_helper"
+  if [[ -n $docker_candidate ]]; then
+    /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
+      "$docker_candidate" "$docker_config"
+  fi
 fi
 
 if [[ -d $system_install_tree ]]; then
@@ -100,6 +145,25 @@ if [[ -d $system_install_tree ]]; then
 fi
 
 if [[ -z $system_root ]]; then
+  if ((docker_changed)) &&
+    /usr/bin/systemctl is-active --quiet docker.service; then
+    if ((EUID == 0)); then
+      if ! /usr/bin/systemctl restart docker.service; then
+        /usr/bin/install -o root -g root -m 0644 \
+          "$docker_original" "$docker_config"
+        /usr/bin/systemctl restart docker.service
+        echo "Docker rejected qvOS localhost binding; restored its prior configuration." >&2
+        exit 1
+      fi
+    elif ! /usr/bin/sudo /usr/bin/systemctl restart docker.service; then
+      /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
+        "$docker_original" "$docker_config"
+      /usr/bin/sudo /usr/bin/systemctl restart docker.service
+      echo "Docker rejected qvOS localhost binding; restored its prior configuration." >&2
+      exit 1
+    fi
+  fi
+
   if ((EUID == 0)); then
     /usr/bin/sysctl -q -p "$target_file"
   else

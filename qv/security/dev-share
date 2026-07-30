@@ -1,0 +1,345 @@
+#!/bin/bash
+set -euo pipefail
+
+root_helper=/usr/lib/qvos/dev-share-firewall
+ip_command=/usr/bin/ip
+ss_command=/usr/bin/ss
+systemd_run=/usr/bin/systemd-run
+systemctl_command=/usr/bin/systemctl
+sudo_command=/usr/bin/sudo
+pkexec_command=/usr/bin/pkexec
+net_root=/sys/class/net
+duration=1h
+interface=
+share_supabase=0
+frontend_port=
+proxy_units=()
+
+if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
+  root_helper=${QVOS_DEV_SHARE_ROOT_HELPER:-$root_helper}
+  ip_command=${QVOS_DEV_SHARE_IP:-$ip_command}
+  ss_command=${QVOS_DEV_SHARE_SS:-$ss_command}
+  systemd_run=${QVOS_DEV_SHARE_SYSTEMD_RUN:-$systemd_run}
+  systemctl_command=${QVOS_DEV_SHARE_SYSTEMCTL:-$systemctl_command}
+  sudo_command=${QVOS_DEV_SHARE_SUDO:-$sudo_command}
+  pkexec_command=${QVOS_DEV_SHARE_PKEXEC:-$pkexec_command}
+  net_root=${QVOS_DEV_SHARE_NET_ROOT:-$net_root}
+fi
+
+usage() {
+  cat >&2 <<'USAGE'
+Usage: dev-share <frontend-port> [--supabase] [--interface NAME] [--duration 1m-8h]
+
+Temporarily share one local frontend and, when requested, this project's
+Supabase API gateway with devices on the selected private IPv4 network.
+USAGE
+}
+
+valid_port() {
+  [[ $1 =~ ^[0-9]+$ ]] && ((10#$1 >= 1024 && 10#$1 <= 65535))
+}
+
+valid_duration() {
+  local amount
+  local unit
+
+  [[ $1 =~ ^([1-9][0-9]*)([mh])$ ]] || return 1
+  amount=${BASH_REMATCH[1]}
+  unit=${BASH_REMATCH[2]}
+  if [[ $unit == "m" ]]; then
+    ((amount <= 480))
+  else
+    ((amount <= 8))
+  fi
+}
+
+private_ipv4() {
+  local address=$1
+  local first
+  local second
+  local third
+  local fourth
+
+  IFS=. read -r first second third fourth <<<"$address"
+  [[ $first =~ ^[0-9]+$ && $second =~ ^[0-9]+$ &&
+    $third =~ ^[0-9]+$ && $fourth =~ ^[0-9]+$ ]] || return 1
+  ((first <= 255 && second <= 255 && third <= 255 && fourth <= 255)) ||
+    return 1
+  ((first == 10)) ||
+    ((first == 172 && second >= 16 && second <= 31)) ||
+    ((first == 192 && second == 168))
+}
+
+supabase_api_port() {
+  local config_file=$1
+
+  awk '
+    /^[[:space:]]*\[[^]]+\][[:space:]]*$/ {
+      in_api = ($0 ~ /^[[:space:]]*\[api\][[:space:]]*$/)
+      next
+    }
+    in_api && /^[[:space:]]*port[[:space:]]*=/ {
+      value = $0
+      sub(/^[^=]*=[[:space:]]*/, "", value)
+      sub(/[[:space:]]*(#.*)?$/, "", value)
+      if (value !~ /^[0-9]+$/) exit 2
+      ports++
+      port = value
+    }
+    END {
+      if (ports != 1) exit 1
+      print port
+    }
+  ' "$config_file"
+}
+
+listener_output() {
+  "$ss_command" -H -ltn "sport = :$1"
+}
+
+listener_is_local_only() {
+  local port=$1
+  local output=$2
+
+  awk -v port="$port" '
+    $4 == "127.0.0.1:" port { found = 1 }
+    END { exit !found }
+  ' <<<"$output"
+}
+
+listener_is_lan_exposed() {
+  local port=$1
+  local lan_ip=$2
+  local output=$3
+
+  awk -v port="$port" -v lan_ip="$lan_ip" '
+    $4 == lan_ip ":" port ||
+    $4 == "0.0.0.0:" port ||
+    $4 == "[::]:" port ||
+    $4 == "*:" port {
+      found = 1
+    }
+    END { exit !found }
+  ' <<<"$output"
+}
+
+cleanup() {
+  local unit
+
+  trap - EXIT
+  for unit in "${proxy_units[@]}"; do
+    "$systemctl_command" --user stop "$unit.service" >/dev/null 2>&1 || true
+  done
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
+
+while (($# > 0)); do
+  case $1 in
+  --supabase)
+    share_supabase=1
+    shift
+    ;;
+  --interface)
+    (($# >= 2)) || {
+      usage
+      exit 2
+    }
+    interface=$2
+    shift 2
+    ;;
+  --duration)
+    (($# >= 2)) || {
+      usage
+      exit 2
+    }
+    duration=$2
+    shift 2
+    ;;
+  --help | -h)
+    usage
+    exit 0
+    ;;
+  -*)
+    usage
+    exit 2
+    ;;
+  *)
+    [[ -z $frontend_port ]] || {
+      usage
+      exit 2
+    }
+    frontend_port=$1
+    shift
+    ;;
+  esac
+done
+
+valid_port "$frontend_port" || {
+  echo "The frontend port must be between 1024 and 65535." >&2
+  exit 2
+}
+valid_duration "$duration" || {
+  echo "The preview duration must be between 1 minute and 8 hours." >&2
+  exit 2
+}
+[[ -x $root_helper && -x $ip_command && -x $ss_command &&
+  -x $systemd_run && -x $systemctl_command ]] || {
+  echo "qvOS LAN preview prerequisites are incomplete." >&2
+  exit 1
+}
+
+if [[ -z $interface ]]; then
+  while IFS= read -r route_interface; do
+    case $route_interface in
+    docker* | br-* | veth* | CloudflareWARP) continue ;;
+    esac
+    interface=$route_interface
+    break
+  done < <(
+    "$ip_command" -4 route show table main default |
+      awk '{
+        for (field = 1; field <= NF; field++) {
+          if ($field == "dev") {
+            print $(field + 1)
+            break
+          }
+        }
+      }'
+  )
+fi
+[[ $interface =~ ^[A-Za-z0-9_.:-]+$ && -e $net_root/$interface ]] || {
+  echo "No usable private IPv4 interface was selected." >&2
+  exit 1
+}
+
+mapfile -t interface_cidrs < <(
+  "$ip_command" -o -4 address show dev "$interface" scope global |
+    awk '{print $4}'
+)
+if ((${#interface_cidrs[@]} != 1)); then
+  echo "Expected one private IPv4 address on $interface." >&2
+  exit 1
+fi
+interface_cidr=${interface_cidrs[0]}
+lan_ip=${interface_cidr%/*}
+private_ipv4 "$lan_ip" || {
+  echo "LAN preview refuses non-private IPv4 address $lan_ip." >&2
+  exit 1
+}
+
+ports=("$frontend_port")
+if ((share_supabase)); then
+  supabase_config="$PWD/supabase/config.toml"
+  [[ -f $supabase_config && ! -L $supabase_config ]] || {
+    echo "Run LAN preview from a project with supabase/config.toml." >&2
+    exit 1
+  }
+  if ! api_port=$(supabase_api_port "$supabase_config"); then
+    echo "Expected one numeric [api] port in $supabase_config." >&2
+    exit 1
+  fi
+  valid_port "$api_port" || {
+    echo "The Supabase API port is outside the safe preview range." >&2
+    exit 1
+  }
+  [[ $api_port == "$frontend_port" ]] || ports+=("$api_port")
+fi
+
+for port in "${ports[@]}"; do
+  output=$(listener_output "$port")
+  [[ -n $output ]] || {
+    echo "Nothing is listening on local port $port." >&2
+    exit 1
+  }
+  if listener_is_lan_exposed "$port" "$lan_ip" "$output"; then
+    echo "Port $port is already exposed beyond localhost." >&2
+    exit 1
+  fi
+  listener_is_local_only "$port" "$output" || {
+    echo "Port $port must listen on 127.0.0.1 before it can be shared safely." >&2
+    exit 1
+  }
+done
+
+token=${QVOS_DEV_SHARE_TOKEN:-$(<"/proc/sys/kernel/random/uuid")}
+token=${token//-/}
+token=${token:0:16}
+[[ $token =~ ^[a-f0-9]{16}$ ]] || {
+  echo "Could not create a safe LAN preview identifier." >&2
+  exit 1
+}
+
+proxy_pairs=()
+for port in "${ports[@]}"; do
+  unit="qvos-dev-share-$token-$port"
+  "$systemd_run" --user --quiet --collect --unit="$unit" \
+    --service-type=exec \
+    --property="RuntimeMaxSec=$duration" \
+    --property=NoNewPrivileges=yes \
+    --property=PrivateTmp=yes \
+    --property=ProtectSystem=strict \
+    --property=ProtectHome=yes \
+    --property=RestrictSUIDSGID=yes \
+    --property=LockPersonality=yes \
+    /usr/bin/socat \
+    "TCP4-LISTEN:$port,bind=$lan_ip,reuseaddr,fork" \
+    "TCP4:127.0.0.1:$port"
+  proxy_units+=("$unit")
+
+  proxy_pid=$(
+    "$systemctl_command" --user show \
+      --property=MainPID --value "$unit.service"
+  )
+  [[ $proxy_pid =~ ^[1-9][0-9]*$ ]] || {
+    echo "LAN proxy failed to start for port $port." >&2
+    exit 1
+  }
+  proxy_pairs+=("$port:$proxy_pid")
+done
+
+for port in "${ports[@]}"; do
+  ready=0
+  for ((attempt = 0; attempt < 30; attempt++)); do
+    if listener_is_lan_exposed "$port" "$lan_ip" "$(listener_output "$port")"; then
+      ready=1
+      break
+    fi
+    sleep 0.1
+  done
+  ((ready)) || {
+    echo "LAN proxy did not bind $lan_ip:$port." >&2
+    exit 1
+  }
+done
+
+if "$sudo_command" -n true >/dev/null 2>&1; then
+  escalation=("$sudo_command")
+elif [[ -x $pkexec_command && -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; then
+  escalation=("$pkexec_command")
+else
+  escalation=("$sudo_command")
+fi
+
+"${escalation[@]}" "$root_helper" open \
+  "$token" "$(id -u)" "$interface" "$interface_cidr" "$lan_ip" "$duration" \
+  "${proxy_pairs[@]}"
+
+echo "LAN preview: http://$lan_ip:$frontend_port"
+if ((share_supabase)); then
+  echo "Supabase API: http://$lan_ip:$api_port"
+fi
+echo "Only $interface clients from $interface_cidr can connect."
+echo "The preview closes on exit and automatically expires after $duration."
+
+while :; do
+  active=0
+  for unit in "${proxy_units[@]}"; do
+    if "$systemctl_command" --user is-active --quiet "$unit.service"; then
+      active=1
+      break
+    fi
+  done
+  ((active)) || break
+  sleep 1
+done
