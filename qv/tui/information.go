@@ -22,6 +22,7 @@ type informationEntry struct {
 	Label string
 	Value string
 	Raw   string
+	Prose bool
 }
 
 func renderInformationScreen(screen informationScreen) string {
@@ -88,6 +89,7 @@ func formatInformationLines(
 
 	entries := make([]informationEntry, 0, len(lines))
 	labelWidth := 0
+	fieldCount := 0
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -100,14 +102,23 @@ func formatInformationLines(
 			entries = append(entries, informationEntry{Raw: line})
 			continue
 		}
+		if isInformationProse(label, value) {
+			entries = append(entries, informationEntry{
+				Raw:   formatInformationProse(label, value),
+				Prose: true,
+			})
+			continue
+		}
 		if strings.EqualFold(label, title) {
 			label = "Status"
 		}
 		label = strings.ToUpper(label)
 		labelWidth = max(labelWidth, lipgloss.Width(label))
 		entries = append(entries, informationEntry{Label: label, Value: value})
+		fieldCount++
 	}
 
+	reportLayout := fieldCount > 2
 	formatted := make([]string, 0, len(lines)*3)
 	for _, entry := range entries {
 		switch {
@@ -119,7 +130,16 @@ func formatInformationLines(
 					entry.Value,
 					width,
 					labelWidth,
+					reportLayout,
 				)...,
+			)
+		case entry.Prose:
+			if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
+				formatted = append(formatted, "")
+			}
+			formatted = append(
+				formatted,
+				styleWrappedInformation([]string{entry.Raw}, width, sMid)...,
 			)
 		case entry.Raw != "":
 			formatted = append(
@@ -154,11 +174,36 @@ func splitInformationField(line string) (string, string, bool) {
 	return label, value, true
 }
 
+func isInformationProse(label string, value string) bool {
+	switch strings.ToLower(strings.TrimSpace(label)) {
+	case "details", "message", "note", "notice", "privacy", "report privacy", "summary", "warning":
+		return true
+	}
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(value)), " omitted")
+}
+
+func formatInformationProse(label string, value string) string {
+	if strings.EqualFold(strings.TrimSpace(label), "Report privacy") {
+		return "Report Privacy: Serials, DMI Data, & Native paths omitted"
+	}
+
+	label = strings.TrimSpace(label)
+	value = strings.TrimSpace(value)
+	if label != "" {
+		label = string(unicode.ToUpper([]rune(label)[0])) + string([]rune(label)[1:])
+	}
+	if value != "" {
+		value = string(unicode.ToUpper([]rune(value)[0])) + string([]rune(value)[1:])
+	}
+	return label + ": " + value
+}
+
 func formatInformationField(
 	label string,
 	value string,
 	width int,
 	labelWidth int,
+	reportLayout bool,
 ) []string {
 	primary, secondary := splitInformationValue(value)
 	primary, secondary = simplifyInformationValue(label, primary, secondary)
@@ -171,17 +216,44 @@ func formatInformationField(
 		" ",
 		max(0, labelWidth-lipgloss.Width(label)),
 	)
-	row := sGray.Render(paddedLabel) +
-		sDim.Render(" · ") +
-		primaryStyle.Render(primary)
+	separator := " · "
+	if reportLayout {
+		separator = " - "
+	}
+	valueIndent := strings.Repeat(" ", labelWidth+lipgloss.Width(separator))
+	valueWidth := max(1, width-lipgloss.Width(valueIndent))
+	primaryLines := wrapDisplayLines([]string{primary}, valueWidth)
+	if len(primaryLines) == 0 {
+		primaryLines = []string{primary}
+	}
+
+	formatted := make([]string, 0, len(primaryLines)+len(secondary))
+	formatted = append(
+		formatted,
+		sGray.Render(paddedLabel)+sDim.Render(separator)+primaryStyle.Render(primaryLines[0]),
+	)
+	for _, line := range primaryLines[1:] {
+		formatted = append(formatted, valueIndent+primaryStyle.Render(line))
+	}
 	for _, qualifier := range secondary {
 		style := sMid
 		if strings.Contains(qualifier, "%") {
 			style = sRed
 		}
-		row += sDim.Render(" - ") + style.Render(qualifier)
+		qualifierLines := wrapDisplayLines([]string{qualifier}, valueWidth)
+		if !reportLayout && len(qualifierLines) == 1 &&
+			lipgloss.Width(formatted[len(formatted)-1])+
+				lipgloss.Width(" - ")+
+				lipgloss.Width(qualifierLines[0]) <= width {
+			formatted[len(formatted)-1] +=
+				sDim.Render(" - ") + style.Render(qualifierLines[0])
+			continue
+		}
+		for _, line := range qualifierLines {
+			formatted = append(formatted, valueIndent+style.Render(line))
+		}
 	}
-	return wrapDisplayLines([]string{row}, width)
+	return formatted
 }
 
 func splitInformationValue(value string) (string, []string) {
@@ -210,10 +282,24 @@ func simplifyInformationValue(
 		primary = strings.TrimPrefix(primary, "firmware ")
 		primary = strings.TrimSuffix(primary, " mode")
 	}
+	primary = simplifyInformationText(primary)
 	for index, qualifier := range secondary {
-		secondary[index] = strings.TrimPrefix(qualifier, "approximately ")
+		secondary[index] = simplifyInformationText(qualifier)
 	}
 	return primary, secondary
+}
+
+func simplifyInformationText(value string) string {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "approximately ")
+	value = strings.ReplaceAll(value, "_", " ")
+	switch strings.ToLower(value) {
+	case "yes", "no", "true", "false", "enabled", "disabled", "absent", "present",
+		"supported", "unsupported", "unmanaged":
+		return string(unicode.ToUpper([]rune(value)[0])) + string([]rune(value)[1:])
+	case "none active":
+		return "None active"
+	}
+	return value
 }
 
 func splitInformationDetail(value string) (string, string) {

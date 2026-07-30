@@ -104,7 +104,9 @@ sudo prompt still appears before the owner runs; an owner with no output gets
 one truthful completion line. Key-value output renders as compact rows with
 dim uppercase labels aligned to one column, a middle-dot separator, bold
 values, and a red priority accent after a normal dash instead of raw clipped
-logs. The aligned rows are centered together beneath the title.
+logs. Multi-field reports use a normal dash, align continued values beneath
+the value column, and keep explanatory sentences as prose after the grid. The
+complete information block is centered beneath the title.
 
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.

@@ -76,6 +76,83 @@ func TestInformationFieldsWrapWithoutClipping(t *testing.T) {
 	}
 }
 
+func TestInformationReportUsesAReadableGridAndTrailingProse(t *testing.T) {
+	lines := formatInformationLines(
+		"Battery Protection",
+		[]string{
+			"Battery Protection: Enabled - Mostly plugged in",
+			"Hardware: firmware Long Life mode (approximately 50-60%)",
+			"Batteries: 1",
+			"Battery 1:",
+			"UPower support: yes",
+			"Supported settings mask: 4",
+			"UPower enabled: true",
+			"Kernel charge mode: Long_Life",
+			"Firmware range: approximately 50-60%",
+			"qvOS hwdb override: absent",
+			"Conflicting charging manager: none active",
+			"Report privacy: serials, DMI data, and native paths omitted",
+		},
+		46,
+		false,
+	)
+	plainLines := make([]string, len(lines))
+	for index, line := range lines {
+		plainLines[index] = stripANSI(line)
+	}
+	plain := strings.Join(plainLines, "\n")
+
+	var hardwareLine, rangeLine string
+	privacyIndex := -1
+	for index, line := range plainLines {
+		switch {
+		case strings.Contains(line, "HARDWARE"):
+			hardwareLine = line
+		case strings.TrimSpace(line) == "50-60%" && rangeLine == "":
+			rangeLine = line
+		case strings.Contains(line, "Report Privacy:"):
+			privacyIndex = index
+		}
+	}
+	if hardwareLine == "" || rangeLine == "" {
+		t.Fatalf("report hardware hierarchy is missing: %q", plain)
+	}
+	valueColumn := strings.Index(hardwareLine, "Long Life")
+	if valueColumn < 0 || strings.Index(rangeLine, "50-60%") != valueColumn {
+		t.Fatalf(
+			"hardware threshold is not aligned under its value: %q / %q",
+			hardwareLine,
+			rangeLine,
+		)
+	}
+	if !strings.Contains(hardwareLine, " - Long Life") {
+		t.Fatalf("report field does not use a normal dash: %q", hardwareLine)
+	}
+	if privacyIndex < 1 || strings.TrimSpace(plainLines[privacyIndex-1]) != "" {
+		t.Fatalf("report prose is not separated from the field grid: %q", plain)
+	}
+	normalized := strings.Join(strings.Fields(plain), " ")
+	if !strings.Contains(
+		normalized,
+		"Report Privacy: Serials, DMI Data, & Native paths omitted",
+	) {
+		t.Fatalf("report privacy is not presented as clear prose: %q", plain)
+	}
+	for _, noisy := range []string{
+		"REPORT PRIVACY",
+		"approximately",
+		"Long_Life",
+		"50-\n60%",
+	} {
+		if strings.Contains(plain, noisy) {
+			t.Fatalf("report retained noisy output %q: %q", noisy, plain)
+		}
+	}
+	if len(lines) > 16 {
+		t.Fatalf("normal report needs %d rows, want at most 16: %q", len(lines), plain)
+	}
+}
+
 func TestInformationScreenCentersAlignedFieldsAsOneBlock(t *testing.T) {
 	previousWidth := canvasW
 	t.Cleanup(func() {

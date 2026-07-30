@@ -2545,7 +2545,7 @@ func (m model) renderOneRingInformationFor(mode layoutMode) string {
 		empty = m.scriptStatus
 	}
 
-	visibleRows := max(3, rootLogPanelHeight(mode, m.height)-2)
+	visibleRows := max(3, rootLogPanelHeight(mode, m.height))
 	return renderInformationScreen(informationScreen{
 		Title:       currentActionSpec.Title,
 		Lines:       lines,
@@ -2569,7 +2569,7 @@ func (m model) oneRingInformationLines() ([]string, int) {
 		}
 	}
 	contentWidth := max(1, width-2)
-	visibleRows := max(3, rootLogPanelHeight(mode, m.height)-2)
+	visibleRows := max(3, rootLogPanelHeight(mode, m.height))
 	lines := m.scriptLogLines
 	if m.scriptErr != nil {
 		lines = []string{shortError(m.scriptErr)}

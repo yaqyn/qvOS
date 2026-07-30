@@ -197,7 +197,7 @@ func TestOneRingActionStartsDirectlyAndMakesOwnerOutputPrimary(t *testing.T) {
 	for _, expected := range []string{
 		"BATTERY PROTECTION",
 		"MODE",
-		"Long_Life",
+		"Long Life",
 		"CHARGE LIMIT",
 		"60%",
 	} {
