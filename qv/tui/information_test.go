@@ -32,13 +32,26 @@ func TestInformationFieldsPresentStatusHierarchy(t *testing.T) {
 		}
 	}
 	for _, styled := range []string{
-		sRed.Render("STATUS"),
-		sHot.Render("Enabled"),
+		sRed.Render("STATUS  "),
+		sWhite.Render("Enabled"),
+		sMid.Render("Mostly plugged in"),
 		sWhite.Render("firmware Long Life mode"),
-		sRed.Render("approximately 50-60%"),
+		sMid.Render("approximately 50-60%"),
 	} {
 		if !strings.Contains(rendered, styled) {
 			t.Fatalf("information hierarchy is missing styled value %q", stripANSI(styled))
+		}
+	}
+	if strings.Contains(rendered, sDeepRed.Render("▐")) ||
+		strings.Contains(rendered, sHot.Render("Enabled")) {
+		t.Fatalf("information hierarchy retained competing accent styles: %q", plain)
+	}
+	for _, row := range []string{
+		"STATUS    Enabled",
+		"HARDWARE  firmware Long Life mode",
+	} {
+		if !strings.Contains(plain, row) {
+			t.Fatalf("information fields are not aligned: missing %q in %q", row, plain)
 		}
 	}
 }

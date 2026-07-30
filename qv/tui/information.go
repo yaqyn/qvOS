@@ -18,6 +18,12 @@ type informationScreen struct {
 	Hints       []tuiHint
 }
 
+type informationEntry struct {
+	Label string
+	Value string
+	Raw   string
+}
+
 func renderInformationScreen(screen informationScreen) string {
 	width := max(1, screen.Width)
 	contentWidth := max(1, width-2)
@@ -73,35 +79,55 @@ func formatInformationLines(
 		return styleWrappedInformation(lines, width, sRed)
 	}
 
-	formatted := make([]string, 0, len(lines)*3)
+	entries := make([]informationEntry, 0, len(lines))
+	maxLabelWidth := 0
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
-			if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
-				formatted = append(formatted, "")
-			}
+			entries = append(entries, informationEntry{})
 			continue
 		}
 
 		label, value, ok := splitInformationField(line)
 		if !ok {
-			formatted = append(
-				formatted,
-				styleWrappedInformation([]string{line}, width, sBright)...,
-			)
+			entries = append(entries, informationEntry{Raw: line})
 			continue
-		}
-		if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
-			formatted = append(formatted, "")
 		}
 		if strings.EqualFold(label, title) {
 			label = "Status"
 		}
-		formatted = append(
-			formatted,
-			sDeepRed.Render("▐")+" "+sRed.Render(strings.ToUpper(label)),
-		)
-		formatted = append(formatted, formatInformationValue(value, width)...)
+		label = strings.ToUpper(label)
+		maxLabelWidth = max(maxLabelWidth, lipgloss.Width(label))
+		entries = append(entries, informationEntry{Label: label, Value: value})
+	}
+
+	labelWidth := min(12, maxLabelWidth)
+	stacked := maxLabelWidth > labelWidth || width-labelWidth-2 < 16
+	formatted := make([]string, 0, len(lines)*3)
+	for _, entry := range entries {
+		switch {
+		case entry.Label != "":
+			if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
+				formatted = append(formatted, "")
+			}
+			formatted = append(
+				formatted,
+				formatInformationField(
+					entry.Label,
+					entry.Value,
+					width,
+					labelWidth,
+					stacked,
+				)...,
+			)
+		case entry.Raw != "":
+			formatted = append(
+				formatted,
+				styleWrappedInformation([]string{entry.Raw}, width, sBright)...,
+			)
+		case len(formatted) > 0 && formatted[len(formatted)-1] != "":
+			formatted = append(formatted, "")
+		}
 	}
 	for len(formatted) > 0 && formatted[len(formatted)-1] == "" {
 		formatted = formatted[:len(formatted)-1]
@@ -127,33 +153,64 @@ func splitInformationField(line string) (string, string, bool) {
 	return label, value, true
 }
 
-func formatInformationValue(value string, width int) []string {
-	primary := value
-	qualifier := ""
-	if before, after, found := strings.Cut(value, " - "); found {
-		primary = strings.TrimSpace(before)
-		qualifier = strings.TrimSpace(after)
+func formatInformationField(
+	label string,
+	value string,
+	width int,
+	labelWidth int,
+	stacked bool,
+) []string {
+	primary, secondary := splitInformationValue(value)
+	if stacked {
+		formatted := styleWrappedInformation([]string{label}, width, sRed)
+		formatted = append(
+			formatted,
+			styleWrappedInformation([]string{primary}, width, sWhite)...,
+		)
+		for _, qualifier := range secondary {
+			formatted = append(
+				formatted,
+				styleWrappedInformation([]string{qualifier}, width, sMid)...,
+			)
+		}
+		return formatted
 	}
-	primary, detail := splitInformationDetail(primary)
 
-	primaryStyle := sWhite
-	if qualifier != "" && len(strings.Fields(primary)) <= 2 {
-		primaryStyle = sHot
+	valueWidth := max(1, width-labelWidth-2)
+	primaryLines := wrapDisplayLines([]string{primary}, valueWidth)
+	indent := strings.Repeat(" ", labelWidth+2)
+	paddedLabel := label + strings.Repeat(
+		" ",
+		max(0, labelWidth-lipgloss.Width(label)),
+	)
+	formatted := make([]string, 0, 1+len(secondary))
+	for index, line := range primaryLines {
+		prefix := indent
+		if index == 0 {
+			prefix = sRed.Render(paddedLabel) + "  "
+		}
+		formatted = append(formatted, prefix+sWhite.Render(line))
 	}
-	formatted := styleWrappedInformation([]string{primary}, width, primaryStyle)
-	if qualifier != "" {
-		formatted = append(
-			formatted,
-			styleWrappedInformation([]string{qualifier}, width, sMid)...,
-		)
-	}
-	if detail != "" {
-		formatted = append(
-			formatted,
-			styleWrappedInformation([]string{detail}, width, sRed)...,
-		)
+	for _, qualifier := range secondary {
+		for _, line := range wrapDisplayLines([]string{qualifier}, valueWidth) {
+			formatted = append(formatted, indent+sMid.Render(line))
+		}
 	}
 	return formatted
+}
+
+func splitInformationValue(value string) (string, []string) {
+	primary := value
+	secondary := make([]string, 0, 2)
+	if before, after, found := strings.Cut(value, " - "); found {
+		primary = strings.TrimSpace(before)
+		secondary = append(secondary, strings.TrimSpace(after))
+	}
+	primary, detail := splitInformationDetail(primary)
+	if detail != "" {
+		secondary = append(secondary, detail)
+	}
+	return primary, secondary
 }
 
 func splitInformationDetail(value string) (string, string) {
