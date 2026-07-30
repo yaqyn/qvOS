@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -19,10 +20,30 @@ type informationScreen struct {
 }
 
 type informationEntry struct {
-	Label string
-	Value string
-	Raw   string
-	Prose bool
+	Label   string
+	Value   string
+	Raw     string
+	Prose   bool
+	Section string
+}
+
+type informationLineKind int
+
+const (
+	informationLineBlank informationLineKind = iota
+	informationLineField
+	informationLineProse
+	informationLineSection
+)
+
+type informationLine struct {
+	Text string
+	Kind informationLineKind
+}
+
+type informationSection struct {
+	Name   string
+	Number int
 }
 
 func renderInformationScreen(screen informationScreen) string {
@@ -90,10 +111,20 @@ func formatInformationLines(
 	entries := make([]informationEntry, 0, len(lines))
 	labelWidth := 0
 	fieldCount := 0
+	sectionCounts := informationSectionCounts(lines)
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			entries = append(entries, informationEntry{})
+			continue
+		}
+		if section, ok := parseInformationSection(line); ok {
+			if sectionCounts[strings.ToLower(section.Name)] > 1 {
+				entries = append(entries, informationEntry{
+					Section: "<" + section.Name + " " +
+						strconv.Itoa(section.Number) + ">",
+				})
+			}
 			continue
 		}
 
@@ -119,41 +150,132 @@ func formatInformationLines(
 	}
 
 	reportLayout := fieldCount > 2
-	formatted := make([]string, 0, len(lines)*3)
+	formatted := make([]informationLine, 0, len(lines)*3)
 	for _, entry := range entries {
 		switch {
 		case entry.Label != "":
-			formatted = append(
-				formatted,
-				formatInformationField(
-					entry.Label,
-					entry.Value,
-					width,
-					labelWidth,
-					reportLayout,
-				)...,
-			)
-		case entry.Prose:
-			if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
-				formatted = append(formatted, "")
+			for _, line := range formatInformationField(
+				entry.Label,
+				entry.Value,
+				width,
+				labelWidth,
+				reportLayout,
+			) {
+				formatted = append(formatted, informationLine{
+					Text: line,
+					Kind: informationLineField,
+				})
 			}
-			formatted = append(
-				formatted,
-				styleWrappedInformation([]string{entry.Raw}, width, sMid)...,
-			)
+		case entry.Section != "":
+			if len(formatted) > 0 &&
+				formatted[len(formatted)-1].Kind != informationLineBlank {
+				formatted = append(formatted, informationLine{
+					Kind: informationLineBlank,
+				})
+			}
+			formatted = append(formatted, informationLine{
+				Text: sMid.Render(entry.Section),
+				Kind: informationLineSection,
+			})
+		case entry.Prose:
+			if len(formatted) > 0 &&
+				formatted[len(formatted)-1].Kind != informationLineBlank {
+				formatted = append(formatted, informationLine{
+					Kind: informationLineBlank,
+				})
+			}
+			for _, line := range styleWrappedInformation(
+				[]string{entry.Raw},
+				width,
+				sMid,
+			) {
+				formatted = append(formatted, informationLine{
+					Text: line,
+					Kind: informationLineProse,
+				})
+			}
 		case entry.Raw != "":
-			formatted = append(
-				formatted,
-				styleWrappedInformation([]string{entry.Raw}, width, sBright)...,
-			)
-		case len(formatted) > 0 && formatted[len(formatted)-1] != "":
-			formatted = append(formatted, "")
+			for _, line := range styleWrappedInformation(
+				[]string{entry.Raw},
+				width,
+				sBright,
+			) {
+				formatted = append(formatted, informationLine{
+					Text: line,
+					Kind: informationLineProse,
+				})
+			}
+		case len(formatted) > 0 &&
+			formatted[len(formatted)-1].Kind != informationLineBlank:
+			formatted = append(formatted, informationLine{
+				Kind: informationLineBlank,
+			})
 		}
 	}
-	for len(formatted) > 0 && formatted[len(formatted)-1] == "" {
+	for len(formatted) > 0 &&
+		formatted[len(formatted)-1].Kind == informationLineBlank {
 		formatted = formatted[:len(formatted)-1]
 	}
-	return formatted
+	return centerInformationGroups(formatted, width)
+}
+
+func informationSectionCounts(lines []string) map[string]int {
+	counts := make(map[string]int)
+	for _, line := range lines {
+		if section, ok := parseInformationSection(line); ok {
+			counts[strings.ToLower(section.Name)]++
+		}
+	}
+	return counts
+}
+
+func parseInformationSection(line string) (informationSection, bool) {
+	line = strings.TrimSpace(line)
+	if !strings.HasSuffix(line, ":") {
+		return informationSection{}, false
+	}
+	heading := strings.TrimSpace(strings.TrimSuffix(line, ":"))
+	split := strings.LastIndex(heading, " ")
+	if split < 1 {
+		return informationSection{}, false
+	}
+	name := strings.TrimSpace(heading[:split])
+	number, err := strconv.Atoi(strings.TrimSpace(heading[split+1:]))
+	if err != nil || number < 1 {
+		return informationSection{}, false
+	}
+	return informationSection{Name: name, Number: number}, true
+}
+
+func centerInformationGroups(lines []informationLine, width int) []string {
+	gridWidth := 1
+	for _, line := range lines {
+		if line.Kind == informationLineField {
+			gridWidth = max(gridWidth, lipgloss.Width(line.Text))
+		}
+	}
+
+	centered := make([]string, 0, len(lines))
+	gridStyle := lipgloss.NewStyle().Width(min(width, gridWidth))
+	for _, line := range lines {
+		switch line.Kind {
+		case informationLineBlank:
+			centered = append(centered, "")
+		case informationLineField:
+			centered = append(centered, lipgloss.PlaceHorizontal(
+				width,
+				lipgloss.Center,
+				gridStyle.Render(line.Text),
+			))
+		default:
+			centered = append(centered, lipgloss.PlaceHorizontal(
+				width,
+				lipgloss.Center,
+				line.Text,
+			))
+		}
+	}
+	return centered
 }
 
 func splitInformationField(line string) (string, string, bool) {

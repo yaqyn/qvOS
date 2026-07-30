@@ -106,7 +106,9 @@ dim uppercase labels aligned to one column, a middle-dot separator, bold
 values, and a red priority accent after a normal dash instead of raw clipped
 logs. Multi-field reports use a normal dash, align continued values beneath
 the value column, and keep explanatory sentences as prose after the grid. The
-complete information block is centered beneath the title.
+grid, collection markers, and prose are centered independently beneath the
+title. Single-member collections omit a redundant heading; multiple members
+use centered `<Name N>` section markers.
 
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.

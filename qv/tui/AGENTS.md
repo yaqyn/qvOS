@@ -48,9 +48,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   use a middle-dot separator; multi-field reports use a normal dash, keep
   continuations aligned under the value column, and reserve red for priority
   thresholds such as percentages. Explanatory sentences remain prose after
-  the structured rows rather than becoming fake status fields. Center the
-  complete information block under the centered title; do not dump, split, or
-  clip values.
+  the structured rows rather than becoming fake status fields. Center grids,
+  collection section markers, and prose independently under the title so a
+  long note cannot pull a shorter grid sideways. Omit redundant single-member
+  collection headings; multiple members use centered `<Name N>` markers. Do
+  not dump, split, or clip values.
 - Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
   Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
   authentication, hardware interaction, secret entry, selection, or reboot

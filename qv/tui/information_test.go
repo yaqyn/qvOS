@@ -138,6 +138,9 @@ func TestInformationReportUsesAReadableGridAndTrailingProse(t *testing.T) {
 	) {
 		t.Fatalf("report privacy is not presented as clear prose: %q", plain)
 	}
+	if strings.Contains(plain, "Battery 1") {
+		t.Fatalf("single-battery report retained a redundant section: %q", plain)
+	}
 	for _, noisy := range []string{
 		"REPORT PRIVACY",
 		"approximately",
@@ -150,6 +153,88 @@ func TestInformationReportUsesAReadableGridAndTrailingProse(t *testing.T) {
 	}
 	if len(lines) > 16 {
 		t.Fatalf("normal report needs %d rows, want at most 16: %q", len(lines), plain)
+	}
+
+	var gridLine, proseLine string
+	for _, line := range plainLines {
+		switch {
+		case strings.Contains(line, "CONFLICTING CHARGING MANAGER"):
+			gridLine = line
+		case strings.Contains(line, "paths omitted"):
+			proseLine = line
+		}
+	}
+	for name, line := range map[string]string{
+		"grid":  gridLine,
+		"prose": proseLine,
+	} {
+		if line == "" {
+			t.Fatalf("centered report %s is missing: %q", name, plain)
+		}
+		left := len(line) - len(strings.TrimLeft(line, " "))
+		right := len(line) - len(strings.TrimRight(line, " "))
+		if difference := left - right; difference < -1 || difference > 1 {
+			t.Fatalf(
+				"report %s is not independently centered: left=%d right=%d",
+				name,
+				left,
+				right,
+			)
+		}
+	}
+}
+
+func TestInformationReportSeparatesMultipleCollectionMembers(t *testing.T) {
+	lines := formatInformationLines(
+		"Battery Protection",
+		[]string{
+			"Batteries: 2",
+			"Battery 1:",
+			"UPower support: yes",
+			"Battery 2:",
+			"UPower support: no",
+		},
+		46,
+		false,
+	)
+	plain := stripANSI(strings.Join(lines, "\n"))
+	for _, expected := range []string{"<Battery 1>", "<Battery 2>"} {
+		if !strings.Contains(plain, expected) {
+			t.Fatalf("multi-battery report is missing %q: %q", expected, plain)
+		}
+	}
+	for _, line := range strings.Split(plain, "\n") {
+		if !strings.Contains(line, "<Battery ") {
+			continue
+		}
+		left := len(line) - len(strings.TrimLeft(line, " "))
+		right := len(line) - len(strings.TrimRight(line, " "))
+		if difference := left - right; difference < -1 || difference > 1 {
+			t.Fatalf(
+				"battery section is not centered: left=%d right=%d line=%q",
+				left,
+				right,
+				line,
+			)
+		}
+	}
+
+	generic := stripANSI(strings.Join(formatInformationLines(
+		"Devices",
+		[]string{
+			"Devices: 2",
+			"Device 1:",
+			"Status: ready",
+			"Device 2:",
+			"Status: ready",
+		},
+		46,
+		false,
+	), "\n"))
+	for _, expected := range []string{"<Device 1>", "<Device 2>"} {
+		if !strings.Contains(generic, expected) {
+			t.Fatalf("generic collection report is missing %q: %q", expected, generic)
+		}
 	}
 }
 
