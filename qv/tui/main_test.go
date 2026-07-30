@@ -554,6 +554,35 @@ head -c 1100000 /dev/zero | tr '\0' x
 	}
 }
 
+func TestFastCommandOutputIsReadBeforeSuccess(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	script := filepath.Join(t.TempDir(), "fast-information")
+	if err := os.WriteFile(script, []byte("#!/bin/bash\nprintf 'Battery mode: Long_Life\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for attempt := 0; attempt < 25; attempt++ {
+		events := make(chan scriptEvent, 8)
+		go runRootScriptStream(context.Background(), actionUpdate, script, events)
+
+		var outputSeen bool
+		for event := range events {
+			if event.line == "Battery mode: Long_Life" {
+				outputSeen = true
+			}
+			if !event.done {
+				continue
+			}
+			if event.err != nil {
+				t.Fatalf("attempt %d fast output result = %v", attempt, event.err)
+			}
+			if !outputSeen {
+				t.Fatalf("attempt %d completed before delivering command output", attempt)
+			}
+		}
+	}
+}
+
 func TestUpdateConfirmationFitsResponsiveShapes(t *testing.T) {
 	sizes := []struct {
 		name          string

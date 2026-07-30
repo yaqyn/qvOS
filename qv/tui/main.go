@@ -1904,24 +1904,33 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		go keepSudoAlive(done)
 	}
 
-	stdout, err := cmd.StdoutPipe()
+	stdout, stdoutWriter, err := os.Pipe()
 	if err != nil {
 		events <- scriptEvent{action: action, script: script, status: "could not capture stdout", progress: 0, done: true, err: err}
 		return
 	}
-	stderr, err := cmd.StderrPipe()
+	stderr, stderrWriter, err := os.Pipe()
 	if err != nil {
+		_ = stdout.Close()
+		_ = stdoutWriter.Close()
 		events <- scriptEvent{action: action, script: script, status: "could not capture stderr", progress: 0, done: true, err: err}
 		return
 	}
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stderrWriter
 
 	if err := cmd.Start(); err != nil {
+		_ = stdout.Close()
+		_ = stdoutWriter.Close()
+		_ = stderr.Close()
+		_ = stderrWriter.Close()
 		events <- scriptEvent{action: action, script: script, status: "could not start script", progress: 0, done: true, err: err}
 		return
 	}
 
 	outputDone := make(chan error, 2)
-	scan := func(r io.Reader) {
+	scan := func(r *os.File) {
+		defer r.Close()
 		scanner := bufio.NewScanner(r)
 		buf := make([]byte, 0, 64*1024)
 		scanner.Buffer(buf, 1024*1024)
@@ -1945,10 +1954,16 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 	go scan(stderr)
 
 	err = cmd.Wait()
+	_ = stdoutWriter.Close()
+	_ = stderrWriter.Close()
+	var outputFailure error
 	for range 2 {
-		if outputErr := <-outputDone; err == nil && outputErr != nil {
-			err = outputErr
+		if outputErr := <-outputDone; outputFailure == nil && outputErr != nil {
+			outputFailure = outputErr
 		}
+	}
+	if outputFailure != nil {
+		err = outputFailure
 	}
 
 	if ctx.Err() != nil {
