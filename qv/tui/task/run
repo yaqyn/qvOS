@@ -5,6 +5,7 @@ OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 catalog="$OMARCHY_PATH/qv/tui/task/actions.psv"
 slug=${QVOS_ACTION_SLUG:-}
 operation=${QVOS_ACTION_OPERATION:-}
+presenter=
 
 task_record() {
   awk -F '|' -v wanted="$slug" '
@@ -52,6 +53,7 @@ load_task() {
     echo "Missing qvOS TUI task owner for $slug." >&2
     return 1
   }
+  presenter="$OMARCHY_PATH/qv/tui/task/presenters/$slug"
 }
 
 preflight() {
@@ -82,11 +84,13 @@ case ${1:-} in
 esac
 
 preflight
-if [[ $rings != "1" ]]; then
+if [[ $rings == "1" && -x $presenter ]]; then
+  "$presenter" "${owner_args[@]}"
+elif [[ $rings != "1" ]]; then
   echo "qvOS action: preparing"
   echo "qvOS action: applying"
-fi
-"${owner_args[@]}"
-if [[ $rings != "1" ]]; then
+  "${owner_args[@]}"
   echo "qvOS action: complete"
+else
+  "${owner_args[@]}"
 fi

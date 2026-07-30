@@ -110,6 +110,11 @@ grid, collection markers, and prose are centered independently beneath the
 title. Single-member collections omit a redundant heading; multiple members
 use centered `<Name N>` section markers.
 
+An optional executable at `task/presenters/<slug>` may normalize a one-ring
+owner whose successful output is only a vague activity line. It invokes the
+catalog owner exactly once, preserves failures, and prints verified readback;
+it never owns the mutation.
+
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.
 

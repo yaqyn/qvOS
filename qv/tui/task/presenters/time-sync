@@ -1,0 +1,44 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# > 0)) || {
+  echo "Missing System Time owner command." >&2
+  exit 2
+}
+
+set +e
+owner_output=$("$@" 2>&1)
+owner_status=$?
+set -e
+if ((owner_status != 0)); then
+  [[ -z $owner_output ]] || printf '%s\n' "$owner_output" >&2
+  exit "$owner_status"
+fi
+
+service=$(systemctl is-active systemd-timesyncd 2>/dev/null || true)
+synchronized=$(timedatectl show --property=NTPSynchronized --value 2>/dev/null || true)
+network_time=$(timedatectl show --property=NTP --value 2>/dev/null || true)
+timezone=$(timedatectl show --property=Timezone --value 2>/dev/null || true)
+
+case $synchronized in
+yes) synchronized="Synchronized" ;;
+no) synchronized="Pending" ;;
+*) synchronized="Unavailable" ;;
+esac
+case $service in
+active) service="Active" ;;
+inactive) service="Inactive" ;;
+failed) service="Failed" ;;
+*) service="Unavailable" ;;
+esac
+case $network_time in
+yes) network_time="Enabled" ;;
+no) network_time="Disabled" ;;
+*) network_time="Unavailable" ;;
+esac
+[[ -n $timezone ]] || timezone="Unavailable"
+
+printf 'Status: %s\n' "$synchronized"
+printf 'Service: %s\n' "$service"
+printf 'Network time: %s\n' "$network_time"
+printf 'Timezone: %s\n' "$timezone"

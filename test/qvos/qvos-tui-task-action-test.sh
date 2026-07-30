@@ -19,14 +19,24 @@ fail() {
   exit 1
 }
 
-install -d "$source_root/qv/tui/task" "$source_root/qv/tui" "$test_home" "$test_bin"
+install -d \
+  "$source_root/qv/tui/task/presenters" \
+  "$source_root/qv/tui" \
+  "$test_home" \
+  "$test_bin"
 install -m 0755 "$root/qv/tui/task/run" "$source_root/qv/tui/task/run"
 install -m 0644 /dev/stdin "$source_root/qv/tui/task/actions.psv" <<'CATALOG'
 # slug|title|summary|rings|presentation|requires_sudo|primary|active|complete|owner
 refresh-test|Test Config|Restore a test config|1|tui|false|Restore|Restoring|Restored|test-owner apply
+presented-test|Presented State|Read back a silent owner|1|tui|false|Inspect|Inspecting|Inspected|test-owner presented
 critical-test|Critical Config|Restore a critical config|3|tui|true|Restore|Restoring|Restored|test-owner critical
 firmware-test|Firmware|Retain native firmware prompts|3|native|true|Update|Updating|Updated|test-native firmware
 CATALOG
+install -m 0755 /dev/stdin "$source_root/qv/tui/task/presenters/presented-test" <<'PRESENTER'
+#!/bin/bash
+"$@"
+printf 'Verified state: ready\n'
+PRESENTER
 install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'LAUNCH'
 #!/bin/bash
 {
@@ -50,6 +60,20 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-pres
 #!/bin/bash
 printf '%s\n' "$*" >"$QVOS_TASK_TEST_CAPTURE"
 NATIVE
+install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SYSTEMCTL'
+#!/bin/bash
+[[ $1 == "is-active" && $2 == "systemd-timesyncd" ]] || exit 2
+printf 'active\n'
+SYSTEMCTL
+install -m 0755 /dev/stdin "$test_bin/timedatectl" <<'TIMEDATECTL'
+#!/bin/bash
+case $* in
+*"NTPSynchronized"*) printf 'yes\n' ;;
+*"Timezone"*) printf 'Africa/Cairo\n' ;;
+*"NTP"*) printf 'yes\n' ;;
+*) exit 2 ;;
+esac
+TIMEDATECTL
 
 HOME="$test_home" \
 OMARCHY_PATH="$source_root" \
@@ -84,6 +108,41 @@ task_output=$(
   fail "one-ring task hid its owner information behind synthetic milestones"
 [[ $(wc -l <"$owner_log") == 1 && $(<"$owner_log") == "apply" ]] ||
   fail "task runner did not delegate exactly once"
+
+presented_output=$(
+  HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_ACTION_SLUG=presented-test \
+  QVOS_ACTION_OPERATION=task \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$root/qv/tui/task/run"
+)
+[[ $presented_output == $'Owner result: presented\nVerified state: ready' ]] ||
+  fail "one-ring presenter did not replace vague output with verified state"
+[[ $(wc -l <"$owner_log") == 2 && $(tail -n 1 "$owner_log") == "presented" ]] ||
+  fail "one-ring presenter did not delegate exactly once"
+
+readback_owner_log="$test_root/readback-owner.log"
+readback_output=$(
+  PATH="$test_bin:$PATH" \
+  QVOS_TASK_TEST_OWNER_LOG="$readback_owner_log" \
+    "$root/qv/tui/task/presenters/time-sync" test-owner time-sync
+)
+[[ $readback_output == $'Status: Synchronized\nService: Active\nNetwork time: Enabled\nTimezone: Africa/Cairo' ]] ||
+  fail "System Time presenter did not replace activity copy with verified readback"
+[[ $(wc -l <"$readback_owner_log") == 1 && $(<"$readback_owner_log") == "time-sync" ]] ||
+  fail "System Time presenter did not delegate exactly once"
+
+set +e
+failure_output=$(
+  "$root/qv/tui/task/presenters/time-sync" \
+    bash -c 'echo "exact owner failure" >&2; exit 7' 2>&1
+)
+failure_status=$?
+set -e
+[[ $failure_status == 7 && $failure_output == "exact owner failure" ]] ||
+  fail "System Time presenter did not preserve the exact owner failure"
 
 critical_output=$(
   HOME="$test_home" \

@@ -53,6 +53,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   long note cannot pull a shorter grid sideways. Omit redundant single-member
   collection headings; multiple members use centered `<Name N>` markers. Do
   not dump, split, or clip values.
+  When successful owner output is only a vague activity line, use an optional
+  fixed-slug presenter under `task/presenters/` to delegate once, preserve
+  exact failures, and emit verified readback. Presenters never own or repeat
+  mutation.
 - Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
   Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
   authentication, hardware interaction, secret entry, selection, or reboot
