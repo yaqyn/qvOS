@@ -211,24 +211,35 @@ func TestAuthorizationInputReplacesTheRailWithAnAlwaysCenteredMask(t *testing.T)
 	t.Cleanup(func() {
 		canvasW = previousCanvasWidth
 	})
-	for count := 1; count <= 3; count++ {
-		content := stripANSI(renderAuthorizationScreen(authorizationScreen{
-			Details:  "Update qvOS",
-			Password: []rune(strings.Repeat("x", count)),
-		}, layoutDesktop))
-		found := false
-		for _, line := range strings.Split(content, "\n") {
-			if !strings.Contains(line, "•") {
-				continue
+	for _, test := range tests {
+		t.Run(test.name+" centered", func(t *testing.T) {
+			for _, count := range []int{1, 2, 3, test.width, test.width + 5} {
+				content := stripANSI(renderAuthorizationScreen(authorizationScreen{
+					Summary:  "Update qvOS",
+					Password: []rune(strings.Repeat("x", count)),
+				}, test.mode))
+				found := false
+				visibleCount := min(count, test.width)
+				for _, line := range strings.Split(content, "\n") {
+					if !strings.Contains(line, "•") {
+						continue
+					}
+					found = true
+					if got, want := strings.Index(line, "•"), (canvasW-visibleCount)/2; got != want {
+						t.Fatalf(
+							"%d-character input starts at %d, want centered column %d: %q",
+							count,
+							got,
+							want,
+							line,
+						)
+					}
+				}
+				if !found {
+					t.Fatalf("%d-character mask is missing: %q", count, content)
+				}
 			}
-			found = true
-			if got, want := strings.Index(line, "•"), (canvasW-count)/2; got != want {
-				t.Fatalf("%d-character mask starts at %d, want centered column %d: %q", count, got, want, line)
-			}
-		}
-		if !found {
-			t.Fatalf("%d-character mask is missing: %q", count, content)
-		}
+		})
 	}
 }
 
@@ -242,7 +253,7 @@ func TestAuthorizationUsesGenericTitleAndSpacedUnlabeledSummary(t *testing.T) {
 	for _, mode := range []layoutMode{layoutDesktop, layoutTablet, layoutMobile} {
 		t.Run(fmt.Sprint(mode), func(t *testing.T) {
 			content := stripANSI(renderAuthorizationScreen(authorizationScreen{
-				Details:  "Update qvOS and system packages",
+				Summary:  "Update qvOS and system packages",
 				Password: []rune("secret"),
 			}, mode))
 			lines := strings.Split(content, "\n")
@@ -291,6 +302,55 @@ func TestAuthorizationUsesGenericTitleAndSpacedUnlabeledSummary(t *testing.T) {
 	}
 	view := m.View()
 	assertViewFits(t, view.Content, m.width, m.height)
+}
+
+func TestAuthorizationKeepsActionIdentityWithTheModelAcrossConsumers(t *testing.T) {
+	previousCanvasWidth, previousCanvasHeight := canvasW, canvasH
+	canvasW, canvasH = 48, 20
+	t.Cleanup(func() {
+		canvasW, canvasH = previousCanvasWidth, previousCanvasHeight
+	})
+
+	update := model{
+		width:      72,
+		height:     30,
+		loading:    true,
+		action:     actionUpdate,
+		sudoPrompt: true,
+	}
+	for name, test := range map[string]struct {
+		rendered string
+		model    string
+	}{
+		"centered desktop": {update.renderDesktopBody("MODEL"), "MODEL"},
+		"centered tablet":  {update.renderReducedBody(layoutTablet, "MODEL"), "MODEL"},
+		"side":             {update.renderSideBody(140, 31), ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			content := stripANSI(test.rendered)
+			for _, expected := range []string{"qvOS", "UPDATE", "Auth Required", test.model} {
+				if expected == "" {
+					continue
+				}
+				if !strings.Contains(content, expected) {
+					t.Fatalf("authorization identity is missing %q: %q", expected, content)
+				}
+			}
+			if strings.Contains(content, "· · · · ·") {
+				t.Fatalf("active authorization retained the anonymous hub mark: %q", content)
+			}
+		})
+	}
+
+	prototype := prototypeSessionModel{
+		profile: prototypeProfileFor(prototypeSudo),
+	}
+	content := stripANSI(prototype.renderBody(layoutDesktop, "MODEL"))
+	for _, expected := range []string{"MODEL", "qvOS", "PROTOTYPE / SYSTEM", "Auth Required"} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("prototype authorization identity is missing %q: %q", expected, content)
+		}
+	}
 }
 
 func TestMobileAuthorizationShowsErrorsAcrossConsumers(t *testing.T) {

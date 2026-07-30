@@ -1005,17 +1005,20 @@ func TestCenteredLoadingKeepsBreathingRoomBelowIdentity(t *testing.T) {
 		scriptTarget:   0.68,
 	}
 	lines := strings.Split(stripANSI(m.renderDesktopBody("MODEL")), "\n")
-	taglineRow, progressRow := -1, -1
+	identityRow, progressRow := -1, -1
 	for index, line := range lines {
-		if strings.Contains(line, "· · · · ·") {
-			taglineRow = index
+		if strings.Contains(line, "UPDATE") {
+			identityRow = index
 		}
 		if strings.Contains(line, "UPDATING") {
 			progressRow = index
 		}
 	}
-	if taglineRow < 0 || progressRow < 0 || progressRow-taglineRow < 3 {
+	if identityRow < 0 || progressRow < 0 || progressRow-identityRow < 3 {
 		t.Fatalf("identity and progress need two centered breathing rows: %q", lines)
+	}
+	if strings.Contains(strings.Join(lines, "\n"), "· · · · ·") {
+		t.Fatalf("active action retained the anonymous hub mark: %q", lines)
 	}
 }
 

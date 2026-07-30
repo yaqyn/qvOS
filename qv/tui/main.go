@@ -879,7 +879,11 @@ func (m model) renderSideBody(width, height int) string {
 
 func (m model) renderDesktopBody(icon string) string {
 	title := sWhite.Render("qvOS")
-	tagline := sDim.Render("· · · · ·")
+	taglineText := "· · · · ·"
+	if m.loading && isScriptAction(m.action) {
+		taglineText = rootActionName(m.action)
+	}
+	tagline := sDim.Render(strings.ToUpper(taglineText))
 	lines := []string{icon, "", title, tagline, ""}
 	if m.loading {
 		lines = append(lines, "")
@@ -1131,7 +1135,16 @@ func (m model) renderReducedBody(mode layoutMode, icon string) string {
 		lines = append(lines, "")
 	}
 	if titleRows > 0 {
-		lines = append(lines, sWhite.Render("qvOS"), "")
+		if m.loading && isScriptAction(m.action) {
+			lines = append(
+				lines,
+				centerCanvas(sWhite.Render("qvOS")),
+				centerCanvas(sDim.Render(strings.ToUpper(rootActionName(m.action)))),
+				"",
+			)
+		} else {
+			lines = append(lines, sWhite.Render("qvOS"), "")
+		}
 	}
 	if middleRows > 0 {
 		lines = append(lines, m.renderMiddle(mode))
@@ -1142,6 +1155,9 @@ func (m model) renderReducedBody(mode layoutMode, icon string) string {
 func (m model) reducedBodyRows(mode layoutMode) (titleRows, middleRows, gapRows int) {
 	if mode == layoutTablet && m.height >= tabletMinHeight {
 		titleRows = 2
+		if m.loading && isScriptAction(m.action) {
+			titleRows++
+		}
 	}
 
 	middleRows = m.reducedMiddleRows(mode)
@@ -2416,7 +2432,7 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 		errorText = shortError(m.sudoErr)
 	}
 	return renderAuthorizationScreen(authorizationScreen{
-		Details:  rootActionSummary(m.action),
+		Summary:  rootActionSummary(m.action),
 		Error:    errorText,
 		Password: m.sudoPassword,
 		Hints:    m.rootPersistentHints(),

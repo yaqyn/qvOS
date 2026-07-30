@@ -5,7 +5,7 @@ import (
 )
 
 type authorizationScreen struct {
-	Details  string
+	Summary  string
 	Error    string
 	Password []rune
 	Hints    []tuiHint
@@ -14,15 +14,15 @@ type authorizationScreen struct {
 func renderAuthorizationScreen(screen authorizationScreen, mode layoutMode) string {
 	title := centerCanvas(renderAuthorizationTitle(canvasW))
 	field := centerCanvas(renderPasswordField(screen.Password, mode))
-	details := renderAuthorizationDetails(screen.Details, canvasW, mode)
+	summary := renderAuthorizationSummary(screen.Summary, canvasW, mode)
 	errorText := centerCanvas(sRed.Render(trimDisplay(screen.Error, max(1, canvasW))))
 
 	lines := []string{title, "", field}
 	if screen.Error != "" {
 		lines = append(lines, errorText)
 	}
-	if details != "" {
-		lines = append(lines, "", details)
+	if summary != "" {
+		lines = append(lines, "", summary)
 	}
 	return appendTUIHints(strings.Join(lines, "\n"), canvasW, screen.Hints...)
 }
@@ -31,15 +31,15 @@ func renderAuthorizationTitle(width int) string {
 	return sWhite.Render(trimDisplay("Auth Required", max(1, width)))
 }
 
-func renderAuthorizationDetails(details string, width int, mode layoutMode) string {
-	details = strings.TrimSpace(details)
-	if details == "" || width < 1 {
+func renderAuthorizationSummary(summary string, width int, mode layoutMode) string {
+	summary = strings.TrimSpace(summary)
+	if summary == "" || width < 1 {
 		return ""
 	}
 
-	values := wrapDisplayLines([]string{details}, width)
+	values := wrapDisplayLines([]string{summary}, width)
 	if mode != layoutDesktop && len(values) > 1 {
-		values = []string{trimDisplay(details, width)}
+		values = []string{trimDisplay(summary, width)}
 	}
 
 	lines := make([]string, len(values))

@@ -602,6 +602,8 @@ func (m prototypeSessionModel) View() tea.View {
 		reserveRows := fullCanvasReserveRows
 		if m.logOverlay {
 			reserveRows = 22
+		} else if m.awaitingAuthorization() {
+			reserveRows += 3
 		}
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
 		if showIcon {
@@ -657,6 +659,14 @@ func (m prototypeSessionModel) renderBody(mode layoutMode, icon string) string {
 	var lines []string
 	if icon != "" {
 		lines = append(lines, centerCanvas(icon), "")
+		if m.awaitingAuthorization() {
+			lines = append(
+				lines,
+				centerCanvas(sWhite.Render("qvOS")),
+				centerCanvas(sDim.Render("PROTOTYPE / "+m.profile.title)),
+				"",
+			)
+		}
 	}
 	lines = append(lines, m.renderPanel(mode))
 	if m.logOverlay {
@@ -748,7 +758,7 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 			errorText = m.authError
 		}
 		return renderAuthorizationScreen(authorizationScreen{
-			Details:  details,
+			Summary:  details,
 			Error:    errorText,
 			Password: m.password,
 			Hints:    m.persistentHints(),
