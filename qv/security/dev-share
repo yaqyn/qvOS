@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export LC_ALL=C
 
 root_helper=/usr/lib/qvos/dev-share-firewall
 ip_command=/usr/bin/ip
@@ -102,8 +103,17 @@ listener_is_local_only() {
   local output=$2
 
   awk -v port="$port" '
-    $4 == "127.0.0.1:" port { found = 1 }
-    END { exit !found }
+    $4 == "127.0.0.1:" port {
+      found = 1
+      next
+    }
+    $4 == "[::1]:" port {
+      next
+    }
+    {
+      non_loopback = 1
+    }
+    END { exit !(found && !non_loopback) }
   ' <<<"$output"
 }
 
@@ -136,42 +146,42 @@ trap 'exit 130' INT TERM HUP
 
 while (($# > 0)); do
   case $1 in
-  --supabase)
-    share_supabase=1
-    shift
-    ;;
-  --interface)
-    (($# >= 2)) || {
+    --supabase)
+      share_supabase=1
+      shift
+      ;;
+    --interface)
+      (($# >= 2)) || {
+        usage
+        exit 2
+      }
+      interface=$2
+      shift 2
+      ;;
+    --duration)
+      (($# >= 2)) || {
+        usage
+        exit 2
+      }
+      duration=$2
+      shift 2
+      ;;
+    --help | -h)
+      usage
+      exit 0
+      ;;
+    -*)
       usage
       exit 2
-    }
-    interface=$2
-    shift 2
-    ;;
-  --duration)
-    (($# >= 2)) || {
-      usage
-      exit 2
-    }
-    duration=$2
-    shift 2
-    ;;
-  --help | -h)
-    usage
-    exit 0
-    ;;
-  -*)
-    usage
-    exit 2
-    ;;
-  *)
-    [[ -z $frontend_port ]] || {
-      usage
-      exit 2
-    }
-    frontend_port=$1
-    shift
-    ;;
+      ;;
+    *)
+      [[ -z $frontend_port ]] || {
+        usage
+        exit 2
+      }
+      frontend_port=$1
+      shift
+      ;;
   esac
 done
 
@@ -192,7 +202,7 @@ valid_duration "$duration" || {
 if [[ -z $interface ]]; then
   while IFS= read -r route_interface; do
     case $route_interface in
-    docker* | br-* | veth* | CloudflareWARP) continue ;;
+      docker* | br-* | veth* | CloudflareWARP) continue ;;
     esac
     interface=$route_interface
     break
@@ -252,12 +262,8 @@ for port in "${ports[@]}"; do
     echo "Nothing is listening on local port $port." >&2
     exit 1
   }
-  if listener_is_lan_exposed "$port" "$lan_ip" "$output"; then
-    echo "Port $port is already exposed beyond localhost." >&2
-    exit 1
-  fi
   listener_is_local_only "$port" "$output" || {
-    echo "Port $port must listen on 127.0.0.1 before it can be shared safely." >&2
+    echo "Port $port must listen only on localhost before it can be shared safely." >&2
     exit 1
   }
 done

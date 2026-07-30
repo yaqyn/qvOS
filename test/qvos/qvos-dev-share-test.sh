@@ -11,6 +11,7 @@ fixture="$test_root/fixture"
 project="$test_root/project"
 net_root="$test_root/sys/class/net"
 action_log="$test_root/actions.log"
+test_token=aaaaaaaaaaaaaaaa
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -79,6 +80,9 @@ if [[ -e $QVOS_TEST_FIXTURE/wildcard-$port ]]; then
   exit 0
 fi
 printf 'LISTEN 0 4096 127.0.0.1:%s 0.0.0.0:*\n' "$port"
+if [[ -e $QVOS_TEST_FIXTURE/other-interface-$port ]]; then
+  printf 'LISTEN 0 4096 192.168.50.10:%s 0.0.0.0:*\n' "$port"
+fi
 if [[ -e $QVOS_TEST_FIXTURE/proxy-$port ]]; then
   printf 'LISTEN 0 4096 192.168.100.164:%s 0.0.0.0:*\n' "$port"
 fi
@@ -143,7 +147,7 @@ run_share() {
       QVOS_DEV_SHARE_SUDO="$test_bin/sudo" \
       QVOS_DEV_SHARE_PKEXEC="$test_bin/pkexec" \
       QVOS_DEV_SHARE_NET_ROOT="$net_root" \
-      QVOS_DEV_SHARE_TOKEN=0123456789abcdef \
+      QVOS_DEV_SHARE_TOKEN="$test_token" \
       QVOS_TEST_ACTION_LOG="$action_log" \
       QVOS_TEST_FIXTURE="$fixture" \
       "$dev_share" "$@"
@@ -168,13 +172,13 @@ if grep -Eq '54322|54323|54324|54327' "$action_log"; then
   fail "Supabase database or administration port exposed"
 fi
 grep -Eq \
-  $'^pkexec\t.* open 0123456789abcdef [0-9]+ enp8s0 192\\.168\\.100\\.164/24 192\\.168\\.100\\.164 1m 3000:3000 54321:54321$' \
+  $'^pkexec\t.* open aaaaaaaaaaaaaaaa [0-9]+ enp8s0 192\\.168\\.100\\.164/24 192\\.168\\.100\\.164 1m 3000:3000 54321:54321$' \
   "$action_log" ||
   fail "subnet-scoped firewall authorization"
-grep -Fq $'systemctl-stop\tqvos-dev-share-0123456789abcdef-3000.service' \
+grep -Fq $'systemctl-stop\tqvos-dev-share-aaaaaaaaaaaaaaaa-3000.service' \
   "$action_log" ||
   fail "frontend proxy cleanup"
-grep -Fq $'systemctl-stop\tqvos-dev-share-0123456789abcdef-54321.service' \
+grep -Fq $'systemctl-stop\tqvos-dev-share-aaaaaaaaaaaaaaaa-54321.service' \
   "$action_log" ||
   fail "Supabase proxy cleanup"
 
@@ -183,6 +187,12 @@ if run_share 3000 >/dev/null 2>&1; then
   fail "already-exposed frontend accepted"
 fi
 rm -f "$fixture/wildcard-3000"
+
+touch "$fixture/other-interface-3000"
+if run_share 3000 >/dev/null 2>&1; then
+  fail "frontend exposed on another interface accepted"
+fi
+rm -f "$fixture/other-interface-3000"
 
 touch "$fixture/missing-3000"
 if run_share 3000 >/dev/null 2>&1; then
@@ -241,6 +251,18 @@ printf '/usr/bin/socat\0TCP4-LISTEN:3000,bind=192.168.100.164,reuseaddr,fork\0TC
   >"$proxy_proc/cmdline"
 touch "$fixture/proxy-3000"
 
+api_proxy_pid=54321
+api_proxy_proc="$fixture/proc/$api_proxy_pid"
+install -d "$api_proxy_proc"
+install -m 0644 /dev/stdin "$api_proxy_proc/status" <<EOF
+Name:	socat
+Uid:	$(id -u)	$(id -u)	$(id -u)	$(id -u)
+EOF
+ln -s /usr/bin/socat1 "$api_proxy_proc/exe"
+printf '/usr/bin/socat\0TCP4-LISTEN:54321,bind=192.168.100.164,reuseaddr,fork\0TCP4:127.0.0.1:54321\0' \
+  >"$api_proxy_proc/cmdline"
+touch "$fixture/proxy-54321"
+
 helper_environment=(
   QVOS_DEV_SHARE_TESTING=1
   QVOS_DEV_SHARE_IP="$test_bin/ip"
@@ -259,9 +281,10 @@ helper_environment=(
 env "${helper_environment[@]}" \
   "$firewall_helper" open \
   fedcba9876543210 "$(id -u)" enp8s0 \
-  192.168.100.164/24 192.168.100.164 1m 3000:$proxy_pid
-[[ -e $fixture/rule-3000 ]] ||
-  fail "runtime LAN preview firewall rule"
+  192.168.100.164/24 192.168.100.164 1m \
+  3000:$proxy_pid 54321:$api_proxy_pid
+[[ -e $fixture/rule-3000 && -e $fixture/rule-54321 ]] ||
+  fail "runtime LAN preview firewall rules"
 grep -Fq -- \
   '--comment qvos-dev-share:'"$(id -u)"':fedcba9876543210 -j ACCEPT' \
   "$action_log" ||
@@ -271,20 +294,27 @@ grep -Fq -- \
   "$action_log" ||
   fail "firewall rule is interface and subnet scoped"
 grep -Fq \
-  'monitor fedcba9876543210 '"$(id -u)"' enp8s0 192.168.100.164/24 192.168.100.164 1m 3000:13000' \
+  'monitor fedcba9876543210 '"$(id -u)"' enp8s0 192.168.100.164/24 192.168.100.164 1m 3000:13000 54321:54321' \
   "$action_log" ||
   fail "process-bound firewall monitor"
 
 env "${helper_environment[@]}" \
   "$firewall_helper" monitor \
   fedcba9876543210 "$(id -u)" enp8s0 \
-  192.168.100.164/24 192.168.100.164 1m 3000:$proxy_pid &
+  192.168.100.164/24 192.168.100.164 1m \
+  3000:$proxy_pid 54321:$api_proxy_pid &
 monitor_pid=$!
 sleep 0.05
 rm -rf -- "$proxy_proc"
-wait "$monitor_pid"
+sleep 0.05
 [[ ! -e $fixture/rule-3000 ]] ||
-  fail "firewall rule survives its proxy"
+  fail "frontend firewall rule survives its proxy"
+[[ -e $fixture/rule-54321 ]] ||
+  fail "live API firewall rule removed with the frontend"
+rm -rf -- "$api_proxy_proc"
+wait "$monitor_pid"
+[[ ! -e $fixture/rule-3000 && ! -e $fixture/rule-54321 ]] ||
+  fail "firewall rules survive their proxies"
 
 touch "$fixture/rule-3000"
 if env "${helper_environment[@]}" \

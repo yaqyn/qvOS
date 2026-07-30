@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export LC_ALL=C
 
 ip_command=/usr/bin/ip
 iptables_command=/usr/bin/iptables
@@ -11,8 +12,15 @@ proc_root=/proc
 poll_seconds=1
 socat_command=/usr/bin/socat
 socat_executable=
+testing=0
 
 if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
+  if ((EUID == 0)) &&
+    [[ $(/usr/bin/readlink -f "$0") == "$helper_path" ]]; then
+    echo "The qvOS LAN preview firewall helper refuses test mode as root." >&2
+    exit 1
+  fi
+  testing=1
   ip_command=${QVOS_DEV_SHARE_IP:-$ip_command}
   iptables_command=${QVOS_DEV_SHARE_IPTABLES:-$iptables_command}
   ss_command=${QVOS_DEV_SHARE_SS:-$ss_command}
@@ -23,7 +31,7 @@ if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
   poll_seconds=${QVOS_DEV_SHARE_POLL_SECONDS:-$poll_seconds}
   socat_executable=${QVOS_DEV_SHARE_SOCAT_EXECUTABLE:-$socat_command}
 else
-  socat_executable=$(readlink -f "$socat_command") || {
+  socat_executable=$(/usr/bin/readlink -f "$socat_command") || {
     echo "The qvOS LAN preview proxy is unavailable." >&2
     exit 1
   }
@@ -75,17 +83,19 @@ proxy_matches() {
 
   [[ -d $proc_root/$pid && ! -L $proc_root/$pid ]] || return 1
   status_uid=$(
-    awk '$1 == "Uid:" {print $2; exit}' "$proc_root/$pid/status" 2>/dev/null
+    /usr/bin/awk '$1 == "Uid:" {print $2; exit}' \
+      "$proc_root/$pid/status" 2>/dev/null
   ) || return 1
   [[ $status_uid == "$owner_uid" ]] || return 1
-  executable=$(readlink "$proc_root/$pid/exe" 2>/dev/null) || return 1
+  executable=$(
+    /usr/bin/readlink "$proc_root/$pid/exe" 2>/dev/null
+  ) || return 1
   [[ $executable == "$socat_executable" ]] || return 1
   mapfile -d '' -t command_line 2>/dev/null \
     <"$proc_root/$pid/cmdline" || return 1
   ((${#command_line[@]} == 3)) &&
     [[ ${command_line[0]} == "$socat_command" ]] &&
-    [[ ${command_line[1]} == \
-      "TCP4-LISTEN:$port,bind=$lan_ip,reuseaddr,fork" ]] &&
+    [[ ${command_line[1]} == "TCP4-LISTEN:$port,bind=$lan_ip,reuseaddr,fork" ]] &&
     [[ ${command_line[2]} == "TCP4:127.0.0.1:$port" ]]
 }
 
@@ -112,12 +122,18 @@ remove_rules() {
 
   for pair in "${proxy_pairs[@]}"; do
     port=${pair%%:*}
-    rule_for "$port"
-    while "$iptables_command" -w 5 -C ufw-user-input \
-      "${firewall_rule[@]}" >/dev/null 2>&1; do
-      "$iptables_command" -w 5 -D ufw-user-input \
-        "${firewall_rule[@]}" >/dev/null 2>&1 || break
-    done
+    remove_rule "$port"
+  done
+}
+
+remove_rule() {
+  local port=$1
+
+  rule_for "$port"
+  while "$iptables_command" -w 5 -C ufw-user-input \
+    "${firewall_rule[@]}" >/dev/null 2>&1; do
+    "$iptables_command" -w 5 -D ufw-user-input \
+      "${firewall_rule[@]}" >/dev/null 2>&1 || break
   done
 }
 
@@ -136,7 +152,7 @@ shift 7
 proxy_pairs=("$@")
 rule_comment="qvos-dev-share:$owner_uid:$token"
 
-if ((EUID != 0)) && [[ ${QVOS_DEV_SHARE_TESTING:-} != "1" ]]; then
+if ((EUID != 0 && !testing)); then
   echo "The qvOS LAN preview firewall helper must run as root." >&2
   exit 1
 fi
@@ -210,28 +226,29 @@ if [[ $action == "monitor" ]]; then
       pid=${pair#*:}
       if proxy_matches "$port" "$pid" "$owner_uid" "$lan_ip"; then
         active=1
-        break
+      else
+        remove_rule "$port"
       fi
     done
     ((active)) || exit 0
-    sleep "$poll_seconds"
+    /usr/bin/sleep "$poll_seconds"
   done
 fi
 
 caller_uid=${PKEXEC_UID:-${SUDO_UID:-}}
-if [[ ${QVOS_DEV_SHARE_TESTING:-} != "1" && $caller_uid != "$owner_uid" ]]; then
+if ((!testing)) && [[ $caller_uid != "$owner_uid" ]]; then
   echo "LAN preview authorization does not match its owner." >&2
   exit 1
 fi
 mapfile -t live_cidrs < <(
   "$ip_command" -o -4 address show dev "$interface" scope global |
-    awk '{print $4}'
+    /usr/bin/awk '{print $4}'
 )
 [[ " ${live_cidrs[*]} " == *" $interface_cidr "* ]] || {
   echo "The selected LAN address is no longer active." >&2
   exit 1
 }
-"$ufw_command" status | grep -Fqx "Status: active" || {
+"$ufw_command" status | /usr/bin/grep -Fqx "Status: active" || {
   echo "qvOS LAN preview requires the active UFW firewall." >&2
   exit 1
 }
@@ -240,7 +257,7 @@ mapfile -t live_cidrs < <(
 for pair in "${proxy_pairs[@]}"; do
   port=${pair%%:*}
   "$ss_command" -H -ltn "sport = :$port" |
-    awk -v endpoint="$lan_ip:$port" '
+    /usr/bin/awk -v endpoint="$lan_ip:$port" '
       $4 == endpoint { found = 1 }
       END { exit !found }
     ' || {
