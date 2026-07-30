@@ -56,10 +56,17 @@ func renderInformationScreen(screen informationScreen) string {
 		strings.ToUpper(strings.TrimSpace(screen.Title)),
 		width,
 	)))
-	contentStyle := lipgloss.NewStyle().
-		Width(width).
-		Padding(0, 1)
-	content := contentStyle.Render(strings.Join(lines, "\n"))
+	blockWidth := 1
+	for _, line := range lines {
+		blockWidth = max(blockWidth, lipgloss.Width(line))
+	}
+	content := lipgloss.PlaceHorizontal(
+		width,
+		lipgloss.Center,
+		lipgloss.NewStyle().
+			Width(min(width, blockWidth)).
+			Render(strings.Join(lines, "\n")),
+	)
 
 	return appendTUIHints(
 		strings.Join([]string{title, "", content}, "\n"),
@@ -80,6 +87,7 @@ func formatInformationLines(
 	}
 
 	entries := make([]informationEntry, 0, len(lines))
+	labelWidth := 0
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -96,6 +104,7 @@ func formatInformationLines(
 			label = "Status"
 		}
 		label = strings.ToUpper(label)
+		labelWidth = max(labelWidth, lipgloss.Width(label))
 		entries = append(entries, informationEntry{Label: label, Value: value})
 	}
 
@@ -109,6 +118,7 @@ func formatInformationLines(
 					entry.Label,
 					entry.Value,
 					width,
+					labelWidth,
 				)...,
 			)
 		case entry.Raw != "":
@@ -148,6 +158,7 @@ func formatInformationField(
 	label string,
 	value string,
 	width int,
+	labelWidth int,
 ) []string {
 	primary, secondary := splitInformationValue(value)
 	primary, secondary = simplifyInformationValue(label, primary, secondary)
@@ -156,7 +167,11 @@ func formatInformationField(
 	if strings.Contains(primary, "%") {
 		primaryStyle = sRed
 	}
-	row := sGray.Render(label) +
+	paddedLabel := label + strings.Repeat(
+		" ",
+		max(0, labelWidth-lipgloss.Width(label)),
+	)
+	row := sGray.Render(paddedLabel) +
 		sDim.Render(" · ") +
 		primaryStyle.Render(primary)
 	for _, qualifier := range secondary {
