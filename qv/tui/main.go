@@ -1175,9 +1175,12 @@ func (m model) reducedMiddleRows(mode layoutMode) int {
 
 	if m.loading {
 		if m.sudoPrompt {
-			rows := 5
+			rows := 3
 			if m.sudoErr != nil {
 				rows++
+			}
+			if summaryRows := len(authorizationSummaryLines(rootActionSummary(m.action), canvasW)); summaryRows > 0 {
+				rows += 1 + summaryRows
 			}
 			return rows
 		}

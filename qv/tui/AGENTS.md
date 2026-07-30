@@ -136,10 +136,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Authorization surfaces use the shared frameless password rail under the
   generic `Auth Required` title; the model identity owns the action name. Keep
   one blank row between the title and rail and another between the rail and one
-  short dimmed, unlabeled sentence describing what will run. The empty state is
-  a quiet centered rail. The first character replaces that rail completely
-  with a mask whose complete bullet group remains centered at every length. Do
-  not add a cursor, side brackets, or an input box.
+  short dimmed, unlabeled sentence describing what will run. Wrap that sentence
+  on word boundaries, center each complete line, and never truncate it. The
+  empty state is a quiet centered rail. The first character replaces that rail
+  completely with a mask whose complete bullet group remains centered at every
+  length. Do not add a cursor, side brackets, or an input box.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
   mutating command to imitate a terminal view. An open side log may show one

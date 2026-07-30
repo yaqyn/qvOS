@@ -158,7 +158,8 @@ func TestPrivilegedGenericActionProceedsDirectlyToSudo(t *testing.T) {
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
 		"Auth Required",
-		"Install a supported development environment",
+		"Install a supported",
+		"development environment",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("software authorization is missing %q: %q", expected, content)

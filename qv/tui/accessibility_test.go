@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
 )
 
 func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
@@ -302,6 +303,65 @@ func TestAuthorizationUsesGenericTitleAndSpacedUnlabeledSummary(t *testing.T) {
 	}
 	view := m.View()
 	assertViewFits(t, view.Content, m.width, m.height)
+}
+
+func TestAuthorizationWrapsLongSummariesWithoutTruncationOrOrphans(t *testing.T) {
+	previousCanvasWidth := canvasW
+	canvasW = 48
+	t.Cleanup(func() {
+		canvasW = previousCanvasWidth
+	})
+
+	for _, test := range []struct {
+		name    string
+		summary string
+		want    []string
+	}{
+		{
+			name:    "fingerprint",
+			summary: "Remove fingerprint authentication and its packages",
+			want:    []string{"Remove fingerprint authentication and", "its packages"},
+		},
+		{
+			name:    "FIDO2",
+			summary: "Remove FIDO2 authentication and its packages",
+			want:    []string{"Remove FIDO2 authentication and", "its packages"},
+		},
+	} {
+		for _, mode := range []layoutMode{layoutDesktop, layoutTablet, layoutMobile} {
+			t.Run(test.name+" "+fmt.Sprint(mode), func(t *testing.T) {
+				content := stripANSI(renderAuthorizationScreen(authorizationScreen{
+					Summary: test.summary,
+				}, mode))
+				if strings.Contains(content, "…") {
+					t.Fatalf("authorization summary was truncated: %q", content)
+				}
+				for _, line := range test.want {
+					if !strings.Contains(content, line) {
+						t.Fatalf("authorization summary is missing wrapped line %q: %q", line, content)
+					}
+				}
+			})
+		}
+	}
+
+	previousSpec := currentActionSpec
+	t.Cleanup(func() {
+		currentActionSpec = previousSpec
+	})
+	currentActionSpec = actionflow.Spec{
+		Summary:      "Remove fingerprint authentication and its packages",
+		RequiresSudo: true,
+	}
+	m := model{
+		height:     30,
+		loading:    true,
+		action:     actionGeneric,
+		sudoPrompt: true,
+	}
+	if got, want := m.reducedMiddleRows(layoutTablet), 6; got != want {
+		t.Fatalf("wrapped authorization rows = %d, want %d", got, want)
+	}
 }
 
 func TestAuthorizationKeepsActionIdentityWithTheModelAcrossConsumers(t *testing.T) {

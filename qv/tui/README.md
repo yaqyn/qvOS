@@ -63,7 +63,8 @@ Short transitions before sudo or the first owned milestone use only the shared
 four-step `Preparing` dot animation, never internal status flashes.
 When a model is visible during an action, its identity places the action name
 directly beneath `qvOS`; authorization keeps only the generic `Auth Required`
-title in the action panel.
+title in the action panel. Long action summaries wrap into independently
+centered lines without truncation.
 Every mode uses the same `#020202` background.
 
 ## Accessibility
