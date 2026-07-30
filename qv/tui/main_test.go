@@ -157,6 +157,64 @@ func TestGenericSoftwareActionUsesOneSharedTwoRingFlow(t *testing.T) {
 	}
 }
 
+func TestOneRingActionStartsDirectlyAndMakesOwnerOutputPrimary(t *testing.T) {
+	previous := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previous })
+
+	script := filepath.Join(t.TempDir(), "information-action")
+	if err := os.WriteFile(script, []byte("#!/bin/bash\nprintf 'Mode: Long_Life\\nCharge limit: 60%%\\n'\n"), 0o700); err != nil {
+		t.Fatalf("write information action: %v", err)
+	}
+	t.Setenv(actionflow.ScriptEnvironment, script)
+
+	spec := actionflow.Spec{
+		Slug:         "battery-status",
+		Operation:    "task",
+		Title:        "Battery Protection",
+		Summary:      "Show the current charging-protection state",
+		RequiresSudo: false,
+		Rings:        1,
+		Primary:      "Inspect",
+		Active:       "Inspecting",
+		Complete:     "Inspected",
+	}
+	m, command := (model{width: 120, height: 50}).beginGenericAction(spec, true)
+	if command != nil || m.updateConfirm || !m.startImmediately {
+		t.Fatal("one-ring information action retained a confirmation step")
+	}
+
+	next, command := m.Update(startImmediateActionMsg{})
+	m = next.(model)
+	if command == nil || m.updateConfirm || !m.updatePreflight ||
+		m.sudoChecking || m.scriptRunning || m.startImmediately {
+		t.Fatal("one-ring information action did not begin with direct preflight")
+	}
+
+	m.updatePreflight = false
+	m.scriptDone = true
+	m.scriptLogLines = []string{"Mode: Long_Life", "Charge limit: 60%"}
+	content := stripANSI(m.View().Content)
+	for _, expected := range []string{
+		"BATTERY PROTECTION",
+		"Mode: Long_Life",
+		"Charge limit: 60%",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("one-ring information is missing %q: %q", expected, content)
+		}
+	}
+	for _, forbidden := range []string{"INSPECTED", "100%", "Inspect", "Cancel"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("one-ring information retained transaction copy %q: %q", forbidden, content)
+		}
+	}
+	hints := fmt.Sprint(m.helpHints())
+	if strings.Contains(hints, "toggle the qvOS log panel") ||
+		strings.Contains(hints, "terminal output") {
+		t.Fatalf("one-ring information hid output behind log controls: %q", hints)
+	}
+}
+
 func TestGenericSoftwareActionStopRequiresExplicitConfirmation(t *testing.T) {
 	previous := currentActionSpec
 	t.Cleanup(func() { currentActionSpec = previous })

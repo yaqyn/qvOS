@@ -47,8 +47,27 @@ func TestGenericActionModelFollowsTheClassifiedRingTier(t *testing.T) {
 	}
 	for _, test := range tests {
 		currentActionSpec.Rings = test.rings
-		if got := requirementsForAction(actionGeneric).Model; got != test.want {
+		requirements := requirementsForAction(actionGeneric)
+		if got := requirements.Model; got != test.want {
 			t.Fatalf("%d-ring task model = %d, want %d", test.rings, got, test.want)
 		}
+		if got := requirements.ProgressBar; got != (test.rings != 1) {
+			t.Fatalf("%d-ring progress bar = %t", test.rings, got)
+		}
+	}
+}
+
+func TestOnlyGuardedActionsRequireStopConfirmation(t *testing.T) {
+	previousSpec := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previousSpec })
+
+	currentActionSpec.Rings = 1
+	if requiresStopConfirmation(actionGeneric) {
+		t.Fatal("one-ring information action received transaction stop confirmation")
+	}
+	currentActionSpec.Rings = 2
+	if !requiresStopConfirmation(actionGeneric) ||
+		!requiresStopConfirmation(actionUpdate) {
+		t.Fatal("guarded action lost its safe stop confirmation")
 	}
 }

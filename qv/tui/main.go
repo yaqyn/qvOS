@@ -395,6 +395,7 @@ type model struct {
 	updatePreflight   bool
 	dedicatedAction   bool
 	updateCanceled    bool
+	startImmediately  bool
 }
 
 func isRootAction(action actionMode) bool {
@@ -511,7 +512,13 @@ func realisticProgress(progress float64) float64 {
 	return progress
 }
 
-func (m model) Init() tea.Cmd { return tea.Batch(tick(), detectFullscreenCmd()) }
+func (m model) Init() tea.Cmd {
+	commands := []tea.Cmd{tick(), detectFullscreenCmd()}
+	if m.startImmediately {
+		commands = append(commands, startImmediateActionCmd())
+	}
+	return tea.Batch(commands...)
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -526,6 +533,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, detectFullscreenCmd()
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
+
+	case startImmediateActionMsg:
+		if !m.startImmediately || !isOneRingAction(m.action) {
+			return m, nil
+		}
+		m.startImmediately = false
+		return m.startRootAction(m.action)
 
 	case tuiLogCopiedMsg:
 		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
@@ -652,7 +666,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpOverlay = helpOverlay
 			return m, nil
 		}
-		if m.loading && isScriptAction(m.action) && (m.logOverlay || m.terminalView) {
+		if m.loading && isScriptAction(m.action) &&
+			(m.logOverlay || m.terminalView || isOneRingAction(m.action)) {
 			if offset, handled := updateTUILogScroll(
 				m.logScroll,
 				msg.String(),
@@ -701,7 +716,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
-					if isRootAction(m.action) && !m.scriptCanceling {
+					if requiresStopConfirmation(m.action) && !m.scriptCanceling {
 						m.terminalView = false
 						m.updateStopConfirm = true
 						m.updateStopChoice = 0
@@ -726,11 +741,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m.leaveRootAction()
 				}
 			case "v", "V":
-				if isScriptAction(m.action) {
+				if isScriptAction(m.action) && !isOneRingAction(m.action) {
 					m.logOverlay = !m.logOverlay
 				}
 			case "ctrl+v":
-				if isScriptAction(m.action) {
+				if isScriptAction(m.action) && !isOneRingAction(m.action) {
 					m.terminalView = true
 					m.logCopyStatus = ""
 				}
@@ -953,6 +968,9 @@ func (m model) helpHints() []tuiHint {
 			{Key: "ctrl+c / ctrl+z", Action: "cancel or exit"},
 		}
 	}
+	if isOneRingAction(m.action) {
+		return m.oneRingHelpHints()
+	}
 
 	phase := m.loadPhase()
 	hints := []tuiHint{
@@ -976,6 +994,26 @@ func (m model) helpHints() []tuiHint {
 			action = "open safe stop options"
 		}
 		hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: action}}, hints...)
+	}
+	return hints
+}
+
+func (m model) oneRingHelpHints() []tuiHint {
+	phase := m.loadPhase()
+	hints := make([]tuiHint, 0, 4)
+	if len(m.scriptLogLines) > m.logViewportRows() {
+		hints = append(hints, tuiLogScrollHints()...)
+	}
+	switch phase {
+	case loadErr:
+		hints = append([]tuiHint{
+			{Key: "r", Action: "retry"},
+			{Key: "enter / esc", Action: "return"},
+		}, hints...)
+	case loadOK:
+		hints = append([]tuiHint{{Key: "enter / esc", Action: "return"}}, hints...)
+	default:
+		hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: "cancel"}}, hints...)
 	}
 	return hints
 }
@@ -1004,6 +1042,25 @@ func (m model) rootPersistentHints() []tuiHint {
 		return []tuiHint{
 			{Key: "enter", Action: "authorize"},
 			tuiHelpHint(),
+		}
+	}
+	if isOneRingAction(m.action) {
+		switch m.loadPhase() {
+		case loadErr:
+			return []tuiHint{
+				{Key: "r", Action: "retry"},
+				tuiHelpHint(),
+			}
+		case loadOK:
+			return []tuiHint{
+				{Key: "enter", Action: "return"},
+				tuiHelpHint(),
+			}
+		default:
+			return []tuiHint{
+				{Key: "ctrl+c/z", Action: "cancel"},
+				tuiHelpHint(),
+			}
 		}
 	}
 
@@ -1403,6 +1460,12 @@ type rootPreflightDoneMsg struct {
 	err    error
 }
 
+type startImmediateActionMsg struct{}
+
+func startImmediateActionCmd() tea.Cmd {
+	return func() tea.Msg { return startImmediateActionMsg{} }
+}
+
 func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	clearRunes(m.sudoPassword)
 	m.loading = true
@@ -1445,6 +1508,10 @@ func (m model) beginGenericAction(spec actionflow.Spec, dedicated bool) (model, 
 	currentActionSpec = spec
 	m, command := m.beginUpdateConfirmation(dedicated)
 	m.action = actionGeneric
+	if spec.Rings == 1 {
+		m.updateConfirm = false
+		m.startImmediately = true
+	}
 	return m, command
 }
 
@@ -2390,6 +2457,9 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 }
 
 func (m model) renderRootProgressFor(mode layoutMode) string {
+	if isOneRingAction(m.action) {
+		return m.renderOneRingInformationFor(mode)
+	}
 	phase := m.loadPhase()
 	progress := m.loadProgress()
 	if m.scriptCanceled {
@@ -2434,6 +2504,37 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		Bar:      requirementsForAction(m.action).ProgressBar,
 		Hints:    m.rootPersistentHints(),
 	}, mode)
+}
+
+func (m model) renderOneRingInformationFor(mode layoutMode) string {
+	lines := m.scriptLogLines
+	empty := currentActionSpec.RunningStatus()
+	isError := m.scriptErr != nil
+	switch {
+	case isError:
+		lines = []string{shortError(m.scriptErr)}
+		empty = "action failed"
+	case m.scriptDone && len(lines) == 0:
+		empty = currentActionSpec.CompleteStatus()
+	case m.updatePreflight:
+		empty = "checking " + currentActionSpec.Title
+	case m.sudoChecking:
+		empty = "authorizing sudo"
+	case m.scriptStatus != "":
+		empty = m.scriptStatus
+	}
+
+	visibleRows := max(3, rootLogPanelHeight(mode, m.height)-2)
+	return renderInformationScreen(informationScreen{
+		Title:       currentActionSpec.Title,
+		Lines:       lines,
+		Empty:       empty,
+		Error:       isError,
+		Width:       canvasW,
+		VisibleRows: visibleRows,
+		Scroll:      m.logScroll,
+		Hints:       m.rootPersistentHints(),
+	})
 }
 
 func (m model) renderRootCanceledFor(mode layoutMode) string {

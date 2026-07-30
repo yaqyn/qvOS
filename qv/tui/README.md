@@ -8,8 +8,9 @@ modes:
 - `--prototype`: safe fake script, sudo, application, and boot sessions
 - `--update`: qvOS Update confirmation, preflight, authorization, progress,
   logs, and result
-- `--action`: classified Software or fixed-task confirmation, preflight,
-  authorization, progress, logs, and result
+- `--action`: classified Software or fixed-task presentation; two-/three-ring
+  actions use confirmation and progress, while one-ring actions run directly
+  into their information output after any required authorization
 - `--iso-installer`: boot installation information and confirmation
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
@@ -97,6 +98,11 @@ The four model roles carry meaning across surfaces:
 - two rings: simple Software install/remove operations
 - one ring: ordinary safe tasks and About
 
+One-ring actions make the owner's sanitized output the main content. They have
+no confirmation, percentage, progress bar, or separate log toggle. A required
+sudo prompt still appears before the owner runs; an owner with no output gets
+one truthful completion line.
+
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.
 
@@ -131,6 +137,10 @@ delegates once through the same shared action presentation with its declared
 one- or three-ring role. Interactive owners remain `native`; the catalog still
 records their intended tier so a later dedicated adapter can preserve prompts,
 authentication, secrets, hardware interaction, and reboot choices.
+
+One-ring task rows start immediately and print only owner information. The
+adapter's synthetic progress milestones are reserved for guarded two- and
+three-ring transaction flows.
 
 ## Update
 

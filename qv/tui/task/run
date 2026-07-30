@@ -32,7 +32,7 @@ load_task() {
     _ \
     _ \
     _ \
-    _ \
+    rings \
     presentation \
     _ \
     _ \
@@ -41,6 +41,10 @@ load_task() {
     owner_command <<<"$record"
   [[ $presentation == "tui" ]] || {
     echo "The $slug task requires its native interactive terminal." >&2
+    return 2
+  }
+  [[ $rings == "1" || $rings == "2" || $rings == "3" ]] || {
+    echo "Invalid qvOS TUI task ring contract: $rings" >&2
     return 2
   }
   read -r -a owner_args <<<"$owner_command"
@@ -78,7 +82,11 @@ case ${1:-} in
 esac
 
 preflight
-echo "qvOS action: preparing"
-echo "qvOS action: applying"
+if [[ $rings != "1" ]]; then
+  echo "qvOS action: preparing"
+  echo "qvOS action: applying"
+fi
 "${owner_args[@]}"
-echo "qvOS action: complete"
+if [[ $rings != "1" ]]; then
+  echo "qvOS action: complete"
+fi

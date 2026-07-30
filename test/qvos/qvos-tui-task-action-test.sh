@@ -24,6 +24,7 @@ install -m 0755 "$root/qv/tui/task/run" "$source_root/qv/tui/task/run"
 install -m 0644 /dev/stdin "$source_root/qv/tui/task/actions.psv" <<'CATALOG'
 # slug|title|summary|rings|presentation|requires_sudo|primary|active|complete|owner
 refresh-test|Test Config|Restore a test config|1|tui|false|Restore|Restoring|Restored|test-owner apply
+critical-test|Critical Config|Restore a critical config|3|tui|true|Restore|Restoring|Restored|test-owner critical
 firmware-test|Firmware|Retain native firmware prompts|3|native|true|Update|Updating|Updated|test-native firmware
 CATALOG
 install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'LAUNCH'
@@ -43,6 +44,7 @@ LAUNCH
 install -m 0755 /dev/stdin "$test_bin/test-owner" <<'OWNER'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TASK_TEST_OWNER_LOG"
+printf 'Owner result: %s\n' "$*"
 OWNER
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'NATIVE'
 #!/bin/bash
@@ -78,10 +80,22 @@ task_output=$(
   QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
     "$root/qv/tui/task/run"
 )
-[[ $task_output == $'qvOS action: preparing\nqvOS action: applying\nqvOS action: complete' ]] ||
-  fail "task runner emitted an unowned or missing progress milestone"
+[[ $task_output == "Owner result: apply" ]] ||
+  fail "one-ring task hid its owner information behind synthetic milestones"
 [[ $(wc -l <"$owner_log") == 1 && $(<"$owner_log") == "apply" ]] ||
   fail "task runner did not delegate exactly once"
+
+critical_output=$(
+  HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_ACTION_SLUG=critical-test \
+  QVOS_ACTION_OPERATION=task \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$root/qv/tui/task/run"
+)
+[[ $critical_output == $'qvOS action: preparing\nqvOS action: applying\nOwner result: critical\nqvOS action: complete' ]] ||
+  fail "three-ring task lost its guarded progress milestones"
 
 HOME="$test_home" \
 OMARCHY_PATH="$source_root" \

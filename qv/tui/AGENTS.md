@@ -38,6 +38,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   three rings are system-critical or high-impact operations, two rings are
   simple Software installs/removals, and one ring is an ordinary safe task or
   About. ISO build/install remains system-critical.
+- One-ring actions are information surfaces, not miniature transactions. Start
+  them immediately, authorize first only when sudo is required, and make their
+  sanitized owner output the primary panel. Never add confirmation, synthetic
+  progress, percentages, success ceremony, or a hidden log step. When an owner
+  succeeds without output, show one truthful completion line.
 - Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
   Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
   authentication, hardware interaction, secret entry, selection, or reboot
@@ -67,10 +72,12 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Keep `--prototype` as the Codex design and interaction harness. Its simulated
   actions are intentionally separate from the production catalog and do not
   establish product availability.
-- Important loading or mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly
+- Important two- or three-ring loading and mutation flows never bind `Ctrl+C`
+  or `Ctrl+Z` directly
   to cancellation. Open a safe-default confirmation, keep unpausable work
   running until an explicit stop choice, then stop the full owned process
-  group. Boot/ISO installation keeps its stricter interruption guard.
+  group. One-ring information commands cancel directly. Boot/ISO installation
+  keeps its stricter interruption guard.
 - Give logs responsive priority over the model and use the shared expanded
   panel. Canceled results must say canceled, never `100%` or success.
 - Keep the active operation, real milestone, percentage, and a visible bar in
