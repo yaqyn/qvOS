@@ -36,9 +36,8 @@ func TestProgressFromLineUsesRealUpdateMilestones(t *testing.T) {
 }
 
 func TestUpdateCopySupportsDirectAuthorizationAndSafeStopping(t *testing.T) {
-	if Title != "qvOS Update" ||
-		Summary != "Update qvOS and system packages" {
-		t.Fatalf("authorization copy = %q / %q", Title, Summary)
+	if Summary != "Update qvOS and system packages" {
+		t.Fatalf("authorization summary = %q", Summary)
 	}
 	if CancelingStatus != "stopping update" || CanceledStatus != "update stopped" {
 		t.Fatalf("cancellation copy = %q / %q", CancelingStatus, CanceledStatus)

@@ -157,16 +157,17 @@ func TestPrivilegedGenericActionProceedsDirectlyToSudo(t *testing.T) {
 	}
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
-		"Install Rust",
-		"Details:",
+		"Auth Required",
 		"Install a supported development environment",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("software authorization is missing %q: %q", expected, content)
 		}
 	}
-	if strings.Contains(content, "Cancel") {
-		t.Fatalf("software authorization retained a duplicate confirmation: %q", content)
+	for _, redundant := range []string{"Install Rust", "Details:", "Cancel"} {
+		if strings.Contains(content, redundant) {
+			t.Fatalf("software authorization retained redundant copy %q: %q", redundant, content)
+		}
 	}
 
 	scriptName, environment, err := rootScriptSpec(actionGeneric)

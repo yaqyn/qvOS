@@ -3,7 +3,6 @@ package update
 import "strings"
 
 const (
-	Title              = "qvOS Update"
 	Summary            = "Update qvOS and system packages"
 	StopPromptTitle    = "STOP UPDATE?"
 	StopPromptNotice   = "Update keeps running until you confirm"

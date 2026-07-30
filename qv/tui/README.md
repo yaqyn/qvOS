@@ -187,8 +187,9 @@ before delegation; a privileged refresh uses sudo as its only start gate.
 main hub and `--update` direct mode reuse one flow:
 
 1. Run the qvOS update owner's read-only preflight.
-2. Reuse the shared sudo authorization surface as the only start gate. Its
-   dimmed `Details:` sentence states the action beneath the password rail.
+2. Reuse the shared sudo authorization surface as the only start gate. It uses
+   the generic `Auth Required` title and places the dimmed, unlabeled action
+   summary beneath the password rail.
 3. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
    retain all other output in the optional log view.
 4. End on an explicit success or actionable failure screen.

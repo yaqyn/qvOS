@@ -161,7 +161,7 @@ func TestHelpShortcutsDoNotStealPasswordCharacters(t *testing.T) {
 	}
 }
 
-func TestAuthorizationInputUsesTheSharedFramelessRail(t *testing.T) {
+func TestAuthorizationInputReplacesTheRailWithAnAlwaysCenteredMask(t *testing.T) {
 	tests := []struct {
 		name  string
 		mode  layoutMode
@@ -174,30 +174,114 @@ func TestAuthorizationInputUsesTheSharedFramelessRail(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			field := renderPasswordField([]rune("secret"), test.mode)
-			content := stripANSI(field)
-			if strings.Contains(content, "secret") {
-				t.Fatal("authorization field rendered the password as plaintext")
+			empty := stripANSI(renderPasswordField(nil, test.mode))
+			if strings.Count(empty, "─") != test.width {
+				t.Fatalf("empty authorization rail = %q", empty)
 			}
-			for _, retired := range []string{"▐", "▌"} {
-				if strings.Contains(content, retired) {
-					t.Fatalf("authorization field restored retired bracket %q: %q", retired, content)
+
+			for count := 1; count <= 3; count++ {
+				password := []rune(strings.Repeat("x", count))
+				field := renderPasswordField(password, test.mode)
+				content := stripANSI(field)
+				if strings.Contains(content, "x") {
+					t.Fatal("authorization field rendered the password as plaintext")
+				}
+				if strings.Contains(content, "─") {
+					t.Fatalf("typed authorization retained the empty rail: %q", content)
+				}
+				if strings.Count(content, "•") != count {
+					t.Fatalf("authorization mask count = %q", content)
+				}
+				if got := lipgloss.Width(field); got != count {
+					t.Fatalf("authorization mask width = %d, want %d", got, count)
 				}
 			}
-			if strings.Contains(content, "▏") {
-				t.Fatalf("authorization field restored a decorative cursor: %q", content)
-			}
-			if strings.Count(content, "•") != len("secret") {
-				t.Fatalf("authorization mask is missing: %q", content)
-			}
-			if got := lipgloss.Width(field); got != test.width {
-				t.Fatalf("authorization field width = %d, want %d", got, test.width)
+
+			field := stripANSI(renderPasswordField([]rune("secret"), test.mode))
+			for _, retired := range []string{"▐", "▌", "▏"} {
+				if strings.Contains(field, retired) {
+					t.Fatalf("authorization field restored retired decoration %q: %q", retired, field)
+				}
 			}
 		})
 	}
+
+	previousCanvasWidth := canvasW
+	canvasW = 30
+	t.Cleanup(func() {
+		canvasW = previousCanvasWidth
+	})
+	for count := 1; count <= 3; count++ {
+		content := stripANSI(renderAuthorizationScreen(authorizationScreen{
+			Details:  "Update qvOS",
+			Password: []rune(strings.Repeat("x", count)),
+		}, layoutDesktop))
+		found := false
+		for _, line := range strings.Split(content, "\n") {
+			if !strings.Contains(line, "•") {
+				continue
+			}
+			found = true
+			if got, want := strings.Index(line, "•"), (canvasW-count)/2; got != want {
+				t.Fatalf("%d-character mask starts at %d, want centered column %d: %q", count, got, want, line)
+			}
+		}
+		if !found {
+			t.Fatalf("%d-character mask is missing: %q", count, content)
+		}
+	}
 }
 
-func TestAuthorizationShowsActionDetailsBeneathTheField(t *testing.T) {
+func TestAuthorizationUsesGenericTitleAndSpacedUnlabeledSummary(t *testing.T) {
+	previousCanvasWidth := canvasW
+	canvasW = 48
+	t.Cleanup(func() {
+		canvasW = previousCanvasWidth
+	})
+
+	for _, mode := range []layoutMode{layoutDesktop, layoutTablet, layoutMobile} {
+		t.Run(fmt.Sprint(mode), func(t *testing.T) {
+			content := stripANSI(renderAuthorizationScreen(authorizationScreen{
+				Details:  "Update qvOS and system packages",
+				Password: []rune("secret"),
+			}, mode))
+			lines := strings.Split(content, "\n")
+			titleRow := -1
+			fieldRow := -1
+			summaryRow := -1
+			for index, line := range lines {
+				switch {
+				case strings.Contains(line, "Auth Required"):
+					titleRow = index
+				case strings.Contains(line, "••••••"):
+					fieldRow = index
+				case strings.Contains(line, "Update qvOS and system packages"):
+					summaryRow = index
+				}
+			}
+			if titleRow < 0 || fieldRow != titleRow+2 || summaryRow != fieldRow+2 {
+				t.Fatalf("authorization spacing is incorrect: %q", content)
+			}
+			for _, redundant := range []string{
+				"qvOS Update",
+				"Details:",
+				"AUTHORIZATION",
+				"sudo password required",
+				"Begin",
+				"Cancel",
+			} {
+				if strings.Contains(content, redundant) {
+					t.Fatalf("authorization retained redundant copy %q: %q", redundant, content)
+				}
+			}
+			for _, retired := range []string{"▐", "▌"} {
+				if strings.Contains(content, retired) {
+					t.Fatalf("authorization view restored retired bracket %q: %q", retired, content)
+				}
+			}
+		})
+	}
+
 	m := model{
 		width:      140,
 		height:     31,
@@ -205,45 +289,6 @@ func TestAuthorizationShowsActionDetailsBeneathTheField(t *testing.T) {
 		action:     actionUpdate,
 		sudoPrompt: true,
 	}
-	previousCanvasWidth := canvasW
-	canvasW = 48
-	content := stripANSI(m.renderSudoPromptFor(layoutTablet))
-	canvasW = previousCanvasWidth
-	lines := strings.Split(content, "\n")
-	titleRow := -1
-	fieldRow := -1
-	detailsRow := -1
-	for index, line := range lines {
-		switch {
-		case strings.Contains(line, "qvOS Update"):
-			titleRow = index
-		case strings.Contains(line, "──────────────────"):
-			fieldRow = index
-		case strings.Contains(line, "Details:"):
-			detailsRow = index
-		}
-	}
-	if titleRow < 0 {
-		t.Fatalf("authorization title is missing: %q", content)
-	}
-	if titleRow+1 >= len(lines) || strings.TrimSpace(lines[titleRow+1]) != "" {
-		t.Fatalf("authorization title has no breathing room: %q", content)
-	}
-	if fieldRow < 0 || detailsRow <= fieldRow ||
-		!strings.Contains(content, "Update qvOS and system packages") {
-		t.Fatalf("authorization details are not beneath the password field: %q", content)
-	}
-	for _, redundant := range []string{"AUTHORIZATION", "sudo password required", "Begin", "Cancel"} {
-		if strings.Contains(content, redundant) {
-			t.Fatalf("authorization retained redundant copy %q: %q", redundant, content)
-		}
-	}
-	for _, retired := range []string{"▐", "▌"} {
-		if strings.Contains(content, retired) {
-			t.Fatalf("authorization view restored retired bracket %q: %q", retired, content)
-		}
-	}
-
 	view := m.View()
 	assertViewFits(t, view.Content, m.width, m.height)
 }
@@ -271,8 +316,12 @@ func TestMobileAuthorizationShowsErrorsAcrossConsumers(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			content := stripANSI(rendered)
-			if !strings.Contains(content, "password required") {
+			if !strings.Contains(content, "Auth Required") ||
+				!strings.Contains(content, "password required") {
 				t.Fatalf("mobile authorization hid its error: %q", content)
+			}
+			if strings.Contains(content, "Details:") {
+				t.Fatalf("mobile authorization restored the summary label: %q", content)
 			}
 		})
 	}

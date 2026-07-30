@@ -748,7 +748,6 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 			errorText = m.authError
 		}
 		return renderAuthorizationScreen(authorizationScreen{
-			Title:    m.profile.title,
 			Details:  details,
 			Error:    errorText,
 			Password: m.password,

@@ -2,12 +2,9 @@ package main
 
 import (
 	"strings"
-
-	"charm.land/lipgloss/v2"
 )
 
 type authorizationScreen struct {
-	Title    string
 	Details  string
 	Error    string
 	Password []rune
@@ -15,40 +12,14 @@ type authorizationScreen struct {
 }
 
 func renderAuthorizationScreen(screen authorizationScreen, mode layoutMode) string {
-	title := centerCanvas(renderAuthorizationTitle(screen.Title, canvasW))
+	title := centerCanvas(renderAuthorizationTitle(canvasW))
 	field := centerCanvas(renderPasswordField(screen.Password, mode))
 	details := renderAuthorizationDetails(screen.Details, canvasW, mode)
 	errorText := centerCanvas(sRed.Render(trimDisplay(screen.Error, max(1, canvasW))))
 
-	if mode == layoutMobile {
-		lines := []string{title, field}
-		if screen.Error != "" {
-			lines = append(lines, errorText)
-		}
-		if details != "" {
-			lines = append(lines, details)
-		}
-		return appendTUIHints(
-			strings.Join(lines, "\n"),
-			canvasW,
-			screen.Hints...,
-		)
-	}
-
-	if mode == layoutTablet {
-		lines := []string{title, "", field}
-		if screen.Error != "" {
-			lines = append(lines, errorText)
-		}
-		if details != "" {
-			lines = append(lines, details)
-		}
-		return appendTUIHints(strings.Join(lines, "\n"), canvasW, screen.Hints...)
-	}
-
 	lines := []string{title, "", field}
 	if screen.Error != "" {
-		lines = append(lines, "", errorText)
+		lines = append(lines, errorText)
 	}
 	if details != "" {
 		lines = append(lines, "", details)
@@ -56,9 +27,8 @@ func renderAuthorizationScreen(screen authorizationScreen, mode layoutMode) stri
 	return appendTUIHints(strings.Join(lines, "\n"), canvasW, screen.Hints...)
 }
 
-func renderAuthorizationTitle(label string, width int) string {
-	title := strings.TrimSpace(label)
-	return sWhite.Render(trimDisplay(title, max(1, width)))
+func renderAuthorizationTitle(width int) string {
+	return sWhite.Render(trimDisplay("Auth Required", max(1, width)))
 }
 
 func renderAuthorizationDetails(details string, width int, mode layoutMode) string {
@@ -67,22 +37,16 @@ func renderAuthorizationDetails(details string, width int, mode layoutMode) stri
 		return ""
 	}
 
-	label := "Details: "
-	valueWidth := max(1, width-lipgloss.Width(label))
-	values := wrapDisplayLines([]string{details}, valueWidth)
+	values := wrapDisplayLines([]string{details}, width)
 	if mode != layoutDesktop && len(values) > 1 {
-		values = []string{trimDisplay(details, valueWidth)}
+		values = []string{trimDisplay(details, width)}
 	}
 
-	lines := make([]string, 0, len(values))
+	lines := make([]string, len(values))
 	for index, value := range values {
-		prefix := strings.Repeat(" ", lipgloss.Width(label))
-		if index == 0 {
-			prefix = label
-		}
-		lines = append(lines, sDim.Render(prefix)+sGray.Render(value))
+		lines[index] = centerCanvas(sDim.Render(value))
 	}
-	return centerCanvas(strings.Join(lines, "\n"))
+	return strings.Join(lines, "\n")
 }
 
 func renderPasswordField(password []rune, mode layoutMode) string {
@@ -99,6 +63,5 @@ func renderPasswordField(password []rune, mode layoutMode) string {
 		return sDim.Render(strings.Repeat("─", fieldWidth))
 	}
 
-	return sBright.Render(strings.Repeat("•", count)) +
-		sDim.Render(strings.Repeat("─", fieldWidth-count))
+	return sBright.Render(strings.Repeat("•", count))
 }

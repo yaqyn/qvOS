@@ -1158,13 +1158,14 @@ func (m model) reducedMiddleRows(mode layoutMode) int {
 	}
 
 	if m.loading {
-		if mode == layoutMobile {
-			if m.sudoPrompt && m.sudoErr != nil {
-				return 4
+		if m.sudoPrompt {
+			rows := 5
+			if m.sudoErr != nil {
+				rows++
 			}
-			return 3
+			return rows
 		}
-		if m.sudoPrompt && m.sudoErr != nil {
+		if mode == layoutMobile {
 			return 3
 		}
 		return 2
@@ -2415,7 +2416,6 @@ func (m model) renderSudoPromptFor(mode layoutMode) string {
 		errorText = shortError(m.sudoErr)
 	}
 	return renderAuthorizationScreen(authorizationScreen{
-		Title:    rootAuthorizationTitle(m.action),
 		Details:  rootActionSummary(m.action),
 		Error:    errorText,
 		Password: m.sudoPassword,
@@ -2682,17 +2682,6 @@ func rootActionName(action actionMode) string {
 		return currentActionSpec.Heading()
 	default:
 		return "BUILD"
-	}
-}
-
-func rootAuthorizationTitle(action actionMode) string {
-	switch action {
-	case actionUpdate:
-		return updateflow.Title
-	case actionGeneric:
-		return currentActionSpec.PrimaryAction() + " " + currentActionSpec.Title
-	default:
-		return "qvOS"
 	}
 }
 

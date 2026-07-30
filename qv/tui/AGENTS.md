@@ -133,10 +133,13 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   fields so passwords and filters keep their full character set. Put every other
   active keyboard action in the contextual help overlay. Labels describe the
   action result, not implementation details.
-- Authorization surfaces use the shared frameless, left-origin password rail
-  and one blank row between the title and field. Put one short dimmed
-  `Details:` sentence beneath the rail describing what will run. The mask never
-  shifts while typing. Do not add a cursor, side brackets, or an input box.
+- Authorization surfaces use the shared frameless password rail under the
+  generic `Auth Required` title; the model identity owns the action name. Keep
+  one blank row between the title and rail and another between the rail and one
+  short dimmed, unlabeled sentence describing what will run. The empty state is
+  a quiet centered rail. The first character replaces that rail completely
+  with a mask whose complete bullet group remains centered at every length. Do
+  not add a cursor, side brackets, or an input box.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
   mutating command to imitate a terminal view. An open side log may show one
