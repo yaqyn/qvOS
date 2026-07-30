@@ -101,7 +101,8 @@ The four model roles carry meaning across surfaces:
 One-ring actions make the owner's sanitized output the main content. They have
 no confirmation, percentage, progress bar, or separate log toggle. A required
 sudo prompt still appears before the owner runs; an owner with no output gets
-one truthful completion line.
+one truthful completion line. Key-value output renders as structured,
+color-prioritized fields with wrapped detail instead of raw clipped log lines.
 
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.

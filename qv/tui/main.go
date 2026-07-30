@@ -668,11 +668,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.loading && isScriptAction(m.action) &&
 			(m.logOverlay || m.terminalView || isOneRingAction(m.action)) {
+			logLines := m.scriptLogLines
+			visibleRows := m.logViewportRows()
+			if isOneRingAction(m.action) {
+				logLines, visibleRows = m.oneRingInformationLines()
+			}
 			if offset, handled := updateTUILogScroll(
 				m.logScroll,
 				msg.String(),
-				len(m.scriptLogLines),
-				m.logViewportRows(),
+				len(logLines),
+				visibleRows,
 			); handled {
 				m.logScroll = offset
 				return m, nil
@@ -1001,7 +1006,8 @@ func (m model) helpHints() []tuiHint {
 func (m model) oneRingHelpHints() []tuiHint {
 	phase := m.loadPhase()
 	hints := make([]tuiHint, 0, 4)
-	if len(m.scriptLogLines) > m.logViewportRows() {
+	lines, visibleRows := m.oneRingInformationLines()
+	if len(lines) > visibleRows {
 		hints = append(hints, tuiLogScrollHints()...)
 	}
 	switch phase {
@@ -2550,6 +2556,30 @@ func (m model) renderOneRingInformationFor(mode layoutMode) string {
 		Scroll:      m.logScroll,
 		Hints:       m.rootPersistentHints(),
 	})
+}
+
+func (m model) oneRingInformationLines() ([]string, int) {
+	width := fitContentWidth(m.width)
+	mode := layoutFor(m.width, m.height)
+	if isSideComposition(m.width, m.height, m.fullscreen) {
+		width, _ = sideColumnWidths(m.width)
+		mode = layoutMobile
+		if width >= progressBarWidth {
+			mode = layoutTablet
+		}
+	}
+	contentWidth := max(1, width-2)
+	visibleRows := max(3, rootLogPanelHeight(mode, m.height)-2)
+	lines := m.scriptLogLines
+	if m.scriptErr != nil {
+		lines = []string{shortError(m.scriptErr)}
+	}
+	return formatInformationLines(
+		currentActionSpec.Title,
+		lines,
+		contentWidth,
+		m.scriptErr != nil,
+	), visibleRows
 }
 
 func (m model) renderRootCanceledFor(mode layoutMode) string {

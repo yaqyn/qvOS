@@ -42,7 +42,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   them immediately, authorize first only when sudo is required, and make their
   sanitized owner output the primary panel. Never add confirmation, synthetic
   progress, percentages, success ceremony, or a hidden log step. When an owner
-  succeeds without output, show one truthful completion line.
+  succeeds without output, show one truthful completion line. Present
+  `Label: value` output as structured fields with accent labels, emphasized
+  primary values, quieter qualifiers, and wrapped detail; do not dump or clip
+  raw terminal lines.
 - Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
   Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
   authentication, hardware interaction, secret entry, selection, or reboot

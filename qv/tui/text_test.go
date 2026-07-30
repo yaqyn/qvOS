@@ -29,3 +29,29 @@ func TestTrimDisplayUsesTerminalCellWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestWrapDisplayLinesPreservesInformationWithoutEllipses(t *testing.T) {
+	lines := wrapDisplayLines([]string{
+		"Battery Protection: Enabled - Mostly plugged in",
+		"Hardware: firmware Long Life mode (approximately 50-60%)",
+	}, 24)
+	rendered := strings.Join(lines, "\n")
+	for _, expected := range []string{
+		"Battery Protection:",
+		"Mostly plugged",
+		"Hardware: firmware Long",
+		"50-60%",
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("wrapped information is missing %q: %q", expected, rendered)
+		}
+	}
+	if strings.Contains(rendered, "…") {
+		t.Fatalf("wrapped information was truncated: %q", rendered)
+	}
+	for _, line := range lines {
+		if width := lipgloss.Width(line); width > 24 {
+			t.Fatalf("wrapped line width = %d: %q", width, line)
+		}
+	}
+}

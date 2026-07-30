@@ -196,8 +196,10 @@ func TestOneRingActionStartsDirectlyAndMakesOwnerOutputPrimary(t *testing.T) {
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
 		"BATTERY PROTECTION",
-		"Mode: Long_Life",
-		"Charge limit: 60%",
+		"MODE",
+		"Long_Life",
+		"CHARGE LIMIT",
+		"60%",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("one-ring information is missing %q: %q", expected, content)
