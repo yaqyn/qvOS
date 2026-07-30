@@ -64,6 +64,7 @@ load_task_owners() {
     _ \
     _ \
     _ \
+    _ \
     owner \
     extra; do
     [[ $slug == \#* || -z $slug ]] && continue

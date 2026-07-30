@@ -329,12 +329,12 @@ grep -Fq 'three rings are system-critical or high-impact operations' \
   fail "qvOS TUI three-ring model role"
 grep -Fq 'one ring is an ordinary safe task or' "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI one-ring model role"
-grep -Fq 'Important two- or three-ring loading and mutation flows never bind' \
+grep -Fq 'Mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly' \
   "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI interruption confirmation rule"
-grep -Fq 'One-ring actions are information surfaces' \
+grep -Fq 'Ring count controls visual role only' \
   "$root/qv/tui/AGENTS.md" ||
-  fail "qvOS one-ring information contract"
+  fail "qvOS task behavior is independent from visual ring role"
 grep -Fq 'Canceled results must say canceled' "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI cancellation result rule"
 grep -Fq 'omarchy-launch-qvos-update' "$root/qv/theme/yaqyn/mako.ini" ||

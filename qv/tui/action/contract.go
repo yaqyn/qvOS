@@ -20,6 +20,7 @@ type Spec struct {
 	Summary      string
 	RequiresSudo bool
 	Rings        int
+	Information  bool
 	Primary      string
 	Active       string
 	Complete     string
@@ -56,12 +57,25 @@ func FromEnvironment() (Spec, error) {
 	default:
 		return Spec{}, fmt.Errorf("invalid qvOS action ring contract")
 	}
+	switch strings.TrimSpace(os.Getenv("QVOS_ACTION_BEHAVIOR")) {
+	case "information":
+		spec.Information = true
+	case "mutation":
+	default:
+		return Spec{}, fmt.Errorf("invalid qvOS action behavior contract")
+	}
 	switch spec.Operation {
 	case "install":
+		if spec.Information {
+			return Spec{}, fmt.Errorf("software action cannot use information behavior")
+		}
 		spec.Primary = "Install"
 		spec.Active = "Installing"
 		spec.Complete = "Installed"
 	case "uninstall":
+		if spec.Information {
+			return Spec{}, fmt.Errorf("software action cannot use information behavior")
+		}
 		spec.Primary = "Uninstall"
 		spec.Active = "Uninstalling"
 		spec.Complete = "Uninstalled"

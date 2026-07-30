@@ -742,17 +742,17 @@ func (m prototypeSessionModel) terminalHints() []tuiHint {
 
 func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 	if m.awaitingAuthorization() {
-		status := "prototype only · no command will run"
+		details := "Prototype only · no command will run"
+		errorText := ""
 		if m.authError != "" {
-			status = m.authError
+			errorText = m.authError
 		}
 		return renderAuthorizationScreen(authorizationScreen{
-			Title:        m.profile.title,
-			Status:       status,
-			StatusError:  m.authError != "",
-			Password:     m.password,
-			TabletStatus: true,
-			Hints:        m.persistentHints(),
+			Title:    m.profile.title,
+			Details:  details,
+			Error:    errorText,
+			Password: m.password,
+			Hints:    m.persistentHints(),
 		}, mode)
 	}
 

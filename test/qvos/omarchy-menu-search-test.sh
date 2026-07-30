@@ -664,8 +664,8 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/qvos-tui-task" <<'SCRIPT'
 #!/bin/bash
 awk -F '|' -v wanted="$1" '
-  $1 !~ /^#/ && NF == 10 && $1 == wanted {
-    print $10
+  $1 !~ /^#/ && NF == 11 && $1 == wanted {
+    print $11
     found = 1
     exit
   }

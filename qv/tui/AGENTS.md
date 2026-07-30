@@ -26,7 +26,12 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   for update, and ISO flows retain their inherited fallback.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
-- Complete confirmation and non-mutating preflight before sudo.
+- Use exactly one start gate: information runs directly, privileged actions
+  complete non-mutating preflight and proceed to sudo, and consequential
+  unprivileged actions use an Action/Cancel confirmation.
+- Render every short transition before sudo or the first owned milestone as
+  the shared `Preparing`/`Preparing.`/`Preparing..`/`Preparing...` animation;
+  never flash internal preflight, authorization, or startup status text.
 - Put runnable snapshots under the user runtime directory, never inside the
   Omarchy checkout, and stop active children when a TUI window exits.
 
@@ -38,11 +43,14 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   three rings are system-critical or high-impact operations, two rings are
   simple Software installs/removals, and one ring is an ordinary safe task or
   About. ISO build/install remains system-critical.
-- One-ring actions are information surfaces, not miniature transactions. Start
-  them immediately, authorize first only when sudo is required, and make their
-  sanitized owner output the primary panel. Never add confirmation, synthetic
-  progress, percentages, success ceremony, or a hidden log step. When an owner
-  succeeds without output, show one truthful completion line. Present
+  Ring count controls visual role only; never infer whether a task mutates
+  state from its ring count.
+- Information actions are direct read-only surfaces, not miniature
+  transactions. Start them immediately, authorize first only when sudo is
+  required, and make their sanitized owner output the primary panel. Never add
+  confirmation, synthetic progress, percentages, success ceremony, or a
+  hidden log step. When an owner succeeds without output, show one truthful
+  completion line. Present
   `Label: value` output as compact structured rows with dim uppercase labels,
   one widest-label column, and bold white primary values. Compact summaries
   use a middle-dot separator; multi-field reports use a normal dash, keep
@@ -58,13 +66,19 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   exact failures, and emit verified readback. Presenters never own or repeat
   mutation.
 - Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
+  Declare `information` only for read-only output and `mutation` for every
+  state-changing task. Unprivileged mutations confirm; privileged mutations
+  use sudo as their only start gate. This behavior classification is
+  independent from the visual ring tier.
   Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
   authentication, hardware interaction, secret entry, selection, or reboot
   choices stay `native` until a dedicated contract preserves that interaction.
-  A task changes tiers only with its risk or interaction contract.
+  A task changes tiers only with its risk or interaction contract and changes
+  behavior only when its effects change.
 - Configuration refreshes overwrite user state and are always three-ring
-  actions with confirmation, even when the owner creates backups and requires
-  no sudo. Never classify a reset as a one-ring information surface.
+  actions. Unprivileged refreshes require start confirmation; privileged
+  refreshes use sudo as their only gate. Never classify a reset as a one-ring
+  information surface.
 - Keep every fixed task, paired Software operation, and install-only leaf in
   `owner-contracts.psv`, including native handoffs and explicitly classified
   external owners. The manifest fingerprints repository entrypoints and their
@@ -99,12 +113,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Keep `--prototype` as the Codex design and interaction harness. Its simulated
   actions are intentionally separate from the production catalog and do not
   establish product availability.
-- Important two- or three-ring loading and mutation flows never bind `Ctrl+C`
-  or `Ctrl+Z` directly
-  to cancellation. Open a safe-default confirmation, keep unpausable work
-  running until an explicit stop choice, then stop the full owned process
-  group. One-ring information commands cancel directly. Boot/ISO installation
-  keeps its stricter interruption guard.
+- Mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly to cancellation.
+  Open a safe-default confirmation, keep unpausable work running until an
+  explicit stop choice, then stop the full owned process group. Information
+  commands cancel directly. Boot/ISO installation keeps its stricter
+  interruption guard.
 - Give logs responsive priority over the model and use the shared expanded
   panel. Canceled results must say canceled, never `100%` or success.
 - Keep the active operation, real milestone, percentage, and a visible bar in
@@ -121,8 +134,9 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   active keyboard action in the contextual help overlay. Labels describe the
   action result, not implementation details.
 - Authorization surfaces use the shared frameless, left-origin password rail
-  and one blank row between the title and field. The mask never shifts while
-  typing. Do not add a cursor, side brackets, or an input box.
+  and one blank row between the title and field. Put one short dimmed
+  `Details:` sentence beneath the rail describing what will run. The mask never
+  shifts while typing. Do not add a cursor, side brackets, or an input box.
 - `Ctrl+V` on a log-producing flow opens the captured original command output
   inside the same TUI process. Never launch, attach, detach, or duplicate a
   mutating command to imitate a terminal view. An open side log may show one

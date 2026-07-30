@@ -16,7 +16,7 @@ tui_task_for_owner() {
   local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/task/actions.psv"
 
   awk -F '|' -v wanted="$owner_command" '
-    $1 !~ /^#/ && NF == 10 && $10 == wanted {
+    $1 !~ /^#/ && NF == 11 && $11 == wanted {
       print $1
       found = 1
       exit

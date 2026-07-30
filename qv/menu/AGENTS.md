@@ -38,8 +38,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   real declared probe.
 - Fixed non-Software scripts use `qv/tui/task/actions.psv`: three rings for
   system-critical/high-impact operations, one ring for ordinary safe tasks,
-  and `native` for any unresolved interaction. Route by catalog slug or exact
-  owner match; never place arbitrary menu shell in the captured task runner.
+  and `native` for any unresolved interaction. Keep ring presentation separate
+  from behavior: `information` is read-only, while every state-changing task
+  is `mutation`. Route by catalog slug or exact owner match; never place
+  arbitrary menu shell in the captured task runner.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus. Do not maintain a parallel

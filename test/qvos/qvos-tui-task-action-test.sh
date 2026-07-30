@@ -26,11 +26,12 @@ install -d \
   "$test_bin"
 install -m 0755 "$root/qv/tui/task/run" "$source_root/qv/tui/task/run"
 install -m 0644 /dev/stdin "$source_root/qv/tui/task/actions.psv" <<'CATALOG'
-# slug|title|summary|rings|presentation|requires_sudo|primary|active|complete|owner
-refresh-test|Test Config|Restore a test config|1|tui|false|Restore|Restoring|Restored|test-owner apply
-presented-test|Presented State|Read back a silent owner|1|tui|false|Inspect|Inspecting|Inspected|test-owner presented
-critical-test|Critical Config|Restore a critical config|3|tui|true|Restore|Restoring|Restored|test-owner critical
-firmware-test|Firmware|Retain native firmware prompts|3|native|true|Update|Updating|Updated|test-native firmware
+# slug|title|summary|rings|behavior|presentation|requires_sudo|primary|active|complete|owner
+information-test|Test State|Inspect a test state|1|information|tui|false|Inspect|Inspecting|Inspected|test-owner inspect
+presented-test|Presented State|Read back a silent owner|1|information|tui|false|Inspect|Inspecting|Inspected|test-owner presented
+mutation-test|Test Config|Restore a test config|1|mutation|tui|false|Restore|Restoring|Restored|test-owner apply
+critical-test|Critical Config|Restore a critical config|3|mutation|tui|true|Restore|Restoring|Restored|test-owner critical
+firmware-test|Firmware|Retain native firmware prompts|3|mutation|native|true|Update|Updating|Updated|test-native firmware
 CATALOG
 install -m 0755 /dev/stdin "$source_root/qv/tui/task/presenters/presented-test" <<'PRESENTER'
 #!/bin/bash
@@ -44,6 +45,7 @@ install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'LAUNCH'
   printf '%s\n' "$QVOS_ACTION_SLUG"
   printf '%s\n' "$QVOS_ACTION_OPERATION"
   printf '%s\n' "$QVOS_ACTION_RINGS"
+  printf '%s\n' "$QVOS_ACTION_BEHAVIOR"
   printf '%s\n' "$QVOS_ACTION_PRIMARY"
   printf '%s\n' "$QVOS_ACTION_ACTIVE"
   printf '%s\n' "$QVOS_ACTION_COMPLETE"
@@ -80,17 +82,17 @@ OMARCHY_PATH="$source_root" \
 PATH="$test_bin:$PATH" \
 QVOS_TASK_TEST_CAPTURE="$capture" \
 QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-  "$root/qv/tui/task/launch" refresh-test
+  "$root/qv/tui/task/launch" information-test
 
-[[ $(sed -n '1p' "$capture") == "Test Config qvos-tui --action" ]] ||
+[[ $(sed -n '1p' "$capture") == "Test State qvos-tui --action" ]] ||
   fail "task launcher did not reuse the shared qvOS action mode"
-[[ $(sed -n '2,9p' "$capture") == $'refresh-test\ntask\n1\nRestore\nRestoring\nRestored\n0\n'"$source_root/qv/tui/task/run" ]] ||
+[[ $(sed -n '2,10p' "$capture") == $'information-test\ntask\n1\ninformation\nInspect\nInspecting\nInspected\n0\n'"$source_root/qv/tui/task/run" ]] ||
   fail "task launcher lost its classified TUI contract"
 
 HOME="$test_home" \
 OMARCHY_PATH="$source_root" \
 PATH="$test_bin:$PATH" \
-QVOS_ACTION_SLUG=refresh-test \
+QVOS_ACTION_SLUG=information-test \
 QVOS_ACTION_OPERATION=task \
 QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
   "$root/qv/tui/task/run" --check
@@ -99,15 +101,29 @@ task_output=$(
   HOME="$test_home" \
   OMARCHY_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
-  QVOS_ACTION_SLUG=refresh-test \
+  QVOS_ACTION_SLUG=information-test \
   QVOS_ACTION_OPERATION=task \
   QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
     "$root/qv/tui/task/run"
 )
-[[ $task_output == "Owner result: apply" ]] ||
-  fail "one-ring task hid its owner information behind synthetic milestones"
-[[ $(wc -l <"$owner_log") == 1 && $(<"$owner_log") == "apply" ]] ||
-  fail "task runner did not delegate exactly once"
+[[ $task_output == "Owner result: inspect" ]] ||
+  fail "information task hid its owner output behind synthetic milestones"
+[[ $(wc -l <"$owner_log") == 1 && $(<"$owner_log") == "inspect" ]] ||
+  fail "information task runner did not delegate exactly once"
+
+mutation_output=$(
+  HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_ACTION_SLUG=mutation-test \
+  QVOS_ACTION_OPERATION=task \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$root/qv/tui/task/run"
+)
+[[ $mutation_output == $'qvOS action: preparing\nqvOS action: applying\nOwner result: apply\nqvOS action: complete' ]] ||
+  fail "one-ring mutation lost its transaction milestones"
+[[ $(wc -l <"$owner_log") == 2 && $(tail -n 1 "$owner_log") == "apply" ]] ||
+  fail "one-ring mutation did not delegate exactly once"
 
 presented_output=$(
   HOME="$test_home" \
@@ -119,9 +135,9 @@ presented_output=$(
     "$root/qv/tui/task/run"
 )
 [[ $presented_output == $'Owner result: presented\nVerified state: ready' ]] ||
-  fail "one-ring presenter did not replace vague output with verified state"
-[[ $(wc -l <"$owner_log") == 2 && $(tail -n 1 "$owner_log") == "presented" ]] ||
-  fail "one-ring presenter did not delegate exactly once"
+  fail "information presenter did not replace vague output with verified state"
+[[ $(wc -l <"$owner_log") == 3 && $(tail -n 1 "$owner_log") == "presented" ]] ||
+  fail "information presenter did not delegate exactly once"
 
 readback_owner_log="$test_root/readback-owner.log"
 readback_output=$(
@@ -166,17 +182,37 @@ QVOS_TASK_TEST_CAPTURE="$capture" \
 
 awk -F '|' '
   $1 ~ /^#/ { next }
-  NF != 10 { exit 1 }
+  NF != 11 { exit 1 }
   seen[$1]++ { exit 1 }
   $4 !~ /^[123]$/ { exit 1 }
-  $5 != "tui" && $5 != "native" { exit 1 }
-  $6 != "true" && $6 != "false" { exit 1 }
-  $7 == "" || $8 == "" || $9 == "" || $10 == "" { exit 1 }
-  $5 == "tui" { tui++ }
-  $5 == "native" { native++ }
+  $5 != "information" && $5 != "mutation" { exit 1 }
+  $6 != "tui" && $6 != "native" { exit 1 }
+  $7 != "true" && $7 != "false" { exit 1 }
+  $8 == "" || $9 == "" || $10 == "" || $11 == "" { exit 1 }
+  $6 == "tui" { tui++ }
+  $6 == "native" { native++ }
   END { exit !(tui >= 18 && native >= 12) }
 ' "$root/qv/tui/task/actions.psv" ||
   fail "tracked task catalog schema, uniqueness, or coverage"
+
+awk -F '|' '
+  $1 ~ /^#/ { next }
+  $1 == "battery-status" || $1 == "battery-report" {
+    information++
+    if ($5 != "information") {
+      invalid = 1
+    }
+    next
+  }
+  $1 == "theme-update" || $1 == "time-sync" || $1 ~ /^restart-/ {
+    mutations++
+    if ($5 != "mutation") {
+      invalid = 1
+    }
+  }
+  END { exit !(information == 2 && mutations >= 11 && !invalid) }
+' "$root/qv/tui/task/actions.psv" ||
+  fail "task behavior must describe effects independently from ring role"
 
 awk -F '|' '
   $1 ~ /^#/ { next }
@@ -188,11 +224,11 @@ awk -F '|' '
   }
   END { exit !(refresh_count >= 9 && !invalid) }
 ' "$root/qv/tui/task/actions.psv" ||
-  fail "configuration refreshes must retain three-ring confirmation"
+  fail "configuration refreshes must retain three-ring classification"
 
 while IFS= read -r owner; do
   awk -F '|' -v wanted="$owner" '
-    $1 !~ /^#/ && NF == 10 && $10 == wanted { found = 1 }
+    $1 !~ /^#/ && NF == 11 && $11 == wanted { found = 1 }
     END { exit !found }
   ' "$root/qv/tui/task/actions.psv" ||
     fail "concept presentation is not classified: $owner"
@@ -211,7 +247,7 @@ done < <(
 
 while IFS= read -r slug; do
   awk -F '|' -v wanted="$slug" '
-    $1 !~ /^#/ && NF == 10 && $1 == wanted { found = 1 }
+    $1 !~ /^#/ && NF == 11 && $1 == wanted { found = 1 }
     END { exit !found }
   ' "$root/qv/tui/task/actions.psv" ||
     fail "Elephant task route is not classified: $slug"
@@ -235,4 +271,4 @@ for slug in \
     fail "font installer does not use the shared two-ring flow: $slug"
 done
 
-printf 'ok - classified qvOS tasks reuse 3, 2, and 1-ring owners without capturing interactive flows\n'
+printf 'ok - classified qvOS tasks keep ring presentation separate from information and mutation behavior\n'

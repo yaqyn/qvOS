@@ -12,7 +12,7 @@ usage() {
 
 task_record() {
   awk -F '|' -v wanted="$slug" '
-    $1 !~ /^#/ && NF == 10 && $1 == wanted {
+    $1 !~ /^#/ && NF == 11 && $1 == wanted {
       print
       found = 1
       exit
@@ -39,6 +39,7 @@ IFS='|' read -r \
   title \
   summary \
   rings \
+  behavior \
   presentation \
   requires_sudo \
   primary \
@@ -48,6 +49,10 @@ IFS='|' read -r \
 
 [[ $rings == "1" || $rings == "2" || $rings == "3" ]] || {
   echo "Invalid qvOS TUI task ring contract: $rings" >&2
+  exit 1
+}
+[[ $behavior == "information" || $behavior == "mutation" ]] || {
+  echo "Invalid qvOS TUI task behavior contract: $behavior" >&2
   exit 1
 }
 [[ $requires_sudo == "true" || $requires_sudo == "false" ]] || {
@@ -72,6 +77,7 @@ export QVOS_ACTION_OPERATION=task
 export QVOS_ACTION_TITLE="$title"
 export QVOS_ACTION_SUMMARY="$summary"
 export QVOS_ACTION_RINGS="$rings"
+export QVOS_ACTION_BEHAVIOR="$behavior"
 export QVOS_ACTION_PRIMARY="$primary"
 export QVOS_ACTION_ACTIVE="$active"
 export QVOS_ACTION_COMPLETE="$complete"

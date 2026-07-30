@@ -61,6 +61,7 @@ func TestTaskSpecLoadsExplicitCopyAndRingRole(t *testing.T) {
 	t.Setenv("QVOS_ACTION_SUMMARY", "Restore Waybar defaults with qvOS overrides")
 	t.Setenv("QVOS_ACTION_REQUIRES_SUDO", "0")
 	t.Setenv("QVOS_ACTION_RINGS", "1")
+	t.Setenv("QVOS_ACTION_BEHAVIOR", "information")
 	t.Setenv("QVOS_ACTION_PRIMARY", "Restore")
 	t.Setenv("QVOS_ACTION_ACTIVE", "Restoring")
 	t.Setenv("QVOS_ACTION_COMPLETE", "Restored")
@@ -69,7 +70,7 @@ func TestTaskSpecLoadsExplicitCopyAndRingRole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("task spec: %v", err)
 	}
-	if spec.Rings != 1 ||
+	if spec.Rings != 1 || !spec.Information ||
 		spec.Heading() != "RESTORE WAYBAR CONFIG" ||
 		spec.ActiveTitle() != "RESTORING" ||
 		spec.PastTense() != "RESTORED" ||
@@ -86,6 +87,7 @@ func TestTaskSpecRejectsMissingCopyOrInvalidRings(t *testing.T) {
 	t.Setenv("QVOS_ACTION_SUMMARY", "Update system firmware")
 	t.Setenv("QVOS_ACTION_REQUIRES_SUDO", "1")
 	t.Setenv("QVOS_ACTION_RINGS", "4")
+	t.Setenv("QVOS_ACTION_BEHAVIOR", "mutation")
 	t.Setenv("QVOS_ACTION_PRIMARY", "Update")
 	t.Setenv("QVOS_ACTION_ACTIVE", "Updating")
 	t.Setenv("QVOS_ACTION_COMPLETE", "Updated")
@@ -98,5 +100,11 @@ func TestTaskSpecRejectsMissingCopyOrInvalidRings(t *testing.T) {
 	t.Setenv("QVOS_ACTION_COMPLETE", "")
 	if _, err := FromEnvironment(); err == nil {
 		t.Fatal("incomplete task copy contract passed validation")
+	}
+
+	t.Setenv("QVOS_ACTION_COMPLETE", "Updated")
+	t.Setenv("QVOS_ACTION_BEHAVIOR", "unknown")
+	if _, err := FromEnvironment(); err == nil {
+		t.Fatal("invalid task behavior contract passed validation")
 	}
 }

@@ -77,8 +77,10 @@ identity or base readiness.
   fixed classified desktop tasks. Three rings identify system-critical or
   high-impact work, two rings identify simple Software install/remove work,
   and one ring identifies ordinary safe tasks. Every action reuses one shared
-  confirmation, authorization, progress, log, and result flow while delegating
-  the mutation once to the existing Omarchy or qvOS owner. Owners that require
+  authorization, progress, log, and result flow while delegating the mutation
+  once to the existing Omarchy or qvOS owner. Information opens directly,
+  privileged work uses sudo as its only start gate, and consequential
+  unprivileged work confirms once. Owners that require
   an interactive prompt, authentication, secrets, hardware interaction,
   selection, configuration, or reboot choice retain their native terminal.
   Install-only selectors keep their browse shape, but every stream-safe leaf

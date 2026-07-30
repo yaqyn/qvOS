@@ -201,7 +201,7 @@ QVOS_TEST_TUI_BINARY="$test_bin/qvos-tui" \
 [[ $(<"$tui_binary_log") == "--update" ]] ||
   fail "interactive qvOS update TUI mode"
 [[ ! -s $action_log ]] ||
-  fail "interactive qvOS update bypassed TUI confirmation"
+  fail "interactive qvOS update bypassed TUI presentation"
 pass "interactive qvOS update delegates presentation to the shared TUI"
 
 fixture="$test_root/fixture"

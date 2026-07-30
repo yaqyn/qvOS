@@ -197,7 +197,7 @@ func TestAuthorizationInputUsesTheSharedFramelessRail(t *testing.T) {
 	}
 }
 
-func TestAuthorizationTitleBreathesBeforeTheField(t *testing.T) {
+func TestAuthorizationShowsActionDetailsBeneathTheField(t *testing.T) {
 	m := model{
 		width:      140,
 		height:     31,
@@ -211,10 +211,16 @@ func TestAuthorizationTitleBreathesBeforeTheField(t *testing.T) {
 	canvasW = previousCanvasWidth
 	lines := strings.Split(content, "\n")
 	titleRow := -1
+	fieldRow := -1
+	detailsRow := -1
 	for index, line := range lines {
-		if strings.Contains(line, "UPDATE AUTHORIZATION") {
+		switch {
+		case strings.Contains(line, "qvOS Update"):
 			titleRow = index
-			break
+		case strings.Contains(line, "──────────────────"):
+			fieldRow = index
+		case strings.Contains(line, "Details:"):
+			detailsRow = index
 		}
 	}
 	if titleRow < 0 {
@@ -222,6 +228,15 @@ func TestAuthorizationTitleBreathesBeforeTheField(t *testing.T) {
 	}
 	if titleRow+1 >= len(lines) || strings.TrimSpace(lines[titleRow+1]) != "" {
 		t.Fatalf("authorization title has no breathing room: %q", content)
+	}
+	if fieldRow < 0 || detailsRow <= fieldRow ||
+		!strings.Contains(content, "Update qvOS and system packages") {
+		t.Fatalf("authorization details are not beneath the password field: %q", content)
+	}
+	for _, redundant := range []string{"AUTHORIZATION", "sudo password required", "Begin", "Cancel"} {
+		if strings.Contains(content, redundant) {
+			t.Fatalf("authorization retained redundant copy %q: %q", redundant, content)
+		}
 	}
 	for _, retired := range []string{"▐", "▌"} {
 		if strings.Contains(content, retired) {
@@ -272,9 +287,9 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 		"hub": (model{
 			width: width, height: height,
 		}).View(),
-		"update confirmation": (model{
+		"start confirmation": (model{
 			width: width, height: height,
-			loading: true, action: actionUpdate, updateConfirm: true,
+			loading: true, action: actionBuild, startConfirm: true,
 		}).View(),
 		"sudo": (model{
 			width: width, height: height,
@@ -586,7 +601,7 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 		primaryKey string
 	}{
 		{"hub", (model{}).hubPersistentHints(), "↑↓"},
-		{"update confirmation", (model{updateConfirm: true}).rootPersistentHints(), "←→"},
+		{"start confirmation", (model{startConfirm: true}).rootPersistentHints(), "←→"},
 		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→"},
 		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter"},
 		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z"},

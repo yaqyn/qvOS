@@ -167,6 +167,7 @@ export QVOS_ACTION_OPERATION="$operation"
 export QVOS_ACTION_TITLE="$title"
 export QVOS_ACTION_SUMMARY="$summary"
 export QVOS_ACTION_RINGS=2
+export QVOS_ACTION_BEHAVIOR=mutation
 if [[ $mode == "installer" ]]; then
   export QVOS_ACTION_SCRIPT="$OMARCHY_PATH/qv/tui/action/run-installer"
 fi

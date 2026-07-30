@@ -29,9 +29,9 @@ install -m 0644 /dev/stdin "$fixture/qv/tui/external-owners.psv" <<'EXTERNAL'
 passwd|System account password owner
 EXTERNAL
 install -m 0644 /dev/stdin "$fixture/qv/tui/task/actions.psv" <<'TASKS'
-# slug|title|summary|rings|presentation|requires_sudo|primary|active|complete|owner
-test-task|Test Task|Exercise a delegated owner|1|tui|false|Inspect|Inspecting|Inspected|omarchy test owner inspect
-password|Password|Exercise an external owner|3|native|false|Change|Changing|Changed|passwd
+# slug|title|summary|rings|behavior|presentation|requires_sudo|primary|active|complete|owner
+test-task|Test Task|Exercise a delegated owner|1|information|tui|false|Inspect|Inspecting|Inspected|omarchy test owner inspect
+password|Password|Exercise an external owner|3|mutation|native|false|Change|Changing|Changed|passwd
 TASKS
 install -m 0644 /dev/stdin "$fixture/qv/menu/software-actions.psv" <<'SOFTWARE'
 # slug|probe kind|probe value|install presentation|install sudo|uninstall presentation|uninstall sudo|install owner|uninstall owner
@@ -122,7 +122,7 @@ grep -Fq \
 sed -i '$d' "$fixture/qv/demo/readback"
 
 printf '%s\n' \
-  'unknown|Unknown|Unresolved owner|1|tui|false|Run|Running|Ran|omarchy-missing-owner' \
+  'unknown|Unknown|Unresolved owner|1|mutation|tui|false|Run|Running|Ran|omarchy-missing-owner' \
   >>"$fixture/qv/tui/task/actions.psv"
 if output=$(
   QVOS_OWNER_CONTRACT_ROOT="$fixture" \

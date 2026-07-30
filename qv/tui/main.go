@@ -388,13 +388,13 @@ type model struct {
 	logScroll         int
 	logCopyStatus     string
 	helpOverlay       bool
-	updateConfirm     bool
-	updateChoice      int
+	startConfirm      bool
+	startChoice       int
 	updateStopConfirm bool
 	updateStopChoice  int
 	updatePreflight   bool
 	dedicatedAction   bool
-	updateCanceled    bool
+	startCanceled     bool
 	startImmediately  bool
 }
 
@@ -535,10 +535,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fullscreen = msg.fullscreen
 
 	case startImmediateActionMsg:
-		if !m.startImmediately || !isOneRingAction(m.action) {
+		if !m.startImmediately || !isScriptAction(m.action) {
 			return m, nil
 		}
 		m.startImmediately = false
+		if m.action == actionBuild {
+			return m.startBuildAction()
+		}
 		return m.startRootAction(m.action)
 
 	case tuiLogCopiedMsg:
@@ -608,17 +611,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, waitScriptEventCmd(m.scriptEvents)
 
-	case sudoCheckDoneMsg:
-		if m.action != msg.action || m.scriptPath != msg.script {
-			return m, nil
-		}
-		m.sudoChecking = false
-		if msg.err != nil {
-			m.sudoPrompt = true
-			return m, nil
-		}
-		return m.startRootScriptRun(msg.action, msg.script)
-
 	case rootPreflightDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
 			return m, nil
@@ -633,9 +625,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !requirementsForAction(msg.action).Authorization {
 			return m.startRootScriptRun(msg.action, msg.script)
 		}
-		m.sudoChecking = true
-		m.scriptStatus = "authorizing sudo"
-		return m, checkSudoCachedCmd(msg.action, msg.script)
+		m.sudoPrompt = true
+		m.scriptStatus = ""
+		return m, nil
 
 	case sudoAuthDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -667,11 +659,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.loading && isScriptAction(m.action) &&
-			(m.logOverlay || m.terminalView || isOneRingAction(m.action)) {
+			(m.logOverlay || m.terminalView || isInformationAction(m.action)) {
 			logLines := m.scriptLogLines
 			visibleRows := m.logViewportRows()
-			if isOneRingAction(m.action) {
-				logLines, visibleRows = m.oneRingInformationLines()
+			if isInformationAction(m.action) {
+				logLines, visibleRows = m.informationLines()
 			}
 			if offset, handled := updateTUILogScroll(
 				m.logScroll,
@@ -711,8 +703,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.updateStopConfirm {
 				return m.handleUpdateStopConfirmationKey(msg)
 			}
-			if m.updateConfirm {
-				return m.handleUpdateConfirmationKey(msg)
+			if m.startConfirm {
+				return m.handleStartConfirmationKey(msg)
 			}
 			if m.sudoPrompt {
 				return m.handleSudoKey(msg)
@@ -746,11 +738,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m.leaveRootAction()
 				}
 			case "v", "V":
-				if isScriptAction(m.action) && !isOneRingAction(m.action) {
+				if isScriptAction(m.action) && !isInformationAction(m.action) {
 					m.logOverlay = !m.logOverlay
 				}
 			case "ctrl+v":
-				if isScriptAction(m.action) && !isOneRingAction(m.action) {
+				if isScriptAction(m.action) && !isInformationAction(m.action) {
 					m.terminalView = true
 					m.logCopyStatus = ""
 				}
@@ -868,7 +860,7 @@ func (m model) renderSideBody(width, height int) string {
 	canvasW, canvasH = leftWidth, 0
 	middleMode := layoutMobile
 	if m.loading && isScriptAction(m.action) &&
-		!m.updateConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
+		!m.startConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
 		leftWidth >= progressBarWidth {
 		middleMode = layoutTablet
 	}
@@ -942,25 +934,18 @@ func (m model) helpHints() []tuiHint {
 		return m.terminalHelpHints()
 	}
 	if m.updateStopConfirm {
-		keepAction := "keep updating"
-		if m.action == actionGeneric {
-			keepAction = strings.ToLower(currentActionSpec.KeepRunningAction())
-		}
+		keepAction := strings.ToLower(rootKeepRunningAction(m.action))
 		return []tuiHint{
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "confirm the selected option"},
 			{Key: "esc", Action: keepAction},
 		}
 	}
-	if m.updateConfirm {
-		cancelAction := "cancel before updating"
-		if m.action == actionGeneric {
-			cancelAction = "cancel before starting"
-		}
+	if m.startConfirm {
 		return []tuiHint{
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "continue with the selected option"},
-			{Key: "esc / ctrl+c / ctrl+z", Action: cancelAction},
+			{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before starting"},
 		}
 	}
 	if m.sudoPrompt {
@@ -973,8 +958,8 @@ func (m model) helpHints() []tuiHint {
 			{Key: "ctrl+c / ctrl+z", Action: "cancel or exit"},
 		}
 	}
-	if isOneRingAction(m.action) {
-		return m.oneRingHelpHints()
+	if isInformationAction(m.action) {
+		return m.informationHelpHints()
 	}
 
 	phase := m.loadPhase()
@@ -1003,10 +988,10 @@ func (m model) helpHints() []tuiHint {
 	return hints
 }
 
-func (m model) oneRingHelpHints() []tuiHint {
+func (m model) informationHelpHints() []tuiHint {
 	phase := m.loadPhase()
 	hints := make([]tuiHint, 0, 4)
-	lines, visibleRows := m.oneRingInformationLines()
+	lines, visibleRows := m.informationLines()
 	if len(lines) > visibleRows {
 		hints = append(hints, tuiLogScrollHints()...)
 	}
@@ -1038,7 +1023,7 @@ func (m model) rootPersistentHints() []tuiHint {
 			tuiHelpHint(),
 		}
 	}
-	if m.updateConfirm {
+	if m.startConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
 			tuiHelpHint(),
@@ -1050,7 +1035,7 @@ func (m model) rootPersistentHints() []tuiHint {
 			tuiHelpHint(),
 		}
 	}
-	if isOneRingAction(m.action) {
+	if isInformationAction(m.action) {
 		switch m.loadPhase() {
 		case loadErr:
 			return []tuiHint{
@@ -1417,9 +1402,9 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 
 	switch sections[m.tab].items[m.cursor].action {
 	case hubActionUpdate:
-		return m.beginUpdateConfirmation(false)
+		return m.beginRootAction(actionUpdate, false)
 	case hubActionBuild:
-		return m.startBuildAction()
+		return m.beginRootAction(actionBuild, false)
 	default:
 		return m, nil
 	}
@@ -1448,12 +1433,6 @@ type scriptEvent struct {
 
 var errScriptCanceled = errors.New("canceled")
 
-type sudoCheckDoneMsg struct {
-	action actionMode
-	script string
-	err    error
-}
-
 type sudoAuthDoneMsg struct {
 	action actionMode
 	script string
@@ -1472,10 +1451,12 @@ func startImmediateActionCmd() tea.Cmd {
 	return func() tea.Msg { return startImmediateActionMsg{} }
 }
 
-func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
+func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cmd) {
+	requirements := requirementsForAction(action)
+
 	clearRunes(m.sudoPassword)
 	m.loading = true
-	m.action = actionUpdate
+	m.action = action
 	m.loadStart = m.frame
 	m.scriptRunning = false
 	m.scriptDone = false
@@ -1500,40 +1481,41 @@ func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
-	m.updateConfirm = true
-	m.updateChoice = 0
+	m.startConfirm = requirements.Confirmation
+	m.startChoice = 0
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	m.updatePreflight = false
 	m.dedicatedAction = dedicated
-	m.updateCanceled = false
+	m.startCanceled = false
+	m.startImmediately = !requirements.Confirmation
+	if m.startImmediately {
+		return m, startImmediateActionCmd()
+	}
 	return m, nil
 }
 
 func (m model) beginGenericAction(spec actionflow.Spec, dedicated bool) (model, tea.Cmd) {
 	currentActionSpec = spec
-	m, command := m.beginUpdateConfirmation(dedicated)
-	m.action = actionGeneric
-	if spec.Rings == 1 {
-		m.updateConfirm = false
-		m.startImmediately = true
-	}
-	return m, command
+	return m.beginRootAction(actionGeneric, dedicated)
 }
 
-func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m model) handleStartConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "left", "h", "up", "k", "shift+tab":
-		m.updateChoice = 0
+		m.startChoice = 0
 	case "right", "l", "down", "j", "tab":
-		m.updateChoice = 1
+		m.startChoice = 1
 	case "esc", "ctrl+c", "ctrl+z":
-		return m.cancelUpdate()
+		return m.cancelRootAction()
 	case "enter":
-		if m.updateChoice == 1 {
-			return m.cancelUpdate()
+		if m.startChoice == 1 {
+			return m.cancelRootAction()
 		}
-		m.updateConfirm = false
+		m.startConfirm = false
+		if m.action == actionBuild {
+			return m.startBuildAction()
+		}
 		return m.startRootAction(m.action)
 	}
 	return m, nil
@@ -1562,17 +1544,18 @@ func (m model) handleUpdateStopConfirmationKey(msg tea.KeyPressMsg) (tea.Model, 
 	return m, nil
 }
 
-func (m model) cancelUpdate() (model, tea.Cmd) {
+func (m model) cancelRootAction() (model, tea.Cmd) {
 	clearRunes(m.sudoPassword)
 	m.sudoPassword = nil
 	m.sudoPrompt = false
 	m.sudoChecking = false
 	m.updatePreflight = false
-	m.updateConfirm = false
+	m.startConfirm = false
 	m.updateStopConfirm = false
 	m.terminalView = false
 	m.helpOverlay = false
-	m.updateCanceled = true
+	m.startCanceled = true
+	m.startImmediately = false
 	if m.dedicatedAction {
 		return m, tea.Quit
 	}
@@ -1600,13 +1583,13 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptDone = false
 	m.scriptErr = nil
 	m.scriptPath = script
-	m.sudoChecking = !requirements.Preflight && requirements.Authorization
+	m.sudoChecking = false
 	m.sudoPrompt = false
 	m.sudoPassword = nil
 	m.sudoErr = nil
 	m.scriptCancel = nil
 	m.scriptEvents = nil
-	m.scriptStatus = "authorizing sudo"
+	m.scriptStatus = ""
 	m.scriptProgress = 0
 	m.scriptTarget = 0
 	m.scriptLogLines = nil
@@ -1619,11 +1602,12 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
-	m.updateConfirm = false
+	m.startConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	m.updatePreflight = requirements.Preflight
-	m.updateCanceled = false
+	m.startCanceled = false
+	m.startImmediately = false
 
 	if err != nil {
 		m.sudoChecking = false
@@ -1634,16 +1618,13 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	}
 
 	if requirements.Preflight {
-		m.scriptStatus = "checking action readiness"
-		if action == actionUpdate {
-			m.scriptStatus = "checking update readiness"
-		}
 		return m, checkRootPreflightCmd(action, script)
 	}
 	if !requirements.Authorization {
 		return m.startRootScriptRun(action, script)
 	}
-	return m, checkSudoCachedCmd(action, script)
+	m.sudoPrompt = true
+	return m, nil
 }
 
 func (m model) startBuildAction() (model, tea.Cmd) {
@@ -1661,7 +1642,7 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	m.sudoErr = nil
 	m.scriptCancel = nil
 	m.scriptEvents = nil
-	m.scriptStatus = "starting ISO build"
+	m.scriptStatus = ""
 	m.scriptProgress = 0
 	m.scriptTarget = 0
 	m.scriptLogLines = nil
@@ -1674,6 +1655,9 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
+	m.startConfirm = false
+	m.startCanceled = false
+	m.startImmediately = false
 
 	if err != nil {
 		m.scriptDone = true
@@ -1699,7 +1683,7 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.sudoErr = nil
 	m.scriptCancel = nil
 	m.scriptEvents = nil
-	m.scriptStatus = "starting " + strings.ToLower(rootActionName(action))
+	m.scriptStatus = ""
 	m.scriptProgress = 0
 	m.scriptTarget = 0
 	m.scriptLogLines = nil
@@ -1712,6 +1696,7 @@ func (m model) startRootScriptRun(action actionMode, script string) (model, tea.
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
+	m.startConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	return m, runRootScriptCmd(action, script)
@@ -1721,12 +1706,12 @@ func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "ctrl+z":
 		if isRootAction(m.action) {
-			return m.cancelUpdate()
+			return m.cancelRootAction()
 		}
 		return m, tea.Quit
 	case "esc":
 		if isRootAction(m.action) {
-			return m.cancelUpdate()
+			return m.cancelRootAction()
 		}
 		m.sudoPassword = nil
 		m.loading = false
@@ -1758,13 +1743,6 @@ func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
-}
-
-func checkSudoCachedCmd(action actionMode, script string) tea.Cmd {
-	return func() tea.Msg {
-		err := exec.Command("sudo", "-n", "-v").Run()
-		return sudoCheckDoneMsg{action: action, script: script, err: err}
-	}
 }
 
 func checkRootPreflightCmd(action actionMode, script string) tea.Cmd {
@@ -2348,15 +2326,25 @@ func keepSudoAlive(done <-chan struct{}) {
 
 // -- action progress --
 
-const buildDurationSeconds = 18
-const buildFrames = framesPerSecond * framesPerTick * buildDurationSeconds
+const (
+	buildDurationSeconds = 18
+	buildFrames          = framesPerSecond * framesPerTick * buildDurationSeconds
+	buildStartTitle      = "BUILD QVOS ISO"
+	buildStartSummary    = "Create a bootable qvOS installation image"
+	buildStartAction     = "Build"
+	buildStopTitle       = "STOP BUILD?"
+	buildStopNotice      = "ISO Build keeps running until you confirm"
+	buildKeepAction      = "Keep Building"
+	buildStopAction      = "Stop Build"
+	preparingFrameStep   = framesPerSecond * framesPerTick / 2
+)
 
 func (m model) renderRootActionFor(mode layoutMode) string {
 	if m.updateStopConfirm {
 		return m.renderUpdateStopConfirmationFor(mode)
 	}
-	if m.updateConfirm {
-		return m.renderUpdateConfirmationFor(mode)
+	if m.startConfirm {
+		return m.renderStartConfirmationFor(mode)
 	}
 	if m.sudoPrompt {
 		return m.renderSudoPromptFor(mode)
@@ -2373,78 +2361,36 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 }
 
 func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
-	titleText := updateflow.StopPromptTitle
-	noticeText := updateflow.StopPromptNotice
-	keepAction := updateflow.KeepUpdatingAction
-	stopAction := updateflow.StopUpdateAction
-	if m.action == actionGeneric {
-		titleText = currentActionSpec.StopPromptTitle()
-		noticeText = currentActionSpec.StopPromptNotice()
-		keepAction = currentActionSpec.KeepRunningAction()
-		stopAction = currentActionSpec.StopAction()
-	}
-
-	title := centerCanvas(sWhite.Render(titleText))
-	notice := centerCanvas(sMid.Render(noticeText))
+	title := centerCanvas(sWhite.Render(rootStopPromptTitle(m.action)))
+	notice := centerCanvas(sMid.Render(rootStopPromptNotice(m.action)))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		renderConfirmationAction(keepAction, m.updateStopChoice == 0),
+		renderConfirmationAction(rootKeepRunningAction(m.action), m.updateStopChoice == 0),
 		"   ",
-		renderConfirmationAction(stopAction, m.updateStopChoice == 1),
+		renderConfirmationAction(rootStopAction(m.action), m.updateStopChoice == 1),
 	))
 
 	content := strings.Join([]string{title, "", notice, "", actions}, "\n")
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
-func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
+func (m model) renderStartConfirmationFor(mode layoutMode) string {
+	titleText := buildStartTitle
+	summaryText := buildStartSummary
+	primaryAction := buildStartAction
 	if m.action == actionGeneric {
-		return m.renderGenericActionConfirmationFor(mode)
+		titleText = currentActionSpec.Heading()
+		summaryText = currentActionSpec.Summary
+		primaryAction = currentActionSpec.PrimaryAction()
 	}
 
-	title := centerCanvas(sWhite.Render(updateflow.Title))
-	summary := centerCanvas(sGray.Render(updateflow.Summary))
+	title := centerCanvas(sWhite.Render(titleText))
+	summary := centerCanvas(sGray.Render(trimDisplay(summaryText, max(1, canvasW))))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		renderConfirmationAction(updateflow.PrimaryAction, m.updateChoice == 0),
+		renderConfirmationAction(primaryAction, m.startChoice == 0),
 		"   ",
-		renderConfirmationAction(updateflow.CancelAction, m.updateChoice == 1),
-	))
-
-	if mode == layoutMobile {
-		content := strings.Join([]string{title, "", actions}, "\n")
-		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
-	}
-
-	if mode == layoutTablet {
-		content := strings.Join([]string{title, "", summary, "", actions}, "\n")
-		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
-	}
-
-	notice := centerCanvas(sMid.Render(updateflow.PowerNotice))
-	history := centerCanvas(sDim.Render(updateflow.SourceHistoryLabel))
-	content := strings.Join([]string{
-		title,
-		"",
-		summary,
-		notice,
-		"",
-		actions,
-		"",
-		history,
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
-}
-
-func (m model) renderGenericActionConfirmationFor(mode layoutMode) string {
-	title := centerCanvas(sWhite.Render(currentActionSpec.Heading()))
-	summary := centerCanvas(sGray.Render(trimDisplay(currentActionSpec.Summary, max(1, canvasW))))
-	actions := centerCanvas(lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		renderConfirmationAction(currentActionSpec.PrimaryAction(), m.updateChoice == 0),
-		"   ",
-		renderConfirmationAction(actionflow.CancelAction, m.updateChoice == 1),
+		renderConfirmationAction(actionflow.CancelAction, m.startChoice == 1),
 	))
 
 	if mode == layoutMobile {
@@ -2464,22 +2410,25 @@ func renderConfirmationAction(label string, selected bool) string {
 }
 
 func (m model) renderSudoPromptFor(mode layoutMode) string {
-	status := "sudo password required"
+	errorText := ""
 	if m.sudoErr != nil {
-		status = shortError(m.sudoErr)
+		errorText = shortError(m.sudoErr)
 	}
 	return renderAuthorizationScreen(authorizationScreen{
-		Title:       rootActionName(m.action),
-		Status:      status,
-		StatusError: m.sudoErr != nil,
-		Password:    m.sudoPassword,
-		Hints:       m.rootPersistentHints(),
+		Title:    rootAuthorizationTitle(m.action),
+		Details:  rootActionSummary(m.action),
+		Error:    errorText,
+		Password: m.sudoPassword,
+		Hints:    m.rootPersistentHints(),
 	}, mode)
 }
 
 func (m model) renderRootProgressFor(mode layoutMode) string {
-	if isOneRingAction(m.action) {
-		return m.renderOneRingInformationFor(mode)
+	if m.isPreparing() {
+		return m.renderPreparingFor()
+	}
+	if isInformationAction(m.action) {
+		return m.renderInformationFor(mode)
 	}
 	phase := m.loadPhase()
 	progress := m.loadProgress()
@@ -2499,14 +2448,7 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		status = shortError(m.scriptErr)
 	default:
 		title = rootActionActiveTitle(m.action)
-		if m.updatePreflight {
-			status = "checking action readiness"
-			if m.action == actionUpdate {
-				status = "checking update readiness"
-			}
-		} else if m.sudoChecking {
-			status = "authorizing sudo"
-		} else if m.scriptCanceling {
+		if m.scriptCanceling {
 			status = rootActionCancelingStatus(m.action)
 		} else if m.scriptStatus != "" {
 			status = m.scriptStatus
@@ -2527,7 +2469,35 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	}, mode)
 }
 
-func (m model) renderOneRingInformationFor(mode layoutMode) string {
+func (m model) isPreparing() bool {
+	if m.loadPhase() != loadRun || m.sudoPrompt || m.scriptCanceling {
+		return false
+	}
+	if m.startImmediately || m.updatePreflight || m.sudoChecking {
+		return true
+	}
+	if !m.scriptRunning {
+		return false
+	}
+	if isInformationAction(m.action) && len(m.scriptLogLines) > 0 {
+		return false
+	}
+	status := strings.ToLower(strings.TrimSpace(m.scriptStatus))
+	return m.scriptProgress == 0 && status == "" ||
+		m.scriptProgress <= 0.08 && strings.HasPrefix(status, "preparing ")
+}
+
+func (m model) renderPreparingFor() string {
+	content := centerCanvas(sGray.Render(preparingLabel(m.frame)))
+	return appendTUIHints(content, canvasW, tuiHelpHint())
+}
+
+func preparingLabel(frame int) string {
+	step := frame / preparingFrameStep
+	return "Preparing" + strings.Repeat(".", step%4)
+}
+
+func (m model) renderInformationFor(mode layoutMode) string {
 	lines := m.scriptLogLines
 	empty := currentActionSpec.RunningStatus()
 	isError := m.scriptErr != nil
@@ -2537,10 +2507,6 @@ func (m model) renderOneRingInformationFor(mode layoutMode) string {
 		empty = "action failed"
 	case m.scriptDone && len(lines) == 0:
 		empty = currentActionSpec.CompleteStatus()
-	case m.updatePreflight:
-		empty = "checking " + currentActionSpec.Title
-	case m.sudoChecking:
-		empty = "authorizing sudo"
 	case m.scriptStatus != "":
 		empty = m.scriptStatus
 	}
@@ -2558,7 +2524,7 @@ func (m model) renderOneRingInformationFor(mode layoutMode) string {
 	})
 }
 
-func (m model) oneRingInformationLines() ([]string, int) {
+func (m model) informationLines() ([]string, int) {
 	width := fitContentWidth(m.width)
 	mode := layoutFor(m.width, m.height)
 	if isSideComposition(m.width, m.height, m.fullscreen) {
@@ -2719,6 +2685,30 @@ func rootActionName(action actionMode) string {
 	}
 }
 
+func rootAuthorizationTitle(action actionMode) string {
+	switch action {
+	case actionUpdate:
+		return updateflow.Title
+	case actionGeneric:
+		return currentActionSpec.PrimaryAction() + " " + currentActionSpec.Title
+	default:
+		return "qvOS"
+	}
+}
+
+func rootActionSummary(action actionMode) string {
+	switch action {
+	case actionUpdate:
+		return updateflow.Summary
+	case actionGeneric:
+		return currentActionSpec.Summary
+	case actionBuild:
+		return buildStartSummary
+	default:
+		return ""
+	}
+}
+
 func rootActionPastTense(action actionMode) string {
 	switch action {
 	case actionBuild:
@@ -2794,6 +2784,50 @@ func rootActionCanceledStatus(action actionMode) string {
 		return currentActionSpec.CanceledStatus()
 	default:
 		return "action stopped"
+	}
+}
+
+func rootStopPromptTitle(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return buildStopTitle
+	case actionGeneric:
+		return currentActionSpec.StopPromptTitle()
+	default:
+		return updateflow.StopPromptTitle
+	}
+}
+
+func rootStopPromptNotice(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return buildStopNotice
+	case actionGeneric:
+		return currentActionSpec.StopPromptNotice()
+	default:
+		return updateflow.StopPromptNotice
+	}
+}
+
+func rootKeepRunningAction(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return buildKeepAction
+	case actionGeneric:
+		return currentActionSpec.KeepRunningAction()
+	default:
+		return updateflow.KeepUpdatingAction
+	}
+}
+
+func rootStopAction(action actionMode) string {
+	switch action {
+	case actionBuild:
+		return buildStopAction
+	case actionGeneric:
+		return currentActionSpec.StopAction()
+	default:
+		return updateflow.StopUpdateAction
 	}
 }
 
@@ -3657,8 +3691,8 @@ func stopActiveScript(m model) {
 	}
 }
 
-func dedicatedUpdateExitCode(m model) int {
-	if m.updateCanceled || m.scriptCanceled {
+func dedicatedActionExitCode(m model) int {
+	if m.startCanceled || m.scriptCanceled {
 		return 130
 	}
 	if m.scriptErr != nil {
@@ -3668,7 +3702,7 @@ func dedicatedUpdateExitCode(m model) int {
 }
 
 func runDedicatedUpdate() int {
-	initial, _ := (model{}).beginUpdateConfirmation(true)
+	initial, _ := (model{}).beginRootAction(actionUpdate, true)
 	result, err := newTUIProgram(initial).Run()
 	final, ok := result.(model)
 	interrupted := ok && final.scriptRunning
@@ -3687,7 +3721,7 @@ func runDedicatedUpdate() int {
 	if interrupted {
 		return 130
 	}
-	return dedicatedUpdateExitCode(final)
+	return dedicatedActionExitCode(final)
 }
 
 func runDedicatedAction() int {
@@ -3715,7 +3749,7 @@ func runDedicatedAction() int {
 	if interrupted {
 		return 130
 	}
-	return dedicatedUpdateExitCode(final)
+	return dedicatedActionExitCode(final)
 }
 
 func main() {

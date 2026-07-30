@@ -9,7 +9,7 @@ presenter=
 
 task_record() {
   awk -F '|' -v wanted="$slug" '
-    $1 !~ /^#/ && NF == 10 && $1 == wanted {
+    $1 !~ /^#/ && NF == 11 && $1 == wanted {
       print
       found = 1
       exit
@@ -34,6 +34,7 @@ load_task() {
     _ \
     _ \
     rings \
+    behavior \
     presentation \
     _ \
     _ \
@@ -46,6 +47,10 @@ load_task() {
   }
   [[ $rings == "1" || $rings == "2" || $rings == "3" ]] || {
     echo "Invalid qvOS TUI task ring contract: $rings" >&2
+    return 2
+  }
+  [[ $behavior == "information" || $behavior == "mutation" ]] || {
+    echo "Invalid qvOS TUI task behavior contract: $behavior" >&2
     return 2
   }
   read -r -a owner_args <<<"$owner_command"
@@ -84,13 +89,17 @@ case ${1:-} in
 esac
 
 preflight
-if [[ $rings == "1" && -x $presenter ]]; then
-  "$presenter" "${owner_args[@]}"
-elif [[ $rings != "1" ]]; then
+if [[ $behavior == "mutation" ]]; then
   echo "qvOS action: preparing"
   echo "qvOS action: applying"
-  "${owner_args[@]}"
+  if [[ -x $presenter ]]; then
+    "$presenter" "${owner_args[@]}"
+  else
+    "${owner_args[@]}"
+  fi
   echo "qvOS action: complete"
+elif [[ -x $presenter ]]; then
+  "$presenter" "${owner_args[@]}"
 else
   "${owner_args[@]}"
 fi

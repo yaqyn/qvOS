@@ -35,12 +35,10 @@ func TestProgressFromLineUsesRealUpdateMilestones(t *testing.T) {
 	}
 }
 
-func TestUpdateCopyKeepsThePrimaryActionConcise(t *testing.T) {
-	if PrimaryAction != "Begin" {
-		t.Fatalf("primary action = %q", PrimaryAction)
-	}
-	if Summary != "Update qvOS and system packages" {
-		t.Fatalf("summary = %q", Summary)
+func TestUpdateCopySupportsDirectAuthorizationAndSafeStopping(t *testing.T) {
+	if Title != "qvOS Update" ||
+		Summary != "Update qvOS and system packages" {
+		t.Fatalf("authorization copy = %q / %q", Title, Summary)
 	}
 	if CancelingStatus != "stopping update" || CanceledStatus != "update stopped" {
 		t.Fatalf("cancellation copy = %q / %q", CancelingStatus, CanceledStatus)

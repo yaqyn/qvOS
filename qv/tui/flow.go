@@ -2,6 +2,7 @@ package main
 
 type flowRequirements struct {
 	Model         modelRole
+	Confirmation  bool
 	Preflight     bool
 	Authorization bool
 	ProgressBar   bool
@@ -17,30 +18,32 @@ func requirementsForAction(action actionMode) flowRequirements {
 			ProgressBar:   true,
 		}
 	case actionGeneric:
-		progressBar := currentActionSpec.Rings != 1
+		transaction := !currentActionSpec.Information
 		return flowRequirements{
 			Model:         modelRoleForRings(currentActionSpec.Rings),
+			Confirmation:  transaction && !currentActionSpec.RequiresSudo,
 			Preflight:     true,
 			Authorization: currentActionSpec.RequiresSudo,
-			ProgressBar:   progressBar,
+			ProgressBar:   transaction,
 		}
 	case actionBuild:
 		return flowRequirements{
-			Model:       modelThreeRings,
-			ProgressBar: true,
+			Model:        modelThreeRings,
+			Confirmation: true,
+			ProgressBar:  true,
 		}
 	default:
 		return flowRequirements{Model: modelCore}
 	}
 }
 
-func isOneRingAction(action actionMode) bool {
-	return action == actionGeneric && currentActionSpec.Rings == 1
+func isInformationAction(action actionMode) bool {
+	return action == actionGeneric && currentActionSpec.Information
 }
 
 func requiresStopConfirmation(action actionMode) bool {
-	return action == actionUpdate ||
-		(action == actionGeneric && currentActionSpec.Rings != 1)
+	return action == actionUpdate || action == actionBuild ||
+		(action == actionGeneric && !currentActionSpec.Information)
 }
 
 func modelRoleForRings(rings int) modelRole {
