@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qv/core/proton/skill
+# qvos:contract=qv/direct/tool
+# qvos:contract=qv/thunar/actions.sh
+# qvos:contract=qv/thunar/proton-drive-upload
+
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state_file="$HOME/.local/state/qvos/qvcore/proton"
 direct_tool="$component_dir/../direct/tool"

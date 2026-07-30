@@ -118,11 +118,14 @@ it never owns the mutation.
 `owner-contracts.psv` inventories every owner referenced by the fixed-task,
 paired Software, and install-only catalogs, regardless of ring count or
 whether the route uses the shared TUI or a native terminal. It fingerprints
-each repository entrypoint and its static qvOS dependencies. Run
+each repository entrypoint and its static qvOS dependencies recursively. Run
 `qv/tui/owner-contracts --check` during verification. When it reports drift,
 inspect the complete owner change and re-evaluate presentation, sudo,
 interaction, output, and verification before deliberately running
 `qv/tui/owner-contracts --write`; never accept a changed hash as the review.
+Owners declare dependencies assembled from relative or dynamic paths with
+`# qvos:contract=qv/<path>`; a directory declaration includes every regular
+payload file.
 System owners outside the repository are explicitly classified in
 `external-owners.psv`.
 

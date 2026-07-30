@@ -68,11 +68,13 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Keep every fixed task, paired Software operation, and install-only leaf in
   `owner-contracts.psv`, including native handoffs and explicitly classified
   external owners. The manifest fingerprints repository entrypoints and their
-  static qvOS dependencies. Never refresh it mechanically after owner drift:
-  inspect the complete owner change, confirm presentation, sudo, interaction,
-  output, and verification remain truthful, adapt the TUI contract when
-  needed, then run `qv/tui/owner-contracts --write` and review the exact
-  manifest diff.
+  static qvOS dependencies recursively. Never refresh it mechanically after
+  owner drift. Declare a dependency assembled from relative or dynamic paths
+  with `# qvos:contract=qv/<path>` in its nearest contracted owner; directory
+  declarations include every regular payload file. After drift, inspect the
+  complete owner change, confirm presentation, sudo, interaction, output, and
+  verification remain truthful, adapt the TUI contract when needed, then run
+  `qv/tui/owner-contracts --write` and review the exact manifest diff.
 - About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
   Keep those values in its future owner contract rather than duplicating them.
 - Keep the production hub catalog limited to working actions. Give every row a

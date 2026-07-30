@@ -4,15 +4,29 @@ set -euo pipefail
 config_path=${1:-}
 source_file="$OMARCHY_PATH/qv/config/files/$config_path"
 target_file="$HOME/.config/$config_path"
+target_dir=${target_file%/*}
 backup_file=""
 backup_suffix=0
+staged_file=""
+
+fail() {
+  printf 'qvOS config refresh: %s\n' "$1" >&2
+  exit "${2:-1}"
+}
+
+cleanup() {
+  [[ -z $staged_file ]] || rm -f -- "$staged_file"
+}
+trap cleanup EXIT
 
 if [[ -z $config_path || ! -f $source_file ]]; then
-  echo "Unknown qvOS config: ${config_path:-<empty>}" >&2
-  exit 2
+  fail "unknown config: ${config_path:-<empty>}" 2
 fi
 
-mkdir -p "$(dirname -- "$target_file")"
+mkdir -p "$target_dir"
+staged_file=$(mktemp "$target_dir/.qvos-refresh.XXXXXX")
+install -m "$(stat -c '%a' "$source_file")" "$source_file" "$staged_file"
+
 if [[ -e $target_file || -L $target_file ]]; then
   backup_file="$target_file.bak.$(date +%s)"
   while [[ -e $backup_file || -L $backup_file ]]; do
@@ -21,4 +35,11 @@ if [[ -e $target_file || -L $target_file ]]; then
   done
   mv -- "$target_file" "$backup_file"
 fi
-install -m "$(stat -c '%a' "$source_file")" "$source_file" "$target_file"
+
+if ! mv -- "$staged_file" "$target_file"; then
+  if [[ -n $backup_file ]] && ! mv -- "$backup_file" "$target_file"; then
+    fail "could not install $config_path or restore its backup"
+  fi
+  fail "could not install $config_path"
+fi
+staged_file=""

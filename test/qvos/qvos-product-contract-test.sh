@@ -62,12 +62,54 @@ terminal_desktop=$(grep -vE '^($|#)' "$root/config/xdg-terminals.list" | head -n
 
 refresh_home="$test_root/refresh-home"
 refresh_source="$test_root/refresh-source"
-install -d "$refresh_source/qv/config/files/qvos" "$refresh_home"
+refresh_fail_bin="$test_root/refresh-fail-bin"
+install -d \
+  "$refresh_source/qv/config/files/qvos" \
+  "$refresh_home/.config/qvos" \
+  "$refresh_fail_bin"
 printf 'staged source\n' >"$refresh_source/qv/config/files/qvos/path.conf"
+printf 'personal config\n' >"$refresh_home/.config/qvos/path.conf"
 HOME="$refresh_home" OMARCHY_PATH="$refresh_source" \
   "$root/qv/config/refresh" qvos/path.conf
 [[ $(<"$refresh_home/.config/qvos/path.conf") == "staged source" ]] ||
   fail "OMARCHY_PATH config refresh"
+refresh_backup=$(
+  find "$refresh_home/.config/qvos" \
+    -maxdepth 1 \
+    -name 'path.conf.bak.*' \
+    -print \
+    -quit
+)
+[[ -n $refresh_backup && $(<"$refresh_backup") == "personal config" ]] ||
+  fail "qvOS config refresh backup"
+
+install -m 0755 /dev/stdin "$refresh_fail_bin/install" <<'INSTALL'
+#!/bin/bash
+exit 1
+INSTALL
+printf 'current config\n' >"$refresh_home/.config/qvos/path.conf"
+printf 'future source\n' >"$refresh_source/qv/config/files/qvos/path.conf"
+refresh_backup_count=$(
+  find "$refresh_home/.config/qvos" \
+    -maxdepth 1 \
+    -name 'path.conf.bak.*' |
+    wc -l
+)
+if HOME="$refresh_home" \
+  OMARCHY_PATH="$refresh_source" \
+  PATH="$refresh_fail_bin:/usr/bin" \
+    "$root/qv/config/refresh" qvos/path.conf >/dev/null 2>&1; then
+  fail "failed qvOS config staging was accepted"
+fi
+[[ $(<"$refresh_home/.config/qvos/path.conf") == "current config" ]] ||
+  fail "failed qvOS config staging changed the current config"
+[[ $(
+  find "$refresh_home/.config/qvos" \
+    -maxdepth 1 \
+    -name 'path.conf.bak.*' |
+    wc -l
+) == "$refresh_backup_count" ]] ||
+  fail "failed qvOS config staging created a misleading backup"
 pass "config refreshes honor staged and installed Omarchy roots"
 
 grep -Fqx 'xdg-settings set default-web-browser chromium.desktop' "$root/qv/install/config/mimetypes" || fail "browser default contract"

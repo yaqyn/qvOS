@@ -12,6 +12,7 @@ mode=${1:---check}
 declare -A external_owners=()
 declare -A used_external_owners=()
 declare -A owner_uses=()
+declare -A contracted_sources=()
 
 fail() {
   printf 'qvOS TUI owner contract: %s\n' "$1" >&2
@@ -159,13 +160,70 @@ resolve_entrypoint() {
   printf '%s\n' "$candidate"
 }
 
+collect_source_contracts() {
+  local source=$1
+  local contract_line
+  local dependency
+  local directory_source
+  local -a contract_dependencies=()
+  local -a dependencies=()
+  local -a directory_sources=()
+
+  [[ -z ${contracted_sources[$source]:-} ]] || return
+  contracted_sources["$source"]=1
+
+  if ! grep -Iq . "$contract_root/$source"; then
+    return
+  fi
+
+  mapfile -t contract_dependencies < <(
+    sed -n 's|^# qvos:contract=\(qv/[[:alnum:]_./-]*\)$|\1|p' \
+      "$contract_root/$source" |
+      sort -u
+  )
+  while IFS= read -r contract_line; do
+    [[ $contract_line =~ ^#\ qvos:contract=qv/[[:alnum:]_./-]+$ ]] ||
+      fail "$source has an invalid qvos:contract declaration"
+  done < <(grep -E '^# qvos:contract=' "$contract_root/$source" || true)
+
+  for dependency in "${contract_dependencies[@]}"; do
+    [[ -e $contract_root/$dependency ]] ||
+      fail "$source contracts missing source: $dependency"
+    if [[ -f $contract_root/$dependency ]]; then
+      collect_source_contracts "$dependency"
+      continue
+    fi
+
+    mapfile -d '' -t directory_sources < <(
+      find "$contract_root/$dependency" -type f -print0 | sort -z
+    )
+    for directory_source in "${directory_sources[@]}"; do
+      collect_source_contracts "${directory_source#"$contract_root/"}"
+    done
+  done
+
+  mapfile -t dependencies < <(
+    # shellcheck disable=SC2016
+    grep -oE \
+      '\$OMARCHY_PATH/qv/[[:alnum:]_./-]+' \
+      "$contract_root/$source" |
+      sed 's|^\$OMARCHY_PATH/||' |
+      sort -u
+  )
+  for dependency in "${dependencies[@]}"; do
+    [[ -e $contract_root/$dependency ]] ||
+      fail "$source delegates to missing source: $dependency"
+    [[ -f $contract_root/$dependency ]] || continue
+    collect_source_contracts "$dependency"
+  done
+}
+
 source_contracts() {
   local owner=$1
   local entrypoint
   local source
   local hash
   local -a sources=()
-  local -a delegates=()
 
   if ! entrypoint=$(resolve_entrypoint "$owner"); then
     return 1
@@ -175,19 +233,11 @@ source_contracts() {
     return
   fi
 
-  sources+=("$entrypoint")
-  mapfile -t delegates < <(
-    # shellcheck disable=SC2016
-    sed -n \
-      's|.*\$OMARCHY_PATH/\(qv/[[:alnum:]_./-]*\).*|\1|p' \
-      "$contract_root/$entrypoint" |
-      sort -u
+  contracted_sources=()
+  collect_source_contracts "$entrypoint"
+  mapfile -t sources < <(
+    printf '%s\n' "${!contracted_sources[@]}" | sort
   )
-  for source in "${delegates[@]}"; do
-    [[ -f $contract_root/$source ]] ||
-      fail "$entrypoint delegates to missing source: $source"
-    sources+=("$source")
-  done
 
   for source in "${sources[@]}"; do
     read -r hash _ < <(sha256sum "$contract_root/$source")

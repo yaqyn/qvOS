@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qv/theme/yaqyn/vscode/extension
+
 extension_dir="$OMARCHY_PATH/qv/theme/yaqyn/vscode/extension"
 extension_version=$(jq -r .version "$extension_dir/package.json" 2>/dev/null)
 extension="$extension_dir/yaqyn-theme-$extension_version.vsix"

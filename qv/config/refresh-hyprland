@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qv/config/files/hypr/bindings.conf
+# qvos:contract=qv/config/files/hypr/input.conf
+# qvos:contract=qv/config/files/hypr/hyprland.conf
+# qvos:contract=qv/config/files/hypr/qv.conf
+# qvos:contract=qv/config/files/hypr/qv/bindings.conf
+# qvos:contract=qv/config/files/hypr/qv/looknfeel.conf
+# qvos:contract=qv/config/files/hypr/qv/windows.conf
+
 config_owner="$OMARCHY_PATH/qv/config/refresh"
 config_paths=(
   hypr/bindings.conf
@@ -11,6 +19,13 @@ config_paths=(
   hypr/qv/looknfeel.conf
   hypr/qv/windows.conf
 )
+
+for config_path in "${config_paths[@]}"; do
+  [[ -f $OMARCHY_PATH/qv/config/files/$config_path ]] || {
+    printf 'Missing qvOS Hyprland config source: %s\n' "$config_path" >&2
+    exit 1
+  }
+done
 
 for config_path in "${config_paths[@]}"; do
   "$config_owner" "$config_path"

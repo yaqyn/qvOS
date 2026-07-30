@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qv/core/qvdev/packages.tsv
+# qvos:contract=qv/direct/tool
+# qvos:contract=qv/thunar/actions.sh
+# qvos:contract=qv/thunar/codex
+
 component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 package_manifest="$component_dir/qvdev/packages.tsv"
 direct_tool="$component_dir/../direct/tool"

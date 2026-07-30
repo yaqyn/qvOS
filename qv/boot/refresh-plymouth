@@ -2,6 +2,7 @@
 
 # omarchy:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the Omarchy default and rebuild it.
 # omarchy:requires-sudo=true
+# qvos:contract=qv/boot/plymouth
 
 sudo cp -r "$OMARCHY_PATH/qv/boot/plymouth/"* /usr/share/plymouth/themes/omarchy/
 sudo plymouth-set-default-theme omarchy

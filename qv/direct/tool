@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qv/direct/manifest.tsv
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 manifest="$script_dir/manifest.tsv"
 install_dir="$HOME/.local/bin"

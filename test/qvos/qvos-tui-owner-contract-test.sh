@@ -21,6 +21,7 @@ fail() {
 install -d \
   "$fixture/bin" \
   "$fixture/qv/demo" \
+  "$fixture/qv/demo/assets" \
   "$fixture/qv/menu" \
   "$fixture/qv/tui/task"
 install -m 0644 /dev/stdin "$fixture/qv/tui/external-owners.psv" <<'EXTERNAL'
@@ -47,8 +48,16 @@ exec "$OMARCHY_PATH/qv/demo/owner" "$@"
 OWNER
 install -m 0755 /dev/stdin "$fixture/qv/demo/owner" <<'DOMAIN'
 #!/bin/bash
-printf 'State: Ready\n'
+# qvos:contract=qv/demo/assets
+exec "$OMARCHY_PATH/qv/demo/readback"
 DOMAIN
+install -m 0644 /dev/stdin "$fixture/qv/demo/assets/message.txt" <<'ASSET'
+Ready
+ASSET
+install -m 0755 /dev/stdin "$fixture/qv/demo/readback" <<'READBACK'
+#!/bin/bash
+printf 'State: Ready\n'
+READBACK
 for owner in omarchy-software-install omarchy-software-remove; do
   install -m 0755 /dev/stdin "$fixture/bin/$owner" <<'SOFTWARE_OWNER'
 #!/bin/bash
@@ -67,9 +76,9 @@ QVOS_OWNER_CONTRACT_ROOT="$fixture" \
   fail "generated owner manifest check"
 
 grep -Eq \
-  '^omarchy test owner inspect\|task:test-task\|bin/omarchy-test-owner@[0-9a-f]{64},qv/demo/owner@[0-9a-f]{64}$' \
+  '^omarchy test owner inspect\|task:test-task\|bin/omarchy-test-owner@[0-9a-f]{64},qv/demo/assets/message.txt@[0-9a-f]{64},qv/demo/owner@[0-9a-f]{64},qv/demo/readback@[0-9a-f]{64}$' \
   "$fixture/qv/tui/owner-contracts.psv" ||
-  fail "thin adapter and qvOS dependency are both contracted"
+  fail "thin adapter and recursive qvOS dependencies are all contracted"
 grep -Fq 'passwd|task:password|external@-' \
   "$fixture/qv/tui/owner-contracts.psv" ||
   fail "external native owner classification"
@@ -80,12 +89,12 @@ grep -Fq 'qv/menu/install-test|installer:test-installer|' \
   "$fixture/qv/tui/owner-contracts.psv" ||
   fail "install-only owner coverage"
 
-printf '\n# changed owner behavior\n' >>"$fixture/bin/omarchy-software-install"
+printf '\n# changed nested owner behavior\n' >>"$fixture/qv/demo/readback"
 if output=$(
   QVOS_OWNER_CONTRACT_ROOT="$fixture" \
     "$root/qv/tui/owner-contracts" --check 2>&1
 ); then
-  fail "changed owner source was accepted without review"
+  fail "changed nested owner source was accepted without review"
 fi
 grep -Fq \
   'catalog owners or their sources changed; review them, then run qv/tui/owner-contracts --write' \
@@ -97,6 +106,20 @@ QVOS_OWNER_CONTRACT_ROOT="$fixture" \
 QVOS_OWNER_CONTRACT_ROOT="$fixture" \
   "$root/qv/tui/owner-contracts" --check >/dev/null ||
   fail "reviewed owner manifest refresh"
+
+printf '%s\n' '# qvos:contract=outside/demo' \
+  >>"$fixture/qv/demo/readback"
+if output=$(
+  QVOS_OWNER_CONTRACT_ROOT="$fixture" \
+    "$root/qv/tui/owner-contracts" --write 2>&1
+); then
+  fail "invalid static dependency declaration was accepted"
+fi
+grep -Fq \
+  'qv/demo/readback has an invalid qvos:contract declaration' \
+  <<<"$output" ||
+  fail "invalid static dependency declaration diagnostic"
+sed -i '$d' "$fixture/qv/demo/readback"
 
 printf '%s\n' \
   'unknown|Unknown|Unresolved owner|1|tui|false|Run|Running|Ran|omarchy-missing-owner' \

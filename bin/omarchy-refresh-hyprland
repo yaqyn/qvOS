@@ -2,6 +2,10 @@
 
 # omarchy:summary=Overwrite all the user configs in ~/.config/hypr with the Omarchy defaults.
 
+set -euo pipefail
+
+"$OMARCHY_PATH/qv/config/monitor-autodetect" --restore-preflight
+
 omarchy-refresh-config hypr/autostart.conf
 omarchy-refresh-config hypr/bindings.conf
 omarchy-refresh-config hypr/input.conf

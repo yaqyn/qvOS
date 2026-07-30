@@ -40,4 +40,8 @@ automatic placement, and PPI-based per-monitor scale. Synchronize the global
 toolkit scale from the internal display, then the focused or first active
 display. Only touch Omarchy's generic `,preferred,auto,auto` catch-all; preserve
 every explicit custom monitor layout. Reload Hyprland and require no config
-errors after detection.
+errors after detection. Preflight an explicit restore before Omarchy overwrites
+the monitor file, reject symbolic-link destinations, stop the complete restore
+on any owner failure, and restore the pre-edit adaptive config if applying its
+detected scale fails. Omarchy's explicit restore keeps the user's original
+monitor file in its normal timestamped backup.

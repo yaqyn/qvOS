@@ -2,30 +2,57 @@
 set -euo pipefail
 
 monitor_config="$HOME/.config/hypr/monitors.conf"
+monitor_config_dir=${monitor_config%/*}
 reload_attempts=20
+mode=${1:---apply}
 
 fail() {
   printf 'qvOS display detection: %s\n' "$1" >&2
   exit 1
 }
 
-[[ -f $monitor_config && ! -L $monitor_config ]] ||
-  fail "the Hyprland monitor config is missing or unsafe"
+case $mode in
+--apply)
+  ;;
+--restore-preflight)
+  if [[ -L $monitor_config_dir || -L $monitor_config ]]; then
+    fail "refusing to restore through a symbolic-link monitor config"
+  fi
+  exit 0
+  ;;
+*)
+  fail "usage: monitor-autodetect [--apply|--restore-preflight]"
+  ;;
+esac
 
-if ! grep -Eq \
-  '^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,preferred,auto,auto([[:space:]]|$|,)' \
-  "$monitor_config"; then
+[[ -f $monitor_config ]] ||
+  fail "the Hyprland monitor config is missing"
+
+adaptive_monitor_pattern='^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,[[:space:]]*preferred[[:space:]]*,[[:space:]]*auto[[:space:]]*,[[:space:]]*auto[[:space:]]*(#.*)?$'
+mapfile -t monitor_directives < <(
+  grep -E '^[[:space:]]*monitor[[:space:]]*=' "$monitor_config"
+)
+
+if ((${#monitor_directives[@]} != 1)) ||
+  [[ ! ${monitor_directives[0]} =~ $adaptive_monitor_pattern ]]; then
   printf 'Display configuration: Preserved custom layout\n'
   exit 0
 fi
+
+[[ ! -L $monitor_config ]] ||
+  fail "refusing to update a symbolic-link monitor config"
 
 command -v hyprctl >/dev/null 2>&1 ||
   fail "Hyprland control is unavailable"
 command -v jq >/dev/null 2>&1 ||
   fail "JSON parsing is unavailable"
 
-hyprctl reload >/dev/null
-config_errors=$(hyprctl configerrors)
+if ! hyprctl reload >/dev/null; then
+  fail "Hyprland could not reload the restored configuration"
+fi
+if ! config_errors=$(hyprctl configerrors); then
+  fail "Hyprland could not validate the restored configuration"
+fi
 [[ -z $config_errors ]] ||
   fail "Hyprland rejected the restored configuration: $config_errors"
 
@@ -37,7 +64,7 @@ for ((attempt = 0; attempt < reload_attempts; attempt++)); do
         (
           [.[] | select(
             .disabled != true and
-            (.name | test("^(eDP|LVDS|DSI)"))
+            (.name | test("^(eDP|LVDS|DSI)-"))
           )][0] //
           [.[] | select(.disabled != true and .focused == true)][0] //
           [.[] | select(.disabled != true)][0]
@@ -65,13 +92,19 @@ done
 
 IFS=$'\t' read -r monitor_name monitor_width monitor_height monitor_scale \
   <<<"$monitor_record"
-[[ $monitor_scale =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+if [[ ! $monitor_scale =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+  ! jq -en --arg scale "$monitor_scale" \
+    '($scale | tonumber) > 0' >/dev/null; then
   fail "Hyprland reported an invalid display scale"
+fi
 
-if ! grep -Eq \
-  '^[[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,' \
-  "$monitor_config"; then
-  fail "the adaptive monitor config has no toolkit scale"
+mapfile -t toolkit_scale_directives < <(
+  grep -E \
+    '^[[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,' \
+    "$monitor_config"
+)
+if ((${#toolkit_scale_directives[@]} != 1)); then
+  fail "the adaptive monitor config must have exactly one toolkit scale"
 fi
 
 original_config=$(mktemp)
@@ -79,8 +112,22 @@ trap 'rm -f -- "$original_config"' EXIT
 cp -a -- "$monitor_config" "$original_config"
 
 rollback_scale() {
-  cp -a -- "$original_config" "$monitor_config"
-  hyprctl reload >/dev/null || true
+  local rollback_errors
+
+  cp -a -- "$original_config" "$monitor_config" || return 1
+  hyprctl reload >/dev/null || return 1
+  rollback_errors=$(hyprctl configerrors) || return 1
+  [[ -z $rollback_errors ]]
+}
+
+fail_after_rollback() {
+  local reason=$1
+
+  if rollback_scale; then
+    fail "$reason"
+  else
+    fail "$reason; the previous monitor config could not be restored"
+  fi
 }
 
 sed -i -E \
@@ -88,16 +135,14 @@ sed -i -E \
   "$monitor_config"
 
 if ! hyprctl reload >/dev/null; then
-  rollback_scale
-  fail "Hyprland could not reload the detected display scale"
+  fail_after_rollback "Hyprland could not reload the detected display scale"
 fi
 if ! config_errors=$(hyprctl configerrors); then
-  rollback_scale
-  fail "Hyprland could not validate the detected display scale"
+  fail_after_rollback "Hyprland could not validate the detected display scale"
 fi
 if [[ -n $config_errors ]]; then
-  rollback_scale
-  fail "Hyprland rejected the detected display scale: $config_errors"
+  fail_after_rollback \
+    "Hyprland rejected the detected display scale: $config_errors"
 fi
 
 printf 'Display: %s - %sx%s\n' \
