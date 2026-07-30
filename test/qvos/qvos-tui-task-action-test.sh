@@ -178,6 +178,18 @@ awk -F '|' '
 ' "$root/qv/tui/task/actions.psv" ||
   fail "tracked task catalog schema, uniqueness, or coverage"
 
+awk -F '|' '
+  $1 ~ /^#/ { next }
+  $1 ~ /^refresh-/ {
+    refresh_count++
+    if ($4 != "3") {
+      invalid = 1
+    }
+  }
+  END { exit !(refresh_count >= 9 && !invalid) }
+' "$root/qv/tui/task/actions.psv" ||
+  fail "configuration refreshes must retain three-ring confirmation"
+
 while IFS= read -r owner; do
   awk -F '|' -v wanted="$owner" '
     $1 !~ /^#/ && NF == 10 && $10 == wanted { found = 1 }

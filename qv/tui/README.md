@@ -165,6 +165,10 @@ One-ring task rows start immediately and print only owner information. The
 adapter's synthetic progress milestones are reserved for guarded two- and
 three-ring transaction flows.
 
+Every configuration refresh is a three-ring transaction because it overwrites
+user state. Its owner may create backups, but the shared confirmation must
+still complete before delegation.
+
 ## Update
 
 `update/` owns the TUI-specific Update contract and thin engine adapter. The

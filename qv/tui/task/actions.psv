@@ -26,15 +26,15 @@ direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|native|true
 hybrid-gpu|Hybrid GPU|Confirm a GPU mode change and system reboot|3|native|true|Configure|Configuring|Configured|omarchy-toggle-hybrid-gpu
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|native|true|Enable|Enabling|Enabled|omarchy-hibernation-setup
 hibernation-disable|Hibernation|Confirm and remove hibernation configuration|3|native|true|Disable|Disabling|Disabled|omarchy-hibernation-remove
-refresh-hyprland|Hyprland Config|Restore qvOS and Omarchy Hyprland defaults with backups|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprland
-refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
-refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
-refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset
+refresh-hyprland|Hyprland Config|Restore qvOS and Omarchy Hyprland defaults with backups|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprland
+refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
+refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
+refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset
 refresh-plymouth|Plymouth|Restore the qvOS boot theme and rebuild boot images|3|tui|true|Restore|Restoring|Restored|omarchy-refresh-plymouth
-refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-swayosd
-refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
-refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker
-refresh-waybar|Waybar Config|Restore Waybar defaults with qvOS overrides|1|tui|false|Restore|Restoring|Restored|omarchy-qvos-refresh-waybar
+refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-swayosd
+refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
+refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|3|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker
+refresh-waybar|Waybar Config|Restore Waybar defaults with qvOS overrides|3|tui|false|Restore|Restoring|Restored|omarchy-qvos-refresh-waybar
 restart-hypridle|Hypridle|Restart the Hypridle user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-hypridle
 restart-hyprsunset|Hyprsunset|Restart the Hyprsunset user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-hyprsunset
 restart-mako|Notifications|Restart the Mako notification service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-mako

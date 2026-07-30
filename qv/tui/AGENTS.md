@@ -62,6 +62,9 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   authentication, hardware interaction, secret entry, selection, or reboot
   choices stay `native` until a dedicated contract preserves that interaction.
   A task changes tiers only with its risk or interaction contract.
+- Configuration refreshes overwrite user state and are always three-ring
+  actions with confirmation, even when the owner creates backups and requires
+  no sudo. Never classify a reset as a one-ring information surface.
 - Keep every fixed task, paired Software operation, and install-only leaf in
   `owner-contracts.psv`, including native handoffs and explicitly classified
   external owners. The manifest fingerprints repository entrypoints and their
