@@ -22,7 +22,7 @@ fail() {
   exit 1
 }
 
-mkdir -p "$repo/qv/git" "$repo/qv/menu"
+mkdir -p "$repo/qv/git" "$repo/qv/menu" "$repo/qv/tui"
 cp \
   "$root/qv/git/qvsync" \
   "$root/qv/git/qvsync-audit" \
@@ -33,6 +33,10 @@ chmod 0755 \
   "$repo/qv/git/qvsync-audit" \
   "$repo/qv/git/install-qvsync"
 printf '%s\n' '# qvOS menu owner' 'omarchy-menu' >"$repo/qv/menu/extension.sh"
+printf '%s\n' \
+  '# owner|uses|sources' \
+  'omarchy-menu|task:menu|bin/omarchy-menu@fixture' \
+  >"$repo/qv/tui/owner-contracts.psv"
 
 git -C "$repo" init -q
 git -C "$repo" config user.name "qvOS Test"
@@ -120,6 +124,10 @@ grep -Fq $'A\tbin/omarchy-menu' <<<"$output" ||
   fail "capability audit changed path"
 grep -Fq 'qv/menu/extension.sh' <<<"$output" ||
   fail "capability audit qvOS overlap hint"
+grep -Fq \
+  'bin/omarchy-menu — contracted TUI owner changed upstream; review qv/tui/owner-contracts.psv before refreshing it' \
+  <<<"$output" ||
+  fail "capability audit TUI owner contract hint"
 grep -Fq 'Upstream roadmap signals (advisory only; never merged by qvsync)' \
   <<<"$output" ||
   fail "capability audit roadmap boundary"

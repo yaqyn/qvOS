@@ -12,7 +12,10 @@ replace its judgment.
 1. Require branch `OS`, inspect `git status --short --branch`, and inspect
    `.git/qvsync` when its dispatch is relevant.
 2. Start with `git qvsync --audit`. It fetches without merging or publishing
-   and reports every upstream commit, changed path, and mechanical overlap hint.
+   and reports every upstream commit, changed path, mechanical overlap hint,
+   and upstream change to a source named by the catalog-wide TUI owner
+   contract. Treat an owner-contract hint as a required semantic review, not
+   permission to refresh its fingerprint.
 3. Use `--reviewed-upstream <full-sha>` only after completing the root workflow
    for that exact target. It is a freshness gate, not proof of judgment.
 4. When adaptation is required, create a backup branch and integrate upstream

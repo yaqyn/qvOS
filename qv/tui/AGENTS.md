@@ -62,6 +62,14 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   authentication, hardware interaction, secret entry, selection, or reboot
   choices stay `native` until a dedicated contract preserves that interaction.
   A task changes tiers only with its risk or interaction contract.
+- Keep every fixed task, paired Software operation, and install-only leaf in
+  `owner-contracts.psv`, including native handoffs and explicitly classified
+  external owners. The manifest fingerprints repository entrypoints and their
+  static qvOS dependencies. Never refresh it mechanically after owner drift:
+  inspect the complete owner change, confirm presentation, sudo, interaction,
+  output, and verification remain truthful, adapt the TUI contract when
+  needed, then run `qv/tui/owner-contracts --write` and review the exact
+  manifest diff.
 - About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
   Keep those values in its future owner contract rather than duplicating them.
 - Keep the production hub catalog limited to working actions. Give every row a
@@ -135,9 +143,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
    imports from domain packages.
 3. Preserve exit `0` for success, `130` for user cancellation, and nonzero for
    failures. Never render success after an owner failure.
-4. Run `gofmt`, `go test -count=1 ./...`, Bash syntax and ShellCheck for shell
-   adapters, focused action/menu tests, then `test/qvos/run.sh` when shared
-   contracts or lifecycle wiring changes.
+4. Run `qv/tui/owner-contracts --check`; if it reports drift, review the owner
+   before deliberately refreshing the manifest. Then run `gofmt`,
+   `go test -count=1 ./...`, Bash syntax and ShellCheck for shell adapters,
+   focused action/menu tests, and `test/qvos/run.sh` when shared contracts or
+   lifecycle wiring changes.
 5. Build and install the live binary through `qv/tui/install`, apply affected
    launch/config owners, verify the semantic model and responsive log/result
    states, then capture and inspect a fullscreen screenshot with

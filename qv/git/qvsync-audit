@@ -36,6 +36,12 @@ collect_overlap_hints() {
   local component
   local term
   local match
+  local owner
+  local uses
+  local source_contracts
+  local source_contract
+  local source
+  local extra
   local -A terms=()
   local -A hints=()
 
@@ -61,6 +67,21 @@ collect_overlap_hints() {
       git grep -l -F -e "$term" "$qvos_sha" -- qv test/qvos 2>/dev/null || true
     )
   done
+
+  if git cat-file -e "$qvos_sha:qv/tui/owner-contracts.psv" 2>/dev/null; then
+    while IFS='|' read -r owner uses source_contracts extra; do
+      [[ $owner == \#* || -z $owner ]] && continue
+      [[ -n $uses && -n $source_contracts && -z ${extra:-} ]] || continue
+
+      while IFS= read -r source_contract; do
+        source=${source_contract%@*}
+        [[ $source != "external" ]] || continue
+        if ! git diff --quiet "$base_sha" "$target_sha" -- "$source"; then
+          hints["$source"]="contracted TUI owner changed upstream; review qv/tui/owner-contracts.psv before refreshing it"
+        fi
+      done < <(tr ',' '\n' <<<"$source_contracts")
+    done < <(git show "$qvos_sha:qv/tui/owner-contracts.psv")
+  fi
 
   if ((${#hints[@]} == 0)); then
     printf "  (none found mechanically; semantic review is still required)\n"

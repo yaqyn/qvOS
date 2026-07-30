@@ -57,7 +57,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
    row; keep prompts, authentication, configuration, secrets, hardware
    interaction, reboot choices, and nested TUIs in the native owner.
 3. Update focused menu tests for catalog uniqueness, routing, query-preserving
-   Tab behavior, runtime installation, and startup ordering.
+   Tab behavior, runtime installation, and startup ordering. Run
+   `qv/tui/owner-contracts --check`; after a reviewed catalog or owner change,
+   refresh its manifest deliberately and inspect the exact diff.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.
 5. Run the focused menu suites, then `test/qvos/run.sh` when shared contracts
    change.

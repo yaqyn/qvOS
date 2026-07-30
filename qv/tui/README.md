@@ -115,6 +115,17 @@ owner whose successful output is only a vague activity line. It invokes the
 catalog owner exactly once, preserves failures, and prints verified readback;
 it never owns the mutation.
 
+`owner-contracts.psv` inventories every owner referenced by the fixed-task,
+paired Software, and install-only catalogs, regardless of ring count or
+whether the route uses the shared TUI or a native terminal. It fingerprints
+each repository entrypoint and its static qvOS dependencies. Run
+`qv/tui/owner-contracts --check` during verification. When it reports drift,
+inspect the complete owner change and re-evaluate presentation, sudo,
+interaction, output, and verification before deliberately running
+`qv/tui/owner-contracts --write`; never accept a changed hash as the review.
+System owners outside the repository are explicitly classified in
+`external-owners.psv`.
+
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.
 
