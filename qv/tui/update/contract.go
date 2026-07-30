@@ -4,6 +4,10 @@ import "strings"
 
 const (
 	Title              = "UPDATE QVOS"
+	Summary            = "Update qvOS and system packages"
+	PowerNotice        = "Keep this computer powered on until the update finishes"
+	PrimaryAction      = "Begin"
+	CancelAction       = "Cancel"
 	StopPromptTitle    = "STOP UPDATE?"
 	StopPromptNotice   = "Update keeps running until you confirm"
 	KeepUpdatingAction = "Keep Updating"
@@ -14,6 +18,7 @@ const (
 	CancelingStatus    = "stopping update"
 	CanceledStatus     = "update stopped"
 	CompleteStatus     = "update complete"
+	SourceHistoryLabel = "github.com/Yaqyn-qvOS/qvOS/commits/OS"
 )
 
 type stage struct {

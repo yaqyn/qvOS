@@ -272,9 +272,9 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 		"hub": (model{
 			width: width, height: height,
 		}).View(),
-		"start confirmation": (model{
+		"update confirmation": (model{
 			width: width, height: height,
-			loading: true, action: actionGeneric, startConfirm: true,
+			loading: true, action: actionUpdate, updateConfirm: true,
 		}).View(),
 		"sudo": (model{
 			width: width, height: height,
@@ -586,7 +586,7 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 		primaryKey string
 	}{
 		{"hub", (model{}).hubPersistentHints(), "↑↓"},
-		{"start confirmation", (model{startConfirm: true}).rootPersistentHints(), "←→"},
+		{"update confirmation", (model{updateConfirm: true}).rootPersistentHints(), "←→"},
 		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→"},
 		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter"},
 		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z"},

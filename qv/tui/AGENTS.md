@@ -26,10 +26,7 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   for update, and ISO flows retain their inherited fallback.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
-- Never stack a start confirmation in front of sudo authorization. Information
-  actions open directly; privileged transactions complete non-mutating
-  preflight and proceed to authorization; only consequential unprivileged
-  transactions use a start confirmation.
+- Complete confirmation and non-mutating preflight before sudo.
 - Put runnable snapshots under the user runtime directory, never inside the
   Omarchy checkout, and stop active children when a TUI window exits.
 
@@ -66,9 +63,8 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   choices stay `native` until a dedicated contract preserves that interaction.
   A task changes tiers only with its risk or interaction contract.
 - Configuration refreshes overwrite user state and are always three-ring
-  actions. Unprivileged refreshes require start confirmation; privileged
-  refreshes proceed from preflight to sudo without a duplicate gate. Never
-  classify a reset as a one-ring information surface.
+  actions with confirmation, even when the owner creates backups and requires
+  no sudo. Never classify a reset as a one-ring information surface.
 - Keep every fixed task, paired Software operation, and install-only leaf in
   `owner-contracts.psv`, including native handoffs and explicitly classified
   external owners. The manifest fingerprints repository entrypoints and their

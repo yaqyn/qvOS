@@ -188,7 +188,7 @@ awk -F '|' '
   }
   END { exit !(refresh_count >= 9 && !invalid) }
 ' "$root/qv/tui/task/actions.psv" ||
-  fail "configuration refreshes must retain three-ring classification"
+  fail "configuration refreshes must retain three-ring confirmation"
 
 while IFS= read -r owner; do
   awk -F '|' -v wanted="$owner" '

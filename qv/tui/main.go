@@ -388,13 +388,13 @@ type model struct {
 	logScroll         int
 	logCopyStatus     string
 	helpOverlay       bool
-	startConfirm      bool
-	startChoice       int
+	updateConfirm     bool
+	updateChoice      int
 	updateStopConfirm bool
 	updateStopChoice  int
 	updatePreflight   bool
 	dedicatedAction   bool
-	startCanceled     bool
+	updateCanceled    bool
 	startImmediately  bool
 }
 
@@ -535,7 +535,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fullscreen = msg.fullscreen
 
 	case startImmediateActionMsg:
-		if !m.startImmediately || !isRootAction(m.action) {
+		if !m.startImmediately || !isOneRingAction(m.action) {
 			return m, nil
 		}
 		m.startImmediately = false
@@ -711,8 +711,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.updateStopConfirm {
 				return m.handleUpdateStopConfirmationKey(msg)
 			}
-			if m.startConfirm {
-				return m.handleStartConfirmationKey(msg)
+			if m.updateConfirm {
+				return m.handleUpdateConfirmationKey(msg)
 			}
 			if m.sudoPrompt {
 				return m.handleSudoKey(msg)
@@ -868,7 +868,7 @@ func (m model) renderSideBody(width, height int) string {
 	canvasW, canvasH = leftWidth, 0
 	middleMode := layoutMobile
 	if m.loading && isScriptAction(m.action) &&
-		!m.startConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
+		!m.updateConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
 		leftWidth >= progressBarWidth {
 		middleMode = layoutTablet
 	}
@@ -952,11 +952,15 @@ func (m model) helpHints() []tuiHint {
 			{Key: "esc", Action: keepAction},
 		}
 	}
-	if m.startConfirm {
+	if m.updateConfirm {
+		cancelAction := "cancel before updating"
+		if m.action == actionGeneric {
+			cancelAction = "cancel before starting"
+		}
 		return []tuiHint{
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "continue with the selected option"},
-			{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before starting"},
+			{Key: "esc / ctrl+c / ctrl+z", Action: cancelAction},
 		}
 	}
 	if m.sudoPrompt {
@@ -1034,7 +1038,7 @@ func (m model) rootPersistentHints() []tuiHint {
 			tuiHelpHint(),
 		}
 	}
-	if m.startConfirm {
+	if m.updateConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
 			tuiHelpHint(),
@@ -1413,7 +1417,7 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 
 	switch sections[m.tab].items[m.cursor].action {
 	case hubActionUpdate:
-		return m.beginUpdateAction(false)
+		return m.beginUpdateConfirmation(false)
 	case hubActionBuild:
 		return m.startBuildAction()
 	default:
@@ -1468,12 +1472,10 @@ func startImmediateActionCmd() tea.Cmd {
 	return func() tea.Msg { return startImmediateActionMsg{} }
 }
 
-func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cmd) {
-	requirements := requirementsForAction(action)
-
+func (m model) beginUpdateConfirmation(dedicated bool) (model, tea.Cmd) {
 	clearRunes(m.sudoPassword)
 	m.loading = true
-	m.action = action
+	m.action = actionUpdate
 	m.loadStart = m.frame
 	m.scriptRunning = false
 	m.scriptDone = false
@@ -1498,42 +1500,40 @@ func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cm
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
-	m.startConfirm = requirements.Confirmation
-	m.startChoice = 0
+	m.updateConfirm = true
+	m.updateChoice = 0
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	m.updatePreflight = false
 	m.dedicatedAction = dedicated
-	m.startCanceled = false
-	m.startImmediately = !requirements.Confirmation
-	if m.startImmediately {
-		return m, startImmediateActionCmd()
-	}
+	m.updateCanceled = false
 	return m, nil
-}
-
-func (m model) beginUpdateAction(dedicated bool) (model, tea.Cmd) {
-	return m.beginRootAction(actionUpdate, dedicated)
 }
 
 func (m model) beginGenericAction(spec actionflow.Spec, dedicated bool) (model, tea.Cmd) {
 	currentActionSpec = spec
-	return m.beginRootAction(actionGeneric, dedicated)
+	m, command := m.beginUpdateConfirmation(dedicated)
+	m.action = actionGeneric
+	if spec.Rings == 1 {
+		m.updateConfirm = false
+		m.startImmediately = true
+	}
+	return m, command
 }
 
-func (m model) handleStartConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m model) handleUpdateConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "left", "h", "up", "k", "shift+tab":
-		m.startChoice = 0
+		m.updateChoice = 0
 	case "right", "l", "down", "j", "tab":
-		m.startChoice = 1
+		m.updateChoice = 1
 	case "esc", "ctrl+c", "ctrl+z":
-		return m.cancelRootAction()
+		return m.cancelUpdate()
 	case "enter":
-		if m.startChoice == 1 {
-			return m.cancelRootAction()
+		if m.updateChoice == 1 {
+			return m.cancelUpdate()
 		}
-		m.startConfirm = false
+		m.updateConfirm = false
 		return m.startRootAction(m.action)
 	}
 	return m, nil
@@ -1562,18 +1562,17 @@ func (m model) handleUpdateStopConfirmationKey(msg tea.KeyPressMsg) (tea.Model, 
 	return m, nil
 }
 
-func (m model) cancelRootAction() (model, tea.Cmd) {
+func (m model) cancelUpdate() (model, tea.Cmd) {
 	clearRunes(m.sudoPassword)
 	m.sudoPassword = nil
 	m.sudoPrompt = false
 	m.sudoChecking = false
 	m.updatePreflight = false
-	m.startConfirm = false
+	m.updateConfirm = false
 	m.updateStopConfirm = false
 	m.terminalView = false
 	m.helpOverlay = false
-	m.startCanceled = true
-	m.startImmediately = false
+	m.updateCanceled = true
 	if m.dedicatedAction {
 		return m, tea.Quit
 	}
@@ -1620,12 +1619,11 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
-	m.startConfirm = false
+	m.updateConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
 	m.updatePreflight = requirements.Preflight
-	m.startCanceled = false
-	m.startImmediately = false
+	m.updateCanceled = false
 
 	if err != nil {
 		m.sudoChecking = false
@@ -1723,12 +1721,12 @@ func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "ctrl+z":
 		if isRootAction(m.action) {
-			return m.cancelRootAction()
+			return m.cancelUpdate()
 		}
 		return m, tea.Quit
 	case "esc":
 		if isRootAction(m.action) {
-			return m.cancelRootAction()
+			return m.cancelUpdate()
 		}
 		m.sudoPassword = nil
 		m.loading = false
@@ -2357,8 +2355,8 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 	if m.updateStopConfirm {
 		return m.renderUpdateStopConfirmationFor(mode)
 	}
-	if m.startConfirm {
-		return m.renderStartConfirmationFor(mode)
+	if m.updateConfirm {
+		return m.renderUpdateConfirmationFor(mode)
 	}
 	if m.sudoPrompt {
 		return m.renderSudoPromptFor(mode)
@@ -2399,8 +2397,44 @@ func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
-func (m model) renderStartConfirmationFor(mode layoutMode) string {
-	return m.renderGenericActionConfirmationFor(mode)
+func (m model) renderUpdateConfirmationFor(mode layoutMode) string {
+	if m.action == actionGeneric {
+		return m.renderGenericActionConfirmationFor(mode)
+	}
+
+	title := centerCanvas(sWhite.Render(updateflow.Title))
+	summary := centerCanvas(sGray.Render(updateflow.Summary))
+	actions := centerCanvas(lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		renderConfirmationAction(updateflow.PrimaryAction, m.updateChoice == 0),
+		"   ",
+		renderConfirmationAction(updateflow.CancelAction, m.updateChoice == 1),
+	))
+
+	if mode == layoutMobile {
+		content := strings.Join([]string{title, "", actions}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	}
+
+	if mode == layoutTablet {
+		content := strings.Join([]string{title, "", summary, "", actions}, "\n")
+		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	}
+
+	notice := centerCanvas(sMid.Render(updateflow.PowerNotice))
+	history := centerCanvas(sDim.Render(updateflow.SourceHistoryLabel))
+	content := strings.Join([]string{
+		title,
+		"",
+		summary,
+		notice,
+		"",
+		actions,
+		"",
+		history,
+		"",
+	}, "\n")
+	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
 func (m model) renderGenericActionConfirmationFor(mode layoutMode) string {
@@ -2408,9 +2442,9 @@ func (m model) renderGenericActionConfirmationFor(mode layoutMode) string {
 	summary := centerCanvas(sGray.Render(trimDisplay(currentActionSpec.Summary, max(1, canvasW))))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		renderConfirmationAction(currentActionSpec.PrimaryAction(), m.startChoice == 0),
+		renderConfirmationAction(currentActionSpec.PrimaryAction(), m.updateChoice == 0),
 		"   ",
-		renderConfirmationAction(actionflow.CancelAction, m.startChoice == 1),
+		renderConfirmationAction(actionflow.CancelAction, m.updateChoice == 1),
 	))
 
 	if mode == layoutMobile {
@@ -3623,8 +3657,8 @@ func stopActiveScript(m model) {
 	}
 }
 
-func dedicatedActionExitCode(m model) int {
-	if m.startCanceled || m.scriptCanceled {
+func dedicatedUpdateExitCode(m model) int {
+	if m.updateCanceled || m.scriptCanceled {
 		return 130
 	}
 	if m.scriptErr != nil {
@@ -3634,7 +3668,7 @@ func dedicatedActionExitCode(m model) int {
 }
 
 func runDedicatedUpdate() int {
-	initial, _ := (model{}).beginUpdateAction(true)
+	initial, _ := (model{}).beginUpdateConfirmation(true)
 	result, err := newTUIProgram(initial).Run()
 	final, ok := result.(model)
 	interrupted := ok && final.scriptRunning
@@ -3653,7 +3687,7 @@ func runDedicatedUpdate() int {
 	if interrupted {
 		return 130
 	}
-	return dedicatedActionExitCode(final)
+	return dedicatedUpdateExitCode(final)
 }
 
 func runDedicatedAction() int {
@@ -3681,7 +3715,7 @@ func runDedicatedAction() int {
 	if interrupted {
 		return 130
 	}
-	return dedicatedActionExitCode(final)
+	return dedicatedUpdateExitCode(final)
 }
 
 func main() {
