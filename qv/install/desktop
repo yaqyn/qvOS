@@ -52,6 +52,7 @@
     qv/power/qvos-battery-full-charge-once.service
     qv/power/suspend-if-safe
     qv/screensaver/alacritty.toml
+    qv/screensaver/install
     qv/screensaver/omarchy-launch-screensaver
     qv/screensaver/qvos-launch-screensaver
     qv/screensaver/qvos-screensaver
@@ -143,23 +144,9 @@
     echo "qvOS preserved the current Thunar actions because they could not be reconciled." >&2
   fi
 
-  screensaver_source="$OMARCHY_PATH/qv/screensaver"
-  qvos_bin="$HOME/.local/share/qvos/bin"
-  qvos_screensaver="$HOME/.local/share/qvos/screensaver"
-  local_bin="$HOME/.local/bin"
-
-  rm -rf -- "$qvos_screensaver"
-  install -d \
-    "$qvos_bin" \
-    "$qvos_screensaver" \
-    "$local_bin"
   "$OMARCHY_PATH/qv/tui/install" --build-if-available
   "$OMARCHY_PATH/qv/shell/install"
+  "$OMARCHY_PATH/qv/screensaver/install"
   "$OMARCHY_PATH/qv/power/install"
   "$OMARCHY_PATH/qv/security/install"
-  install -m 0644 "$screensaver_source/alacritty.toml" "$qvos_screensaver/alacritty.toml"
-  for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
-    install -m 0755 "$screensaver_source/$command_name" "$qvos_bin/$command_name"
-    ln -sfn "$qvos_bin/$command_name" "$local_bin/$command_name"
-  done
 )

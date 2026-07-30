@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+source_dir="$OMARCHY_PATH/qv/screensaver"
+runtime_root="$HOME/.local/share/qvos"
+runtime_config="$runtime_root/screensaver"
+qvos_bin="$runtime_root/bin"
+local_bin="$HOME/.local/bin"
+staged_file=""
+commands=(
+  omarchy-launch-screensaver
+  qvos-launch-screensaver
+  qvos-screensaver
+)
+
+cleanup() {
+  [[ -z $staged_file ]] || rm -f -- "$staged_file"
+}
+trap cleanup EXIT
+
+[[ -f $source_dir/alacritty.toml ]] || {
+  echo "Missing qvOS screensaver config." >&2
+  exit 1
+}
+for command_name in "${commands[@]}"; do
+  [[ -x $source_dir/$command_name ]] || {
+    echo "Missing qvOS screensaver command: $command_name" >&2
+    exit 1
+  }
+done
+[[ ! -L $runtime_config ]] || {
+  echo "Refusing symbolic-link qvOS screensaver runtime: $runtime_config" >&2
+  exit 1
+}
+
+install -d "$runtime_config" "$qvos_bin" "$local_bin"
+
+staged_file=$(mktemp "$runtime_config/.alacritty.toml.XXXXXX")
+install -m 0644 "$source_dir/alacritty.toml" "$staged_file"
+mv -f -- "$staged_file" "$runtime_config/alacritty.toml"
+staged_file=""
+
+find "$runtime_config" \
+  -mindepth 1 \
+  -maxdepth 1 \
+  ! -name alacritty.toml \
+  -exec rm -rf -- {} +
+
+for command_name in "${commands[@]}"; do
+  staged_file=$(mktemp "$qvos_bin/.$command_name.XXXXXX")
+  install -m 0755 "$source_dir/$command_name" "$staged_file"
+  mv -f -- "$staged_file" "$qvos_bin/$command_name"
+  staged_file=""
+  ln -sfn "$qvos_bin/$command_name" "$local_bin/$command_name"
+done

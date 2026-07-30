@@ -20,6 +20,10 @@ input detection.
 - Preserve the Hypridle ordering: screensaver first, lock second, then guarded
   suspend. Do not restore external state from an unsupervised per-monitor
   runner.
+- `qv/screensaver/install` owns the complete user runtime. Stage each
+  replacement before removing stale content, and run this owner before
+  privileged desktop owners so a later sudo or system failure cannot leave the
+  screensaver config or commands missing.
 
 Run Bash syntax and ShellCheck for changed scripts, then
 `test/qvos/qvos-screensaver-test.sh` and the full qvOS shell suite when shared

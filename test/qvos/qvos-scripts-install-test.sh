@@ -87,6 +87,53 @@ grep -Fq 'Missing qvOS desktop feature file:' \
   fail "incomplete source-file preserved payload"
 pass "missing feature files cannot erase the installed desktop payload"
 
+unsafe_screensaver_home="$test_root/unsafe-screensaver-home"
+external_screensaver="$test_root/external-screensaver"
+install -d \
+  "$unsafe_screensaver_home/.local/share/qvos" \
+  "$external_screensaver"
+touch "$external_screensaver/preserve"
+ln -s \
+  "$external_screensaver" \
+  "$unsafe_screensaver_home/.local/share/qvos/screensaver"
+if HOME="$unsafe_screensaver_home" OMARCHY_PATH="$root" \
+  "$root/qv/screensaver/install" >/dev/null 2>&1; then
+  fail "symbolic-link screensaver runtime"
+fi
+[[ -e $external_screensaver/preserve &&
+  ! -e $external_screensaver/alacritty.toml ]] ||
+  fail "symbolic-link screensaver runtime preservation"
+pass "screensaver installation refuses external runtime targets"
+
+downstream_failure_home="$test_root/downstream-failure-home"
+power_blocker="$test_root/power-blocker"
+install -d "$downstream_failure_home/.local/share/qvos/screensaver"
+printf 'stale config\n' \
+  >"$downstream_failure_home/.local/share/qvos/screensaver/alacritty.toml"
+install -m 0644 /dev/null "$power_blocker"
+
+if HOME="$downstream_failure_home" \
+  OMARCHY_PATH="$root" \
+  QVOS_POWER_SYSTEM_ROOT="$power_blocker" \
+  bash -c 'source "$1"' _ "$root/qv/install/desktop" \
+  >"$test_root/downstream-failure.log" 2>&1; then
+  fail "downstream power failure fixture"
+fi
+cmp -s \
+  "$root/qv/screensaver/alacritty.toml" \
+  "$downstream_failure_home/.local/share/qvos/screensaver/alacritty.toml" ||
+  fail "downstream failure removed the screensaver config"
+for command_name in \
+  omarchy-launch-screensaver \
+  qvos-launch-screensaver \
+  qvos-screensaver; do
+  cmp -s \
+    "$root/qv/screensaver/$command_name" \
+    "$downstream_failure_home/.local/share/qvos/bin/$command_name" ||
+    fail "downstream failure left an incomplete $command_name"
+done
+pass "later privileged failures cannot break the screensaver runtime"
+
 install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/share/qvos/bin" \
