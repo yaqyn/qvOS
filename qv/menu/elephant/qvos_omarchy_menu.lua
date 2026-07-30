@@ -80,10 +80,6 @@ function ShowMenu()
   write_mode("menu")
 end
 
-local function present(command)
-  return "omarchy-launch-floating-terminal-with-presentation " .. command
-end
-
 local function terminal(command)
   return "xdg-terminal-exec --app-id=org.omarchy.terminal " .. command
 end
@@ -98,14 +94,30 @@ local function edit(relative_path)
     .. "\""
 end
 
-local function install_font(name, packages, font)
-  local command = "echo "
-    .. shell_escape("Installing " .. name .. "...")
-    .. "; omarchy-pkg-add "
-    .. packages
-    .. " && sleep 2 && omarchy-font-set "
-    .. shell_escape(font)
-  return present("bash -lc " .. shell_escape(command))
+local function qvos_owner(relative_path, ...)
+  local home = os.getenv("HOME")
+  local source = os.getenv("OMARCHY_PATH")
+    or (home and home .. "/.local/share/omarchy")
+
+  if not source then
+    return nil
+  end
+
+  local command = shell_escape(source .. "/" .. relative_path)
+  for _, argument in ipairs({ ... }) do
+    command = command .. " " .. shell_escape(argument)
+  end
+  return command
+end
+
+local function task_action(slug)
+  return qvos_owner("qv/tui/task/launch", slug)
+    or "omarchy-launch-qvos-task " .. shell_escape(slug)
+end
+
+local function install_font(slug)
+  return qvos_owner("qv/tui/action/launch", "--installer", slug)
+    or route("install-font")
 end
 
 local function add(entries, icon, text, breadcrumb, keywords, action)
@@ -522,10 +534,10 @@ function GetEntries(query)
   add(entries, "", "Window Gaps", "More · Toggles", { "toggle", "hyprland" }, "omarchy-hyprland-window-gaps-toggle")
   add(entries, "", "1-Window Ratio", "More · Toggles", { "toggle", "square" }, "omarchy-hyprland-window-single-square-aspect-toggle")
   add(entries, "󰍹", "Monitor Scaling", "More · Toggles", { "display", "scale" }, "omarchy-hyprland-monitor-scaling-cycle")
-  add(entries, "", "Direct Boot", "More · Toggles", { "limine", "boot" }, present("omarchy-config-direct-boot"))
+  add(entries, "", "Direct Boot", "More · Toggles", { "limine", "boot" }, task_action("direct-boot"))
   add(entries, "󰛧", "Laptop Display", "Settings · Devices", { "monitor", "toggle" }, "omarchy-hyprland-monitor-internal toggle")
   add(entries, "󰍹", "Mirror Display", "Settings · Devices", { "monitor", "toggle" }, "omarchy-hyprland-monitor-internal-mirror toggle")
-  add(entries, "", "Hybrid GPU", "Settings · Devices", { "graphics", "toggle" }, present("omarchy-toggle-hybrid-gpu"))
+  add(entries, "", "Hybrid GPU", "Settings · Devices", { "graphics", "toggle" }, task_action("hybrid-gpu"))
   add(entries, "󰟸", "Touchpad", "Settings · Devices", { "toggle", "input" }, "omarchy-toggle-touchpad")
   add(entries, "󰆽", "Touchscreen", "Settings · Devices", { "toggle", "input" }, "omarchy-toggle-touchscreen")
   add(entries, "󰌌", "Touchpad Haptics", "Settings · Devices", { "dell", "vibration" }, route("hardware"))
@@ -549,12 +561,12 @@ function GetEntries(query)
   add_software_installers(entries, "Settings · Software · Services")
 
   -- Appearance add-ons.
-  add(entries, "", "Cascadia Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("Cascadia Mono", "ttf-cascadia-mono-nerd", "CaskaydiaMono Nerd Font"))
-  add(entries, "", "Meslo LG Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("Meslo LG Mono", "ttf-meslo-nerd", "MesloLGL Nerd Font"))
-  add(entries, "", "Fira Code", "Settings · Appearance · Font", { "nerd font" }, install_font("Fira Code", "ttf-firacode-nerd", "FiraCode Nerd Font"))
-  add(entries, "", "Victor Code", "Settings · Appearance · Font", { "nerd font" }, install_font("Victor Code", "ttf-victor-mono-nerd", "VictorMono Nerd Font"))
-  add(entries, "", "Bitstream Vera Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("Bitstream Vera Code", "ttf-bitstream-vera-mono-nerd", "BitstromWera Nerd Font"))
-  add(entries, "", "Iosevka", "Settings · Appearance · Font", { "nerd font" }, install_font("Iosevka", "ttf-iosevka-nerd", "Iosevka Nerd Font Mono"))
+  add(entries, "", "Cascadia Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("font-cascadia-mono"))
+  add(entries, "", "Meslo LG Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("font-meslo-mono"))
+  add(entries, "", "Fira Code", "Settings · Appearance · Font", { "nerd font" }, install_font("font-fira-code"))
+  add(entries, "", "Victor Code", "Settings · Appearance · Font", { "nerd font" }, install_font("font-victor-code"))
+  add(entries, "", "Bitstream Vera Mono", "Settings · Appearance · Font", { "nerd font" }, install_font("font-bitstream-vera"))
+  add(entries, "", "Iosevka", "Settings · Appearance · Font", { "nerd font" }, install_font("font-iosevka"))
 
   add_software_installers(entries, "Settings · Software · Development")
 
@@ -564,25 +576,25 @@ function GetEntries(query)
   add_software_installers(entries, "Settings · Software · AI")
 
   -- Restore and restart actions stay searchable under their owning object.
-  add(entries, "", "Refresh Hyprland", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hyprland"))
-  add(entries, "", "Refresh Hypridle", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hypridle"))
-  add(entries, "", "Refresh Hyprlock", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hyprlock"))
-  add(entries, "", "Refresh Hyprsunset", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-hyprsunset"))
-  add(entries, "󱣴", "Refresh Plymouth", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-plymouth"))
-  add(entries, "", "Refresh Swayosd", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-swayosd"))
-  add(entries, "", "Refresh Tmux", "Settings · System · Config", { "default", "reset" }, present("omarchy-refresh-tmux"))
-  add(entries, "󰌧", "Refresh Walker", "Settings · System · Config", { "default", "reset", "menu" }, present("omarchy-refresh-walker"))
-  add(entries, "󰍜", "Refresh Waybar", "Settings · System · Config", { "default", "reset", "bar" }, present("omarchy-qvos-refresh-waybar"))
-  add(entries, "", "Restart Hypridle", "Settings · System · Services", { "service", "reload" }, "omarchy-restart-hypridle")
-  add(entries, "", "Restart Hyprsunset", "Settings · System · Services", { "service", "reload" }, "omarchy-restart-hyprsunset")
-  add(entries, "󰎟", "Restart Mako", "Settings · System · Services", { "notifications", "reload" }, "omarchy-restart-mako")
-  add(entries, "", "Restart Swayosd", "Settings · System · Services", { "service", "reload" }, "omarchy-restart-swayosd")
-  add(entries, "󰌧", "Restart Walker", "Settings · System · Services", { "menu", "reload" }, "omarchy-restart-walker")
-  add(entries, "󰍜", "Restart Waybar", "Settings · System · Services", { "bar", "reload" }, "omarchy-restart-waybar")
-  add(entries, "", "Restart Audio", "Settings · Devices · Audio", { "pipewire", "sound" }, present("omarchy-restart-pipewire"))
-  add(entries, "󱚾", "Restart Wi-Fi", "Settings · Connections · Wi-Fi", { "network", "wifi" }, present("omarchy-restart-wifi"))
-  add(entries, "󰂯", "Restart Bluetooth", "Settings · Connections · Bluetooth", { "device", "network" }, present("omarchy-restart-bluetooth"))
-  add(entries, "󰟸", "Restart Trackpad", "Settings · Devices · Input", { "input", "device" }, present("omarchy-restart-trackpad"))
+  add(entries, "", "Refresh Hyprland", "Settings · System · Config", { "default", "reset" }, task_action("refresh-hyprland"))
+  add(entries, "", "Refresh Hypridle", "Settings · System · Config", { "default", "reset" }, task_action("refresh-hypridle"))
+  add(entries, "", "Refresh Hyprlock", "Settings · System · Config", { "default", "reset" }, task_action("refresh-hyprlock"))
+  add(entries, "", "Refresh Hyprsunset", "Settings · System · Config", { "default", "reset" }, task_action("refresh-hyprsunset"))
+  add(entries, "󱣴", "Refresh Plymouth", "Settings · System · Config", { "default", "reset" }, task_action("refresh-plymouth"))
+  add(entries, "", "Refresh Swayosd", "Settings · System · Config", { "default", "reset" }, task_action("refresh-swayosd"))
+  add(entries, "", "Refresh Tmux", "Settings · System · Config", { "default", "reset" }, task_action("refresh-tmux"))
+  add(entries, "󰌧", "Refresh Walker", "Settings · System · Config", { "default", "reset", "menu" }, task_action("refresh-walker"))
+  add(entries, "󰍜", "Refresh Waybar", "Settings · System · Config", { "default", "reset", "bar" }, task_action("refresh-waybar"))
+  add(entries, "", "Restart Hypridle", "Settings · System · Services", { "service", "reload" }, task_action("restart-hypridle"))
+  add(entries, "", "Restart Hyprsunset", "Settings · System · Services", { "service", "reload" }, task_action("restart-hyprsunset"))
+  add(entries, "󰎟", "Restart Mako", "Settings · System · Services", { "notifications", "reload" }, task_action("restart-mako"))
+  add(entries, "", "Restart Swayosd", "Settings · System · Services", { "service", "reload" }, task_action("restart-swayosd"))
+  add(entries, "󰌧", "Restart Walker", "Settings · System · Services", { "menu", "reload" }, task_action("restart-walker"))
+  add(entries, "󰍜", "Restart Waybar", "Settings · System · Services", { "bar", "reload" }, task_action("restart-waybar"))
+  add(entries, "", "Restart Audio", "Settings · Devices · Audio", { "pipewire", "sound" }, task_action("restart-audio"))
+  add(entries, "󱚾", "Restart Wi-Fi", "Settings · Connections · Wi-Fi", { "network", "wifi" }, task_action("restart-wifi"))
+  add(entries, "󰂯", "Restart Bluetooth", "Settings · Connections · Bluetooth", { "device", "network" }, task_action("restart-bluetooth"))
+  add(entries, "󰟸", "Restart Trackpad", "Settings · Devices · Input", { "input", "device" }, task_action("restart-trackpad"))
 
   -- Power actions remain globally searchable without crowding Home.
   add(entries, "", "Lock", "More · Power", { "screen", "security" }, "omarchy-system-lock")

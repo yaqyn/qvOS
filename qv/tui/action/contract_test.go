@@ -53,3 +53,50 @@ func TestStopPromptKeepsTheOwnerRunningByDefault(t *testing.T) {
 		}
 	}
 }
+
+func TestTaskSpecLoadsExplicitCopyAndRingRole(t *testing.T) {
+	t.Setenv("QVOS_ACTION_SLUG", "refresh-waybar")
+	t.Setenv("QVOS_ACTION_OPERATION", "task")
+	t.Setenv("QVOS_ACTION_TITLE", "Waybar Config")
+	t.Setenv("QVOS_ACTION_SUMMARY", "Restore Waybar defaults with qvOS overrides")
+	t.Setenv("QVOS_ACTION_REQUIRES_SUDO", "0")
+	t.Setenv("QVOS_ACTION_RINGS", "1")
+	t.Setenv("QVOS_ACTION_PRIMARY", "Restore")
+	t.Setenv("QVOS_ACTION_ACTIVE", "Restoring")
+	t.Setenv("QVOS_ACTION_COMPLETE", "Restored")
+
+	spec, err := FromEnvironment()
+	if err != nil {
+		t.Fatalf("task spec: %v", err)
+	}
+	if spec.Rings != 1 ||
+		spec.Heading() != "RESTORE WAYBAR CONFIG" ||
+		spec.ActiveTitle() != "RESTORING" ||
+		spec.PastTense() != "RESTORED" ||
+		spec.RunningStatus() != "restoring Waybar Config" ||
+		spec.CompleteStatus() != "Waybar Config restored" {
+		t.Fatalf("task copy = %#v", spec)
+	}
+}
+
+func TestTaskSpecRejectsMissingCopyOrInvalidRings(t *testing.T) {
+	t.Setenv("QVOS_ACTION_SLUG", "firmware-update")
+	t.Setenv("QVOS_ACTION_OPERATION", "task")
+	t.Setenv("QVOS_ACTION_TITLE", "Firmware")
+	t.Setenv("QVOS_ACTION_SUMMARY", "Update system firmware")
+	t.Setenv("QVOS_ACTION_REQUIRES_SUDO", "1")
+	t.Setenv("QVOS_ACTION_RINGS", "4")
+	t.Setenv("QVOS_ACTION_PRIMARY", "Update")
+	t.Setenv("QVOS_ACTION_ACTIVE", "Updating")
+	t.Setenv("QVOS_ACTION_COMPLETE", "Updated")
+
+	if _, err := FromEnvironment(); err == nil {
+		t.Fatal("invalid task ring contract passed validation")
+	}
+
+	t.Setenv("QVOS_ACTION_RINGS", "3")
+	t.Setenv("QVOS_ACTION_COMPLETE", "")
+	if _, err := FromEnvironment(); err == nil {
+		t.Fatal("incomplete task copy contract passed validation")
+	}
+}

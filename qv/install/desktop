@@ -31,6 +31,7 @@
     qv/menu/elephant/omarchy_unlocks.lua
     qv/menu/elephant/qvos_omarchy_menu.lua
     qv/menu/extension.sh
+    qv/menu/font-install
     qv/menu/install
     qv/menu/search-intents.psv
     qv/menu/software-actions.psv
@@ -74,6 +75,9 @@
     qv/tui/action/launch
     qv/tui/action/run
     qv/tui/action/run-installer
+    qv/tui/task/actions.psv
+    qv/tui/task/launch
+    qv/tui/task/run
     qv/tui/update/launch
     qv/tui/update/run
     qv/tmux/qvos-tmux

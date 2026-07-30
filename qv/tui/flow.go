@@ -18,17 +18,28 @@ func requirementsForAction(action actionMode) flowRequirements {
 		}
 	case actionGeneric:
 		return flowRequirements{
-			Model:         modelTwoRings,
+			Model:         modelRoleForRings(currentActionSpec.Rings),
 			Preflight:     true,
 			Authorization: currentActionSpec.RequiresSudo,
 			ProgressBar:   true,
 		}
 	case actionBuild:
 		return flowRequirements{
-			Model:       modelTwoRings,
+			Model:       modelThreeRings,
 			ProgressBar: true,
 		}
 	default:
 		return flowRequirements{Model: modelCore}
+	}
+}
+
+func modelRoleForRings(rings int) modelRole {
+	switch rings {
+	case 1:
+		return modelOneRing
+	case 3:
+		return modelThreeRings
+	default:
+		return modelTwoRings
 	}
 }

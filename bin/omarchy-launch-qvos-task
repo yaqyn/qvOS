@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Open a classified qvOS task in its TUI or native owner
+# omarchy:group=launch
+# omarchy:name=qvos-task
+# omarchy:args=<task-slug>
+# omarchy:hidden=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/tui/task/launch" "$@"

@@ -853,7 +853,7 @@ func TestModelRolesStaySemanticAcrossTUISurfaces(t *testing.T) {
 	}{
 		{"hub", model{tab: 0}, modelCore},
 		{"update", model{loading: true, action: actionUpdate}, modelThreeRings},
-		{"build", model{loading: true, action: actionBuild}, modelTwoRings},
+		{"build", model{loading: true, action: actionBuild}, modelThreeRings},
 		{"software", model{loading: true, action: actionGeneric}, modelTwoRings},
 	}
 

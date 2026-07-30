@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+slug=${1:-}
+
+case $slug in
+cascadia-mono)
+  name="Cascadia Mono"
+  package="ttf-cascadia-mono-nerd"
+  font="CaskaydiaMono Nerd Font"
+  ;;
+meslo-mono)
+  name="Meslo LG Mono"
+  package="ttf-meslo-nerd"
+  font="MesloLGL Nerd Font"
+  ;;
+fira-code)
+  name="Fira Code"
+  package="ttf-firacode-nerd"
+  font="FiraCode Nerd Font"
+  ;;
+victor-code)
+  name="Victor Code"
+  package="ttf-victor-mono-nerd"
+  font="VictorMono Nerd Font"
+  ;;
+bitstream-vera)
+  name="Bitstream Vera Mono"
+  package="ttf-bitstream-vera-mono-nerd"
+  font="BitstromWera Nerd Font"
+  ;;
+iosevka)
+  name="Iosevka"
+  package="ttf-iosevka-nerd"
+  font="Iosevka Nerd Font Mono"
+  ;;
+*)
+  echo "Usage: qv/menu/font-install <font-slug>" >&2
+  exit 2
+  ;;
+esac
+
+echo "Installing $name..."
+omarchy-pkg-add "$package"
+omarchy-font-set "$font"

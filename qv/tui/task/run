@@ -1,0 +1,84 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qv/tui/task/actions.psv"
+slug=${QVOS_ACTION_SLUG:-}
+operation=${QVOS_ACTION_OPERATION:-}
+
+task_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 10 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+load_task() {
+  local record
+
+  [[ $operation == "task" ]] || {
+    echo "Invalid qvOS TUI task operation." >&2
+    return 2
+  }
+  record=$(task_record) || {
+    echo "Unknown qvOS TUI task: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    _ \
+    _ \
+    _ \
+    presentation \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner_command <<<"$record"
+  [[ $presentation == "tui" ]] || {
+    echo "The $slug task requires its native interactive terminal." >&2
+    return 2
+  }
+  read -r -a owner_args <<<"$owner_command"
+  ((${#owner_args[@]} > 0)) || {
+    echo "Missing qvOS TUI task owner for $slug." >&2
+    return 1
+  }
+}
+
+preflight() {
+  [[ -f $catalog ]] || {
+    echo "The qvOS TUI task source is incomplete." >&2
+    return 1
+  }
+  command -v "${owner_args[0]}" >/dev/null 2>&1 || {
+    echo "The qvOS TUI task owner is unavailable: ${owner_args[0]}" >&2
+    return 1
+  }
+}
+
+load_task
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  preflight
+  exit
+  ;;
+"")
+  ;;
+*)
+  echo "Usage: qv/tui/task/run [--check]" >&2
+  exit 2
+  ;;
+esac
+
+preflight
+echo "qvOS action: preparing"
+echo "qvOS action: applying"
+"${owner_args[@]}"
+echo "qvOS action: complete"

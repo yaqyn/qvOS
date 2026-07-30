@@ -1,0 +1,47 @@
+# slug|title|summary|rings|presentation|requires_sudo|primary|active|complete|owner
+theme-install|Extra Theme|Install a theme from a Git repository|2|native|false|Install|Installing|Installed|omarchy-theme-install
+theme-remove|Extra Theme|Choose and remove a user-installed theme|2|native|false|Remove|Removing|Removed|omarchy-theme-remove
+theme-update|Extra Themes|Update every user-installed Git theme|1|tui|false|Update|Updating|Updated|omarchy-theme-update
+webapp-install|Web App|Create a desktop launcher from interactive app details|2|native|false|Install|Installing|Installed|omarchy-webapp-install
+webapp-remove|Web App|Choose and remove Web App launchers|2|native|false|Remove|Removing|Removed|omarchy-webapp-remove
+tui-install|TUI Shortcut|Create a terminal app launcher from interactive details|2|native|false|Install|Installing|Installed|omarchy-tui-install
+tui-remove|TUI Shortcut|Choose and remove terminal app launchers|2|native|false|Remove|Removing|Removed|omarchy-tui-remove
+dns-configure|DNS|Choose and configure qvOS DNS or Cloudflare WARP|3|native|true|Configure|Configuring|Configured|omarchy-qvos-setup-dns
+battery-status|Battery Protection|Inspect the current charging-protection state|1|tui|false|Inspect|Inspecting|Inspected|omarchy battery protection status
+battery-enable|Battery Protection|Choose and confirm a safe charging-protection preset|3|native|false|Enable|Enabling|Enabled|omarchy battery protection enable
+battery-disable|Battery Protection|Confirm and disable qvOS charging protection|3|native|false|Disable|Disabling|Disabled|omarchy battery protection disable
+battery-full-charge|Full Charge Once|Temporarily restore full charging with guarded recovery|3|native|false|Start|Starting|Started|omarchy battery protection full-charge-once
+battery-report|Battery Protection|Inspect the privacy-safe hardware and protection report|1|tui|false|Inspect|Inspecting|Inspected|omarchy battery protection report
+timezone|Timezone|Choose and apply the system timezone|1|native|true|Set|Setting|Set|omarchy-tz-select
+time-sync|System Time|Restart system time synchronization|1|tui|true|Sync|Syncing|Synced|omarchy-update-time
+firmware-update|Firmware|Review device safety prompts and install firmware updates|3|native|true|Update|Updating|Updated|omarchy-update-firmware
+user-password|User Password|Change the current user password securely|3|native|false|Change|Changing|Changed|passwd
+drive-password|Drive Encryption Password|Choose an encrypted drive and change its key securely|3|native|true|Change|Changing|Changed|omarchy-drive-password
+fingerprint-setup|Fingerprint Authentication|Enroll and verify a fingerprint for authentication|3|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fingerprint
+fingerprint-remove|Fingerprint Authentication|Remove fingerprint authentication and its packages|3|tui|true|Remove|Removing|Removed|omarchy-remove-security-fingerprint
+fido2-setup|FIDO2 Authentication|Register and verify a hardware security key|3|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fido2
+fido2-remove|FIDO2 Authentication|Remove FIDO2 authentication and its packages|3|tui|true|Remove|Removing|Removed|omarchy-remove-security-fido2
+passwordless-sudo|Passwordless Sudo|Confirm a temporary high-risk passwordless sudo window|3|native|true|Configure|Configuring|Configured|omarchy-sudo-passwordless
+direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|native|true|Configure|Configuring|Configured|omarchy-config-direct-boot
+hybrid-gpu|Hybrid GPU|Confirm a GPU mode change and system reboot|3|native|true|Configure|Configuring|Configured|omarchy-toggle-hybrid-gpu
+hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|native|true|Enable|Enabling|Enabled|omarchy-hibernation-setup
+hibernation-disable|Hibernation|Confirm and remove hibernation configuration|3|native|true|Disable|Disabling|Disabled|omarchy-hibernation-remove
+refresh-hyprland|Hyprland Config|Restore qvOS and Omarchy Hyprland defaults with backups|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprland
+refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
+refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
+refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset
+refresh-plymouth|Plymouth|Restore the qvOS boot theme and rebuild boot images|3|tui|true|Restore|Restoring|Restored|omarchy-refresh-plymouth
+refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-swayosd
+refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
+refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|1|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker
+refresh-waybar|Waybar Config|Restore Waybar defaults with qvOS overrides|1|tui|false|Restore|Restoring|Restored|omarchy-qvos-refresh-waybar
+restart-hypridle|Hypridle|Restart the Hypridle user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-hypridle
+restart-hyprsunset|Hyprsunset|Restart the Hyprsunset user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-hyprsunset
+restart-mako|Notifications|Restart the Mako notification service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-mako
+restart-swayosd|SwayOSD|Restart the SwayOSD user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-swayosd
+restart-walker|Walker|Restart the Walker application launcher|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-walker
+restart-waybar|Waybar|Restart the Waybar user service|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-waybar
+restart-audio|Audio|Restart PipeWire and WirePlumber audio services|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-pipewire
+restart-wifi|Wi-Fi|Unblock Wi-Fi and inspect its radio state|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-wifi
+restart-bluetooth|Bluetooth|Unblock Bluetooth and inspect its radio state|1|tui|false|Restart|Restarting|Restarted|omarchy-restart-bluetooth
+restart-trackpad|Trackpad|Reset supported trackpad kernel drivers|1|tui|true|Restart|Restarting|Restarted|omarchy-restart-trackpad

@@ -283,7 +283,7 @@ func (m isoProgressModel) View() tea.View {
 
 		var icon string
 		if showIcon {
-			icon = renderModelRole(modelTwoRings, m.frame)
+			icon = renderModelRole(modelThreeRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
 		body = m.renderISOProgressBody(mode, icon)
@@ -317,7 +317,7 @@ func (m isoProgressModel) renderISOSideBody(width, height int) string {
 		canvasW, canvasH = iconWidth, iconHeight
 		right = lipgloss.JoinVertical(
 			lipgloss.Center,
-			renderModelRole(modelTwoRings, m.frame),
+			renderModelRole(modelThreeRings, m.frame),
 			"",
 			renderIdentity("qvOS", "INSTALL / LOADING"),
 		)

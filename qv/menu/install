@@ -20,6 +20,9 @@ software_installer_state_source="$menu_source_dir/software-installer-state"
 software_installers_source="$menu_source_dir/software-installers.psv"
 software_installers_runtime="$menu_runtime_dir/software-installers.psv"
 software_state_source="$menu_source_dir/software-state"
+task_catalog_source="$OMARCHY_PATH/qv/tui/task/actions.psv"
+task_launch_source="$OMARCHY_PATH/qv/tui/task/launch"
+task_run_source="$OMARCHY_PATH/qv/tui/task/run"
 search_intents_source="$menu_source_dir/search-intents.psv"
 search_intents_runtime="$menu_runtime_dir/search-intents.psv"
 elephant_ready_source="$menu_source_dir/wait-for-elephant"
@@ -59,6 +62,9 @@ require_sources() {
     "$software_installer_state_source"
     "$software_installers_source"
     "$software_state_source"
+    "$task_catalog_source"
+    "$task_launch_source"
+    "$task_run_source"
     "$search_intents_source"
     "$elephant_ready_source"
     "$walker_ready_source"
@@ -100,6 +106,10 @@ require_sources() {
   }
   [[ -x $software_installer_state_source ]] || {
     echo "qvOS software installer state owner is not executable: $software_installer_state_source" >&2
+    return 1
+  }
+  [[ -x $task_launch_source && -x $task_run_source ]] || {
+    echo "qvOS TUI task adapters are not executable." >&2
     return 1
   }
 

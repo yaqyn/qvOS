@@ -5,6 +5,37 @@
 INSTALL_EASY_LIST_ACTIVE=false
 STYLE_BACK_MENU=show_main_menu
 
+launch_tui_task() {
+  local launcher=${QVOS_TUI_TASK_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/task/launch}
+
+  "$launcher" "$1"
+}
+
+tui_task_for_owner() {
+  local owner_command="$1"
+  local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/task/actions.psv"
+
+  awk -F '|' -v wanted="$owner_command" '
+    $1 !~ /^#/ && NF == 10 && $10 == wanted {
+      print $1
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+present_terminal() {
+  local owner_command="$*"
+  local task
+
+  if task=$(tui_task_for_owner "$owner_command"); then
+    launch_tui_task "$task"
+  else
+    omarchy-launch-floating-terminal-with-presentation "$owner_command"
+  fi
+}
+
 set_qvos_menu_mode() {
   local mode="$1"
   local runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
@@ -114,6 +145,18 @@ launch_software_installer() {
   local launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/action/launch}
 
   "$launcher" --installer "$1"
+}
+
+show_install_font_menu() {
+  case $(menu "Install" "  Cascadia Mono\n  Meslo LG Mono\n  Fira Code\n  Victor Code\n  Bitstream Vera Mono\n  Iosevka" "--width 350") in
+  *Cascadia*) launch_software_installer font-cascadia-mono ;;
+  *Meslo*) launch_software_installer font-meslo-mono ;;
+  *Fira*) launch_software_installer font-fira-code ;;
+  *Victor*) launch_software_installer font-victor-code ;;
+  *Bitstream*) launch_software_installer font-bitstream-vera ;;
+  *Iosevka*) launch_software_installer font-iosevka ;;
+  *) show_install_menu ;;
+  esac
 }
 
 show_software_installer_menu() {
@@ -546,6 +589,18 @@ show_remove_menu() {
 
 show_update_menu() {
   omarchy-launch-qvos-update
+}
+
+show_update_process_menu() {
+  case $(menu "Restart" "  Hypridle\n  Hyprsunset\n󰎟  Mako\n  Swayosd\n󰌧  Walker\n󰍜  Waybar") in
+  *Hypridle*) launch_tui_task restart-hypridle ;;
+  *Hyprsunset*) launch_tui_task restart-hyprsunset ;;
+  *Mako*) launch_tui_task restart-mako ;;
+  *Swayosd*) launch_tui_task restart-swayosd ;;
+  *Walker*) launch_tui_task restart-walker ;;
+  *Waybar*) launch_tui_task restart-waybar ;;
+  *) show_update_menu ;;
+  esac
 }
 
 show_update_config_menu() {

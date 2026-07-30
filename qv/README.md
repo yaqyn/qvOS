@@ -73,11 +73,14 @@ identity or base readiness.
   Convex, Playwright dependencies, and Playwright browser assets remain
   project-local. Install checks every inventory entry and installs only what is
   missing before verifying the complete stack.
-- The qvOS TUI exposes Update, ISO Build, and state-aware Software actions.
-  Software actions reuse one shared two-ring confirmation, authorization,
-  progress, log, and result flow while delegating the mutation once to the
-  existing Omarchy or qvOS owner. Owners that require an interactive prompt,
-  authentication, or configuration session retain their native terminal.
+- The qvOS TUI exposes Update, ISO Build, state-aware Software actions, and
+  fixed classified desktop tasks. Three rings identify system-critical or
+  high-impact work, two rings identify simple Software install/remove work,
+  and one ring identifies ordinary safe tasks. Every action reuses one shared
+  confirmation, authorization, progress, log, and result flow while delegating
+  the mutation once to the existing Omarchy or qvOS owner. Owners that require
+  an interactive prompt, authentication, secrets, hardware interaction,
+  selection, configuration, or reboot choice retain their native terminal.
   Install-only selectors keep their browse shape, but every stream-safe leaf
   uses that same TUI flow and verifies its real installed result.
   ISO Build stages the qvOS source over Omarchy's `main` ISO for its matching

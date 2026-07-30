@@ -282,15 +282,18 @@ grep -Fqx '"$OMARCHY_PATH/qv/config/refresh-hyprland"' \
   fail "Omarchy Hyprland refresh does not delegate to the config owner"
 [[ ! -e $root/qv/hyprland ]] ||
   fail "redundant qvOS Hyprland domain remains"
-grep -Fq 'three rings is Update' "$root/qv/tui/AGENTS.md" ||
-  fail "qvOS TUI Update model role"
-grep -Fq 'one ring is About only' "$root/qv/tui/AGENTS.md" ||
-  fail "qvOS TUI About model role"
+grep -Fq 'three rings are system-critical or high-impact operations' \
+  "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI three-ring model role"
+grep -Fq 'one ring is an ordinary safe task or' "$root/qv/tui/AGENTS.md" ||
+  fail "qvOS TUI one-ring model role"
 grep -Fq 'Important loading or mutation flows never bind' \
   "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI interruption confirmation rule"
 grep -Fq 'Canceled results must say canceled' "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI cancellation result rule"
+grep -Fq 'omarchy-launch-qvos-update' "$root/qv/theme/yaqyn/mako.ini" ||
+  fail "qvOS update notification TUI route"
 grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \
   "$root/qv/config/files/hypr/qv/windows.conf" ||
   fail "qvOS TUI floating window contract"
@@ -542,7 +545,7 @@ pass "LocalSend menu follows command availability"
 
 jq -e '
   ."network"."on-click-right"
-    == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns"
+    == "omarchy-launch-qvos-task dns-configure"
 ' "$root/qv/waybar/overrides.jsonc" >/dev/null ||
   fail "Waybar network DNS route"
 pass "network surfaces reuse their established owners"

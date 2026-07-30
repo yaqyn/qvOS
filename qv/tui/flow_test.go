@@ -27,8 +27,28 @@ func TestFlowRequirementsCentralizeDomainCapabilities(t *testing.T) {
 	}
 
 	build := requirementsForAction(actionBuild)
-	if build.Model != modelTwoRings || build.Preflight ||
+	if build.Model != modelThreeRings || build.Preflight ||
 		build.Authorization || !build.ProgressBar {
 		t.Fatalf("build requirements = %#v", build)
+	}
+}
+
+func TestGenericActionModelFollowsTheClassifiedRingTier(t *testing.T) {
+	previousSpec := currentActionSpec
+	t.Cleanup(func() { currentActionSpec = previousSpec })
+
+	tests := []struct {
+		rings int
+		want  modelRole
+	}{
+		{1, modelOneRing},
+		{2, modelTwoRings},
+		{3, modelThreeRings},
+	}
+	for _, test := range tests {
+		currentActionSpec.Rings = test.rings
+		if got := requirementsForAction(actionGeneric).Model; got != test.want {
+			t.Fatalf("%d-ring task model = %d, want %d", test.rings, got, test.want)
+		}
 	}
 }

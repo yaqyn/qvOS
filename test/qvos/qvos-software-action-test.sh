@@ -249,7 +249,9 @@ while IFS='|' read -r \
   owner \
   extra; do
   [[ -n $slug && $slug != "#"* ]] || continue
-  [[ -n $icon && -n $name && $breadcrumb == "Settings · Software ·"* ]] &&
+  [[ -n $icon && -n $name ]] &&
+    { [[ $breadcrumb == "Settings · Software ·"* ]] ||
+      [[ $breadcrumb == "Settings · Appearance · Font" ]]; } &&
     [[ -n $keywords ]] &&
     [[ $presentation == "tui" || $presentation == "native" ]] &&
     [[ $requires_sudo == "true" || $requires_sudo == "false" ]] &&
@@ -265,7 +267,7 @@ while IFS='|' read -r \
   fi
 done <"$root/qv/menu/software-installers.psv"
 
-[[ $tui_installers == "dropbox bitwarden vscode cursor zed sublime-text helix vim emacs alacritty foot ghostty kitty lm-studio ollama crush" ]] ||
+[[ $tui_installers == "dropbox bitwarden vscode cursor zed sublime-text helix vim emacs font-cascadia-mono font-meslo-mono font-fira-code font-victor-code font-bitstream-vera font-iosevka alacritty foot ghostty kitty lm-studio ollama crush" ]] ||
   fail "complete captured-stream software installer sweep"
 [[ $native_installers == "tailscale nordvpn once chromium-account docker-db" ]] ||
   fail "interactive software installer native-terminal boundary"

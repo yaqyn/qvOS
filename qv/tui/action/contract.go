@@ -19,6 +19,10 @@ type Spec struct {
 	Title        string
 	Summary      string
 	RequiresSudo bool
+	Rings        int
+	Primary      string
+	Active       string
+	Complete     string
 }
 
 func FromEnvironment() (Spec, error) {
@@ -27,6 +31,9 @@ func FromEnvironment() (Spec, error) {
 		Operation: strings.TrimSpace(os.Getenv("QVOS_ACTION_OPERATION")),
 		Title:     strings.TrimSpace(os.Getenv("QVOS_ACTION_TITLE")),
 		Summary:   strings.TrimSpace(os.Getenv("QVOS_ACTION_SUMMARY")),
+		Primary:   strings.TrimSpace(os.Getenv("QVOS_ACTION_PRIMARY")),
+		Active:    strings.TrimSpace(os.Getenv("QVOS_ACTION_ACTIVE")),
+		Complete:  strings.TrimSpace(os.Getenv("QVOS_ACTION_COMPLETE")),
 	}
 
 	switch os.Getenv("QVOS_ACTION_REQUIRES_SUDO") {
@@ -39,21 +46,50 @@ func FromEnvironment() (Spec, error) {
 	if spec.Slug == "" || spec.Title == "" || spec.Summary == "" {
 		return Spec{}, fmt.Errorf("incomplete qvOS action contract")
 	}
-	if spec.Operation != "install" && spec.Operation != "uninstall" {
+	switch rings := strings.TrimSpace(os.Getenv("QVOS_ACTION_RINGS")); rings {
+	case "", "2":
+		spec.Rings = 2
+	case "1":
+		spec.Rings = 1
+	case "3":
+		spec.Rings = 3
+	default:
+		return Spec{}, fmt.Errorf("invalid qvOS action ring contract")
+	}
+	switch spec.Operation {
+	case "install":
+		spec.Primary = "Install"
+		spec.Active = "Installing"
+		spec.Complete = "Installed"
+	case "uninstall":
+		spec.Primary = "Uninstall"
+		spec.Active = "Uninstalling"
+		spec.Complete = "Uninstalled"
+	case "task":
+		if spec.Primary == "" || spec.Active == "" || spec.Complete == "" {
+			return Spec{}, fmt.Errorf("incomplete qvOS task copy contract")
+		}
+	default:
 		return Spec{}, fmt.Errorf("invalid qvOS action operation")
 	}
 	return spec, nil
 }
 
 func (spec Spec) Heading() string {
-	return strings.ToUpper(spec.Operation + " " + spec.Title)
+	return strings.ToUpper(spec.PrimaryAction() + " " + spec.Title)
 }
 
 func (spec Spec) PrimaryAction() string {
+	if spec.Primary != "" {
+		return spec.Primary
+	}
 	return titleCase(spec.Operation)
 }
 
 func (spec Spec) ActiveTitle() string {
+	if spec.Active != "" {
+		return strings.ToUpper(spec.Active)
+	}
 	if spec.Operation == "install" {
 		return "INSTALLING"
 	}
@@ -61,6 +97,9 @@ func (spec Spec) ActiveTitle() string {
 }
 
 func (spec Spec) PastTense() string {
+	if spec.Complete != "" {
+		return strings.ToUpper(spec.Complete)
+	}
 	if spec.Operation == "install" {
 		return "INSTALLED"
 	}
@@ -68,23 +107,23 @@ func (spec Spec) PastTense() string {
 }
 
 func (spec Spec) RunningStatus() string {
-	return spec.Operation + "ing " + spec.Title
+	return strings.ToLower(spec.activeCopy()) + " " + spec.Title
 }
 
 func (spec Spec) CompleteStatus() string {
-	return spec.Title + " " + spec.PastTense()
+	return spec.Title + " " + strings.ToLower(spec.completeCopy())
 }
 
 func (spec Spec) CancelingStatus() string {
-	return "stopping " + spec.Operation
+	return "stopping " + strings.ToLower(spec.PrimaryAction())
 }
 
 func (spec Spec) CanceledStatus() string {
-	return spec.Operation + " stopped"
+	return strings.ToLower(spec.PrimaryAction()) + " stopped"
 }
 
 func (spec Spec) StopPromptTitle() string {
-	return "STOP " + strings.ToUpper(spec.Operation) + "?"
+	return "STOP " + strings.ToUpper(spec.PrimaryAction()) + "?"
 }
 
 func (spec Spec) StopPromptNotice() string {
@@ -92,11 +131,11 @@ func (spec Spec) StopPromptNotice() string {
 }
 
 func (spec Spec) KeepRunningAction() string {
-	return "Keep " + titleCase(spec.Operation) + "ing"
+	return "Keep " + spec.activeCopy()
 }
 
 func (spec Spec) StopAction() string {
-	return "Stop " + titleCase(spec.Operation)
+	return "Stop " + spec.PrimaryAction()
 }
 
 func ProgressFromLine(line string, spec Spec) (string, float64) {
@@ -133,4 +172,24 @@ func titleCase(value string) string {
 		return ""
 	}
 	return strings.ToUpper(value[:1]) + value[1:]
+}
+
+func (spec Spec) activeCopy() string {
+	if spec.Active != "" {
+		return spec.Active
+	}
+	if spec.Operation == "install" {
+		return "Installing"
+	}
+	return "Uninstalling"
+}
+
+func (spec Spec) completeCopy() string {
+	if spec.Complete != "" {
+		return spec.Complete
+	}
+	if spec.Operation == "install" {
+		return "Installed"
+	}
+	return "Uninstalled"
 }

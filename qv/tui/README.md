@@ -8,8 +8,8 @@ modes:
 - `--prototype`: safe fake script, sudo, application, and boot sessions
 - `--update`: qvOS Update confirmation, preflight, authorization, progress,
   logs, and result
-- `--action`: state-aware Software confirmation, preflight, authorization,
-  progress, logs, and result
+- `--action`: classified Software or fixed-task confirmation, preflight,
+  authorization, progress, logs, and result
 - `--iso-installer`: boot installation information and confirmation
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
@@ -92,9 +92,10 @@ read-only.
 The four model roles carry meaning across surfaces:
 
 - CORE: beating red/grayscale hub identity
-- three rings: Update
-- two rings: every other operational terminal, including ISO
-- one ring: About only
+- three rings: system-critical or high-impact operations, including Update and
+  ISO
+- two rings: simple Software install/remove operations
+- one ring: ordinary safe tasks and About
 
 The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
 and guides without scattering those values through shared rendering code.
@@ -122,6 +123,14 @@ State-aware leaves use `software-actions.psv` for paired Install and Uninstall
 owners. Install-only selectors remain selectors and use
 `software-installers.psv`; their safe leaves share the same two-ring flow and
 must pass a real installed-result probe without inventing an Uninstall owner.
+
+## Fixed tasks
+
+`task/actions.psv` classifies non-Software desktop scripts. A stream-safe row
+delegates once through the same shared action presentation with its declared
+one- or three-ring role. Interactive owners remain `native`; the catalog still
+records their intended tier so a later dedicated adapter can preserve prompts,
+authentication, secrets, hardware interaction, and reboot choices.
 
 ## Update
 

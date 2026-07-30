@@ -661,6 +661,18 @@ install -m 0755 /dev/stdin "$test_bin/qvos-software-action" <<'SCRIPT'
 printf '%s\n' "$1" >"$QVOS_TEST_PRESENTATION_LOG"
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/qvos-tui-task" <<'SCRIPT'
+#!/bin/bash
+awk -F '|' -v wanted="$1" '
+  $1 !~ /^#/ && NF == 10 && $1 == wanted {
+    print $10
+    found = 1
+    exit
+  }
+  END { exit !found }
+' "$OMARCHY_PATH/qv/tui/task/actions.psv" >"$QVOS_TEST_PRESENTATION_LOG"
+SCRIPT
+
 for command_name in \
   omarchy-launch-audio \
   omarchy-launch-wifi \
@@ -686,6 +698,7 @@ run_menu() {
     QVOS_TEST_WEB_LOG="$web_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
     QVOS_SOFTWARE_ACTION_LAUNCH="$test_bin/qvos-software-action" \
+    QVOS_TUI_TASK_LAUNCH="$test_bin/qvos-tui-task" \
     HOME="$test_root" \
     XDG_RUNTIME_DIR="$test_root" \
     OMARCHY_PATH="$root" \

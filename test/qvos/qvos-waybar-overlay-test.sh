@@ -56,11 +56,12 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
   (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
-  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
+  (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
   (."custom/prayerbar".exec == "~/.local/share/qvos/waybar/prayerbar.sh") and
-  (."custom/qv-clock".exec == "~/.local/share/qvos/waybar/clock.sh")
+  (."custom/qv-clock".exec == "~/.local/share/qvos/waybar/clock.sh") and
+  (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone")
 ' "$live_config" >/dev/null || fail "prayer clock overlay"
 
 PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
@@ -198,7 +199,8 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "omarchy-qvos-update-available") and
   (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
-  (."network"."on-click-right" == "omarchy-launch-floating-terminal-with-presentation omarchy-qvos-setup-dns") and
+  (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
+  (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"
 if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then

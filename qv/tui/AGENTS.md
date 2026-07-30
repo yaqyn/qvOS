@@ -35,8 +35,14 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Launch desktop TUI windows through `qv/tui/launch`; the shared
   `org.qvos.tui` class owns the centered 1024x509 floating stage.
 - Model roles are semantic: CORE (beating red/grayscale) is the hub identity,
-  three rings is Update, two rings is every other operational terminal, and
-  one ring is About only.
+  three rings are system-critical or high-impact operations, two rings are
+  simple Software installs/removals, and one ring is an ordinary safe task or
+  About. ISO build/install remains system-critical.
+- Keep fixed desktop task classification in `qv/tui/task/actions.psv`.
+  Stream-safe tasks use `task/launch` and `task/run`; owners with prompts,
+  authentication, hardware interaction, secret entry, selection, or reboot
+  choices stay `native` until a dedicated contract preserves that interaction.
+  A task changes tiers only with its risk or interaction contract.
 - About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
   Keep those values in its future owner contract rather than duplicating them.
 - Keep the production hub catalog limited to working actions. Give every row a
@@ -54,6 +60,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   a captured command stream. Keep owners that require interactive prompts,
   authentication, or configuration in their native terminal until they expose
   a noninteractive contract; never fake input inside the TUI.
+- Route a non-Software script through the same `--action` presentation only
+  from its fixed task-catalog row. Never accept an arbitrary command from a
+  menu or environment variable, and never treat a native catalog row as
+  capturable merely because it currently exits successfully.
 - Keep `--prototype` as the Codex design and interaction harness. Its simulated
   actions are intentionally separate from the production catalog and do not
   establish product availability.

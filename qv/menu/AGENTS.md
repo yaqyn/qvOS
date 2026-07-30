@@ -36,6 +36,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   prompts, authentication, configuration sessions, and nested TUIs as
   `native`, and verify TUI installs through `software-installer-state` with a
   real declared probe.
+- Fixed non-Software scripts use `qv/tui/task/actions.psv`: three rings for
+  system-critical/high-impact operations, one ring for ordinary safe tasks,
+  and `native` for any unresolved interaction. Route by catalog slug or exact
+  owner match; never place arbitrary menu shell in the captured task runner.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus. Do not maintain a parallel
@@ -48,10 +52,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 1. Read the catalog, extension, provider, installer, and one or two analogous
    routes before editing.
 2. Reuse command owners. Keep only thin stable adapters for inherited inline
-   package routes. Route stream-safe owners through the shared two-ring TUI
-   action adapter; keep owners that require interactive prompts,
-   authentication, configuration, or their own TUI in the native floating
-   terminal.
+   package routes. Route stream-safe Software through the shared two-ring
+   action adapter and fixed non-Software scripts through their classified task
+   row; keep prompts, authentication, configuration, secrets, hardware
+   interaction, reboot choices, and nested TUIs in the native owner.
 3. Update focused menu tests for catalog uniqueness, routing, query-preserving
    Tab behavior, runtime installation, and startup ordering.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.

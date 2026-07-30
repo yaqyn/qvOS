@@ -13,6 +13,12 @@ sublime-text||Sublime Text|Settings · Software · Editor|code,ide|tui|true|p
 helix||Helix|Settings · Software · Editor|code,terminal|tui|true|package|helix|Install Helix and apply the current theme|omarchy-install-helix
 vim||Vim|Settings · Software · Editor|code,terminal|tui|true|package|vim|Install Vim|qv/menu/software-install vim
 emacs||Emacs|Settings · Software · Editor|code,ide|tui|true|package|emacs-wayland|Install Emacs and enable its user service|qv/menu/software-install emacs
+font-cascadia-mono||Cascadia Mono|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-cascadia-mono-nerd|Install Cascadia Mono and make it the system monospace font|qv/menu/font-install cascadia-mono
+font-meslo-mono||Meslo LG Mono|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-meslo-nerd|Install Meslo LG Mono and make it the system monospace font|qv/menu/font-install meslo-mono
+font-fira-code||Fira Code|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-firacode-nerd|Install Fira Code and make it the system monospace font|qv/menu/font-install fira-code
+font-victor-code||Victor Code|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-victor-mono-nerd|Install Victor Code and make it the system monospace font|qv/menu/font-install victor-code
+font-bitstream-vera||Bitstream Vera Mono|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-bitstream-vera-mono-nerd|Install Bitstream Vera Mono and make it the system monospace font|qv/menu/font-install bitstream-vera
+font-iosevka||Iosevka|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-iosevka-nerd|Install Iosevka and make it the system monospace font|qv/menu/font-install iosevka
 alacritty||Alacritty|Settings · Software · Terminal|shell,console|tui|true|package|alacritty|Install Alacritty and make it the default terminal|omarchy-install-terminal alacritty
 foot||Foot|Settings · Software · Terminal|shell,console|tui|true|package|foot|Install Foot and make it the default terminal|omarchy-install-terminal foot
 ghostty||Ghostty|Settings · Software · Terminal|shell,console|tui|true|package|ghostty|Install Ghostty and make it the default terminal|omarchy-install-terminal ghostty
