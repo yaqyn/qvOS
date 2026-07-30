@@ -14,6 +14,23 @@ modes:
 - `--iso-progress`: one persistent installation progress and log surface
 - `--iso-finished`: installation result and reboot choice
 
+## Shared flow architecture
+
+The TUI root owns reusable presentation and capability configuration:
+
+- `flow.go` declares model, preflight, authorization, and progress needs
+- `authorization.go` renders every password authorization surface
+- `progress.go` renders compact and full progress for Update, Software, ISO,
+  and the prototype
+- `logs.go` renders the shared scrolling log panel
+- `accessibility.go` owns persistent controls, Help, and terminal output
+- `text.go` keeps shared copy within real terminal-cell widths
+
+Domain packages under `qv/tui/<action>/` provide copy, milestones, preflight,
+verification, and one delegation to the real owner. They do not render screens
+or choose responsive behavior. A domain selects only the shared capabilities
+its flow needs.
+
 ## Responsive contract
 
 The composition follows the terminal's visual orientation. Its aspect is
@@ -34,18 +51,24 @@ so identifiers, titles, and descriptions stay aligned.
 Opening logs prioritizes progress and log content over the 3D stage.
 Landscape logs use a dedicated 3:7 progress/log split, up to a 96x16-cell log
 panel, instead of inheriting the compact identity-column limits.
-Non-mobile progress views keep both the percentage and a visible loading bar.
+Non-mobile progress views keep the active operation, real milestone, percentage,
+and a visible loading bar.
+The smallest progress view keeps the active operation, static dimmed dot, and
+percentage instead of collapsing to an unexplained number.
+Compact completion keeps the semantic result (`UPDATED`, `INSTALLED`, and so
+on) instead of replacing it with `100%` or a generic `DONE`.
 Confirmation choices use one quiet marker instead of framed terminal buttons.
 Every mode uses the same `#020202` background.
 
 ## Accessibility
 
-Every responsive surface keeps only its single most important action and Help
-visible, using bright key labels and plain-language actions. `?` opens
-contextual help outside text fields; `F1` opens it everywhere so passwords,
-search filters, and other input retain the `?` character. The help screen
-inventories the current state's navigation, confirmation, editing, exit,
-retry, log, and interruption keys.
+Every responsive surface prioritizes its single most important action. Help is
+dim gray when the hint area has room and yields entirely in compact hint areas;
+its persistent label is always `F1`. `Shift+?` also opens contextual Help
+outside text fields, while `F1` opens it everywhere so passwords, search
+filters, and other input retain the `?` character. The help screen inventories
+the current state's navigation, confirmation, editing, exit, retry, log, and
+interruption keys.
 The production hub lists only complete working actions. Each row has a stable
 action key, so navigation coordinates never define behavior. Future actions
 must delegate to their real qvOS or Omarchy owner.
@@ -145,7 +168,7 @@ go run . --prototype
 
 Use arrow keys or `hjkl`, Enter to open, `v` to toggle logs, `Ctrl+V` for
 terminal output, `r` to retry the fake failure session, and Escape to return
-or exit. Press `?` or `F1` for the complete contextual control list.
+or exit. Press `F1` or `Shift+?` for the complete contextual control list.
 
 Run the focused checks and renderer benchmarks from this directory:
 

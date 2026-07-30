@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -189,7 +188,7 @@ func (m prototypeHubModel) helpHints() []tuiHint {
 func (m prototypeHubModel) persistentHints() []tuiHint {
 	return []tuiHint{
 		{Key: "↑↓", Action: "move"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
@@ -712,70 +711,49 @@ func (m prototypeSessionModel) persistentHints() []tuiHint {
 	if m.awaitingAuthorization() {
 		return []tuiHint{
 			{Key: "enter", Action: "authorize"},
-			{Key: "f1", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 
 	if m.failed {
 		return []tuiHint{
 			{Key: "r", Action: "retry"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	if m.done {
 		return []tuiHint{
 			{Key: "enter", Action: "return"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	return []tuiHint{
 		{Key: "esc", Action: "cancel"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
 func (m prototypeSessionModel) terminalHints() []tuiHint {
 	return []tuiHint{
 		{Key: "ctrl+v", Action: "switch"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
 func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 	if m.awaitingAuthorization() {
-		title := centerCanvas(renderAuthorizationTitle(m.profile.title, canvasW))
-		status := centerCanvas(sGray.Render("prototype only · no command will run"))
+		status := "prototype only · no command will run"
 		if m.authError != "" {
-			status = centerCanvas(sRed.Render(m.authError))
+			status = m.authError
 		}
-		if mode == layoutMobile {
-			content := strings.Join([]string{title, "", centerCanvas(renderPasswordField(m.password, mode))}, "\n")
-			return appendTUIHints(content, canvasW, m.persistentHints()...)
-		}
-		content := strings.Join([]string{
-			title,
-			"",
-			status,
-			"",
-			centerCanvas(renderPasswordField(m.password, mode)),
-			"",
-		}, "\n")
-		return appendTUIHints(content, canvasW, m.persistentHints()...)
-	}
-
-	if mode == layoutMobile {
-		phase := loadRun
-		if m.failed {
-			phase = loadErr
-		}
-		if m.done {
-			phase = loadOK
-		}
-		return appendTUIHints(
-			renderReducedProgress(m.profile.title, phase, m.progress, mode),
-			canvasW,
-			m.persistentHints()...,
-		)
+		return renderAuthorizationScreen(authorizationScreen{
+			Title:        m.profile.title,
+			Status:       status,
+			StatusError:  m.authError != "",
+			Password:     m.password,
+			TabletStatus: true,
+			Hints:        m.persistentHints(),
+		}, mode)
 	}
 
 	title := m.profile.title
@@ -789,27 +767,14 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 		title = m.profile.complete
 		phase = loadOK
 	}
-
-	percent := fmt.Sprintf("%3d%%", int(m.progress*100))
-	status = trimDisplay(status, progressBarWidth-len(percent)-1)
-	gap := progressBarWidth - len(status) - len(percent)
-	if gap < 1 {
-		gap = 1
-	}
-	statusStyle := sGray
-	if m.failed {
-		statusStyle = sRed
-	}
-
-	content := strings.Join([]string{
-		centerCanvas(sWhite.Render(strings.ToUpper(title))),
-		"",
-		centerCanvas(statusStyle.Render(status) + strings.Repeat(" ", gap) + sMid.Render(percent)),
-		"",
-		centerCanvas(renderProgressBar(phase, m.progress, m.frame)),
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.persistentHints()...)
+	return renderProgressScreen(progressScreen{
+		Title:    title,
+		Status:   status,
+		Phase:    phase,
+		Progress: m.progress,
+		Bar:      true,
+		Hints:    m.persistentHints(),
+	}, mode)
 }
 
 func (m prototypeSessionModel) currentStatus() string {
@@ -851,26 +816,14 @@ func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
 		width = 1
 	}
 	height := prototypeLogRows(mode)
-
-	contentWidth := max(1, width-4)
-	lines, scrollOffset := visibleTUILogLines(
-		m.logLines,
-		height,
-		m.logScroll,
-		"waiting for prototype logs",
-	)
-	for index, line := range lines {
-		lines[index] = trimDisplay(line, contentWidth)
-	}
-
-	panel := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color(deepRed)).
-		Foreground(lipgloss.Color(mid)).
-		Padding(0, 1).
-		Render(strings.Join(lines, "\n"))
-	return appendTUILogSwitchCue(panel, width, scrollOffset)
+	return renderLogPanel(logPanelScreen{
+		Lines:       m.logLines,
+		Width:       width,
+		VisibleRows: height,
+		Scroll:      m.logScroll,
+		Empty:       "waiting for prototype logs",
+		Border:      true,
+	})
 }
 
 func runISOProgressPrototype() error {

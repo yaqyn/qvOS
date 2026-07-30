@@ -34,7 +34,7 @@ func FromEnvironment() (Spec, error) {
 	case "1":
 		spec.RequiresSudo = true
 	default:
-		return Spec{}, fmt.Errorf("invalid qVOS action sudo contract")
+		return Spec{}, fmt.Errorf("invalid qvOS action sudo contract")
 	}
 	if spec.Slug == "" || spec.Title == "" || spec.Summary == "" {
 		return Spec{}, fmt.Errorf("incomplete qvOS action contract")

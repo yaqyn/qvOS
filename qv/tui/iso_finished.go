@@ -173,7 +173,7 @@ func (m isoFinishedModel) renderISOFinishedPanel(mode layoutMode, includeProduct
 
 	lines = append(lines, "", centerTUIHints(canvasW,
 		tuiHint{Key: "enter", Action: "reboot"},
-		tuiHint{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	))
 	return strings.Join(lines, "\n")
 }

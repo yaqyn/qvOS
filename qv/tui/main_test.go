@@ -418,6 +418,12 @@ func TestRunnableSnapshotsStayOutsideTheSourceCheckout(t *testing.T) {
 	}
 }
 
+func TestRootActionScriptsMustBeRegularFiles(t *testing.T) {
+	if err := validateRootScript("/dev/null"); err == nil {
+		t.Fatal("character device passed root action script validation")
+	}
+}
+
 func TestUpdateCancellationStopsTheOwnedProcessGroup(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	script := filepath.Join(t.TempDir(), "update")
@@ -453,6 +459,39 @@ while true; do sleep 1; done
 			}
 		case <-timer.C:
 			t.Fatal("update process group did not stop")
+		}
+	}
+}
+
+func TestUnreadableCommandOutputCannotRenderFalseSuccess(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	script := filepath.Join(t.TempDir(), "oversized-output")
+	if err := os.WriteFile(script, []byte(`#!/bin/bash
+head -c 1100000 /dev/zero | tr '\0' x
+`), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	events := make(chan scriptEvent, 32)
+	go runRootScriptStream(context.Background(), actionUpdate, script, events)
+
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event, ok := <-events:
+			if !ok {
+				t.Fatal("output event stream closed without a result")
+			}
+			if !event.done {
+				continue
+			}
+			if event.err == nil || !strings.Contains(event.err.Error(), "could not read command output") {
+				t.Fatalf("oversized output result = %v, want captured read failure", event.err)
+			}
+			return
+		case <-timer.C:
+			t.Fatal("oversized command output did not finish")
 		}
 	}
 }
@@ -527,19 +566,143 @@ func TestUpdateProgressShowsStopOptionsAtEveryResponsiveSize(t *testing.T) {
 	}
 }
 
-func TestReducedProgressKeepsBarOutsideMobile(t *testing.T) {
-	canvasW = 40
+func TestISOConfigUsesSharedResponsiveProgress(t *testing.T) {
+	previousWidth := canvasW
+	t.Cleanup(func() {
+		canvasW = previousWidth
+	})
 
-	tablet := stripANSI(renderReducedProgress("UPDATE", loadRun, 0.38, layoutTablet))
-	if !strings.Contains(tablet, "UPDATE") || !strings.Contains(tablet, "38%") ||
-		!strings.Contains(tablet, "━━━━━━━━━━━━━") ||
-		!strings.Contains(tablet, "────────────────────") {
-		t.Fatalf("tablet progress is missing its readable loading bar: %q", tablet)
+	canvasW = 40
+	installer := isoInstallerModel{step: isoStepWriting, frame: buildFrames / 2}
+	tablet := stripANSI(installer.renderISOStep(layoutTablet))
+	if !strings.Contains(tablet, "CONFIG") ||
+		!strings.Contains(tablet, "writing installer config") ||
+		!strings.Contains(tablet, "%") ||
+		!strings.Contains(tablet, "━") ||
+		!strings.Contains(tablet, "─") {
+		t.Fatalf("tablet ISO progress is missing its shared loading state: %q", tablet)
 	}
 
-	mobile := stripANSI(renderReducedProgress("UPDATE", loadRun, 0.38, layoutMobile))
+	canvasW = 30
+	mobile := stripANSI(installer.renderISOStep(layoutMobile))
+	for _, expected := range []string{"CONFIG", "·", "%"} {
+		if !strings.Contains(mobile, expected) {
+			t.Fatalf("mobile ISO progress is missing %q: %q", expected, mobile)
+		}
+	}
 	if strings.ContainsAny(mobile, "━─") {
-		t.Fatalf("mobile progress should remain compact: %q", mobile)
+		t.Fatalf("mobile ISO progress should remain compact: %q", mobile)
+	}
+}
+
+func TestMobileUpdateProgressKeepsOperationDotAndPercent(t *testing.T) {
+	view := (model{
+		width:          44,
+		height:         18,
+		frame:          framesPerTick,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptProgress: 0.68,
+		scriptTarget:   0.68,
+	}).View()
+	content := stripANSI(view.Content)
+
+	for _, expected := range []string{"UPDATING", "·", "68%", "ctrl+c/z"} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("mobile update progress is missing %q: %q", expected, content)
+		}
+	}
+	if strings.Contains(content, "help") {
+		t.Fatalf("mobile update progress should reserve its hint for stop options: %q", content)
+	}
+	if strings.ContainsAny(content, "━─") {
+		t.Fatalf("mobile update progress should omit the bar: %q", content)
+	}
+	assertViewFits(t, view.Content, 44, 18)
+}
+
+func TestMobileUpdateCompletionKeepsUpdatedResult(t *testing.T) {
+	view := (model{
+		width:      44,
+		height:     18,
+		loading:    true,
+		action:     actionUpdate,
+		scriptDone: true,
+	}).View()
+	content := stripANSI(view.Content)
+
+	for _, expected := range []string{"UPDATED", "enter", "return"} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("mobile update completion is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{"100%", "DONE", "UPDATING", "help"} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("mobile update completion should omit %q: %q", hidden, content)
+		}
+	}
+	assertViewFits(t, view.Content, 44, 18)
+}
+
+func TestNarrowSideUpdateUsesCenteredCompactProgress(t *testing.T) {
+	const (
+		width  = 90
+		height = 24
+	)
+	view := (model{
+		width:          width,
+		height:         height,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptStatus:   "updating AUR packages",
+		scriptProgress: 0.68,
+		scriptTarget:   0.68,
+	}).View()
+	content := stripANSI(view.Content)
+
+	for _, expected := range []string{"UPDATING", "·", "68%", "ctrl+c/z"} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("narrow side progress is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{"updating AUR packages", "━", "─", "help"} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("narrow side progress should omit %q: %q", hidden, content)
+		}
+	}
+	assertViewFits(t, view.Content, width, height)
+}
+
+func TestCenteredLoadingKeepsBreathingRoomBelowIdentity(t *testing.T) {
+	previousWidth, previousHeight := canvasW, canvasH
+	canvasW, canvasH = 48, 20
+	t.Cleanup(func() {
+		canvasW, canvasH = previousWidth, previousHeight
+	})
+
+	m := model{
+		width:          120,
+		height:         42,
+		loading:        true,
+		action:         actionUpdate,
+		scriptRunning:  true,
+		scriptProgress: 0.68,
+		scriptTarget:   0.68,
+	}
+	lines := strings.Split(stripANSI(m.renderDesktopBody("MODEL")), "\n")
+	taglineRow, progressRow := -1, -1
+	for index, line := range lines {
+		if strings.Contains(line, "· · · · ·") {
+			taglineRow = index
+		}
+		if strings.Contains(line, "UPDATING") {
+			progressRow = index
+		}
+	}
+	if taglineRow < 0 || progressRow < 0 || progressRow-taglineRow < 3 {
+		t.Fatalf("identity and progress need two centered breathing rows: %q", lines)
 	}
 }
 
@@ -550,15 +713,18 @@ func TestDefaultLandscapeUpdateKeepsVisibleProgressBar(t *testing.T) {
 		loading:        true,
 		action:         actionUpdate,
 		scriptRunning:  true,
+		scriptStatus:   "updating system packages",
 		scriptProgress: 0.38,
 		scriptTarget:   0.38,
 	}).View()
 	content := stripANSI(view.Content)
 
-	if !strings.Contains(content, "UPDATE") || !strings.Contains(content, "38%") ||
+	if !strings.Contains(content, "UPDATING") ||
+		!strings.Contains(content, "updating system packages") ||
+		!strings.Contains(content, "38%") ||
 		!strings.Contains(content, "━━━━━━━━━━━━━") ||
 		!strings.Contains(content, "────────────────────") {
-		t.Fatalf("default landscape progress is missing its loading bar: %q", content)
+		t.Fatalf("default landscape progress is missing its active stage or loading bar: %q", content)
 	}
 }
 

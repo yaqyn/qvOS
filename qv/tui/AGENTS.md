@@ -11,6 +11,15 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   confirmation, authorization, progress, logs, and result presentation.
 - Put each action-specific contract and adapter under `qv/tui/<action>/`.
   Every direct mode and the main hub must reuse the same action flow.
+- Domain packages provide only copy, truthful milestones, preflight,
+  verification, and delegation. They never import Bubble Tea or Lip Gloss,
+  choose breakpoints, or render a parallel screen. Map their needs into the
+  root-owned flow requirements and shared renderers.
+- Keep reusable flow configuration and composition in focused root files such
+  as `flow.go`, `authorization.go`, `progress.go`, `logs.go`, and
+  `accessibility.go`; keep cell-aware shared text fitting in `text.go`. A
+  shared TUI improvement or bug fix must land there and cover at least two
+  consuming flows in its regression test.
 - Keep mutation, package, and update behavior in its existing qvOS or Omarchy
   owner. TUI adapters delegate once and never reproduce an engine.
 - Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
@@ -54,12 +63,18 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   group. Boot/ISO installation keeps its stricter interruption guard.
 - Give logs responsive priority over the model and use the shared expanded
   panel. Canceled results must say canceled, never `100%` or success.
-- Keep a visible bar with the percentage in non-mobile progress views. Use one
-  quiet selection marker for choices; do not frame action labels as buttons.
-- Keep persistent controls to exactly one context-critical action plus Help at
-  every responsive size; put every other active keyboard action in the
-  contextual help overlay. Use `?` outside text fields and `F1` everywhere so
-  passwords and filters keep their full character set. Labels describe the
+- Keep the active operation, real milestone, percentage, and a visible bar in
+  non-mobile progress views. Use one quiet selection marker for choices; do not
+  frame action labels as buttons.
+- The smallest progress view may omit the bar, but it must keep the active
+  operation, static dimmed dot, and percentage centered as one stable line.
+  On completion, keep the semantic result such as `UPDATED` or `INSTALLED`
+  instead of replacing it with `100%` or a generic `DONE`.
+- Keep persistent controls to one context-critical action plus quiet dim-gray
+  Help when the hint area has room. Compact hint areas show only the primary
+  action. Label Help consistently as `F1`; also accept `Shift+?` outside text
+  fields so passwords and filters keep their full character set. Put every other
+  active keyboard action in the contextual help overlay. Labels describe the
   action result, not implementation details.
 - Authorization surfaces use the shared frameless, left-origin password rail
   and one blank row between the title and field. The mask never shifts while
@@ -82,9 +97,11 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 
 1. Read the action owner, its TUI adapter, every launch surface, and focused
    tests before editing.
-2. Keep shared visual behavior at the TUI root and action-specific behavior in
-   its owner directory. Keep package boundaries minimal and use an action
-   package only for a real independently tested contract.
+2. Keep shared visual behavior and capability configuration at the TUI root
+   and action-specific data or delegation in its owner directory. Keep package
+   boundaries minimal and use an action package only for a real independently
+   tested contract. The ownership test must continue rejecting presentation
+   imports from domain packages.
 3. Preserve exit `0` for success, `130` for user cancellation, and nonzero for
    failures. Never render success after an owner failure.
 4. Run `gofmt`, `go test -count=1 ./...`, Bash syntax and ShellCheck for shell

@@ -378,69 +378,35 @@ func (m isoProgressModel) persistentHints() []tuiHint {
 	if m.prototype && m.progress >= 1 {
 		return []tuiHint{
 			{Key: "enter", Action: "return"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	return []tuiHint{
 		{Key: "v", Action: logAction},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
 func (m isoProgressModel) terminalHints() []tuiHint {
 	return []tuiHint{
 		{Key: "ctrl+v", Action: "switch"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
-	if mode == layoutMobile {
-		return appendTUIHints(
-			renderReducedProgress("INSTALLING", loadRun, m.progress, mode),
-			canvasW,
-			m.persistentHints()...,
-		)
-	}
-
 	progress := m.progress
 	if progress > 0.97 && m.target < 1 {
 		progress = 0.97
 	}
-	percentRaw := fmt.Sprintf("%3d%%", int(progress*100))
-	statusRaw := trimDisplay(m.status, progressBarWidth-len(percentRaw)-1)
-	gap := progressBarWidth - len(statusRaw) - len(percentRaw)
-	if gap < 1 {
-		gap = 1
-	}
-
-	bar := renderProgressBar(loadRun, progress, m.frame)
-	statusLine := sGray.Render(statusRaw) + strings.Repeat(" ", gap) + sMid.Render(percentRaw)
-	ctr := func(s string) string {
-		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
-	}
-
-	if mode == layoutTablet {
-		content := strings.Join([]string{
-			ctr(sWhite.Render("INSTALLING")),
-			"",
-			ctr(statusLine),
-			"",
-			ctr(bar),
-			"",
-		}, "\n")
-		return appendTUIHints(content, canvasW, m.persistentHints()...)
-	}
-
-	content := strings.Join([]string{
-		ctr(sWhite.Render("INSTALLING")),
-		"",
-		ctr(statusLine),
-		"",
-		ctr(bar),
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.persistentHints()...)
+	return renderProgressScreen(progressScreen{
+		Title:    "INSTALLING",
+		Status:   m.status,
+		Phase:    loadRun,
+		Progress: progress,
+		Bar:      true,
+		Hints:    m.persistentHints(),
+	}, mode)
 }
 
 func isoProgressLogRows(mode layoutMode) int {
@@ -472,25 +438,13 @@ func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
 	}
 
 	height := isoProgressLogRows(mode)
-	contentWidth := max(1, width-2)
-	lines, scrollOffset := visibleTUILogLines(
-		m.logLines,
-		height,
-		m.logScroll,
-		"waiting for install log",
-	)
-
-	var body []string
-	for _, line := range lines {
-		body = append(body, trimDisplay(line, contentWidth))
-	}
-
-	panel := lipgloss.NewStyle().
-		Width(width).
-		Foreground(lipgloss.Color(mid)).
-		Padding(0, 1).
-		Render(strings.Join(body, "\n"))
-	return appendTUILogSwitchCue(panel, width, scrollOffset)
+	return renderLogPanel(logPanelScreen{
+		Lines:       m.logLines,
+		Width:       width,
+		VisibleRows: height,
+		Scroll:      m.logScroll,
+		Empty:       "waiting for install log",
+	})
 }
 
 func readISOProgressSnapshotCmd(logPath string) tea.Cmd {

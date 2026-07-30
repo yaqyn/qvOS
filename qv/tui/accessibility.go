@@ -18,6 +18,10 @@ type tuiLogCopiedMsg struct {
 	err error
 }
 
+func tuiHelpHint() tuiHint {
+	return tuiHint{Key: "f1", Action: "help"}
+}
+
 func handleTUIHelpKey(open bool, msg tea.KeyPressMsg) (bool, bool) {
 	return handleTUIHelpKeyWithQuestion(open, msg, true)
 }
@@ -42,6 +46,7 @@ func renderTUIHints(width int, hints ...tuiHint) string {
 	if width < 1 || len(hints) == 0 {
 		return ""
 	}
+	hints = visibleTUIHints(width, hints)
 
 	separator := sDim.Render("  ·  ")
 	separatorWidth := lipgloss.Width(separator)
@@ -58,7 +63,13 @@ func renderTUIHints(width int, hints ...tuiHint) string {
 
 		availableActionWidth := max(1, width-lipgloss.Width(key)-1)
 		action = trimDisplay(action, availableActionWidth)
-		token := sHot.Render(key) + " " + sBright.Render(action)
+		keyStyle := sHot
+		actionStyle := sBright
+		if isHelpTUIHint(hint) {
+			keyStyle = sDim
+			actionStyle = sDim
+		}
+		token := keyStyle.Render(key) + " " + actionStyle.Render(action)
 		tokenWidth := lipgloss.Width(token)
 
 		if current == "" {
@@ -83,8 +94,32 @@ func renderTUIHints(width int, hints ...tuiHint) string {
 	return strings.Join(lines, "\n")
 }
 
+func visibleTUIHints(width int, hints []tuiHint) []tuiHint {
+	if width >= sideLeftMax || len(hints) != 2 {
+		return hints
+	}
+	for _, hint := range hints {
+		if !isHelpTUIHint(hint) {
+			return []tuiHint{hint}
+		}
+	}
+	return hints
+}
+
+func isHelpTUIHint(hint tuiHint) bool {
+	return strings.EqualFold(strings.TrimSpace(hint.Action), "help")
+}
+
 func centerTUIHints(width int, hints ...tuiHint) string {
-	return lipgloss.PlaceHorizontal(width, lipgloss.Center, renderTUIHints(width, hints...))
+	rendered := renderTUIHints(width, hints...)
+	if rendered == "" {
+		return ""
+	}
+	lines := strings.Split(rendered, "\n")
+	for index, line := range lines {
+		lines[index] = lipgloss.PlaceHorizontal(width, lipgloss.Center, line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func appendTUIHints(content string, width int, hints ...tuiHint) string {
@@ -213,7 +248,7 @@ func renderTUIHelp(width int, title string, hints []tuiHint) string {
 		)
 	}
 	rows = append(rows, "", centerTUIHints(contentWidth,
-		tuiHint{Key: "f1 / ? / esc", Action: "close help"},
+		tuiHint{Key: "f1 / shift+? / esc", Action: "close help"},
 	))
 
 	return lipgloss.NewStyle().

@@ -72,8 +72,8 @@ owner_metadata() {
   usage
   exit 2
 }
-[[ -x $state_owner && -x $tui_launch ]] || {
-  echo "The qvOS software action surface is incomplete." >&2
+[[ -x $tui_launch ]] || {
+  echo "The qvOS TUI launch surface is incomplete." >&2
   exit 1
 }
 
@@ -100,7 +100,7 @@ if [[ $mode == "installer" ]]; then
     owner_command <<<"$record"
   operation=install
 else
-  [[ -f $catalog && -f $concepts ]] || {
+  [[ -f $catalog && -f $concepts && -x $state_owner ]] || {
     echo "The qvOS state-aware software action surface is incomplete." >&2
     exit 1
   }
@@ -124,19 +124,34 @@ else
     exit 1
   }
   operation=$("$state_owner" "$slug")
-  if [[ $operation == "install" ]]; then
+  case $operation in
+  install)
     owner_command=$install_owner
     presentation=$install_presentation
     requires_sudo=$install_sudo
-  else
+    ;;
+  uninstall)
     owner_command=$uninstall_owner
     presentation=$uninstall_presentation
     requires_sudo=$uninstall_sudo
-  fi
+    ;;
+  *)
+    echo "Invalid qvOS software action state: $operation" >&2
+    exit 1
+    ;;
+  esac
 fi
 read -r -a owner_args <<<"$owner_command"
+((${#owner_args[@]} > 0)) || {
+  echo "Missing qvOS software owner for $slug." >&2
+  exit 1
+}
 [[ -n ${summary:-} ]] || summary=$(owner_metadata summary || true)
 [[ -n $summary ]] || summary="${operation^} $title through its existing owner"
+[[ $requires_sudo == "true" || $requires_sudo == "false" ]] || {
+  echo "Invalid qvOS software sudo contract: $requires_sudo" >&2
+  exit 1
+}
 
 if [[ $presentation == "native" ]]; then
   exec omarchy-launch-floating-terminal-with-presentation "$owner_command"

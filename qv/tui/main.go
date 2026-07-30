@@ -531,23 +531,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
 		return m, nil
 
-	case scriptDoneMsg:
-		if m.action != msg.action || m.scriptPath != msg.script {
-			return m, nil
-		}
-		m.scriptRunning = false
-		m.scriptDone = true
-		m.scriptErr = msg.err
-		m.scriptCancel = nil
-		m.scriptEvents = nil
-		m.scriptCanceling = false
-		m.updateStopConfirm = false
-		if msg.err == nil {
-			m.scriptProgress = 1
-			m.scriptTarget = 1
-		}
-		return m, nil
-
 	case scriptStartedMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
 			return m, nil
@@ -633,7 +616,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scriptStatus = shortError(msg.err)
 			return m, nil
 		}
-		if msg.action == actionGeneric && !currentActionSpec.RequiresSudo {
+		if !requirementsForAction(msg.action).Authorization {
 			return m.startRootScriptRun(msg.action, msg.script)
 		}
 		m.sudoChecking = true
@@ -865,7 +848,8 @@ func (m model) renderSideBody(width, height int) string {
 	canvasW, canvasH = leftWidth, 0
 	middleMode := layoutMobile
 	if m.loading && isScriptAction(m.action) &&
-		!m.updateConfirm && !m.updateStopConfirm && !m.sudoPrompt {
+		!m.updateConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
+		leftWidth >= progressBarWidth {
 		middleMode = layoutTablet
 	}
 	left := m.renderMiddle(middleMode)
@@ -884,9 +868,12 @@ func (m model) renderSideBody(width, height int) string {
 func (m model) renderDesktopBody(icon string) string {
 	title := sWhite.Render("qvOS")
 	tagline := sDim.Render("· · · · ·")
-	return lipgloss.JoinVertical(lipgloss.Center,
-		icon, "", title, tagline, "", m.renderMiddle(layoutDesktop),
-	)
+	lines := []string{icon, "", title, tagline, ""}
+	if m.loading {
+		lines = append(lines, "")
+	}
+	lines = append(lines, m.renderMiddle(layoutDesktop))
+	return lipgloss.JoinVertical(lipgloss.Center, lines...)
 }
 
 func (m model) renderActiveIcon() string {
@@ -895,10 +882,7 @@ func (m model) renderActiveIcon() string {
 
 func (m model) activeModelRole() modelRole {
 	if m.loading && isScriptAction(m.action) {
-		if m.action == actionUpdate {
-			return modelThreeRings
-		}
-		return modelTwoRings
+		return requirementsForAction(m.action).Model
 	}
 	return modelCore
 }
@@ -999,7 +983,7 @@ func (m model) helpHints() []tuiHint {
 func (m model) hubPersistentHints() []tuiHint {
 	return []tuiHint{
 		{Key: "↑↓", Action: "move"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
@@ -1007,19 +991,19 @@ func (m model) rootPersistentHints() []tuiHint {
 	if m.updateStopConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	if m.updateConfirm {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	if m.sudoPrompt {
 		return []tuiHint{
 			{Key: "enter", Action: "authorize"},
-			{Key: "f1", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 
@@ -1027,12 +1011,12 @@ func (m model) rootPersistentHints() []tuiHint {
 	case loadErr:
 		return []tuiHint{
 			{Key: "r", Action: "retry"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	case loadOK:
 		return []tuiHint{
 			{Key: "enter", Action: "return"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	default:
 		action := "cancel"
@@ -1041,7 +1025,7 @@ func (m model) rootPersistentHints() []tuiHint {
 		}
 		return []tuiHint{
 			{Key: "ctrl+c/z", Action: action},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 }
@@ -1065,7 +1049,7 @@ func (m model) terminalHelpHints() []tuiHint {
 func (m model) terminalHints() []tuiHint {
 	return []tuiHint{
 		{Key: "ctrl+v", Action: "switch"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 }
 
@@ -1087,6 +1071,10 @@ func (m model) renderMiddle(mode layoutMode) string {
 
 func (m model) renderReducedBody(mode layoutMode, icon string) string {
 	titleRows, middleRows, gapRows := m.reducedBodyRows(mode)
+	if icon != "" && m.loading && gapRows == 0 &&
+		m.height >= canvasH+middleRows+1 {
+		gapRows = 1
+	}
 	var lines []string
 	if icon != "" {
 		lines = append(lines, centerCanvas(icon))
@@ -1123,7 +1111,10 @@ func (m model) reducedMiddleRows(mode layoutMode) int {
 
 	if m.loading {
 		if mode == layoutMobile {
-			return 1
+			if m.sudoPrompt && m.sudoErr != nil {
+				return 4
+			}
+			return 3
 		}
 		if m.sudoPrompt && m.sudoErr != nil {
 			return 3
@@ -1371,12 +1362,6 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 	}
 }
 
-type scriptDoneMsg struct {
-	action actionMode
-	script string
-	err    error
-}
-
 type scriptStartedMsg struct {
 	action actionMode
 	script string
@@ -1534,11 +1519,7 @@ func (m model) leaveRootAction() (model, tea.Cmd) {
 
 func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	script, err := findRootScript(action)
-	needsPreflight := action == actionUpdate || action == actionGeneric
-	needsSudo := action != actionUpdate
-	if action == actionGeneric {
-		needsSudo = currentActionSpec.RequiresSudo
-	}
+	requirements := requirementsForAction(action)
 	m.loading = true
 	m.action = action
 	m.loadStart = m.frame
@@ -1546,7 +1527,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.scriptDone = false
 	m.scriptErr = nil
 	m.scriptPath = script
-	m.sudoChecking = !needsPreflight && needsSudo
+	m.sudoChecking = !requirements.Preflight && requirements.Authorization
 	m.sudoPrompt = false
 	m.sudoPassword = nil
 	m.sudoErr = nil
@@ -1568,7 +1549,7 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	m.updateConfirm = false
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
-	m.updatePreflight = needsPreflight
+	m.updatePreflight = requirements.Preflight
 	m.updateCanceled = false
 
 	if err != nil {
@@ -1579,14 +1560,14 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 		return m, nil
 	}
 
-	if needsPreflight {
+	if requirements.Preflight {
 		m.scriptStatus = "checking action readiness"
 		if action == actionUpdate {
 			m.scriptStatus = "checking update readiness"
 		}
 		return m, checkRootPreflightCmd(action, script)
 	}
-	if !needsSudo {
+	if !requirements.Authorization {
 		return m.startRootScriptRun(action, script)
 	}
 	return m, checkSudoCachedCmd(action, script)
@@ -1872,27 +1853,36 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		return
 	}
 
-	outputDone := make(chan struct{}, 2)
+	outputDone := make(chan error, 2)
 	scan := func(r io.Reader) {
-		defer func() { outputDone <- struct{}{} }()
 		scanner := bufio.NewScanner(r)
 		buf := make([]byte, 0, 64*1024)
 		scanner.Buffer(buf, 1024*1024)
+		var outputErr error
 		for scanner.Scan() {
 			line := scanner.Text()
 			if logFile != nil {
-				_, _ = fmt.Fprintln(logFile, line)
+				if _, err := fmt.Fprintln(logFile, line); err != nil && outputErr == nil {
+					outputErr = fmt.Errorf("could not write command output: %w", err)
+				}
 			}
 			status, progress := scriptProgressFromLine(action, line)
 			events <- scriptEvent{action: action, script: script, line: line, status: status, progress: progress}
 		}
+		if err := scanner.Err(); err != nil && outputErr == nil {
+			outputErr = fmt.Errorf("could not read command output: %w", err)
+		}
+		outputDone <- outputErr
 	}
 	go scan(stdout)
 	go scan(stderr)
 
 	err = cmd.Wait()
-	<-outputDone
-	<-outputDone
+	for range 2 {
+		if outputErr := <-outputDone; err == nil && outputErr != nil {
+			err = outputErr
+		}
+	}
 
 	if ctx.Err() != nil {
 		err = errScriptCanceled
@@ -1910,7 +1900,7 @@ func snapshotRunnableScript(script string) (string, func(), error) {
 		return "", func() {}, err
 	}
 	if !info.Mode().IsRegular() {
-		return script, func() {}, nil
+		return "", func() {}, fmt.Errorf("%s is not a regular file", script)
 	}
 
 	data, err := os.ReadFile(script)
@@ -2273,60 +2263,6 @@ func keepSudoAlive(done <-chan struct{}) {
 const buildDurationSeconds = 18
 const buildFrames = framesPerSecond * framesPerTick * buildDurationSeconds
 
-const progressBarWidth = 34
-
-func renderProgressBar(phase loadPhase, progress float64, elapsed int) string {
-	_ = elapsed
-
-	if progress < 0 {
-		progress = 0
-	}
-	if progress > 1 {
-		progress = 1
-	}
-
-	full := int(math.Round(progress * float64(progressBarWidth)))
-	if full > progressBarWidth {
-		full = progressBarWidth
-	}
-
-	var sb strings.Builder
-	for i := 0; i < full; i++ {
-		sb.WriteString(sDeepRed.Render("━"))
-	}
-	if phase == loadRun && full > 0 && full < progressBarWidth {
-		sb.WriteString(sRed.Render("━"))
-		full++
-	}
-	for i := full; i < progressBarWidth; i++ {
-		sb.WriteString(sDim.Render("─"))
-	}
-	return sb.String()
-}
-
-func renderReducedProgress(label string, phase loadPhase, progress float64, mode layoutMode) string {
-	percent := fmt.Sprintf("%d%%", int(progress*100))
-	percentStyle := sDeepRed
-	if phase == loadErr {
-		percent = "ERR"
-		percentStyle = sRed
-	}
-	if phase == loadOK {
-		percent = "100%"
-		percentStyle = sWhite
-	}
-
-	if mode == layoutMobile {
-		return centerCanvas(percentStyle.Render(percent))
-	}
-
-	return strings.Join([]string{
-		centerCanvas(sWhite.Render(label)),
-		centerCanvas(percentStyle.Render(percent)),
-		centerCanvas(renderProgressBar(phase, progress, 0)),
-	}, "\n")
-}
-
 func (m model) renderRootActionFor(mode layoutMode) string {
 	if m.updateStopConfirm {
 		return m.renderUpdateStopConfirmationFor(mode)
@@ -2440,141 +2376,64 @@ func renderConfirmationAction(label string, selected bool) string {
 }
 
 func (m model) renderSudoPromptFor(mode layoutMode) string {
-	title := renderAuthorizationTitle(rootActionName(m.action), canvasW)
-	status := sGray.Render("sudo password required")
+	status := "sudo password required"
 	if m.sudoErr != nil {
-		status = sRed.Render(shortError(m.sudoErr))
+		status = shortError(m.sudoErr)
 	}
-	field := renderPasswordField(m.sudoPassword, mode)
-
-	if mode == layoutMobile {
-		content := strings.Join([]string{
-			centerCanvas(title),
-			"",
-			centerCanvas(field),
-		}, "\n")
-		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
-	}
-
-	if mode == layoutTablet {
-		lines := []string{centerCanvas(title), ""}
-		if m.sudoErr != nil {
-			lines = append(lines, centerCanvas(status))
-		}
-		lines = append(lines, centerCanvas(field))
-		return appendTUIHints(strings.Join(lines, "\n"), canvasW, m.rootPersistentHints()...)
-	}
-
-	ctr := func(s string) string {
-		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
-	}
-
-	content := strings.Join([]string{
-		ctr(title),
-		"",
-		ctr(status),
-		"",
-		ctr(field),
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
-}
-
-func renderAuthorizationTitle(label string, width int) string {
-	title := strings.ToUpper(strings.TrimSpace(label)) + " AUTHORIZATION"
-	return sWhite.Render(trimDisplay(title, max(1, width)))
-}
-
-func renderPasswordField(password []rune, mode layoutMode) string {
-	fieldWidth := 28
-	if mode == layoutTablet {
-		fieldWidth = 18
-	}
-	if mode == layoutMobile {
-		fieldWidth = 10
-	}
-
-	count := min(len(password), fieldWidth)
-	if count == 0 {
-		return sDim.Render(strings.Repeat("─", fieldWidth))
-	}
-
-	return sBright.Render(strings.Repeat("•", count)) +
-		sDim.Render(strings.Repeat("─", fieldWidth-count))
+	return renderAuthorizationScreen(authorizationScreen{
+		Title:       rootActionName(m.action),
+		Status:      status,
+		StatusError: m.sudoErr != nil,
+		Password:    m.sudoPassword,
+		Hints:       m.rootPersistentHints(),
+	}, mode)
 }
 
 func (m model) renderRootProgressFor(mode layoutMode) string {
 	phase := m.loadPhase()
 	progress := m.loadProgress()
-	elapsed := m.frame - m.loadStart
 	if m.scriptCanceled {
 		return m.renderRootCanceledFor(mode)
 	}
 	if phase == loadOK && m.action == actionBuild && !m.scriptCanceled {
 		return m.renderBuildFinishedFor(mode)
 	}
-	if mode != layoutDesktop {
-		reduced := renderReducedProgress(rootActionName(m.action), phase, progress, mode)
-		return appendTUIHints(reduced, canvasW, m.rootPersistentHints()...)
-	}
-
-	bar := renderProgressBar(phase, progress, elapsed)
-	percentRaw := fmt.Sprintf("%3d%%", int(progress*100))
-
-	var op, stageRaw string
+	var title, status string
 	switch phase {
 	case loadOK:
-		op = sWhite.Render(rootActionPastTense(m.action))
-		stageRaw = rootActionCompleteStatus(m.action)
+		title = rootActionPastTense(m.action)
+		status = rootActionCompleteStatus(m.action)
 	case loadErr:
-		op = sRed.Render(rootActionName(m.action) + " FAILED")
-		stageRaw = shortError(m.scriptErr)
+		title = rootActionName(m.action) + " FAILED"
+		status = shortError(m.scriptErr)
 	default:
-		op = sWhite.Render(rootActionActiveTitle(m.action))
+		title = rootActionActiveTitle(m.action)
 		if m.updatePreflight {
-			stageRaw = "checking action readiness"
+			status = "checking action readiness"
 			if m.action == actionUpdate {
-				stageRaw = "checking update readiness"
+				status = "checking update readiness"
 			}
 		} else if m.sudoChecking {
-			stageRaw = "authorizing sudo"
+			status = "authorizing sudo"
 		} else if m.scriptCanceling {
-			stageRaw = rootActionCancelingStatus(m.action)
+			status = rootActionCancelingStatus(m.action)
 		} else if m.scriptStatus != "" {
-			stageRaw = m.scriptStatus
+			status = m.scriptStatus
 		} else {
-			stageRaw = rootActionRunningStatus(m.action)
+			status = rootActionRunningStatus(m.action)
 		}
 	}
-
-	if stageRaw == "" {
-		stageRaw = "script failed"
+	if status == "" {
+		status = "script failed"
 	}
-	stageRaw = trimDisplay(stageRaw, progressBarWidth-len(percentRaw)-1)
-
-	gap := progressBarWidth - len(stageRaw) - len(percentRaw)
-	if gap < 1 {
-		gap = 1
-	}
-	stageStyle := sGray
-	if phase == loadErr {
-		stageStyle = sRed
-	}
-	statusLine := stageStyle.Render(stageRaw) + strings.Repeat(" ", gap) + sMid.Render(percentRaw)
-
-	ctr := func(s string) string {
-		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
-	}
-
-	content := strings.Join([]string{
-		ctr(op),
-		"",
-		ctr(statusLine),
-		"",
-		ctr(bar),
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	return renderProgressScreen(progressScreen{
+		Title:    title,
+		Status:   status,
+		Phase:    phase,
+		Progress: progress,
+		Bar:      requirementsForAction(m.action).ProgressBar,
+		Hints:    m.rootPersistentHints(),
+	}, mode)
 }
 
 func (m model) renderRootCanceledFor(mode layoutMode) string {
@@ -2691,29 +2550,16 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 	}
 
 	height := rootLogPanelHeight(mode, m.height)
-	contentWidth := max(1, width-4)
 	contentHeight := max(1, height-2)
-	lines, scrollOffset := visibleTUILogLines(
-		m.scriptLogLines,
-		contentHeight,
-		m.logScroll,
-		"waiting for logs",
-	)
-
-	var body []string
-	for _, line := range lines {
-		body = append(body, trimDisplay(line, contentWidth))
-	}
-
-	panel := lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color(deepRed)).
-		Foreground(lipgloss.Color(mid)).
-		Padding(0, 1).
-		Render(strings.Join(body, "\n"))
-	return appendTUILogSwitchCue(panel, width, scrollOffset)
+	return renderLogPanel(logPanelScreen{
+		Lines:       m.scriptLogLines,
+		Width:       width,
+		Height:      height,
+		VisibleRows: contentHeight,
+		Scroll:      m.logScroll,
+		Empty:       "waiting for logs",
+		Border:      true,
+	})
 }
 
 func rootActionName(action actionMode) string {
@@ -3577,8 +3423,8 @@ func validateRootScript(path string) error {
 	if err != nil {
 		return err
 	}
-	if info.IsDir() {
-		return fmt.Errorf("%s is a directory", path)
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", path)
 	}
 	return nil
 }
@@ -3618,10 +3464,7 @@ func shortError(err error) string {
 	}
 	text := strings.TrimSpace(err.Error())
 	text = strings.Join(strings.Fields(text), " ")
-	if len(text) > 42 {
-		text = text[:39] + "..."
-	}
-	return text
+	return trimDisplay(text, 42)
 }
 
 func shouldDefaultToISOInstaller() bool {

@@ -750,40 +750,40 @@ func (m isoInstallerModel) persistentHints() []tuiHint {
 	if m.shutdownPrompt {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 	switch m.step {
 	case isoStepIntro:
 		return []tuiHint{
 			{Key: "enter", Action: "begin"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	case isoStepWriting:
 		return []tuiHint{
 			{Key: "ctrl+c/z", Action: "stop options"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	case isoStepError:
 		return []tuiHint{
 			{Key: "enter", Action: "close"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	case isoStepReview, isoStepConfirm:
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
-			{Key: "?", Action: "help"},
+			tuiHelpHint(),
 		}
 	default:
 		if m.isListStep() {
 			return []tuiHint{
 				{Key: "↑↓", Action: "choose"},
-				{Key: "f1", Action: "help"},
+				tuiHelpHint(),
 			}
 		}
 		return []tuiHint{
 			{Key: "enter", Action: "continue"},
-			{Key: "f1", Action: "help"},
+			tuiHelpHint(),
 		}
 	}
 }
@@ -795,7 +795,14 @@ func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
 	} else if m.step == isoStepIntro {
 		content = m.renderISOIntro(mode)
 	} else if m.step == isoStepWriting {
-		content = renderReducedProgress("CONFIG", loadRun, realisticProgress(float64(m.frame%buildFrames)/float64(buildFrames)), mode)
+		return renderProgressScreen(progressScreen{
+			Title:    "CONFIG",
+			Status:   "writing installer config",
+			Phase:    loadRun,
+			Progress: realisticProgress(float64(m.frame%buildFrames) / float64(buildFrames)),
+			Bar:      true,
+			Hints:    m.persistentHints(),
+		}, mode)
 	} else if m.step == isoStepError {
 		content = centerCanvas(sRed.Render("ERROR") + sGray.Render("  ") + sMid.Render(m.errorText))
 	} else if m.isListStep() {
@@ -1190,20 +1197,6 @@ func renderISOSearchField(filter string, mode layoutMode) string {
 
 func isoShutdownChoices() []isoChoice {
 	return []isoChoice{{Label: "cancel", Value: "shutdown"}, {Label: "continue", Value: "continue"}}
-}
-
-func trimDisplay(value string, maxWidth int) string {
-	if maxWidth < 1 {
-		return ""
-	}
-	runes := []rune(value)
-	if len(runes) <= maxWidth {
-		return value
-	}
-	if maxWidth <= 1 {
-		return string(runes[:maxWidth])
-	}
-	return string(runes[:maxWidth-1]) + "…"
 }
 
 func isoKeyboardChoices() []isoChoice {

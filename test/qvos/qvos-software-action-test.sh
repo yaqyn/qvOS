@@ -153,11 +153,13 @@ grep -Fqx $'sudo\t1' "$launch_log" ||
   fail "owner sudo contract"
 printf 'ok - action launcher derives the shared TUI contract from owners\n'
 
+mv "$source_root/qv/menu/software-state" "$source_root/qv/menu/software-state.disabled"
 HOME="$test_root/home" \
   OMARCHY_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qv/tui/action/launch" --installer demo-installer
+mv "$source_root/qv/menu/software-state.disabled" "$source_root/qv/menu/software-state"
 
 grep -Fqx $'args\tDemo Installer qvos-tui --action' "$launch_log" ||
   fail "install-only shared TUI launch route"
@@ -173,7 +175,7 @@ grep -Fqx $'sudo\t1' "$launch_log" ||
   fail "install-only sudo contract"
 grep -Fqx $'script\t'"$source_root"$'/qv/tui/action/run-installer' "$launch_log" ||
   fail "install-only verified runner contract"
-printf 'ok - install-only launcher reuses the shared two-ring TUI\n'
+printf 'ok - install-only launcher reuses the shared two-ring TUI without stateful owners\n'
 
 install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
 #!/bin/bash

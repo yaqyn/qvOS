@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 	}
 
 	content := stripANSI(m.View().Content)
-	for _, expected := range []string{"ctrl+c/z", "stop options", "? help"} {
+	for _, expected := range []string{"ctrl+c/z", "stop options", "f1 help"} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("default Update view is missing %q: %q", expected, content)
 		}
@@ -35,8 +36,11 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 
 	m.logOverlay = true
 	content = stripANSI(m.View().Content)
-	if !strings.Contains(content, "ctrl+c/z stop options") || !strings.Contains(content, "? help") {
-		t.Fatalf("open log view lost the primary action and Help: %q", content)
+	if !strings.Contains(content, "ctrl+c/z stop options") {
+		t.Fatalf("open log view lost the primary action: %q", content)
+	}
+	if strings.Contains(content, "f1 help") {
+		t.Fatalf("narrow log progress pane should yield Help to the primary action: %q", content)
 	}
 	if !strings.Contains(content, "ctrl+v  switch") {
 		t.Fatalf("open log view is missing its quiet switch cue: %q", content)
@@ -73,7 +77,7 @@ func TestTerminalOutputViewUsesTheSameRunningModel(t *testing.T) {
 		"first update line",
 		"latest update line",
 		"ctrl+v switch",
-		"? help",
+		"f1 help",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("terminal output is missing %q: %q", expected, content)
@@ -108,7 +112,7 @@ func TestHelpOverlayDocumentsContextualActions(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	m = next.(model)
 	if !m.helpOverlay {
-		t.Fatal("? did not open contextual help")
+		t.Fatal("Shift+? did not open contextual help")
 	}
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
@@ -227,6 +231,36 @@ func TestAuthorizationTitleBreathesBeforeTheField(t *testing.T) {
 
 	view := m.View()
 	assertViewFits(t, view.Content, m.width, m.height)
+}
+
+func TestMobileAuthorizationShowsErrorsAcrossConsumers(t *testing.T) {
+	previousCanvasWidth := canvasW
+	canvasW = 30
+	t.Cleanup(func() {
+		canvasW = previousCanvasWidth
+	})
+
+	update := model{
+		loading:    true,
+		action:     actionUpdate,
+		sudoPrompt: true,
+		sudoErr:    errors.New("password required"),
+	}
+	prototype := prototypeSessionModel{
+		profile:   prototypeProfileFor(prototypeSudo),
+		authError: "password required",
+	}
+	for name, rendered := range map[string]string{
+		"update":    update.renderSudoPromptFor(layoutMobile),
+		"prototype": prototype.renderPanel(layoutMobile),
+	} {
+		t.Run(name, func(t *testing.T) {
+			content := stripANSI(rendered)
+			if !strings.Contains(content, "password required") {
+				t.Fatalf("mobile authorization hid its error: %q", content)
+			}
+		})
+	}
 }
 
 func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
@@ -550,35 +584,34 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 		name       string
 		hints      []tuiHint
 		primaryKey string
-		helpKey    string
 	}{
-		{"hub", (model{}).hubPersistentHints(), "↑↓", "?"},
-		{"update confirmation", (model{updateConfirm: true}).rootPersistentHints(), "←→", "?"},
-		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→", "?"},
-		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter", "f1"},
-		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z", "?"},
-		{"failed action", (model{scriptErr: fmt.Errorf("failed")}).rootPersistentHints(), "r", "?"},
-		{"completed action", (model{scriptDone: true}).rootPersistentHints(), "enter", "?"},
-		{"terminal output", (model{}).terminalHints(), "ctrl+v", "?"},
-		{"prototype hub", (prototypeHubModel{}).persistentHints(), "↑↓", "?"},
+		{"hub", (model{}).hubPersistentHints(), "↑↓"},
+		{"update confirmation", (model{updateConfirm: true}).rootPersistentHints(), "←→"},
+		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→"},
+		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter"},
+		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z"},
+		{"failed action", (model{scriptErr: fmt.Errorf("failed")}).rootPersistentHints(), "r"},
+		{"completed action", (model{scriptDone: true}).rootPersistentHints(), "enter"},
+		{"terminal output", (model{}).terminalHints(), "ctrl+v"},
+		{"prototype hub", (prototypeHubModel{}).persistentHints(), "↑↓"},
 		{"prototype sudo", (prototypeSessionModel{
 			profile: prototypeProfileFor(prototypeSudo),
-		}).persistentHints(), "enter", "f1"},
-		{"prototype running", (prototypeSessionModel{}).persistentHints(), "esc", "?"},
-		{"prototype failure", (prototypeSessionModel{failed: true}).persistentHints(), "r", "?"},
-		{"prototype complete", (prototypeSessionModel{done: true}).persistentHints(), "enter", "?"},
-		{"prototype terminal", (prototypeSessionModel{}).terminalHints(), "ctrl+v", "?"},
-		{"ISO intro", (isoInstallerModel{step: isoStepIntro}).persistentHints(), "enter", "?"},
-		{"ISO writing", (isoInstallerModel{step: isoStepWriting}).persistentHints(), "ctrl+c/z", "?"},
-		{"ISO list", (isoInstallerModel{step: isoStepKeyboard}).persistentHints(), "↑↓", "f1"},
-		{"ISO input", (isoInstallerModel{step: isoStepPassword}).persistentHints(), "enter", "f1"},
-		{"ISO choice", (isoInstallerModel{step: isoStepReview}).persistentHints(), "←→", "?"},
-		{"ISO progress", (isoProgressModel{}).persistentHints(), "v", "?"},
+		}).persistentHints(), "enter"},
+		{"prototype running", (prototypeSessionModel{}).persistentHints(), "esc"},
+		{"prototype failure", (prototypeSessionModel{failed: true}).persistentHints(), "r"},
+		{"prototype complete", (prototypeSessionModel{done: true}).persistentHints(), "enter"},
+		{"prototype terminal", (prototypeSessionModel{}).terminalHints(), "ctrl+v"},
+		{"ISO intro", (isoInstallerModel{step: isoStepIntro}).persistentHints(), "enter"},
+		{"ISO writing", (isoInstallerModel{step: isoStepWriting}).persistentHints(), "ctrl+c/z"},
+		{"ISO list", (isoInstallerModel{step: isoStepKeyboard}).persistentHints(), "↑↓"},
+		{"ISO input", (isoInstallerModel{step: isoStepPassword}).persistentHints(), "enter"},
+		{"ISO choice", (isoInstallerModel{step: isoStepReview}).persistentHints(), "←→"},
+		{"ISO progress", (isoProgressModel{}).persistentHints(), "v"},
 		{"ISO progress complete", (isoProgressModel{
 			prototype: true,
 			progress:  1,
-		}).persistentHints(), "enter", "?"},
-		{"ISO terminal", (isoProgressModel{}).terminalHints(), "ctrl+v", "?"},
+		}).persistentHints(), "enter"},
+		{"ISO terminal", (isoProgressModel{}).terminalHints(), "ctrl+v"},
 	}
 
 	for _, test := range tests {
@@ -586,12 +619,11 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 			if len(test.hints) != 2 {
 				t.Fatalf("persistent hints = %#v, want one primary action and Help", test.hints)
 			}
-			if test.hints[0].Key != test.primaryKey || test.hints[1].Key != test.helpKey {
+			if test.hints[0].Key != test.primaryKey || test.hints[1] != tuiHelpHint() {
 				t.Fatalf(
-					"persistent hints = %#v, want primary %q and Help %q",
+					"persistent hints = %#v, want primary %q and consistent F1 Help",
 					test.hints,
 					test.primaryKey,
-					test.helpKey,
 				)
 			}
 			if test.hints[1].Action != "help" {
@@ -609,13 +641,13 @@ func TestHintRendererWrapsWithoutHidingActions(t *testing.T) {
 		{Key: "ctrl+c/z", Action: "stop options"},
 		{Key: "v", Action: "close logs"},
 		{Key: "ctrl+v", Action: "terminal"},
-		{Key: "?", Action: "help"},
+		tuiHelpHint(),
 	}
 	for _, width := range []int{24, 40, 72} {
 		t.Run(fmt.Sprintf("width-%d", width), func(t *testing.T) {
 			rendered := renderTUIHints(width, hints...)
 			content := stripANSI(rendered)
-			for _, expected := range []string{"ctrl+c/z", "v close logs", "ctrl+v terminal", "? help"} {
+			for _, expected := range []string{"ctrl+c/z", "v close logs", "ctrl+v terminal", "f1 help"} {
 				if !strings.Contains(content, expected) {
 					t.Fatalf("width %d is missing %q: %q", width, expected, content)
 				}
@@ -626,6 +658,47 @@ func TestHintRendererWrapsWithoutHidingActions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestHelpHintUsesQuietDimGray(t *testing.T) {
+	rendered := renderTUIHints(72,
+		tuiHint{Key: "enter", Action: "return"},
+		tuiHelpHint(),
+	)
+	dimHelp := sDim.Render("f1") + " " + sDim.Render("help")
+	if !strings.Contains(rendered, dimHelp) {
+		t.Fatalf("Help hint is not dim gray: %q", rendered)
+	}
+	if strings.Contains(rendered, sHot.Render("f1")) {
+		t.Fatalf("Help key retained the red primary style: %q", rendered)
+	}
+}
+
+func TestCompactPersistentHintsKeepOnlyThePrimaryAction(t *testing.T) {
+	const width = 24
+	rendered := stripANSI(centerTUIHints(width,
+		tuiHint{Key: "ctrl+c/z", Action: "stop options"},
+		tuiHelpHint(),
+	))
+
+	lines := strings.Split(rendered, "\n")
+	if len(lines) != 1 {
+		t.Fatalf("compact hint lines = %d, want 1: %q", len(lines), rendered)
+	}
+	if strings.Contains(rendered, "help") || !strings.Contains(rendered, "ctrl+c/z stop options") {
+		t.Fatalf("compact hints did not preserve only the primary action: %q", rendered)
+	}
+	content := strings.TrimSpace(lines[0])
+	wantLeft := (width - lipgloss.Width(content)) / 2
+	if gotLeft := strings.Index(lines[0], content); gotLeft != wantLeft {
+		t.Fatalf("primary hint left margin = %d, want %d: %q", gotLeft, wantLeft, lines[0])
+	}
+}
+
+func TestCenteredHintsRemainEmptyWithoutActions(t *testing.T) {
+	if rendered := centerTUIHints(24); rendered != "" {
+		t.Fatalf("empty centered hints = %q, want no phantom padding", rendered)
 	}
 }
 
