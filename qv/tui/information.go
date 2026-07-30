@@ -80,7 +80,6 @@ func formatInformationLines(
 	}
 
 	entries := make([]informationEntry, 0, len(lines))
-	maxLabelWidth := 0
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -97,27 +96,19 @@ func formatInformationLines(
 			label = "Status"
 		}
 		label = strings.ToUpper(label)
-		maxLabelWidth = max(maxLabelWidth, lipgloss.Width(label))
 		entries = append(entries, informationEntry{Label: label, Value: value})
 	}
 
-	labelWidth := min(12, maxLabelWidth)
-	stacked := maxLabelWidth > labelWidth || width-labelWidth-2 < 16
 	formatted := make([]string, 0, len(lines)*3)
 	for _, entry := range entries {
 		switch {
 		case entry.Label != "":
-			if len(formatted) > 0 && formatted[len(formatted)-1] != "" {
-				formatted = append(formatted, "")
-			}
 			formatted = append(
 				formatted,
 				formatInformationField(
 					entry.Label,
 					entry.Value,
 					width,
-					labelWidth,
-					stacked,
 				)...,
 			)
 		case entry.Raw != "":
@@ -157,46 +148,25 @@ func formatInformationField(
 	label string,
 	value string,
 	width int,
-	labelWidth int,
-	stacked bool,
 ) []string {
 	primary, secondary := splitInformationValue(value)
-	if stacked {
-		formatted := styleWrappedInformation([]string{label}, width, sRed)
-		formatted = append(
-			formatted,
-			styleWrappedInformation([]string{primary}, width, sWhite)...,
-		)
-		for _, qualifier := range secondary {
-			formatted = append(
-				formatted,
-				styleWrappedInformation([]string{qualifier}, width, sMid)...,
-			)
-		}
-		return formatted
-	}
+	primary, secondary = simplifyInformationValue(label, primary, secondary)
 
-	valueWidth := max(1, width-labelWidth-2)
-	primaryLines := wrapDisplayLines([]string{primary}, valueWidth)
-	indent := strings.Repeat(" ", labelWidth+2)
-	paddedLabel := label + strings.Repeat(
-		" ",
-		max(0, labelWidth-lipgloss.Width(label)),
-	)
-	formatted := make([]string, 0, 1+len(secondary))
-	for index, line := range primaryLines {
-		prefix := indent
-		if index == 0 {
-			prefix = sRed.Render(paddedLabel) + "  "
-		}
-		formatted = append(formatted, prefix+sWhite.Render(line))
+	primaryStyle := sWhite
+	if strings.Contains(primary, "%") {
+		primaryStyle = sRed
 	}
+	row := sGray.Render(label) +
+		sDim.Render(" · ") +
+		primaryStyle.Render(primary)
 	for _, qualifier := range secondary {
-		for _, line := range wrapDisplayLines([]string{qualifier}, valueWidth) {
-			formatted = append(formatted, indent+sMid.Render(line))
+		style := sMid
+		if strings.Contains(qualifier, "%") {
+			style = sRed
 		}
+		row += sDim.Render(" - ") + style.Render(qualifier)
 	}
-	return formatted
+	return wrapDisplayLines([]string{row}, width)
 }
 
 func splitInformationValue(value string) (string, []string) {
@@ -209,6 +179,24 @@ func splitInformationValue(value string) (string, []string) {
 	primary, detail := splitInformationDetail(primary)
 	if detail != "" {
 		secondary = append(secondary, detail)
+	}
+	return primary, secondary
+}
+
+func simplifyInformationValue(
+	label string,
+	primary string,
+	secondary []string,
+) (string, []string) {
+	if label == "STATUS" {
+		secondary = nil
+	}
+	if label == "HARDWARE" {
+		primary = strings.TrimPrefix(primary, "firmware ")
+		primary = strings.TrimSuffix(primary, " mode")
+	}
+	for index, qualifier := range secondary {
+		secondary[index] = strings.TrimPrefix(qualifier, "approximately ")
 	}
 	return primary, secondary
 }

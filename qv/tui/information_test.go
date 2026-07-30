@@ -20,39 +20,35 @@ func TestInformationFieldsPresentStatusHierarchy(t *testing.T) {
 	rendered := strings.Join(lines, "\n")
 	plain := stripANSI(rendered)
 	for _, expected := range []string{
-		"STATUS",
-		"Enabled",
-		"Mostly plugged in",
-		"HARDWARE",
-		"firmware Long Life mode",
-		"approximately 50-60%",
+		"STATUS · Enabled",
+		"HARDWARE · Long Life - 50-60%",
 	} {
 		if !strings.Contains(plain, expected) {
 			t.Fatalf("presented information is missing %q: %q", expected, plain)
 		}
 	}
 	for _, styled := range []string{
-		sRed.Render("STATUS  "),
+		sGray.Render("STATUS"),
 		sWhite.Render("Enabled"),
-		sMid.Render("Mostly plugged in"),
-		sWhite.Render("firmware Long Life mode"),
-		sMid.Render("approximately 50-60%"),
+		sWhite.Render("Long Life"),
+		sRed.Render("50-60%"),
 	} {
 		if !strings.Contains(rendered, styled) {
 			t.Fatalf("information hierarchy is missing styled value %q", stripANSI(styled))
 		}
 	}
-	if strings.Contains(rendered, sDeepRed.Render("▐")) ||
-		strings.Contains(rendered, sHot.Render("Enabled")) {
-		t.Fatalf("information hierarchy retained competing accent styles: %q", plain)
-	}
-	for _, row := range []string{
-		"STATUS    Enabled",
-		"HARDWARE  firmware Long Life mode",
+	for _, noisy := range []string{
+		"Mostly plugged in",
+		"firmware",
+		" mode",
+		"approximately",
 	} {
-		if !strings.Contains(plain, row) {
-			t.Fatalf("information fields are not aligned: missing %q in %q", row, plain)
+		if strings.Contains(plain, noisy) {
+			t.Fatalf("information retained noisy copy %q: %q", noisy, plain)
 		}
+	}
+	if strings.Contains(rendered, sRed.Render("STATUS")) {
+		t.Fatalf("secondary field label competed with its value: %q", plain)
 	}
 }
 
@@ -75,7 +71,7 @@ func TestInformationFieldsWrapWithoutClipping(t *testing.T) {
 			t.Fatalf("information line width = %d: %q", width, stripANSI(line))
 		}
 	}
-	if len(lines) <= 4 {
+	if len(lines) < 3 {
 		t.Fatalf("narrow information did not expand into readable rows: %q", stripANSI(rendered))
 	}
 }
