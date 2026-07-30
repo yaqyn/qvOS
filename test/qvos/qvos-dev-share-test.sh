@@ -236,7 +236,7 @@ install -m 0644 /dev/stdin "$proxy_proc/status" <<EOF
 Name:	socat
 Uid:	$(id -u)	$(id -u)	$(id -u)	$(id -u)
 EOF
-ln -s /usr/bin/socat "$proxy_proc/exe"
+ln -s /usr/bin/socat1 "$proxy_proc/exe"
 printf '/usr/bin/socat\0TCP4-LISTEN:3000,bind=192.168.100.164,reuseaddr,fork\0TCP4:127.0.0.1:3000\0' \
   >"$proxy_proc/cmdline"
 touch "$fixture/proxy-3000"
@@ -251,6 +251,7 @@ helper_environment=(
   QVOS_DEV_SHARE_ROOT_HELPER="$firewall_helper"
   QVOS_DEV_SHARE_PROC_ROOT="$fixture/proc"
   QVOS_DEV_SHARE_POLL_SECONDS=0.01
+  QVOS_DEV_SHARE_SOCAT_EXECUTABLE=/usr/bin/socat1
   QVOS_TEST_ACTION_LOG="$action_log"
   QVOS_TEST_FIXTURE="$fixture"
 )

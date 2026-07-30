@@ -9,6 +9,8 @@ ufw_command=/usr/bin/ufw
 helper_path=/usr/lib/qvos/dev-share-firewall
 proc_root=/proc
 poll_seconds=1
+socat_command=/usr/bin/socat
+socat_executable=
 
 if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
   ip_command=${QVOS_DEV_SHARE_IP:-$ip_command}
@@ -19,6 +21,12 @@ if [[ ${QVOS_DEV_SHARE_TESTING:-} == "1" ]]; then
   helper_path=${QVOS_DEV_SHARE_ROOT_HELPER:-$helper_path}
   proc_root=${QVOS_DEV_SHARE_PROC_ROOT:-$proc_root}
   poll_seconds=${QVOS_DEV_SHARE_POLL_SECONDS:-$poll_seconds}
+  socat_executable=${QVOS_DEV_SHARE_SOCAT_EXECUTABLE:-$socat_command}
+else
+  socat_executable=$(readlink -f "$socat_command") || {
+    echo "The qvOS LAN preview proxy is unavailable." >&2
+    exit 1
+  }
 fi
 
 usage() {
@@ -71,11 +79,11 @@ proxy_matches() {
   ) || return 1
   [[ $status_uid == "$owner_uid" ]] || return 1
   executable=$(readlink "$proc_root/$pid/exe" 2>/dev/null) || return 1
-  [[ $executable == "/usr/bin/socat" ]] || return 1
+  [[ $executable == "$socat_executable" ]] || return 1
   mapfile -d '' -t command_line 2>/dev/null \
     <"$proc_root/$pid/cmdline" || return 1
   ((${#command_line[@]} == 3)) &&
-    [[ ${command_line[0]} == "/usr/bin/socat" ]] &&
+    [[ ${command_line[0]} == "$socat_command" ]] &&
     [[ ${command_line[1]} == \
       "TCP4-LISTEN:$port,bind=$lan_ip,reuseaddr,fork" ]] &&
     [[ ${command_line[2]} == "TCP4:127.0.0.1:$port" ]]
