@@ -33,3 +33,11 @@ Hyprland sources under `qv/config/files/hypr/`. Put additive overrides in its
 `qv/` sublayer where the include structure supports that; otherwise update the
 owned top-level source. Reconcile after upstream refresh and verify tracked and
 installed configuration.
+
+`qv/config/monitor-autodetect` owns display-scale reconciliation on fresh first
+login and explicit Hyprland restore. Let Hyprland choose preferred modes,
+automatic placement, and PPI-based per-monitor scale. Synchronize the global
+toolkit scale from the internal display, then the focused or first active
+display. Only touch Omarchy's generic `,preferred,auto,auto` catch-all; preserve
+every explicit custom monitor layout. Reload Hyprland and require no config
+errors after detection.

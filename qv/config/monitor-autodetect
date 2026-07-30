@@ -1,0 +1,107 @@
+#!/bin/bash
+set -euo pipefail
+
+monitor_config="$HOME/.config/hypr/monitors.conf"
+reload_attempts=20
+
+fail() {
+  printf 'qvOS display detection: %s\n' "$1" >&2
+  exit 1
+}
+
+[[ -f $monitor_config && ! -L $monitor_config ]] ||
+  fail "the Hyprland monitor config is missing or unsafe"
+
+if ! grep -Eq \
+  '^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,preferred,auto,auto([[:space:]]|$|,)' \
+  "$monitor_config"; then
+  printf 'Display configuration: Preserved custom layout\n'
+  exit 0
+fi
+
+command -v hyprctl >/dev/null 2>&1 ||
+  fail "Hyprland control is unavailable"
+command -v jq >/dev/null 2>&1 ||
+  fail "JSON parsing is unavailable"
+
+hyprctl reload >/dev/null
+config_errors=$(hyprctl configerrors)
+[[ -z $config_errors ]] ||
+  fail "Hyprland rejected the restored configuration: $config_errors"
+
+monitor_record=""
+for ((attempt = 0; attempt < reload_attempts; attempt++)); do
+  if monitor_json=$(hyprctl monitors -j 2>/dev/null); then
+    monitor_record=$(
+      jq -er '
+        (
+          [.[] | select(
+            .disabled != true and
+            (.name | test("^(eDP|LVDS|DSI)"))
+          )][0] //
+          [.[] | select(.disabled != true and .focused == true)][0] //
+          [.[] | select(.disabled != true)][0]
+        ) as $monitor |
+        [
+          $monitor.name,
+          ($monitor.width | tostring),
+          ($monitor.height | tostring),
+          (
+            $monitor.scale |
+            tonumber |
+            if . == floor then floor else . end |
+            tostring
+          )
+        ] |
+        @tsv
+      ' <<<"$monitor_json" 2>/dev/null
+    ) || true
+  fi
+  [[ -n $monitor_record ]] && break
+  sleep 0.1
+done
+[[ -n $monitor_record ]] ||
+  fail "Hyprland did not report an active display"
+
+IFS=$'\t' read -r monitor_name monitor_width monitor_height monitor_scale \
+  <<<"$monitor_record"
+[[ $monitor_scale =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+  fail "Hyprland reported an invalid display scale"
+
+if ! grep -Eq \
+  '^[[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,' \
+  "$monitor_config"; then
+  fail "the adaptive monitor config has no toolkit scale"
+fi
+
+original_config=$(mktemp)
+trap 'rm -f -- "$original_config"' EXIT
+cp -a -- "$monitor_config" "$original_config"
+
+rollback_scale() {
+  cp -a -- "$original_config" "$monitor_config"
+  hyprctl reload >/dev/null || true
+}
+
+sed -i -E \
+  "s|^([[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,).*|\\1$monitor_scale|" \
+  "$monitor_config"
+
+if ! hyprctl reload >/dev/null; then
+  rollback_scale
+  fail "Hyprland could not reload the detected display scale"
+fi
+if ! config_errors=$(hyprctl configerrors); then
+  rollback_scale
+  fail "Hyprland could not validate the detected display scale"
+fi
+if [[ -n $config_errors ]]; then
+  rollback_scale
+  fail "Hyprland rejected the detected display scale: $config_errors"
+fi
+
+printf 'Display: %s - %sx%s\n' \
+  "$monitor_name" \
+  "$monitor_width" \
+  "$monitor_height"
+printf 'Scale: %sx\n' "$monitor_scale"

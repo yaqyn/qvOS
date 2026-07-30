@@ -15,3 +15,5 @@ config_paths=(
 for config_path in "${config_paths[@]}"; do
   "$config_owner" "$config_path"
 done
+
+"$OMARCHY_PATH/qv/config/monitor-autodetect"
