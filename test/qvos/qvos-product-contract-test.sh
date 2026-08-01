@@ -475,6 +475,11 @@ grep -Fq 'qvOS ISO failed stage retained:' "$iso_build" ||
 grep -Fq 'if ! run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"; then' \
   "$iso_build" ||
   fail "qvOS ISO build failure stage retention"
+grep -Fq 'checkout_qvos_update_branch "$target"' "$iso_build" ||
+  fail "qvOS ISO attached update branch"
+grep -Fq 'source_branch != "OS" || $source_upstream != "origin/OS"' \
+  "$iso_build" ||
+  fail "qvOS ISO staged update branch validation"
 grep -Fq 'DisableDownloadTimeout' "$iso_build" ||
   fail "qvOS ISO slow-link repository support"
 grep -Fq 'print "ParallelDownloads = 2"' "$iso_build" ||
@@ -498,6 +503,40 @@ grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \
 grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO progress fullscreen contract"
+grep -Fq 'root/omarchy/qv/boot/plymouth/' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO live Plymouth owner"
+grep -Fq 'set_qvos_console_colors' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO console palette owner"
+iso_patch_additions=$(sed -n '/^+++ /! s/^+//p' "$root/qv/iso/omarchy-iso-qvos-tui.patch")
+for retired_iso_color in 1a1b26 f7768e a9b1d6 c0caf5 9ece6a e0af68 7aa2f7 bb9af7 7dcfff; do
+  if grep -Fqi "$retired_iso_color" <<<"$iso_patch_additions"; then
+    fail "qvOS ISO retained inherited Tokyo Night color: $retired_iso_color"
+  fi
+done
+grep -Fq 'echo -en "\e]P0000000"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO exact-black console background"
+grep -Fq 'echo -en "\e]P1b00000"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO normal red console accent"
+grep -Fq 'echo -en "\e]P9d00000"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO hot red console accent"
+for qvos_boot_branding in \
+  'title    qvOS (x86_64, UEFI)' \
+  'menuentry "qvOS (%ARCH%, ${archiso_platform})"' \
+  'MENU TITLE qvOS' \
+  'MENU LABEL qvOS install medium (x86_64, BIOS)' \
+  'iso_name="qvos"' \
+  'iso_label="QVOS_' \
+  'iso_publisher="qvOS <https://github.com/Yaqyn-qvOS/qvOS>"' \
+  'iso_application="qvOS Installer"'; do
+  grep -Fq "$qvos_boot_branding" \
+    "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+    fail "qvOS ISO boot branding: $qvos_boot_branding"
+done
 grep -Fq 'install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS installed-system TUI payload"
@@ -532,6 +571,58 @@ if grep -Fq 'file_permissions[/root/omarchy/README.md]' \
 fi
 pass "qvOS ISO derives embedded executable modes from Git"
 
+# shellcheck disable=SC1090
+source <(sed -n '/^checkout_git_ref() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
+source <(sed -n '/^clone_git_source() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
+source <(sed -n '/^checkout_qvos_update_branch() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
+source <(sed -n '/^stage_qvos_source() {$/,/^}$/p' "$iso_build")
+
+iso_source_fixture="$test_root/iso-source"
+iso_source_stage="$test_root/iso-source-stage"
+iso_mismatch_stage="$test_root/iso-mismatch-stage"
+git init -q -b OS "$iso_source_fixture"
+git -C "$iso_source_fixture" config user.name Fixture
+git -C "$iso_source_fixture" config user.email fixture@example.invalid
+printf 'release source\n' >"$iso_source_fixture/source"
+git -C "$iso_source_fixture" add source
+git -C "$iso_source_fixture" commit -q -m 'Release source'
+iso_source_commit=$(git -C "$iso_source_fixture" rev-parse HEAD)
+
+git -C "$iso_source_fixture" switch -q -c fixture-mismatch
+printf 'mismatched source\n' >"$iso_source_fixture/source"
+git -C "$iso_source_fixture" commit -q -am 'Mismatched source'
+iso_mismatch_commit=$(git -C "$iso_source_fixture" rev-parse HEAD)
+git -C "$iso_source_fixture" switch -q OS
+
+# shellcheck disable=SC2034
+qvos_source_repo="$iso_source_fixture"
+# shellcheck disable=SC2034
+qvos_source_ref="$iso_source_commit"
+stage_qvos_source "$iso_source_stage" >/dev/null
+[[ $(git -C "$iso_source_stage" rev-parse HEAD) == "$iso_source_commit" ]] ||
+  fail "qvOS ISO staged commit identity"
+[[ $(git -C "$iso_source_stage" branch --show-current) == "OS" ]] ||
+  fail "qvOS ISO staged OS branch"
+[[ $(git -C "$iso_source_stage" rev-parse --abbrev-ref '@{upstream}') == "origin/OS" ]] ||
+  fail "qvOS ISO staged OS upstream"
+[[ -z $(git -C "$iso_source_stage" status --porcelain=v1 --untracked-files=all) ]] ||
+  fail "qvOS ISO staged branch cleanliness"
+
+# shellcheck disable=SC2034
+qvos_source_ref="$iso_mismatch_commit"
+set +e
+iso_mismatch_output=$(stage_qvos_source "$iso_mismatch_stage" 2>&1)
+iso_mismatch_status=$?
+set -e
+((iso_mismatch_status != 0)) || fail "qvOS ISO accepted a non-OS pinned commit"
+grep -Fq 'pinned qvOS source commit to equal origin/OS' \
+  <<<"$iso_mismatch_output" ||
+  fail "qvOS ISO mismatched commit failure"
+pass "qvOS ISO embeds the exact origin/OS commit on its usable update branch"
+
 publish_fixture="$test_root/iso-publish"
 publish_bin="$publish_fixture/bin"
 publish_out="$publish_fixture/out"
@@ -565,6 +656,8 @@ pass "qvOS TUI exposes only supported lifecycle actions on the matching Omarchy 
 
 grep -Fq '(qvOS|Omarchy)([[:space:]]|$)' "$root/qv/boot/config-direct-boot" || fail "current and legacy EFI label detection"
 grep -Fq -- '--label "qvOS"' "$root/qv/boot/config-direct-boot" || fail "qvOS EFI label"
+grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qv/boot/limine/default.conf" || fail "qvOS Limine OS name"
+grep -Fxq 'interface_branding: qvOS Bootloader' "$root/qv/boot/limine/limine.conf" || fail "qvOS Limine header"
 grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
 grep -Fq 'GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"' "$root/bin/omarchy" || fail "upstream branch identity"
 pass "visible system branding is qvOS without renaming Omarchy internals"
@@ -751,6 +844,32 @@ grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
   "$root/qv/install/helpers/logging" ||
   fail "restricted install log"
 grep -qx 'Name=Yaqyn' "$root/qv/boot/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
+grep -qx 'ConsoleLogBackgroundColor=0x000000' \
+  "$root/qv/boot/plymouth/omarchy.plymouth" ||
+  fail "Plymouth exact-black console background"
+grep -qx 'Window.SetBackgroundTopColor(0, 0, 0);' \
+  "$root/qv/boot/plymouth/omarchy.script" ||
+  fail "Plymouth exact-black top background"
+grep -qx 'Window.SetBackgroundBottomColor(0, 0, 0);' \
+  "$root/qv/boot/plymouth/omarchy.script" ||
+  fail "Plymouth exact-black bottom background"
+command -v magick >/dev/null 2>&1 || fail "Plymouth asset color verifier"
+[[ $(magick "$root/qv/boot/plymouth/bullet.png" -depth 8 -format '%[hex:p{7,7}]' info:) == "B00000FF" ]] ||
+  fail "Plymouth normal red password accent"
+[[ $(magick "$root/qv/boot/plymouth/progress_bar.png" -depth 8 -format '%[hex:p{150,5}]' info:) == "D00000" ]] ||
+  fail "Plymouth hot red progress accent"
+[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{0,0}]' info:) == "000000" ]] ||
+  fail "Plymouth preview exact-black background"
+[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{840,697}]' info:) == "B00000" ]] ||
+  fail "Plymouth preview normal red accent"
+
+limine_theme="$root/qv/boot/limine/limine.conf"
+grep -qx 'term_background: 000000' "$limine_theme" || fail "Limine exact-black terminal background"
+grep -qx 'backdrop: 000000' "$limine_theme" || fail "Limine exact-black backdrop"
+grep -qx 'term_background_bright: 000000' "$limine_theme" || fail "Limine exact-black bright background"
+if rg -qi 'b00000|d00000' "$limine_theme"; then
+  fail "Limine retained a red accent instead of grayscale-only branding"
+fi
 grep -qx 'Name=Yaqyn' "$root/qv/boot/sddm/metadata.desktop" || fail "SDDM theme identity"
 pass "fresh theme policies are scoped to the desktop user and named Yaqyn"
 

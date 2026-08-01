@@ -28,9 +28,19 @@ the previous one.
   the release proof. Record both input commits, the artifact name and size,
   SHA-256, build result, and retained failure-stage path when applicable.
 - Inspect the completed image and prove that its embedded qvOS source equals
-  `QVOS_SOURCE_REF`, its tracked executable modes match Git, and the embedded
-  worktree is clean with `core.filemode=true`; do not infer any of this from
-  the build command.
+  `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
+  modes match Git, and the embedded worktree is clean with
+  `core.filemode=true`; do not infer any of this from the build command.
+- Boot the image and capture the Limine, Plymouth, installer, progress, and
+  finale surfaces. Their pixels must use exact black (`#000000`) and neutral
+  grayscale; Plymouth and the installer may use only qvOS red tonal accents
+  (`#5f0000`/`#b00000`/`#d00000`), while Limine stays grayscale-only. Reject
+  inherited Omarchy/Tokyo Night colors or stale glyphs from an earlier TUI
+  frame.
+- Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
+  menu. All displayed product, entry, publisher, and application names must say
+  `qvOS`; inherited internal compatibility identifiers may remain lowercase
+  `omarchy` only when they are not shown as branding.
 
 ## 3. Clean Installation Rehearsal
 

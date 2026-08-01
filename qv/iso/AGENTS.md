@@ -22,12 +22,23 @@ embedded source, installer integration, or release-image verification.
   request or for release candidates. For ISO changes, run fast staging and
   contract checks immediately and report any deferred full build.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
-  build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
-  source, and keep optional qvCORE stacks out unless explicitly promoted.
+  require that commit to equal `origin/OS`, and leave the embedded checkout on
+  `OS` tracking `origin/OS` so the installed update guard remains usable. Build
+  the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded source,
+  and keep optional qvCORE stacks out unless explicitly promoted.
 - Archiso normalizes ordinary payload files to mode `0644`. Generate explicit
   `profiledef.sh` entries from the embedded Git tree's tracked `100755` modes;
   never maintain a second executable inventory. Reject an artifact unless the
   embedded worktree is clean with file-mode checking enabled.
+- The live ISO, Plymouth, Limine, and installer TUI use exact black
+  (`#000000`) and neutral grayscale. Plymouth and the installer TUI may use
+  only the Yaqyn red tonal accents (`#5f0000`/`#b00000`/`#d00000`); Limine
+  stays grayscale-only. Stage `qv/boot/plymouth`, never the inherited Omarchy
+  Plymouth payload, and verify the rendered boot/install pixels.
+- Every user-visible live-media boot label, installed Limine label, volume
+  label, publisher, and application name says `qvOS`. Keep inherited lowercase
+  internal paths, command names, package names, and UKI filenames unchanged
+  when they are compatibility identifiers rather than displayed branding.
 - Once a release candidate commit is selected, freeze feature work until its
   rehearsal passes or the candidate is abandoned. During the freeze, accept
   only upstream compatibility, build or installation blockers, verification

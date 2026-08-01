@@ -200,6 +200,29 @@ clone_git_source() {
   checkout_git_ref "$target" "$ref"
 }
 
+checkout_qvos_update_branch() {
+  local target="$1"
+  local selected_commit
+  local update_commit
+
+  selected_commit=$(git -C "$target" rev-parse HEAD)
+  if ! git -C "$target" show-ref --verify --quiet refs/remotes/origin/OS; then
+    echo "qvos-build requires the qvOS source repository to expose origin/OS." >&2
+    return 1
+  fi
+
+  update_commit=$(git -C "$target" rev-parse refs/remotes/origin/OS)
+  if [[ $selected_commit != "$update_commit" ]]; then
+    echo "qvos-build requires the pinned qvOS source commit to equal origin/OS." >&2
+    echo "Selected: $selected_commit" >&2
+    echo "origin/OS: $update_commit" >&2
+    return 1
+  fi
+
+  git -C "$target" checkout -q -B OS origin/OS
+  git -C "$target" branch --set-upstream-to=origin/OS OS >/dev/null
+}
+
 stage_omarchy_iso() {
   local target="$1"
 
@@ -224,11 +247,14 @@ stage_qvos_source() {
 
   echo "qvOS ISO progress: fresh-cloning qvOS source $qvos_source_ref"
   clone_git_source "$qvos_source_repo" "$qvos_source_ref" "$target"
+  checkout_qvos_update_branch "$target"
 }
 
 validate_qvos_source() {
   local target="$1"
   local missing=false
+  local source_branch
+  local source_upstream
 
   echo "qvOS ISO progress: validating qvOS payload"
 
@@ -246,6 +272,16 @@ validate_qvos_source() {
   fi
   if [[ ! -f $target/qv/iso/omarchy-iso-qvos-tui.patch ]]; then
     echo "qvos-build staged qvOS source is missing qv/iso/omarchy-iso-qvos-tui.patch" >&2
+    missing=true
+  fi
+
+  source_branch=$(git -C "$target" branch --show-current 2>/dev/null || true)
+  source_upstream=$(
+    git -C "$target" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' \
+      2>/dev/null || true
+  )
+  if [[ $source_branch != "OS" || $source_upstream != "origin/OS" ]]; then
+    echo "qvos-build staged qvOS source must be on OS tracking origin/OS." >&2
     missing=true
   fi
 

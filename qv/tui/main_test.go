@@ -3558,12 +3558,25 @@ func TestCenteredLayoutHasAnIndependentModelQualityFloor(t *testing.T) {
 }
 
 func TestViewportUsesBlackBackgroundWithoutDecorativeFrame(t *testing.T) {
-	if bgTerm != "#020202" {
-		t.Fatalf("background = %q, want #020202", bgTerm)
+	if bgTerm != "#000000" {
+		t.Fatalf("background = %q, want #000000", bgTerm)
+	}
+	if deepRed != "#5f0000" || red != "#b00000" || hotRed != "#d00000" {
+		t.Fatalf(
+			"red palette = %q / %q / %q, want #5f0000 / #b00000 / #d00000",
+			deepRed, red, hotRed,
+		)
 	}
 
 	width, height := 100, 30
-	view := stripANSI(renderViewport(width, height, "qvOS"))
+	rendered := renderViewport(width, height, "qvOS")
+	backgroundFill := lipgloss.NewStyle().Background(lipgloss.Color(bgTerm)).Render(" ")
+	backgroundSequence := strings.TrimSuffix(backgroundFill, " \x1b[m")
+	if backgroundSequence == "" || backgroundSequence == backgroundFill ||
+		!strings.Contains(rendered, backgroundSequence) {
+		t.Fatal("viewport padding does not paint the qvOS black background")
+	}
+	view := stripANSI(rendered)
 	lines := strings.Split(view, "\n")
 	if len(lines) != height {
 		t.Fatalf("viewport height = %d, want %d", len(lines), height)

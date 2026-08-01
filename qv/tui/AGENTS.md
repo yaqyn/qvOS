@@ -9,6 +9,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 
 - `qv/tui/` owns the shared palette, responsive composition, 3D stage,
   confirmation, authorization, progress, logs, and result presentation.
+- Render qvOS surfaces on exact black (`#000000`) with neutral grayscale and
+  the Yaqyn deep/normal/hot reds (`#5f0000`/`#b00000`/`#d00000`). Paint the
+  full viewport, including placement whitespace, so transitions cannot leave
+  model, log, or border glyphs behind on a Linux VT.
 - Put each action-specific contract and adapter under `qv/tui/<action>/`.
   Every direct mode and the main hub must reuse the same action flow.
 - Domain packages provide only copy, truthful milestones, preflight,

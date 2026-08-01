@@ -79,6 +79,6 @@ for asset in bullet.png entry.png lock.png; do
   sudo cp "$staging_dir/$asset" "$sddm_dir/$asset"
 done
 for asset in entry lock; do
-  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#f7768e,#f7768e" "$staging_dir/$asset-failed.png"
+  magick "$staging_dir/$asset.png" -channel RGB +level-colors "#b00000,#b00000" "$staging_dir/$asset-failed.png"
   sudo cp "$staging_dir/$asset-failed.png" "$sddm_dir/$asset-failed.png"
 done

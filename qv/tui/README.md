@@ -57,6 +57,11 @@ calibrated against the live Alacritty cell geometry:
 - true fullscreen window or boot TTY: override to a centered cinematic
   composition while keeping the normal 64x32 model ceiling
 
+Every composition paints its complete viewport `#000000`; placement padding
+is not transparent terminal whitespace. The palette stays neutral grayscale
+with `#5f0000`, `#b00000`, and `#d00000` as its only chromatic tonal accents;
+the reduced-color ISO console uses the normal and hot variants.
+
 Menu titles and descriptions use catalog-wide measured columns. Descriptions
 yield first when space is constrained; complete rows share one measured width
 so identifiers, titles, and descriptions stay aligned.

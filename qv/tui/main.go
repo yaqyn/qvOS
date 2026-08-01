@@ -28,15 +28,15 @@ import (
 // -- palette --
 
 const (
-	bgTerm  = "#020202"
-	dim     = "#2a2a2a"
-	gray    = "#5a5a5a"
-	mid     = "#8a8a8a"
-	bright  = "#c8c8c8"
-	white   = "#f0f0f0"
-	red     = "#c81010"
-	hotRed  = "#ff2828"
-	deepRed = "#6a0606"
+	bgTerm  = "#000000"
+	dim     = "#242424"
+	gray    = "#404040"
+	mid     = "#707070"
+	bright  = "#b8b8b8"
+	white   = "#ffffff"
+	red     = "#b00000"
+	hotRed  = "#d00000"
+	deepRed = "#5f0000"
 )
 
 var (
@@ -197,7 +197,15 @@ func isSideComposition(width, height int, fullscreen bool) bool {
 }
 
 func renderViewport(width, height int, body string) string {
-	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, body)
+	background := lipgloss.NewStyle().Background(lipgloss.Color(bgTerm))
+	return lipgloss.Place(
+		width,
+		height,
+		lipgloss.Center,
+		lipgloss.Center,
+		body,
+		lipgloss.WithWhitespaceStyle(background),
+	)
 }
 
 func sideColumnWidths(width int) (int, int) {
