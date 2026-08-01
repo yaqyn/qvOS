@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -eEo pipefail
+
+source_root="${1:-}"
+install_root="${2:-/root/omarchy}"
+tracked_files=""
+
+if [[ -z $source_root || ! -d $source_root/.git ]]; then
+  echo "Usage: source-permissions GIT_ROOT [INSTALL_ROOT]" >&2
+  exit 2
+fi
+
+tracked_files=$(git -C "$source_root" ls-files --stage)
+while IFS=$'\t' read -r metadata path; do
+  mode=${metadata%% *}
+  [[ $mode == "100755" ]] || continue
+  printf 'file_permissions[%q]=%q\n' "$install_root/$path" "0:0:755"
+done <<<"$tracked_files"

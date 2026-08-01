@@ -24,6 +24,10 @@ embedded source, installer integration, or release-image verification.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   build the intended `QVOS_OMARCHY_ISO_REF`, verify the image and embedded
   source, and keep optional qvCORE stacks out unless explicitly promoted.
+- Archiso normalizes ordinary payload files to mode `0644`. Generate explicit
+  `profiledef.sh` entries from the embedded Git tree's tracked `100755` modes;
+  never maintain a second executable inventory. Reject an artifact unless the
+  embedded worktree is clean with file-mode checking enabled.
 - Once a release candidate commit is selected, freeze feature work until its
   rehearsal passes or the candidate is abandoned. During the freeze, accept
   only upstream compatibility, build or installation blockers, verification

@@ -28,7 +28,9 @@ the previous one.
   the release proof. Record both input commits, the artifact name and size,
   SHA-256, build result, and retained failure-stage path when applicable.
 - Inspect the completed image and prove that its embedded qvOS source equals
-  `QVOS_SOURCE_REF`; do not infer this from the build command.
+  `QVOS_SOURCE_REF`, its tracked executable modes match Git, and the embedded
+  worktree is clean with `core.filemode=true`; do not infer any of this from
+  the build command.
 
 ## 3. Clean Installation Rehearsal
 

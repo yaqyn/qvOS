@@ -500,9 +500,28 @@ grep -Fq 'mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install
 grep -Fq 'QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}"' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS continuous boot-install TUI ownership"
+grep -Fq 'qv/iso/source-permissions' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO tracked executable-mode integration"
 grep -Fq 'if [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then' \
   "$root/qv/install/helpers/logging" ||
   fail "qvOS external install progress suppresses inherited monitor"
+
+source_permissions="$root/qv/iso/source-permissions"
+[[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
+expected_executable_count=$(git -C "$root" ls-files --stage | awk '$1 == "100755" { count++ } END { print count + 0 }')
+source_permission_output=$("$source_permissions" "$root")
+actual_executable_count=$(grep -c '^file_permissions\[' <<<"$source_permission_output")
+(( actual_executable_count == expected_executable_count )) ||
+  fail "qvOS ISO tracked executable-mode count"
+grep -Fq 'file_permissions[/root/omarchy/bin/omarchy]=0:0:755' \
+  <<<"$source_permission_output" ||
+  fail "qvOS ISO command executable mode"
+if grep -Fq 'file_permissions[/root/omarchy/README.md]' \
+  <<<"$source_permission_output"; then
+  fail "qvOS ISO non-executable source mode"
+fi
+pass "qvOS ISO derives embedded executable modes from Git"
 
 publish_fixture="$test_root/iso-publish"
 publish_bin="$publish_fixture/bin"

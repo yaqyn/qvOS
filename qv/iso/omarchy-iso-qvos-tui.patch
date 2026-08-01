@@ -171,11 +171,14 @@
  
  # Create a symlink to the offline mirror instead of duplicating it.
  # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,
-@@ -98,6 +196,7 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
+@@ -98,6 +196,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
  cp $build_cache_dir/pacman-offline.conf "$build_cache_dir/airootfs/etc/pacman.conf"
  
  # Finally, we assemble the entire ISO
 +echo "qvOS ISO progress: creating ISO image"
++"$build_cache_dir/airootfs/root/omarchy/qv/iso/source-permissions" \
++  "$build_cache_dir/airootfs/root/omarchy" \
++  >>"$build_cache_dir/profiledef.sh"
  mkarchiso -v -w "$build_cache_dir/work/" -o "/out/" "$build_cache_dir/"
  
  # Fix ownership of output files to match host user
