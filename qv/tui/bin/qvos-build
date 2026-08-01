@@ -425,6 +425,9 @@ if [[ $prepare_only == "true" ]]; then
   exit 0
 fi
 
-run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"
+if ! run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"; then
+  preserve_stage=true
+  exit 1
+fi
 publish_release_artifact "$stage_out"
 echo "qvOS ISO build complete"

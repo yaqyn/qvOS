@@ -468,6 +468,9 @@ grep -Fq 'cp --reflink=auto -- "$latest_iso" "$partial_iso"' "$iso_build" ||
   fail "qvOS ISO atomic release copy"
 grep -Fq 'qvOS ISO failed stage retained:' "$iso_build" ||
   fail "qvOS ISO publish failure stage retention"
+grep -Fq 'if ! run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"; then' \
+  "$iso_build" ||
+  fail "qvOS ISO build failure stage retention"
 grep -Fq 'DisableDownloadTimeout' "$iso_build" ||
   fail "qvOS ISO slow-link repository support"
 grep -Fq 'print "ParallelDownloads = 2"' "$iso_build" ||
