@@ -1953,8 +1953,8 @@ func TestBootISOShutdownPromptRequiresAnExplicitChoice(t *testing.T) {
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
 		"CANCEL INSTALLATION?",
-		"CANCEL",
-		"CONTINUE",
+		"Cancel",
+		"Continue",
 		"ctrl+c/z again stop",
 	} {
 		if !strings.Contains(content, expected) {
@@ -1980,7 +1980,7 @@ func TestBootISOShutdownPromptRequiresAnExplicitChoice(t *testing.T) {
 	}
 }
 
-func TestOutputOnlyISOProgressConsumesInputWithoutActingOnKeys(t *testing.T) {
+func TestOutputOnlyISOProgressAllowsOnlyReadOnlyViewKeys(t *testing.T) {
 	m := newISOProgressModel("/tmp/qvos-output-only-progress", true)
 	next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
 	m = next.(isoProgressModel)
@@ -1988,12 +1988,13 @@ func TestOutputOnlyISOProgressConsumesInputWithoutActingOnKeys(t *testing.T) {
 		t.Fatal("output-only ISO progress started a command from keyboard input")
 	}
 	if !m.noInput || !m.logOverlay || m.terminalView {
-		t.Fatalf(
-			"output-only state changed from ignored keyboard input: no-input=%t log=%t terminal=%t",
-			m.noInput,
-			m.logOverlay,
-			m.terminalView,
-		)
+		t.Fatalf("output-only progress did not open its read-only split terminal: %#v", m)
+	}
+
+	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
+	m = next.(isoProgressModel)
+	if command != nil || !m.noInput || !m.terminalView {
+		t.Fatalf("output-only progress did not open its read-only full terminal: %#v", m)
 	}
 }
 
@@ -2891,7 +2892,7 @@ func TestUpdateProgressShowsStopOptionsAtEveryResponsiveSize(t *testing.T) {
 	}
 }
 
-func TestISOConfigUsesSharedResponsiveProgress(t *testing.T) {
+func TestISOConfigUsesAQuietPreparationStateWithoutFakeProgress(t *testing.T) {
 	previousWidth := canvasW
 	t.Cleanup(func() {
 		canvasW = previousWidth
@@ -2900,23 +2901,21 @@ func TestISOConfigUsesSharedResponsiveProgress(t *testing.T) {
 	canvasW = 40
 	installer := isoInstallerModel{step: isoStepWriting, frame: buildFrames / 2}
 	tablet := stripANSI(installer.renderISOStep(layoutTablet))
-	if !strings.Contains(tablet, "CONFIG") ||
-		!strings.Contains(tablet, "writing installer config") ||
-		!strings.Contains(tablet, "%") ||
-		!strings.Contains(tablet, "━") ||
-		!strings.Contains(tablet, "─") {
-		t.Fatalf("tablet ISO progress is missing its shared loading state: %q", tablet)
+	if !strings.Contains(tablet, "PREPARING INSTALLATION") ||
+		!strings.Contains(tablet, "securing setup details") {
+		t.Fatalf("tablet ISO preparation state is incomplete: %q", tablet)
+	}
+	if strings.Contains(tablet, "%") || strings.ContainsAny(tablet, "━─") {
+		t.Fatalf("tablet ISO preparation invented progress: %q", tablet)
 	}
 
 	canvasW = 30
 	mobile := stripANSI(installer.renderISOStep(layoutMobile))
-	for _, expected := range []string{"CONFIG", "·", "%"} {
-		if !strings.Contains(mobile, expected) {
-			t.Fatalf("mobile ISO progress is missing %q: %q", expected, mobile)
-		}
+	if !strings.Contains(mobile, "PREPARING INSTALLATION") {
+		t.Fatalf("mobile ISO preparation is missing its title: %q", mobile)
 	}
-	if strings.ContainsAny(mobile, "━─") {
-		t.Fatalf("mobile ISO progress should remain compact: %q", mobile)
+	if strings.Contains(mobile, "%") || strings.ContainsAny(mobile, "━─") {
+		t.Fatalf("mobile ISO preparation invented progress: %q", mobile)
 	}
 }
 
@@ -3589,6 +3588,29 @@ func TestViewportUsesBlackBackgroundWithoutDecorativeFrame(t *testing.T) {
 	if strings.Contains(view, "┌") || strings.Contains(view, "┐") ||
 		strings.Contains(view, "└") || strings.Contains(view, "┘") {
 		t.Fatal("viewport still renders the removed perimeter")
+	}
+}
+
+func TestTUIInitializationClearsThePreviousProgramBeforeStartingWork(t *testing.T) {
+	workRan := false
+	work := func() tea.Msg {
+		workRan = true
+		return nil
+	}
+
+	commands := initialTUICommands(work)
+	if len(commands) != 2 {
+		t.Fatalf("initial command count = %d, want 2", len(commands))
+	}
+	if got, want := fmt.Sprintf("%T", commands[0]()), fmt.Sprintf("%T", tea.ClearScreen()); got != want {
+		t.Fatalf("first initial command = %s, want %s", got, want)
+	}
+	if workRan {
+		t.Fatal("TUI work ran before the clear command was inspected")
+	}
+	commands[1]()
+	if !workRan {
+		t.Fatal("TUI work command did not remain after the clear command")
 	}
 }
 

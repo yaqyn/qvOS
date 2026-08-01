@@ -10,7 +10,6 @@ semgrep_root="$HOME/.local/share/qvos/qvdev-tools/semgrep"
 work_dir=""
 
 tool_id=""
-tool_scope=""
 tool_label=""
 tool_method=""
 tool_commands=""
@@ -41,8 +40,8 @@ validate_manifest() {
   awk -F '\t' '
     /^#/ || NF == 0 { next }
     NF != 9 { invalid = 1; next }
-    $2 !~ /^(base|qvdev|proton)$/ { invalid = 1 }
-    $4 !~ /^(codex|mise|github|uv-tool|npm|pass|proton-drive)$/ {
+    $2 !~ /^(qvdev|proton)$/ { invalid = 1 }
+    $4 !~ /^(mise|github|uv-tool|npm|pass|proton-drive)$/ {
       invalid = 1
     }
     $1 == "" || $3 == "" || $5 == "" || $6 == "" { invalid = 1 }
@@ -52,12 +51,12 @@ validate_manifest() {
 }
 
 load_tool() {
-  local wanted=$1
-  local extra
+	local wanted=$1
+	local extra
 
-  while IFS=$'\t' read -r \
-    tool_id \
-    tool_scope \
+	while IFS=$'\t' read -r \
+		tool_id \
+		_ \
     tool_label \
     tool_method \
     tool_commands \
@@ -110,16 +109,6 @@ binary_version() {
   else
     return 1
   fi
-}
-
-codex_installed() {
-  local codex_path="$install_dir/codex"
-  local resolved
-
-  [[ -x $codex_path ]] || return 1
-  resolved=$(readlink -f -- "$codex_path" 2>/dev/null || true)
-  [[ $resolved == "$HOME/.codex/packages/standalone/"* ]] &&
-    command_works codex "$codex_path"
 }
 
 mise_installed() {
@@ -184,7 +173,6 @@ exact_binary_installed() {
 
 tool_installed() {
   case $tool_method in
-  codex) codex_installed ;;
   mise) mise_installed ;;
   github) github_installed ;;
   uv-tool) semgrep_installed ;;
@@ -207,7 +195,6 @@ verify_github() {
 
 verify_tool() {
   case $tool_method in
-  codex) codex_installed ;;
   mise) mise_installed ;;
   github) verify_github ;;
   uv-tool) semgrep_installed ;;
@@ -391,36 +378,6 @@ install_github_release() {
       return 1
     }
   done
-}
-
-install_codex() {
-  local installer
-
-  if [[ -e $install_dir/codex || -L $install_dir/codex ]]; then
-    codex_installed && return 0
-    echo "The existing Codex command is not a compatible standalone installation." >&2
-    return 1
-  fi
-
-  ensure_work_dir
-  installer="$work_dir/codex-install.sh"
-  download_file "$tool_source" "$installer"
-  install -d -m 0755 "$install_dir"
-  run_bounded 300s env \
-    CODEX_INSTALL_DIR="$install_dir" \
-    CODEX_NON_INTERACTIVE=1 \
-    bash "$installer"
-  codex_installed
-}
-
-update_codex() {
-  codex_installed || return 0
-  run_bounded 300s env \
-    -u CODEX_MANAGED_PACKAGE_ROOT \
-    -u CODEX_MANAGED_BY_NPM \
-    CODEX_NON_INTERACTIVE=1 \
-    "$install_dir/codex" update
-  codex_installed
 }
 
 install_mise() {
@@ -684,7 +641,6 @@ install_proton_drive() {
 
 install_tool() {
   case $tool_method in
-  codex) install_codex ;;
   mise) install_mise ;;
   github)
     if verify_github; then
@@ -711,7 +667,6 @@ update_tool() {
   tool_installed || return 0
 
   case $tool_method in
-  codex) update_codex ;;
   mise) update_mise ;;
   github) install_github_release 1 ;;
   uv-tool) update_semgrep ;;
@@ -736,11 +691,6 @@ remove_exact_binaries() {
 }
 
 remove_tool() {
-  if [[ $tool_scope == "base" ]]; then
-    echo "$tool_label is qvOS base software and cannot be removed by a stack." >&2
-    return 1
-  fi
-
   case $tool_method in
   mise) remove_mise ;;
   github | pass | proton-drive)
@@ -749,7 +699,6 @@ remove_tool() {
     ;;
   uv-tool) remove_semgrep ;;
   npm) remove_npm ;;
-  codex) return 1 ;;
   esac
 }
 

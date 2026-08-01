@@ -41,8 +41,8 @@ catalog is Proton and qvDEV. Every stack exposes only Install and Uninstall.
 ## Product lifecycle
 
 qvOS has one supported base: a solid, gaming-ready Arch system curated through
-Omarchy. The base includes canonical OpenAI Codex plus software with an
-independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
+Omarchy. The base keeps Omarchy's on-demand OpenAI Codex wrapper plus software
+with an independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
 The package resolver layers validated qvOS additions and exclusions over
 Omarchy's original manifests; qvOS does not copy or replace those manifests.
 Steam remains optional and uses Omarchy's standard gaming installer and
@@ -53,8 +53,8 @@ identity or base readiness.
   delegates once to the original `omarchy update` implementation. Omarchy owns
   snapshots, source and package updates, migrations, orphan cleanup, log
   analysis, and restarts. After Pacman/AUR, one direct-tool hook updates only
-  already-installed manifest entries belonging to Codex base, qvDEV, and
-  Proton. It never restores missing tools, installs stacks, authenticates
+  already-installed manifest entries belonging to qvDEV and Proton. It never
+  restores missing tools, installs stacks, authenticates
   accounts, changes integrations, or changes networking.
 - The qvCORE menu shows the two stacks directly. Each row is Install when
   unenrolled and Uninstall when enrolled. Install converges only missing
@@ -63,17 +63,17 @@ identity or base readiness.
   the complete enrolled stack and its qvOS integration while preserving
   personal files, browser profiles, credentials, authentication state,
   projects, and cloud data.
-- Codex is the sole base-scoped direct tool. Fresh installation and normal
-  updates use the shared direct-tool owner, while workstation inspection stays
-  with Codex's official `codex doctor`.
+- Codex remains Omarchy-owned through its standard on-demand NPM installation.
+  qvOS preserves that upstream step but does not replace or separately update
+  Codex.
 - qvDEV unifies developer and Codex workstation ownership. It owns
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
   base-owned system Python and mise, creates no global mise Python, and cannot
-  remove base Codex. It also owns the official global Playwright CLI; Wrangler,
-  Convex, Playwright dependencies, and Playwright browser assets remain
-  project-local. Install checks every inventory entry and installs only what is
-  missing before verifying the complete stack.
+  remove Omarchy Codex. It also owns the official global Playwright CLI;
+  Wrangler, Convex, Playwright dependencies, and Playwright browser assets
+  remain project-local. Install checks every inventory entry and installs only
+  what is missing before verifying the complete stack.
 - The qvOS TUI exposes Update, ISO Build, state-aware Software actions, and
   fixed classified desktop tasks. Three rings identify system-critical or
   high-impact work, two rings identify simple Software install/remove work,

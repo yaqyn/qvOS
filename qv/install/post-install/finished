@@ -10,7 +10,7 @@ if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || -z $tui || ! -x $tui ]]; then
   exit 1
 fi
 
-QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished --log "$OMARCHY_INSTALL_LOG_FILE"
+QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
 if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
   sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
 fi

@@ -45,6 +45,7 @@ inherited_seams=(
   bin/omarchy-windows-vm
   install/config/all.sh
   install/helpers/all.sh
+  install/helpers/errors.sh
   install/login/limine-snapper.sh
   install/login/plymouth.sh
   install/login/sddm.sh
@@ -166,6 +167,10 @@ for path in "${fallback_seams[@]}"; do
 done
 pass "inherited qvOS delegations preserve Omarchy fallbacks"
 
+grep -Fq '"Omarchy installation stopped!"' "$root/install/helpers/errors.sh" ||
+  fail "installer error branding seam removes the inherited fallback"
+pass "installer error branding preserves its inherited fallback"
+
 packaging_seams=(
   install/packaging/base.sh
   install/packaging/npx.sh
@@ -215,7 +220,7 @@ for adapter_mode in execute source; do
   base_output=$(run_packaging_adapter "$adapter_mode" install/packaging/base.sh) ||
     fail "base qvOS adapter failed in $adapter_mode mode"
 
-  [[ $npx_output == $'npx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
+  [[ $npx_output == $'npx:@openai/codex|codex\nnpx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
     fail "npx qvOS adapter falls through in $adapter_mode mode"
   [[ -z $webapps_output ]] ||
     fail "webapps qvOS adapter falls through in $adapter_mode mode"

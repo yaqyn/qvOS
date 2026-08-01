@@ -35,10 +35,19 @@ embedded source, installer integration, or release-image verification.
   only the Yaqyn red tonal accents (`#5f0000`/`#b00000`/`#d00000`); Limine
   stays grayscale-only. Stage `qv/boot/plymouth`, never the inherited Omarchy
   Plymouth payload, and verify the rendered boot/install pixels.
+- Preserve the boot setup, progress, and finale contract in `qv/tui/AGENTS.md`;
+  the ISO layer owns no visual fork. Verify its direct Step 1/3 entry, increasing
+  ring roles, fixed Region layout, explicit erase gate, real milestone progress,
+  minimal terminal controls, and quiet finale in the live TTY.
 - Every user-visible live-media boot label, installed Limine label, volume
   label, publisher, and application name says `qvOS`. Keep inherited lowercase
   internal paths, command names, package names, and UKI filenames unchanged
   when they are compatibility identifiers rather than displayed branding.
+- Progress renderers have one terminal owner at a time. Stop and wait for the
+  live-media base-system TUI before entering the target PID namespace; start
+  target-install progress inside that namespace, and stop and wait for it
+  before either the qvOS finale or inherited error fallback. Never pass a
+  live-media PID through `arch-chroot` as if the target could own it.
 - Once a release candidate commit is selected, freeze feature work until its
   rehearsal passes or the candidate is abandoned. During the freeze, accept
   only upstream compatibility, build or installation blockers, verification

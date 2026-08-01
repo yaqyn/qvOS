@@ -20,16 +20,14 @@ manifest_count=$(
   awk -F '\t' '
     /^#/ || NF == 0 { next }
     NF != 9 { exit 1 }
-    $2 !~ /^(base|qvdev|proton)$/ { exit 1 }
-    $4 !~ /^(codex|mise|github|uv-tool|npm|pass|proton-drive)$/ { exit 1 }
+    $2 !~ /^(qvdev|proton)$/ { exit 1 }
+    $4 !~ /^(mise|github|uv-tool|npm|pass|proton-drive)$/ { exit 1 }
     seen[$1]++ { exit 1 }
     { count++ }
     END { if (count < 20) exit 1; print count }
   ' "$root/qv/direct/manifest.tsv"
 ) || fail "direct-tool manifest schema"
 ((manifest_count >= 20)) || fail "direct-tool manifest inventory"
-[[ $("$root/qv/direct/tool" list-scope base) == "codex" ]] ||
-  fail "Codex is the base direct tool"
 [[ $("$root/qv/direct/tool" list-scope proton) == $'pass-cli\nproton-drive' ]] ||
   fail "Proton direct-tool inventory"
 expected_qvdev=$'node\nbun\nuv\ngo\nmkcert\nhurl\nsupabase\ninfisical\ncloudflared\nsentry-cli\nact\nsops\nage\ngitleaks\nosv-scanner\nsemgrep\ndevcontainer\nplaywright-cli'
@@ -74,34 +72,6 @@ HOME="$test_root/home" \
   QVOS_TEST_NPM_PREFIX="$npm_prefix" \
   "$npm_runtime/tool" installed playwright-cli ||
   fail "generic npm direct-tool detection"
-
-codex_runtime="$test_root/codex-direct"
-codex_home="$test_root/codex-home"
-codex_release="$codex_home/.codex/packages/standalone/releases/1.0.0-test/bin"
-install -d "$codex_runtime" "$codex_home/.local/bin" "$codex_release"
-cp "$root/qv/direct/tool" "$codex_runtime/tool"
-install -m 0644 /dev/stdin "$codex_runtime/manifest.tsv" <<'MANIFEST'
-# id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
-codex	base	Codex	codex	codex	source	-	-	-
-MANIFEST
-install -m 0755 /dev/stdin "$codex_release/codex" <<'SCRIPT'
-#!/bin/bash
-case ${1:-} in
---version) echo "codex-cli 1.0.0" ;;
-update)
-  [[ -z ${CODEX_MANAGED_PACKAGE_ROOT+x} &&
-    -z ${CODEX_MANAGED_BY_NPM+x} ]] ||
-    exit 91
-  ;;
-*) exit 1 ;;
-esac
-SCRIPT
-ln -s "$codex_release/codex" "$codex_home/.local/bin/codex"
-HOME="$codex_home" \
-  CODEX_MANAGED_PACKAGE_ROOT=/tmp/npm-codex \
-  CODEX_MANAGED_BY_NPM=1 \
-  "$codex_runtime/tool" update codex ||
-  fail "Codex updater clears inherited npm ownership"
 
 pass_runtime="$test_root/pass-direct"
 pass_home="$test_root/pass-home"
@@ -190,7 +160,6 @@ install -d "$runtime"
 cp "$root/qv/direct/update" "$runtime/update"
 install -m 0644 /dev/stdin "$runtime/manifest.tsv" <<'MANIFEST'
 # id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
-codex	base	Codex	codex	codex	source	-	-	-
 node	qvdev	Node	mise	node	source	-	-	-
 pass-cli	proton	Pass	pass	pass-cli	source	-	-	-
 proton-drive	proton	Drive	proton-drive	proton-drive	source	-	-	-
@@ -220,11 +189,11 @@ update_output=$(QVOS_TEST_LOG="$log" "$runtime/update" 2>&1)
 update_status=$?
 set -e
 ((update_status != 0)) || fail "direct updater hides an independent failure"
-grep -Fq 'Direct tools: 2 updated, 1 absent and skipped, 1 failed.' \
+grep -Fq 'Direct tools: 1 updated, 1 absent and skipped, 1 failed.' \
   <<<"$update_output" ||
   fail "truthful direct updater summary"
 [[ $(<"$log") == \
-  $'installed\tcodex\nupdate\tcodex\ninstalled\tnode\ninstalled\tpass-cli\nupdate\tpass-cli\ninstalled\tproton-drive\nupdate\tproton-drive' ]] ||
+  $'installed\tnode\ninstalled\tpass-cli\nupdate\tpass-cli\ninstalled\tproton-drive\nupdate\tproton-drive' ]] ||
   fail "direct updater skips absence and continues after failure"
 if grep -q $'^install\t' "$log"; then
   fail "direct updater installs a missing tool"

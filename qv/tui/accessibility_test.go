@@ -194,20 +194,6 @@ func TestFullscreenLogsReplaceModelsWithoutMovingProgress(t *testing.T) {
 				logLines: []string{"fullscreen prototype log"}, logOverlay: true,
 			}).View(),
 		},
-		{
-			name:    "ISO progress",
-			title:   "INSTALLING",
-			logLine: "fullscreen install log",
-			closedView: (isoProgressModel{
-				width: width, height: height, fullscreen: true,
-				progress: 0.38, target: 0.38, status: "installing packages",
-			}).View(),
-			openView: (isoProgressModel{
-				width: width, height: height, fullscreen: true,
-				progress: 0.38, target: 0.38, status: "installing packages",
-				logLines: []string{"fullscreen install log"}, logOverlay: true,
-			}).View(),
-		},
 	}
 
 	for _, test := range tests {
@@ -337,11 +323,11 @@ func TestHelpShortcutsDoNotStealPasswordCharacters(t *testing.T) {
 		t.Fatal("F1 did not open help from the sudo prompt")
 	}
 
-	installer := isoInstallerModel{step: isoStepPassword}
+	installer := isoInstallerModel{step: isoStepAccount, accountFocus: isoAccountPassword}
 	nextInstaller, _ := installer.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	installer = nextInstaller.(isoInstallerModel)
-	if installer.helpOverlay || string(installer.input) != "?" {
-		t.Fatalf("ISO password question mark = %q, help = %t", string(installer.input), installer.helpOverlay)
+	if installer.helpOverlay || string(installer.password) != "?" {
+		t.Fatalf("ISO password question mark = %q, help = %t", string(installer.password), installer.helpOverlay)
 	}
 	nextInstaller, _ = installer.Update(tea.KeyPressMsg{Code: tea.KeyF1})
 	if !nextInstaller.(isoInstallerModel).helpOverlay {
@@ -662,17 +648,8 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 			width: width, height: height,
 			profile: prototypeProfileFor(prototypeScript), running: true,
 		}).View(),
-		"ISO intro": (isoInstallerModel{
-			width: width, height: height, step: isoStepIntro,
-		}).View(),
-		"ISO writing": (isoInstallerModel{
-			width: width, height: height, step: isoStepWriting,
-		}).View(),
 		"ISO progress": (isoProgressModel{
 			width: width, height: height, prototype: true, progress: 0.4,
-		}).View(),
-		"ISO finale": (isoFinishedModel{
-			width: width, height: height,
 		}).View(),
 	}
 
@@ -684,6 +661,74 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 			}
 			assertViewFits(t, view.Content, width, height)
 		})
+	}
+}
+
+func TestBootSetupAndFinaleIntentionallyHidePersistentHintClutter(t *testing.T) {
+	for _, step := range []isoStep{
+		isoStepRegional,
+		isoStepAccount,
+		isoStepDisk,
+	} {
+		if hints := (isoInstallerModel{step: step}).persistentHints(); len(hints) != 0 {
+			t.Fatalf("ISO step %d retained persistent hints: %#v", step, hints)
+		}
+	}
+
+	finale := stripANSI((isoFinishedModel{width: 90, height: 28}).View().Content)
+	for _, hidden := range []string{"help", "enter", "INSTALLED", "REBOOT NOW"} {
+		if strings.Contains(finale, hidden) {
+			t.Fatalf("ISO finale retained %q clutter: %q", hidden, finale)
+		}
+	}
+	for _, expected := range []string{"Welcome to qvOS", "Reboot"} {
+		if !strings.Contains(finale, expected) {
+			t.Fatalf("ISO finale is missing %q: %q", expected, finale)
+		}
+	}
+}
+
+func TestISOProgressSeparatesTheSplitAndFullTerminalShortcuts(t *testing.T) {
+	m := newISOProgressModel("/tmp/qvos-output-only-progress", true)
+	m.width, m.height = 140, 31
+	m.logLines = []string{"real installer output"}
+
+	next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	m = next.(isoProgressModel)
+	if command != nil || !m.logOverlay || m.terminalView {
+		t.Fatalf("v did not open the split progress view: %#v", m)
+	}
+	for _, expected := range []string{"INSTALLING QVOS", "TERMINAL", "real installer output"} {
+		if content := stripANSI(m.View().Content); !strings.Contains(content, expected) {
+			t.Fatalf("split progress is missing %q: %q", expected, content)
+		}
+	}
+
+	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
+	m = next.(isoProgressModel)
+	if command != nil || !m.terminalView {
+		t.Fatalf("Ctrl+V did not open the full terminal: %#v", m)
+	}
+	if content := stripANSI(m.View().Content); !strings.Contains(content, "TERMINAL OUTPUT") {
+		t.Fatalf("full terminal is missing its identity: %q", content)
+	}
+
+	next, command = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if command != nil || !next.(isoProgressModel).terminalView {
+		t.Fatal("ISO full terminal accepted the copy-all shortcut")
+	}
+	for _, hint := range m.helpHints() {
+		text := strings.ToLower(hint.Key + " " + hint.Action)
+		if strings.Contains(text, "copy") || strings.Contains(text, "scroll") || hint.Key == "y" {
+			t.Fatalf("ISO terminal retained an unrelated control: %#v", hint)
+		}
+	}
+
+	hints := (isoProgressModel{}).persistentHints()
+	if len(hints) != 3 || hints[0] != (tuiHint{Key: "v", Action: "log"}) ||
+		hints[1] != (tuiHint{Key: "ctrl+v", Action: "terminal"}) ||
+		hints[2] != (tuiHint{Key: "?", Action: "help"}) {
+		t.Fatalf("ISO progress hints = %#v", hints)
 	}
 }
 
@@ -846,7 +891,7 @@ func TestCopyFullLogUsesCapturedOutputOutsideTheVisibleViewport(t *testing.T) {
 	}
 }
 
-func TestEveryFullTerminalSurfaceOffersFullLogCopy(t *testing.T) {
+func TestPrototypeFullTerminalOffersFullLogCopy(t *testing.T) {
 	prototype := prototypeSessionModel{
 		terminalView: true,
 		logLines:     []string{"prototype output"},
@@ -854,24 +899,6 @@ func TestEveryFullTerminalSurfaceOffersFullLogCopy(t *testing.T) {
 	nextPrototype, prototypeCommand := prototype.Update(tea.KeyPressMsg{Code: 'y'})
 	if prototypeCommand == nil || nextPrototype.(prototypeSessionModel).logCopyStatus != "copying full log" {
 		t.Fatal("prototype terminal did not start full-log copy")
-	}
-
-	iso := isoProgressModel{
-		terminalView: true,
-		logLines:     []string{"ISO output"},
-	}
-	nextISO, isoCommand := iso.Update(tea.KeyPressMsg{Code: 'y'})
-	if isoCommand == nil || nextISO.(isoProgressModel).logCopyStatus != "copying full log" {
-		t.Fatal("ISO terminal did not start full-log copy")
-	}
-
-	finale := isoFinishedModel{
-		terminalView: true,
-		logLines:     []string{"ISO finale output"},
-	}
-	nextFinale, finaleCommand := finale.Update(tea.KeyPressMsg{Code: 'y'})
-	if finaleCommand == nil || nextFinale.(isoFinishedModel).logCopyStatus != "copying full log" {
-		t.Fatal("ISO finale terminal did not start full-log copy")
 	}
 }
 
@@ -896,15 +923,6 @@ func TestOnlyFullTerminalOutputEnablesNativeSelection(t *testing.T) {
 				width: 140, height: 31, logOverlay: true,
 			}).View(),
 			fullView: (prototypeSessionModel{
-				width: 140, height: 31, terminalView: true,
-			}).View(),
-		},
-		{
-			name: "ISO progress",
-			sideView: (isoProgressModel{
-				width: 140, height: 31, logOverlay: true,
-			}).View(),
-			fullView: (isoProgressModel{
 				width: 140, height: 31, terminalView: true,
 			}).View(),
 		},
@@ -985,17 +1003,6 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 		{"prototype failure", (prototypeSessionModel{failed: true}).persistentHints(), "r"},
 		{"prototype complete", (prototypeSessionModel{done: true}).persistentHints(), "enter"},
 		{"prototype terminal", tuiTerminalPersistentHints(), "ctrl+v"},
-		{"ISO intro", (isoInstallerModel{step: isoStepIntro}).persistentHints(), "enter"},
-		{"ISO writing", (isoInstallerModel{step: isoStepWriting}).persistentHints(), "ctrl+c/z"},
-		{"ISO list", (isoInstallerModel{step: isoStepKeyboard}).persistentHints(), "↑↓"},
-		{"ISO input", (isoInstallerModel{step: isoStepPassword}).persistentHints(), "enter"},
-		{"ISO choice", (isoInstallerModel{step: isoStepReview}).persistentHints(), "←→"},
-		{"ISO progress", (isoProgressModel{}).persistentHints(), "v"},
-		{"ISO progress complete", (isoProgressModel{
-			prototype: true,
-			progress:  1,
-		}).persistentHints(), "enter"},
-		{"ISO terminal", tuiTerminalPersistentHints(), "ctrl+v"},
 	}
 
 	for _, test := range tests {
@@ -1060,7 +1067,7 @@ func TestCompletedResultLogKeysKeepTheResultAvailable(t *testing.T) {
 	}
 }
 
-func TestISOFinaleKeepsItsCapturedLogsAvailable(t *testing.T) {
+func TestISOFinaleRejectsProgressOnlyTerminalShortcuts(t *testing.T) {
 	for _, size := range []struct {
 		name          string
 		width, height int
@@ -1071,58 +1078,34 @@ func TestISOFinaleKeepsItsCapturedLogsAvailable(t *testing.T) {
 	} {
 		t.Run(size.name, func(t *testing.T) {
 			m := isoFinishedModel{
-				width:    size.width,
-				height:   size.height,
-				duration: "8m 42s",
-				logLines: []string{"final installer output"},
+				width:  size.width,
+				height: size.height,
 			}
 
-			closed := stripANSI(m.View().Content)
-			if strings.Contains(closed, "v view logs") {
-				t.Fatalf("ISO finale exposes the known log shortcut persistently: %q", closed)
-			}
+			before := m.View().Content
 			assertViewFits(t, m.View().Content, size.width, size.height)
 			next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
 			m = next.(isoFinishedModel)
-			if help := stripANSI(m.View().Content); !strings.Contains(help, "toggle the qvOS install log panel") {
-				t.Fatalf("ISO finale Help lost the log shortcut: %q", help)
+			if help := stripANSI(m.View().Content); strings.Contains(help, "terminal") || strings.Contains(help, "log") {
+				t.Fatalf("ISO finale Help exposes progress-only controls: %q", help)
 			}
 			next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
 			m = next.(isoFinishedModel)
 
-			next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
-			if command != nil {
-				t.Fatal("v launched a command from the ISO finale")
-			}
-			m = next.(isoFinishedModel)
-			open := stripANSI(m.View().Content)
-			for _, expected := range []string{"final installer output", "┌", "└"} {
-				if !strings.Contains(open, expected) {
-					t.Fatalf("ISO finale log view is missing %q: %q", expected, open)
+			for _, key := range []tea.KeyPressMsg{
+				{Code: 'v', Text: "v"},
+				{Code: 'v', Mod: tea.ModCtrl},
+			} {
+				next, command := m.Update(key)
+				if command != nil {
+					t.Fatal("terminal shortcut launched a command from the ISO finale")
+				}
+				m = next.(isoFinishedModel)
+				if got := m.View().Content; got != before {
+					t.Fatalf("terminal shortcut changed the ISO finale: %q", stripANSI(got))
 				}
 			}
-			if strings.Contains(open, "v close logs") {
-				t.Fatalf("ISO finale log view exposes the known shortcut persistently: %q", open)
-			}
-			assertViewFits(t, m.View().Content, size.width, size.height)
 		})
-	}
-}
-
-func TestISOFinaleReusesTheActionLogPanel(t *testing.T) {
-	previousCanvasW, previousCanvasH := canvasW, canvasH
-	t.Cleanup(func() {
-		canvasW, canvasH = previousCanvasW, previousCanvasH
-	})
-	canvasW, canvasH = 58, 0
-	lines := []string{"shared installer output", "verification complete"}
-	finale := isoFinishedModel{height: 31, logLines: lines, logScroll: 1}
-	action := model{height: 31, scriptLogLines: lines, logScroll: 1, scriptDone: true}
-
-	got := finale.renderLogs(layoutTablet)
-	want := action.renderRootLogOverlayFor(layoutTablet)
-	if got != want {
-		t.Fatalf("ISO finale forked the action log panel:\nfinale: %q\naction: %q", got, want)
 	}
 }
 

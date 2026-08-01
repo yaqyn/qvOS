@@ -189,7 +189,7 @@
  # Fix ownership of output files to match host user
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
-@@ -11,24 +11,65 @@ use_omarchy_helpers() {
+@@ -11,24 +11,66 @@ use_omarchy_helpers() {
  
  run_configurator() {
 -  set_tokyo_night_colors
@@ -258,6 +258,7 @@
 +  fi
 +  install -Dm0640 /dev/null /mnt/var/log/omarchy-install.log
 +  mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log
++  stop_qvos_iso_progress
 +  return 0
  }
  
@@ -310,18 +311,6 @@
  }
  
  install_disk() {
-@@ -247,10 +288,11 @@ configure_login_for_unencrypted_install() {
- chroot_bash() {
-   HOME=/home/$OMARCHY_USER \
-     arch-chroot -u $OMARCHY_USER /mnt/ \
-     env OMARCHY_CHROOT_INSTALL=1 \
-+    QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}" \
-     OMARCHY_USER_NAME="$(<user_full_name.txt)" \
-     OMARCHY_USER_EMAIL="$(<user_email_address.txt)" \
-     OMARCHY_MIRROR="$OMARCHY_MIRROR" \
-     USER="$OMARCHY_USER" \
-     HOME="/home/$OMARCHY_USER" \
-     /bin/bash "$@"
 --- configs/profiledef.sh
 +++ configs/profiledef.sh
 @@ -23,4 +23,5 @@ file_permissions=(

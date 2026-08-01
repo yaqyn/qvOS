@@ -12,7 +12,10 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
 - Render qvOS surfaces on exact black (`#000000`) with neutral grayscale and
   the Yaqyn deep/normal/hot reds (`#5f0000`/`#b00000`/`#d00000`). Paint the
   full viewport, including placement whitespace, so transitions cannot leave
-  model, log, or border glyphs behind on a Linux VT.
+  model, log, or border glyphs behind on a Linux VT. Every independently
+  started TUI program must clear the previous terminal program before its
+  first render through the shared initialization command; viewport painting
+  alone cannot erase cells that its renderer never owned.
 - Put each action-specific contract and adapter under `qv/tui/<action>/`.
   Every direct mode and the main hub must reuse the same action flow.
 - Domain packages provide only copy, truthful milestones, preflight,
@@ -104,6 +107,29 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   About. ISO build/install remains system-critical.
   Ring count controls visual role only; never infer whether a task mutates
   state from its ring count.
+- The boot installer is the deliberate model-role and layout exception. It has
+  no separate intro gate: Step 1/3 greets the user and uses one ring, Step 2/3
+  uses two rings, and Step 3/3 uses three rings so the model grows with the
+  consequence of each decision. Wide screens keep the model above the centered
+  context on the right; constrained screens omit it below the shared quality
+  floor. Keep installation progress and the finale free of models.
+- The boot setup has exactly three numbered pages. Step 1/3, Region, keeps
+  Keyboard and Time zone visible together while showing searchable matches only
+  for the focused field. Reserve the filter and result rows so searching never
+  moves either column, field, divider, tracker, or title. Step 2/3, Account,
+  keeps Username, Machine Name, Password, and Confirm Password visible
+  together. Wide screens put the
+  left-aligned fields or choices left of one dim divider and the centered dim
+  tracker, uppercase page title, and one short explanation on the right; narrow
+  screens stack the same content. Tab and Shift+Tab cycle every field. Enter
+  commits the focused field and moves forward; only exact password confirmation
+  reaches the drive page. Reject unsupported username and machine-name
+  characters while typing, keep full name and email unset, prefill Machine Name
+  with `qvOS`, require disk encryption, and detect the installed kernel. Step
+  3/3, Install drive, is the final screen: selecting a drive turns that
+  same screen into the erase confirmation, and only its second explicit Enter
+  starts installation. Do not add identity, review, or confirmation screens
+  elsewhere.
 - Information actions are direct read-only surfaces, not miniature
   transactions. Start them immediately, authorize first only when sudo is
   required, and make their sanitized owner output the primary panel. Never add
@@ -275,18 +301,24 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   its dedicated process cleanup, and Boot/ISO installation keeps its stricter
   interruption guard and the same exclusive modal rule.
 - Opening logs must not move or resize the active action, progress rail, or
-  controls. Landscape logs replace the identity/model column while preserving
-  the normal action column. In true fullscreen, every log-capable TUI renders
-  the log panel in the 3D model's exact stage slot. Empty running logs use the
-  shared `Preparing` animation rather than waiting copy. A confirmed
-  cancellation freezes progress immediately; canceled results say canceled,
-  never animate toward `100%` or imply success.
-- Output-only ISO progress ignores key messages but retains Bubble Tea's input
-  reader so terminal capability replies are consumed instead of leaking into
-  visible logs. Its exit-message filter remains the interruption boundary.
+  controls. Shared action and prototype flows replace the identity/model
+  column while preserving the normal action column. In true fullscreen, those
+  log-capable flows render the log panel in the 3D model's exact stage slot.
+  Boot installation progress uses `V` for a progress-left/mini-terminal-right
+  split and `Ctrl+V` for full terminal output. Empty running logs use the shared
+  `Preparing` animation rather than waiting copy. A confirmed cancellation
+  freezes progress immediately; canceled results say canceled and never animate
+  toward `100%` or imply success.
+- Output-only ISO progress ignores mutating action keys but accepts only its
+  read-only split terminal, full terminal, and Help controls. It has no manual
+  log navigation or copy-all shortcut. Retain Bubble Tea's input reader so
+  terminal capability replies are consumed instead of leaking into visible
+  logs. Its exit-message filter remains the interruption boundary.
 - Keep the active operation, real milestone, percentage, and a visible bar in
   non-mobile progress views. Use one quiet selection marker for choices; do not
-  frame action labels as buttons.
+  frame action labels as buttons. The destructive install confirmation and
+  finale use one red selection chevron plus a bright white action label on
+  black.
 - The smallest progress view may omit the bar, but it must keep the active
   operation, static dimmed dot, and percentage centered as one stable line.
   On completion, keep the semantic result such as `UPDATED` or `INSTALLED`
@@ -314,12 +346,18 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
 - Keep persistent controls to one context-critical action plus quiet dim-gray
   Help when the hint area has room. Compact hint areas show only the primary
   action. Label Help consistently as `F1`; also accept `Shift+?` outside text
-  fields so passwords and filters keep their full character set. Put every other
-  active keyboard action in the contextual help overlay. Labels describe the
-  action result, not implementation details. Completed, stopped, and failed
+  fields so passwords and filters keep their full character set. The three boot
+  setup pages and finale intentionally hide
+  persistent controls; their keyboard, Help, shutdown, and validation behavior
+  remains active. Boot installation progress visibly labels `v log`,
+  `ctrl+v terminal`, and `? help`. Put every
+  other active keyboard action in the contextual help overlay. Labels describe
+  the action result, not implementation details. Completed, stopped, and failed
   log-producing results keep `V` and `Ctrl+V` active until the user leaves, but
   keep those known shortcuts in contextual Help instead of the persistent
-  result row. Never discard captured history at a result transition.
+  result row. The boot finale is the exception: only Enter reboots, and `V` or
+  `Ctrl+V` does nothing there. Never discard captured history for general
+  result flows.
 - Authorization surfaces use the shared frameless password rail under the
   generic `Auth Required` title; the model identity owns the action name. Keep
   one blank row between the title and rail and another between the rail and one
@@ -337,9 +375,16 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   An open side log may show one borderless, non-red `ctrl+v switch` cue directly
   below its panel; the full terminal view renders the same action as a normal
   persistent control.
-- Internal `qvOS action:` progress protocol drives status only. Never retain it
-  in visible logs, terminal output, copied history, or result details; preserve
-  every real owner output line unchanged.
+- Boot installation progress maps `V` to a same-process split with progress on
+  the left and a mini terminal on the right. `Ctrl+V` alone opens full terminal
+  output. That terminal follows current output and omits manual navigation,
+  copy-all, and unrelated result controls. Its percentage advances only when an
+  observed installer milestone is complete; never interpolate progress from
+  elapsed time.
+- Internal `qvOS action:`, `qvOS ISO progress:`, and `qvOS target apply:`
+  protocols drive status only. Never retain them in visible logs, terminal
+  output, copied history, or result details; preserve every real owner output
+  line unchanged.
 - Normalize ANSI redraws, carriage returns, backspaces, tabs, and other control
   characters through the shared virtual terminal before rendering captured
   output so child processes cannot move the TUI cursor or break panel geometry.

@@ -158,7 +158,6 @@ remove_stack() {
   local installed_packages=()
   local direct_tools=()
   local index
-  local codex_was_installed=0
 
   if [[ ! -f $state_file ]]; then
     echo "qvCORE qvDEV is not enrolled; nothing was changed."
@@ -182,10 +181,9 @@ remove_stack() {
     }
   fi
   mapfile -t direct_tools < <("$direct_tool" list-scope qvdev)
-  "$direct_tool" installed codex && codex_was_installed=1
 
   echo "qvDEV packages, direct tools and Codex workbench integration will be removed."
-  echo "Codex itself, projects, credentials and personal files will be preserved."
+  echo "Omarchy Codex, projects, credentials and personal files will be preserved."
   if ((assume_yes == 0)); then
     gum confirm "Remove the enrolled qvCORE qvDEV stack?" || {
       echo "qvDEV removal canceled; nothing was changed."
@@ -213,15 +211,8 @@ remove_stack() {
       return 1
     fi
   done
-  if ((codex_was_installed)); then
-    "$direct_tool" verify codex || {
-      echo "qvDEV removal changed the qvOS base Codex installation." >&2
-      return 1
-    }
-  fi
-
   rm -f "$state_file"
-  echo "Removed qvCORE qvDEV; Codex, projects, credentials and personal files were preserved."
+  echo "Removed qvCORE qvDEV; Omarchy Codex, projects, credentials and personal files were preserved."
 }
 
 if (($# < 1 || $# > 2)); then

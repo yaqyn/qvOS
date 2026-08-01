@@ -108,7 +108,7 @@ done
   fail "qvDEV Codex workbench helper"
 
 run_qvdev remove --yes >/dev/null
-[[ -f $installed_tools/codex ]] || fail "qvDEV removed base Codex"
+[[ -f $installed_tools/codex ]] || fail "qvDEV removed Omarchy Codex"
 [[ ! -e $test_root/home/.local/state/qvos/qvcore/qvdev ]] ||
   fail "qvDEV enrollment removal"
 [[ ! -e $test_root/home/.local/share/qvos/thunar/codex ]] ||
@@ -133,4 +133,4 @@ grep -Fqx $'playwright-cli\tqvdev\tPlaywright CLI\tnpm\tplaywright-cli\t@playwri
   "$root/qv/direct/manifest.tsv" ||
   fail "qvDEV Playwright CLI ownership"
 
-printf 'ok - qvDEV merges developer tools and workbench without owning Codex\n'
+printf 'ok - qvDEV preserves Omarchy Codex while owning its workbench integration\n'

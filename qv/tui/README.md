@@ -10,9 +10,10 @@ modes:
 - `--action`: classified Software or fixed-task presentation; mutations use
   progress and exactly one start gate, while information runs directly after
   any required authorization
-- `--iso-installer`: boot installation information and confirmation
-- `--iso-progress`: one persistent installation progress and log surface
-- `--iso-finished`: installation result and reboot choice
+- `--iso-installer`: three-step boot setup with final drive confirmation
+- `--iso-progress`: observed installation milestones with split and full
+  terminal views
+- `--iso-finished`: minimal welcome and reboot choice
 
 ## Shared flow architecture
 
@@ -57,10 +58,21 @@ calibrated against the live Alacritty cell geometry:
 - true fullscreen window or boot TTY: override to a centered cinematic
   composition while keeping the normal 64x32 model ceiling
 
+The boot installer starts directly at Region and greets the user there. Its
+three steps use one, two, then three rings as the decisions progress from region
+to account to the final install drive. Wide setup pages use a divided side
+composition with inputs left and the model plus context right; narrow setup
+pages stack the information without a model. Region reserves its search and
+match rows so filtering cannot move the layout. Progress and the finale use no
+model.
+
 Every composition paints its complete viewport `#000000`; placement padding
 is not transparent terminal whitespace. The palette stays neutral grayscale
 with `#5f0000`, `#b00000`, and `#d00000` as its only chromatic tonal accents;
 the reduced-color ISO console uses the normal and hot variants.
+Each independently started TUI clears the prior terminal program before its
+first frame so ISO installer, progress, and finale handoffs cannot retain old
+model or log cells.
 
 Menu titles and descriptions use catalog-wide measured columns. Descriptions
 yield first when space is constrained; complete rows share one measured width
@@ -73,8 +85,9 @@ running log uses the shared `Preparing` animation instead of a waiting message.
 Confirmed cancellation freezes the visible progress immediately and never
 animates toward completion.
 Output-only ISO progress still consumes terminal protocol replies while
-ignoring key actions, preventing raw capability responses from appearing after
-the log controls.
+ignoring mutating action keys, preventing raw capability responses from
+appearing after the log controls. Its read-only `v log`, `ctrl+v terminal`, and
+`? help` controls remain active; manual navigation and copy-all do not.
 Ctrl+C or Ctrl+Z on a guarded mutation replaces the complete TUI with the stop
 decision. The model, identity, progress, logs, terminal output, and Help remain
 hidden until Enter explicitly confirms Keep or Stop. Pressing Ctrl+C or Ctrl+Z
@@ -128,7 +141,8 @@ preserved and reported instead of being silently called clean. Update and ISO
 Build retain their dedicated Stop contracts; removal and general task actions
 carry no unused Stop or rollback machinery.
 Non-mobile progress views keep the active operation, real milestone, percentage,
-and a visible loading bar.
+and a visible loading bar. ISO installation percentages move only when an
+observed installer milestone completes; elapsed time never advances them.
 The smallest progress view keeps the active operation, static dimmed dot, and
 percentage instead of collapsing to an unexplained number.
 Compact completion keeps the semantic result (`UPDATED`, `INSTALLED`, and so
@@ -142,13 +156,15 @@ Failures use one calm shared result with `COULD NOT COMPLETE`, a complete
 wrapped explanation, and retry or return controls. They never reuse progress,
 percentages, rails, all-red styling, or truncated error copy.
 Confirmation choices use one quiet marker instead of framed terminal buttons.
+The destructive drive confirmation and finale use a selected red chevron plus
+a bright white action label on black, never a filled button.
 Short transitions before sudo or the first owned milestone use only the shared
 four-step `Preparing` dot animation, never internal status flashes.
 When a model is visible during an action, its identity places the action name
 directly beneath `qvOS`; authorization keeps only the generic `Auth Required`
 title in the action panel. Long action summaries wrap into independently
 centered lines without truncation.
-Every mode uses the same `#020202` background.
+Every mode uses the same `#000000` background.
 
 ## Accessibility
 
@@ -163,14 +179,19 @@ The production hub lists only complete working actions. Each row has a stable
 action key, so navigation coordinates never define behavior. Future actions
 must delegate to their real qvOS or Omarchy owner.
 
-`v` toggles the composed qvOS log panel. `Ctrl+V` switches log-producing flows
+`v` toggles the composed qvOS log panel. On boot installation progress, `v`
+uses a dedicated split with progress on the left and a mini terminal on the
+right.
+`Ctrl+V` switches log-producing flows
 to a same-process `TERMINAL OUTPUT` view of the captured original command
 stream. Both remain documented in contextual Help without competing with the
 screen's primary action while work is running. Completed, stopped, and failed
 results with captured output retain both keys without adding another persistent
 hint; F1 Help remains the discoverable reference. The reboot-required choice
-and final ISO reboot screen preserve the same route. The terminal view never
-spawns a second terminal or duplicates the running action.
+preserves the general route. The final ISO reboot screen does not: `v` and
+`Ctrl+V` are inactive there. The terminal view never spawns a second terminal
+or duplicates the running action. Boot full-terminal output follows the latest
+installer output and omits copy-all and manual log navigation.
 Internal `qvOS action:` milestones still drive progress but never appear in
 either log view or copied history. Those surfaces retain only real owner
 output.
@@ -333,11 +354,26 @@ update path. A stopped Update renders `UPDATE STOPPED`; it never presents
 
 The boot installer keeps one TUI lifecycle:
 
-1. `--iso-installer` gathers the keyboard, account, host, timezone, and encrypted
-   installation target required by the Omarchy installer.
+1. `--iso-installer` starts at Step 1/3, Region, with a qvOS welcome, one ring,
+   Keyboard, and Time zone. Step 2/3, Account, uses two rings and keeps Username,
+   Machine Name, Password, and Confirm Password together. Step 3/3, Install
+   drive, uses three rings and becomes the final erase confirmation after drive
+   selection; installation requires a second explicit Enter there. Wide screens
+   place left-aligned controls left of a dim divider and the model plus centered
+   context on the right; narrow screens stack without a model. The Region match
+   viewport has a fixed height, so searching never moves the composition. `Tab`
+   and `Shift+Tab` cycle every field, Enter commits and moves forward,
+   unsupported username and machine-name characters never enter their fields,
+   and a password mismatch cannot continue. Full name and email stay unset,
+   Machine Name starts as `qvOS`, disk encryption is mandatory, and the kernel
+   is detected automatically.
 2. `--iso-progress` remains active across both the Arch installation and the
-   target-root Omarchy/qvOS installation while reading their shared log.
-3. `--iso-finished` takes over after logging stops and offers reboot.
+   target-root Omarchy/qvOS installation while reading their shared log. It has
+   no model, advances only from observed milestones, and exposes `v log`,
+   `ctrl+v terminal`, and `? help`. V opens a progress-left/mini-terminal-right
+   split; Ctrl+V opens the minimal full terminal.
+3. `--iso-finished` takes over after logging stops and shows only dimmed
+   `Welcome to qvOS` with the selected chevron `Reboot` action.
 
 The temporary Omarchy ISO builder integration lives in
 `../iso/omarchy-iso-qvos-tui.patch`. `bin/qvos-build` stages a fresh official

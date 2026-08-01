@@ -11,7 +11,6 @@
     "$config_source" \
     "$monitor_owner" \
     "$yaqyn_source" \
-    "$OMARCHY_PATH/qv/direct/tool" \
     "$OMARCHY_PATH/qv/shell/install"; do
     if [[ ! -e $source_path ]]; then
       echo "Missing qvOS configuration source: $source_path" >&2
@@ -29,7 +28,6 @@
     "$HOME/.config/omarchy/branding/screensaver.txt"
 
   "$OMARCHY_PATH/qv/theme/install"
-  "$OMARCHY_PATH/qv/direct/tool" install codex
 
   # shellcheck source=qv/install/config/mimetypes
   source "$OMARCHY_PATH/qv/install/config/mimetypes"

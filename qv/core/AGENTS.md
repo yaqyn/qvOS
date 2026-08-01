@@ -35,9 +35,10 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
 - Stack scripts own package preflight, confirmation, resumable removal, and
   final verification. Do not add a coordinated cross-stack removal layer.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex
-  workbench integration. Codex itself is base-owned and must survive qvDEV
-  removal. Wrangler, Convex, Playwright dependencies, and Playwright browser
-  assets stay project-local. qvDEV owns the official global Playwright CLI.
+  workbench integration. Codex itself remains Omarchy-owned through its
+  on-demand NPM installation and must survive qvDEV removal. Wrangler, Convex,
+  Playwright dependencies, and Playwright browser assets stay project-local.
+  qvDEV owns the official global Playwright CLI.
 - qvDEV Install is convergent and never short-circuits on enrollment state.
   Check every manifest entry, reuse each compatible managed installation,
   install only missing entries, reconcile the workbench integration, then
@@ -61,7 +62,7 @@ must use bounded downloads, authoritative checksums or release digests,
 candidate verification, and atomic replacement.
 
 The post-update runner executes after normal Pacman/AUR updates. It updates
-only already-installed direct tools in the base, qvDEV, and Proton scopes,
+only already-installed direct tools in the qvDEV and Proton scopes,
 skips absent tools, continues through independent failures, and returns
 nonzero after reporting every failure. It must never install a stack, restore
 a missing tool, authenticate an account, repair an integration, or change
@@ -70,13 +71,7 @@ official release manifest without running the credential-aware CLI, and keep
 all qvOS Pass sessions on the persistent D-Bus keyring backend.
 
 Verify catalog and manifest guards, affected stack Install/Uninstall tests,
-direct updater tests, menu tests, Bash syntax, ShellCheck, official
-`codex doctor` checks, and the full qvOS suite. Base-manifest changes
-additionally require ISO prepare-only verification.
-
-When Codex launches the verification session through npm, remove inherited
-`CODEX_MANAGED_PACKAGE_ROOT` and `CODEX_MANAGED_BY_NPM` from the doctor
-subprocess so it inspects the canonical base installation instead of the parent
-agent's launcher context. The direct updater must clear the same markers and
-desktop launchers must call `~/.local/bin/codex` explicitly. Report any
-remaining update-probe warning truthfully.
+direct updater tests, menu tests, Bash syntax, ShellCheck, and the full qvOS
+suite. Base-manifest changes additionally require ISO prepare-only
+verification. Desktop launchers must call `~/.local/bin/codex` explicitly so
+they use Omarchy's installed wrapper.

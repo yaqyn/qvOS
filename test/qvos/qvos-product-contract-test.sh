@@ -26,6 +26,11 @@ fail() {
 "$root/qv/install/packaging/resolve" base >"$base_packages"
 "$root/qv/install/packaging/resolve" other >"$other_packages"
 
+if rg -q '/home/qv(/|$)' "$root/qv/iso" "$root/qv/tui"; then
+  fail "development-machine home path leaked into ISO-owned source"
+fi
+pass "ISO-owned source excludes development-machine home paths"
+
 [[ ! -e $root/qv/install/packaging/base.packages &&
   ! -e $root/qv/install/packaging/other.packages ]] ||
   fail "copied Omarchy package manifest remains"
@@ -156,8 +161,7 @@ grep -Fqx 'dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Co
   fail "WARP remains available through DNS configuration"
 pass "WARP stays DNS-owned and installs only when selected"
 
-if grep -Eq '^(7zip|act|age|clang|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$base_packages" "$other_packages" ||
-  grep -RqsF '@openai/codex' "$root/qv/install"; then
+if grep -Eq '^(7zip|act|age|clang|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$base_packages" "$other_packages"; then
   fail "qvCORE stack software leaked into the base package manifest"
 fi
 expected_qvcore_catalog=$'# component\tlabel\ticon\nproton\tProton\t󰌾\nqvdev\tqvDEV\t󰵮'
@@ -220,9 +224,12 @@ grep -Fqx '# omarchy:group=qvcore' "$root/bin/omarchy-qvcore-remove" ||
   fail "qvCORE Install and Remove commands"
 [[ ! -e $root/qv/codex ]] ||
   fail "redundant qvOS Codex inspection domain remains"
-grep -Fqx '  "$OMARCHY_PATH/qv/direct/tool" install codex' \
-  "$root/qv/install/configure" ||
-  fail "base Codex does not install through the direct-tool owner"
+grep -Fqx 'omarchy-npx-install @openai/codex codex' \
+  "$root/qv/install/packaging/npx" ||
+  fail "Omarchy Codex wrapper is not preserved"
+if rg -qi '\bcodex\b' "$root/qv/direct" "$root/qv/install/configure"; then
+  fail "qvOS retains a duplicate Codex installer"
+fi
 if grep -Eq "^alias qv=" "$root/qv/shell/aliases"; then
   fail "fragile qv alias remains"
 fi
@@ -246,7 +253,7 @@ if rg -q 'qv/codex|qvos/codex|qv codex doctor' \
   "$root/migrations"; then
   fail "retired qvOS Codex inspection reference remains"
 fi
-pass "qvCORE stays two-stack while Codex remains base direct software"
+pass "qvCORE stays two-stack while Codex remains Omarchy-owned"
 
 grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" ||
   fail "upstream Framework 16 offline package ownership"
@@ -357,8 +364,10 @@ if ! grep -Fq 'Treat availability, active/default/applied state, behavior, and p
     "$root/qv/tui/AGENTS.md"; then
   fail "qvOS TUI lifecycle screen matrix rule"
 fi
-if ! grep -Fq 'cancellation freezes progress immediately' "$root/qv/tui/AGENTS.md" ||
-  ! grep -Fq 'never animate toward `100%` or imply success' "$root/qv/tui/AGENTS.md"; then
+if ! rg -Uq 'cancellation[[:space:]]+freezes progress immediately' \
+  "$root/qv/tui/AGENTS.md" ||
+  ! rg -Uq 'never animate[[:space:]]+toward `100%` or imply success' \
+    "$root/qv/tui/AGENTS.md"; then
   fail "qvOS TUI cancellation result rule"
 fi
 if ! grep -Fq 'through one ordered pseudo-terminal stream' "$root/qv/tui/AGENTS.md" ||
@@ -367,7 +376,8 @@ if ! grep -Fq 'through one ordered pseudo-terminal stream' "$root/qv/tui/AGENTS.
   fail "qvOS TUI live terminal output rule"
 fi
 if ! grep -Fq 'log-producing results keep `V` and `Ctrl+V` active' "$root/qv/tui/AGENTS.md" ||
-  ! grep -Fq 'Never discard captured history at a result transition' \
+  ! grep -Fq 'The boot finale is the exception' "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'Never discard captured history for general' \
     "$root/qv/tui/AGENTS.md"; then
   fail "qvOS TUI completed-result log access rule"
 fi
@@ -543,15 +553,67 @@ grep -Fq 'install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui' \
 grep -Fq 'mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS continuous boot-install log"
-grep -Fq 'QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}"' \
+grep -Fq 'stop_qvos_iso_progress' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
-  fail "qvOS continuous boot-install TUI ownership"
+  fail "qvOS live-media progress stop before target install"
 grep -Fq 'qv/iso/source-permissions' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO tracked executable-mode integration"
-grep -Fq 'if [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then' \
+grep -Fq 'if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then' \
   "$root/qv/install/helpers/logging" ||
-  fail "qvOS external install progress suppresses inherited monitor"
+  fail "qvOS target install progress ownership"
+grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
+  "$root/qv/install/helpers/logging" ||
+  fail "qvOS target install progress process tracking"
+if grep -Fq 'QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch"; then
+  fail "qvOS progress PID crosses the chroot PID namespace"
+fi
+
+progress_bin="$test_root/progress-bin"
+progress_log="$test_root/progress-owner.log"
+install -d "$progress_bin"
+install -m 0755 /dev/stdin "$progress_bin/qvos-tui" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >"$QVOS_TEST_PROGRESS_LOG"
+trap 'exit 0' TERM INT
+while true; do
+  sleep 1
+done
+SCRIPT
+(
+  set -euo pipefail
+  # shellcheck disable=SC2329
+  sudo() {
+    "$@"
+  }
+  # shellcheck disable=SC2329
+  start_log_output() {
+    fail "target install used the inherited concurrent log renderer"
+  }
+  PATH="$progress_bin:/usr/bin"
+  export PATH
+  export QVOS_TEST_PROGRESS_LOG="$progress_log"
+  export OMARCHY_CHROOT_INSTALL=1
+  export OMARCHY_INSTALL_LOG_FILE="$test_root/target-install.log"
+  # shellcheck disable=SC1091
+  source "$root/qv/install/helpers/logging"
+  start_install_log
+  [[ -n ${QVOS_ISO_PROGRESS_PID:-} ]] ||
+    fail "target install did not track its progress process"
+  kill -0 "$QVOS_ISO_PROGRESS_PID"
+  for _ in {1..20}; do
+    [[ -f $progress_log ]] && break
+    sleep 0.05
+  done
+  stop_log_output >/dev/null
+  [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]] ||
+    fail "target install retained its stopped progress PID"
+)
+grep -Fqx -- "--iso-progress --log $test_root/target-install.log --no-input" \
+  "$progress_log" ||
+  fail "target install progress arguments"
+pass "target install owns and stops its progress TUI inside the target namespace"
 
 source_permissions="$root/qv/iso/source-permissions"
 [[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
@@ -843,6 +905,13 @@ grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
 grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
   "$root/qv/install/helpers/logging" ||
   fail "restricted install log"
+[[ -x $root/qv/install/helpers/error-title ]] ||
+  fail "qvOS installer error-title owner mode"
+[[ $("$root/qv/install/helpers/error-title") == "qvOS installation stopped!" ]] ||
+  fail "qvOS installer error title"
+grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/install/helpers/error-title"' \
+  "$root/install/helpers/errors.sh" ||
+  fail "inherited installer error branding delegation"
 grep -qx 'Name=Yaqyn' "$root/qv/boot/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
 grep -qx 'ConsoleLogBackgroundColor=0x000000' \
   "$root/qv/boot/plymouth/omarchy.plymouth" ||

@@ -90,7 +90,12 @@ catch_errors() {
   clear_logo
   show_cursor
 
-  gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "Omarchy installation stopped!"
+  local qvos_owner="$OMARCHY_PATH/qv/install/helpers/error-title"
+  if [[ -x $qvos_owner ]]; then
+    gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "$("$qvos_owner")"
+  else
+    gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "Omarchy installation stopped!"
+  fi
   show_log_tail
 
   gum style "This command halted with exit code $exit_code:"

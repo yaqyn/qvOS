@@ -1,5 +1,4 @@
 # id	scope	label	method	commands	source	asset-x86_64	asset-aarch64	asset-kind
-codex	base	Codex	codex	codex	https://chatgpt.com/codex/install.sh	-	-	-
 node	qvdev	Node.js LTS	mise	node	node@lts	-	-	-
 bun	qvdev	Bun	mise	bun	bun@latest	-	-	-
 uv	qvdev	uv	mise	uv	uv@latest	-	-	-

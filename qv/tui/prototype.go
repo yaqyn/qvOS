@@ -94,7 +94,7 @@ func runPrototype() error {
 }
 
 func (m prototypeHubModel) Init() tea.Cmd {
-	return tea.Batch(tick(), detectFullscreenCmd())
+	return initialTUICommand(tea.Batch(tick(), detectFullscreenCmd()))
 }
 
 func (m prototypeHubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -427,7 +427,7 @@ func runPrototypeSession(profile prototypeProfile) error {
 }
 
 func (m prototypeSessionModel) Init() tea.Cmd {
-	return tea.Batch(tick(), detectFullscreenCmd())
+	return initialTUICommand(tea.Batch(tick(), detectFullscreenCmd()))
 }
 
 func (m prototypeSessionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -878,18 +878,7 @@ func runISOProgressPrototype() error {
 }
 
 func runISOFinishedPrototype() error {
-	model := newISOFinishedModel("", "8m 42s", []string{
-		"prototype: no installer commands were run",
-		"resolving dependencies...",
-		"installing base system",
-		"configuring encrypted storage",
-		"applying desktop configuration",
-		"installing qvOS runtime",
-		"applying qvOS integrations",
-		"verifying installed system",
-		"base system installed",
-		"installation completed successfully",
-	})
+	model := newISOFinishedModel()
 	_, err := newTUIProgram(model, tea.WithFilter(filterISOFinishedExitMessages)).Run()
 	return err
 }

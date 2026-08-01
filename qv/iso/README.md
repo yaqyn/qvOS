@@ -36,7 +36,22 @@ the previous one.
   grayscale; Plymouth and the installer may use only qvOS red tonal accents
   (`#5f0000`/`#b00000`/`#d00000`), while Limine stays grayscale-only. Reject
   inherited Omarchy/Tokyo Night colors or stale glyphs from an earlier TUI
-  frame.
+  frame. Confirm the installer starts directly at its qvOS welcome on Step 1/3,
+  then uses one ring for Region, two for Account, and three for Install drive.
+  Verify Region shows Keyboard with Time zone, Account shows Username, Machine
+  Name, Password, and Confirm Password, and the drive step becomes its own final
+  erase confirmation. Wide screens use the divided side composition with the
+  model and context on the right; narrow screens stack safely without a model.
+  Confirm Region filtering does not move any field, divider, tracker, title, or
+  column; Tab and Shift+Tab cycle every field; invalid account characters do not
+  enter; and password mismatches cannot continue. Primary actions use a red
+  chevron and white label without a filled background. Progress exposes `v log`,
+  `ctrl+v terminal`, and `? help`; V opens the same-process side log, while
+  Ctrl+V opens the minimal full terminal with no copy-all or navigation actions.
+  Confirm both shortcuts are inactive on the finale. Verify the live-media
+  progress process exits before target-install progress starts, and that target
+  progress exits before the finale or error fallback; two renderers must never
+  own the installer terminal together.
 - Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
   menu. All displayed product, entry, publisher, and application names must say
   `qvOS`; inherited internal compatibility identifiers may remain lowercase

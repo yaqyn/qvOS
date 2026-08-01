@@ -70,6 +70,16 @@ func newTUIProgram(model tea.Model, options ...tea.ProgramOption) *tea.Program {
 	return tea.NewProgram(model, options...)
 }
 
+func initialTUICommands(commands ...tea.Cmd) []tea.Cmd {
+	ordered := make([]tea.Cmd, 0, len(commands)+1)
+	ordered = append(ordered, tea.ClearScreen)
+	return append(ordered, commands...)
+}
+
+func initialTUICommand(commands ...tea.Cmd) tea.Cmd {
+	return tea.Sequence(initialTUICommands(commands...)...)
+}
+
 // -- menu data --
 
 type hubAction string
@@ -522,7 +532,7 @@ func (m model) Init() tea.Cmd {
 	if m.startImmediately {
 		commands = append(commands, startImmediateActionCmd())
 	}
-	return tea.Batch(commands...)
+	return initialTUICommand(tea.Batch(commands...))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -2841,10 +2851,6 @@ func countedBuildProgressFromLine(line, prefix, status string, start, end float6
 	return status, start + ratio*(end-start), true
 }
 
-var installDomainOrder = []string{
-	"Runtime", "Defaults", "Icons", "Hyprland", "Theme", "Branding", "SDDM", "Fastfetch", "Screensaver", "GTK", "Waybar", "Tmux",
-}
-
 func sanitizeLogLine(line string) string {
 	line = strings.ReplaceAll(line, `\033[0m`, "")
 	line = strings.ReplaceAll(line, `\e[0m`, "")
@@ -4573,7 +4579,7 @@ func main() {
 		return
 	}
 	if len(os.Args) > 1 && os.Args[1] == "--iso-finished" {
-		if err := runISOFinished(os.Args[2:]); err != nil {
+		if err := runISOFinished(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
