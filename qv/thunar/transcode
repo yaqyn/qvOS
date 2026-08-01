@@ -12,5 +12,4 @@ media_file=$1
   exit 1
 }
 
-printf -v transcode_command 'omarchy-transcode %q' "$media_file"
-exec omarchy-launch-floating-terminal-with-presentation "$transcode_command"
+exec omarchy-launch-floating-terminal-with-presentation omarchy-transcode "$media_file"

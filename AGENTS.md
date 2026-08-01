@@ -171,6 +171,12 @@ Every qvOS change must leave one traceable lifecycle.
 - Preserve safe upstream capability during conflicts. Omit it only when broken,
   unsafe, incompatible, or intentionally out of scope, and state why.
 
+## Zero Duplication
+
+Reusable code has one shared owner. A second consumer must call or extract it
+in the same change; thin adapters translate only. Fix shared bugs once, test
+the owner and two consumers, and leave no equivalent implementation behind.
+
 ## Main qvsync Workflow
 
 `qvsync` is the main qvOS evolution loop: preserve new Omarchy capability while
@@ -215,6 +221,7 @@ Read every matching route completely before editing:
 - ISO construction and release images: `qv/iso/AGENTS.md`
 - qvOS Hyprland config and reconciliation: `qv/config/AGENTS.md`
 - qvOS battery protection and charging thresholds: `qv/power/AGENTS.md`
+- Windows VM configuration, data scope, and rollback: `qv/windows/AGENTS.md`
 - qvOS security auditing and balanced hardening: `qv/security/AGENTS.md`
 - Screensaver lifecycle and cursor handling: `qv/screensaver/AGENTS.md`
 - Commit and qvsync command mechanics: `qv/git/AGENTS.md`

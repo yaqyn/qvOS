@@ -33,11 +33,43 @@ probe_ready() {
   local kind=$1
   local value=$2
   local package
+  local path
+  local line
+  local prefix
+  local found
   local -a packages=()
+  local -a parts=()
+  local -a required_lines=()
+  local -a required_prefixes=()
 
   case $kind in
   file)
     [[ -e $HOME/$value ]]
+    ;;
+  file-lines)
+    read -r -a parts <<<"$value"
+    path=${parts[0]:-}
+    required_lines=("${parts[@]:1}")
+    [[ -n $path && ${#required_lines[@]} -gt 0 && -f $HOME/$path ]] || return 1
+    for line in "${required_lines[@]}"; do
+      grep -qxF -- "$line" "$HOME/$path" || return 1
+    done
+    ;;
+  file-prefixes)
+    read -r -a parts <<<"$value"
+    path=${parts[0]:-}
+    required_prefixes=("${parts[@]:1}")
+    [[ -n $path && ${#required_prefixes[@]} -gt 0 && -f $HOME/$path ]] || return 1
+    for prefix in "${required_prefixes[@]}"; do
+      found=false
+      while IFS= read -r line; do
+        if [[ $line == "$prefix"?* ]]; then
+          found=true
+          break
+        fi
+      done <"$HOME/$path"
+      [[ $found == "true" ]] || return 1
+    done
     ;;
   package)
     load_package_inventory

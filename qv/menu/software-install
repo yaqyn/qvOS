@@ -1,15 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 slug=${1:-}
+no_launch=false
 
 usage() {
-  echo "Usage: qv/menu/software-install <bitwarden|cursor|sublime-text|vim|emacs|lm-studio|ollama|crush>" >&2
+  echo "Usage: qv/menu/software-install <bitwarden|crush|cursor|emacs|lm-studio|ollama|sublime-text|vim> [--no-launch]" >&2
 }
 
 launch_desktop() {
+  [[ $no_launch == "false" ]] || return
   setsid gtk-launch "$1"
 }
+
+if (($# == 2)); then
+  [[ $2 == "--no-launch" ]] || {
+    usage
+    exit 2
+  }
+  no_launch=true
+elif (($# != 1)); then
+  usage
+  exit 2
+fi
 
 case $slug in
 bitwarden)

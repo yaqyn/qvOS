@@ -26,7 +26,9 @@ inherited_seams=(
   bin/omarchy-config-direct-boot
   bin/omarchy-first-run
   bin/omarchy-install-browser
+  bin/omarchy-install-gaming-xbox-controllers
   bin/omarchy-install-gaming-retroarch
+  bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
   bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-plymouth-reset
@@ -37,6 +39,10 @@ inherited_seams=(
   bin/omarchy-refresh-sddm
   bin/omarchy-show-logo
   bin/omarchy-theme-bg-install
+  bin/omarchy-tz-select
+  bin/omarchy-update-restart
+  bin/omarchy-voxtype-install
+  bin/omarchy-windows-vm
   install/config/all.sh
   install/helpers/all.sh
   install/login/limine-snapper.sh
@@ -135,6 +141,7 @@ fallback_seams=(
   bin/omarchy-refresh-limine
   bin/omarchy-refresh-plymouth
   bin/omarchy-refresh-sddm
+  bin/omarchy-windows-vm
   install/packaging/base.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
@@ -149,7 +156,7 @@ for path in "${fallback_seams[@]}"; do
   # shellcheck disable=SC2016
   grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/' "$root/$path" ||
     fail "$path does not name its qvOS owner"
-  rg -q '^if \[\[ -(x|f) \$qvos_owner \]\]; then$' "$root/$path" ||
+  rg -q '^[[:space:]]*if \[\[ -(x|f) \$qvos_owner \]\]; then$' "$root/$path" ||
     fail "$path qvOS owner is not availability-guarded"
   if rg -q '^exec "\$OMARCHY_PATH/qv/' "$root/$path" ||
     rg -U -q '^source .*qv/.*\nreturn$' "$root/$path"; then
@@ -185,10 +192,10 @@ for path in "${public_adapters[@]}"; do
   [[ -x $root/$path ]] || fail "$path public adapter mode"
   (($(wc -l <"$root/$path") <= 15)) ||
     fail "$path contains implementation outside qv/"
-  rg -q 'qv/' "$root/$path" ||
-    fail "$path does not delegate to qv/"
+  rg -q 'qv/|share/qvos/' "$root/$path" ||
+    fail "$path does not delegate to a qvOS source or runtime owner"
 done
-pass "qvOS public commands are thin adapters"
+pass "qvOS public commands are thin source or checked-runtime adapters"
 
 shopt -s nullglob
 migration_owners=("$root"/qv/migrations/*.sh)

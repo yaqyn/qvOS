@@ -98,7 +98,7 @@ refresh_backup_count=$(
 if HOME="$refresh_home" \
   OMARCHY_PATH="$refresh_source" \
   PATH="$refresh_fail_bin:/usr/bin" \
-    "$root/qv/config/refresh" qvos/path.conf >/dev/null 2>&1; then
+  "$root/qv/config/refresh" qvos/path.conf >/dev/null 2>&1; then
   fail "failed qvOS config staging was accepted"
 fi
 [[ $(<"$refresh_home/.config/qvos/path.conf") == "current config" ]] ||
@@ -287,9 +287,9 @@ remove_gaming_override=$(
   sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qv/menu/extension.sh"
 )
 grep -Fqx \
-  'steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|omarchy-remove-gaming-steam' \
+  'steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|qv/menu/steam-remove' \
   "$root/qv/menu/software-actions.psv" ||
-  fail "Steam lifecycle bypasses Omarchy's owners"
+  fail "Steam lifecycle bypasses its safe removal owner"
 grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||
   fail "Steam install bypasses Omarchy's owner"
 grep -Fq 'show_software_menu gaming' <<<"$remove_gaming_override" ||
@@ -329,14 +329,48 @@ grep -Fq 'three rings are system-critical or high-impact operations' \
   fail "qvOS TUI three-ring model role"
 grep -Fq 'one ring is an ordinary safe task or' "$root/qv/tui/AGENTS.md" ||
   fail "qvOS TUI one-ring model role"
-grep -Fq 'Mutation flows never bind `Ctrl+C` or `Ctrl+Z` directly' \
+if ! grep -Fq 'Generic non-install mutations never bind, advertise, or react to' \
   "$root/qv/tui/AGENTS.md" ||
-  fail "qvOS TUI interruption confirmation rule"
+  ! grep -Fq 'Captured Install, qvOS Update, and ISO Build retain' \
+    "$root/qv/tui/AGENTS.md"; then
+  fail "qvOS TUI interruption policy"
+fi
 grep -Fq 'Ring count controls visual role only' \
   "$root/qv/tui/AGENTS.md" ||
   fail "qvOS task behavior is independent from visual ring role"
-grep -Fq 'Canceled results must say canceled' "$root/qv/tui/AGENTS.md" ||
+if ! grep -Fq 'Treat availability, active/default/applied state, behavior, and privilege as' \
+  "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'For every reachable matrix row, account for entry and Preparing' \
+    "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'complete state-to-action and screen matrix' \
+    "$root/qv/menu/AGENTS.md" ||
+  ! grep -Fq 'For a TUI-managed installable or defaultable lifecycle' \
+    "$root/qv/tui/AGENTS.md"; then
+  fail "qvOS TUI lifecycle screen matrix rule"
+fi
+if ! grep -Fq 'cancellation freezes progress immediately' "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'never animate toward `100%` or imply success' "$root/qv/tui/AGENTS.md"; then
   fail "qvOS TUI cancellation result rule"
+fi
+if ! grep -Fq 'through one ordered pseudo-terminal stream' "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'Retain the complete normalized history without line-count or' \
+    "$root/qv/tui/AGENTS.md"; then
+  fail "qvOS TUI live terminal output rule"
+fi
+if ! grep -Fq 'log-producing results keep `V` and `Ctrl+V` active' "$root/qv/tui/AGENTS.md" ||
+  ! grep -Fq 'Never discard captured history at a result transition' \
+    "$root/qv/tui/AGENTS.md"; then
+  fail "qvOS TUI completed-result log access rule"
+fi
+if ! grep -Fq '## Zero Duplication' "$root/AGENTS.md" ||
+  ! grep -Fq 'A second consumer must call or extract it' "$root/AGENTS.md" ||
+  ! grep -Fq 'leave no equivalent implementation behind' \
+    "$root/AGENTS.md"; then
+  fail "qvOS shared implementation and zero-duplication rule"
+fi
+if grep -Fq 'tea.WithInput(nil)' "$root/qv/tui/iso_progress.go"; then
+  fail "qvOS output-only progress disabled terminal response consumption"
+fi
 grep -Fq 'omarchy-launch-qvos-update' "$root/qv/theme/yaqyn/mako.ini" ||
   fail "qvOS update notification TUI route"
 grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \

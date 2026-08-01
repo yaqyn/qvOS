@@ -34,14 +34,15 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 			t.Fatalf("default Update view exposes secondary action %q: %q", hidden, content)
 		}
 	}
+	closedRow, closedColumn := textPosition(content, "UPDATING")
 
 	m.logOverlay = true
 	content = stripANSI(m.View().Content)
 	if !strings.Contains(content, "ctrl+c/z stop options") {
 		t.Fatalf("open log view lost the primary action: %q", content)
 	}
-	if strings.Contains(content, "f1 help") {
-		t.Fatalf("narrow log progress pane should yield Help to the primary action: %q", content)
+	if !strings.Contains(content, "f1 help") {
+		t.Fatalf("open log view moved or hid Help from the stable action pane: %q", content)
 	}
 	if !strings.Contains(content, "ctrl+v  switch") {
 		t.Fatalf("open log view is missing its quiet switch cue: %q", content)
@@ -51,6 +52,192 @@ func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {
 	}
 	if m.View().MouseMode != tea.MouseModeCellMotion {
 		t.Fatal("open side log releases the mouse outside full terminal output")
+	}
+	openRow, openColumn := textPosition(content, "UPDATING")
+	if openRow != closedRow || openColumn != closedColumn {
+		t.Fatalf(
+			"opening side logs moved progress from %d:%d to %d:%d",
+			closedRow,
+			closedColumn,
+			openRow,
+			openColumn,
+		)
+	}
+}
+
+func TestStopConfirmationTemporarilyReplacesTheSideLog(t *testing.T) {
+	m := model{
+		width:             140,
+		height:            31,
+		loading:           true,
+		action:            actionUpdate,
+		scriptRunning:     true,
+		scriptProgress:    0.38,
+		scriptTarget:      0.68,
+		scriptLogLines:    []string{"downloading package metadata"},
+		logOverlay:        true,
+		updateStopConfirm: true,
+	}
+
+	content := stripANSI(m.View().Content)
+	for _, expected := range []string{
+		"STOP UPDATE?",
+		"Update keeps running until you confirm",
+		"Keep Updating",
+		"Stop Update",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("full-view stop confirmation is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{
+		"downloading package metadata",
+		"ctrl+v",
+		"qvOS",
+		"38%",
+		"UPDATING",
+		"f1",
+	} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("full-view stop confirmation retained %q: %q", hidden, content)
+		}
+	}
+
+	next, command := m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+	m = next.(model)
+	if command != nil || m.helpOverlay || !m.updateStopConfirm {
+		t.Fatal("Help replaced the active stop decision")
+	}
+}
+
+func TestEmptyRunningLogsUsePreparingInsteadOfWaitingCopy(t *testing.T) {
+	tests := []struct {
+		name string
+		view tea.View
+	}{
+		{
+			name: "action terminal",
+			view: (model{
+				width: 120, height: 42, loading: true, action: actionUpdate,
+				scriptRunning: true, terminalView: true, frame: preparingFrameStep * 2,
+			}).View(),
+		},
+		{
+			name: "prototype terminal",
+			view: (prototypeSessionModel{
+				width: 120, height: 42, running: true, terminalView: true,
+				frame: preparingFrameStep * 2,
+			}).View(),
+		},
+		{
+			name: "ISO terminal",
+			view: (isoProgressModel{
+				width: 120, height: 42, terminalView: true,
+				frame: preparingFrameStep * 2,
+			}).View(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			content := stripANSI(test.view.Content)
+			if !strings.Contains(content, "Preparing..") {
+				t.Fatalf("empty running log is missing Preparing animation: %q", content)
+			}
+			if strings.Contains(strings.ToLower(content), "waiting for") {
+				t.Fatalf("empty running log retained waiting copy: %q", content)
+			}
+		})
+	}
+}
+
+func TestFullscreenLogsReplaceModelsWithoutMovingProgress(t *testing.T) {
+	const (
+		width  = 160
+		height = 50
+	)
+
+	tests := []struct {
+		name       string
+		title      string
+		logLine    string
+		closedView tea.View
+		openView   tea.View
+	}{
+		{
+			name:    "action",
+			title:   "UPDATING",
+			logLine: "fullscreen action log",
+			closedView: (model{
+				width: width, height: height, fullscreen: true, loading: true,
+				action: actionUpdate, scriptRunning: true, scriptProgress: 0.38,
+				scriptTarget: 0.38, scriptStatus: "updating qvOS",
+			}).View(),
+			openView: (model{
+				width: width, height: height, fullscreen: true, loading: true,
+				action: actionUpdate, scriptRunning: true, scriptProgress: 0.38,
+				scriptTarget: 0.38, scriptStatus: "updating qvOS",
+				scriptLogLines: []string{"fullscreen action log"}, logOverlay: true,
+			}).View(),
+		},
+		{
+			name:    "prototype",
+			title:   "RUN SCRIPT",
+			logLine: "fullscreen prototype log",
+			closedView: (prototypeSessionModel{
+				width: width, height: height, fullscreen: true, running: true,
+				profile: prototypeProfileFor(prototypeScript), progress: 0.38,
+			}).View(),
+			openView: (prototypeSessionModel{
+				width: width, height: height, fullscreen: true, running: true,
+				profile: prototypeProfileFor(prototypeScript), progress: 0.38,
+				logLines: []string{"fullscreen prototype log"}, logOverlay: true,
+			}).View(),
+		},
+		{
+			name:    "ISO progress",
+			title:   "INSTALLING",
+			logLine: "fullscreen install log",
+			closedView: (isoProgressModel{
+				width: width, height: height, fullscreen: true,
+				progress: 0.38, target: 0.38, status: "installing packages",
+			}).View(),
+			openView: (isoProgressModel{
+				width: width, height: height, fullscreen: true,
+				progress: 0.38, target: 0.38, status: "installing packages",
+				logLines: []string{"fullscreen install log"}, logOverlay: true,
+			}).View(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			closed := stripANSI(test.closedView.Content)
+			open := stripANSI(test.openView.Content)
+			closedRow, closedColumn := textPosition(closed, test.title)
+			openRow, openColumn := textPosition(open, test.title)
+			if closedRow < 0 || openRow < 0 {
+				t.Fatalf("progress title %q is missing", test.title)
+			}
+			if openRow != closedRow || openColumn != closedColumn {
+				t.Fatalf(
+					"opening fullscreen logs moved %q from %d:%d to %d:%d",
+					test.title,
+					closedRow,
+					closedColumn,
+					openRow,
+					openColumn,
+				)
+			}
+			logRow, _ := textPosition(open, test.logLine)
+			if logRow < 0 {
+				t.Fatalf("fullscreen log did not replace the model: %q", open)
+			}
+			if logRow >= openRow {
+				t.Fatalf("fullscreen log rendered below progress instead of in the model slot")
+			}
+			assertViewFits(t, test.openView.Content, width, height)
+		})
 	}
 }
 
@@ -506,13 +693,14 @@ func TestLogOutputScrollsAndReturnsToFollowingTheNewestLine(t *testing.T) {
 		lines = append(lines, fmt.Sprintf("log line %02d", index))
 	}
 	m := model{
-		width:          140,
-		height:         31,
-		loading:        true,
-		action:         actionUpdate,
-		scriptRunning:  true,
-		scriptLogLines: lines,
-		logOverlay:     true,
+		width:           140,
+		height:          31,
+		loading:         true,
+		action:          actionUpdate,
+		scriptRunning:   true,
+		scriptLogLines:  lines,
+		scriptLogCursor: len(lines),
+		logOverlay:      true,
 	}
 
 	content := stripANSI(m.View().Content)
@@ -531,8 +719,11 @@ func TestLogOutputScrollsAndReturnsToFollowingTheNewestLine(t *testing.T) {
 	}
 
 	next, _ = m.Update(scriptEventMsg{event: scriptEvent{
-		action: actionUpdate,
-		line:   "log line 30",
+		action:         actionUpdate,
+		line:           "log line 30",
+		output:         true,
+		commit:         true,
+		terminalUpdate: true,
 	}})
 	m = next.(model)
 	content = stripANSI(m.View().Content)
@@ -673,6 +864,15 @@ func TestEveryFullTerminalSurfaceOffersFullLogCopy(t *testing.T) {
 	if isoCommand == nil || nextISO.(isoProgressModel).logCopyStatus != "copying full log" {
 		t.Fatal("ISO terminal did not start full-log copy")
 	}
+
+	finale := isoFinishedModel{
+		terminalView: true,
+		logLines:     []string{"ISO finale output"},
+	}
+	nextFinale, finaleCommand := finale.Update(tea.KeyPressMsg{Code: 'y'})
+	if finaleCommand == nil || nextFinale.(isoFinishedModel).logCopyStatus != "copying full log" {
+		t.Fatal("ISO finale terminal did not start full-log copy")
+	}
 }
 
 func TestOnlyFullTerminalOutputEnablesNativeSelection(t *testing.T) {
@@ -771,12 +971,12 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 	}{
 		{"hub", (model{}).hubPersistentHints(), "↑↓"},
 		{"start confirmation", (model{startConfirm: true}).rootPersistentHints(), "←→"},
-		{"stop confirmation", (model{updateStopConfirm: true}).rootPersistentHints(), "←→"},
 		{"sudo", (model{sudoPrompt: true}).rootPersistentHints(), "enter"},
+		{"empty selection", (model{selectionActive: true}).rootPersistentHints(), "enter / esc"},
 		{"running update", (model{action: actionUpdate}).rootPersistentHints(), "ctrl+c/z"},
 		{"failed action", (model{scriptErr: fmt.Errorf("failed")}).rootPersistentHints(), "r"},
 		{"completed action", (model{scriptDone: true}).rootPersistentHints(), "enter"},
-		{"terminal output", (model{}).terminalHints(), "ctrl+v"},
+		{"terminal output", tuiTerminalPersistentHints(), "ctrl+v"},
 		{"prototype hub", (prototypeHubModel{}).persistentHints(), "↑↓"},
 		{"prototype sudo", (prototypeSessionModel{
 			profile: prototypeProfileFor(prototypeSudo),
@@ -784,7 +984,7 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 		{"prototype running", (prototypeSessionModel{}).persistentHints(), "esc"},
 		{"prototype failure", (prototypeSessionModel{failed: true}).persistentHints(), "r"},
 		{"prototype complete", (prototypeSessionModel{done: true}).persistentHints(), "enter"},
-		{"prototype terminal", (prototypeSessionModel{}).terminalHints(), "ctrl+v"},
+		{"prototype terminal", tuiTerminalPersistentHints(), "ctrl+v"},
 		{"ISO intro", (isoInstallerModel{step: isoStepIntro}).persistentHints(), "enter"},
 		{"ISO writing", (isoInstallerModel{step: isoStepWriting}).persistentHints(), "ctrl+c/z"},
 		{"ISO list", (isoInstallerModel{step: isoStepKeyboard}).persistentHints(), "↑↓"},
@@ -795,7 +995,7 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 			prototype: true,
 			progress:  1,
 		}).persistentHints(), "enter"},
-		{"ISO terminal", (isoProgressModel{}).terminalHints(), "ctrl+v"},
+		{"ISO terminal", tuiTerminalPersistentHints(), "ctrl+v"},
 	}
 
 	for _, test := range tests {
@@ -817,6 +1017,112 @@ func TestPersistentHintsStayToOnePrimaryActionAndHelp(t *testing.T) {
 				t.Fatalf("running prototype primary hint = %#v, want cancel", test.hints[0])
 			}
 		})
+	}
+}
+
+func TestCompletedResultLogKeysKeepTheResultAvailable(t *testing.T) {
+	m := model{
+		width:          140,
+		height:         31,
+		loading:        true,
+		action:         actionUpdate,
+		scriptDone:     true,
+		scriptLogLines: []string{"completed owner output"},
+	}
+	if content := stripANSI(m.View().Content); strings.Contains(content, "v view logs") {
+		t.Fatalf("completed result exposes the known log shortcut persistently: %q", content)
+	}
+
+	next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	if command != nil {
+		t.Fatal("v launched a command from the completed result")
+	}
+	m = next.(model)
+	if !m.logOverlay || !m.scriptDone {
+		t.Fatal("v did not retain the completed result with its log panel open")
+	}
+	for _, expected := range []string{"completed owner output", "enter return"} {
+		if content := stripANSI(m.View().Content); !strings.Contains(content, expected) {
+			t.Fatalf("completed log view is missing %q: %q", expected, content)
+		}
+	}
+	if content := stripANSI(m.View().Content); strings.Contains(content, "v close logs") {
+		t.Fatalf("completed log view exposes the known log shortcut persistently: %q", content)
+	}
+
+	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
+	if command != nil {
+		t.Fatal("Ctrl+V launched a command from the completed result")
+	}
+	m = next.(model)
+	if !m.terminalView || !m.scriptDone {
+		t.Fatal("Ctrl+V did not retain the completed result in full terminal output")
+	}
+}
+
+func TestISOFinaleKeepsItsCapturedLogsAvailable(t *testing.T) {
+	for _, size := range []struct {
+		name          string
+		width, height int
+	}{
+		{name: "desktop", width: 140, height: 31},
+		{name: "tablet", width: 90, height: 28},
+		{name: "mobile", width: 58, height: 24},
+	} {
+		t.Run(size.name, func(t *testing.T) {
+			m := isoFinishedModel{
+				width:    size.width,
+				height:   size.height,
+				duration: "8m 42s",
+				logLines: []string{"final installer output"},
+			}
+
+			closed := stripANSI(m.View().Content)
+			if strings.Contains(closed, "v view logs") {
+				t.Fatalf("ISO finale exposes the known log shortcut persistently: %q", closed)
+			}
+			assertViewFits(t, m.View().Content, size.width, size.height)
+			next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+			m = next.(isoFinishedModel)
+			if help := stripANSI(m.View().Content); !strings.Contains(help, "toggle the qvOS install log panel") {
+				t.Fatalf("ISO finale Help lost the log shortcut: %q", help)
+			}
+			next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+			m = next.(isoFinishedModel)
+
+			next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+			if command != nil {
+				t.Fatal("v launched a command from the ISO finale")
+			}
+			m = next.(isoFinishedModel)
+			open := stripANSI(m.View().Content)
+			for _, expected := range []string{"final installer output", "┌", "└"} {
+				if !strings.Contains(open, expected) {
+					t.Fatalf("ISO finale log view is missing %q: %q", expected, open)
+				}
+			}
+			if strings.Contains(open, "v close logs") {
+				t.Fatalf("ISO finale log view exposes the known shortcut persistently: %q", open)
+			}
+			assertViewFits(t, m.View().Content, size.width, size.height)
+		})
+	}
+}
+
+func TestISOFinaleReusesTheActionLogPanel(t *testing.T) {
+	previousCanvasW, previousCanvasH := canvasW, canvasH
+	t.Cleanup(func() {
+		canvasW, canvasH = previousCanvasW, previousCanvasH
+	})
+	canvasW, canvasH = 58, 0
+	lines := []string{"shared installer output", "verification complete"}
+	finale := isoFinishedModel{height: 31, logLines: lines, logScroll: 1}
+	action := model{height: 31, scriptLogLines: lines, logScroll: 1, scriptDone: true}
+
+	got := finale.renderLogs(layoutTablet)
+	want := action.renderRootLogOverlayFor(layoutTablet)
+	if got != want {
+		t.Fatalf("ISO finale forked the action log panel:\nfinale: %q\naction: %q", got, want)
 	}
 }
 
@@ -897,4 +1203,22 @@ func assertViewFits(t *testing.T, content string, width int, height int) {
 			t.Fatalf("line %d width = %d, terminal width = %d", index, got, width)
 		}
 	}
+
+	if hints := (model{updateStopConfirm: true}).rootPersistentHints(); len(hints) != 1 ||
+		hints[0] != (tuiHint{Key: "ctrl+c/z", Action: "again stop"}) {
+		t.Fatalf("stop modal hints = %#v, want repeated-key stop control", hints)
+	}
+	if hints := (isoInstallerModel{shutdownPrompt: true}).persistentHints(); len(hints) != 1 ||
+		hints[0] != (tuiHint{Key: "ctrl+c/z", Action: "again stop"}) {
+		t.Fatalf("ISO stop modal hints = %#v, want repeated-key stop control", hints)
+	}
+}
+
+func textPosition(content, text string) (int, int) {
+	for row, line := range strings.Split(content, "\n") {
+		if column := strings.Index(line, text); column >= 0 {
+			return row, column
+		}
+	}
+	return -1, -1
 }

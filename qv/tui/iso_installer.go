@@ -145,7 +145,7 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case isoInstallerDoneMsg:
 		if msg.err != nil {
 			m.step = isoStepError
-			m.errorText = shortError(msg.err)
+			m.errorText = errorMessage(msg.err)
 			return m, nil
 		}
 		m.allowQuit = true
@@ -160,9 +160,11 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyPressMsg:
-		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.capturesTextInput()); handled {
-			m.helpOverlay = helpOverlay
-			return m, nil
+		if !m.shutdownPrompt {
+			if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.capturesTextInput()); handled {
+				m.helpOverlay = helpOverlay
+				return m, nil
+			}
 		}
 		return m.handleISOKey(msg)
 	}
@@ -170,12 +172,12 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m isoInstallerModel) handleISOKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if isISOExitKey(msg) {
-		return m.requestISOExit()
-	}
-
 	if m.shutdownPrompt {
 		return m.handleISOShutdownKey(msg)
+	}
+
+	if isISOExitKey(msg) {
+		return m.requestISOExit()
 	}
 
 	if m.step == isoStepWriting {
@@ -238,9 +240,12 @@ func (m isoInstallerModel) handleISOShutdownKey(msg tea.KeyPressMsg) (tea.Model,
 		if m.shutdownChoice < len(isoShutdownChoices())-1 {
 			m.shutdownChoice++
 		}
-	case "esc":
-		m.shutdownPrompt = false
-		m.shutdownChoice = 1
+	case "ctrl+c", "ctrl+z":
+		m.shutdownChoice = 0
+		if m.preview {
+			return m, tea.Quit
+		}
+		return m, powerOffCmd()
 	case "enter":
 		if m.shutdownChoice == 0 {
 			if m.preview {
@@ -601,6 +606,13 @@ func (m isoInstallerModel) View() tea.View {
 	var body string
 	if m.helpOverlay {
 		body = renderTUIHelp(width, "ISO "+m.stepTitle()+" controls", m.helpHints())
+	} else if m.shutdownPrompt {
+		canvasW, canvasH = fitContentWidth(width), 0
+		body = appendTUIHints(
+			m.renderISOShutdownPrompt(mode),
+			canvasW,
+			m.persistentHints()...,
+		)
 	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
@@ -698,9 +710,9 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 	}
 	if m.shutdownPrompt {
 		return []tuiHint{
+			{Key: "ctrl+c / ctrl+z", Action: "stop now"},
 			{Key: "arrows", Action: "choose cancel or continue"},
 			{Key: "enter", Action: "confirm the selected option"},
-			{Key: "esc", Action: "continue installation"},
 		}
 	}
 	switch m.step {
@@ -749,8 +761,7 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 func (m isoInstallerModel) persistentHints() []tuiHint {
 	if m.shutdownPrompt {
 		return []tuiHint{
-			{Key: "←→", Action: "choose"},
-			tuiHelpHint(),
+			{Key: "ctrl+c/z", Action: "again stop"},
 		}
 	}
 	switch m.step {
@@ -804,7 +815,11 @@ func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
 			Hints:    m.persistentHints(),
 		}, mode)
 	} else if m.step == isoStepError {
-		content = centerCanvas(sRed.Render("ERROR") + sGray.Render("  ") + sMid.Render(m.errorText))
+		return renderFailureScreen(failureScreen{
+			Subject: "SETUP",
+			Message: m.errorText,
+			Hints:   m.persistentHints(),
+		})
 	} else if m.isListStep() {
 		content = m.renderISOListStep(mode)
 	} else if m.step == isoStepReview {
@@ -881,7 +896,7 @@ func (m isoInstallerModel) renderISOListStep(mode layoutMode) string {
 	choices := m.filteredChoices()
 	title := sWhite.Render(m.stepTitle())
 	filter := strings.TrimSpace(string(m.filter))
-	filterLine := renderISOSearchField(filter, mode)
+	filterLine := renderSearchField(filter, mode)
 
 	if mode == layoutMobile {
 		selected := "none"
@@ -1185,14 +1200,6 @@ func centerLinesWithWidth(lines []string, width int) []string {
 		centered = append(centered, centerCanvas(line))
 	}
 	return centered
-}
-
-func renderISOSearchField(filter string, mode layoutMode) string {
-	value := trimDisplay(strings.TrimSpace(filter), inputWidthForMode(mode))
-	if value == "" {
-		return sMid.Render("search")
-	}
-	return sBright.Render(value)
 }
 
 func isoShutdownChoices() []isoChoice {

@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+reason=${1:-}
+prompt=${2:-}
+
+[[ -n $reason && -n $prompt && $# == 2 ]] || {
+  echo "Usage: qv/update/reboot-request <reason> <prompt>" >&2
+  exit 2
+}
+
+if [[ ${OMARCHY_UPDATE_DEFER_REBOOT:-0} == "1" ]]; then
+  printf 'qvOS action: reboot required: %s\n' "$reason"
+else
+  gum confirm "$prompt" && omarchy-system-reboot
+fi

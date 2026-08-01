@@ -20,10 +20,14 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - Keep browsing curated and shallow while search exposes detailed actions.
   `Update qvOS` is direct; component updates belong to their concept sheet.
 - Keep `Settings > Software` as a focused Elephant view backed by
-  `software-actions.psv`. Each actionable software row has one read-only,
-  owner-derived `Install` or `Uninstall` subtext and activates that action
-  directly after a fresh state check. Do not add an intermediate action sheet
-  or per-app Learn action.
+  `software-actions.psv`. Each row shows only the program or concept name and
+  passes its slug to the checked TUI; Walker never shows lifecycle state,
+  Install/Uninstall/Apply labels, or an action sheet. The TUI performs the fresh
+  state check and owns every status, choice, authorization, progress, and
+  result. Do not add a per-app Learn action.
+- Never bundle optional user-data deletion into a generic Uninstall. Put the
+  exact removal scope inside the TUI before authorization, default to preserving
+  data, and make the authorization summary match the selected scope.
 - Preserve generic Package, Web App, and TUI workflows plus software selectors
   that lack a paired lifecycle owner. Show selectors as `Browse` and delegate
   directly to their inherited list; never invent an Uninstall owner from a
@@ -35,19 +39,50 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   noninteractive captured stream through the shared two-ring TUI, retain
   prompts, authentication, configuration sessions, and nested TUIs as
   `native`, and verify TUI installs through `software-installer-state` with a
-  real declared probe.
+  real declared probe. If an owner also supports a native prompt, put its
+  explicit noninteractive flag in the TUI catalog and test that Gum is never
+  reached; do not rely on closed stdin as implicit confirmation.
+- Fonts are the deliberate install-only exception with a small managed
+  lifecycle. An absent font opens Install directly. An installed inactive font
+  opens the shared TUI with `Apply Now` and `Uninstall`; the active font shows
+  `Already Applied` with only `Uninstall`. Keep status as text, never a dummy
+  selectable action, and never put the action sheet in Walker. Keep package
+  state, active-font detection, Apply, exact removal, and the JetBrains Mono
+  fallback in `qv/menu/font-install`; menu routes only hand the selected font
+  to the TUI.
+- Terminals are a second deliberate managed exception. Route Alacritty, Foot,
+  Ghostty, and Kitty through `action/terminal-launch` from every menu surface.
+  `qv/menu/terminal-action` reports `available`, `installed`, or `active`,
+  delegates missing installs to `omarchy-install-terminal`, and delegates an
+  installed non-default choice to `omarchy-default-terminal`. Never present
+  Install for an installed terminal or request sudo merely to make it default.
+  The active terminal opens direct `Already default` information.
+- A concept with both availability and active/default/applied state follows the
+  lifecycle screen matrix in `qv/tui/AGENTS.md`. Probe those states separately,
+  expose only actions backed by exact owners, render current-state labels as
+  status rather than selectable actions, and reject drift before mutation.
+  Every menu surface passes only the selected concept or program identity; it
+  never preselects, labels, or renders a lifecycle action.
 - Fixed non-Software scripts use `qv/tui/task/actions.psv`: three rings for
   system-critical/high-impact operations, one ring for ordinary safe tasks,
   and `native` for any unresolved interaction. Keep ring presentation separate
   from behavior: `information` is read-only, while every state-changing task
   is `mutation`. Route by catalog slug or exact owner match; never place
   arbitrary menu shell in the captured task runner.
+- Fixed tasks with an explicit `task/selections.psv` contract use the shared
+  searchable single- or multi-selector and pass only owner-listed values.
+  Captured Software owners may defer a required reboot to the shared
+  Reboot Now/Later result; neither case justifies an embedded terminal.
 - Keep the interface menu-only. Delegate actions to their existing owners; do
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus. Do not maintain a parallel
   qvOS feature submenu.
 - Keep qvOS Elephant provider deltas under `qv/menu/elephant/`. Install them
   through `qv/menu/install` and link inherited providers from Omarchy source.
+- Launch every TUI-backed menu action through the checked
+  `~/.local/share/qvos/tui` payload. Menu state may come from the active
+  Omarchy owner, but no route may pair that owner with launch, task, or
+  cancellation adapters from the live checkout.
 
 ## Change workflow
 
@@ -80,9 +115,11 @@ install/removal owner:
    `concepts.psv`, `software-actions.psv`, selectors, aliases, installed
    payloads, and focused tests; do not infer coverage from filenames alone.
 2. Add a review-ledger row for each upstream leaf: upstream name and owners,
-   qvOS slug or selector, decision, state probe, per-operation presentation,
-   sudo requirement, cleanup, and verification. Use the root qvsync decisions
-   and explain every preserved selector, omission, and `no-impact`.
+   qvOS slug or selector, decision, independent availability and
+   active/default/applied probes, complete state-to-action and screen matrix,
+   per-operation presentation, sudo requirement, Stop/cleanup behavior, and
+   verification. Use the root qvsync decisions and explain every preserved
+   selector, omission, and `no-impact`.
 3. Adopt a flat row only with a stable concept, real read-only state, and real
    install and uninstall owners. Reuse those owners exactly once. If upstream
    has no safe paired lifecycle, keep the software reachable through an

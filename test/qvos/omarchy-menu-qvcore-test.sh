@@ -45,16 +45,16 @@ run_menu() {
 }
 
 run_menu Proton
-expected_install=$'󰌾  Proton — Install\n󰵮  qvDEV — Install'
-[[ $(<"$menu_log") == "$expected_install" ]] ||
-  fail "two direct Install rows"
+expected_rows=$'󰌾  Proton\n󰵮  qvDEV'
+[[ $(<"$menu_log") == "$expected_rows" ]] ||
+  fail "two name-only qvCORE rows"
 [[ $(<"$action_log") == "proton" ]] ||
   fail "Proton Install action"
 
 install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/qvdev"
 run_menu qvDEV
-grep -Fqx '󰵮  qvDEV — Uninstall' "$menu_log" ||
-  fail "enrolled qvDEV Uninstall row"
+grep -Fqx '󰵮  qvDEV' "$menu_log" ||
+  fail "enrolled qvDEV name-only row"
 [[ $(<"$action_log") == "qvdev" ]] ||
   fail "qvDEV Uninstall action"
 
@@ -62,4 +62,4 @@ if rg -q 'Status|Repair|Disable|Applications|Managed Setups|Install Everything' 
   fail "retired qvCORE menu complexity"
 fi
 
-printf 'ok - qvCORE menu shows two dynamic Install or Uninstall actions\n'
+printf 'ok - qvCORE menu delegates two name-only rows to the TUI\n'

@@ -1,5 +1,5 @@
 # slug|icon|name|breadcrumb|keywords|label 1|action 1|label 2|action 2|...
-theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:omarchy-theme-install|Remove|present:omarchy-theme-remove|Update|present:omarchy-theme-update
+theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:omarchy-theme-install|Remove|present:qv/tui/task/selectable-owner theme-remove|Update|present:omarchy-theme-update
 background||Background|Settings · Appearance|wallpaper,appearance,style|Choose|menu:background|Install|run:omarchy-theme-bg-install
 font||Font|Settings · Appearance|typeface,appearance,style|Choose|menu:font|Install|menu:install-font
 screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:omarchy-launch-screensaver force|Toggle|run:omarchy-toggle-screensaver|Edit Text|run:omarchy-branding-screensaver text|Set Image|run:omarchy-branding-screensaver image|Restore|run:omarchy-branding-screensaver reset
@@ -16,8 +16,8 @@ keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:o
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
 qvcore|󰏖|qvCORE|Settings · Software|optional,integrated stacks,proton,qvdev|Browse|menu:software-qvcore
-web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:omarchy-webapp-remove
-tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:omarchy-tui-remove
+web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:qv/tui/task/selectable-owner webapp-remove
+tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:qv/tui/task/selectable-owner tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Browse|menu:software-development
 browser||Browser|Settings · Software|web,chromium,firefox|Browse|menu:software-browser
 gaming||Gaming|Settings · Software|steam,games|Browse|menu:software-gaming
@@ -32,7 +32,7 @@ battery-protection|󰁹|Battery Protection|Settings · System|battery,charging,l
 system-sleep||System Sleep|Settings · System|suspend,hibernate|Configure|menu:system-sleep
 defaults||Defaults|Settings · System|browser,terminal,editor|Configure|menu:setup-defaults
 config||Config|Settings · System|defaults,refresh,reset|Edit|menu:setup-config|Restore|menu:update-config
-date-time||Date & Time|Settings · System|clock,timezone,sync|Timezone|present:omarchy-tz-select|Sync|present:omarchy-update-time
+date-time||Date & Time|Settings · System|clock,timezone,sync|Timezone|present:qv/tui/task/selectable-owner timezone|Sync|present:omarchy-update-time
 firmware||Firmware|Settings · System|fwupd,upgrade|Update|present:omarchy-update-firmware
 password||Password|Settings · Security|user,login,luks,encryption|User|present:passwd|Drive Encryption|present:omarchy-drive-password
 fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint

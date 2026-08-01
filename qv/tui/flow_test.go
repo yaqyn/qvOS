@@ -31,6 +31,12 @@ func TestFlowRequirementsCentralizeDomainCapabilities(t *testing.T) {
 		t.Fatalf("privileged software requirements = %#v", software)
 	}
 
+	currentActionSpec.SelectionMode = "single"
+	if software = requirementsForAction(actionGeneric); !software.Selection ||
+		software.Confirmation {
+		t.Fatalf("privileged selectable software requirements = %#v", software)
+	}
+
 	build := requirementsForAction(actionBuild)
 	if build.Model != modelThreeRings || !build.Confirmation || build.Preflight ||
 		build.Authorization || !build.ProgressBar {
@@ -86,20 +92,31 @@ func TestStartConfirmationFollowsPrivilegeAndMutationSemantics(t *testing.T) {
 	if !requirementsForAction(actionGeneric).Confirmation {
 		t.Fatal("unprivileged mutation lost its start confirmation")
 	}
+
+	currentActionSpec.SelectionMode = "action"
+	if requirementsForAction(actionGeneric).Confirmation {
+		t.Fatal("action choice received a duplicate confirmation")
+	}
 }
 
 func TestOnlyGuardedActionsRequireStopConfirmation(t *testing.T) {
 	previousSpec := currentActionSpec
 	t.Cleanup(func() { currentActionSpec = previousSpec })
 
-	currentActionSpec.Information = true
+	currentActionSpec = actionflow.Spec{Information: true, Operation: "task"}
 	if requiresStopConfirmation(actionGeneric) {
 		t.Fatal("information action received transaction stop confirmation")
 	}
-	currentActionSpec.Information = false
-	if !requiresStopConfirmation(actionGeneric) ||
+	currentActionSpec = actionflow.Spec{Operation: "install"}
+	if !requiresStopConfirmation(actionGeneric) || !canCancelRunningAction(actionGeneric) ||
 		!requiresStopConfirmation(actionUpdate) ||
 		!requiresStopConfirmation(actionBuild) {
 		t.Fatal("guarded action lost its safe stop confirmation")
+	}
+	for _, operation := range []string{"task", "uninstall"} {
+		currentActionSpec = actionflow.Spec{Operation: operation}
+		if requiresStopConfirmation(actionGeneric) || canCancelRunningAction(actionGeneric) {
+			t.Fatalf("generic %s action retained Stop", operation)
+		}
 	}
 }

@@ -1,0 +1,746 @@
+#!/bin/bash
+set -euo pipefail
+
+# omarchy:summary=Manage the qvOS Windows VM lifecycle
+# qvos:install-summary=Configure a private Windows VM without starting its download
+# qvos:uninstall-summary=Remove Windows VM configuration while keeping its virtual disk
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+operation=${1:-}
+[[ -n $operation ]] && shift
+
+config_dir="$HOME/.config/windows"
+config_root="$HOME/.config"
+compose_file="$config_dir/docker-compose.yml"
+storage_dir="$HOME/.windows"
+shared_dir="$HOME/Windows"
+local_dir="$HOME/.local"
+share_root="$local_dir/share"
+applications_dir="$HOME/.local/share/applications"
+icons_dir="$applications_dir/icons"
+desktop_file="$applications_dir/windows-vm.desktop"
+icon_file="$icons_dir/windows.png"
+source_icon="$OMARCHY_PATH/applications/icons/windows.png"
+kvm_path=${QVOS_WINDOWS_KVM_PATH:-/dev/kvm}
+package_owner=${QVOS_WINDOWS_PACKAGE_OWNER:-omarchy-pkg-add}
+
+usage() {
+  echo "Usage: qv/windows/manage <install|uninstall> [--list|--qvos-post-success|-- <scope>]" >&2
+}
+
+launch_windows() {
+  local log_status
+
+  if [[ -n ${QVOS_WINDOWS_LAUNCH_OWNER:-} ]]; then
+    [[ -x $QVOS_WINDOWS_LAUNCH_OWNER ]] || {
+      echo "The Windows launch owner is unavailable." >&2
+      return 1
+    }
+    "$QVOS_WINDOWS_LAUNCH_OWNER"
+    return
+  fi
+
+  if ! command -v docker >/dev/null 2>&1 ||
+    ! command -v docker-compose >/dev/null 2>&1 ||
+    ! command -v systemd-run >/dev/null 2>&1 ||
+    ! command -v uwsm >/dev/null 2>&1 ||
+    ! command -v omarchy-windows-vm >/dev/null 2>&1; then
+    echo "The Windows application launcher is unavailable." >&2
+    return 1
+  fi
+
+  printf 'Starting the Windows VM...\n'
+  docker-compose -f "$compose_file" up -d
+  printf 'Preparing Windows...\n'
+  set +o pipefail
+  docker logs --follow omarchy-windows 2>&1 | awk '
+    {
+      print
+      fflush()
+      if (tolower($0) ~ /windows started successfully/) {
+        ready = 1
+        exit
+      }
+    }
+    END { exit !ready }
+  '
+  log_status=${PIPESTATUS[1]}
+  set -o pipefail
+  ((log_status == 0)) || {
+    echo "Windows stopped before it became ready." >&2
+    return 1
+  }
+  printf 'Windows is ready; opening the desktop session...\n'
+  systemd-run \
+    --user \
+    --collect \
+    --quiet \
+    --description="qvOS Windows VM session" \
+    -- \
+    uwsm app -- omarchy-windows-vm launch
+}
+
+available_space_gb() {
+  if [[ -n ${QVOS_WINDOWS_AVAILABLE_GB:-} ]]; then
+    printf '%s\n' "$QVOS_WINDOWS_AVAILABLE_GB"
+  else
+    df -P "$HOME" | awk 'NR == 2 { print int($4 / 1024 / 1024) }'
+  fi
+}
+
+total_ram_gb() {
+  if [[ -n ${QVOS_WINDOWS_TOTAL_RAM_GB:-} ]]; then
+    printf '%s\n' "$QVOS_WINDOWS_TOTAL_RAM_GB"
+  else
+    awk '/^MemTotal:/ { print int($2 / 1024 / 1024) }' /proc/meminfo
+  fi
+}
+
+total_cores() {
+  if [[ -n ${QVOS_WINDOWS_TOTAL_CORES:-} ]]; then
+    printf '%s\n' "$QVOS_WINDOWS_TOTAL_CORES"
+  else
+    nproc
+  fi
+}
+
+require_positive_integer() {
+  [[ $1 =~ ^[0-9]+$ ]] && ((10#$1 > 0))
+}
+
+require_safe_path() {
+  local path=$1
+  local kind=$2
+
+  if [[ -L $path ]]; then
+    echo "Refusing symlinked Windows $kind: $path" >&2
+    return 1
+  fi
+  if [[ -e $path ]]; then
+    case $kind in
+    directory)
+      [[ -d $path ]] || {
+        echo "Windows path is not a directory: $path" >&2
+        return 1
+      }
+      ;;
+    file)
+      [[ -f $path ]] || {
+        echo "Windows path is not a regular file: $path" >&2
+        return 1
+      }
+      ;;
+    esac
+  fi
+}
+
+check_base_prerequisites() {
+  local available
+
+  [[ -e $kvm_path ]] || {
+    echo "KVM virtualization is unavailable; enable virtualization in firmware first." >&2
+    return 1
+  }
+  command -v jq >/dev/null 2>&1 || {
+    echo "Windows setup requires jq." >&2
+    return 1
+  }
+  command -v "$package_owner" >/dev/null 2>&1 || {
+    echo "Windows setup package owner is unavailable." >&2
+    return 1
+  }
+  available=$(available_space_gb)
+  require_positive_integer "$available" || {
+    echo "Windows setup could not determine available disk space." >&2
+    return 1
+  }
+  ((available >= 42)) || {
+    echo "Windows setup needs at least 42 GiB free; ${available} GiB is available." >&2
+    return 1
+  }
+  require_safe_path "$config_dir" directory
+  require_safe_path "$storage_dir" directory
+  require_safe_path "$shared_dir" directory
+  require_safe_path "$compose_file" file
+  require_safe_path "$desktop_file" file
+  require_safe_path "$icon_file" file
+}
+
+json_options() {
+  local first=true
+  local value
+
+  printf '['
+  for value in "$@"; do
+    [[ $first == "true" ]] || printf ','
+    printf '"%s"' "$value"
+    first=false
+  done
+  printf ']'
+}
+
+show_form() {
+  local available
+  local cores
+  local default_cores
+  local default_disk=64G
+  local default_ram=4G
+  local ram
+  local size
+  local -a ram_options=()
+  local -a disk_options=()
+
+  check_base_prerequisites
+  ram=$(total_ram_gb)
+  cores=$(total_cores)
+  available=$(available_space_gb)
+  if ! require_positive_integer "$ram" || ! require_positive_integer "$cores"; then
+    echo "Windows setup could not determine system resources." >&2
+    return 1
+  fi
+  for size in 2 4 8 16 32 64; do
+    ((size <= ram)) && ram_options+=("${size}G")
+  done
+  ((${#ram_options[@]} > 0)) || {
+    echo "Windows setup needs at least 2 GiB of system memory." >&2
+    return 1
+  }
+  for size in 32 64 128 256 512; do
+    ((size + 10 <= available)) && disk_options+=("${size}G")
+  done
+  ((${#disk_options[@]} > 0)) || {
+    echo "Windows setup needs at least 42 GiB free." >&2
+    return 1
+  }
+  if ((available < 74)); then
+    default_disk=32G
+  fi
+  if ((ram < 4)); then
+    default_ram=2G
+  fi
+  default_cores=2
+  ((cores < default_cores)) && default_cores=$cores
+
+  printf '{"title":"Configure Windows VM","fields":['
+  printf '{"key":"ram","label":"Memory","kind":"select","value":"%s","options":%s},' \
+    "$default_ram" "$(json_options "${ram_options[@]}")"
+  printf '{"key":"cpus","label":"CPU cores","kind":"number","value":"%s","min":1,"max":%s},' \
+    "$default_cores" "$cores"
+  printf '{"key":"disk","label":"Virtual disk","kind":"select","value":"%s","options":%s},' \
+    "$default_disk" "$(json_options "${disk_options[@]}")"
+  printf '{"key":"username","label":"Windows user","kind":"input","value":"docker","max_length":32},'
+  printf '{"key":"password","label":"Windows password","kind":"password","value":"","min_length":8,"max_length":64}'
+  printf ']}\n'
+}
+
+load_form_values() {
+  local form_file=${QVOS_ACTION_FORM_VALUES:-}
+  local form_mode
+  local form_uid
+
+  [[ -n $form_file && -f $form_file && ! -L $form_file ]] || {
+    echo "Missing private Windows configuration values." >&2
+    return 1
+  }
+  form_mode=$(stat -c '%a' "$form_file")
+  form_uid=$(stat -c '%u' "$form_file")
+  [[ $form_mode == "600" && $form_uid == "$(id -u)" ]] || {
+    echo "Windows configuration values are not private." >&2
+    return 1
+  }
+  jq -e '
+    type == "object" and
+    keys == ["cpus", "disk", "password", "ram", "username"] and
+    all(.[]; type == "string")
+  ' "$form_file" >/dev/null || {
+    echo "Invalid Windows configuration values." >&2
+    return 1
+  }
+
+  selected_ram=$(jq -er '.ram' "$form_file")
+  selected_cores=$(jq -er '.cpus' "$form_file")
+  selected_disk=$(jq -er '.disk' "$form_file")
+  windows_user=$(jq -er '.username' "$form_file")
+  windows_password=$(jq -er '.password' "$form_file")
+}
+
+validate_form_values() {
+  local available
+  local core_count
+  local disk_size
+  local ram_size
+  local ram
+  local cores
+
+  [[ $selected_ram =~ ^(2|4|8|16|32|64)G$ ]] || {
+    echo "Invalid Windows memory allocation." >&2
+    return 1
+  }
+  [[ $selected_disk =~ ^(32|64|128|256|512)G$ ]] || {
+    echo "Invalid Windows disk allocation." >&2
+    return 1
+  }
+  require_positive_integer "$selected_cores" || {
+    echo "Invalid Windows CPU allocation." >&2
+    return 1
+  }
+  [[ $windows_user =~ ^[A-Za-z][A-Za-z0-9._-]{0,31}$ ]] || {
+    echo "Windows user names must start with a letter and use letters, numbers, dots, dashes, or underscores." >&2
+    return 1
+  }
+  ((${#windows_password} >= 8 && ${#windows_password} <= 64)) || {
+    echo "The Windows password must contain 8 to 64 characters." >&2
+    return 1
+  }
+  [[ $windows_password =~ ^[A-Za-z0-9@%+=:,.!?_-]+$ ]] || {
+    echo "The Windows password may use letters, numbers, and common safe symbols." >&2
+    return 1
+  }
+
+  ram_size=${selected_ram%G}
+  disk_size=${selected_disk%G}
+  core_count=$((10#$selected_cores))
+  ram=$(total_ram_gb)
+  cores=$(total_cores)
+  available=$(available_space_gb)
+  ((ram_size <= ram && core_count <= cores && disk_size + 10 <= available)) || {
+    echo "The selected Windows resources exceed current system capacity." >&2
+    return 1
+  }
+}
+
+yaml_quote() {
+  printf '"%s"' "$1"
+}
+
+write_compose_file() {
+  local temporary
+  local timezone
+
+  timezone=$(timedatectl show -p Timezone --value 2>/dev/null || true)
+  [[ -n $timezone ]] || timezone=UTC
+  temporary=$(mktemp "$config_dir/.docker-compose.XXXXXX")
+  chmod 0600 "$temporary"
+  {
+    printf 'services:\n'
+    printf '  windows:\n'
+    printf '    image: dockurr/windows\n'
+    printf '    container_name: omarchy-windows\n'
+    printf '    environment:\n'
+    printf '      VERSION: %s\n' "$(yaml_quote 11)"
+    printf '      RAM_SIZE: %s\n' "$(yaml_quote "$selected_ram")"
+    printf '      CPU_CORES: %s\n' "$(yaml_quote "$selected_cores")"
+    printf '      DISK_SIZE: %s\n' "$(yaml_quote "$selected_disk")"
+    printf '      USERNAME: %s\n' "$(yaml_quote "$windows_user")"
+    printf '      PASSWORD: %s\n' "$(yaml_quote "$windows_password")"
+    printf '      TZ: %s\n' "$(yaml_quote "$timezone")"
+    printf '      ARGUMENTS: %s\n' "$(yaml_quote '-rtc base=localtime,clock=host,driftfix=slew')"
+    printf '    devices:\n'
+    printf '      - /dev/kvm\n'
+    printf '      - /dev/net/tun\n'
+    printf '    cap_add:\n'
+    printf '      - NET_ADMIN\n'
+    printf '    ports:\n'
+    printf '      - 127.0.0.1:8006:8006\n'
+    printf '      - 127.0.0.1:3389:3389/tcp\n'
+    printf '      - 127.0.0.1:3389:3389/udp\n'
+    printf '    volumes:\n'
+    printf '      - %s:/storage\n' "$storage_dir"
+    printf '      - %s:/shared\n' "$shared_dir"
+    printf '    restart: unless-stopped\n'
+    printf '    stop_grace_period: 2m\n'
+  } >"$temporary"
+  mv -f -- "$temporary" "$compose_file"
+}
+
+write_desktop_file() {
+  local temporary
+
+  temporary=$(mktemp "$applications_dir/.windows-vm.XXXXXX")
+  chmod 0644 "$temporary"
+  {
+    printf '[Desktop Entry]\n'
+    printf 'Name=Windows\n'
+    printf 'Comment=Start Windows VM and connect with RDP\n'
+    printf 'Exec=uwsm app -- omarchy-windows-vm launch\n'
+    printf 'Icon=%s\n' "$icon_file"
+    printf 'Terminal=false\n'
+    printf 'Type=Application\n'
+    printf 'Categories=System;Virtualization;\n'
+  } >"$temporary"
+  mv -f -- "$temporary" "$desktop_file"
+}
+
+managed_path() {
+  case $1 in
+  compose) printf '%s\n' "$compose_file" ;;
+  desktop) printf '%s\n' "$desktop_file" ;;
+  icon) printf '%s\n' "$icon_file" ;;
+  *) return 2 ;;
+  esac
+}
+
+snapshot_file() {
+  local state=$1
+  local key=$2
+  local path
+
+  path=$(managed_path "$key")
+  require_safe_path "$path" file
+  if [[ -f $path ]]; then
+    printf 'present\n' >"$state/$key.before"
+    cp -p -- "$path" "$state/$key.original"
+  else
+    printf 'missing\n' >"$state/$key.before"
+  fi
+}
+
+snapshot_directory() {
+  local state=$1
+  local key=$2
+  local path=$3
+
+  require_safe_path "$path" directory
+  if [[ -d $path ]]; then
+    printf 'present\n' >"$state/$key.directory"
+  else
+    printf 'missing\n' >"$state/$key.directory"
+  fi
+}
+
+file_fingerprint() {
+  local path=$1
+
+  if [[ ! -e $path ]]; then
+    printf 'missing\n'
+    return
+  fi
+  require_safe_path "$path" file
+  printf 'file %s %s\n' "$(stat -c '%a' "$path")" "$(sha256sum "$path" | awk '{ print $1 }')"
+}
+
+rollback_snapshot() {
+  local state=$1
+
+  [[ ! -e $state ]] || {
+    echo "Windows rollback state already exists." >&2
+    return 1
+  }
+  install -d -m 0700 "$state"
+  snapshot_file "$state" compose
+  snapshot_file "$state" desktop
+  snapshot_file "$state" icon
+  snapshot_directory "$state" config "$config_dir"
+  snapshot_directory "$state" storage "$storage_dir"
+  snapshot_directory "$state" shared "$shared_dir"
+  snapshot_directory "$state" icons "$icons_dir"
+  snapshot_directory "$state" applications "$applications_dir"
+  snapshot_directory "$state" config-root "$config_root"
+  snapshot_directory "$state" share-root "$share_root"
+  snapshot_directory "$state" local "$local_dir"
+}
+
+rollback_seal() {
+  local state=$1
+  local key
+
+  [[ -d $state ]] || {
+    echo "Missing Windows rollback snapshot." >&2
+    return 1
+  }
+  for key in compose desktop icon; do
+    file_fingerprint "$(managed_path "$key")" >"$state/$key.after"
+  done
+  printf 'sealed\n' >"$state/sealed"
+}
+
+restore_file() {
+  local state=$1
+  local key=$2
+  local path
+
+  path=$(managed_path "$key")
+  require_safe_path "$path" file
+  if [[ -f $state/$key.after ]]; then
+    cmp -s "$state/$key.after" <(file_fingerprint "$path") || {
+      echo "Windows $key changed after setup; refusing to overwrite it." >&2
+      return 1
+    }
+  fi
+  if [[ $(<"$state/$key.before") == "present" ]]; then
+    install -D -m "$(stat -c '%a' "$state/$key.original")" "$state/$key.original" "$path"
+  else
+    rm -f -- "$path"
+  fi
+}
+
+restore_directory() {
+  local state=$1
+  local key=$2
+  local path=$3
+
+  if [[ $(<"$state/$key.directory") == "missing" && -d $path && ! -L $path ]]; then
+    rmdir -- "$path" 2>/dev/null || true
+  fi
+}
+
+rollback_restore() {
+  local state=$1
+
+  [[ -d $state ]] || {
+    echo "Missing Windows rollback snapshot." >&2
+    return 1
+  }
+  restore_file "$state" compose
+  restore_file "$state" desktop
+  restore_file "$state" icon
+  restore_directory "$state" config "$config_dir"
+  restore_directory "$state" storage "$storage_dir"
+  restore_directory "$state" shared "$shared_dir"
+  restore_directory "$state" icons "$icons_dir"
+  restore_directory "$state" applications "$applications_dir"
+  restore_directory "$state" config-root "$config_root"
+  restore_directory "$state" share-root "$share_root"
+  restore_directory "$state" local "$local_dir"
+}
+
+post_rollback_check() {
+  require_safe_path "$compose_file" file
+  require_safe_path "$storage_dir" directory
+  [[ -f $compose_file && -d $storage_dir ]] || {
+    echo "Windows must be configured before its first launch." >&2
+    return 1
+  }
+  command -v docker >/dev/null 2>&1 || {
+    echo "The Docker owner required by Windows is unavailable." >&2
+    return 1
+  }
+  command -v docker-compose >/dev/null 2>&1 || {
+    echo "The Docker Compose owner required by Windows is unavailable." >&2
+    return 1
+  }
+  command -v systemd-run >/dev/null 2>&1 || {
+    echo "The desktop session owner required by Windows is unavailable." >&2
+    return 1
+  }
+}
+
+post_rollback_snapshot() {
+  local state=$1
+
+  post_rollback_check
+  [[ ! -e $state ]] || {
+    echo "Windows launch rollback state already exists." >&2
+    return 1
+  }
+  install -d -m 0700 "$state"
+  if docker image inspect dockurr/windows >/dev/null 2>&1; then
+    printf 'present\n' >"$state/image.before"
+  else
+    printf 'missing\n' >"$state/image.before"
+  fi
+  if docker inspect omarchy-windows >/dev/null 2>&1; then
+    printf 'present\n' >"$state/container.before"
+  else
+    printf 'missing\n' >"$state/container.before"
+  fi
+  if find "$storage_dir" -mindepth 1 -print -quit | grep -q .; then
+    printf 'nonempty\n' >"$state/storage.before"
+  else
+    printf 'empty\n' >"$state/storage.before"
+  fi
+}
+
+post_rollback_seal() {
+  local state=$1
+
+  [[ -d $state ]] || {
+    echo "Missing Windows launch rollback state." >&2
+    return 1
+  }
+  printf 'sealed\n' >"$state/sealed"
+}
+
+post_rollback_restore() {
+  local state=$1
+
+  [[ -d $state ]] || {
+    echo "Missing Windows launch rollback state." >&2
+    return 1
+  }
+  post_rollback_check
+  if [[ $(<"$state/container.before") == "missing" ]]; then
+    docker-compose -f "$compose_file" down
+  fi
+  if [[ $(<"$state/storage.before") == "empty" ]]; then
+    find "$storage_dir" -mindepth 1 -delete
+  fi
+  if [[ $(<"$state/image.before") == "missing" ]]; then
+    docker image rm dockurr/windows >/dev/null 2>&1 || true
+  fi
+}
+
+post_cancel_status() {
+  local state=$1
+
+  [[ -d $state ]] || {
+    printf 'unknown\n'
+    return
+  }
+  if [[ $(<"$state/container.before") == "missing" ]] &&
+    docker inspect omarchy-windows >/dev/null 2>&1; then
+    printf 'target-reached\n'
+    return
+  fi
+  if [[ $(<"$state/image.before") == "missing" ]] &&
+    docker image inspect dockurr/windows >/dev/null 2>&1; then
+    printf 'target-reached\n'
+    return
+  fi
+  if [[ $(<"$state/storage.before") == "empty" ]] &&
+    find "$storage_dir" -mindepth 1 -print -quit | grep -q .; then
+    printf 'target-reached\n'
+    return
+  fi
+  if [[ $(<"$state/container.before") == "present" ||
+  $(<"$state/image.before") == "present" ||
+  $(<"$state/storage.before") == "nonempty" ]]; then
+    printf 'unknown\n'
+    return
+  fi
+  printf 'target-not-detected\n'
+}
+
+ensure_directory() {
+  local path=$1
+  local mode=$2
+
+  [[ -d $path ]] || install -d -m "$mode" "$path"
+}
+
+install_windows() {
+  check_base_prerequisites
+  [[ ! -e $compose_file ]] || {
+    echo "Windows VM is already configured." >&2
+    return 1
+  }
+  load_form_values
+  validate_form_values
+
+  "$package_owner" freerdp openbsd-netcat
+  ensure_directory "$config_dir" 0700
+  ensure_directory "$storage_dir" 0700
+  ensure_directory "$shared_dir" 0755
+  ensure_directory "$applications_dir" 0755
+  ensure_directory "$icons_dir" 0755
+  write_compose_file
+  write_desktop_file
+  if [[ -f $source_icon && ! -L $source_icon ]]; then
+    install -m 0644 "$source_icon" "$icon_file"
+  fi
+  printf 'Windows VM configured; its image will download on first launch.\n'
+}
+
+list_uninstall_scopes() {
+  printf 'Keep Virtual Disk\n'
+  printf 'Delete Virtual Disk\n'
+}
+
+uninstall_windows() {
+  local scope=${1:-}
+
+  [[ $scope == "Keep Virtual Disk" || $scope == "Delete Virtual Disk" ]] || {
+    echo "Choose whether to keep or delete the Windows virtual disk." >&2
+    return 2
+  }
+  require_safe_path "$compose_file" file
+  require_safe_path "$desktop_file" file
+  require_safe_path "$icon_file" file
+  require_safe_path "$config_dir" directory
+  require_safe_path "$storage_dir" directory
+  [[ $storage_dir == "$HOME/.windows" ]] || {
+    echo "Refusing unsafe Windows storage path." >&2
+    return 1
+  }
+
+  if [[ -f $compose_file ]] && command -v docker-compose >/dev/null 2>&1; then
+    docker-compose -f "$compose_file" down
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    docker image rm dockurr/windows 2>/dev/null || true
+  fi
+  rm -f -- "$compose_file" "$desktop_file" "$icon_file"
+  rmdir -- "$config_dir" 2>/dev/null || true
+  if [[ $scope == "Delete Virtual Disk" && -d $storage_dir ]]; then
+    rm -rf -- "$storage_dir"
+  fi
+  printf 'Windows VM removed; shared files in %s were preserved.\n' "$shared_dir"
+}
+
+case ${1:-} in
+--qvos-form)
+  [[ $operation == "install" && $# == 1 ]] || exit 2
+  show_form
+  ;;
+--qvos-post-success)
+  [[ $operation == "install" && $# == 1 ]] || exit 2
+  launch_windows
+  ;;
+--qvos-post-success-rollback-check)
+  [[ $operation == "install" && $# == 1 ]] || exit 2
+  post_rollback_check
+  ;;
+--qvos-post-success-rollback-snapshot)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  post_rollback_snapshot "$2"
+  ;;
+--qvos-post-success-rollback-seal)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  post_rollback_seal "$2"
+  ;;
+--qvos-post-success-rollback-restore)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  post_rollback_restore "$2"
+  ;;
+--qvos-post-success-cancel-status)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  post_cancel_status "$2"
+  ;;
+--qvos-rollback-check)
+  [[ $operation == "install" && $# == 1 ]] || exit 2
+  check_base_prerequisites
+  ;;
+--qvos-rollback-snapshot)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  rollback_snapshot "$2"
+  ;;
+--qvos-rollback-seal)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  rollback_seal "$2"
+  ;;
+--qvos-rollback-restore)
+  [[ $operation == "install" && $# == 2 ]] || exit 2
+  rollback_restore "$2"
+  ;;
+--list)
+  [[ $operation == "uninstall" && $# == 1 ]] || exit 2
+  list_uninstall_scopes
+  ;;
+--)
+  [[ $operation == "uninstall" && $# == 2 ]] || exit 2
+  uninstall_windows "$2"
+  ;;
+"")
+  case $operation in
+  install) install_windows ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac

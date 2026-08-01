@@ -2,6 +2,8 @@
 set -euo pipefail
 
 slug=${1:-}
+action=${2:-}
+action_state=${3:-}
 
 case $slug in
 cascadia-mono)
@@ -40,6 +42,271 @@ iosevka)
   ;;
 esac
 
-echo "Installing $name..."
-omarchy-pkg-add "$package"
-omarchy-font-set "$font"
+font_config_paths=(
+  "$HOME/.config/alacritty/alacritty.toml"
+  "$HOME/.config/kitty/kitty.conf"
+  "$HOME/.config/ghostty/config"
+  "$HOME/.config/foot/foot.ini"
+  "$HOME/.config/hypr/hyprlock.conf"
+  "$HOME/.config/waybar/style.css"
+  "$HOME/.config/swayosd/style.css"
+  "$HOME/.config/fontconfig/fonts.conf"
+)
+
+active_font_hook_exists() {
+  local hook="$HOME/.config/omarchy/hooks/font-set"
+  local hook_dir="$hook.d"
+  local candidate
+
+  [[ ! -f $hook ]] || return 0
+  if [[ -d $hook_dir ]]; then
+    for candidate in "$hook_dir"/*; do
+      [[ ! -f $candidate || $candidate == *.sample ]] || return 0
+    done
+  fi
+  return 1
+}
+
+check_rollback_support() {
+  command -v omarchy-font-set >/dev/null
+  command -v omarchy-font-current >/dev/null
+  if active_font_hook_exists; then
+    echo "Font rollback is unavailable while a custom font-set hook is active." >&2
+    return 1
+  fi
+}
+
+validate_rollback_state_path() {
+  local parent
+
+  [[ $action_state == /* && $action_state != "/" && ! -L $action_state ]] || return 1
+  parent=$(dirname -- "$action_state")
+  [[ -d $parent && ! -L $parent && -O $parent ]]
+}
+
+snapshot_font_configs() {
+  local stage=$1
+  local index
+  local path
+  local stage_dir="$action_state/$stage"
+
+  validate_rollback_state_path || return 1
+  [[ ! -e $stage_dir ]] || return 1
+  install -d -m 0700 "$stage_dir"
+  for index in "${!font_config_paths[@]}"; do
+    path=${font_config_paths[$index]}
+    if [[ -L $path || (-e $path && ! -f $path) ]]; then
+      echo "Cannot safely snapshot font config: $path" >&2
+      return 1
+    fi
+    if [[ -f $path ]]; then
+      cp -p -- "$path" "$stage_dir/$index"
+      printf 'present\n' >"$stage_dir/$index.state"
+    else
+      printf 'absent\n' >"$stage_dir/$index.state"
+    fi
+  done
+}
+
+font_configs_match_snapshot() {
+  local stage=$1
+  local index
+  local marker
+  local path
+  local snapshot
+  local stage_dir="$action_state/$stage"
+
+  [[ -d $stage_dir && ! -L $stage_dir && -O $stage_dir ]] || return 1
+  for index in "${!font_config_paths[@]}"; do
+    path=${font_config_paths[$index]}
+    snapshot="$stage_dir/$index"
+    [[ -f $stage_dir/$index.state && ! -L $stage_dir/$index.state ]] || return 1
+    IFS= read -r marker <"$stage_dir/$index.state"
+    case $marker in
+    present)
+      [[ -f $path && ! -L $path && -f $snapshot && ! -L $snapshot ]] || return 1
+      cmp -s -- "$snapshot" "$path" || return 1
+      [[ $(stat -c '%a' "$snapshot") == "$(stat -c '%a' "$path")" ]] || return 1
+      ;;
+    absent)
+      [[ ! -e $path && ! -L $path ]] || return 1
+      ;;
+    *)
+      return 1
+      ;;
+    esac
+  done
+}
+
+restore_font_configs() {
+  local index
+  local marker
+  local path
+  local previous_font
+  local snapshot
+  local temporary
+
+  validate_rollback_state_path || return 1
+  [[ -f $action_state/slug && ! -L $action_state/slug ]] || return 1
+  [[ $(<"$action_state/slug") == "$slug" ]] || return 1
+  [[ -f $action_state/font && ! -L $action_state/font ]] || return 1
+  IFS= read -r previous_font <"$action_state/font"
+  [[ -n $previous_font ]] || return 1
+
+  if [[ -d $action_state/after ]]; then
+    font_configs_match_snapshot after || return 1
+  else
+    font_configs_match_snapshot before || return 1
+    [[ $(omarchy-font-current) == "$previous_font" ]]
+    return
+  fi
+
+  for index in "${!font_config_paths[@]}"; do
+    path=${font_config_paths[$index]}
+    snapshot="$action_state/before/$index"
+    IFS= read -r marker <"$action_state/before/$index.state"
+    case $marker in
+    present)
+      temporary=$(mktemp "$(dirname -- "$path")/.qvos-font-rollback.XXXXXX")
+      cp -p -- "$snapshot" "$temporary"
+      mv -f -- "$temporary" "$path"
+      ;;
+    absent)
+      rm -f -- "$path"
+      ;;
+    *)
+      return 1
+      ;;
+    esac
+  done
+
+  font_configs_match_snapshot before || return 1
+  [[ $(omarchy-font-current) == "$previous_font" ]] || return 1
+  omarchy-restart-waybar
+  omarchy-restart-swayosd
+  pkill -USR1 kitty 2>/dev/null || true
+  pkill -SIGUSR2 ghostty 2>/dev/null || true
+}
+
+font_state() {
+  if ! pacman -Q "$package" >/dev/null 2>&1; then
+    printf 'available\n'
+  elif [[ $(omarchy-font-current) == "$font" ]]; then
+    printf 'active\n'
+  else
+    printf 'installed\n'
+  fi
+}
+
+apply_font() {
+  [[ $(font_state) != "available" ]] || {
+    echo "$name is not installed." >&2
+    return 1
+  }
+  omarchy-font-set "$font"
+  [[ $(font_state) == "active" ]] || {
+    echo "$name could not be applied." >&2
+    return 1
+  }
+}
+
+uninstall_font() {
+  local state
+  local was_active=false
+  local fallback_font="JetBrainsMono Nerd Font"
+
+  state=$(font_state)
+  [[ $state != "available" ]] || {
+    echo "$name is not installed." >&2
+    return 1
+  }
+  if [[ $state == "active" ]]; then
+    omarchy-font-set "$fallback_font"
+    [[ $(omarchy-font-current) == "$fallback_font" ]] || {
+      echo "The default font could not be restored." >&2
+      return 1
+    }
+    was_active=true
+  fi
+  if ! sudo pacman -Rn --noconfirm -- "$package"; then
+    if [[ $was_active == "true" ]]; then
+      omarchy-font-set "$font" || true
+    fi
+    return 1
+  fi
+  [[ $(font_state) == "available" ]] || {
+    echo "$name remains installed." >&2
+    return 1
+  }
+}
+
+case $action in
+--qvos-rollback-check)
+  (($# == 2)) || exit 2
+  check_rollback_support
+  exit
+  ;;
+--qvos-rollback-snapshot)
+  (($# == 3)) || exit 2
+  umask 077
+  check_rollback_support
+  validate_rollback_state_path || exit 1
+  [[ ! -e $action_state ]] || exit 1
+  install -d -m 0700 "$action_state"
+  printf '%s\n' "$slug" >"$action_state/slug"
+  printf '%s\n' "$(omarchy-font-current)" >"$action_state/font"
+  snapshot_font_configs before
+  exit
+  ;;
+--qvos-rollback-seal)
+  (($# == 3)) || exit 2
+  [[ -f $action_state/slug && $(<"$action_state/slug") == "$slug" ]] || exit 1
+  [[ $(omarchy-font-current) == "$font" ]] || exit 1
+  snapshot_font_configs after
+  exit
+  ;;
+--qvos-rollback-restore)
+  (($# == 3)) || exit 2
+  restore_font_configs
+  exit
+  ;;
+--state)
+  (($# == 2)) || exit 2
+  font_state
+  exit
+  ;;
+--apply)
+  (($# == 2)) || exit 2
+  ;;
+--uninstall)
+  (($# == 2)) || exit 2
+  uninstall_font
+  exit
+  ;;
+"")
+  (($# == 1)) || exit 2
+  ;;
+*)
+  echo "Usage: qv/menu/font-install <font-slug>" >&2
+  exit 2
+  ;;
+esac
+
+if [[ $action == "--apply" ]]; then
+  echo "Applying $name..."
+  apply_font
+else
+  restore_interrupted_font() {
+    trap - INT TERM
+    if [[ -n ${QVOS_ACTION_ROLLBACK_STATE:-} ]]; then
+      "$0" "$slug" --qvos-rollback-restore "$QVOS_ACTION_ROLLBACK_STATE" || true
+    fi
+    exit 130
+  }
+
+  trap restore_interrupted_font INT TERM
+  echo "Installing $name..."
+  omarchy-pkg-add "$package"
+  omarchy-font-set "$font"
+  trap - INT TERM
+fi

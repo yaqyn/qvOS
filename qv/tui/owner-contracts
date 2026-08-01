@@ -206,7 +206,7 @@ collect_source_contracts() {
   mapfile -t dependencies < <(
     # shellcheck disable=SC2016
     grep -oE \
-      '\$OMARCHY_PATH/qv/[[:alnum:]_./-]+' \
+      '\$OMARCHY_PATH/(qv|bin)/[[:alnum:]_./-]+' \
       "$contract_root/$source" |
       sed 's|^\$OMARCHY_PATH/||' |
       sort -u

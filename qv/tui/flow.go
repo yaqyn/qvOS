@@ -5,6 +5,8 @@ type flowRequirements struct {
 	Confirmation  bool
 	Preflight     bool
 	Authorization bool
+	Selection     bool
+	Form          bool
 	ProgressBar   bool
 }
 
@@ -20,10 +22,13 @@ func requirementsForAction(action actionMode) flowRequirements {
 	case actionGeneric:
 		transaction := !currentActionSpec.Information
 		return flowRequirements{
-			Model:         modelRoleForRings(currentActionSpec.Rings),
-			Confirmation:  transaction && !currentActionSpec.RequiresSudo,
+			Model: modelRoleForRings(currentActionSpec.Rings),
+			Confirmation: transaction && !currentActionSpec.RequiresSudo &&
+				!currentActionSpec.IsActionSelection() && !currentActionSpec.ChoiceResolved,
 			Preflight:     true,
 			Authorization: currentActionSpec.RequiresSudo,
+			Selection:     currentActionSpec.HasSelection(),
+			Form:          currentActionSpec.HasForm(),
 			ProgressBar:   transaction,
 		}
 	case actionBuild:
@@ -43,7 +48,15 @@ func isInformationAction(action actionMode) bool {
 
 func requiresStopConfirmation(action actionMode) bool {
 	return action == actionUpdate || action == actionBuild ||
-		(action == actionGeneric && !currentActionSpec.Information)
+		(action == actionGeneric && currentActionSpec.Operation == "install")
+}
+
+func canCancelRunningAction(action actionMode) bool {
+	if action == actionGeneric {
+		return currentActionSpec.Information ||
+			currentActionSpec.Operation == "install"
+	}
+	return action == actionUpdate || action == actionBuild
 }
 
 func modelRoleForRings(rings int) modelRole {

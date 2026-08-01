@@ -5,5 +5,5 @@
 # omarchy:name=qvos-update
 # omarchy:hidden=true
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/tui/update/launch" "$@"
+tui_runtime=${QVOS_TUI_RUNTIME:-$HOME/.local/share/qvos/tui}
+exec "$tui_runtime/update/launch" "$@"

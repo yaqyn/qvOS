@@ -1,0 +1,12 @@
+# slug|operation|protocol
+font-cascadia-mono|install|owner-state-v1
+font-meslo-mono|install|owner-state-v1
+font-fira-code|install|owner-state-v1
+font-victor-code|install|owner-state-v1
+font-bitstream-vera|install|owner-state-v1
+font-iosevka|install|owner-state-v1
+alacritty|install|owner-state-v1
+foot|install|owner-state-v1
+ghostty|install|owner-state-v1
+kitty|install|owner-state-v1
+windows|install|owner-state-v1

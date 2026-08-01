@@ -22,6 +22,67 @@ func tuiHelpHint() tuiHint {
 	return tuiHint{Key: "f1", Action: "help"}
 }
 
+func tuiTerminalPersistentHints() []tuiHint {
+	return []tuiHint{
+		{Key: "ctrl+v", Action: "switch"},
+		tuiHelpHint(),
+	}
+}
+
+func handleTUITerminalViewKey(
+	msg tea.KeyPressMsg,
+	lines []string,
+	terminalView *bool,
+	logOverlay *bool,
+	copyStatus *string,
+) (bool, tea.Cmd) {
+	if !*terminalView {
+		return false, nil
+	}
+
+	switch msg.String() {
+	case "y", "Y":
+		var cmd tea.Cmd
+		*copyStatus, cmd = beginTUILogCopy(lines)
+		return true, cmd
+	case "ctrl+v":
+		*terminalView = false
+		*copyStatus = ""
+		return true, nil
+	case "v", "V":
+		*terminalView = false
+		*logOverlay = true
+		*copyStatus = ""
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func handleTUILogViewKey(
+	msg tea.KeyPressMsg,
+	available bool,
+	terminalView *bool,
+	logOverlay *bool,
+	copyStatus *string,
+) bool {
+	if !available {
+		return false
+	}
+
+	switch msg.String() {
+	case "v", "V":
+		*logOverlay = !*logOverlay
+		return true
+	case "ctrl+v":
+		*terminalView = true
+		*copyStatus = ""
+		return true
+	default:
+		return false
+	}
+}
+
 func handleTUIHelpKey(open bool, msg tea.KeyPressMsg) (bool, bool) {
 	return handleTUIHelpKeyWithQuestion(open, msg, true)
 }
@@ -224,6 +285,11 @@ func terminalOutputContentHeight(height int) int {
 	return max(3, height-8)
 }
 
+func terminalOutputContentWidth(width int) int {
+	panelWidth := min(112, max(20, width-6))
+	return max(1, panelWidth-4)
+}
+
 func renderTUIHelp(width int, title string, hints []tuiHint) string {
 	panelWidth := min(72, max(18, width-8))
 	contentWidth := max(1, panelWidth-6)
@@ -265,16 +331,18 @@ func renderTUITerminalOutput(
 	lines []string,
 	scrollOffset int,
 	copyStatus string,
+	empty string,
 	hints []tuiHint,
 ) string {
 	panelWidth := min(112, max(20, width-6))
-	contentWidth := max(1, panelWidth-4)
+	contentWidth := terminalOutputContentWidth(width)
 	contentHeight := terminalOutputContentHeight(height)
+	lines = wrapTUILogLines(lines, contentWidth)
 	lines, scrollOffset = visibleTUILogLines(
 		lines,
 		contentHeight,
 		scrollOffset,
-		"waiting for command output",
+		empty,
 	)
 
 	body := make([]string, 0, len(lines)+5)
@@ -296,7 +364,7 @@ func renderTUITerminalOutput(
 	}
 	body = append(body, title, sDeepRed.Render(strings.Repeat("━", contentWidth)))
 	for _, line := range lines {
-		body = append(body, sBright.Render(trimDisplay(line, contentWidth)))
+		body = append(body, sBright.Render(line))
 	}
 	for len(body) < contentHeight+2 {
 		body = append(body, "")

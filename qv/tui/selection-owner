@@ -1,0 +1,48 @@
+#!/bin/bash
+
+qvos_selection_list_owner() {
+  local owner_name=$1
+  local -n qvos_owner_args=$owner_name
+
+  "${qvos_owner_args[@]}" --list
+}
+
+qvos_selection_apply_owner() {
+  local mode=$1
+  local owner_name=$2
+  local subject=$3
+  local available
+  local choice
+  local -n qvos_owner_args=$owner_name
+  declare -A allowed=()
+  declare -A seen=()
+  local -a selected=()
+
+  while IFS= read -r available; do
+    [[ -n $available ]] && allowed["$available"]=1
+  done < <(qvos_selection_list_owner "$owner_name")
+
+  while IFS= read -r choice; do
+    [[ -n $choice ]] || continue
+    [[ -n ${allowed[$choice]:-} ]] || {
+      echo "Invalid selection for $subject: $choice" >&2
+      return 2
+    }
+    [[ -z ${seen[$choice]:-} ]] || {
+      echo "Duplicate selection for $subject: $choice" >&2
+      return 2
+    }
+    seen["$choice"]=1
+    selected+=("$choice")
+  done <<<"${QVOS_ACTION_SELECTIONS:-}"
+
+  if ((${#selected[@]} == 0)); then
+    echo "The $subject action requires a selection." >&2
+    return 2
+  fi
+  if [[ $mode != "multi" ]] && ((${#selected[@]} != 1)); then
+    echo "The $subject action requires exactly one selection." >&2
+    return 2
+  fi
+  qvos_owner_args+=(-- "${selected[@]}")
+}

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultISOProgressLogPath = "/var/log/omarchy-install.log"
-	isoProgressTailBytes      = 96 * 1024
+	isoProgressPollFrames     = 16
 )
 
 type isoProgressModel struct {
@@ -70,9 +70,8 @@ func runISOProgress(args []string) error {
 	}
 
 	options := []tea.ProgramOption{tea.WithFilter(filterISOProgressExitMessages)}
-	if noInput {
-		options = append(options, tea.WithInput(nil))
-	}
+	// Output-only progress still consumes terminal protocol replies. The model
+	// ignores key messages; disabling the reader would print capability replies.
 	p := newTUIProgram(newISOProgressModel(logPath, noInput), options...)
 	_, err := p.Run()
 	return err
@@ -125,7 +124,10 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tick()
 		}
 		m.progress = advanceScriptProgress(m.progress, m.target)
-		return m, tea.Batch(tick(), readISOProgressSnapshotCmd(m.logPath))
+		if m.frame%isoProgressPollFrames == 0 {
+			return m, tea.Batch(tick(), readISOProgressSnapshotCmd(m.logPath))
+		}
+		return m, tick()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, detectFullscreenCmd()
@@ -138,13 +140,15 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.progress >= 0 {
 			m.target = max(m.target, msg.progress)
 		}
-		if m.logScroll > 0 && len(msg.lines) > len(m.logLines) {
+		beforeRows := len(m.logRows())
+		m.logLines = msg.lines
+		rowDelta := len(m.logRows()) - beforeRows
+		if m.logScroll > 0 && rowDelta != 0 {
 			m.logScroll = min(
-				m.logScroll+len(msg.lines)-len(m.logLines),
-				max(0, len(msg.lines)-m.logViewportRows()),
+				max(0, m.logScroll+rowDelta),
+				max(0, len(m.logRows())-m.logViewportRows()),
 			)
 		}
-		m.logLines = msg.lines
 	case tuiLogCopiedMsg:
 		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
 		return m, nil
@@ -160,7 +164,7 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if offset, handled := updateTUILogScroll(
 				m.logScroll,
 				msg.String(),
-				len(m.logLines),
+				len(m.logRows()),
 				m.logViewportRows(),
 			); handled {
 				m.logScroll = offset
@@ -168,18 +172,16 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.terminalView {
-			switch msg.String() {
-			case "y", "Y":
-				var cmd tea.Cmd
-				m.logCopyStatus, cmd = beginTUILogCopy(m.logLines)
+			if handled, cmd := handleTUITerminalViewKey(
+				msg,
+				m.logLines,
+				&m.terminalView,
+				&m.logOverlay,
+				&m.logCopyStatus,
+			); handled {
 				return m, cmd
-			case "ctrl+v":
-				m.terminalView = false
-				m.logCopyStatus = ""
-			case "v", "V":
-				m.terminalView = false
-				m.logOverlay = true
-				m.logCopyStatus = ""
+			}
+			switch msg.String() {
 			case "esc", "ctrl+c":
 				if m.prototype {
 					return m, tea.Quit
@@ -197,12 +199,14 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		if msg.String() == "v" || msg.String() == "V" {
-			m.logOverlay = !m.logOverlay
-		}
-		if msg.String() == "ctrl+v" {
-			m.terminalView = true
-			m.logCopyStatus = ""
+		if handleTUILogViewKey(
+			msg,
+			true,
+			&m.terminalView,
+			&m.logOverlay,
+			&m.logCopyStatus,
+		) {
+			return m, nil
 		}
 	}
 	return m, nil
@@ -261,13 +265,15 @@ func (m isoProgressModel) View() tea.View {
 			m.logLines,
 			m.logScroll,
 			m.logCopyStatus,
-			m.terminalHints(),
+			m.logEmptyStatus(),
+			tuiTerminalPersistentHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
+		logInModelSlot := m.fullscreenLogUsesModelSlot(width, height)
 		reserveRows := fullCanvasReserveRows
-		if m.logOverlay {
+		if m.logOverlay && !logInModelSlot {
 			reserveRows = 22
 			if mode == layoutTablet {
 				reserveRows = 18
@@ -275,14 +281,21 @@ func (m isoProgressModel) View() tea.View {
 		}
 
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
-		if showIcon {
+		showStage := showIcon || logInModelSlot
+		if showStage {
 			canvasW, canvasH = iconWidth, iconHeight
 		} else {
 			canvasW, canvasH = fitContentWidth(width), 0
 		}
 
 		var icon string
-		if showIcon {
+		if logInModelSlot {
+			icon = placeTUILogInCanvas(
+				m.renderISOProgressLogs(mode),
+				iconWidth,
+				iconHeight,
+			)
+		} else if showIcon {
 			icon = renderModelRole(modelThreeRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
@@ -332,7 +345,7 @@ func (m isoProgressModel) renderISOProgressBody(mode layoutMode, icon string) st
 		lines = append(lines, centerCanvas(icon), "")
 	}
 	lines = append(lines, m.renderISOProgressPanel(mode))
-	if m.logOverlay {
+	if m.logOverlay && !m.fullscreenLogUsesModelSlot(m.width, m.height) {
 		lines = append(lines, "", centerCanvas(m.renderISOProgressLogs(mode)))
 	}
 	return strings.Join(lines, "\n")
@@ -387,13 +400,6 @@ func (m isoProgressModel) persistentHints() []tuiHint {
 	}
 }
 
-func (m isoProgressModel) terminalHints() []tuiHint {
-	return []tuiHint{
-		{Key: "ctrl+v", Action: "switch"},
-		tuiHelpHint(),
-	}
-}
-
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
 	progress := m.progress
 	if progress > 0.97 && m.target < 1 {
@@ -428,6 +434,23 @@ func (m isoProgressModel) logViewportRows() int {
 	return isoProgressLogRows(mode)
 }
 
+func (m isoProgressModel) logRows() []string {
+	return wrapTUILogLines(m.logLines, m.logContentWidth())
+}
+
+func (m isoProgressModel) logContentWidth() int {
+	return responsiveTUILogContentWidth(responsiveLogWidth{
+		Width:      m.width,
+		Height:     m.height,
+		CenterMax:  maxCanvasW,
+		Maximum:    82,
+		Terminal:   m.terminalView,
+		Fullscreen: m.fullscreen,
+		ModelSlot:  m.fullscreenLogUsesModelSlot(m.width, m.height),
+		SideRight:  true,
+	})
+}
+
 func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
 	width := canvasW
 	if width < 1 {
@@ -443,8 +466,23 @@ func (m isoProgressModel) renderISOProgressLogs(mode layoutMode) string {
 		Width:       width,
 		VisibleRows: height,
 		Scroll:      m.logScroll,
-		Empty:       "waiting for install log",
+		Empty:       m.logEmptyStatus(),
 	})
+}
+
+func (m isoProgressModel) logEmptyStatus() string {
+	if m.progress < 1 {
+		return preparingLabel(m.frame)
+	}
+	return "No command output"
+}
+
+func (m isoProgressModel) fullscreenLogUsesModelSlot(width, height int) bool {
+	return fullscreenTUILogUsesModelSlot(
+		m.fullscreen && m.logOverlay,
+		width,
+		height,
+	)
 }
 
 func readISOProgressSnapshotCmd(logPath string) tea.Cmd {
@@ -460,48 +498,21 @@ func readISOProgressSnapshotCmd(logPath string) tea.Cmd {
 }
 
 func readISOProgressLog(logPath string) (string, []string) {
-	data, err := readTail(logPath, isoProgressTailBytes)
+	data, err := os.ReadFile(logPath)
 	if err != nil {
 		return "", nil
 	}
 	text := string(data)
-	rawLines := strings.Split(text, "\n")
-	lines := make([]string, 0, len(rawLines))
-	for _, line := range rawLines {
-		clean := sanitizeLogLine(line)
-		if clean == "" {
-			continue
+	lines := make([]string, 0)
+	cursor := 0
+	_ = readTerminalFrames(bytes.NewReader(data), func(frame terminalFrame) error {
+		if frame.update {
+			frame.line = sanitizeLogLine(frame.line)
 		}
-		lines = appendLimited(lines, clean, maxScriptLogLines)
-	}
+		lines, cursor, _ = applyTerminalFrame(lines, cursor, frame)
+		return nil
+	})
 	return text, lines
-}
-
-func readTail(path string, maxBytes int64) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	offset := int64(0)
-	if info.Size() > maxBytes {
-		offset = info.Size() - maxBytes
-	}
-	if _, err := file.Seek(offset, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
 }
 
 func parseISOProgressLog(text string) (string, float64) {

@@ -9,6 +9,8 @@ tui_update="$root/qv/tui/update/run"
 tui_shared_launch="$root/qv/tui/launch"
 tui_launch="$root/qv/tui/update/launch"
 launch_adapter="$root/bin/omarchy-launch-qvos-update"
+update_restart="$root/bin/omarchy-update-restart"
+reboot_request="$root/qv/update/reboot-request"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 action_log="$test_root/actions.log"
@@ -222,7 +224,10 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-qvos-update" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >"$QVOS_TEST_TUI_UPDATE_LOG"
 if [[ -n ${QVOS_TEST_TUI_UPDATE_ENV_LOG:-} ]]; then
-  printf '%s\n' "${OMARCHY_UPDATE_LOGGED:-}" >"$QVOS_TEST_TUI_UPDATE_ENV_LOG"
+  printf '%s\t%s\n' \
+    "${OMARCHY_UPDATE_LOGGED:-}" \
+    "${OMARCHY_UPDATE_DEFER_REBOOT:-}" \
+    >"$QVOS_TEST_TUI_UPDATE_ENV_LOG"
 fi
 if [[ -n ${QVOS_TEST_TUI_CANCEL_LOG:-} ]]; then
   trap 'printf "%s\n" stopped >"$QVOS_TEST_TUI_CANCEL_LOG"; exit 130' INT TERM
@@ -243,8 +248,8 @@ QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
   "$tui_update"
 [[ $(<"$tui_update_log") == "-y" ]] ||
   fail "qvOS TUI update delegation"
-[[ $(<"$tui_update_env_log") == "1" ]] ||
-  fail "qvOS TUI update process-group mode"
+[[ $(<"$tui_update_env_log") == $'1\t1' ]] ||
+  fail "qvOS TUI update process-group and deferred-reboot mode"
 [[ -f $tui_session_log ]] ||
   fail "qvOS TUI update session log"
 QVOS_TEST_TUI_UPDATE_LOG="$tui_update_log" \
@@ -284,7 +289,7 @@ kill -TERM -- "-$cancel_pid"
 wait "$cancel_pid"
 tui_cancel_status=$?
 set -e
-((tui_cancel_status == 143)) ||
+((tui_cancel_status == 130)) ||
   fail "qvOS TUI update cancellation status"
 for ((attempt = 0; attempt < 50; attempt++)); do
   ! kill -0 -- "-$cancel_pid" 2>/dev/null && break
@@ -294,6 +299,49 @@ if kill -0 -- "-$cancel_pid" 2>/dev/null; then
   fail "qvOS TUI update process-group cancellation"
 fi
 pass "qvOS TUI owns cancellable logging and preserves wrapper results"
+
+install -d "$test_root/restart-home/.local/state/omarchy"
+install -m 0755 /dev/stdin "$test_bin/uname" <<'SCRIPT'
+#!/bin/bash
+[[ $1 == "-r" ]] || exit 2
+printf 'linux-running\n'
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+[[ $1 == "-Qo" ]] || exit 2
+exit 0
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/omarchy-system-reboot" <<'SCRIPT'
+#!/bin/bash
+printf 'reboot\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
+SCRIPT
+restart_action_log="$test_root/restart-actions.log"
+restart_output=$(
+  HOME="$test_root/restart-home" \
+    OMARCHY_PATH="$root" \
+    PATH="$test_bin:/usr/bin" \
+    OMARCHY_UPDATE_DEFER_REBOOT=1 \
+    QVOS_TEST_ACTION_LOG="$restart_action_log" \
+    QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \
+    "$update_restart"
+)
+grep -Fqx 'qvOS action: reboot required: Linux kernel updated' <<<"$restart_output" ||
+  fail "deferred Update kernel reboot signal"
+[[ ! -s $restart_action_log ]] ||
+  fail "deferred Update prompted or rebooted inside the captured process"
+hyprland_output=$(
+  OMARCHY_UPDATE_DEFER_REBOOT=1 \
+    "$reboot_request" \
+    "Hyprland updated" \
+    "Hyprland has been updated. Reboot?"
+)
+grep -Fqx 'qvOS action: reboot required: Hyprland updated' <<<"$hyprland_output" ||
+  fail "deferred Update Hyprland reboot signal"
+pass "qvOS Update defers kernel and Hyprland reboot decisions to the shared TUI"
 
 install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 #!/bin/bash
@@ -311,6 +359,7 @@ pass "qvOS Update opens the shared sized TUI without the legacy presentation wra
 install -D -m 0755 "$tui_launch" "$fixture/qv/tui/update/launch"
 install -D -m 0755 "$tui_shared_launch" "$fixture/qv/tui/launch"
 QVOS_TEST_TUI_LAUNCH_LOG="$tui_launch_log" \
+  QVOS_TUI_RUNTIME="$fixture/qv/tui" \
   OMARCHY_PATH="$fixture" \
   PATH="$test_bin:/usr/bin" \
   "$launch_adapter"

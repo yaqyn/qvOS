@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+owner_script=${QVOS_ACTION_OWNER_SCRIPT:-${QVOS_ACTION_SCRIPT:-}}
+
+[[ -n $owner_script && -x $owner_script ]] || {
+  echo "The qvOS post-success owner is unavailable." >&2
+  exit 1
+}
+export QVOS_ACTION_POST_PHASE=1
+export QVOS_ACTION_POST_SUCCESS=owner-v1
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  exec "$owner_script" --post-success-check
+  ;;
+--rollback)
+  (($# == 1)) || exit 2
+  exec "$owner_script" --rollback
+  ;;
+--cancel-status)
+  (($# == 1)) || exit 2
+  exec "$owner_script" --cancel-status
+  ;;
+"")
+  exec "$owner_script" --post-success
+  ;;
+*)
+  echo "Usage: qv/tui/action/post-run [--check|--rollback|--cancel-status]" >&2
+  exit 2
+  ;;
+esac

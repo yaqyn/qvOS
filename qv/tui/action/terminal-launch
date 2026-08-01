@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=qv/tui/owner-resolver
+source "$tui_root/owner-resolver"
+catalog="$OMARCHY_PATH/qv/menu/software-installers.psv"
+tui_launch="$tui_root/launch"
+slug=${1:-}
+
+usage() {
+  echo "Usage: qv/tui/action/terminal-launch <terminal-slug>" >&2
+}
+
+terminal_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted &&
+      ($1 == "alacritty" || $1 == "foot" || $1 == "ghostty" || $1 == "kitty") {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+[[ -n $slug && $# == 1 ]] || {
+  usage
+  exit 2
+}
+[[ -f $catalog && -x $tui_launch ]] || {
+  echo "The qvOS terminal action surface is incomplete." >&2
+  exit 1
+}
+record=$(terminal_record) || {
+  echo "Unknown qvOS terminal: $slug" >&2
+  exit 2
+}
+IFS='|' read -r \
+  _ \
+  _ \
+  title \
+  _ \
+  _ \
+  presentation \
+  _ \
+  _ \
+  _ \
+  _ \
+  owner_command <<<"$record"
+[[ $presentation == "tui" && $owner_command == "qv/menu/terminal-action $slug" ]] || {
+  echo "Invalid qvOS terminal owner for $slug." >&2
+  exit 1
+}
+read -r -a owner_args <<<"$owner_command"
+qvos_resolve_owner owner_args
+owner=${owner_args[0]}
+[[ -x $owner ]] || {
+  echo "The qvOS terminal owner is unavailable." >&2
+  exit 1
+}
+state=$("$owner" "$slug" --state)
+if [[ $state == "available" ]]; then
+  QVOS_TERMINAL_STATEFUL=1 exec "$tui_root/action/launch" --installer "$slug"
+fi
+[[ $state == "installed" || $state == "active" ]] || {
+  echo "Invalid qvOS terminal state: $state" >&2
+  exit 1
+}
+
+export QVOS_ACTION_SLUG="$slug"
+export QVOS_ACTION_OPERATION=task
+export QVOS_ACTION_TITLE="$title"
+export QVOS_ACTION_RINGS=2
+export QVOS_ACTION_REQUIRES_SUDO=0
+export QVOS_ACTION_SCRIPT="$tui_root/action/terminal-run"
+if [[ $state == "active" ]]; then
+  export QVOS_TERMINAL_MODE=default
+  export QVOS_ACTION_SUMMARY="$title is already the default terminal"
+  export QVOS_ACTION_BEHAVIOR=information
+  unset QVOS_ACTION_PRIMARY QVOS_ACTION_ACTIVE QVOS_ACTION_COMPLETE
+else
+  export QVOS_TERMINAL_MODE=apply
+  export QVOS_ACTION_SUMMARY="Make $title the default qvOS terminal"
+  export QVOS_ACTION_BEHAVIOR=mutation
+  export QVOS_ACTION_PRIMARY="Make Default"
+  export QVOS_ACTION_ACTIVE="Applying"
+  export QVOS_ACTION_COMPLETE="Default"
+fi
+unset \
+  QVOS_ACTION_NEXT_STEP \
+  QVOS_ACTION_ROLLBACK \
+  QVOS_ACTION_SELECTION_EMPTY \
+  QVOS_ACTION_SELECTION_MODE \
+  QVOS_ACTION_SELECTION_TITLE \
+  QVOS_ACTION_SELECTIONS
+
+exec "$tui_launch" "$title" qvos-tui --action

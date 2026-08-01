@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -112,6 +114,29 @@ func TestParseISOProgressLogFromFixture(t *testing.T) {
 	}
 	if progress != 1 {
 		t.Fatalf("progress = %v, want 1", progress)
+	}
+}
+
+func TestISOProgressLogRetainsTheCompleteTerminalHistory(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "install.log")
+	var log strings.Builder
+	for index := range 300 {
+		fmt.Fprintf(&log, "install line %03d\n", index)
+	}
+	log.WriteString("downloading 10%\rdownloading 72%\r\n")
+	if err := os.WriteFile(logPath, []byte(log.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, lines := readISOProgressLog(logPath)
+	if len(lines) != 301 {
+		t.Fatalf("ISO terminal history lines = %d, want 301", len(lines))
+	}
+	if lines[0] != "install line 000" || lines[299] != "install line 299" {
+		t.Fatalf("ISO terminal history was truncated: first=%q last=%q", lines[0], lines[299])
+	}
+	if lines[300] != "downloading 72%" {
+		t.Fatalf("ISO terminal redraw = %q, want latest frame", lines[300])
 	}
 }
 

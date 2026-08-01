@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unicode"
@@ -160,7 +162,6 @@ const (
 	sidePadding      = 4
 	sideLeftMax      = 48
 	sideRightMax     = 64
-	logSideLeftMax   = 36
 	logSideRightMax  = 96
 )
 
@@ -223,35 +224,6 @@ func sideColumnWidths(width int) (int, int) {
 
 func renderSideColumns(width int, left, right string) string {
 	leftWidth, rightWidth := sideColumnWidths(width)
-	return renderColumnPair(leftWidth, rightWidth, left, right)
-}
-
-func sideLogColumnWidths(width int) (int, int) {
-	available := width - sideGap - sidePadding*2
-	if available < 2 {
-		available = 2
-	}
-
-	leftWidth := available * 3 / 10
-	if leftWidth > logSideLeftMax {
-		leftWidth = logSideLeftMax
-	}
-	if leftWidth < 1 {
-		leftWidth = 1
-	}
-
-	rightWidth := available - leftWidth
-	if rightWidth > logSideRightMax {
-		rightWidth = logSideRightMax
-	}
-	if rightWidth < 1 {
-		rightWidth = 1
-	}
-	return leftWidth, rightWidth
-}
-
-func renderSideLogColumns(width int, left, right string) string {
-	leftWidth, rightWidth := sideLogColumnWidths(width)
 	return renderColumnPair(leftWidth, rightWidth, left, right)
 }
 
@@ -379,16 +351,20 @@ type model struct {
 	scriptProgress    float64
 	scriptTarget      float64
 	scriptLogLines    []string
+	scriptLogCursor   int
 	scriptArtifact    string
 	scriptRelease     string
 	scriptCanceling   bool
 	scriptCanceled    bool
+	scriptCancelProbe cancelProbe
+	scriptCleanup     cancelCleanup
 	logOverlay        bool
 	terminalView      bool
 	logScroll         int
 	logCopyStatus     string
 	helpOverlay       bool
 	startConfirm      bool
+	startConfirmed    bool
 	startChoice       int
 	updateStopConfirm bool
 	updateStopChoice  int
@@ -396,6 +372,27 @@ type model struct {
 	dedicatedAction   bool
 	startCanceled     bool
 	startImmediately  bool
+	selectionLoading  bool
+	selectionActive   bool
+	selectionChoices  []string
+	selectionFilter   []rune
+	selectionCursor   int
+	actionSelections  []string
+	selectionErr      string
+	formLoading       bool
+	formActive        bool
+	formComplete      bool
+	formTitle         string
+	formFields        []actionFormField
+	formCursor        int
+	formErr           string
+	rebootPrompt      bool
+	rebootChoice      int
+	rebootReasons     []string
+	rebooting         bool
+	rebootErr         error
+	postActionFlow    bool
+	pendingStopEvent  *scriptEvent
 }
 
 func isRootAction(action actionMode) bool {
@@ -432,7 +429,7 @@ func (m model) loadProgress() float64 {
 		if m.scriptDone {
 			return 1
 		}
-		if m.sudoPrompt || m.sudoChecking || m.updatePreflight {
+		if m.sudoPrompt || m.sudoChecking || m.updatePreflight || m.selectionLoading {
 			return 0
 		}
 		progress := m.scriptProgress
@@ -524,7 +521,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tickMsg:
 		m.frame += framesPerTick
-		if m.scriptRunning && !m.sudoPrompt && !m.sudoChecking {
+		if m.scriptRunning && !m.scriptCanceling && !m.sudoPrompt && !m.sudoChecking {
 			m.scriptProgress = advanceScriptProgress(m.scriptProgress, m.scriptTarget)
 		}
 		return m, tick()
@@ -560,14 +557,46 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.action != msg.event.action || m.scriptPath != msg.event.script {
 			return m, nil
 		}
-		if msg.event.line != "" {
+		if msg.event.output {
+			if msg.event.terminalClear || msg.event.terminalMove != 0 {
+				m.scriptLogLines, m.scriptLogCursor, _ = applyTerminalFrame(
+					m.scriptLogLines,
+					m.scriptLogCursor,
+					terminalFrame{
+						move:  msg.event.terminalMove,
+						clear: msg.event.terminalClear,
+					},
+				)
+			}
+			if !msg.event.terminalUpdate {
+				return m, waitScriptEventCmd(m.scriptEvents)
+			}
 			cleanLine := sanitizeLogLine(msg.event.line)
-			if cleanLine != "" {
-				m.scriptLogLines = appendLimited(m.scriptLogLines, cleanLine, maxScriptLogLines)
-				if m.logScroll > 0 {
+			visibleOutput := true
+			if reason, ok := rebootReasonFromLine(cleanLine); ok {
+				m.addRebootReason(reason)
+				visibleOutput = false
+			}
+			if m.action == actionGeneric && actionflow.IsProtocolLine(cleanLine) {
+				visibleOutput = false
+			}
+			if visibleOutput {
+				beforeRows := len(m.scriptLogRows())
+				m.scriptLogLines, m.scriptLogCursor, _ = applyTerminalFrame(
+					m.scriptLogLines,
+					m.scriptLogCursor,
+					terminalFrame{
+						line:   cleanLine,
+						update: true,
+						redraw: msg.event.redraw,
+						commit: msg.event.commit,
+					},
+				)
+				rowDelta := len(m.scriptLogRows()) - beforeRows
+				if m.logScroll > 0 && rowDelta != 0 {
 					m.logScroll = min(
-						m.logScroll+1,
-						max(0, len(m.scriptLogLines)-m.logViewportRows()),
+						max(0, m.logScroll+rowDelta),
+						max(0, len(m.scriptLogRows())-m.logViewportRows()),
 					)
 				}
 			}
@@ -591,25 +620,80 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.event.done {
 			canceled := errors.Is(msg.event.err, errScriptCanceled) && m.scriptCanceling
-			m.scriptRunning = false
-			m.scriptDone = true
-			m.scriptCanceled = canceled
-			m.scriptErr = msg.event.err
-			if canceled {
-				m.scriptErr = nil
-				m.scriptStatus = rootActionCanceledStatus(m.action)
+			if msg.event.err == nil && !canceled && m.updateStopConfirm &&
+				msg.event.rollback != nil {
+				m.scriptRunning = false
+				m.scriptCancel = nil
+				m.scriptEvents = nil
+				m.scriptCanceling = false
+				pending := msg.event
+				m.pendingStopEvent = &pending
+				return m, nil
 			}
-			m.scriptCancel = nil
-			m.scriptEvents = nil
-			m.scriptCanceling = false
-			m.updateStopConfirm = false
-			if msg.event.err == nil || canceled {
-				m.scriptProgress = 1
-				m.scriptTarget = 1
-			}
+			m.applyScriptDoneEvent(msg.event, canceled)
 			return m, nil
 		}
 		return m, waitScriptEventCmd(m.scriptEvents)
+
+	case completedRollbackDoneMsg:
+		m.pendingStopEvent = nil
+		m.scriptRunning = false
+		m.scriptDone = true
+		m.scriptCanceled = true
+		m.scriptCancelProbe = msg.probe
+		m.scriptCleanup = msg.cleanup
+		m.scriptErr = nil
+		m.scriptStatus = rootActionCanceledStatus(m.action)
+		m.scriptCancel = nil
+		m.scriptEvents = nil
+		m.scriptCanceling = false
+		m.updateStopConfirm = false
+		return m, nil
+
+	case actionOptionsLoadedMsg:
+		if m.action != msg.action || m.scriptPath != msg.script {
+			return m, nil
+		}
+		m.selectionLoading = false
+		if msg.err != nil {
+			m.scriptDone = true
+			m.scriptErr = msg.err
+			m.scriptStatus = shortError(msg.err)
+			return m, nil
+		}
+		m.selectionChoices = msg.choices
+		m.selectionActive = true
+		m.selectionCursor = 0
+		m.selectionErr = ""
+		return m, nil
+
+	case actionFormLoadedMsg:
+		if m.action != msg.action || m.scriptPath != msg.script {
+			return m, nil
+		}
+		m.formLoading = false
+		if msg.err != nil {
+			m.scriptDone = true
+			m.scriptErr = msg.err
+			m.scriptStatus = shortError(msg.err)
+			return m, nil
+		}
+		m.formTitle = msg.schema.Title
+		m.formFields = msg.schema.Fields
+		m.formActive = true
+		m.formCursor = 0
+		m.formErr = ""
+		return m, nil
+
+	case rebootDoneMsg:
+		m.rebooting = false
+		if msg.err != nil {
+			m.rebootErr = msg.err
+			m.rebootPrompt = true
+			return m, nil
+		}
+		m.rebootPrompt = false
+		return m.leaveRootAction()
 
 	case rootPreflightDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -622,12 +706,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scriptStatus = shortError(msg.err)
 			return m, nil
 		}
-		if !requirementsForAction(msg.action).Authorization {
-			return m.startRootScriptRun(msg.action, msg.script)
-		}
-		m.sudoPrompt = true
-		m.scriptStatus = ""
-		return m, nil
+		return m.continueRootActionFlow()
 
 	case sudoAuthDoneMsg:
 		if m.action != msg.action || m.scriptPath != msg.script {
@@ -654,21 +733,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.sudoPrompt); handled {
-			m.helpOverlay = helpOverlay
-			return m, nil
+		if !m.updateStopConfirm {
+			if helpOverlay, handled := handleTUIHelpKeyWithQuestion(
+				m.helpOverlay,
+				msg,
+				!m.sudoPrompt && !m.selectionActive,
+			); handled {
+				m.helpOverlay = helpOverlay
+				return m, nil
+			}
 		}
 		if m.loading && isScriptAction(m.action) &&
 			(m.logOverlay || m.terminalView || isInformationAction(m.action)) {
 			logLines := m.scriptLogLines
+			logLineCount := len(m.scriptLogRows())
 			visibleRows := m.logViewportRows()
 			if isInformationAction(m.action) {
 				logLines, visibleRows = m.informationLines()
+				logLineCount = len(logLines)
 			}
 			if offset, handled := updateTUILogScroll(
 				m.logScroll,
 				msg.String(),
-				len(logLines),
+				logLineCount,
 				visibleRows,
 			); handled {
 				m.logScroll = offset
@@ -676,22 +763,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.terminalView {
-			switch msg.String() {
-			case "y", "Y":
-				var cmd tea.Cmd
-				m.logCopyStatus, cmd = beginTUILogCopy(m.scriptLogLines)
+			if handled, cmd := handleTUITerminalViewKey(
+				msg,
+				m.scriptLogLines,
+				&m.terminalView,
+				&m.logOverlay,
+				&m.logCopyStatus,
+			); handled {
 				return m, cmd
-			case "ctrl+v":
-				m.terminalView = false
-				m.logCopyStatus = ""
-				return m, nil
-			case "v", "V":
-				m.terminalView = false
-				m.logOverlay = true
-				m.logCopyStatus = ""
-				return m, nil
+			}
+			switch msg.String() {
 			case "ctrl+c", "ctrl+z":
-				if m.loadPhase() != loadRun {
+				if m.loadPhase() != loadRun || !canCancelRunningAction(m.action) {
 					return m, nil
 				}
 				m.terminalView = false
@@ -700,6 +783,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.loading {
+			if m.rebootPrompt {
+				return m.handleRebootChoiceKey(msg)
+			}
+			if m.selectionActive {
+				return m.handleActionSelectionKey(msg)
+			}
+			if m.formActive {
+				return m.handleActionFormKey(msg)
+			}
 			if m.updateStopConfirm {
 				return m.handleUpdateStopConfirmationKey(msg)
 			}
@@ -710,22 +802,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleSudoKey(msg)
 			}
 			phase := m.loadPhase()
+			if handleTUILogViewKey(
+				msg,
+				isScriptAction(m.action) && !isInformationAction(m.action),
+				&m.terminalView,
+				&m.logOverlay,
+				&m.logCopyStatus,
+			) {
+				return m, nil
+			}
 			switch msg.String() {
 			case "ctrl+c", "ctrl+z":
 				if m.scriptRunning && m.scriptCancel != nil {
+					if !canCancelRunningAction(m.action) {
+						return m, nil
+					}
 					if requiresStopConfirmation(m.action) && !m.scriptCanceling {
 						m.terminalView = false
 						m.updateStopConfirm = true
 						m.updateStopChoice = 0
 						return m, nil
 					}
-					m.scriptCanceling = true
-					m.scriptStatus = rootActionCancelingStatus(m.action)
-					m.scriptTarget = max(m.scriptTarget, 0.98)
-					m.scriptCancel()
+					m.beginScriptCancellation()
 					return m, nil
 				}
-				if m.scriptRunning || m.sudoChecking || m.updatePreflight {
+				if m.scriptRunning || m.sudoChecking || m.updatePreflight || m.selectionLoading {
 					return m, nil
 				}
 				return m, tea.Quit
@@ -735,19 +836,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "enter":
 				if phase != loadRun {
+					if phase == loadOK && m.action == actionGeneric &&
+						currentActionSpec.HasPostAction() {
+						return m.startPostActionFlow()
+					}
 					return m.leaveRootAction()
-				}
-			case "v", "V":
-				if isScriptAction(m.action) && !isInformationAction(m.action) {
-					m.logOverlay = !m.logOverlay
-				}
-			case "ctrl+v":
-				if isScriptAction(m.action) && !isInformationAction(m.action) {
-					m.terminalView = true
-					m.logCopyStatus = ""
 				}
 			case "r":
 				if isRootAction(m.action) && phase == loadErr {
+					if m.postActionFlow {
+						return m.startPostActionScriptRun(m.scriptPath)
+					}
 					return m.startRootAction(m.action)
 				}
 				if m.action == actionBuild && phase == loadErr {
@@ -789,6 +888,9 @@ func (m model) View() tea.View {
 	var body string
 	if m.helpOverlay {
 		body = renderTUIHelp(width, m.helpTitle(), m.helpHints())
+	} else if m.loading && m.updateStopConfirm {
+		canvasW, canvasH = fitContentWidth(width), 0
+		body = m.renderUpdateStopConfirmationFor(mode)
 	} else if m.terminalView && m.loading && isScriptAction(m.action) {
 		body = renderTUITerminalOutput(
 			width,
@@ -797,26 +899,36 @@ func (m model) View() tea.View {
 			m.scriptLogLines,
 			m.logScroll,
 			m.logCopyStatus,
-			m.terminalHints(),
+			m.logEmptyStatus(),
+			tuiTerminalPersistentHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderSideBody(width, height)
 	} else {
+		logInModelSlot := m.fullscreenLogUsesModelSlot(width, height)
 		reserveRows := fullCanvasReserveRows
-		if m.loading && m.logOverlay {
+		if m.loading && m.logOverlay && !logInModelSlot {
 			reserveRows = logCanvasReserveRows
 		}
-		var showIcon bool
-		canvasW, canvasH, showIcon = fitCenterStageCanvas(width, height, reserveRows)
-		if !showIcon {
+		stageWidth, stageHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
+		showStage := showIcon || logInModelSlot
+		if showStage {
+			canvasW, canvasH = stageWidth, stageHeight
+		} else {
 			canvasW, canvasH = min(maxCanvasW, max(1, width-4)), 0
 		}
 
 		icon := ""
-		if showIcon {
+		if logInModelSlot {
+			icon = placeTUILogInCanvas(
+				m.renderRootLogOverlayFor(mode),
+				stageWidth,
+				stageHeight,
+			)
+		} else if showIcon {
 			icon = m.renderActiveIcon()
 		}
-		if m.loading && m.logOverlay {
+		if m.loading && m.logOverlay && !logInModelSlot {
 			canvasW = fitLogContentWidth(width)
 		} else {
 			canvasW = fitContentWidth(width)
@@ -848,12 +960,12 @@ func (m model) renderSideBody(width, height int) string {
 	if m.loading {
 		page = rootActionName(m.action)
 		if m.logOverlay {
-			logLeftWidth, logRightWidth := sideLogColumnWidths(width)
-			canvasW, canvasH = logLeftWidth, 0
-			left := m.renderRootProgressFor(layoutTablet)
-			canvasW = logRightWidth
+			leftWidth, rightWidth := sideColumnWidths(width)
+			canvasW, canvasH = leftWidth, 0
+			left := m.renderRootActionStateFor(layoutTablet)
+			canvasW = rightWidth
 			right := m.renderRootLogOverlayFor(layoutTablet)
-			return renderSideLogColumns(width, left, right)
+			return renderSideColumns(width, left, right)
 		}
 	}
 
@@ -861,6 +973,7 @@ func (m model) renderSideBody(width, height int) string {
 	middleMode := layoutMobile
 	if m.loading && isScriptAction(m.action) &&
 		!m.startConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
+		!m.selectionActive && !m.formActive && !m.rebootPrompt &&
 		leftWidth >= progressBarWidth {
 		middleMode = layoutTablet
 	}
@@ -937,12 +1050,67 @@ func (m model) helpHints() []tuiHint {
 	if m.terminalView {
 		return m.terminalHelpHints()
 	}
-	if m.updateStopConfirm {
-		keepAction := strings.ToLower(rootKeepRunningAction(m.action))
+	if m.rebootPrompt {
+		hints := []tuiHint{
+			{Key: "arrows / hjkl / tab", Action: "choose reboot now or later"},
+			{Key: "enter", Action: "continue with the selected option"},
+			{Key: "esc / ctrl+c / ctrl+z", Action: "reboot later"},
+		}
+		if len(m.scriptLogLines) > 0 {
+			hints = append(hints,
+				tuiHint{Key: "v", Action: "toggle the qvOS log panel"},
+				tuiHint{Key: "ctrl+v", Action: "open original terminal output"},
+			)
+		}
+		return hints
+	}
+	if m.selectionActive {
+		if m.actionSelectionHasNoChoices() {
+			return []tuiHint{
+				{Key: "enter / esc", Action: "return"},
+			}
+		}
+		if currentActionSpec.IsActionSelection() {
+			return []tuiHint{
+				{Key: "↑ / ↓", Action: "choose an action"},
+				{Key: "enter", Action: "start the selected action"},
+				{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before starting"},
+			}
+		}
+		hints := []tuiHint{
+			{Key: "type", Action: "search the available choices"},
+			{Key: "↑ / ↓", Action: "move between matches"},
+		}
+		if currentActionSpec.AllowsMultipleSelections() {
+			hints = append(hints, tuiHint{Key: "tab", Action: "select or clear an item"})
+			hints = append(hints,
+				tuiHint{Key: "enter", Action: "use the current row or every selected item"},
+			)
+		} else {
+			hints = append(hints,
+				tuiHint{Key: "enter", Action: "continue with the selection"},
+			)
+		}
+		hints = append(hints,
+			tuiHint{Key: "backspace / ctrl+u", Action: "edit or clear search"},
+			tuiHint{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before starting"},
+		)
+		return hints
+	}
+	if m.formActive {
 		return []tuiHint{
+			{Key: "↑ / ↓ or tab", Action: "move between fields"},
+			{Key: "← / →", Action: "change a selected value"},
+			{Key: "type / backspace", Action: "edit the current value"},
+			{Key: "enter", Action: "continue"},
+			{Key: "esc / ctrl+c / ctrl+z", Action: "cancel before starting"},
+		}
+	}
+	if m.updateStopConfirm {
+		return []tuiHint{
+			{Key: "ctrl+c / ctrl+z", Action: "stop now"},
 			{Key: "arrows / hjkl / tab", Action: "choose an option"},
 			{Key: "enter", Action: "confirm the selected option"},
-			{Key: "esc", Action: keepAction},
 		}
 	}
 	if m.startConfirm {
@@ -981,13 +1149,22 @@ func (m model) helpHints() []tuiHint {
 			{Key: "enter / esc", Action: "return"},
 		}, hints...)
 	case loadOK:
-		hints = append([]tuiHint{{Key: "enter / esc", Action: "return"}}, hints...)
-	default:
-		action := "cancel the action"
-		if isRootAction(m.action) {
-			action = "open safe stop options"
+		if m.action == actionGeneric && currentActionSpec.HasPostAction() {
+			hints = append([]tuiHint{
+				{Key: "enter", Action: currentActionSpec.PostActionLabel},
+				{Key: "esc", Action: "return"},
+			}, hints...)
+		} else {
+			hints = append([]tuiHint{{Key: "enter / esc", Action: "return"}}, hints...)
 		}
-		hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: action}}, hints...)
+	default:
+		if canCancelRunningAction(m.action) {
+			action := "cancel the action"
+			if isRootAction(m.action) {
+				action = "open safe stop options"
+			}
+			hints = append([]tuiHint{{Key: "ctrl+c / ctrl+z", Action: action}}, hints...)
+		}
 	}
 	return hints
 }
@@ -1021,10 +1198,39 @@ func (m model) hubPersistentHints() []tuiHint {
 }
 
 func (m model) rootPersistentHints() []tuiHint {
-	if m.updateStopConfirm {
+	if m.rebootPrompt {
 		return []tuiHint{
 			{Key: "←→", Action: "choose"},
 			tuiHelpHint(),
+		}
+	}
+	if m.selectionActive {
+		if m.actionSelectionHasNoChoices() {
+			return []tuiHint{
+				{Key: "enter / esc", Action: "return"},
+				tuiHelpHint(),
+			}
+		}
+		if currentActionSpec.AllowsMultipleSelections() {
+			return []tuiHint{
+				{Key: "tab", Action: "toggle"},
+				tuiHelpHint(),
+			}
+		}
+		return []tuiHint{
+			{Key: "enter", Action: "select"},
+			tuiHelpHint(),
+		}
+	}
+	if m.formActive {
+		return []tuiHint{
+			{Key: "enter", Action: "next"},
+			tuiHelpHint(),
+		}
+	}
+	if m.updateStopConfirm {
+		return []tuiHint{
+			{Key: "ctrl+c/z", Action: "again stop"},
 		}
 	}
 	if m.startConfirm {
@@ -1066,19 +1272,28 @@ func (m model) rootPersistentHints() []tuiHint {
 			tuiHelpHint(),
 		}
 	case loadOK:
+		if m.action == actionGeneric && currentActionSpec.HasPostAction() {
+			return []tuiHint{
+				{Key: "enter", Action: currentActionSpec.PostActionLabel},
+				tuiHelpHint(),
+			}
+		}
 		return []tuiHint{
 			{Key: "enter", Action: "return"},
 			tuiHelpHint(),
 		}
 	default:
-		action := "cancel"
-		if isRootAction(m.action) {
-			action = "stop options"
+		if canCancelRunningAction(m.action) {
+			action := "cancel"
+			if isRootAction(m.action) {
+				action = "stop options"
+			}
+			return []tuiHint{
+				{Key: "ctrl+c/z", Action: action},
+				tuiHelpHint(),
+			}
 		}
-		return []tuiHint{
-			{Key: "ctrl+c/z", Action: action},
-			tuiHelpHint(),
-		}
+		return []tuiHint{tuiHelpHint()}
 	}
 }
 
@@ -1088,7 +1303,7 @@ func (m model) terminalHelpHints() []tuiHint {
 		{Key: "v", Action: "return with the log panel open"},
 	}
 	hints = append(hints, tuiTerminalLogHints()...)
-	if m.loadPhase() == loadRun {
+	if m.loadPhase() == loadRun && canCancelRunningAction(m.action) {
 		action := "cancel the action"
 		if isRootAction(m.action) {
 			action = "open safe stop options"
@@ -1096,13 +1311,6 @@ func (m model) terminalHelpHints() []tuiHint {
 		hints = append(hints, tuiHint{Key: "ctrl+c / ctrl+z", Action: action})
 	}
 	return hints
-}
-
-func (m model) terminalHints() []tuiHint {
-	return []tuiHint{
-		{Key: "ctrl+v", Action: "switch"},
-		tuiHelpHint(),
-	}
 }
 
 func (m model) renderMiddle(mode layoutMode) string {
@@ -1442,16 +1650,45 @@ type scriptEventMsg struct {
 }
 
 type scriptEvent struct {
-	action   actionMode
-	script   string
-	line     string
-	status   string
-	progress float64
-	done     bool
-	err      error
+	action         actionMode
+	script         string
+	line           string
+	output         bool
+	redraw         bool
+	commit         bool
+	terminalUpdate bool
+	terminalMove   int
+	terminalClear  bool
+	status         string
+	progress       float64
+	done           bool
+	err            error
+	cancelProbe    cancelProbe
+	cancelCleanup  cancelCleanup
+	rollback       func() (cancelCleanup, cancelProbe)
+	finish         func()
+}
+
+type completedRollbackDoneMsg struct {
+	cleanup cancelCleanup
+	probe   cancelProbe
 }
 
 var errScriptCanceled = errors.New("canceled")
+
+type cancelProbe uint8
+
+const (
+	cancelProbeUnknown cancelProbe = iota
+	cancelProbeTargetNotDetected
+	cancelProbeTargetReached
+)
+
+const (
+	ownedProcessStopGrace = 5 * time.Second
+	cancelProbeTimeout    = 3 * time.Second
+	cancelRollbackTimeout = 20 * time.Second
+)
 
 type sudoAuthDoneMsg struct {
 	action actionMode
@@ -1471,9 +1708,7 @@ func startImmediateActionCmd() tea.Cmd {
 	return func() tea.Msg { return startImmediateActionMsg{} }
 }
 
-func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cmd) {
-	requirements := requirementsForAction(action)
-
+func (m *model) resetRootActionState(action actionMode, script string) {
 	clearRunes(m.sudoPassword)
 	m.loading = true
 	m.action = action
@@ -1481,7 +1716,7 @@ func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cm
 	m.scriptRunning = false
 	m.scriptDone = false
 	m.scriptErr = nil
-	m.scriptPath = ""
+	m.scriptPath = script
 	m.sudoChecking = false
 	m.sudoPrompt = false
 	m.sudoPassword = nil
@@ -1492,23 +1727,38 @@ func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cm
 	m.scriptProgress = 0
 	m.scriptTarget = 0
 	m.scriptLogLines = nil
+	m.scriptLogCursor = 0
 	m.scriptArtifact = ""
 	m.scriptRelease = ""
 	m.scriptCanceling = false
 	m.scriptCanceled = false
+	m.scriptCancelProbe = cancelProbeUnknown
+	m.scriptCleanup = cancelCleanupNone
 	m.logOverlay = false
 	m.terminalView = false
 	m.logScroll = 0
 	m.logCopyStatus = ""
 	m.helpOverlay = false
-	m.startConfirm = requirements.Confirmation
+	m.startConfirm = false
 	m.startChoice = 0
 	m.updateStopConfirm = false
 	m.updateStopChoice = 0
+	m.pendingStopEvent = nil
 	m.updatePreflight = false
-	m.dedicatedAction = dedicated
 	m.startCanceled = false
-	m.startImmediately = !requirements.Confirmation
+	m.startImmediately = false
+	m.resetActionSelection()
+	m.resetActionForm()
+	m.resetFollowupAction()
+}
+
+func (m model) beginRootAction(action actionMode, dedicated bool) (model, tea.Cmd) {
+	requirements := requirementsForAction(action)
+	m.resetRootActionState(action, "")
+	m.startConfirmed = false
+	m.startConfirm = requirements.Confirmation && !requirements.Selection && !requirements.Form
+	m.dedicatedAction = dedicated
+	m.startImmediately = !m.startConfirm
 	if m.startImmediately {
 		return m, startImmediateActionCmd()
 	}
@@ -1533,8 +1783,12 @@ func (m model) handleStartConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 			return m.cancelRootAction()
 		}
 		m.startConfirm = false
+		m.startConfirmed = true
 		if m.action == actionBuild {
 			return m.startBuildAction()
+		}
+		if m.scriptPath != "" {
+			return m.startRootScriptRun(m.action, m.scriptPath)
 		}
 		return m.startRootAction(m.action)
 	}
@@ -1547,21 +1801,81 @@ func (m model) handleUpdateStopConfirmationKey(msg tea.KeyPressMsg) (tea.Model, 
 		m.updateStopChoice = 0
 	case "right", "l", "down", "j", "tab":
 		m.updateStopChoice = 1
-	case "esc":
-		m.updateStopConfirm = false
+	case "ctrl+c", "ctrl+z":
+		m.updateStopChoice = 1
+		return m.confirmScriptStop()
 	case "enter":
-		m.updateStopConfirm = false
 		if m.updateStopChoice == 0 {
+			m.updateStopConfirm = false
+			if m.pendingStopEvent != nil {
+				event := *m.pendingStopEvent
+				m.pendingStopEvent = nil
+				m.applyScriptDoneEvent(event, false)
+			}
 			return m, nil
 		}
-		if m.scriptRunning && m.scriptCancel != nil && !m.scriptCanceling {
-			m.scriptCanceling = true
-			m.scriptStatus = rootActionCancelingStatus(m.action)
-			m.scriptTarget = max(m.scriptTarget, 0.98)
-			m.scriptCancel()
-		}
+		return m.confirmScriptStop()
 	}
 	return m, nil
+}
+
+func (m model) confirmScriptStop() (tea.Model, tea.Cmd) {
+	m.updateStopConfirm = false
+	if m.pendingStopEvent != nil && m.pendingStopEvent.rollback != nil {
+		event := *m.pendingStopEvent
+		m.pendingStopEvent = nil
+		m.scriptCanceling = true
+		m.scriptStatus = rootActionCancelingStatus(m.action)
+		m.scriptTarget = m.scriptProgress
+		return m, func() tea.Msg {
+			cleanup, probe := event.rollback()
+			if event.finish != nil {
+				event.finish()
+			}
+			return completedRollbackDoneMsg{cleanup: cleanup, probe: probe}
+		}
+	}
+	m.beginScriptCancellation()
+	return m, nil
+}
+
+func (m *model) applyScriptDoneEvent(event scriptEvent, canceled bool) {
+	if event.finish != nil {
+		event.finish()
+	}
+	m.scriptRunning = false
+	m.scriptDone = true
+	m.scriptCanceled = canceled
+	m.scriptCancelProbe = event.cancelProbe
+	m.scriptCleanup = event.cancelCleanup
+	m.scriptErr = event.err
+	if canceled {
+		m.scriptErr = nil
+		m.scriptStatus = rootActionCanceledStatus(m.action)
+	}
+	m.scriptCancel = nil
+	m.scriptEvents = nil
+	m.scriptCanceling = false
+	m.updateStopConfirm = false
+	m.pendingStopEvent = nil
+	if event.err == nil && !canceled && len(m.rebootReasons) > 0 {
+		m.rebootPrompt = true
+		m.rebootChoice = 1
+	}
+	if event.err == nil && !canceled {
+		m.scriptProgress = 1
+		m.scriptTarget = 1
+	}
+}
+
+func (m *model) beginScriptCancellation() {
+	if !m.scriptRunning || m.scriptCancel == nil || m.scriptCanceling {
+		return
+	}
+	m.scriptCanceling = true
+	m.scriptStatus = rootActionCancelingStatus(m.action)
+	m.scriptTarget = m.scriptProgress
+	m.scriptCancel()
 }
 
 func (m model) cancelRootAction() (model, tea.Cmd) {
@@ -1575,7 +1889,11 @@ func (m model) cancelRootAction() (model, tea.Cmd) {
 	m.terminalView = false
 	m.helpOverlay = false
 	m.startCanceled = true
+	m.startConfirmed = false
 	m.startImmediately = false
+	m.resetActionSelection()
+	m.resetActionForm()
+	m.resetFollowupAction()
 	if m.dedicatedAction {
 		return m, tea.Quit
 	}
@@ -1586,6 +1904,10 @@ func (m model) cancelRootAction() (model, tea.Cmd) {
 func (m model) leaveRootAction() (model, tea.Cmd) {
 	m.terminalView = false
 	m.helpOverlay = false
+	m.startConfirmed = false
+	m.resetActionSelection()
+	m.resetActionForm()
+	m.resetFollowupAction()
 	if m.dedicatedAction {
 		return m, tea.Quit
 	}
@@ -1596,38 +1918,8 @@ func (m model) leaveRootAction() (model, tea.Cmd) {
 func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	script, err := findRootScript(action)
 	requirements := requirementsForAction(action)
-	m.loading = true
-	m.action = action
-	m.loadStart = m.frame
-	m.scriptRunning = false
-	m.scriptDone = false
-	m.scriptErr = nil
-	m.scriptPath = script
-	m.sudoChecking = false
-	m.sudoPrompt = false
-	m.sudoPassword = nil
-	m.sudoErr = nil
-	m.scriptCancel = nil
-	m.scriptEvents = nil
-	m.scriptStatus = ""
-	m.scriptProgress = 0
-	m.scriptTarget = 0
-	m.scriptLogLines = nil
-	m.scriptArtifact = ""
-	m.scriptRelease = ""
-	m.scriptCanceling = false
-	m.scriptCanceled = false
-	m.logOverlay = false
-	m.terminalView = false
-	m.logScroll = 0
-	m.logCopyStatus = ""
-	m.helpOverlay = false
-	m.startConfirm = false
-	m.updateStopConfirm = false
-	m.updateStopChoice = 0
+	m.resetRootActionState(action, script)
 	m.updatePreflight = requirements.Preflight
-	m.startCanceled = false
-	m.startImmediately = false
 
 	if err != nil {
 		m.sudoChecking = false
@@ -1640,44 +1932,35 @@ func (m model) startRootAction(action actionMode) (model, tea.Cmd) {
 	if requirements.Preflight {
 		return m, checkRootPreflightCmd(action, script)
 	}
-	if !requirements.Authorization {
-		return m.startRootScriptRun(action, script)
+	return m.continueRootActionFlow()
+}
+
+func (m model) continueRootActionFlow() (model, tea.Cmd) {
+	requirements := requirementsForAction(m.action)
+	if requirements.Selection && len(m.actionSelections) == 0 {
+		m.selectionLoading = true
+		return m, loadActionOptionsCmd(m.action, m.scriptPath)
 	}
-	m.sudoPrompt = true
-	return m, nil
+	if requirements.Form && !m.formComplete {
+		m.formLoading = true
+		return m, loadActionFormCmd(m.action, m.scriptPath)
+	}
+	if requirements.Authorization {
+		m.sudoPrompt = true
+		m.scriptStatus = ""
+		return m, nil
+	}
+	if requirements.Confirmation && !m.startConfirmed {
+		m.startConfirm = true
+		m.startChoice = 0
+		return m, nil
+	}
+	return m.startRootScriptRun(m.action, m.scriptPath)
 }
 
 func (m model) startBuildAction() (model, tea.Cmd) {
 	script, err := findBuildScript()
-	m.loading = true
-	m.action = actionBuild
-	m.loadStart = m.frame
-	m.scriptRunning = false
-	m.scriptDone = false
-	m.scriptErr = nil
-	m.scriptPath = script
-	m.sudoChecking = false
-	m.sudoPrompt = false
-	m.sudoPassword = nil
-	m.sudoErr = nil
-	m.scriptCancel = nil
-	m.scriptEvents = nil
-	m.scriptStatus = ""
-	m.scriptProgress = 0
-	m.scriptTarget = 0
-	m.scriptLogLines = nil
-	m.scriptArtifact = ""
-	m.scriptRelease = ""
-	m.scriptCanceling = false
-	m.scriptCanceled = false
-	m.logOverlay = false
-	m.terminalView = false
-	m.logScroll = 0
-	m.logCopyStatus = ""
-	m.helpOverlay = false
-	m.startConfirm = false
-	m.startCanceled = false
-	m.startImmediately = false
+	m.resetRootActionState(actionBuild, script)
 
 	if err != nil {
 		m.scriptDone = true
@@ -1686,40 +1969,24 @@ func (m model) startBuildAction() (model, tea.Cmd) {
 	}
 
 	m.scriptRunning = true
-	return m, runRootScriptCmd(actionBuild, script)
+	return m, runRootScriptCmd(actionBuild, script, nil, "")
 }
 
 func (m model) startRootScriptRun(action actionMode, script string) (model, tea.Cmd) {
-	m.loading = true
-	m.action = action
-	m.loadStart = m.frame
+	selections := append([]string(nil), m.actionSelections...)
+	formValues := m.actionFormValues()
+	rollbackProtocol := ""
+	postActionFlow := action == actionGeneric && filepath.Base(script) == "post-run"
+	if action == actionGeneric {
+		rollbackProtocol = currentActionSpec.RollbackProtocol
+	}
+	m.resetRootActionState(action, script)
+	if postActionFlow {
+		m.postActionFlow = true
+		m.logOverlay = true
+	}
 	m.scriptRunning = true
-	m.scriptDone = false
-	m.scriptErr = nil
-	m.scriptPath = script
-	m.sudoChecking = false
-	m.sudoPrompt = false
-	m.sudoPassword = nil
-	m.sudoErr = nil
-	m.scriptCancel = nil
-	m.scriptEvents = nil
-	m.scriptStatus = ""
-	m.scriptProgress = 0
-	m.scriptTarget = 0
-	m.scriptLogLines = nil
-	m.scriptArtifact = ""
-	m.scriptRelease = ""
-	m.scriptCanceling = false
-	m.scriptCanceled = false
-	m.logOverlay = false
-	m.terminalView = false
-	m.logScroll = 0
-	m.logCopyStatus = ""
-	m.helpOverlay = false
-	m.startConfirm = false
-	m.updateStopConfirm = false
-	m.updateStopChoice = 0
-	return m, runRootScriptCmd(action, script)
+	return m, runRootScriptCmd(action, script, selections, rollbackProtocol, formValues)
 }
 
 func (m model) handleSudoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -1797,10 +2064,10 @@ func authorizeSudoCmd(action actionMode, script string, password []rune) tea.Cmd
 	}
 }
 
-func runRootScriptCmd(action actionMode, script string) tea.Cmd {
+func runRootScriptCmd(action actionMode, script string, selections []string, rollbackProtocol string, forms ...map[string]string) tea.Cmd {
 	ctx, cancel := context.WithCancel(context.Background())
 	events := make(chan scriptEvent, 1024)
-	go runRootScriptStream(ctx, action, script, events)
+	go runRootScriptStream(ctx, action, script, selections, rollbackProtocol, events, forms...)
 
 	return func() tea.Msg {
 		return scriptStartedMsg{action: action, script: script, cancel: cancel, events: events}
@@ -1846,7 +2113,15 @@ func authorizeSudo(secret []byte) error {
 	return cmd.Wait()
 }
 
-func runRootScriptStream(ctx context.Context, action actionMode, script string, events chan<- scriptEvent) {
+func runRootScriptStream(
+	ctx context.Context,
+	action actionMode,
+	script string,
+	selections []string,
+	rollbackProtocol string,
+	events chan<- scriptEvent,
+	forms ...map[string]string,
+) {
 	defer close(events)
 
 	runnableScript, cleanupRunnableScript, err := snapshotRunnableScript(script)
@@ -1854,10 +2129,55 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		events <- scriptEvent{action: action, script: script, status: "could not snapshot script", progress: 0, done: true, err: err}
 		return
 	}
-	defer cleanupRunnableScript()
+	var cleanupRunnableScriptOnce sync.Once
+	cleanupCapturedScript := func() {
+		cleanupRunnableScriptOnce.Do(cleanupRunnableScript)
+	}
+	retainCapturedScript := false
+	defer func() {
+		if !retainCapturedScript {
+			cleanupCapturedScript()
+		}
+	}()
 
 	cmd := exec.CommandContext(ctx, "/bin/bash", runnableScript)
 	cmd.Env = os.Environ()
+	if len(forms) > 0 && len(forms[0]) > 0 {
+		formData, marshalErr := json.Marshal(forms[0])
+		if marshalErr != nil {
+			events <- scriptEvent{action: action, script: script, status: "could not prepare action form", progress: 0, done: true, err: marshalErr}
+			return
+		}
+		formPath := filepath.Join(filepath.Dir(runnableScript), ".qvos-form.json")
+		formFile, openErr := os.OpenFile(formPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if openErr != nil {
+			events <- scriptEvent{action: action, script: script, status: "could not prepare action form", progress: 0, done: true, err: openErr}
+			return
+		}
+		_, writeErr := formFile.Write(formData)
+		closeErr := formFile.Close()
+		for index := range formData {
+			formData[index] = 0
+		}
+		if writeErr != nil || closeErr != nil {
+			if writeErr == nil {
+				writeErr = closeErr
+			}
+			events <- scriptEvent{action: action, script: script, status: "could not prepare action form", progress: 0, done: true, err: writeErr}
+			return
+		}
+		cmd.Env = overrideProcessEnvironment(cmd.Env, "QVOS_ACTION_FORM_VALUES", formPath)
+	}
+	if err := addCapturedCommandGuards(cmd, filepath.Dir(runnableScript)); err != nil {
+		events <- scriptEvent{action: action, script: script, status: "could not guard captured prompts", progress: 0, done: true, err: err}
+		return
+	}
+	if action == actionGeneric && len(selections) > 0 {
+		cmd.Env = append(cmd.Env, "QVOS_ACTION_SELECTIONS="+strings.Join(selections, "\n"))
+	}
+	if action == actionGeneric {
+		cmd.Env = overrideProcessEnvironment(cmd.Env, "QVOS_ACTION_ROLLBACK", rollbackProtocol)
+	}
 	if strings.TrimSpace(os.Getenv("QVOS_TUI_BINARY")) == "" {
 		if exe, err := currentExecutablePath(); err == nil {
 			cmd.Env = append(cmd.Env, "QVOS_TUI_BINARY="+exe)
@@ -1875,22 +2195,32 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		}
 	}
 	cmd.Dir = filepath.Dir(script)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid:   true,
-		Pdeathsig: syscall.SIGTERM,
+	pacmanLockExisted := pathExistsOrUnknown(pacmanDBLockPath)
+	operation := strings.TrimSpace(os.Getenv("QVOS_ACTION_OPERATION"))
+	rollbackInstall := usesInstallRollback(action, operation)
+	ownerRollback := usesActionOwnerRollback(action, operation, rollbackProtocol)
+	rollbackAction := rollbackInstall || ownerRollback
+	pacmanPartialsBefore := pacmanPartialSnapshot{}
+	pacmanCacheBefore := pacmanCacheSnapshot{}
+	pacmanPackagesBefore := pacmanPackageSnapshot{}
+	aurCacheBefore := aurCacheSnapshot{}
+	miseBefore := miseStateSnapshot{}
+	if rollbackInstall {
+		pacmanCacheBefore = snapshotPacmanCache()
+		pacmanPackagesBefore = snapshotPacmanPackages()
+		aurCacheBefore = snapshotAURCache()
+		miseBefore = snapshotMiseState()
+	} else {
+		pacmanPartialsBefore = snapshotPacmanPartials()
 	}
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return os.ErrProcessDone
-		}
-		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
-		if err == syscall.ESRCH {
-			return os.ErrProcessDone
-		}
-		return err
+	if ownerRollback {
+		cmd.Env = overrideProcessEnvironment(
+			cmd.Env,
+			"QVOS_ACTION_ROLLBACK_STATE",
+			filepath.Join(filepath.Dir(runnableScript), ".qvos-rollback"),
+		)
 	}
-	cmd.WaitDelay = 30 * time.Second
-
+	managerObservation := newManagerObservation()
 	var logFile *os.File
 	var lockFile *os.File
 	if action == actionBuild {
@@ -1902,91 +2232,405 @@ func runRootScriptStream(ctx context.Context, action actionMode, script string, 
 		}
 		defer logFile.Close()
 		defer closeBuildLock(lockFile)
-	} else {
-		done := make(chan struct{})
-		defer close(done)
-		go keepSudoAlive(done)
 	}
 
-	stdout, stdoutWriter, err := os.Pipe()
+	terminal, err := openCapturedTerminal()
 	if err != nil {
-		events <- scriptEvent{action: action, script: script, status: "could not capture stdout", progress: 0, done: true, err: err}
+		events <- scriptEvent{action: action, script: script, status: "could not open terminal output", progress: 0, done: true, err: err}
 		return
 	}
-	stderr, stderrWriter, err := os.Pipe()
-	if err != nil {
-		_ = stdout.Close()
-		_ = stdoutWriter.Close()
-		events <- scriptEvent{action: action, script: script, status: "could not capture stderr", progress: 0, done: true, err: err}
-		return
+	defer terminal.close()
+	terminal.attach(cmd)
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return os.ErrProcessDone
+		}
+		managerObservation.observe(cmd.Process.Pid)
+		return terminal.interrupt(cmd.Process.Pid)
 	}
-	cmd.Stdout = stdoutWriter
-	cmd.Stderr = stderrWriter
+	cmd.WaitDelay = ownedProcessStopGrace
 
 	if err := cmd.Start(); err != nil {
-		_ = stdout.Close()
-		_ = stdoutWriter.Close()
-		_ = stderr.Close()
-		_ = stderrWriter.Close()
 		events <- scriptEvent{action: action, script: script, status: "could not start script", progress: 0, done: true, err: err}
 		return
 	}
+	terminal.closeSlave()
+	sudoKeepAliveDone := make(chan struct{})
+	if action != actionBuild {
+		go keepSudoAlive(sudoKeepAliveDone)
+	}
 
-	outputDone := make(chan error, 2)
-	scan := func(r *os.File) {
-		defer r.Close()
-		scanner := bufio.NewScanner(r)
-		buf := make([]byte, 0, 64*1024)
-		scanner.Buffer(buf, 1024*1024)
-		var outputErr error
-		for scanner.Scan() {
-			line := scanner.Text()
-			if logFile != nil {
-				if _, err := fmt.Fprintln(logFile, line); err != nil && outputErr == nil {
-					outputErr = fmt.Errorf("could not write command output: %w", err)
-				}
+	outputReader := io.Reader(terminal.master)
+	if logFile != nil {
+		outputReader = io.TeeReader(outputReader, logFile)
+	}
+	outputDone := make(chan error, 1)
+	go func() {
+		outputErr := readTerminalFrames(outputReader, func(frame terminalFrame) error {
+			status, progress := "", -1.0
+			if frame.update {
+				status, progress = scriptProgressFromLine(action, frame.line)
 			}
-			status, progress := scriptProgressFromLine(action, line)
-			events <- scriptEvent{action: action, script: script, line: line, status: status, progress: progress}
-		}
-		if err := scanner.Err(); err != nil && outputErr == nil {
-			outputErr = fmt.Errorf("could not read command output: %w", err)
+			events <- scriptEvent{
+				action:         action,
+				script:         script,
+				line:           frame.line,
+				output:         true,
+				redraw:         frame.redraw,
+				commit:         frame.commit,
+				terminalUpdate: frame.update,
+				terminalMove:   frame.move,
+				terminalClear:  frame.clear,
+				status:         status,
+				progress:       progress,
+			}
+			return nil
+		})
+		if outputErr != nil {
+			outputErr = fmt.Errorf("could not read command output: %w", outputErr)
 		}
 		outputDone <- outputErr
-	}
-	go scan(stdout)
-	go scan(stderr)
+	}()
 
+	processID := cmd.Process.Pid
+	managerObservationDone := make(chan struct{})
+	managerObservationStopped := make(chan struct{})
+	go func() {
+		defer close(managerObservationStopped)
+		observeOwnedManagers(processID, managerObservationDone, managerObservation)
+	}()
 	err = cmd.Wait()
-	_ = stdoutWriter.Close()
-	_ = stderrWriter.Close()
+	if ctx.Err() != nil {
+		_ = killOwnedProcessGroup(processID)
+	}
 	var outputFailure error
-	for range 2 {
-		if outputErr := <-outputDone; outputFailure == nil && outputErr != nil {
-			outputFailure = outputErr
-		}
+	select {
+	case outputFailure = <-outputDone:
+	case <-time.After(capturedTerminalDrainGrace):
+		terminal.closeMaster()
+		outputFailure = <-outputDone
 	}
 	if outputFailure != nil {
 		err = outputFailure
 	}
+	var stopObservationOnce sync.Once
+	stopObservation := func() {
+		stopObservationOnce.Do(func() {
+			close(managerObservationDone)
+			<-managerObservationStopped
+		})
+	}
+	var finishRunOnce sync.Once
+	finishRun := func() {
+		finishRunOnce.Do(func() {
+			stopObservation()
+			close(sudoKeepAliveDone)
+			cleanupCapturedScript()
+		})
+	}
 
+	var rollbackOnce sync.Once
+	rollbackCleanup := cancelCleanupNone
+	rollbackProbe := cancelProbeUnknown
+	rollbackState := func() (cancelCleanup, cancelProbe) {
+		rollbackOnce.Do(func() {
+			stopObservation()
+			defer finishRun()
+			pacmanEvidence := managerObservation.pacmanEvidence()
+			ownerCleanup := cancelCleanupNone
+			if ownerRollback {
+				ownerCleanup = cleanupCanceledActionOwner(runnableScript, cmd.Env, cmd.Dir)
+				rollbackCleanup |= ownerCleanup
+			}
+			rollbackCleanup |= cleanupCanceledPacmanLock(
+				pacmanLockExisted,
+				pacmanEvidence,
+			)
+			if rollbackInstall {
+				packageEvidence := pacmanEvidence
+				if ownerCleanup.includes(cancelCleanupOwnerRetained) {
+					packageEvidence.reliable = false
+				}
+				rollbackCleanup |= cleanupCanceledPacmanPackages(
+					pacmanPackagesBefore,
+					packageEvidence,
+				)
+				rollbackCleanup |= cleanupCanceledPacmanCache(
+					pacmanCacheBefore,
+					pacmanEvidence,
+				)
+				rollbackCleanup |= cleanupCanceledAURCache(
+					aurCacheBefore,
+					managerObservation.aurEvidence(),
+				)
+				rollbackCleanup |= cleanupCanceledMise(
+					miseBefore,
+					managerObservation.miseEvidence(),
+				)
+			} else {
+				rollbackCleanup |= cleanupCanceledPacmanPartials(
+					pacmanPartialsBefore,
+					pacmanEvidence,
+				)
+			}
+			if action == actionGeneric {
+				rollbackProbe = probeCanceledAction(runnableScript, cmd.Env, cmd.Dir)
+			}
+		})
+		return rollbackCleanup, rollbackProbe
+	}
+
+	probe := cancelProbeUnknown
+	cleanup := cancelCleanupNone
+	var rollback func() (cancelCleanup, cancelProbe)
 	if ctx.Err() != nil {
 		err = errScriptCanceled
+		cleanup, probe = rollbackState()
+	} else if err != nil && rollbackAction {
+		cleanup, _ = rollbackState()
+	} else if err == nil && rollbackAction {
+		retainCapturedScript = true
+		rollback = rollbackState
+	} else {
+		finishRun()
 	}
 	status := rootActionCompleteStatus(action)
 	if err != nil {
 		status = shortError(err)
 	}
-	events <- scriptEvent{action: action, script: script, status: status, progress: 1, done: true, err: err}
+	events <- scriptEvent{
+		action:        action,
+		script:        script,
+		status:        status,
+		progress:      1,
+		done:          true,
+		err:           err,
+		cancelProbe:   probe,
+		cancelCleanup: cleanup,
+		rollback:      rollback,
+		finish:        finishRun,
+	}
+}
+
+func usesInstallRollback(action actionMode, operation string) bool {
+	return action == actionGeneric && operation == "install"
+}
+
+func usesOwnerRollback(protocol string) bool {
+	return strings.TrimSpace(protocol) == "owner-state-v1"
+}
+
+func usesActionOwnerRollback(action actionMode, operation, protocol string) bool {
+	return action == actionGeneric && operation == "install" &&
+		usesOwnerRollback(protocol)
+}
+
+func cleanupCanceledActionOwner(script string, env []string, dir string) cancelCleanup {
+	ctx, cancel := context.WithTimeout(context.Background(), cancelRollbackTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "/bin/bash", script, "--rollback")
+	cmd.Env = env
+	cmd.Dir = dir
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		return cancelCleanupOwnerRetained
+	}
+	return cancelCleanupOwnerRestored
+}
+
+type managerObservationState struct {
+	ownedPacman   atomic.Bool
+	ownedMise     atomic.Bool
+	ownedAUR      atomic.Bool
+	foreignPacman atomic.Bool
+	foreignMise   atomic.Bool
+	reliable      atomic.Bool
+}
+
+func newManagerObservation() *managerObservationState {
+	observation := &managerObservationState{}
+	observation.reliable.Store(true)
+	return observation
+}
+
+func (observation *managerObservationState) observe(processGroup int) {
+	scan := scanManagerProcesses(processGroup)
+	if scan.ownedPacman {
+		observation.ownedPacman.Store(true)
+	}
+	if scan.ownedMise {
+		observation.ownedMise.Store(true)
+	}
+	if scan.ownedAUR {
+		observation.ownedAUR.Store(true)
+	}
+	if scan.foreignPacman {
+		observation.foreignPacman.Store(true)
+	}
+	if scan.foreignMise {
+		observation.foreignMise.Store(true)
+	}
+	if !scan.reliable {
+		observation.reliable.Store(false)
+	}
+}
+
+func (observation *managerObservationState) pacmanEvidence() managerEvidence {
+	return managerEvidence{
+		owned:    observation.ownedPacman.Load(),
+		foreign:  observation.foreignPacman.Load(),
+		reliable: observation.reliable.Load(),
+	}
+}
+
+func (observation *managerObservationState) aurEvidence() managerEvidence {
+	return managerEvidence{
+		owned:    observation.ownedAUR.Load(),
+		foreign:  observation.foreignPacman.Load(),
+		reliable: observation.reliable.Load(),
+	}
+}
+
+func (observation *managerObservationState) miseEvidence() managerEvidence {
+	return managerEvidence{
+		owned:    observation.ownedMise.Load(),
+		foreign:  observation.foreignMise.Load(),
+		reliable: observation.reliable.Load(),
+	}
+}
+
+func observeOwnedManagers(
+	processGroup int,
+	done <-chan struct{},
+	observation *managerObservationState,
+) {
+	observation.observe(processGroup)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			observation.observe(processGroup)
+		}
+	}
+}
+
+func interruptOwnedProcessGroup(processID int) error {
+	if processID <= 0 {
+		return os.ErrProcessDone
+	}
+	if err := syscall.Kill(-processID, syscall.SIGINT); err != nil {
+		if err == syscall.ESRCH {
+			return os.ErrProcessDone
+		}
+		return err
+	}
+	if err := syscall.Kill(-processID, syscall.SIGCONT); err != nil && err != syscall.ESRCH {
+		return err
+	}
+	return nil
+}
+
+func killOwnedProcessGroup(processID int) error {
+	if processID <= 0 {
+		return os.ErrProcessDone
+	}
+	if err := syscall.Kill(-processID, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
+		return err
+	}
+	return nil
+}
+
+func probeCanceledAction(script string, env []string, dir string) cancelProbe {
+	ctx, cancel := context.WithTimeout(context.Background(), cancelProbeTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "/bin/bash", script, "--cancel-status")
+	cmd.Env = env
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		return cancelProbeUnknown
+	}
+	switch strings.TrimSpace(string(output)) {
+	case "target-not-detected":
+		return cancelProbeTargetNotDetected
+	case "target-reached":
+		return cancelProbeTargetReached
+	default:
+		return cancelProbeUnknown
+	}
+}
+
+const capturedGumGuard = `#!/bin/bash
+case ${1:-} in
+confirm | choose | filter | input | write | file)
+  echo "Interactive Gum prompts are unavailable inside a captured qvOS action." >&2
+  exit 2
+  ;;
+esac
+
+if [[ -z ${QVOS_TUI_REAL_GUM:-} ]]; then
+  echo "Gum is unavailable." >&2
+  exit 127
+fi
+
+exec "$QVOS_TUI_REAL_GUM" "$@"
+`
+
+const capturedSetsidGuard = `#!/bin/bash
+if [[ ${QVOS_ACTION_OPERATION:-} == "install" ]]; then
+  exit 0
+fi
+
+if [[ -z ${QVOS_TUI_REAL_SETSID:-} ]]; then
+  echo "setsid is unavailable." >&2
+  exit 127
+fi
+
+exec "$QVOS_TUI_REAL_SETSID" "$@"
+`
+
+func addCapturedCommandGuards(cmd *exec.Cmd, runtimeDir string) error {
+	realGum, _ := exec.LookPath("gum")
+	realSetsid, _ := exec.LookPath("setsid")
+	gumGuardPath := filepath.Join(runtimeDir, "gum")
+	if err := os.WriteFile(gumGuardPath, []byte(capturedGumGuard), 0o700); err != nil {
+		return fmt.Errorf("could not install Gum prompt guard: %w", err)
+	}
+	setsidGuardPath := filepath.Join(runtimeDir, "setsid")
+	if err := os.WriteFile(setsidGuardPath, []byte(capturedSetsidGuard), 0o700); err != nil {
+		return fmt.Errorf("could not install detached-launch guard: %w", err)
+	}
+
+	path := runtimeDir
+	if inheritedPath := os.Getenv("PATH"); inheritedPath != "" {
+		path += string(os.PathListSeparator) + inheritedPath
+	}
+	cmd.Env = overrideProcessEnvironment(cmd.Env, "PATH", path)
+	cmd.Env = overrideProcessEnvironment(cmd.Env, "QVOS_TUI_REAL_GUM", realGum)
+	cmd.Env = overrideProcessEnvironment(cmd.Env, "QVOS_TUI_REAL_SETSID", realSetsid)
+	return nil
+}
+
+func overrideProcessEnvironment(env []string, key, value string) []string {
+	prefix := key + "="
+	for i := range env {
+		if strings.HasPrefix(env[i], prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 func snapshotRunnableScript(script string) (string, func(), error) {
-	info, err := os.Stat(script)
-	if err != nil {
+	if err := validateRootScript(script); err != nil {
 		return "", func() {}, err
-	}
-	if !info.Mode().IsRegular() {
-		return "", func() {}, fmt.Errorf("%s is not a regular file", script)
 	}
 
 	data, err := os.ReadFile(script)
@@ -2193,20 +2837,6 @@ var installDomainOrder = []string{
 	"Runtime", "Defaults", "Icons", "Hyprland", "Theme", "Branding", "SDDM", "Fastfetch", "Screensaver", "GTK", "Waybar", "Tmux",
 }
 
-const maxScriptLogLines = 240
-
-func appendLimited(lines []string, line string, limit int) []string {
-	if line == "" {
-		return lines
-	}
-	lines = append(lines, line)
-	if len(lines) > limit {
-		copy(lines, lines[len(lines)-limit:])
-		lines = lines[:limit]
-	}
-	return lines
-}
-
 func sanitizeLogLine(line string) string {
 	line = strings.ReplaceAll(line, `\033[0m`, "")
 	line = strings.ReplaceAll(line, `\e[0m`, "")
@@ -2237,13 +2867,7 @@ func sanitizeLogLine(line string) string {
 		}
 	}
 
-	line = strings.TrimSpace(string(clean))
-	const maxLogLineRunes = 1024
-	runes := []rune(line)
-	if len(runes) > maxLogLineRunes {
-		line = string(runes[:maxLogLineRunes-1]) + "…"
-	}
-	return line
+	return string(clean)
 }
 
 func stripANSI(s string) string {
@@ -2360,6 +2984,27 @@ const (
 )
 
 func (m model) renderRootActionFor(mode layoutMode) string {
+	action := m.renderRootActionStateFor(mode)
+	if !m.logOverlay || m.fullscreenLogUsesModelSlot(m.width, m.height) {
+		return action
+	}
+	return strings.Join([]string{
+		action,
+		"",
+		centerCanvas(m.renderRootLogOverlayFor(mode)),
+	}, "\n")
+}
+
+func (m model) renderRootActionStateFor(mode layoutMode) string {
+	if m.rebootPrompt {
+		return m.renderRebootChoiceFor(mode)
+	}
+	if m.selectionActive {
+		return m.renderActionSelectionFor(mode)
+	}
+	if m.formActive {
+		return m.renderActionFormFor(mode)
+	}
 	if m.updateStopConfirm {
 		return m.renderUpdateStopConfirmationFor(mode)
 	}
@@ -2369,20 +3014,16 @@ func (m model) renderRootActionFor(mode layoutMode) string {
 	if m.sudoPrompt {
 		return m.renderSudoPromptFor(mode)
 	}
-	progress := m.renderRootProgressFor(mode)
-	if !m.logOverlay {
-		return progress
-	}
-	return strings.Join([]string{
-		progress,
-		"",
-		centerCanvas(m.renderRootLogOverlayFor(mode)),
-	}, "\n")
+	return m.renderRootProgressFor(mode)
 }
 
 func (m model) renderUpdateStopConfirmationFor(mode layoutMode) string {
 	title := centerCanvas(sWhite.Render(rootStopPromptTitle(m.action)))
-	notice := centerCanvas(sMid.Render(rootStopPromptNotice(m.action)))
+	noticeCopy := rootStopPromptNotice(m.action)
+	if m.pendingStopEvent != nil {
+		noticeCopy = rootActionName(m.action) + " finished; Stop removes this attempt"
+	}
+	notice := centerCanvas(sMid.Render(noticeCopy))
 	actions := centerCanvas(lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		renderConfirmationAction(rootKeepRunningAction(m.action), m.updateStopChoice == 0),
@@ -2446,25 +3087,33 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 	if m.isPreparing() {
 		return m.renderPreparingFor()
 	}
+	if m.scriptCanceled {
+		return m.renderRootCanceledFor(mode)
+	}
 	if isInformationAction(m.action) {
 		return m.renderInformationFor(mode)
 	}
 	phase := m.loadPhase()
 	progress := m.loadProgress()
-	if m.scriptCanceled {
-		return m.renderRootCanceledFor(mode)
-	}
 	if phase == loadOK && m.action == actionBuild && !m.scriptCanceled {
 		return m.renderBuildFinishedFor(mode)
 	}
+	if phase == loadErr {
+		return renderFailureScreen(failureScreen{
+			Subject: rootActionName(m.action),
+			Message: errorMessage(m.scriptErr),
+			Hints:   m.rootPersistentHints(),
+		})
+	}
 	var title, status string
+	nextStep := ""
 	switch phase {
 	case loadOK:
 		title = rootActionPastTense(m.action)
 		status = rootActionCompleteStatus(m.action)
-	case loadErr:
-		title = rootActionName(m.action) + " FAILED"
-		status = shortError(m.scriptErr)
+		if m.action == actionGeneric {
+			nextStep = currentActionSpec.NextStep
+		}
 	default:
 		title = rootActionActiveTitle(m.action)
 		if m.scriptCanceling {
@@ -2475,16 +3124,15 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 			status = rootActionRunningStatus(m.action)
 		}
 	}
-	if status == "" {
-		status = "script failed"
-	}
 	return renderProgressScreen(progressScreen{
-		Title:    title,
-		Status:   status,
-		Phase:    phase,
-		Progress: progress,
-		Bar:      requirementsForAction(m.action).ProgressBar,
-		Hints:    m.rootPersistentHints(),
+		Title:        title,
+		Status:       status,
+		Phase:        phase,
+		Progress:     progress,
+		Bar:          requirementsForAction(m.action).ProgressBar && !m.postActionFlow,
+		HideProgress: m.postActionFlow,
+		NextStep:     nextStep,
+		Hints:        m.rootPersistentHints(),
 	}, mode)
 }
 
@@ -2492,7 +3140,8 @@ func (m model) isPreparing() bool {
 	if m.loadPhase() != loadRun || m.sudoPrompt || m.scriptCanceling {
 		return false
 	}
-	if m.startImmediately || m.updatePreflight || m.sudoChecking {
+	if m.startImmediately || m.updatePreflight || m.sudoChecking ||
+		m.selectionLoading || m.rebooting {
 		return true
 	}
 	if !m.scriptRunning {
@@ -2522,15 +3171,15 @@ func (m model) renderInformationFor(mode layoutMode) string {
 	isError := m.scriptErr != nil
 	switch {
 	case isError:
-		lines = []string{shortError(m.scriptErr)}
-		empty = "action failed"
+		lines = []string{errorMessage(m.scriptErr)}
+		empty = "The action did not complete."
 	case m.scriptDone && len(lines) == 0:
 		empty = currentActionSpec.CompleteStatus()
 	case m.scriptStatus != "":
 		empty = m.scriptStatus
 	}
 
-	visibleRows := max(3, rootLogPanelHeight(mode, m.height))
+	visibleRows := max(3, actionLogPanelHeight(mode, m.height))
 	return renderInformationScreen(informationScreen{
 		Title:       currentActionSpec.Title,
 		Lines:       lines,
@@ -2554,10 +3203,10 @@ func (m model) informationLines() ([]string, int) {
 		}
 	}
 	contentWidth := max(1, width-2)
-	visibleRows := max(3, rootLogPanelHeight(mode, m.height))
+	visibleRows := max(3, actionLogPanelHeight(mode, m.height))
 	lines := m.scriptLogLines
 	if m.scriptErr != nil {
-		lines = []string{shortError(m.scriptErr)}
+		lines = []string{errorMessage(m.scriptErr)}
 	}
 	return formatInformationLines(
 		currentActionSpec.Title,
@@ -2568,25 +3217,98 @@ func (m model) informationLines() ([]string, int) {
 }
 
 func (m model) renderRootCanceledFor(mode layoutMode) string {
-	title := rootActionName(m.action) + " CANCELED"
-	if mode != layoutDesktop {
-		content := strings.Join([]string{
-			centerCanvas(sWhite.Render(title)),
-			centerCanvas(sGray.Render(rootActionCanceledStatus(m.action))),
-		}, "\n")
-		return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	title, status := m.rootCanceledCopy()
+	statusCopy := []string{status}
+	statusCopy = append(statusCopy, m.rootCanceledCleanupCopy()...)
+	statusLines := wrapDisplayLines(
+		[]string{strings.Join(statusCopy, ". ")},
+		min(48, max(1, canvasW)),
+	)
+	center := func(value string) string {
+		if mode != layoutDesktop {
+			return centerCanvas(value)
+		}
+		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, value)
 	}
 
-	ctr := func(s string) string {
-		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, s)
+	lines := []string{
+		center(sWhite.Render(title)),
+		"",
 	}
-	content := strings.Join([]string{
-		ctr(sWhite.Render(title)),
-		"",
-		ctr(sGray.Render(rootActionCanceledStatus(m.action))),
-		"",
-	}, "\n")
-	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
+	for _, line := range statusLines {
+		lines = append(lines, center(sGray.Render(line)))
+	}
+	lines = append(lines, "")
+	return appendTUIHints(strings.Join(lines, "\n"), canvasW, m.rootPersistentHints()...)
+}
+
+func (m model) rootCanceledCopy() (string, string) {
+	if m.action != actionGeneric {
+		return rootActionName(m.action) + " STOPPED", rootActionCanceledStatus(m.action)
+	}
+	if currentActionSpec.Information {
+		return "STOPPED", "The information command stopped"
+	}
+
+	switch m.scriptCancelProbe {
+	case cancelProbeTargetReached:
+		return "STOPPED WITH CHANGES",
+			currentActionSpec.CompleteStatus() +
+				" before Stop completed; some changes could not be safely restored"
+	case cancelProbeTargetNotDetected:
+		return "STOPPED",
+			"The owner process tree stopped; no completed result was detected"
+	default:
+		return "STOPPED",
+			"The owner process tree stopped; its final state could not be verified"
+	}
+}
+
+func (m model) rootCanceledCleanupCopy() []string {
+	var copy []string
+	if m.scriptCleanup.includes(cancelCleanupPacmanLockRemoved) {
+		copy = append(copy, "Canceled Pacman lock removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanLockRetained) {
+		copy = append(copy, "Pacman lock remains; inspect it before another install")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanPartialsRemoved) {
+		copy = append(copy, "Canceled package partials removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanPartialsRetained) {
+		copy = append(copy, "Unverified package partials remain; inspect the package cache")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanPackagesRemoved) {
+		copy = append(copy, "Packages added by this attempt removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanPackagesRetained) {
+		copy = append(copy, "Package state could not be fully restored; inspect Software")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanCacheRemoved) {
+		copy = append(copy, "Package cache created by this attempt removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupPacmanCacheRetained) {
+		copy = append(copy, "Package cache could not be fully restored; inspect the cache")
+	}
+	if m.scriptCleanup.includes(cancelCleanupAURRemoved) {
+		copy = append(copy, "AUR build cache from this attempt removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupAURRetained) {
+		copy = append(copy, "AUR build cache could not be fully restored; inspect the cache")
+	}
+	if m.scriptCleanup.includes(cancelCleanupMiseRestored) {
+		copy = append(copy, "Mise changes from this attempt removed")
+	}
+	if m.scriptCleanup.includes(cancelCleanupMiseRetained) {
+		copy = append(copy, "Unverified mise changes remain; inspect the runtime directories")
+	}
+	if m.scriptCleanup.includes(cancelCleanupOwnerRestored) {
+		copy = append(copy, "Installer settings restored")
+	}
+	if m.scriptCleanup.includes(cancelCleanupOwnerRetained) {
+		copy = append(copy, "Installer settings could not be fully restored; inspect its configuration")
+	}
+	return copy
 }
 
 func (m model) renderBuildFinishedFor(mode layoutMode) string {
@@ -2637,29 +3359,6 @@ func (m model) renderBuildFinishedFor(mode layoutMode) string {
 	return appendTUIHints(content, canvasW, m.rootPersistentHints()...)
 }
 
-func rootLogPanelHeight(mode layoutMode, terminalHeight int) int {
-	height := 18
-	if mode == layoutTablet {
-		height = 16
-	}
-	if mode == layoutMobile {
-		height = 7
-	}
-	if terminalHeight > 0 {
-		heightLimit := terminalHeight - 4
-		if mode == layoutDesktop {
-			heightLimit = terminalHeight - 12
-		}
-		if heightLimit < 3 {
-			heightLimit = 3
-		}
-		if height > heightLimit {
-			height = heightLimit
-		}
-	}
-	return height
-}
-
 func (m model) logViewportRows() int {
 	if m.terminalView {
 		return terminalOutputContentHeight(m.height)
@@ -2668,7 +3367,25 @@ func (m model) logViewportRows() int {
 	if isSideComposition(m.width, m.height, m.fullscreen) {
 		mode = layoutTablet
 	}
-	return max(1, rootLogPanelHeight(mode, m.height)-2)
+	return actionLogVisibleRows(mode, m.height)
+}
+
+func (m model) scriptLogRows() []string {
+	return wrapTUILogLines(m.scriptLogLines, m.scriptLogContentWidth())
+}
+
+func (m model) scriptLogContentWidth() int {
+	return responsiveTUILogContentWidth(responsiveLogWidth{
+		Width:      m.width,
+		Height:     m.height,
+		CenterMax:  logSideRightMax,
+		Maximum:    logSideRightMax,
+		Terminal:   m.terminalView,
+		Fullscreen: m.fullscreen,
+		ModelSlot:  m.fullscreenLogUsesModelSlot(m.width, m.height),
+		SideRight:  true,
+		Border:     true,
+	})
 }
 
 func (m model) renderRootLogOverlayFor(mode layoutMode) string {
@@ -2680,17 +3397,33 @@ func (m model) renderRootLogOverlayFor(mode layoutMode) string {
 		width = logSideRightMax
 	}
 
-	height := rootLogPanelHeight(mode, m.height)
-	contentHeight := max(1, height-2)
-	return renderLogPanel(logPanelScreen{
-		Lines:       m.scriptLogLines,
-		Width:       width,
-		Height:      height,
-		VisibleRows: contentHeight,
-		Scroll:      m.logScroll,
-		Empty:       "waiting for logs",
-		Border:      true,
-	})
+	return renderActionLogPanel(
+		m.scriptLogLines,
+		width,
+		mode,
+		m.height,
+		m.logScroll,
+		m.logEmptyStatus(),
+	)
+}
+
+func (m model) logEmptyStatus() string {
+	switch {
+	case m.scriptCanceling:
+		return rootActionCancelingStatus(m.action)
+	case !m.scriptDone:
+		return preparingLabel(m.frame)
+	default:
+		return "No command output"
+	}
+}
+
+func (m model) fullscreenLogUsesModelSlot(width, height int) bool {
+	return fullscreenTUILogUsesModelSlot(
+		m.fullscreen && m.loading && m.logOverlay,
+		width,
+		height,
+	)
 }
 
 func rootActionName(action actionMode) string {
@@ -3607,7 +4340,7 @@ func resolveRootScript(path string) (string, error) {
 }
 
 func validateRootScript(path string) error {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		return err
 	}
@@ -3647,12 +4380,16 @@ func qvosStateLogPath(domain string, name string) string {
 }
 
 func shortError(err error) string {
+	return trimDisplay(errorMessage(err), 42)
+}
+
+func errorMessage(err error) string {
 	if err == nil {
 		return ""
 	}
-	text := strings.TrimSpace(err.Error())
+	text := strings.TrimSpace(sanitizeLogLine(err.Error()))
 	text = strings.Join(strings.Fields(text), " ")
-	return trimDisplay(text, 42)
+	return text
 }
 
 func shouldDefaultToISOInstaller() bool {
@@ -3690,13 +4427,35 @@ func stopActiveScript(m model) {
 	for {
 		select {
 		case event, ok := <-m.scriptEvents:
-			if !ok || event.done {
+			if !ok {
 				return
 			}
+			if !event.done {
+				continue
+			}
+			if event.rollback != nil {
+				event.rollback()
+			}
+			if event.finish != nil {
+				event.finish()
+			}
+			return
 		case <-timer.C:
 			return
 		}
 	}
+}
+
+func rollbackPendingStop(m model) bool {
+	if m.pendingStopEvent == nil || m.pendingStopEvent.rollback == nil {
+		return false
+	}
+	event := *m.pendingStopEvent
+	event.rollback()
+	if event.finish != nil {
+		event.finish()
+	}
+	return true
 }
 
 func dedicatedActionExitCode(m model) int {
@@ -3713,9 +4472,12 @@ func runDedicatedUpdate() int {
 	initial, _ := (model{}).beginRootAction(actionUpdate, true)
 	result, err := newTUIProgram(initial).Run()
 	final, ok := result.(model)
-	interrupted := ok && final.scriptRunning
-	if interrupted {
+	interrupted := ok && (final.scriptRunning || final.pendingStopEvent != nil)
+	if ok && final.scriptRunning {
 		stopActiveScript(final)
+	}
+	if ok {
+		rollbackPendingStop(final)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -3742,9 +4504,12 @@ func runDedicatedAction() int {
 	initial, _ := (model{}).beginGenericAction(spec, true)
 	result, err := newTUIProgram(initial).Run()
 	final, ok := result.(model)
-	interrupted := ok && final.scriptRunning
-	if interrupted {
+	interrupted := ok && (final.scriptRunning || final.pendingStopEvent != nil)
+	if ok && final.scriptRunning {
 		stopActiveScript(final)
+	}
+	if ok {
+		rollbackPendingStop(final)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -3815,6 +4580,7 @@ func main() {
 	result, err := p.Run()
 	if final, ok := result.(model); ok {
 		stopActiveScript(final)
+		rollbackPendingStop(final)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

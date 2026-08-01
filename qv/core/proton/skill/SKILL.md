@@ -52,9 +52,11 @@ The D-Bus keyring backend keeps this isolated session's local encryption key
 in the unlocked desktop Secret Service instead of the reboot-volatile Linux
 kernel keyring. Keep it on every invocation, including login and logout.
 
-Before access, run `info --output json` and `test`, then parse
+Before access, run `info --output json`, then parse
 `vault list --output json` and require exactly one visible vault named
-`Codex Vault`. Stop on broader or different access.
+`Codex Vault`. The first command verifies the local session and the second
+verifies authenticated service access and scope. Stop on broader or different
+access. Do not depend on the removed `test` command.
 
 Vault visibility does not prove item visibility. If an expected item is
 missing, compare redacted `share list --output json` and `item list` metadata.
@@ -69,7 +71,10 @@ skill, then installs only missing components. It reuses verified
 authentication and configures only missing services. If the isolated Pass
 session has an incompatible vault scope, the same Install flow resolves and
 revokes its exact PAT before replacing it; unverifiable session data is
-preserved and stops the install safely. The Pass flow creates or reuses
+preserved unless the user explicitly approves replacement. Replacement opens
+a temporary full-access session, changes at most one PAT whose name is exactly
+qvOS Codex-owned, refuses ambiguous matches, and clears the invalid local
+session with `logout --force`. The Pass flow creates or reuses
 `Codex Vault`, creates a one-year viewer PAT, passes it directly into
 `pass-cli login` inside the isolated XDG environment, clears it, and verifies
 all three checks above. Never display the PAT or create another one outside
@@ -95,7 +100,7 @@ pass-cli inject --in-file <template> --out-file <temporary-file> --file-mode 060
 - Use `inject --out-file` only when the target cannot consume environment
   variables. Delete the output immediately after the command.
 - The persistent Codex session is read-only. On failure, read the redacted
-  error and check `info` plus `test`; do not log out on a generic error. Only
+  error and check `info` plus a narrow `vault list`; do not log out on a generic error. Only
   after confirming the isolated session is stale, run `logout --force`, ask
   for a scoped viewer-only reauthorization, pass the PAT through
   `PROTON_PASS_PERSONAL_ACCESS_TOKEN`, verify the session, and retry once.

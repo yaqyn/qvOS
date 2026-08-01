@@ -6,15 +6,16 @@ INSTALL_EASY_LIST_ACTIVE=false
 STYLE_BACK_MENU=show_main_menu
 
 launch_tui_task() {
-  local launcher=${QVOS_TUI_TASK_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/task/launch}
+  local launcher=${QVOS_TUI_TASK_LAUNCH:-$HOME/.local/share/qvos/tui/task/launch}
 
   "$launcher" "$1"
 }
 
 tui_task_for_owner() {
   local owner_command="$1"
-  local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/task/actions.psv"
+  local catalog="$HOME/.local/share/qvos/tui/task/actions.psv"
 
+  [[ -f $catalog ]] || return 1
   awk -F '|' -v wanted="$owner_command" '
     $1 !~ /^#/ && NF == 11 && $11 == wanted {
       print $1
@@ -26,14 +27,24 @@ tui_task_for_owner() {
 }
 
 present_terminal() {
-  local owner_command="$*"
+  local -a owner_args=("$@")
+  local owner_command="${owner_args[*]}"
   local task
 
   if task=$(tui_task_for_owner "$owner_command"); then
     launch_tui_task "$task"
   else
-    omarchy-launch-floating-terminal-with-presentation "$owner_command"
+    omarchy-launch-floating-terminal-with-presentation "${owner_args[@]}"
   fi
+}
+
+present_terminal_command() {
+  local owner_command="$1"
+  local -a owner_args=()
+
+  read -r -a owner_args <<<"$owner_command"
+  ((${#owner_args[@]} > 0)) || return 2
+  present_terminal "${owner_args[@]}"
 }
 
 set_qvos_menu_mode() {
@@ -136,25 +147,41 @@ show_software_menu() {
 }
 
 launch_software_action() {
-  local launcher=${QVOS_SOFTWARE_ACTION_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/action/launch}
+  local launcher=${QVOS_SOFTWARE_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/launch}
 
   "$launcher" "$1"
 }
 
 launch_software_installer() {
-  local launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/tui/action/launch}
+  local slug=$1
+  local launcher
 
-  "$launcher" --installer "$1"
+  case $slug in
+  alacritty | foot | ghostty | kitty)
+    launcher=${QVOS_TERMINAL_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/terminal-launch}
+    "$launcher" "$slug"
+    ;;
+  *)
+    launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-$HOME/.local/share/qvos/tui/action/launch}
+    "$launcher" --installer "$slug"
+    ;;
+  esac
+}
+
+launch_font() {
+  local launcher=${QVOS_FONT_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/font-launch}
+
+  "$launcher" "$1"
 }
 
 show_install_font_menu() {
-  case $(menu "Install" "  Cascadia Mono\n  Meslo LG Mono\n  Fira Code\n  Victor Code\n  Bitstream Vera Mono\n  Iosevka" "--width 350") in
-  *Cascadia*) launch_software_installer font-cascadia-mono ;;
-  *Meslo*) launch_software_installer font-meslo-mono ;;
-  *Fira*) launch_software_installer font-fira-code ;;
-  *Victor*) launch_software_installer font-victor-code ;;
-  *Bitstream*) launch_software_installer font-bitstream-vera ;;
-  *Iosevka*) launch_software_installer font-iosevka ;;
+  case $(menu "Font" "  Cascadia Mono\n  Meslo LG Mono\n  Fira Code\n  Victor Code\n  Bitstream Vera Mono\n  Iosevka" "--width 350") in
+  *Cascadia*) launch_font font-cascadia-mono ;;
+  *Meslo*) launch_font font-meslo-mono ;;
+  *Fira*) launch_font font-fira-code ;;
+  *Victor*) launch_font font-victor-code ;;
+  *Bitstream*) launch_font font-bitstream-vera ;;
+  *Iosevka*) launch_font font-iosevka ;;
   *) show_install_menu ;;
   esac
 }
@@ -166,12 +193,15 @@ show_software_installer_menu() {
   local icon
   local name
   local entry_breadcrumb
+  local menu_title
   local extra
   local choice
   local index
   local options=""
   local -a slugs=()
   local -a names=()
+
+  menu_title=${breadcrumb##* · }
 
   if [[ $breadcrumb == "Settings · Software · AI" ]]; then
     slugs+=(dictation)
@@ -199,7 +229,7 @@ show_software_installer_menu() {
     options="${options:+$options\n}$icon  $name"
   done <"$catalog"
 
-  choice=$(menu "Install" "$options")
+  choice=$(menu "$menu_title" "$options")
   choice=${choice#*  }
   for index in "${!names[@]}"; do
     [[ $choice == "${names[$index]}" ]] || continue
@@ -275,7 +305,7 @@ run_concept_action() {
   local action="$1"
 
   case $action in
-  present:*) present_terminal "${action#present:}" ;;
+  present:*) present_terminal_command "${action#present:}" ;;
   menu:*) go_to_menu "${action#menu:}" ;;
   run:*) bash -lc "${action#run:}" ;;
   terminal:*) terminal bash -lc "${action#terminal:}" ;;
@@ -531,36 +561,26 @@ show_install_easy_list_menu() {
 show_qvcore_menu() {
   local back_menu=${1:-show_settings_software_menu}
   local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qv/core/catalog.tsv"
-  local state_dir="$HOME/.local/state/qvos/qvcore"
   local component
   local label
   local icon
   local extra
-  local action
   local choice
   local index
   local options=""
   local -a components=()
   local -a labels=()
-  local -a actions=()
 
   while IFS=$'\t' read -r component label icon extra; do
     [[ -n $component && $component != "#"* ]] || continue
     [[ -n $label && -n $icon && -z ${extra:-} ]] || continue
-    if [[ -f $state_dir/$component ]]; then
-      action="Uninstall"
-    else
-      action="Install"
-    fi
     components+=("$component")
     labels+=("$label")
-    actions+=("$action")
-    options="${options:+$options\n}$icon  $label — $action"
+    options="${options:+$options\n}$icon  $label"
   done <"$catalog"
 
   choice=$(menu "qvCORE" "$options")
   choice=${choice#*  }
-  choice=${choice% — *}
 
   for index in "${!labels[@]}"; do
     [[ $choice == "${labels[$index]}" ]] || continue
@@ -574,10 +594,10 @@ show_qvcore_menu() {
 show_remove_menu() {
   case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *Web*) present_terminal omarchy-webapp-remove ;;
-  *TUI*) present_terminal omarchy-tui-remove ;;
+  *Web*) launch_tui_task webapp-remove ;;
+  *TUI*) launch_tui_task tui-remove ;;
   *Development*) show_remove_development_menu ;;
-  *Theme*) present_terminal omarchy-theme-remove ;;
+  *Theme*) launch_tui_task theme-remove ;;
   *Browser*) show_remove_browser_menu ;;
   *Dictation*) launch_software_action dictation ;;
   *Gaming*) show_remove_gaming_menu ;;

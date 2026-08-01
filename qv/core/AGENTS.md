@@ -22,9 +22,16 @@ qvDEV. qvOS must remain complete and healthy with neither installed.
 - Proton Pass readiness probes can create `pass-cli.db` without an authenticated
   `session.json`. Treat only that exact database-only state as disposable probe
   cache; preserve and stop on every other unverified Pass file.
+- Replacing an unverified isolated Codex Pass session requires explicit user
+  confirmation and a temporary full-access login. Revoke at most one exact
+  qvOS Codex-named PAT, refuse ambiguous matches, clear the local session only
+  through `logout --force`, then recreate viewer-only `Codex Vault` access.
 - Proton Pass PAT creation returns the token in the JSON `env_var` field. Accept
   both the current raw `pst_...::...` value and the older environment-assignment
   form, validate it without printing it, and keep it only in process memory.
+- Verify Pass sessions with `info --output json` plus the narrow scoped
+  `vault list --output json`; current Pass CLI releases no longer expose the
+  former `test` command.
 - Stack scripts own package preflight, confirmation, resumable removal, and
   final verification. Do not add a coordinated cross-stack removal layer.
 - qvDEV owns its Pacman/AUR manifest, all qvDEV direct tools, and Codex

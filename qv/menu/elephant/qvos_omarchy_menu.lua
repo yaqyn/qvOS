@@ -110,13 +110,27 @@ local function qvos_owner(relative_path, ...)
   return command
 end
 
+local function qvos_tui_owner(relative_path, ...)
+  local home = os.getenv("HOME")
+
+  if not home then
+    return nil
+  end
+
+  local command = shell_escape(home .. "/.local/share/qvos/tui/" .. relative_path)
+  for _, argument in ipairs({ ... }) do
+    command = command .. " " .. shell_escape(argument)
+  end
+  return command
+end
+
 local function task_action(slug)
-  return qvos_owner("qv/tui/task/launch", slug)
+  return qvos_tui_owner("task/launch", slug)
     or "omarchy-launch-qvos-task " .. shell_escape(slug)
 end
 
 local function install_font(slug)
-  return qvos_owner("qv/tui/action/launch", "--installer", slug)
+  return qvos_tui_owner("action/font-launch", slug)
     or route("install-font")
 end
 
@@ -334,9 +348,7 @@ end
 
 local function software_action(slug)
   local home = os.getenv("HOME")
-  local source = os.getenv("OMARCHY_PATH")
-    or (home and home .. "/.local/share/omarchy")
-  local launch = source and source .. "/qv/tui/action/launch"
+  local launch = home and home .. "/.local/share/qvos/tui/action/launch"
 
   return launch and shell_escape(launch) .. " " .. shell_escape(slug)
     or route("concept:" .. slug)
@@ -344,16 +356,24 @@ end
 
 local function software_installer(slug)
   local home = os.getenv("HOME")
-  local source = os.getenv("OMARCHY_PATH")
-    or (home and home .. "/.local/share/omarchy")
-  local launch = source and source .. "/qv/tui/action/launch"
+  local action = "action/launch"
+  local arguments = { "--installer", slug }
 
-  return launch
-      and shell_escape(launch)
-        .. " "
-        .. shell_escape("--installer")
-        .. " "
-        .. shell_escape(slug)
+  if slug == "alacritty"
+    or slug == "foot"
+    or slug == "ghostty"
+    or slug == "kitty"
+  then
+    action = "action/terminal-launch"
+    arguments = { slug }
+  end
+
+  local launch = home and home .. "/.local/share/qvos/tui/" .. action
+
+  return launch and shell_escape(launch)
+      .. " "
+      .. shell_escape(arguments[1])
+      .. (arguments[2] and " " .. shell_escape(arguments[2]) or "")
     or route("install")
 end
 
@@ -442,12 +462,12 @@ local function add_concepts(entries, software_view)
         local activation = route("concept:" .. fields[1])
 
         if state then
-          subtext = state == "install" and "Install" or "Uninstall"
+          subtext = ""
           activation = software_action(fields[1])
         elseif software_view == "software"
           and software_selectors[fields[1]]
         then
-          subtext = software_selectors[fields[1]]
+          subtext = ""
           if fields[6] == "Browse"
             and fields[7] and fields[7]:match("^menu:")
           then

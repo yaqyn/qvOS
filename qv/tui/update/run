@@ -3,17 +3,25 @@ set -euo pipefail
 
 stop_update_tree() {
   trap - HUP TERM
-  kill -TERM -- "-$$" 2>/dev/null || true
+  trap '' INT
+  kill -INT -- "-$$" 2>/dev/null || true
 }
 
 trap stop_update_tree HUP TERM
+
+capture_update_log() {
+  trap '' HUP INT TERM
+  exec tee "$1"
+}
 
 case ${1:-} in
 "")
   update_log=${QVOS_UPDATE_LOG_PATH:-/tmp/omarchy-update.log}
   set +e
-  OMARCHY_UPDATE_LOGGED=1 omarchy-qvos-update -y 2>&1 |
-    tee "$update_log"
+  OMARCHY_UPDATE_DEFER_REBOOT=1 \
+    OMARCHY_UPDATE_LOGGED=1 \
+    omarchy-qvos-update -y 2>&1 |
+    capture_update_log "$update_log"
   statuses=("${PIPESTATUS[@]}")
   if ((statuses[0] != 0)); then
     exit "${statuses[0]}"

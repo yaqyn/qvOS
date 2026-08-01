@@ -9,14 +9,19 @@ import (
 )
 
 type isoFinishedModel struct {
-	frame       int
-	width       int
-	height      int
-	fullscreen  bool
-	logPath     string
-	duration    string
-	allowQuit   bool
-	helpOverlay bool
+	frame         int
+	width         int
+	height        int
+	fullscreen    bool
+	logPath       string
+	duration      string
+	logLines      []string
+	logOverlay    bool
+	terminalView  bool
+	logScroll     int
+	logCopyStatus string
+	allowQuit     bool
+	helpOverlay   bool
 }
 
 func runISOFinished(args []string) error {
@@ -37,16 +42,20 @@ func runISOFinished(args []string) error {
 		logPath = defaultISOProgressLogPath
 	}
 
-	text, _ := readISOProgressLog(logPath)
-	p := newTUIProgram(newISOFinishedModel(logPath, parseISOFinishedDuration(text)), tea.WithFilter(filterISOFinishedExitMessages))
+	text, lines := readISOProgressLog(logPath)
+	p := newTUIProgram(
+		newISOFinishedModel(logPath, parseISOFinishedDuration(text), lines),
+		tea.WithFilter(filterISOFinishedExitMessages),
+	)
 	_, err := p.Run()
 	return err
 }
 
-func newISOFinishedModel(logPath string, duration string) isoFinishedModel {
+func newISOFinishedModel(logPath string, duration string, lines []string) isoFinishedModel {
 	return isoFinishedModel{
 		logPath:  logPath,
 		duration: strings.TrimSpace(duration),
+		logLines: append([]string(nil), lines...),
 	}
 }
 
@@ -76,12 +85,48 @@ func (m isoFinishedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, detectFullscreenCmd()
 	case fullscreenStateMsg:
 		m.fullscreen = msg.fullscreen
+	case tuiLogCopiedMsg:
+		m.logCopyStatus = tuiLogCopyResultStatus(msg.err)
+		return m, nil
 	case tea.KeyPressMsg:
 		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
 			m.helpOverlay = helpOverlay
 			return m, nil
 		}
-		if msg.String() == "enter" {
+		if m.logOverlay || m.terminalView {
+			if offset, handled := updateTUILogScroll(
+				m.logScroll,
+				msg.String(),
+				len(m.logRows()),
+				m.logViewportRows(),
+			); handled {
+				m.logScroll = offset
+				return m, nil
+			}
+		}
+		if m.terminalView {
+			if handled, cmd := handleTUITerminalViewKey(
+				msg,
+				m.logLines,
+				&m.terminalView,
+				&m.logOverlay,
+				&m.logCopyStatus,
+			); handled {
+				return m, cmd
+			}
+			return m, nil
+		}
+		if handleTUILogViewKey(
+			msg,
+			len(m.logLines) > 0,
+			&m.terminalView,
+			&m.logOverlay,
+			&m.logCopyStatus,
+		) {
+			return m, nil
+		}
+		switch msg.String() {
+		case "enter":
 			m.allowQuit = true
 			return m, tea.Quit
 		}
@@ -96,21 +141,42 @@ func (m isoFinishedModel) View() tea.View {
 
 	var body string
 	if m.helpOverlay {
-		body = renderTUIHelp(width, "install finale controls", []tuiHint{
-			{Key: "enter", Action: "reboot into the installed qvOS system"},
-		})
+		body = renderTUIHelp(width, "install finale controls", m.helpHints())
+	} else if m.terminalView {
+		body = renderTUITerminalOutput(
+			width,
+			height,
+			"INSTALL",
+			m.logLines,
+			m.logScroll,
+			m.logCopyStatus,
+			"No command output",
+			tuiTerminalPersistentHints(),
+		)
 	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderISOSideBody(width, height)
 	} else {
-		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, fullCanvasReserveRows)
-		if showIcon {
+		logInModelSlot := m.fullscreenLogUsesModelSlot(width, height)
+		reserveRows := fullCanvasReserveRows
+		if m.logOverlay && !logInModelSlot {
+			reserveRows = logCanvasReserveRows
+		}
+		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
+		showStage := showIcon || logInModelSlot
+		if showStage {
 			canvasW, canvasH = iconWidth, iconHeight
 		} else {
 			canvasW, canvasH = fitContentWidth(width), 0
 		}
 
 		icon := ""
-		if showIcon {
+		if logInModelSlot {
+			icon = placeTUILogInCanvas(
+				m.renderLogs(mode),
+				iconWidth,
+				iconHeight,
+			)
+		} else if showIcon {
 			icon = renderModelRole(modelThreeRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
@@ -128,9 +194,14 @@ func (m isoFinishedModel) View() tea.View {
 }
 
 func (m isoFinishedModel) renderISOSideBody(width, height int) string {
-	leftWidth, _ := sideColumnWidths(width)
+	leftWidth, rightWidth := sideColumnWidths(width)
 	canvasW, canvasH = leftWidth, 0
 	left := m.renderISOFinishedPanel(layoutTablet, false)
+	if m.logOverlay {
+		canvasW = rightWidth
+		right := m.renderLogs(layoutTablet)
+		return renderSideColumns(width, left, right)
+	}
 	right := renderIdentity("qvOS", "INSTALL / FINALE")
 
 	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
@@ -152,6 +223,9 @@ func (m isoFinishedModel) renderISOFinishedBody(mode layoutMode, icon string) st
 		lines = append(lines, centerCanvas(icon), "")
 	}
 	lines = append(lines, m.renderISOFinishedPanel(mode, true))
+	if m.logOverlay && !m.fullscreenLogUsesModelSlot(m.width, m.height) {
+		lines = append(lines, "", centerCanvas(m.renderLogs(mode)))
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -171,11 +245,74 @@ func (m isoFinishedModel) renderISOFinishedPanel(mode layoutMode, includeProduct
 		centerCanvas(renderISOActionRow("00", "REBOOT NOW", true, mode)),
 	)
 
-	lines = append(lines, "", centerTUIHints(canvasW,
+	lines = append(lines, "", centerTUIHints(
+		canvasW,
 		tuiHint{Key: "enter", Action: "reboot"},
 		tuiHelpHint(),
 	))
 	return strings.Join(lines, "\n")
+}
+
+func (m isoFinishedModel) helpHints() []tuiHint {
+	hints := []tuiHint{{Key: "enter", Action: "reboot into the installed qvOS system"}}
+	if len(m.logLines) > 0 {
+		hints = append(hints,
+			tuiHint{Key: "v", Action: "toggle the qvOS install log panel"},
+			tuiHint{Key: "ctrl+v", Action: "toggle original terminal output"},
+		)
+	}
+	if m.logOverlay {
+		hints = append(hints, tuiLogScrollHints()...)
+	}
+	return hints
+}
+
+func (m isoFinishedModel) logViewportRows() int {
+	if m.terminalView {
+		return terminalOutputContentHeight(m.height)
+	}
+	mode := layoutFor(m.width, m.height)
+	if isSideComposition(m.width, m.height, m.fullscreen) {
+		mode = layoutTablet
+	}
+	return actionLogVisibleRows(mode, m.height)
+}
+
+func (m isoFinishedModel) logRows() []string {
+	return wrapTUILogLines(m.logLines, m.logContentWidth())
+}
+
+func (m isoFinishedModel) logContentWidth() int {
+	return responsiveTUILogContentWidth(responsiveLogWidth{
+		Width:      m.width,
+		Height:     m.height,
+		CenterMax:  maxCanvasW,
+		Maximum:    logSideRightMax,
+		Terminal:   m.terminalView,
+		Fullscreen: m.fullscreen,
+		ModelSlot:  m.fullscreenLogUsesModelSlot(m.width, m.height),
+		SideRight:  true,
+		Border:     true,
+	})
+}
+
+func (m isoFinishedModel) renderLogs(mode layoutMode) string {
+	return renderActionLogPanel(
+		m.logLines,
+		canvasW,
+		mode,
+		m.height,
+		m.logScroll,
+		"No command output",
+	)
+}
+
+func (m isoFinishedModel) fullscreenLogUsesModelSlot(width, height int) bool {
+	return fullscreenTUILogUsesModelSlot(
+		m.fullscreen && m.logOverlay,
+		width,
+		height,
+	)
 }
 
 func parseISOFinishedDuration(text string) string {

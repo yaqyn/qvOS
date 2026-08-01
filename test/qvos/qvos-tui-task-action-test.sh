@@ -20,19 +20,32 @@ fail() {
 }
 
 install -d \
+  "$source_root/bin" \
   "$source_root/qv/tui/task/presenters" \
   "$source_root/qv/tui" \
-  "$test_home" \
+  "$test_home/.local/share/qvos/tui/task" \
   "$test_bin"
+install -m 0755 "$root/qv/tui/task/launch" "$source_root/qv/tui/task/launch"
 install -m 0755 "$root/qv/tui/task/run" "$source_root/qv/tui/task/run"
+install -m 0755 "$root/qv/tui/selection-owner" "$source_root/qv/tui/selection-owner"
+install -m 0755 "$root/qv/tui/owner-resolver" "$source_root/qv/tui/owner-resolver"
 install -m 0644 /dev/stdin "$source_root/qv/tui/task/actions.psv" <<'CATALOG'
 # slug|title|summary|rings|behavior|presentation|requires_sudo|primary|active|complete|owner
-information-test|Test State|Inspect a test state|1|information|tui|false|Inspect|Inspecting|Inspected|test-owner inspect
-presented-test|Presented State|Read back a silent owner|1|information|tui|false|Inspect|Inspecting|Inspected|test-owner presented
+information-test|Test State|Inspect a test state|1|information|tui|false||||test-owner inspect
+presented-test|Presented State|Read back a silent owner|1|information|tui|false||||test-owner presented
 mutation-test|Test Config|Restore a test config|1|mutation|tui|false|Restore|Restoring|Restored|test-owner apply
 critical-test|Critical Config|Restore a critical config|3|mutation|tui|true|Restore|Restoring|Restored|test-owner critical
 firmware-test|Firmware|Retain native firmware prompts|3|mutation|native|true|Update|Updating|Updated|test-native firmware
+selection-test|Selectable Config|Choose fixtures to remove|2|mutation|tui|false|Remove|Removing|Removed|qv/tui/task/fixture-selection-owner
 CATALOG
+install -m 0644 /dev/stdin "$source_root/qv/tui/task/selections.psv" <<'SELECTIONS'
+# slug|title|mode|empty message
+selection-test|Select Fixtures|multi|No fixtures are installed.
+SELECTIONS
+install -m 0644 /dev/stdin "$source_root/qv/tui/success-guidance.psv" <<'GUIDANCE'
+# slug|operation|next step
+mutation-test|task|Open the restored fixture to continue.
+GUIDANCE
 install -m 0755 /dev/stdin "$source_root/qv/tui/task/presenters/presented-test" <<'PRESENTER'
 #!/bin/bash
 "$@"
@@ -51,16 +64,50 @@ install -m 0755 /dev/stdin "$source_root/qv/tui/launch" <<'LAUNCH'
   printf '%s\n' "$QVOS_ACTION_COMPLETE"
   printf '%s\n' "$QVOS_ACTION_REQUIRES_SUDO"
   printf '%s\n' "$QVOS_ACTION_SCRIPT"
+  printf '%s\n' "${QVOS_ACTION_SELECTION_MODE:-}"
+  printf '%s\n' "${QVOS_ACTION_SELECTION_TITLE:-}"
+  printf '%s\n' "${QVOS_ACTION_SELECTION_EMPTY:-}"
+  printf '%s\n' "${QVOS_ACTION_NEXT_STEP:-}"
 } >"$QVOS_TASK_TEST_CAPTURE"
 LAUNCH
-install -m 0755 /dev/stdin "$test_bin/test-owner" <<'OWNER'
+install -m 0755 /dev/stdin "$source_root/bin/test-owner" <<'OWNER'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TASK_TEST_OWNER_LOG"
 printf 'Owner result: %s\n' "$*"
 OWNER
+install -m 0755 /dev/stdin "$test_bin/test-owner" <<'OWNER'
+#!/bin/bash
+echo "stale installed owner was used" >&2
+exit 77
+OWNER
+install -m 0755 /dev/stdin "$test_bin/readback-owner" <<'OWNER'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_TASK_TEST_OWNER_LOG"
+printf 'Owner result: %s\n' "$*"
+OWNER
+install -m 0755 /dev/stdin "$source_root/qv/tui/task/fixture-selection-owner" <<'OWNER'
+#!/bin/bash
+case ${1:-} in
+--list)
+  printf 'Alpha\nBeta\nGamma\n'
+  ;;
+--)
+  shift
+  printf 'selected:%s\n' "$*" >>"$QVOS_TASK_TEST_OWNER_LOG"
+  ;;
+*)
+  exit 2
+  ;;
+esac
+OWNER
+install -m 0755 /dev/stdin "$test_home/.local/share/qvos/tui/task/fixture-selection-owner" <<'OWNER'
+#!/bin/bash
+echo "stale installed qvOS owner was used" >&2
+exit 77
+OWNER
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'NATIVE'
 #!/bin/bash
-printf '%s\n' "$*" >"$QVOS_TASK_TEST_CAPTURE"
+printf '%s\n' "$@" >"$QVOS_TASK_TEST_CAPTURE"
 NATIVE
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SYSTEMCTL'
 #!/bin/bash
@@ -78,47 +125,68 @@ esac
 TIMEDATECTL
 
 HOME="$test_home" \
-OMARCHY_PATH="$source_root" \
-PATH="$test_bin:$PATH" \
-QVOS_TASK_TEST_CAPTURE="$capture" \
-QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-  "$root/qv/tui/task/launch" information-test
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_TASK_TEST_CAPTURE="$capture" \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+  "$source_root/qv/tui/task/launch" information-test
 
 [[ $(sed -n '1p' "$capture") == "Test State qvos-tui --action" ]] ||
   fail "task launcher did not reuse the shared qvOS action mode"
-[[ $(sed -n '2,10p' "$capture") == $'information-test\ntask\n1\ninformation\nInspect\nInspecting\nInspected\n0\n'"$source_root/qv/tui/task/run" ]] ||
+[[ $(sed -n '2,10p' "$capture") == $'information-test\ntask\n1\ninformation\n\n\n\n0\n'"$source_root/qv/tui/task/run" ]] ||
   fail "task launcher lost its classified TUI contract"
+[[ -z $(sed -n '14p' "$capture") ]] ||
+  fail "information task received irrelevant success guidance"
 
 HOME="$test_home" \
-OMARCHY_PATH="$source_root" \
-PATH="$test_bin:$PATH" \
-QVOS_ACTION_SLUG=information-test \
-QVOS_ACTION_OPERATION=task \
-QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-  "$root/qv/tui/task/run" --check
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_TASK_TEST_CAPTURE="$capture" \
+  "$source_root/qv/tui/task/launch" mutation-test
+[[ $(sed -n '14p' "$capture") == "Open the restored fixture to continue." ]] ||
+  fail "mutation task lost its optional success guidance"
 
-task_output=$(
-  HOME="$test_home" \
+HOME="$test_home" \
   OMARCHY_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_ACTION_SLUG=information-test \
   QVOS_ACTION_OPERATION=task \
   QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-    "$root/qv/tui/task/run"
+  "$source_root/qv/tui/task/run" --check
+
+task_output=$(
+  HOME="$test_home" \
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=information-test \
+    QVOS_ACTION_OPERATION=task \
+    QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$source_root/qv/tui/task/run"
 )
 [[ $task_output == "Owner result: inspect" ]] ||
   fail "information task hid its owner output behind synthetic milestones"
 [[ $(wc -l <"$owner_log") == 1 && $(<"$owner_log") == "inspect" ]] ||
   fail "information task runner did not delegate exactly once"
+[[ $(
+  HOME="$test_home" \
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=mutation-test \
+    QVOS_ACTION_OPERATION=task \
+    "$source_root/qv/tui/task/run" --cancel-status
+) == "unknown" ]] ||
+  fail "task cancellation invented a final-state probe"
+[[ $(wc -l <"$owner_log") == 1 ]] ||
+  fail "task cancellation status delegated to the mutation owner"
 
 mutation_output=$(
   HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
-  PATH="$test_bin:$PATH" \
-  QVOS_ACTION_SLUG=mutation-test \
-  QVOS_ACTION_OPERATION=task \
-  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-    "$root/qv/tui/task/run"
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=mutation-test \
+    QVOS_ACTION_OPERATION=task \
+    QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$source_root/qv/tui/task/run"
 )
 [[ $mutation_output == $'qvOS action: preparing\nqvOS action: applying\nOwner result: apply\nqvOS action: complete' ]] ||
   fail "one-ring mutation lost its transaction milestones"
@@ -127,23 +195,54 @@ mutation_output=$(
 
 presented_output=$(
   HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
-  PATH="$test_bin:$PATH" \
-  QVOS_ACTION_SLUG=presented-test \
-  QVOS_ACTION_OPERATION=task \
-  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-    "$root/qv/tui/task/run"
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=presented-test \
+    QVOS_ACTION_OPERATION=task \
+    QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$source_root/qv/tui/task/run"
 )
 [[ $presented_output == $'Owner result: presented\nVerified state: ready' ]] ||
   fail "information presenter did not replace vague output with verified state"
 [[ $(wc -l <"$owner_log") == 3 && $(tail -n 1 "$owner_log") == "presented" ]] ||
   fail "information presenter did not delegate exactly once"
 
+selection_options=$(
+  HOME="$test_home" \
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=selection-test \
+    QVOS_ACTION_OPERATION=task \
+    "$source_root/qv/tui/task/run" --options
+)
+[[ $selection_options == $'Alpha\nBeta\nGamma' ]] ||
+  fail "task selection options did not come from the owner"
+HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_ACTION_SLUG=selection-test \
+  QVOS_ACTION_OPERATION=task \
+  QVOS_ACTION_SELECTIONS=$'Beta\nGamma' \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+  "$source_root/qv/tui/task/run" >/dev/null
+[[ $(tail -n 1 "$owner_log") == "selected:Beta Gamma" ]] ||
+  fail "task runner did not validate and delegate selected owner arguments"
+if HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_ACTION_SLUG=selection-test \
+  QVOS_ACTION_OPERATION=task \
+  QVOS_ACTION_SELECTIONS="Unknown" \
+  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+  "$source_root/qv/tui/task/run" >/dev/null 2>&1; then
+  fail "task runner accepted a choice outside the owner inventory"
+fi
+
 readback_owner_log="$test_root/readback-owner.log"
 readback_output=$(
   PATH="$test_bin:$PATH" \
-  QVOS_TASK_TEST_OWNER_LOG="$readback_owner_log" \
-    "$root/qv/tui/task/presenters/time-sync" test-owner time-sync
+    QVOS_TASK_TEST_OWNER_LOG="$readback_owner_log" \
+    "$root/qv/tui/task/presenters/time-sync" readback-owner time-sync
 )
 [[ $readback_output == $'Status: Synchronized\nService: Active\nNetwork time: Enabled\nTimezone: Africa/Cairo' ]] ||
   fail "System Time presenter did not replace activity copy with verified readback"
@@ -162,23 +261,31 @@ set -e
 
 critical_output=$(
   HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
-  PATH="$test_bin:$PATH" \
-  QVOS_ACTION_SLUG=critical-test \
-  QVOS_ACTION_OPERATION=task \
-  QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
-    "$root/qv/tui/task/run"
+    OMARCHY_PATH="$source_root" \
+    PATH="$test_bin:$PATH" \
+    QVOS_ACTION_SLUG=critical-test \
+    QVOS_ACTION_OPERATION=task \
+    QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
+    "$source_root/qv/tui/task/run"
 )
 [[ $critical_output == $'qvOS action: preparing\nqvOS action: applying\nOwner result: critical\nqvOS action: complete' ]] ||
   fail "three-ring task lost its guarded progress milestones"
 
 HOME="$test_home" \
-OMARCHY_PATH="$source_root" \
-PATH="$test_bin:$PATH" \
-QVOS_TASK_TEST_CAPTURE="$capture" \
-  "$root/qv/tui/task/launch" firmware-test
-[[ $(<"$capture") == "test-native firmware" ]] ||
-  fail "native task lost its interactive owner"
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_TASK_TEST_CAPTURE="$capture" \
+  "$source_root/qv/tui/task/launch" firmware-test
+[[ $(<"$capture") == $'test-native\nfirmware' ]] ||
+  fail "native task lost its owner argument boundaries"
+
+HOME="$test_home" \
+  OMARCHY_PATH="$source_root" \
+  PATH="$test_bin:$PATH" \
+  QVOS_TASK_TEST_CAPTURE="$capture" \
+  "$source_root/qv/tui/task/launch" selection-test
+[[ $(sed -n '11,13p' "$capture") == $'multi\nSelect Fixtures\nNo fixtures are installed.' ]] ||
+  fail "task launcher lost its searchable selection contract"
 
 awk -F '|' '
   $1 ~ /^#/ { next }
@@ -188,12 +295,34 @@ awk -F '|' '
   $5 != "information" && $5 != "mutation" { exit 1 }
   $6 != "tui" && $6 != "native" { exit 1 }
   $7 != "true" && $7 != "false" { exit 1 }
-  $8 == "" || $9 == "" || $10 == "" || $11 == "" { exit 1 }
+  $11 == "" { exit 1 }
+  $5 == "information" && ($8 != "" || $9 != "" || $10 != "") { exit 1 }
+  $5 == "mutation" && ($8 == "" || $9 == "" || $10 == "") { exit 1 }
   $6 == "tui" { tui++ }
   $6 == "native" { native++ }
   END { exit !(tui >= 18 && native >= 12) }
 ' "$root/qv/tui/task/actions.psv" ||
   fail "tracked task catalog schema, uniqueness, or coverage"
+
+awk -F '|' '
+  $1 ~ /^#/ { next }
+  NF != 4 { exit 1 }
+  seen[$1]++ { exit 1 }
+  $2 == "" || $4 == "" { exit 1 }
+  $3 != "single" && $3 != "multi" { exit 1 }
+  END { exit !(seen["theme-remove"] && seen["webapp-remove"] &&
+    seen["tui-remove"] && seen["timezone"]) }
+' "$root/qv/tui/task/selections.psv" ||
+  fail "tracked task selection schema or searchable conversion coverage"
+
+while IFS='|' read -r slug _ _ _; do
+  [[ -n $slug && $slug != "#"* ]] || continue
+  awk -F '|' -v wanted="$slug" '
+    $1 == wanted && $6 == "tui" { found = 1 }
+    END { exit !found }
+  ' "$root/qv/tui/task/actions.psv" ||
+    fail "task selection does not resolve to a TUI action: $slug"
+done <"$root/qv/tui/task/selections.psv"
 
 awk -F '|' '
   $1 ~ /^#/ { next }

@@ -11,6 +11,7 @@ area_options_log="$test_root/area-options.log"
 concept_options_log="$test_root/concept-options.log"
 qvcore_options_log="$test_root/qvcore-options.log"
 presentation_log="$test_root/presentation.log"
+presentation_argv_log="$test_root/presentation-argv.log"
 web_log="$test_root/web.log"
 elephant_log="$test_root/elephant.log"
 route_log="$test_root/route.log"
@@ -236,7 +237,7 @@ for _, entry in ipairs(GetEntries("sublime")) do
   if entry.Text:match("^.-  (.*)$") == "Sublime Text" then
     assert(entry.Subtext == "Settings · Software · Editor")
     assert(entry.Actions.activate:find(
-      "/qv/tui/action/launch' '--installer' 'sublime-text'",
+      "/.local/share/qvos/tui/action/launch' '--installer' 'sublime-text'",
       1,
       true
     ))
@@ -292,11 +293,11 @@ local go = assert(by_name(entries, "Go"))
 local rust = assert(by_name(entries, "Rust"))
 local proton = assert(by_name(entries, "Proton"))
 
-assert(go.Subtext == "Uninstall")
-assert(rust.Subtext == "Install")
-assert(proton.Subtext == "Install")
-assert(go.Actions.activate:find("/qv/tui/action/launch' 'go'", 1, true))
-assert(rust.Actions.activate:find("/qv/tui/action/launch' 'rust'", 1, true))
+assert(go.Subtext == "")
+assert(rust.Subtext == "")
+assert(proton.Subtext == "")
+assert(go.Actions.activate:find("/.local/share/qvos/tui/action/launch' 'go'", 1, true))
+assert(rust.Actions.activate:find("/.local/share/qvos/tui/action/launch' 'rust'", 1, true))
 
 local view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
 view_file:write("software\n")
@@ -304,9 +305,9 @@ view_file:close()
 entries = GetEntries("")
 local editor = assert(by_name(entries, "Editor"))
 local package = assert(by_name(entries, "Package"))
-assert(editor.Subtext == "Browse")
+assert(editor.Subtext == "")
 assert(editor.Actions.activate == "omarchy-menu 'install-editor'")
-assert(package.Subtext == "Manage")
+assert(package.Subtext == "")
 assert(package.Actions.activate == "omarchy-menu 'concept:package'")
 assert(not by_name(entries, "Development"))
 
@@ -328,7 +329,7 @@ LUA
 if rg -Fq '|Learn|' "$root/qv/menu/concepts.psv"; then
   fail "per-app Learn actions remain in the concept catalog"
 fi
-pass "software leaves expose one dynamic Install or Uninstall action"
+pass "software rows expose only names and delegate lifecycle to the TUI"
 
 intent_audit=$(
   HOME="$test_root" OMARCHY_PATH="$test_root/missing" \
@@ -559,8 +560,8 @@ print(#entries, #menu_entries, #chromium, #empty)
 LUA
 )
 read -r installed_app_count returned_menu_count alias_count empty_count <<<"$apps_audit"
-((installed_app_count == 2 && returned_menu_count == search_count &&
-  alias_count == 1 && empty_count == 1)) ||
+((installed_app_count == 2 && returned_menu_count == search_count && \
+alias_count == 1 && empty_count == 1)) ||
   fail "query-preserving app and menu modes"
 pass "the same query returns installed apps or menu concepts by mode"
 
@@ -568,8 +569,7 @@ cmp -s \
   "$root/default/walker/themes/omarchy-default/layout.xml" \
   "$test_root/.config/walker/themes/qvos-omarchy-menu/layout.xml" ||
   fail "menu theme inherits Walker layout"
-[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css") == \
-  '@import "../../../omarchy/current/theme/walker.css";' ]] ||
+[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css") == '@import "../../../omarchy/current/theme/walker.css";' ]] ||
   fail "menu theme import path"
 grep -Fq 'font-size: 12px;' \
   "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css" ||
@@ -649,6 +649,7 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >"$QVOS_TEST_PRESENTATION_LOG"
+printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-webapp" <<'SCRIPT'
@@ -695,6 +696,7 @@ run_menu() {
     QVOS_TEST_QVCORE_OPTIONS_LOG="$qvcore_options_log" \
     QVOS_TEST_QVCORE_CHOICE="${QVOS_TEST_QVCORE_CHOICE:-}" \
     QVOS_TEST_PRESENTATION_LOG="$presentation_log" \
+    QVOS_TEST_PRESENTATION_ARGV_LOG="$presentation_argv_log" \
     QVOS_TEST_WEB_LOG="$web_log" \
     QVOS_TEST_ROUTE_LOG="$route_log" \
     QVOS_SOFTWARE_ACTION_LAUNCH="$test_bin/qvos-software-action" \
@@ -804,7 +806,7 @@ QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$presentation_log") == "omarchy-theme-install" ]] ||
   fail "Theme install owner"
 QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:theme
-[[ $(<"$presentation_log") == "omarchy-theme-remove" ]] ||
+[[ $(<"$presentation_log") == "qv/tui/task/selectable-owner theme-remove" ]] ||
   fail "Theme remove owner"
 QVOS_TEST_CONCEPT_CHOICE=Update run_menu concept:theme
 [[ $(<"$presentation_log") == "omarchy-theme-update" ]] ||
@@ -821,6 +823,8 @@ QVOS_TEST_CONCEPT_CHOICE=Report run_menu concept:battery-protection
   fail "Battery Protection concept actions"
 [[ $(<"$presentation_log") == "omarchy battery protection report" ]] ||
   fail "Battery Protection native report owner"
+[[ $(<"$presentation_argv_log") == $'omarchy\nbattery\nprotection\nreport' ]] ||
+  fail "Battery Protection native report argument boundaries"
 pass "concept sheets delegate their named actions correctly"
 
 QVOS_TEST_SETTINGS_CHOICE=Appearance run_menu settings

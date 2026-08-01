@@ -49,6 +49,17 @@ type informationSection struct {
 func renderInformationScreen(screen informationScreen) string {
 	width := max(1, screen.Width)
 	contentWidth := max(1, width-2)
+	if screen.Error {
+		message := screen.Empty
+		if len(screen.Lines) > 0 {
+			message = strings.Join(screen.Lines, " ")
+		}
+		return renderFailureScreen(failureScreen{
+			Subject: screen.Title,
+			Message: message,
+			Hints:   screen.Hints,
+		})
+	}
 	sourceLines := formatInformationLines(
 		screen.Title,
 		screen.Lines,
@@ -70,11 +81,7 @@ func renderInformationScreen(screen informationScreen) string {
 		"",
 	)
 
-	titleStyle := sWhite
-	if screen.Error {
-		titleStyle = sRed
-	}
-	title := centerCanvas(titleStyle.Render(trimDisplay(
+	title := centerCanvas(sWhite.Render(trimDisplay(
 		strings.ToUpper(strings.TrimSpace(screen.Title)),
 		width,
 	)))

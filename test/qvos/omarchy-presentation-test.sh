@@ -73,6 +73,11 @@ install -m 0755 /dev/stdin "$test_bin/qvos-test-cancel" <<'SCRIPT'
 exit 130
 SCRIPT
 
+install -m 0755 /dev/stdin "$test_bin/qvos-test-arguments" <<'SCRIPT'
+#!/bin/bash
+printf 'argument\t%s\n' "$1" >>"$QVOS_TEST_EVENT_LOG"
+SCRIPT
+
 run_launcher() {
   QVOS_TEST_EVENT_LOG="$event_log" \
     OMARCHY_PATH="$root" \
@@ -107,7 +112,13 @@ set -e
 pass "presentation closes canceled commands without a false result"
 
 : >"$event_log"
-run_launcher qvos-test-success "argument with spaces"
-[[ $(<"$event_log") == $'logo\ndone' ]] ||
+run_launcher qvos-test-arguments "argument with spaces"
+[[ $(<"$event_log") == $'logo\nargument\targument with spaces\ndone' ]] ||
   fail "presentation command argument preservation"
 pass "presentation preserves command argument boundaries"
+
+: >"$event_log"
+run_launcher "qvos-test-arguments 'legacy argument with spaces'"
+[[ $(<"$event_log") == $'logo\nargument\tlegacy argument with spaces\ndone' ]] ||
+  fail "legacy presentation command compatibility"
+pass "presentation preserves inherited one-string command compatibility"

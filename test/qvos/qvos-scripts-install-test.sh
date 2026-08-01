@@ -68,7 +68,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qv"
-for feature in desktop direct power screensaver security shell thunar tmux tui waybar; do
+for feature in desktop direct power screensaver security shell thunar tmux tui waybar windows; do
   cp -a "$root/qv/$feature" "$partial_file_root/qv/$feature"
 done
 install -d "$partial_file_home/.local/share/qvos/desktop"
@@ -199,7 +199,7 @@ pass "stale helper payloads are removed"
 [[ ! -e $root/qv/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
 
-for feature in desktop direct tmux waybar; do
+for feature in desktop direct tmux waybar windows; do
   expected_feature="$(find "$root/qv/$feature" -type f -printf '%P\n' | sort)"
   installed_feature="$(find "$test_root/.local/share/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
@@ -300,10 +300,61 @@ tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
   fail "qvOS TUI managed binary"
 [[ $(readlink "$test_root/.local/bin/qvos-tui") == "$tui_binary" ]] ||
   fail "qvOS TUI command link"
+for runtime_file in \
+  launch \
+  success-guidance.psv \
+  action/choices.psv \
+  action/forms.psv \
+  action/post-actions.psv \
+  action/post-run \
+  action/font-launch \
+  action/font-run \
+  action/launch \
+  action/rollbacks.psv \
+  action/rollback-owner \
+  action/run \
+  action/run-installer \
+  bin/qvos-build \
+  task/actions.psv \
+  task/launch \
+  task/run \
+  task/selectable-owner \
+  task/selections.psv \
+  update/launch \
+  update/run; do
+  cmp -s \
+    "$root/qv/tui/$runtime_file" \
+    "$test_root/.local/share/qvos/tui/$runtime_file" ||
+    fail "qvOS TUI $runtime_file runtime"
+done
+while IFS= read -r presenter; do
+  relative_presenter=${presenter#"$root/qv/tui/"}
+  cmp -s \
+    "$presenter" \
+    "$test_root/.local/share/qvos/tui/$relative_presenter" ||
+    fail "qvOS TUI $relative_presenter runtime"
+done < <(find "$root/qv/tui/task/presenters" -type f | sort)
 HOME="$test_root" OMARCHY_PATH="$root" \
   "$root/qv/tui/install" --status ||
   fail "qvOS TUI source parity"
-pass "qvOS TUI builds once and installs from its domain owner"
+cancel_test_bin="$test_root/tui-cancel-bin"
+install -d "$cancel_test_bin"
+install -m 0755 /dev/stdin "$cancel_test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+[[ $* == "-Qq" ]] || exit 2
+SCRIPT
+cancel_status=$(
+  HOME="$test_root" \
+    OMARCHY_PATH="$root" \
+    PATH="$cancel_test_bin:/usr/bin" \
+    QVOS_ACTION_SLUG=emacs \
+    QVOS_ACTION_OPERATION=install \
+    "$test_root/.local/share/qvos/tui/action/run-installer" \
+    --cancel-status
+)
+[[ $cancel_status == "target-not-detected" ]] ||
+  fail "installed TUI cancellation result probe"
+pass "qvOS TUI binary and cancellation adapters install as one runtime"
 
 cmp -s \
   "$root/qv/shell/aliases" \

@@ -30,7 +30,7 @@ passwd|System account password owner
 EXTERNAL
 install -m 0644 /dev/stdin "$fixture/qv/tui/task/actions.psv" <<'TASKS'
 # slug|title|summary|rings|behavior|presentation|requires_sudo|primary|active|complete|owner
-test-task|Test Task|Exercise a delegated owner|1|information|tui|false|Inspect|Inspecting|Inspected|omarchy test owner inspect
+test-task|Test Task|Exercise a delegated owner|1|information|tui|false||||omarchy test owner inspect
 password|Password|Exercise an external owner|3|mutation|native|false|Change|Changing|Changed|passwd
 TASKS
 install -m 0644 /dev/stdin "$fixture/qv/menu/software-actions.psv" <<'SOFTWARE'

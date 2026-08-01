@@ -1,0 +1,79 @@
+#!/bin/bash
+
+qvos_owner_rollback_record() {
+  local catalog=$1
+  local slug=$2
+  local operation=$3
+
+  awk -F '|' -v wanted_slug="$slug" -v wanted_operation="$operation" '
+    $1 !~ /^#/ && NF == 3 &&
+      $1 == wanted_slug && $2 == wanted_operation {
+      print $3
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+qvos_owner_rollback_validate() {
+  local catalog=$1
+  local slug=$2
+  local operation=$3
+  local protocol=$4
+  local declared=""
+
+  [[ -f $catalog ]] || {
+    echo "Missing qvOS TUI rollback catalog." >&2
+    return 1
+  }
+  declared=$(qvos_owner_rollback_record "$catalog" "$slug" "$operation" 2>/dev/null || true)
+  [[ $declared == "$protocol" ]] || {
+    echo "Invalid qvOS action rollback contract." >&2
+    return 1
+  }
+  [[ -z $declared || $declared == "owner-state-v1" ]] || {
+    echo "Unsupported qvOS action rollback contract: $declared" >&2
+    return 1
+  }
+}
+
+qvos_owner_rollback_check() {
+  local protocol=$1
+  shift
+
+  [[ -z $protocol ]] || "$@" --qvos-rollback-check
+}
+
+qvos_owner_rollback_snapshot() {
+  local protocol=$1
+  local state=$2
+  shift 2
+
+  [[ -z $protocol ]] && return
+  [[ -n $state ]] || {
+    echo "Missing qvOS action rollback state path." >&2
+    return 1
+  }
+  "$@" --qvos-rollback-snapshot "$state"
+}
+
+qvos_owner_rollback_seal() {
+  local protocol=$1
+  local state=$2
+  shift 2
+
+  [[ -z $protocol ]] || "$@" --qvos-rollback-seal "$state"
+}
+
+qvos_owner_rollback_restore() {
+  local protocol=$1
+  local state=$2
+  shift 2
+
+  [[ -n $protocol && -n $state ]] || {
+    echo "Missing qvOS action rollback state." >&2
+    return 1
+  }
+  "$@" --qvos-rollback-restore "$state"
+}

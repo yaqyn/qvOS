@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+tui_action="$HOME/.local/share/qvos/tui/action/launch"
+[[ -x $tui_action ]] || {
+  echo "The qvOS Windows lifecycle TUI is unavailable." >&2
+  exit 1
+}
+
+exec "$tui_action" windows

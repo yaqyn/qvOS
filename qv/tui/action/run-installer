@@ -2,10 +2,18 @@
 set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+tui_root=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
+# shellcheck source=qv/tui/owner-resolver
+source "$tui_root/owner-resolver"
+# shellcheck source=qv/tui/action/rollback-owner
+source "$tui_root/action/rollback-owner"
 catalog="$OMARCHY_PATH/qv/menu/software-installers.psv"
+rollback_catalog="$tui_root/action/rollbacks.psv"
 state_owner="$OMARCHY_PATH/qv/menu/software-installer-state"
 slug=${QVOS_ACTION_SLUG:-}
 operation=${QVOS_ACTION_OPERATION:-}
+rollback_protocol=${QVOS_ACTION_ROLLBACK:-}
+rollback_state=${QVOS_ACTION_ROLLBACK_STATE:-}
 
 installer_record() {
   awk -F '|' -v wanted="$slug" '
@@ -18,10 +26,24 @@ installer_record() {
   ' "$catalog"
 }
 
-resolve_owner() {
-  if [[ ${owner_args[0]} == qv/* ]]; then
-    owner_args[0]="$OMARCHY_PATH/${owner_args[0]}"
-  fi
+load_rollback() {
+  qvos_owner_rollback_validate "$rollback_catalog" "$slug" "$operation" "$rollback_protocol"
+}
+
+check_rollback_owner() {
+  qvos_owner_rollback_check "$rollback_protocol" "${owner_args[@]}"
+}
+
+prepare_rollback() {
+  qvos_owner_rollback_snapshot "$rollback_protocol" "$rollback_state" "${owner_args[@]}"
+}
+
+seal_rollback() {
+  qvos_owner_rollback_seal "$rollback_protocol" "$rollback_state" "${owner_args[@]}"
+}
+
+restore_rollback() {
+  qvos_owner_rollback_restore "$rollback_protocol" "$rollback_state" "${owner_args[@]}"
 }
 
 load_installer() {
@@ -57,11 +79,11 @@ load_installer() {
     echo "Missing qvOS installer owner for $slug." >&2
     return 1
   }
-  resolve_owner
+  qvos_resolve_owner owner_args
 }
 
 preflight() {
-  [[ -f $catalog && -x $state_owner ]] || {
+  [[ -f $catalog && -f $rollback_catalog && -x $state_owner ]] || {
     echo "The qvOS software installer source is incomplete." >&2
     return 1
   }
@@ -69,10 +91,20 @@ preflight() {
     echo "The qvOS installer owner is unavailable: ${owner_args[0]}" >&2
     return 1
   }
+  load_rollback
+  check_rollback_owner
 }
 
 verify_result() {
   "$state_owner" "$slug" >/dev/null
+}
+
+cancel_status() {
+  if "$state_owner" "$slug" >/dev/null 2>&1; then
+    printf 'target-reached\n'
+  else
+    printf 'target-not-detected\n'
+  fi
 }
 
 load_installer
@@ -83,18 +115,31 @@ case ${1:-} in
   preflight
   exit
   ;;
+--rollback)
+  (($# == 1)) || exit 2
+  preflight
+  restore_rollback
+  exit
+  ;;
+--cancel-status)
+  (($# == 1)) || exit 2
+  cancel_status
+  exit
+  ;;
 "")
   ;;
 *)
-  echo "Usage: qv/tui/action/run-installer [--check]" >&2
+  echo "Usage: qv/tui/action/run-installer [--check|--rollback|--cancel-status]" >&2
   exit 2
   ;;
 esac
 
 preflight
+prepare_rollback
 echo "qvOS action: preparing"
 echo "qvOS action: applying"
 "${owner_args[@]}"
+seal_rollback
 echo "qvOS action: verifying"
 verify_result
 echo "qvOS action: complete"

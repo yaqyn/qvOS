@@ -7,6 +7,37 @@ runtime_dir="$HOME/.local/share/qvos/tui"
 target="$runtime_dir/qvos-tui"
 command_link="$HOME/.local/bin/qvos-tui"
 mode=${1:---build-if-available}
+payload_files=(
+  launch
+  owner-resolver
+  selection-owner
+  success-guidance.psv
+  action/choices.psv
+  action/forms.psv
+  action/font-launch
+  action/font-run
+  action/launch
+  action/post-actions.psv
+  action/post-run
+  action/rollbacks.psv
+  action/rollback-owner
+  action/run
+  action/run-installer
+  action/terminal-launch
+  action/terminal-run
+  bin/qvos-build
+  task/actions.psv
+  task/launch
+  task/run
+  task/selectable-owner
+  task/selections.psv
+  update/launch
+  update/run
+)
+
+while IFS= read -r -d '' presenter; do
+  payload_files+=("${presenter#"$source_dir/"}")
+done < <(find "$source_dir/task/presenters" -type f -print0 | sort -z)
 
 usage() {
   echo "Usage: qv/tui/install [--build|--build-if-available|--status]" >&2
@@ -30,17 +61,77 @@ installed_hash() {
   "$target" --source-hash 2>/dev/null
 }
 
+payload_mode() {
+  case $1 in
+  *.psv) printf '0644\n' ;;
+  *) printf '0755\n' ;;
+  esac
+}
+
+payload_sources_ready() {
+  local relative_path
+
+  for relative_path in "${payload_files[@]}"; do
+    [[ -f $source_dir/$relative_path && ! -L $source_dir/$relative_path ]] || return 1
+  done
+}
+
+payload_ready() {
+  local relative_path
+  local wanted_mode
+
+  payload_sources_ready || return 1
+  for relative_path in "${payload_files[@]}"; do
+    wanted_mode=$(payload_mode "$relative_path")
+    [[ -f $runtime_dir/$relative_path && ! -L $runtime_dir/$relative_path ]] || return 1
+    [[ $(stat -c '%a' "$runtime_dir/$relative_path") == "${wanted_mode#0}" ]] || return 1
+    cmp -s "$source_dir/$relative_path" "$runtime_dir/$relative_path" || return 1
+  done
+}
+
+deploy_payload() {
+  local relative_path
+
+  payload_sources_ready || {
+    echo "The qvOS TUI runtime payload is incomplete." >&2
+    return 1
+  }
+
+  install -d "$runtime_dir"
+  rm -rf -- \
+    "${runtime_dir:?}/action" \
+    "${runtime_dir:?}/bin" \
+    "${runtime_dir:?}/task" \
+    "${runtime_dir:?}/update"
+  rm -f -- \
+    "$runtime_dir/launch" \
+    "$runtime_dir/success-guidance.psv"
+
+  for relative_path in "${payload_files[@]}"; do
+    install -D \
+      -m "$(payload_mode "$relative_path")" \
+      "$source_dir/$relative_path" \
+      "$runtime_dir/$relative_path"
+  done
+}
+
+managed_binary_ready() {
+  local expected_hash
+
+  [[ -x $target && ! -L $target ]] || return 1
+  expected_hash=$(source_hash)
+  [[ $(installed_hash) == "$expected_hash" ]]
+}
+
 ensure_link() {
   install -d "$(dirname -- "$command_link")"
   ln -sfn "$target" "$command_link"
 }
 
 status() {
-  local expected_hash
+  payload_ready || return 1
 
-  if [[ -x $target && ! -L $target ]]; then
-    expected_hash=$(source_hash)
-    [[ $(installed_hash) == "$expected_hash" ]] || return 1
+  if managed_binary_ready; then
     [[ -L $command_link ]] || return 1
     [[ $(readlink -- "$command_link") == "$target" ]] || return 1
     return 0
@@ -48,7 +139,7 @@ status() {
 
   # The ISO currently supplies the same binary through /usr/local/bin. Its
   # source-stamp contract will move here when the ISO flow enters qv/tui/iso.
-  [[ -x /usr/local/bin/qvos-tui ]]
+  [[ ! -e $target && ! -e $command_link && -x /usr/local/bin/qvos-tui ]]
 }
 
 build() {
@@ -75,6 +166,7 @@ build() {
       .
   )
   chmod 0755 "$temporary"
+  deploy_payload
   mv -f -- "$temporary" "$target"
   ensure_link
   trap - RETURN
@@ -85,16 +177,21 @@ case $mode in
   build
   ;;
 --build-if-available)
-  if [[ -x $target && ! -L $target ]] && status; then
+  if managed_binary_ready; then
+    deploy_payload
+    ensure_link
     exit 0
   fi
   if command -v go >/dev/null 2>&1; then
     build
-  elif status; then
-    exit 0
   else
-    echo "qvOS TUI is unavailable or differs from source; the terminal fallback remains usable." >&2
-    exit 1
+    deploy_payload
+    if status; then
+      exit 0
+    else
+      echo "qvOS TUI is unavailable or differs from source; the terminal fallback remains usable." >&2
+      exit 1
+    fi
   fi
   ;;
 --status)

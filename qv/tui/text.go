@@ -24,3 +24,15 @@ func wrapDisplayLines(lines []string, maxWidth int) []string {
 	}
 	return wrapped
 }
+
+func renderSearchField(filter string, mode layoutMode) string {
+	return renderSearchFieldWidth(filter, inputWidthForMode(mode))
+}
+
+func renderSearchFieldWidth(filter string, width int) string {
+	value := trimDisplay(strings.TrimSpace(filter), max(1, width))
+	if value == "" {
+		return sMid.Render("search")
+	}
+	return sBright.Render(value)
+}

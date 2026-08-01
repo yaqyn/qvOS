@@ -166,8 +166,7 @@ if [[ ${1:-} != "--run" ]]; then
     exit 2
   }
 
-  printf -v upload_command '%q ' "$0" --run "$@"
-  exec omarchy-launch-floating-terminal-with-presentation "$upload_command"
+  exec omarchy-launch-floating-terminal-with-presentation "$0" --run "$@"
 fi
 
 shift

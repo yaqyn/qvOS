@@ -474,11 +474,13 @@ func (m *prototypeSessionModel) advanceStages() {
 }
 
 func (m *prototypeSessionModel) appendLog(line string) {
+	beforeRows := len(m.logRows())
 	m.logLines = append(m.logLines, line)
 	if m.logScroll > 0 {
+		rowDelta := len(m.logRows()) - beforeRows
 		m.logScroll = min(
-			m.logScroll+1,
-			max(0, len(m.logLines)-m.logViewportRows()),
+			max(0, m.logScroll+rowDelta),
+			max(0, len(m.logRows())-m.logViewportRows()),
 		)
 	}
 }
@@ -492,7 +494,7 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		if offset, handled := updateTUILogScroll(
 			m.logScroll,
 			msg.String(),
-			len(m.logLines),
+			len(m.logRows()),
 			m.logViewportRows(),
 		); handled {
 			m.logScroll = offset
@@ -500,18 +502,16 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		}
 	}
 	if m.terminalView {
-		switch msg.String() {
-		case "y", "Y":
-			var cmd tea.Cmd
-			m.logCopyStatus, cmd = beginTUILogCopy(m.logLines)
+		if handled, cmd := handleTUITerminalViewKey(
+			msg,
+			m.logLines,
+			&m.terminalView,
+			&m.logOverlay,
+			&m.logCopyStatus,
+		); handled {
 			return m, cmd
-		case "ctrl+v":
-			m.terminalView = false
-			m.logCopyStatus = ""
-		case "v", "V":
-			m.terminalView = false
-			m.logOverlay = true
-			m.logCopyStatus = ""
+		}
+		switch msg.String() {
 		case "ctrl+c", "esc":
 			clearRunes(m.password)
 			m.password = nil
@@ -554,13 +554,17 @@ func (m prototypeSessionModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cm
 		}
 		return m, nil
 	}
+	if handleTUILogViewKey(
+		msg,
+		true,
+		&m.terminalView,
+		&m.logOverlay,
+		&m.logCopyStatus,
+	) {
+		return m, nil
+	}
 
 	switch msg.String() {
-	case "v", "V":
-		m.logOverlay = !m.logOverlay
-	case "ctrl+v":
-		m.terminalView = true
-		m.logCopyStatus = ""
 	case "r":
 		if m.failed {
 			m.attempt++
@@ -594,26 +598,35 @@ func (m prototypeSessionModel) View() tea.View {
 			m.logLines,
 			m.logScroll,
 			m.logCopyStatus,
-			m.terminalHints(),
+			m.logEmptyStatus(),
+			tuiTerminalPersistentHints(),
 		)
 	} else if isSideComposition(width, height, m.fullscreen) {
 		body = m.renderSideBody(width, height)
 	} else {
+		logInModelSlot := m.fullscreenLogUsesModelSlot(width, height)
 		reserveRows := fullCanvasReserveRows
-		if m.logOverlay {
+		if m.logOverlay && !logInModelSlot {
 			reserveRows = 22
 		} else if m.awaitingAuthorization() {
 			reserveRows += 3
 		}
 		iconWidth, iconHeight, showIcon := fitCenterStageCanvas(width, height, reserveRows)
-		if showIcon {
+		showStage := showIcon || logInModelSlot
+		if showStage {
 			canvasW, canvasH = iconWidth, iconHeight
 		} else {
 			canvasW, canvasH = fitContentWidth(width), 0
 		}
 
 		icon := ""
-		if showIcon {
+		if logInModelSlot {
+			icon = placeTUILogInCanvas(
+				m.renderLogs(mode),
+				iconWidth,
+				iconHeight,
+			)
+		} else if showIcon {
 			icon = renderModelRole(modelTwoRings, m.frame)
 		}
 		canvasW = fitContentWidth(width)
@@ -669,7 +682,7 @@ func (m prototypeSessionModel) renderBody(mode layoutMode, icon string) string {
 		}
 	}
 	lines = append(lines, m.renderPanel(mode))
-	if m.logOverlay {
+	if m.logOverlay && !m.fullscreenLogUsesModelSlot(m.width, m.height) {
 		lines = append(lines, "", centerCanvas(m.renderLogs(mode)))
 	}
 	return strings.Join(lines, "\n")
@@ -743,13 +756,6 @@ func (m prototypeSessionModel) persistentHints() []tuiHint {
 	}
 }
 
-func (m prototypeSessionModel) terminalHints() []tuiHint {
-	return []tuiHint{
-		{Key: "ctrl+v", Action: "switch"},
-		tuiHelpHint(),
-	}
-}
-
 func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 	if m.awaitingAuthorization() {
 		details := "Prototype only · no command will run"
@@ -769,7 +775,6 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 	status := m.currentStatus()
 	phase := loadRun
 	if m.failed {
-		title += " FAILED"
 		status = errPrototypeFailure.Error()
 		phase = loadErr
 	} else if m.done {
@@ -819,6 +824,23 @@ func (m prototypeSessionModel) logViewportRows() int {
 	return prototypeLogRows(mode)
 }
 
+func (m prototypeSessionModel) logRows() []string {
+	return wrapTUILogLines(m.logLines, m.logContentWidth())
+}
+
+func (m prototypeSessionModel) logContentWidth() int {
+	return responsiveTUILogContentWidth(responsiveLogWidth{
+		Width:      m.width,
+		Height:     m.height,
+		CenterMax:  maxCanvasW,
+		Maximum:    74,
+		Terminal:   m.terminalView,
+		Fullscreen: m.fullscreen,
+		ModelSlot:  m.fullscreenLogUsesModelSlot(m.width, m.height),
+		Border:     true,
+	})
+}
+
 func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
 	width := min(canvasW, 74)
 	if width < 1 {
@@ -830,9 +852,24 @@ func (m prototypeSessionModel) renderLogs(mode layoutMode) string {
 		Width:       width,
 		VisibleRows: height,
 		Scroll:      m.logScroll,
-		Empty:       "waiting for prototype logs",
+		Empty:       m.logEmptyStatus(),
 		Border:      true,
 	})
+}
+
+func (m prototypeSessionModel) logEmptyStatus() string {
+	if m.running && !m.done && !m.failed {
+		return preparingLabel(m.frame)
+	}
+	return "No command output"
+}
+
+func (m prototypeSessionModel) fullscreenLogUsesModelSlot(width, height int) bool {
+	return fullscreenTUILogUsesModelSlot(
+		m.fullscreen && m.logOverlay,
+		width,
+		height,
+	)
 }
 
 func runISOProgressPrototype() error {
@@ -841,7 +878,18 @@ func runISOProgressPrototype() error {
 }
 
 func runISOFinishedPrototype() error {
-	model := newISOFinishedModel("", "8m 42s")
+	model := newISOFinishedModel("", "8m 42s", []string{
+		"prototype: no installer commands were run",
+		"resolving dependencies...",
+		"installing base system",
+		"configuring encrypted storage",
+		"applying desktop configuration",
+		"installing qvOS runtime",
+		"applying qvOS integrations",
+		"verifying installed system",
+		"base system installed",
+		"installation completed successfully",
+	})
 	_, err := newTUIProgram(model, tea.WithFilter(filterISOFinishedExitMessages)).Run()
 	return err
 }

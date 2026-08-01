@@ -1,0 +1,98 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+# shellcheck source=qv/tui/owner-resolver
+source "$tui_root/owner-resolver"
+catalog="$OMARCHY_PATH/qv/menu/software-installers.psv"
+tui_launch="$tui_root/launch"
+slug=${1:-}
+
+usage() {
+  echo "Usage: qv/tui/action/font-launch <font-slug>" >&2
+}
+
+installer_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted && $1 ~ /^font-/ {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+[[ -n $slug && $# == 1 ]] || {
+  usage
+  exit 2
+}
+[[ -f $catalog && -x $tui_launch ]] || {
+  echo "The qvOS font action surface is incomplete." >&2
+  exit 1
+}
+record=$(installer_record) || {
+  echo "Unknown qvOS font: $slug" >&2
+  exit 2
+}
+IFS='|' read -r \
+  _ \
+  _ \
+  title \
+  _ \
+  _ \
+  presentation \
+  _ \
+  _ \
+  _ \
+  _ \
+  owner_command <<<"$record"
+[[ $presentation == "tui" && $owner_command == "qv/menu/font-install "* ]] || {
+  echo "Invalid qvOS font owner for $slug." >&2
+  exit 1
+}
+read -r -a owner_args <<<"$owner_command"
+qvos_resolve_owner owner_args
+[[ -x ${owner_args[0]} ]] || {
+  echo "The qvOS font owner is unavailable." >&2
+  exit 1
+}
+state=$("${owner_args[@]}" --state)
+if [[ $state == "available" ]]; then
+  unset QVOS_FONT_STATE
+  exec "$tui_root/action/launch" --installer "$slug"
+fi
+[[ $state == "installed" || $state == "active" ]] || {
+  echo "Invalid qvOS font state: $state" >&2
+  exit 1
+}
+export QVOS_ACTION_SLUG="$slug"
+export QVOS_ACTION_OPERATION=task
+export QVOS_ACTION_TITLE="$title"
+export QVOS_ACTION_RINGS=2
+export QVOS_ACTION_BEHAVIOR=mutation
+export QVOS_ACTION_REQUIRES_SUDO=0
+export QVOS_ACTION_PRIMARY="Apply"
+export QVOS_ACTION_ACTIVE="Applying"
+export QVOS_ACTION_COMPLETE="Applied"
+export QVOS_ACTION_SELECTION_MODE=action
+export QVOS_ACTION_SUMMARY_SELECTION="Uninstall"
+export QVOS_ACTION_SELECTION_SUMMARY="Remove $title from the system"
+export QVOS_ACTION_SELECTION_REQUIRES_SUDO=1
+export QVOS_ACTION_SCRIPT="$tui_root/action/font-run"
+export QVOS_FONT_STATE="$state"
+if [[ $state == "active" ]]; then
+  export QVOS_ACTION_SUMMARY="$title is already applied across qvOS"
+  export QVOS_ACTION_SELECTION_TITLE="$title · Already Applied"
+else
+  export QVOS_ACTION_SUMMARY="Apply $title across qvOS"
+  export QVOS_ACTION_SELECTION_TITLE="$title"
+fi
+unset \
+  QVOS_ACTION_NEXT_STEP \
+  QVOS_ACTION_SELECTION_EMPTY \
+  QVOS_ACTION_SELECTIONS \
+  QVOS_ACTION_ROLLBACK
+
+exec "$tui_launch" "$title" qvos-tui --action

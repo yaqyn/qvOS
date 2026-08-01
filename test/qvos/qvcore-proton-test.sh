@@ -8,6 +8,7 @@ test_bin="$test_root/bin"
 packages="$test_root/packages"
 log="$test_root/actions.log"
 install_output="$test_root/install-output.log"
+recovery_output="$test_root/recovery-output.log"
 thunar_config="$test_root/home/.config/Thunar/uca.xml"
 auth_root="$test_root/home/.local/share/qvos-codex/proton-pass"
 
@@ -60,9 +61,10 @@ info)
   install -d -m 0700 "$session_dir"
   install -m 0600 /dev/null "$session_dir/pass-cli.db"
   [[ -f $session_dir/session.json ]] || exit 1
+  [[ ! -f $session_dir/invalid ]] || exit 1
   echo '{"personal_access_token_name":"qvOS Codex"}'
   ;;
-test) [[ -f $session_dir/session.json ]] ;;
+test) exit 88 ;;
 login)
   install -d -m 0700 "$session_dir"
   install -m 0600 /dev/null "$session_dir/pass-cli.db"
@@ -74,18 +76,35 @@ logout)
   ;;
 vault)
   case ${2:-} in
-  list) echo '{"vaults":[{"name":"Codex Vault","share_id":"share-1"}]}' ;;
+  list)
+    [[ -f $session_dir/session.json ]] || exit 1
+    [[ ! -f $session_dir/invalid ]] || exit 1
+    echo '{"vaults":[{"name":"Codex Vault","share_id":"share-1"}]}'
+    ;;
   create) exit 0 ;;
   *) exit 1 ;;
   esac
   ;;
-pat)
+pat) exit 89 ;;
+personal-access-token)
   case ${2:-} in
   create)
     echo '{"pat_id":"pat-1","env_var":"pst_test::key"}'
     ;;
-  access | delete) exit 0 ;;
-  list) echo '[]' ;;
+  access) exit 0 ;;
+  delete)
+    printf 'pat-delete\t%s\n' "$*" >>"$QVOS_TEST_LOG"
+    ;;
+  list)
+    case ${QVOS_TEST_PAT_MODE:-none} in
+    none) echo '[]' ;;
+    one) echo '[{"name":"qvOS Codex 20260801T000000Z","pat_id":"old-pat"}]' ;;
+    multiple)
+      echo '[{"name":"qvOS Codex 20260801T000000Z","pat_id":"old-pat-1"},{"name":"qvOS Codex 20260801T000001Z","pat_id":"old-pat-2"}]'
+      ;;
+    *) exit 1 ;;
+    esac
+    ;;
   *) exit 1 ;;
   esac
   ;;
@@ -151,7 +170,11 @@ pacman)
 systemctl)
   [[ $* != *is-enabled* ]]
   ;;
-sudo | gum) exit 0 ;;
+sudo) exit 0 ;;
+gum)
+  printf 'gum-confirm\t%s\n' "$*" >>"$QVOS_TEST_LOG"
+  [[ ${QVOS_TEST_GUM_CANCEL:-0} != "1" ]]
+  ;;
 ss)
   printf 'LISTEN 0 1 127.0.0.1:1143 users:(("protonmail-brid",pid=1,fd=1))\n'
   printf 'LISTEN 0 1 127.0.0.1:1025 users:(("protonmail-brid",pid=1,fd=2))\n'
@@ -212,4 +235,44 @@ run_proton remove --yes >/dev/null
 [[ $(<"$auth_root/data/preserved") == "credential state" ]] ||
   fail "Proton authentication preservation"
 
+session_dir="$auth_root/data/proton-pass-cli/.session"
+install -m 0600 /dev/null "$session_dir/invalid"
+export QVOS_TEST_PAT_MODE=none
+run_proton install </dev/null >"$recovery_output" 2>&1
+grep -Fq 'Cleared the invalid local session; no matching qvOS Codex PAT remained.' \
+  "$recovery_output" || fail "Proton invalid local-session recovery"
+[[ ! -e $session_dir/invalid ]] || fail "Proton invalid local session remains"
+grep -Fq $'gum-confirm\tconfirm Replace the invalid isolated qvOS Codex Pass session?' \
+  "$log" || fail "Proton invalid-session replacement confirmation"
+if grep -Fq $'pat-delete\t' "$log"; then
+  fail "Proton recovery revoked an unrelated PAT"
+fi
+run_proton remove --yes >/dev/null
+
+install -d -m 0700 "$session_dir"
+install -m 0600 /dev/stdin "$session_dir/session.json" <<'SESSION'
+stale session
+SESSION
+install -m 0600 /dev/null "$session_dir/invalid"
+export QVOS_TEST_PAT_MODE=one
+run_proton install </dev/null >"$recovery_output" 2>&1
+grep -Fq $'pat-delete\tpersonal-access-token delete --personal-access-token-id old-pat' \
+  "$log" || fail "Proton exact stale PAT revocation"
+[[ ! -e $session_dir/invalid ]] || fail "Proton stale PAT session remains"
+run_proton remove --yes >/dev/null
+
+install -d -m 0700 "$session_dir"
+install -m 0600 /dev/stdin "$session_dir/session.json" <<'SESSION'
+ambiguous session
+SESSION
+install -m 0600 /dev/null "$session_dir/invalid"
+export QVOS_TEST_PAT_MODE=multiple
+if run_proton install </dev/null >"$recovery_output" 2>&1; then
+  fail "Proton replaced an ambiguous stale session"
+fi
+grep -Fq 'Multiple qvOS Codex PATs exist; none were changed.' \
+  "$recovery_output" || fail "Proton ambiguous PAT diagnosis"
+[[ -f $session_dir/invalid ]] || fail "Proton ambiguous session was not preserved"
+
 printf 'ok - Proton installs one verified stack and preserves cloud authentication on Remove\n'
+printf 'ok - Proton replaces only explicitly approved, uniquely scoped stale sessions\n'

@@ -183,3 +183,17 @@ if grep -Fq $'proton-drive\tfilesystem upload' "$action_log"; then
   fail "newline filename reached upload"
 fi
 pass "Proton Drive upload rejects remote-path control characters"
+
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
+SCRIPT
+second_file="$test_root/Second upload.txt"
+printf 'second\n' >"$second_file"
+presentation_argv_log="$test_root/presentation-argv"
+QVOS_TEST_PRESENTATION_ARGV_LOG="$presentation_argv_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$helper" "$single_file" "$second_file"
+[[ $(<"$presentation_argv_log") == "$helper"$'\n--run\n'"$single_file"$'\n'"$second_file" ]] ||
+  fail "presentation upload argument boundaries"
+pass "Proton Drive presentation preserves every selected path as an exact argument"

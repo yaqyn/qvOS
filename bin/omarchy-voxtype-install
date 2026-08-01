@@ -1,18 +1,20 @@
 #!/bin/bash
 
 # omarchy:summary=Install and configure Voxtype dictation
+# omarchy:args=[--yes]
 # omarchy:requires-sudo=true
 
 set -e
 
 # Install voxtype and configure it for use.
 
-if gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
+# qv/tui uses --yes after its shared start gate.
+if [[ ${1:-} == "--yes" ]] || gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
   omarchy-pkg-add wtype voxtype-bin
 
   # Setup voxtype
   mkdir -p ~/.config/voxtype
-  cp $OMARCHY_PATH/default/voxtype/config.toml ~/.config/voxtype/
+  cp "$OMARCHY_PATH/default/voxtype/config.toml" "$HOME/.config/voxtype/"
 
   voxtype setup --download --no-post-install
   if omarchy-hw-vulkan; then

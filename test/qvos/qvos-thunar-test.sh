@@ -102,3 +102,29 @@ grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/share/qvos/thuna
 grep -Fqx "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"
+
+test_root=$(mktemp -d)
+test_bin="$test_root/bin"
+argv_log="$test_root/presentation-argv"
+cleanup() {
+  [[ ! -d $test_root ]] || rm -rf -- "$test_root"
+}
+trap cleanup EXIT
+install -d "$test_bin"
+install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
+SCRIPT
+media_file="$test_root/recording final.mp4"
+printf 'fixture\n' >"$media_file"
+QVOS_TEST_PRESENTATION_ARGV_LOG="$argv_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$feature_dir/transcode" "$media_file"
+[[ $(<"$argv_log") == $'omarchy-transcode\n'"$media_file" ]] ||
+  fail "Transcode presentation argument boundaries"
+pass "Thunar Transcode preserves selected filenames as exact arguments"
+
+if rg -n 'omarchy-launch-floating-terminal-with-presentation "\$[^" ]*command"' "$root/qv"; then
+  fail "qvOS presentation caller passes a collapsed command string"
+fi
+pass "qvOS presentation callers preserve argv instead of rebuilding shell commands"

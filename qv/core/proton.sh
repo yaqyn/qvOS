@@ -15,6 +15,7 @@ codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
 codex_pass_session_dir="$codex_pass_root/data/proton-pass-cli/.session"
 codex_pass_session_file="$codex_pass_session_dir/session.json"
 codex_pass_probe_db="$codex_pass_session_dir/pass-cli.db"
+codex_pass_pat_key="$codex_pass_session_dir/pat_key"
 pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
 thunar_actions_source="$component_dir/../thunar/actions.sh"
@@ -43,14 +44,15 @@ remove_codex_skill=0
 
 # Thunar integration inventory and lifecycle
 
-# shellcheck source=qv/thunar/actions.sh
+# shellcheck source=../thunar/actions.sh
+# shellcheck disable=SC1091 # The owner contract validates this dynamic sibling source.
 source "$thunar_actions_source"
 
 cleanup() {
   unset codex_pat pat_json pat_value
 
   if [[ -n $created_pat_id && -n $pass_admin_root && -d $pass_admin_root ]]; then
-    run_pass_admin pat delete \
+    run_pass_admin personal-access-token delete \
       --personal-access-token-id "$created_pat_id" >/dev/null 2>&1 || true
     run_pass_codex logout --force >/dev/null 2>&1 || true
   fi
@@ -414,7 +416,11 @@ open_pass_admin() {
   echo "Proton Pass authentication"
   echo "A browser will open for a temporary full-access setup session."
   run_pass_admin login
-  run_pass_admin test >/dev/null
+  if ! run_pass_admin info --output json >/dev/null 2>&1 ||
+    ! run_pass_admin vault list --output json >/dev/null 2>&1; then
+    echo "The temporary Proton Pass setup session could not be verified." >&2
+    return 1
+  fi
 }
 
 pass_codex_ready() {
@@ -426,7 +432,6 @@ pass_codex_ready() {
     .personal_access_token_name
     | type == "string" and length > 0
   ' <<<"$info_json" >/dev/null || return 1
-  run_pass_codex test >/dev/null 2>&1 || return 1
   vault_json=$(run_pass_codex vault list --output json 2>/dev/null) || return 1
   jq -e '
     (.vaults // [])
@@ -455,7 +460,7 @@ replace_incompatible_pass_session() {
   local pat_count
   local pat_list
 
-  pat_list=$(run_pass_admin pat list --output json)
+  pat_list=$(run_pass_admin personal-access-token list --output json)
   pat_count=$(
     jq --arg name "$existing_pat_name" \
       '[.[] | select(.name == $name)] | length' <<<"$pat_list"
@@ -475,10 +480,61 @@ replace_incompatible_pass_session() {
       | if length == 1 then .[0].pat_id else error("PAT is not unique") end
     ' <<<"$pat_list"
   )
-  run_pass_admin pat delete \
+  run_pass_admin personal-access-token delete \
     --personal-access-token-id "$existing_pat_id" >/dev/null
   run_pass_codex logout --force >/dev/null 2>&1 || true
   echo "Replaced the incompatible isolated Proton Pass session."
+}
+
+replace_unverified_pass_session() {
+  local existing_pat_id=""
+  local pat_count
+  local pat_list
+
+  pat_list=$(run_pass_admin personal-access-token list --output json)
+  pat_count=$(
+    jq '[
+      .[]
+      | select(
+          (.name // "")
+          | test("^(\\[Agent\\] )?qvOS Codex( |$)")
+        )
+    ] | length' <<<"$pat_list"
+  )
+
+  if ((pat_count > 1)); then
+    echo "Multiple qvOS Codex PATs exist; none were changed." >&2
+    echo "Resolve the duplicate PATs before retrying Proton Install." >&2
+    return 1
+  elif ((pat_count == 1)); then
+    existing_pat_id=$(
+      jq -er '[
+        .[]
+        | select(
+            (.name // "")
+            | test("^(\\[Agent\\] )?qvOS Codex( |$)")
+          )
+      ] | .[0].pat_id' <<<"$pat_list"
+    )
+    run_pass_admin personal-access-token delete \
+      --personal-access-token-id "$existing_pat_id" >/dev/null
+  fi
+
+  if ! run_pass_codex logout --force >/dev/null 2>&1; then
+    echo "The invalid isolated Proton Pass session could not be logged out." >&2
+    return 1
+  fi
+  if [[ -e $codex_pass_session_file || -L $codex_pass_session_file ||
+    -e $codex_pass_pat_key || -L $codex_pass_pat_key ]]; then
+    echo "The invalid isolated Proton Pass session remains after logout." >&2
+    return 1
+  fi
+
+  if [[ -n $existing_pat_id ]]; then
+    echo "Revoked the previous qvOS Codex PAT and cleared its invalid local session."
+  else
+    echo "Cleared the invalid local session; no matching qvOS Codex PAT remained."
+  fi
 }
 
 setup_pass_auth() {
@@ -490,6 +546,7 @@ setup_pass_auth() {
   local vault_count
   local vault_json
   local vault_share_id
+  local replace_unverified=0
 
   if pass_codex_ready; then
     echo "Proton Pass Codex access is already ready; keeping it."
@@ -497,14 +554,9 @@ setup_pass_auth() {
   fi
 
   if info_json=$(run_pass_codex info --output json 2>/dev/null); then
-    if ! run_pass_codex test >/dev/null 2>&1; then
-      echo "Existing Proton Pass Codex access could not be verified." >&2
-      echo "Retry when Proton Pass is reachable; the session was not changed." >&2
-      return 1
-    fi
-
     if ! vault_json=$(run_pass_codex vault list --output json 2>/dev/null); then
       echo "Could not inspect the existing Proton Pass Codex scope." >&2
+      echo "Retry when Proton Pass is reachable; the session was not changed." >&2
       return 1
     fi
 
@@ -523,14 +575,24 @@ setup_pass_auth() {
       echo "Continuing past the unauthenticated Proton Pass probe cache."
     else
       echo "Existing Proton Pass Codex session data could not be verified." >&2
-      echo "The session was preserved; resolve or remove it before retrying." >&2
-      return 1
+      echo "Replacement signs in temporarily and changes only an exact qvOS Codex PAT." >&2
+      command -v gum >/dev/null 2>&1 || {
+        echo "Proton Pass session replacement requires: gum" >&2
+        return 1
+      }
+      if ! gum confirm "Replace the invalid isolated qvOS Codex Pass session?"; then
+        echo "The invalid session was preserved; Proton Install was canceled."
+        return 130
+      fi
+      replace_unverified=1
     fi
   fi
 
   open_pass_admin
   if [[ -n $existing_pat_name ]]; then
     replace_incompatible_pass_session "$existing_pat_name"
+  elif ((replace_unverified)); then
+    replace_unverified_pass_session
   fi
 
   vault_json=$(run_pass_admin vault list --output json)
@@ -556,7 +618,7 @@ setup_pass_auth() {
 
   pat_name="qvOS Codex $(date -u +%Y%m%dT%H%M%SZ)"
   pat_json=$(
-    run_pass_admin pat create \
+    run_pass_admin personal-access-token create \
       --name "$pat_name" \
       --expiration 1y \
       --output json
@@ -581,7 +643,7 @@ setup_pass_auth() {
     return 1
   fi
 
-  run_pass_admin pat access grant \
+  run_pass_admin personal-access-token access grant \
     --personal-access-token-id "$created_pat_id" \
     --share-id "$vault_share_id" \
     --role viewer >/dev/null
@@ -866,7 +928,7 @@ fi
 
 echo ""
 inventory_components
-if ((pass_installed == 0 || drive_installed == 0 || bridge_installed == 0 ||
+if ((pass_installed == 0 || drive_installed == 0 || bridge_installed == 0 || \
   account_cli_installed == 0 || codex_integration_installed == 0)); then
   echo "Proton component installation is incomplete." >&2
   exit 1

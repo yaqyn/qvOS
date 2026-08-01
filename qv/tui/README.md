@@ -20,12 +20,23 @@ The TUI root owns reusable presentation and capability configuration:
 
 - `flow.go` declares model, start confirmation, preflight, authorization, and
   progress needs
+- `selection.go` owns searchable single- and multi-selection for allowlisted
+  action values
+- `post_action.go` owns shared post-success transitions and Reboot Now/Later
+- `action/post-run` keeps long completion work in the live action stream
 - `authorization.go` renders every password authorization surface
 - `progress.go` renders compact and full progress for Update, Software, ISO,
   and the prototype
 - `logs.go` renders the shared scrolling log panel
 - `accessibility.go` owns persistent controls, Help, and terminal output
 - `text.go` keeps shared copy within real terminal-cell widths
+
+`install` deploys `qvos-tui` together with its launchers, action/task/update
+adapters, task catalogs, presenters, and success guidance under
+`~/.local/share/qvos/tui`. Desktop routes execute that checked runtime payload,
+while adapters resolve only their delegated mutation owners from the active
+`OMARCHY_PATH`. This prevents a current binary from calling stale cancellation
+or presentation adapters in the live Omarchy checkout.
 
 Domain packages under `qv/tui/<action>/` provide copy, milestones, preflight,
 verification, and one delegation to the real owner. They do not render screens
@@ -49,15 +60,82 @@ calibrated against the live Alacritty cell geometry:
 Menu titles and descriptions use catalog-wide measured columns. Descriptions
 yield first when space is constrained; complete rows share one measured width
 so identifiers, titles, and descriptions stay aligned.
-Opening logs prioritizes progress and log content over the 3D stage.
-Landscape logs use a dedicated 3:7 progress/log split, up to a 96x16-cell log
-panel, instead of inheriting the compact identity-column limits.
+Opening logs preserves the action panel's exact position and dimensions.
+Landscape logs replace the identity/model column without changing the normal
+column split. In true fullscreen, every log-capable TUI places logs in the 3D
+model's exact stage slot, so progress and controls do not move. An empty
+running log uses the shared `Preparing` animation instead of a waiting message.
+Confirmed cancellation freezes the visible progress immediately and never
+animates toward completion.
+Output-only ISO progress still consumes terminal protocol replies while
+ignoring key actions, preventing raw capability responses from appearing after
+the log controls.
+Ctrl+C or Ctrl+Z on a guarded mutation replaces the complete TUI with the stop
+decision. The model, identity, progress, logs, terminal output, and Help remain
+hidden until Enter explicitly confirms Keep or Stop. Pressing Ctrl+C or Ctrl+Z
+again confirms Stop directly, as shown by the modal hint. Captured repository
+owners resolve from the active `OMARCHY_PATH` and use their own process group
+inside the TUI terminal session, preserving the sudo authorization ticket.
+Captured commands reject interactive Gum subcommands while retaining safe Gum
+formatting, so a stale or unreviewed prompt fails instead of suspending the
+action. Confirmed Stop interrupts transactional owners cleanly and then
+force-reaps that complete owned process group before rendering a result.
+External terminal closure drains the same stop path. Captured installs do not
+launch detached applications; the success guidance tells the user where to
+continue.
+The result probes the route's declared state and reports whether the target was
+reached before Stop or could not be detected. It never runs a generic
+Uninstall: rollback requires an owner that can prove exact restoration without
+deleting pre-existing packages, configuration, or user data.
+`action/rollbacks.psv` opts reviewed owners into the `owner-state-v1` protocol.
+Those owners snapshot their exact state before delegation, seal the completed
+result, reject concurrent drift, and restore that state before generic package
+cleanup. A failed owner restoration retains any package needed by the changed
+configuration and reports it instead of creating a broken partial rollback.
+Installed inactive fonts offer `Apply Now` and `Uninstall`. The active font
+shows `Already Applied` with only `Uninstall`; the status is not selectable.
+Apply starts immediately without Stop plumbing. Uninstall moves directly to
+authorization and restores JetBrains Mono before removing an active font
+package. Generic non-install mutations do not expose or react to
+`Ctrl+C`/`Ctrl+Z` while running.
+
+Menu surfaces remain name-only navigation for TUI-managed lifecycle items.
+They pass the selected slug to the checked TUI; availability, current/default
+status, action choices, authorization, progress, and results stay inside the
+TUI.
+Terminals are state-aware: missing terminals use Install with exact owner
+rollback, installed non-default terminals use an unprivileged `Make Default`
+confirmation, and the current default opens direct `Already default`
+information.
+If the canceled process group contained Pacman, the TUI removes `db.lck` only
+when the lock did not exist before that action, no package manager remains, and
+the lock is still the expected empty root-owned file. Every pre-existing or
+unverified lock is preserved and reported for inspection.
+Captured installs also snapshot installed Pacman package names and versions, every
+configured Pacman cache, new `yay`/`paru` build trees, mise install/download
+paths, the global mise config and lockfile, and Mix/Hex state. Stop removes
+only the exact package names and entries created by that attempt, removes new
+empty runtime roots, restores changed mise files atomically, and reshims. The
+sudo ticket and manager observation remain active while a completed install is
+waiting behind the Stop decision. Pre-existing or concurrently modified
+packages, caches, runtimes, configuration, symlinks, and uncertain paths are
+preserved and reported instead of being silently called clean. Update and ISO
+Build retain their dedicated Stop contracts; removal and general task actions
+carry no unused Stop or rollback machinery.
 Non-mobile progress views keep the active operation, real milestone, percentage,
 and a visible loading bar.
 The smallest progress view keeps the active operation, static dimmed dot, and
 percentage instead of collapsing to an unexplained number.
 Compact completion keeps the semantic result (`UPDATED`, `INSTALLED`, and so
 on) instead of replacing it with `100%` or a generic `DONE`.
+Verified captured installs also show one quiet, wrapped next step from
+`success-guidance.psv`, such as the command, setup screen, or application that
+makes the new capability usable. Guidance never names a key binding because
+bindings change independently from the completed lifecycle. Self-contained tasks,
+removals, information, failures, and cancellations do not receive filler copy.
+Failures use one calm shared result with `COULD NOT COMPLETE`, a complete
+wrapped explanation, and retry or return controls. They never reuse progress,
+percentages, rails, all-red styling, or truncated error copy.
 Confirmation choices use one quiet marker instead of framed terminal buttons.
 Short transitions before sudo or the first owned milestone use only the shared
 four-step `Preparing` dot animation, never internal status flashes.
@@ -83,8 +161,14 @@ must delegate to their real qvOS or Omarchy owner.
 `v` toggles the composed qvOS log panel. `Ctrl+V` switches log-producing flows
 to a same-process `TERMINAL OUTPUT` view of the captured original command
 stream. Both remain documented in contextual Help without competing with the
-screen's primary action. The terminal view never spawns a second terminal or
-duplicates the running action.
+screen's primary action while work is running. Completed, stopped, and failed
+results with captured output retain both keys without adding another persistent
+hint; F1 Help remains the discoverable reference. The reboot-required choice
+and final ISO reboot screen preserve the same route. The terminal view never
+spawns a second terminal or duplicates the running action.
+Internal `qvOS action:` milestones still drive progress but never appear in
+either log view or copied history. Those surfaces retain only real owner
+output.
 
 Open log views show a quiet, non-red `ctrl+v switch` cue below the log pane.
 The full terminal view promotes that switch to the normal high-contrast
@@ -156,17 +240,33 @@ and guides without scattering those values through shared rendering code.
    milestones into progress.
 5. Verify the paired state change or install-only result probe before rendering
    success.
+6. When the owner reports that reboot is required, replace ordinary completion
+   with the shared safe-default Reboot Now/Later result.
 
 The registry selects this flow only for owners that are safe captured command
-streams. Installers that require an interactive prompt, authentication, or
-configuration retain their native floating terminal rather than receiving
-synthetic input. Both routes remain direct from the software row; neither adds
-an intermediate action sheet.
+streams. Installers with a bounded `owner-json-v1` schema use the shared form
+stage and receive values through a private captured-runtime file. Owners with
+unresolved authentication, hardware interaction, or a nested TUI retain their
+native floating terminal rather than receiving synthetic input. Both routes
+remain direct from the software row; neither adds an intermediate action sheet.
 
 State-aware leaves use `software-actions.psv` for paired Install and Uninstall
 owners. Install-only selectors remain selectors and use
 `software-installers.psv`; their safe leaves share the same two-ring flow and
 must pass a real installed-result probe without inventing an Uninstall owner.
+`action/choices.psv` adds owner-backed scope choices before authorization when
+one lifecycle action has materially different effects. The first choice is the
+safe default, and the authorization summary follows the selected scope.
+`action/forms.psv` opts a bounded owner into the shared form before
+authorization. Text, password, bounded number, and finite select fields share
+one validator and renderer; secrets never appear in arguments, logs, or a
+process-wide value.
+`action/post-actions.psv` may give a verified Install result one owner-backed
+primary action. Enter runs that action; Escape still returns without it. The
+shared `action/post-run` keeps long completion work in the same live output and
+Stop flow. `action/launch --post-success` resumes a configured but unfinished
+completion phase with that action's own copy and retry instead of reopening
+Install.
 
 ## Fixed tasks
 
@@ -180,6 +280,20 @@ hardware interaction, and reboot choices.
 Information task rows start immediately and print only owner information.
 Mutation rows use the required start gate and transaction milestones regardless
 of ring count.
+
+`task/selections.psv` gives selected tasks a searchable single- or multi-choice
+stage. Required selections come before authorization; unprivileged mutations
+then continue to the Action/Cancel gate. Options come from the owner’s
+read-only `--list` mode, and selected values return after `--`; the TUI never
+types into a nested prompt. The selector centers its empty `search` placeholder,
+then left-aligns an entered query with the option labels. It uses the available
+panel width for names and shows up to six rows in a roomy landscape view.
+Filtering preserves that viewport so the title, search row, and persistent
+controls stay anchored. An empty owner inventory shows the catalog’s quiet
+empty-state sentence and returns without entering a mutation result state.
+The compact `•` cursor marks the active row. Space remains normal search input,
+while Tab toggles items in a multi-selection list. Enter continues with every
+toggled item, or uses the current row directly when none were toggled.
 
 Every configuration refresh is a three-ring transaction because it overwrites
 user state. Its owner may create backups. An unprivileged refresh confirms
@@ -196,15 +310,18 @@ main hub and `--update` direct mode reuse one flow:
    summary beneath the password rail.
 3. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
    retain all other output in the optional log view.
-4. End on an explicit success or actionable failure screen.
+4. Defer inherited kernel, Hyprland, and reboot-required prompts to the shared
+   post-success Reboot Now/Later screen.
+5. End on an explicit success, reboot decision, or actionable failure screen.
 
 `Ctrl+C` or `Ctrl+Z` opens a stop confirmation while the update continues in
 the background. `Keep Updating` is the safe default; only explicitly choosing
 `Stop Update` stops the owned process group and returns a canceled result.
-Closing the Update window still stops an active update. The non-interruptible
+Closing the Update window drains the same active-update stop path. The
+non-interruptible
 keyboard guard remains exclusive to boot/ISO installation. If the TUI is
 unavailable, `omarchy-qvos-update` retains its plain terminal confirmation and
-update path. A stopped Update renders `UPDATE CANCELED`; it never presents
+update path. A stopped Update renders `UPDATE STOPPED`; it never presents
 `100%`, `UPDATED`, or `update complete`.
 
 ## Boot phases

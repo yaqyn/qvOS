@@ -32,6 +32,7 @@ qv/
   tui/         ISO installer, progress UI, and image build tooling.
   update/      qvOS update preflight and presentation wrapper.
   waybar/      qvOS prayer clock modules.
+  windows/     Windows VM configuration, safe removal, and rollback.
 ```
 
 qvCORE is an optional two-stack collection, not a qvOS subsystem. Its complete
@@ -80,11 +81,16 @@ identity or base readiness.
   authorization, progress, log, and result flow while delegating the mutation
   once to the existing Omarchy or qvOS owner. Information opens directly,
   privileged work uses sudo as its only start gate, and consequential
-  unprivileged work confirms once. Owners that require
-  an interactive prompt, authentication, secrets, hardware interaction,
-  selection, configuration, or reboot choice retain their native terminal.
+  unprivileged work confirms once. Allowlisted fixed tasks may collect a
+  searchable owner-provided selection, and captured actions may defer a
+  required reboot to the shared Reboot Now/Later result. Structured owner
+  forms collect bounded configuration and secrets through a private runtime
+  file before authorization. Owners with unresolved authentication, hardware
+  interaction, or nested TUIs retain their native terminal.
   Install-only selectors keep their browse shape, but every stream-safe leaf
   uses that same TUI flow and verifies its real installed result.
+  Installed fonts additionally expose owner-derived Apply and exact Uninstall
+  actions; removing the active font restores JetBrains Mono first.
   ISO Build stages the qvOS source over Omarchy's `main` ISO for its matching
   `master` installer, adds the qvOS configurator and progress surfaces, and
   preserves Omarchy's disk-install and post-install orchestration.

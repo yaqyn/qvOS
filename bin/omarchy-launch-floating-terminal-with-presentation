@@ -6,6 +6,9 @@
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 qvos_owner="$OMARCHY_PATH/qv/presentation/run"
 if [[ -x $qvos_owner ]]; then
+  if (($# == 1)) && [[ $1 == *[[:space:]]* ]]; then
+    exec "$qvos_owner" bash -c "$1"
+  fi
   exec "$qvos_owner" "$@"
 fi
 

@@ -1,6 +1,6 @@
 # slug|probe kind|probe value|install presentation|install sudo|uninstall presentation|uninstall sudo|install owner|uninstall owner
-dictation|command|voxtype|native|true|tui|true|omarchy-voxtype-install|omarchy-voxtype-remove
-windows|file|.config/windows/docker-compose.yml|native|true|native|true|omarchy-windows-vm install|omarchy-windows-vm remove
+dictation|command|voxtype|tui|true|tui|true|omarchy-voxtype-install --yes|omarchy-voxtype-remove
+windows|file|.config/windows/docker-compose.yml|tui|true|tui|false|qv/windows/manage install|qv/windows/manage uninstall
 ruby-on-rails|command|rails|tui|true|tui|true|omarchy-install-dev-env ruby|omarchy-remove-dev-env ruby
 go|mise|go|tui|true|tui|true|omarchy-install-dev-env go|omarchy-remove-dev-env go
 php|package|php|tui|true|tui|true|omarchy-install-dev-env php|omarchy-remove-dev-env php
@@ -25,12 +25,12 @@ brave|package|brave-bin|tui|true|tui|true|omarchy-install-browser brave|omarchy-
 brave-origin|package|brave-origin-beta-bin|tui|true|tui|true|omarchy-install-browser brave-origin|omarchy-remove-browser brave-origin
 firefox|package|firefox|tui|true|tui|true|omarchy-install-browser firefox|omarchy-remove-browser firefox
 zen|package|zen-browser-bin|tui|true|tui|true|omarchy-install-browser zen|omarchy-remove-browser zen
-steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|omarchy-remove-gaming-steam
+steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|qv/menu/steam-remove
 retroarch|package|retroarch|tui|true|tui|true|omarchy-install-gaming-retroarch|omarchy-remove-gaming-retroarch
 minecraft|package|minecraft-launcher|tui|true|tui|true|omarchy-pkg-add minecraft-launcher|omarchy-remove-gaming-minecraft
 geforce-now|flatpak|com.nvidia.geforcenow|native|true|tui|false|omarchy-install-gaming-geforce-now|omarchy-remove-gaming-geforce-now
 xbox-cloud|file|.local/share/applications/Xbox Cloud Gaming.desktop|tui|false|tui|false|omarchy-install-gaming-xbox-cloud|omarchy-remove-gaming-xbox-cloud
-xbox-controller|package|xpadneo-dkms|native|true|tui|true|omarchy-install-gaming-xbox-controllers|omarchy-remove-gaming-xbox-controllers
+xbox-controller|package|xpadneo-dkms|tui|true|tui|true|omarchy-install-gaming-xbox-controllers --defer-reboot|omarchy-remove-gaming-xbox-controllers
 moonlight|package|moonlight-qt|tui|true|tui|true|omarchy-install-gaming-moonlight|omarchy-remove-gaming-moonlight
 lutris|package|lutris|tui|true|tui|true|omarchy-install-gaming-lutris|omarchy-remove-gaming-lutris
 heroic|package|heroic-games-launcher-bin|tui|true|tui|true|omarchy-install-gaming-heroic|omarchy-remove-gaming-heroic
