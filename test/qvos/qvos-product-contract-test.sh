@@ -40,6 +40,10 @@ grep -qx 'alacritty' "$base_packages" || fail "Alacritty package contract"
 grep -qx 'neovim' "$base_packages" || fail "Neovim package contract"
 grep -qx 'omarchy-nvim' "$base_packages" || fail "qvOS Neovim package contract"
 grep -qx 'wtype' "$base_packages" || fail "Codex Wayland input contract"
+grep -qx 'xdg-user-dirs' "$base_packages" ||
+  fail "fresh-install user directory command package contract"
+grep -Fq 'xdg-user-dirs-update --set' "$root/install/config/user-dirs.sh" ||
+  fail "fresh-install user directory command usage contract"
 for independent_base_package in \
   bubblewrap \
   bind \

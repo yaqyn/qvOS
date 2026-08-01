@@ -2,9 +2,12 @@
 qvos_owner="$OMARCHY_PATH/qv/install/packaging/webapps"
 if [[ -f $qvos_owner ]]; then
   source "$qvos_owner"
-  return
+  qvos_owner_status=$?
+  if [[ ${BASH_SOURCE[0]} -ef $0 ]]; then
+    exit "$qvos_owner_status"
+  fi
+  return "$qvos_owner_status"
 fi
-
 omarchy-webapp-install "HEY" https://app.hey.com HEY.png "omarchy-webapp-handler-hey %u" "x-scheme-handler/mailto"
 omarchy-webapp-install "Basecamp" https://launchpad.37signals.com Basecamp.png
 omarchy-webapp-install "WhatsApp" https://web.whatsapp.com/ WhatsApp.png

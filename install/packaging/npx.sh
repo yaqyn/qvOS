@@ -2,9 +2,12 @@
 qvos_owner="$OMARCHY_PATH/qv/install/packaging/npx"
 if [[ -f $qvos_owner ]]; then
   source "$qvos_owner"
-  return
+  qvos_owner_status=$?
+  if [[ ${BASH_SOURCE[0]} -ef $0 ]]; then
+    exit "$qvos_owner_status"
+  fi
+  return "$qvos_owner_status"
 fi
-
 omarchy-npx-install @openai/codex codex
 omarchy-npx-install @google/gemini-cli gemini
 omarchy-npx-install @github/copilot copilot
