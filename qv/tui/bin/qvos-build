@@ -196,7 +196,11 @@ clone_git_source() {
   local ref="$2"
   local target="$3"
 
-  git clone --no-checkout "$repo" "$target"
+  if [[ -d $repo ]]; then
+    git clone --no-checkout "$repo" "$target"
+  else
+    git clone --filter=blob:none --no-checkout "$repo" "$target"
+  fi
   checkout_git_ref "$target" "$ref"
 }
 

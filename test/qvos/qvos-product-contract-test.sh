@@ -487,6 +487,8 @@ grep -Fq 'if ! run_iso_builder "$staged_iso" "$staged_qvos" "$stage_out"; then' 
   fail "qvOS ISO build failure stage retention"
 grep -Fq 'checkout_qvos_update_branch "$target"' "$iso_build" ||
   fail "qvOS ISO attached update branch"
+grep -Fq 'git clone --filter=blob:none --no-checkout' "$iso_build" ||
+  fail "qvOS ISO source clone transfers unnecessary historical blobs"
 grep -Fq 'source_branch != "OS" || $source_upstream != "origin/OS"' \
   "$iso_build" ||
   fail "qvOS ISO staged update branch validation"
