@@ -11,7 +11,7 @@ if [[ -z $source_root || ! -d $source_root/.git ]]; then
   exit 2
 fi
 
-tracked_files=$(git -C "$source_root" ls-files --stage)
+tracked_files=$(git -c safe.directory="$source_root" -C "$source_root" ls-files --stage)
 while IFS=$'\t' read -r metadata path; do
   mode=${metadata%% *}
   [[ $mode == "100755" ]] || continue

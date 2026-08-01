@@ -509,6 +509,8 @@ grep -Fq 'if [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then' \
 
 source_permissions="$root/qv/iso/source-permissions"
 [[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
+grep -Fq 'git -c safe.directory="$source_root"' "$source_permissions" ||
+  fail "qvOS ISO command-scoped source trust"
 expected_executable_count=$(git -C "$root" ls-files --stage | awk '$1 == "100755" { count++ } END { print count + 0 }')
 source_permission_output=$("$source_permissions" "$root")
 actual_executable_count=$(grep -c '^file_permissions\[' <<<"$source_permission_output")
