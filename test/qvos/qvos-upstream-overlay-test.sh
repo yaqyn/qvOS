@@ -51,6 +51,7 @@ inherited_seams=(
   install/packaging/base.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
+  install/post-install/all.sh
   install/post-install/finished.sh
 )
 

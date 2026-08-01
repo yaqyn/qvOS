@@ -46,24 +46,62 @@ if [[ ! -f $pacman_config ]]; then
   exit 1
 fi
 
-read -r omarchy_sections omarchy_siglevels < <(
+read -r \
+  omarchy_sections \
+  omarchy_siglevels \
+  offline_sections \
+  offline_siglevels \
+  offline_expected_siglevels \
+  offline_servers \
+  offline_expected_servers < <(
   awk '
     /^[[:space:]]*\[omarchy\][[:space:]]*$/ {
       in_omarchy = 1
+      in_offline = 0
       sections++
+      next
+    }
+    /^[[:space:]]*\[offline\][[:space:]]*$/ {
+      in_omarchy = 0
+      in_offline = 1
+      offline_sections++
       next
     }
     /^[[:space:]]*\[[^]]+\][[:space:]]*$/ {
       in_omarchy = 0
+      in_offline = 0
     }
     in_omarchy && /^[[:space:]]*SigLevel[[:space:]]*=/ {
       siglevels++
     }
+    in_offline && /^[[:space:]]*SigLevel[[:space:]]*=/ {
+      offline_siglevels++
+      if ($0 ~ /^[[:space:]]*SigLevel[[:space:]]*=[[:space:]]*Optional[[:space:]]+TrustAll[[:space:]]*$/) {
+        offline_expected_siglevels++
+      }
+    }
+    in_offline && /^[[:space:]]*Server[[:space:]]*=/ {
+      offline_servers++
+      if ($0 ~ /^[[:space:]]*Server[[:space:]]*=[[:space:]]*file:\/\/\/var\/cache\/omarchy\/mirror\/offline\/[[:space:]]*$/) {
+        offline_expected_servers++
+      }
+    }
     END {
-      print sections + 0, siglevels + 0
+      print sections + 0, siglevels + 0,
+        offline_sections + 0, offline_siglevels + 0,
+        offline_expected_siglevels + 0,
+        offline_servers + 0, offline_expected_servers + 0
     }
   ' "$pacman_config"
 )
+if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]] &&
+  ((omarchy_sections == 0 && omarchy_siglevels == 0 &&
+    offline_sections == 1 && offline_siglevels == 1 &&
+    offline_expected_siglevels == 1 && offline_servers == 1 &&
+    offline_expected_servers == 1)); then
+  echo "Deferring qvOS security until the final Pacman configuration is installed."
+  exit 0
+fi
 if ((omarchy_sections != 1 || omarchy_siglevels != 1)); then
   echo "Expected one Omarchy repository and signature policy in $pacman_config." >&2
   exit 1

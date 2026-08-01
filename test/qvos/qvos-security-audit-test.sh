@@ -134,6 +134,87 @@ if rg -q 'modules_disabled|kernel\\.sysrq|\\.forwarding|usb|firewire|compiler' \
   fail "security baseline restricts normal desktop capabilities"
 fi
 
+post_install_all="$root/install/post-install/all.sh"
+# shellcheck disable=SC2016
+pacman_post_line=$(grep -nF 'run_logged $OMARCHY_INSTALL/post-install/pacman.sh' \
+  "$post_install_all" | cut -d: -f1)
+# shellcheck disable=SC2016
+security_post_line=$(grep -nF 'run_logged "$OMARCHY_PATH/qv/security/install"' \
+  "$post_install_all" | cut -d: -f1)
+# shellcheck disable=SC2016
+allow_reboot_line=$(grep -nF 'source $OMARCHY_INSTALL/post-install/allow-reboot.sh' \
+  "$post_install_all" | cut -d: -f1)
+[[ $pacman_post_line =~ ^[0-9]+$ && $security_post_line =~ ^[0-9]+$ &&
+  $allow_reboot_line =~ ^[0-9]+$ ]] ||
+  fail "fresh-install security post-install wiring"
+((pacman_post_line < security_post_line &&
+  security_post_line < allow_reboot_line)) ||
+  fail "fresh-install security runs after final Pacman config and before reboot"
+
+offline_system_root="$test_root/offline-security-system"
+install -d "$offline_system_root/etc"
+install -m 0644 /dev/stdin "$offline_system_root/etc/pacman.conf" <<'PACMAN'
+[options]
+SigLevel = Required DatabaseOptional
+
+[offline]
+SigLevel = Optional TrustAll
+Server = file:///var/cache/omarchy/mirror/offline/
+PACMAN
+cp "$offline_system_root/etc/pacman.conf" \
+  "$test_root/offline-pacman-original.conf"
+offline_output=$(
+  OMARCHY_CHROOT_INSTALL=1 \
+    QVOS_SECURITY_TESTING=1 \
+    QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
+    OMARCHY_PATH="$root" \
+    "$installer"
+)
+grep -Fq 'Deferring qvOS security until the final Pacman configuration' \
+  <<<"$offline_output" ||
+  fail "ISO offline Pacman deferral is explicit"
+cmp -s "$test_root/offline-pacman-original.conf" \
+  "$offline_system_root/etc/pacman.conf" ||
+  fail "ISO offline Pacman configuration changed before post-install"
+[[ ! -e $offline_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
+  fail "ISO security installation partially ran before final Pacman config"
+
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer" >/dev/null 2>&1; then
+  fail "offline Pacman policy accepted outside the ISO chroot"
+fi
+
+printf 'Server = file:///tmp/untrusted/\n' \
+  >>"$offline_system_root/etc/pacman.conf"
+if OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer" >/dev/null 2>&1; then
+  fail "ambiguous ISO offline mirror accepted"
+fi
+[[ ! -e $offline_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
+  fail "ambiguous ISO offline mirror causes partial installation"
+
+cp "$root/default/pacman/pacman-rc.conf" \
+  "$offline_system_root/etc/pacman.conf"
+OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer"
+[[ $(awk '
+  /^\[omarchy\]$/ { in_omarchy = 1; next }
+  /^\[/ { in_omarchy = 0 }
+  in_omarchy && /^SigLevel/ { print }
+' "$offline_system_root/etc/pacman.conf") == \
+  "SigLevel = Required DatabaseOptional" ]] ||
+  fail "final ISO Omarchy repository policy"
+[[ -f $offline_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
+  fail "deferred ISO security baseline installation"
+
 ambiguous_system_root="$test_root/ambiguous-security-system"
 install -d "$ambiguous_system_root/etc"
 install -m 0644 /dev/stdin "$ambiguous_system_root/etc/pacman.conf" <<'PACMAN'
