@@ -59,6 +59,14 @@ grep -Fq 'exec "$repo_root/qv/git/qvsync" "$@"' "$repo/.git/qvsync" ||
   fail "tracked qvsync dispatch"
 pass "installer keeps the executable implementation in tracked source"
 
+if rg -q 'gh api -X PATCH' "$root/qv/git/qvsync"; then
+  fail "qvsync can bypass a rejected Git push through the GitHub API"
+fi
+grep -Fq 'Pushes fail closed through normal Git transport.' \
+  "$root/qv/git/AGENTS.md" ||
+  fail "qvsync fail-closed push instruction"
+pass "qvsync push failures cannot bypass remote policy"
+
 mkdir "$repo/.git/qvsync.lock"
 printf '%s\n' "$$" >"$repo/.git/qvsync.lock/pid"
 if output=$(git -C "$repo" qvsync 2>&1); then

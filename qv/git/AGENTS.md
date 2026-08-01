@@ -37,6 +37,10 @@ replace its judgment.
 - Set repository identity to `Abdulrahman M. Yaqyn <Yaqyn@pm.me>`. Use the
   GitHub noreply fallback only for an unpublished commit rejected by email
   privacy, as defined by the root contract.
+- Pushes fail closed through normal Git transport. Never mutate a GitHub ref
+  through the API as a push fallback: it can bypass remote policy such as
+  GH007. Diagnose the rejection, then use only the authorized unpublished
+  email-privacy fallback or retry the unchanged commit normally.
 - Match checks to the diff: Bash syntax and ShellCheck for shell (`-s bash` for
   sourced install or migration files); `gofmt`, `go test -count=1 ./...`, and
   a `/tmp` Go build for Go; `test/qvos/run.sh` for the full shell suite; binding

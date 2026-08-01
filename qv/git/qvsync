@@ -195,10 +195,6 @@ github_remote_repo() {
   printf "%s\n" "$repo"
 }
 
-github_origin_repo() {
-  github_remote_repo origin
-}
-
 gh_remote_ref_sha() {
   local remote=$1
   local branch=$2
@@ -302,28 +298,16 @@ refresh_origin_ref() {
 push_origin_ref() {
   local source_ref=$1
   local branch=$2
-  local repo
   local sha
 
-  repo=$(github_origin_repo 2>/dev/null || true)
   sha=$(git rev-parse --verify "$source_ref^{commit}") || return 1
-
-  if [[ -n $repo ]] && command -v gh >/dev/null &&
-    gh api -X PATCH "repos/$repo/git/refs/heads/$branch" -f "sha=$sha" -F force=false --silent 2>/dev/null; then
-    set_origin_tracking_ref "$branch" "$sha" || true
-    return
-  fi
 
   if git_push origin "$source_ref:refs/heads/$branch"; then
     set_origin_tracking_ref "$branch" "$sha" || true
     return
   fi
 
-  printf "origin/%s push failed; trying GitHub API ref update.\n" "$branch" >&2
-  command -v gh >/dev/null || return 1
-  repo=$(github_origin_repo) || return 1
-  gh api -X PATCH "repos/$repo/git/refs/heads/$branch" -f "sha=$sha" -F force=false --silent || return 1
-  set_origin_tracking_ref "$branch" "$sha" || true
+  return 1
 }
 
 die_fetch() {
