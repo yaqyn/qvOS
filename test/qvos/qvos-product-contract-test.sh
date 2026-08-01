@@ -244,6 +244,11 @@ if rg -q 'qv/codex|qvos/codex|qv codex doctor' \
 fi
 pass "qvCORE stays two-stack while Codex remains base direct software"
 
+grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" ||
+  fail "upstream Framework 16 offline package ownership"
+if grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.additions"; then
+  fail "stale qvOS Framework 16 package addition"
+fi
 grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
 
@@ -432,6 +437,20 @@ grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"' "$iso_build" ||
 grep -Fq 'default-branch change is not permission to follow it' \
   "$root/qv/iso/AGENTS.md" ||
   fail "qvOS ISO compatibility pin instruction"
+grep -Fq 'freeze feature work until its' "$root/qv/iso/AGENTS.md" ||
+  fail "qvOS release-candidate feature freeze"
+grep -Fq 'An ISO is a development artifact until every base gate' \
+  "$root/qv/iso/README.md" ||
+  fail "qvOS ISO release evidence gate"
+grep -Fq 'prove that its embedded qvOS source equals' \
+  "$root/qv/iso/README.md" ||
+  fail "qvOS ISO embedded-source proof"
+grep -Fq 'Never overwrite this development installation for rehearsal.' \
+  "$root/qv/iso/README.md" ||
+  fail "qvOS ISO safe installation rehearsal"
+grep -Fq 'base passes, test Proton and qvDEV Install and Uninstall separately' \
+  "$root/qv/iso/README.md" ||
+  fail "qvOS optional-stack release rehearsal"
 grep -Fq -- '-e "OMARCHY_INSTALLER_REF=master"' "$iso_build" ||
   fail "qvOS ISO installer branch contract"
 grep -Fq -- '-v "$staged_qvos:/omarchy:ro"' "$iso_build" ||
