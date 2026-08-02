@@ -20,8 +20,8 @@ walker -q
 focused=$(omarchy-hyprland-monitor-focused)
 terminal=$(xdg-terminal-exec --print-id)
 
-for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
-  hyprctl dispatch focusmonitor $m
+while IFS= read -r m; do
+  hyprctl dispatch focusmonitor "$m"
 
   case $terminal in
   *Alacritty*)
@@ -54,6 +54,6 @@ for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
     notify-send -u low "✋  Screensaver only runs in Alacritty, Foot, Ghostty, or Kitty"
     ;;
   esac
-done
+done < <(hyprctl monitors -j | jq -r '.[] | .name')
 
-hyprctl dispatch focusmonitor $focused
+hyprctl dispatch focusmonitor "$focused"

@@ -28,11 +28,9 @@ declare -A GROUP_DESCRIPTIONS
 
 GROUP_DESCRIPTIONS[ac]="AC power detection"
 GROUP_DESCRIPTIONS[battery]="Battery status helpers"
-GROUP_DESCRIPTIONS[branch]="qvOS git branch management"
 GROUP_DESCRIPTIONS[branding]="About and screensaver branding"
 GROUP_DESCRIPTIONS[brightness]="Display and keyboard brightness"
 GROUP_DESCRIPTIONS[capture]="Screenshots and screen recording"
-GROUP_DESCRIPTIONS[channel]="qvOS release channel management"
 GROUP_DESCRIPTIONS[cmd]="Command and shortcut helpers"
 GROUP_DESCRIPTIONS[config]="System configuration helpers"
 GROUP_DESCRIPTIONS[debug]="Diagnostics and support logs"
@@ -351,19 +349,15 @@ resolve_direct_route() {
   shift
   local args=("$@")
   local prefix_count=0
-  local route=""
   local binary=""
   local candidate=""
 
   for (( prefix_count = argc; prefix_count >= 1; prefix_count-- )); do
-    route="omarchy $(join_words " " "${args[@]:0:prefix_count}")"
-
     binary="omarchy-$(join_words "-" "${args[@]:0:prefix_count}")"
     candidate="$OMARCHY_BIN_DIR/$binary"
     if [[ -f $candidate && -x $candidate ]]; then
       DIRECT_RESOLVED_BINARY="$binary"
       DIRECT_RESOLVED_COUNT="$prefix_count"
-      DIRECT_RESOLVED_ROUTE="$route"
       return 0
     fi
   done
@@ -594,6 +588,7 @@ show_commands_markdown() {
 
   while IFS= read -r key; do
     [[ -n $key ]] || continue
+    # shellcheck disable=SC2016
     printf '| `%s` | `%s` | %s |\n' \
       "$(markdown_escape "${COMMAND_USAGE[$key]}")" \
       "$(markdown_escape "${COMMAND_BINARY[$key]}")" \
@@ -834,7 +829,7 @@ show_command_help() {
   local key="$1"
   local aliases="${COMMAND_ALIASES[$key]}"
   local examples="${COMMAND_EXAMPLES[$key]}"
-  local args="${COMMAND_ARGS[$key]}"
+  local usage_args="${COMMAND_ARGS[$key]}"
   local example=""
   local alias=""
 
@@ -843,10 +838,10 @@ show_command_help() {
   echo ""
   echo "${COMMAND_SUMMARY[$key]}"
 
-  if [[ -n $args ]]; then
+  if [[ -n $usage_args ]]; then
     echo ""
     echo "Arguments:"
-    echo "  $args"
+    echo "  $usage_args"
   fi
 
   if [[ -n $examples ]]; then
@@ -893,7 +888,6 @@ resolve_route() {
     if [[ -n $key ]]; then
       RESOLVED_KEY="$key"
       RESOLVED_COUNT="$prefix_count"
-      RESOLVED_ROUTE="$route"
       return 0
     fi
   done

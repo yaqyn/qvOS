@@ -42,7 +42,6 @@ inherited_seams=(
   bin/omarchy-update-restart
   bin/omarchy-voxtype-install
   install/config/all.sh
-  install/helpers/all.sh
   install/helpers/errors.sh
   install/login/limine-snapper.sh
   install/login/plymouth.sh

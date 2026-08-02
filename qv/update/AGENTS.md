@@ -9,6 +9,9 @@ on branch `OS`, accept only the official qvOS origin, and pull `origin/OS` with
 fast-forward-only semantics and bounded network time. Never autostash, reset,
 merge another branch, or conceal source changes. Always restore Hyprland error
 reporting after an attempted pull.
+qvOS has one installed source channel: official `origin/OS`. The inherited
+branch and channel switchers are retired; experimental upstream refs belong in
+separate development checkouts and never mutate the installed OS.
 
 `qv/update/qvos-update` owns product preflight and presentation, then delegates
 once to the update pipeline. Its read-only check must reject a dirty or non-OS

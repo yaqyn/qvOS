@@ -34,6 +34,20 @@ grep -Fq 'The Lynis hardening index is evidence, not a target.' \
   || fail "balanced hardening score boundary"
 grep -Fq 'never authorize automatic hardening' "$root/qv/README.md" \
   || fail "security audit architecture boundary"
+[[ ! -e $root/bin/omarchy-upload-log ]] ||
+  fail "unsupported diagnostic upload command"
+if rg -q 'logs\.omarchy\.org|omarchy upload log' \
+  "$root/bin/omarchy-debug" "$root/default/omarchy-skill/SKILL.md"; then
+  fail "qvOS diagnostics still export private machine inventory"
+fi
+grep -Fq 'mktemp -d' "$root/bin/omarchy-debug" ||
+  fail "qvOS debug log private temporary storage"
+debug_tmp="$test_root/debug-tmp"
+install -d "$debug_tmp"
+TMPDIR="$debug_tmp" OMARCHY_PATH="$root" \
+  "$root/bin/omarchy-debug" --no-sudo --print >/dev/null
+[[ -z $(find "$debug_tmp" -mindepth 1 -maxdepth 1 -print -quit) ]] ||
+  fail "qvOS debug private temporary cleanup"
 grep -Fq '104b2ad73595de52a2f92f0bb17160385bae0579' "$runner" \
   || fail "LinUtil source provenance"
 

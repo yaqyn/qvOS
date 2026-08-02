@@ -24,5 +24,14 @@ grep -Fq 'pull --ff-only --no-rebase origin OS' \
   "$root/qv/update/update-source" || fail "OS fast-forward-only source update"
 grep -Fq 'status --porcelain=v1 --untracked-files=all' \
   "$root/qv/update/qvos-update" || fail "live source cleanliness preflight"
+for retired_switcher in \
+  bin/omarchy-branch-set \
+  bin/omarchy-channel-set \
+  bin/omarchy-update-branch; do
+  [[ ! -e $root/$retired_switcher && ! -L $root/$retired_switcher ]] ||
+    fail "unsupported source switcher remains: $retired_switcher"
+  grep -Fqx "$retired_switcher" "$root/qv/update/retired-paths" ||
+    fail "retired source switcher is not inventoried: $retired_switcher"
+done
 
 printf 'ok - qvOS source updates are clean, official, and fast-forward only\n'

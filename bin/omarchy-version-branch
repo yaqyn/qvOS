@@ -2,4 +2,4 @@
 
 # omarchy:summary=Print the current qvOS git branch
 
-echo $(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD)
+git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD

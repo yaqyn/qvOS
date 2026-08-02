@@ -7,6 +7,9 @@ changing a security default, or planning a hardening batch.
 live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
+Interactive `omarchy debug` output is likewise private and local-only. Use a
+private temporary directory, remove it on exit, and offer only local viewing or
+an explicit copy. qvOS has no diagnostic upload service.
 
 `qv/security/60-qvos-security.conf` is the small default hardening baseline.
 It may protect common local boundaries without disabling user capabilities.

@@ -1,0 +1,4 @@
+# Unsupported inherited source/channel switchers retired by qvOS.
+bin/omarchy-branch-set
+bin/omarchy-channel-set
+bin/omarchy-update-branch

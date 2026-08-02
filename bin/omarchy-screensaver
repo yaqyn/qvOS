@@ -28,7 +28,7 @@ while true; do
     --random-effect --no-eol --no-restore-cursor &
 
   while pgrep -t "${tty#/dev/}" -x tte >/dev/null; do
-    if read -n1 -t 1 || ! screensaver_in_focus; then
+    if read -r -n1 -t 1 || ! screensaver_in_focus; then
       exit_screensaver
     fi
   done

@@ -3,4 +3,9 @@
 # omarchy:summary=Launch a TUI command in the default terminal with qvOS styling
 # omarchy:args=<command> [args...]
 
-exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.$(basename $1) -e "$1" "${@:2}"
+(($# > 0)) || {
+  echo "Usage: omarchy-launch-tui <command> [args...]" >&2
+  exit 2
+}
+app_id="org.omarchy.$(basename -- "$1")"
+exec setsid uwsm-app -- xdg-terminal-exec --app-id="$app_id" -e "$1" "${@:2}"

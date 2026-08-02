@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 start_log_output() {
   local ANSI_SAVE_CURSOR="\033[s"
   local ANSI_RESTORE_CURSOR="\033[u"
@@ -7,8 +9,8 @@ start_log_output() {
   local ANSI_GRAY="\033[90m"
 
   # Save cursor position and hide cursor
-  printf $ANSI_SAVE_CURSOR
-  printf $ANSI_HIDE_CURSOR
+  printf '%b' "$ANSI_SAVE_CURSOR"
+  printf '%b' "$ANSI_HIDE_CURSOR"
 
   (
     local log_lines=20
@@ -46,20 +48,50 @@ start_log_output() {
 
 stop_log_output() {
   if [[ -n ${monitor_pid:-} ]]; then
-    kill $monitor_pid 2>/dev/null || true
-    wait $monitor_pid 2>/dev/null || true
+    kill "$monitor_pid" 2>/dev/null || true
+    wait "$monitor_pid" 2>/dev/null || true
     unset monitor_pid
+  fi
+
+  if [[ -n ${QVOS_ISO_PROGRESS_PID:-} ]]; then
+    kill "$QVOS_ISO_PROGRESS_PID" 2>/dev/null || true
+    for _ in {1..20}; do
+      kill -0 "$QVOS_ISO_PROGRESS_PID" 2>/dev/null || break
+      sleep 0.05
+    done
+    if kill -0 "$QVOS_ISO_PROGRESS_PID" 2>/dev/null; then
+      kill -KILL "$QVOS_ISO_PROGRESS_PID" 2>/dev/null || true
+    fi
+    wait "$QVOS_ISO_PROGRESS_PID" 2>/dev/null || true
+    unset QVOS_ISO_PROGRESS_PID
+    clear
   fi
 }
 
 start_install_log() {
+  local install_group
+  local qvos_tui
+
+  install_group=$(id -gn)
   sudo touch "$OMARCHY_INSTALL_LOG_FILE"
-  sudo chmod 666 "$OMARCHY_INSTALL_LOG_FILE"
+  sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"
+  sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"
 
-  export OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  export OMARCHY_START_TIME
 
-  echo "=== qvOS Installation Started: $OMARCHY_START_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
-  start_log_output
+  echo "=== qvOS Installation Started: $OMARCHY_START_TIME ===" \
+    >>"$OMARCHY_INSTALL_LOG_FILE"
+  qvos_tui=$(command -v qvos-tui 2>/dev/null || true)
+  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then
+    QVOS_TUI_FULLSCREEN=1 "$qvos_tui" \
+      --iso-progress \
+      --log "$OMARCHY_INSTALL_LOG_FILE" \
+      --no-input &
+    QVOS_ISO_PROGRESS_PID=$!
+  elif [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then
+    start_log_output
+  fi
 }
 
 stop_install_log() {
@@ -68,9 +100,11 @@ stop_install_log() {
 
   if [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} ]]; then
     OMARCHY_END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "=== qvOS Installation Completed: $OMARCHY_END_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
-    echo "" >>"$OMARCHY_INSTALL_LOG_FILE"
-    echo "=== Installation Time Summary ===" >>"$OMARCHY_INSTALL_LOG_FILE"
+    {
+      echo "=== qvOS Installation Completed: $OMARCHY_END_TIME ==="
+      echo ""
+      echo "=== Installation Time Summary ==="
+    } >>"$OMARCHY_INSTALL_LOG_FILE"
 
     if [[ -f "/var/log/archinstall/install.log" ]]; then
       ARCHINSTALL_START=$(grep -m1 '^\[' /var/log/archinstall/install.log 2>/dev/null | sed 's/^\[\([^]]*\)\].*/\1/' || true)

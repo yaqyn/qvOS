@@ -2,12 +2,14 @@
 
 # omarchy:summary=Overwrite the user configs for the Walker application launcher (which also powers the qvOS Menu) and restart the services.
 
+set -euo pipefail
+
 mkdir -p ~/.config/autostart/
-cp $OMARCHY_PATH/default/walker/walker.desktop ~/.config/autostart/
+cp "$OMARCHY_PATH/default/walker/walker.desktop" ~/.config/autostart/
 
 # And restarts if it crashes or is killed
 mkdir -p ~/.config/systemd/user/app-walker@autostart.service.d/
-cp $OMARCHY_PATH/default/walker/restart.conf ~/.config/systemd/user/app-walker@autostart.service.d/restart.conf
+cp "$OMARCHY_PATH/default/walker/restart.conf" ~/.config/systemd/user/app-walker@autostart.service.d/restart.conf
 
 systemctl --user daemon-reload
 
@@ -18,7 +20,8 @@ omarchy-refresh-config elephant/desktopapplications.toml
 
 # Link all elephant menus
 mkdir -p ~/.config/elephant/menus
-for menu in $OMARCHY_PATH/default/elephant/*.lua; do
+shopt -s nullglob
+for menu in "$OMARCHY_PATH/default/elephant/"*.lua; do
   ln -snf "$menu" ~/.config/elephant/menus/"$(basename "$menu")"
 done
 

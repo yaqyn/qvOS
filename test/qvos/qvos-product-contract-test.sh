@@ -628,13 +628,13 @@ grep -Fq 'qv/iso/source-permissions' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO tracked executable-mode integration"
 grep -Fq 'if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then' \
-  "$root/qv/install/helpers/logging" ||
+  "$root/install/helpers/logging.sh" ||
   fail "qvOS target install progress ownership"
 grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
-  "$root/qv/install/helpers/logging" ||
+  "$root/install/helpers/logging.sh" ||
   fail "qvOS target install progress process tracking"
 grep -Fq 'kill -KILL "$QVOS_ISO_PROGRESS_PID"' \
-  "$root/qv/install/helpers/logging" ||
+  "$root/install/helpers/logging.sh" ||
   fail "qvOS shared progress forced stop fallback"
 
 progress_bin="$test_root/progress-bin"
@@ -654,17 +654,13 @@ SCRIPT
   sudo() {
     "$@"
   }
-  # shellcheck disable=SC2329
-  start_log_output() {
-    fail "target install used the inherited concurrent log renderer"
-  }
   PATH="$progress_bin:/usr/bin"
   export PATH
   export QVOS_TEST_PROGRESS_LOG="$progress_log"
   export OMARCHY_CHROOT_INSTALL=1
   export OMARCHY_INSTALL_LOG_FILE="$test_root/target-install.log"
   # shellcheck disable=SC1091
-  source "$root/qv/install/helpers/logging"
+  source "$root/install/helpers/logging.sh"
   start_install_log
   [[ -n ${QVOS_ISO_PROGRESS_PID:-} ]] ||
     fail "target install did not track its progress process"
@@ -790,8 +786,17 @@ grep -Fq -- '--label "qvOS"' "$root/qv/boot/config-direct-boot" || fail "qvOS EF
 grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qv/boot/limine/default.conf" || fail "qvOS Limine OS name"
 grep -Fxq 'interface_branding:' "$root/qv/boot/limine/limine.conf" || fail "qvOS Limine empty header"
 grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
-grep -Fq 'GROUP_DESCRIPTIONS[branch]="qvOS git branch management"' \
-  "$root/bin/omarchy" || fail "qvOS branch identity"
+for retired_switcher in \
+  bin/omarchy-branch-set \
+  bin/omarchy-channel-set \
+  bin/omarchy-update-branch; do
+  [[ ! -e $root/$retired_switcher ]] ||
+    fail "unsupported installed source switcher: $retired_switcher"
+done
+if rg -q 'omarchy-(branch-set|channel-set|update-branch)|Update channel' \
+  "$root/bin/omarchy" "$root/bin/omarchy-menu" "$root/qv/menu"; then
+  fail "unsupported installed source channel route"
+fi
 pass "visible system branding is qvOS while compatibility internals remain stable"
 
 for retired_duplicate in \
@@ -983,14 +988,14 @@ grep -Fq 'sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed
 grep -Fq 'sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json' \
   "$root/qv/theme/configure" ||
   fail "user-owned Chromium theme policy"
-if rg -q 'chmod[[:space:]]+666' "$root/qv/install/helpers/logging"; then
+if rg -q 'chmod[[:space:]]+666' "$root/install/helpers/logging.sh"; then
   fail "world-writable install log"
 fi
 grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
-  "$root/qv/install/helpers/logging" ||
+  "$root/install/helpers/logging.sh" ||
   fail "desktop-owned install log"
 grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
-  "$root/qv/install/helpers/logging" ||
+  "$root/install/helpers/logging.sh" ||
   fail "restricted install log"
 [[ -x $root/qv/install/helpers/error-title ]] ||
   fail "qvOS installer error-title owner mode"

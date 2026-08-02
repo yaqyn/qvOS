@@ -18,10 +18,10 @@ FLAG_NAME="$1"
 FLAG="$HOME/.local/state/omarchy/toggles/$FLAG_NAME"
 
 if [[ -f $FLAG ]]; then
-  rm $FLAG
+  rm -- "$FLAG"
   [[ -n $DISABLED_NOTIFICATION ]] && notify-send -u low "$DISABLED_NOTIFICATION"
 else
-  mkdir -p "$(dirname $FLAG)"
-  touch $FLAG
+  mkdir -p "${FLAG%/*}"
+  touch "$FLAG"
   [[ -n $ENABLED_NOTIFICATION ]] && notify-send -u low "$ENABLED_NOTIFICATION"
 fi

@@ -16,7 +16,7 @@ thunar_codex_runtime="$HOME/.local/share/qvos/thunar/codex"
 thunar_codex_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/codex\" \"\$1\"' qvos-thunar %f"
 assume_yes=0
 
-# shellcheck source=qv/thunar/actions.sh
+# shellcheck source=/dev/null
 source "$thunar_actions_source"
 
 usage() {

@@ -11,6 +11,12 @@ fail() {
 
 [[ -x $root/qv/install/reinstall-source ]] || fail "source reinstall owner mode"
 [[ -x $root/qv/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
+[[ ! -e $root/qv/install/helpers/logging ]] || fail "duplicate install logger remains"
+[[ ! -e $root/qv/install/helpers/presentation ]] ||
+  fail "duplicate install presentation remains"
+# shellcheck disable=SC2016
+grep -Fqx 'source $OMARCHY_INSTALL/helpers/logging.sh' \
+  "$root/install/helpers/all.sh" || fail "singular install logger wiring"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
 ) ]] || fail "native install paths are not sorted and unique"

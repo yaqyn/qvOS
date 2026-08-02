@@ -48,7 +48,7 @@ terminal() {
 }
 
 present_terminal() {
-  omarchy-launch-floating-terminal-with-presentation $1
+  omarchy-launch-floating-terminal-with-presentation "$1"
 }
 
 open_in_editor() {
@@ -161,8 +161,10 @@ get_webcam_list() {
 }
 
 show_webcam_select_menu() {
-  local devices=$(get_webcam_list)
-  local count=$(echo "$devices" | grep -c . 2>/dev/null || echo 0)
+  local devices
+  local count
+  devices=$(get_webcam_list)
+  count=$(grep -c . <<<"$devices" || true)
 
   if [[ -z $devices ]] || ((count == 0)); then
     notify-send "No webcam devices found" -u critical -t 3000
@@ -184,7 +186,8 @@ show_screenrecord_menu() {
   *"With desktop audio") omarchy-capture-screenrecording --with-desktop-audio ;;
   *"With desktop + microphone audio") omarchy-capture-screenrecording --with-desktop-audio --with-microphone-audio ;;
   *"With desktop + microphone audio + webcam")
-    local device=$(show_webcam_select_menu) || {
+    local device
+    device=$(show_webcam_select_menu) || {
       back_to show_capture_menu
       return
     }
@@ -253,8 +256,10 @@ show_hardware_menu() {
 }
 
 show_hardware_touchpad_haptics_menu() {
-  local current=$(dell-xps-touchpad-haptics get)
-  local selected=$(menu "Touchpad Haptics" "low\nmid\nhigh" "" "$current")
+  local current
+  local selected
+  current=$(dell-xps-touchpad-haptics get)
+  selected=$(menu "Touchpad Haptics" "low\nmid\nhigh" "" "$current")
 
   if [[ -n $selected ]]; then
     dell-xps-touchpad-haptics set "$selected"
@@ -571,7 +576,7 @@ show_install_ai_menu() {
   case $(menu "Install" "  Dictation\n󱚤  LM Studio\n󱚤  Ollama\n󱚤  Crush") in
   *Dictation*) present_terminal omarchy-voxtype-install ;;
   *Studio*) install "LM Studio" "lmstudio-bin" ;;
-  *Ollama*) install "Ollama" $ollama_pkg ;;
+  *Ollama*) install "Ollama" "$ollama_pkg" ;;
   *Crush*) install "Crush" "crush-bin" ;;
   *) show_install_menu ;;
   esac
@@ -757,9 +762,8 @@ show_remove_elixir_menu() {
 }
 
 show_update_menu() {
-  case $(menu "Update" "  qvOS\n󰔫  Channel\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
+  case $(menu "Update" "  qvOS\n  Config\n󰸌  Extra Themes\n  Process\n󰇅  Hardware\n  Firmware\n  Password\n  Timezone\n  Time") in
   *qvOS*) present_terminal omarchy-update ;;
-  *Channel*) show_update_channel_menu ;;
   *Config*) show_update_config_menu ;;
   *Themes*) present_terminal omarchy-theme-update ;;
   *Process*) show_update_process_menu ;;
@@ -769,16 +773,6 @@ show_update_menu() {
   *Time*) present_terminal omarchy-update-time ;;
   *Password*) show_update_password_menu ;;
   *) show_main_menu ;;
-  esac
-}
-
-show_update_channel_menu() {
-  case $(menu "Update channel" "🟢 Stable\n🟡 RC\n🟠 Edge\n🔴 Dev") in
-  *Stable*) present_terminal "omarchy-channel-set stable" ;;
-  *RC*) present_terminal "omarchy-channel-set rc" ;;
-  *Edge*) present_terminal "omarchy-channel-set edge" ;;
-  *Dev*) present_terminal "omarchy-channel-set dev" ;;
-  *) show_update_menu ;;
   esac
 }
 show_update_process_menu() {
@@ -879,6 +873,7 @@ go_to_menu() {
 
 # Allow user extensions and overrides
 USER_EXTENSIONS="$HOME/.config/omarchy/extensions/menu.sh"
+# shellcheck source=/dev/null
 [[ -f $USER_EXTENSIONS ]] && source "$USER_EXTENSIONS"
 
 toggle_existing_menu

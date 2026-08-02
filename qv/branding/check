@@ -66,8 +66,8 @@ identity_paths=(
   install/config/hardware/apple/fix-suspend-nvme.sh
   install/helpers/errors.sh
   install/helpers/logging.sh
+  install/helpers/presentation.sh
   install/preflight/guard.sh
-  qv/install/helpers/logging
   qv/update/qvos-update
 )
 

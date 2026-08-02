@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # Ensure we have gum available
 if ! command -v gum &>/dev/null; then
   omarchy-pkg-add gum
@@ -8,8 +10,8 @@ if [[ -e /dev/tty ]]; then
   TERM_SIZE=$(stty size 2>/dev/null </dev/tty)
 
   if [[ -n $TERM_SIZE ]]; then
-    export TERM_HEIGHT=$(echo "$TERM_SIZE" | cut -d' ' -f1)
-    export TERM_WIDTH=$(echo "$TERM_SIZE" | cut -d' ' -f2)
+    read -r TERM_HEIGHT TERM_WIDTH <<<"$TERM_SIZE"
+    export TERM_HEIGHT TERM_WIDTH
   else
     # Fallback to reasonable defaults if stty fails
     export TERM_WIDTH=80
@@ -21,14 +23,17 @@ else
   export TERM_HEIGHT=24
 fi
 
-export LOGO_PATH="$OMARCHY_PATH/logo.txt"
-export LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$LOGO_PATH" 2>/dev/null || echo 0)
-export LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
+LOGO_PATH="$OMARCHY_PATH/qv/branding/logo.txt"
+LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' \
+  "$LOGO_PATH" 2>/dev/null || echo 0)
+LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
 
-export PADDING_LEFT=$(((TERM_WIDTH - LOGO_WIDTH) / 2))
-export PADDING_LEFT_SPACES=$(printf "%*s" $PADDING_LEFT "")
+PADDING_LEFT=$(((TERM_WIDTH - LOGO_WIDTH) / 2))
+((PADDING_LEFT >= 0)) || PADDING_LEFT=0
+PADDING_LEFT_SPACES=$(printf "%*s" "$PADDING_LEFT" "")
+export LOGO_PATH LOGO_WIDTH LOGO_HEIGHT PADDING_LEFT PADDING_LEFT_SPACES
 
-# Tokyo Night theme for gum confirm
+# qvOS terminal colors for Gum controls.
 export GUM_CONFIRM_PROMPT_FOREGROUND="6"     # Cyan for prompt
 export GUM_CONFIRM_SELECTED_FOREGROUND="0"   # Black text on selected
 export GUM_CONFIRM_SELECTED_BACKGROUND="2"   # Green background for selected
@@ -43,6 +48,6 @@ export GUM_TABLE_PADDING="$PADDING"
 export GUM_CONFIRM_PADDING="$PADDING"
 
 clear_logo() {
-  printf "\033[H\033[2J" # Clear screen and move cursor to top-left
+  printf '\033[H\033[2J' # Clear screen and move cursor to top-left
   gum style --foreground 2 --padding "1 0 0 $PADDING_LEFT" "$(<"$LOGO_PATH")"
 }

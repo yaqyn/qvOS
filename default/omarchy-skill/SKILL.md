@@ -344,9 +344,6 @@ omarchy system reboot           # Reboot
 # Get debug information (ALWAYS use these flags to avoid interactive prompts)
 omarchy debug --no-sudo --print
 
-# Upload logs for support
-omarchy upload log
-
 # Reset specific config to defaults
 omarchy refresh <app>
 

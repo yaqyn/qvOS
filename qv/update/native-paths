@@ -1,7 +1,6 @@
 # Inherited paths promoted to native qvOS update ownership.
 bin/omarchy-update
 bin/omarchy-update-available
-bin/omarchy-update-branch
 bin/omarchy-update-git
 bin/omarchy-update-keyring
 bin/omarchy-update-perform

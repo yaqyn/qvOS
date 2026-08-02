@@ -25,7 +25,7 @@ fi
 summary="$glyph    $headline"
 
 if [[ -n $description ]]; then
-  description=$(sed 's/^/      /' <<<"$description")
+  description="      ${description//$'\n'/$'\n      '}"
   notify-send "$@" "$summary" "$description"
 else
   notify-send "$@" "$summary"

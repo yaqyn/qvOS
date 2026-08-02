@@ -1,0 +1,2 @@
+# Inherited diagnostic export retired because qvOS has no owned upload service.
+bin/omarchy-upload-log

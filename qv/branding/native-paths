@@ -1,7 +1,5 @@
 # Inherited paths promoted to native qvOS ownership for product branding.
 bin/omarchy
-bin/omarchy-branch-set
-bin/omarchy-channel-set
 bin/omarchy-debug
 bin/omarchy-default-browser
 bin/omarchy-dev-add-migration
@@ -57,6 +55,5 @@ default/wayland-sessions/omarchy.desktop
 install/config/hardware/apple/fix-suspend-nvme.sh
 install/first-run/install-voxtype.hook
 install/first-run/welcome.sh
-install/helpers/logging.sh
 install/preflight/guard.sh
 test/omarchy-cli-test.sh

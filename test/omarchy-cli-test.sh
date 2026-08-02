@@ -115,8 +115,15 @@ assert_output_contains "bare share help uses canonical route" "$output" "omarchy
 output=$("$CLI" menu share)
 assert_output_contains "bare required-arg filename route renders CLI help" "$output" "omarchy share <clipboard|file|folder> [path...]"
 
-output=$("$CLI" branch set)
-assert_output_contains "bare required-choice route renders CLI help" "$output" "omarchy branch set <master|rc|dev>"
+set +e
+output=$("$CLI" branch set 2>&1)
+retired_branch_status=$?
+set -e
+((retired_branch_status == 127)) || fail "retired branch switch status"
+assert_output_contains \
+  "retired branch switch is absent from the qvOS CLI" \
+  "$output" \
+  "Unknown qvOS command: omarchy branch set"
 
 CLI="$CLI" python3 <<'PY'
 import json
