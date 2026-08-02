@@ -19,7 +19,7 @@
  
  # Pre-import the omarchy signing key so pacman can verify packages without a keyserver lookup
  pacman-key --add /builder/omarchy.gpg
-@@ -43,6 +52,34 @@ else
+@@ -43,49 +52,145 @@ else
    git clone -b $OMARCHY_INSTALLER_REF https://github.com/$OMARCHY_INSTALLER_REPO.git "$build_cache_dir/airootfs/root/omarchy"
  fi
  
@@ -51,10 +51,10 @@
 +  )
 +fi
 +
- # Make log uploader available in the ISO too
- mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
- cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
-@@ -50,42 +87,114 @@ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache
+-# Make log uploader available in the ISO too
+-mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
+-cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
+-
 -# Copy the Omarchy Plymouth theme to the ISO
 +# Copy the qvOS Plymouth theme to the ISO
  mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
@@ -187,7 +187,7 @@
  
  # Create a symlink to the offline mirror instead of duplicating it.
  # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,
-@@ -98,6 +203,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
+@@ -98,6 +200,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
  cp $build_cache_dir/pacman-offline.conf "$build_cache_dir/airootfs/etc/pacman.conf"
  
  # Finally, we assemble the entire ISO
@@ -318,10 +318,10 @@
  install_disk() {
 --- configs/profiledef.sh
 +++ configs/profiledef.sh
-@@ -23,4 +23,5 @@ file_permissions=(
+@@ -23,4 +23,4 @@ file_permissions=(
    ["/root/configurator"]="0:0:755"
    ["/var/cache/omarchy/mirror/offline/"]="0:0:775"
-   ["/usr/local/bin/omarchy-upload-log"]="0:0:755"
+-  ["/usr/local/bin/omarchy-upload-log"]="0:0:755"
 +  ["/usr/local/bin/qvos-tui"]="0:0:755"
  )
 --- configs/efiboot/loader/entries/01-archiso-x86_64-linux.conf

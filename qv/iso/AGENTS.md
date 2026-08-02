@@ -59,6 +59,9 @@ embedded source, installer integration, or release-image verification.
   target-install progress inside that namespace, and stop and wait for it
   before either the qvOS finale or inherited error fallback. Never pass a
   live-media PID through `arch-chroot` as if the target could own it.
+- Keep installer diagnostics local. The live ISO must not stage a diagnostic
+  uploader or offer external log upload; users may inspect or explicitly save
+  the private install log instead.
 - Once a release candidate commit is selected, freeze feature work until its
   rehearsal passes or the candidate is abandoned. During the freeze, accept
   only upstream compatibility, build or installation blockers, verification
