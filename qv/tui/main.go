@@ -28,26 +28,28 @@ import (
 // -- palette --
 
 const (
-	bgTerm  = "#000000"
-	dim     = "#242424"
-	gray    = "#404040"
-	mid     = "#707070"
-	bright  = "#b8b8b8"
-	white   = "#ffffff"
-	red     = "#b00000"
-	hotRed  = "#d00000"
-	deepRed = "#5f0000"
+	bgTerm    = "#000000"
+	dim       = "#242424"
+	gray      = "#404040"
+	mid       = "#707070"
+	bright    = "#b8b8b8"
+	isoBright = "#d8d8d8"
+	white     = "#ffffff"
+	red       = "#b00000"
+	hotRed    = "#d00000"
+	deepRed   = "#5f0000"
 )
 
 var (
-	sDim     = lipgloss.NewStyle().Foreground(lipgloss.Color(dim))
-	sGray    = lipgloss.NewStyle().Foreground(lipgloss.Color(gray))
-	sMid     = lipgloss.NewStyle().Foreground(lipgloss.Color(mid))
-	sBright  = lipgloss.NewStyle().Foreground(lipgloss.Color(bright))
-	sWhite   = lipgloss.NewStyle().Foreground(lipgloss.Color(white)).Bold(true)
-	sRed     = lipgloss.NewStyle().Foreground(lipgloss.Color(red)).Bold(true)
-	sHot     = lipgloss.NewStyle().Foreground(lipgloss.Color(hotRed)).Bold(true)
-	sDeepRed = lipgloss.NewStyle().Foreground(lipgloss.Color(deepRed))
+	sDim       = lipgloss.NewStyle().Foreground(lipgloss.Color(dim))
+	sGray      = lipgloss.NewStyle().Foreground(lipgloss.Color(gray))
+	sMid       = lipgloss.NewStyle().Foreground(lipgloss.Color(mid))
+	sBright    = lipgloss.NewStyle().Foreground(lipgloss.Color(bright))
+	sISOBright = lipgloss.NewStyle().Foreground(lipgloss.Color(isoBright)).Bold(true)
+	sWhite     = lipgloss.NewStyle().Foreground(lipgloss.Color(white)).Bold(true)
+	sRed       = lipgloss.NewStyle().Foreground(lipgloss.Color(red)).Bold(true)
+	sHot       = lipgloss.NewStyle().Foreground(lipgloss.Color(hotRed)).Bold(true)
+	sDeepRed   = lipgloss.NewStyle().Foreground(lipgloss.Color(deepRed))
 )
 
 var buildSourceHash = "unmanaged"
@@ -482,49 +484,6 @@ func advanceScriptProgress(current float64, target float64) float64 {
 		return target
 	}
 	return current + step
-}
-
-func realisticProgress(progress float64) float64 {
-	if progress <= 0 {
-		return 0
-	}
-	if progress >= 1 {
-		return 1
-	}
-
-	type segment struct {
-		startIn  float64
-		endIn    float64
-		startOut float64
-		endOut   float64
-	}
-
-	earlyHoldStart := 0.12
-	earlyHoldEnd := earlyHoldStart + 1.0/float64(buildDurationSeconds)
-	midHoldStart := 0.52
-	midHoldEnd := midHoldStart + 2.0/float64(buildDurationSeconds)
-	finalApproach := 0.97
-
-	segments := []segment{
-		{0.00, earlyHoldStart, 0.00, 0.18},
-		{earlyHoldStart, earlyHoldEnd, 0.18, 0.18},
-		{earlyHoldEnd, midHoldStart, 0.18, 0.50},
-		{midHoldStart, midHoldEnd, 0.50, 0.50},
-		{midHoldEnd, finalApproach, 0.50, 0.97},
-		{finalApproach, 1.00, 0.97, 1.00},
-	}
-
-	for _, s := range segments {
-		if progress <= s.endIn {
-			if s.endIn == s.startIn {
-				return s.endOut
-			}
-			local := (progress - s.startIn) / (s.endIn - s.startIn)
-			local = local * local * (3 - 2*local)
-			return s.startOut + local*(s.endOut-s.startOut)
-		}
-	}
-	return progress
 }
 
 func (m model) Init() tea.Cmd {
@@ -992,7 +951,7 @@ func (m model) renderSideBody(width, height int) string {
 	if m.loading && isScriptAction(m.action) &&
 		!m.startConfirm && !m.updateStopConfirm && !m.sudoPrompt &&
 		!m.selectionActive && !m.formActive && !m.rebootPrompt &&
-		leftWidth >= progressBarWidth {
+		leftWidth >= progressRailWidth {
 		middleMode = layoutTablet
 	}
 	left := m.renderMiddle(middleMode)
@@ -3143,6 +3102,7 @@ func (m model) renderRootProgressFor(mode layoutMode) string {
 		Status:       status,
 		Phase:        phase,
 		Progress:     progress,
+		Frame:        m.frame,
 		Bar:          requirementsForAction(m.action).ProgressBar && !m.postActionFlow,
 		HideProgress: m.postActionFlow,
 		NextStep:     nextStep,
@@ -3212,7 +3172,7 @@ func (m model) informationLines() ([]string, int) {
 	if isSideComposition(m.width, m.height, m.fullscreen) {
 		width, _ = sideColumnWidths(m.width)
 		mode = layoutMobile
-		if width >= progressBarWidth {
+		if width >= progressRailWidth {
 			mode = layoutTablet
 		}
 	}

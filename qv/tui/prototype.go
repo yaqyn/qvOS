@@ -786,6 +786,7 @@ func (m prototypeSessionModel) renderPanel(mode layoutMode) string {
 		Status:   status,
 		Phase:    phase,
 		Progress: m.progress,
+		Frame:    m.frame,
 		Bar:      true,
 		Hints:    m.persistentHints(),
 	}, mode)

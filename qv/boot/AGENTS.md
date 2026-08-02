@@ -8,6 +8,11 @@ generated qvOS, kernel, snapshot, and EFI entries remain owned by
 `limine-entry-tool` and `limine-snapper-sync`; never rewrite or duplicate them
 to obtain a custom menu layout.
 
+`qv/boot/plymouth/` is the single installed-system and ISO Plymouth source.
+Keep the promoted live theme's graphite `#090909` graphical background and
+exact promoted assets together. The installer TUI remains an independent
+exact-black renderer and must clear Plymouth before painting its first frame.
+
 - Keep the Limine screen center-only on exact black: explicit empty branding,
   hidden interface help, no wallpaper, and no custom font or renderer fork.
 - Preserve an explicit five-second automatic boot of entry 2 with

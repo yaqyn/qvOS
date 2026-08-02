@@ -130,9 +130,9 @@ func TestEmptyRunningLogsUsePreparingInsteadOfWaitingCopy(t *testing.T) {
 			}).View(),
 		},
 		{
-			name: "ISO terminal",
+			name: "ISO logs",
 			view: (isoProgressModel{
-				width: 120, height: 42, terminalView: true,
+				width: 120, height: 42, logOverlay: true,
 				frame: preparingFrameStep * 2,
 			}).View(),
 		},
@@ -648,9 +648,6 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 			width: width, height: height,
 			profile: prototypeProfileFor(prototypeScript), running: true,
 		}).View(),
-		"ISO progress": (isoProgressModel{
-			width: width, height: height, prototype: true, progress: 0.4,
-		}).View(),
 	}
 
 	for name, view := range views {
@@ -664,15 +661,30 @@ func TestEveryTUISurfaceExposesDiscoverableControls(t *testing.T) {
 	}
 }
 
-func TestBootSetupAndFinaleIntentionallyHidePersistentHintClutter(t *testing.T) {
+func TestBootSurfacesKeepOnlyTheRequestedPersistentHint(t *testing.T) {
 	for _, step := range []isoStep{
 		isoStepRegional,
 		isoStepAccount,
 		isoStepDisk,
 	} {
-		if hints := (isoInstallerModel{step: step}).persistentHints(); len(hints) != 0 {
-			t.Fatalf("ISO step %d retained persistent hints: %#v", step, hints)
+		content := stripANSI((isoInstallerModel{step: step, width: 90, height: 30}).View().Content)
+		for _, hidden := range []string{"ctrl+c", "ctrl+z", "f1 help"} {
+			if strings.Contains(strings.ToLower(content), hidden) {
+				t.Fatalf("ISO step %d retained persistent %q copy: %q", step, hidden, content)
+			}
 		}
+	}
+	styledProgress := (isoProgressModel{
+		width: 140, height: 31, status: "installing qvOS", progress: 0.4,
+	}).View().Content
+	progress := stripANSI(styledProgress)
+	for _, hidden := range []string{"INSTALLING QVOS", "v log", "ctrl+v terminal"} {
+		if strings.Contains(progress, hidden) {
+			t.Fatalf("ISO progress retained %q clutter: %q", hidden, progress)
+		}
+	}
+	if !strings.Contains(styledProgress, sDim.Render("Estimated 4:00  -  ? Help")) {
+		t.Fatalf("ISO progress is missing its dim estimate and Help footer: %q", styledProgress)
 	}
 
 	finale := stripANSI((isoFinishedModel{width: 90, height: 28}).View().Content)
@@ -681,54 +693,64 @@ func TestBootSetupAndFinaleIntentionallyHidePersistentHintClutter(t *testing.T) 
 			t.Fatalf("ISO finale retained %q clutter: %q", hidden, finale)
 		}
 	}
-	for _, expected := range []string{"Welcome to qvOS", "Reboot"} {
+	for _, expected := range []string{"Finished", "Reboot"} {
 		if !strings.Contains(finale, expected) {
 			t.Fatalf("ISO finale is missing %q: %q", expected, finale)
 		}
 	}
 }
 
-func TestISOProgressSeparatesTheSplitAndFullTerminalShortcuts(t *testing.T) {
+func TestISOProgressReplacesTheRailWithOneSimpleLogView(t *testing.T) {
 	m := newISOProgressModel("/tmp/qvos-output-only-progress", true)
 	m.width, m.height = 140, 31
 	m.logLines = []string{"real installer output"}
+	initial := stripANSI(m.View().Content)
+	for _, expected := range []string{"preparing installation", "0%", "Estimated 4:00", "? Help"} {
+		if !strings.Contains(initial, expected) {
+			t.Fatalf("progress is missing %q: %q", expected, initial)
+		}
+	}
 
 	next, command := m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
 	m = next.(isoProgressModel)
-	if command != nil || !m.logOverlay || m.terminalView {
-		t.Fatalf("v did not open the split progress view: %#v", m)
+	if command != nil || !m.logOverlay {
+		t.Fatalf("v did not replace progress with logs: %#v", m)
 	}
-	for _, expected := range []string{"INSTALLING QVOS", "TERMINAL", "real installer output"} {
-		if content := stripANSI(m.View().Content); !strings.Contains(content, expected) {
-			t.Fatalf("split progress is missing %q: %q", expected, content)
+	logs := stripANSI(m.View().Content)
+	for _, expected := range []string{"real installer output", "Estimated 4:00", "? Help"} {
+		if !strings.Contains(logs, expected) {
+			t.Fatalf("simple log view is missing %q: %q", expected, logs)
+		}
+	}
+	for _, hidden := range []string{"preparing installation", "0%", "TERMINAL", "ctrl+v", tuiRailGlyph} {
+		if strings.Contains(logs, hidden) {
+			t.Fatalf("simple log view retained %q: %q", hidden, logs)
 		}
 	}
 
 	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
 	m = next.(isoProgressModel)
-	if command != nil || !m.terminalView {
-		t.Fatalf("Ctrl+V did not open the full terminal: %#v", m)
-	}
-	if content := stripANSI(m.View().Content); !strings.Contains(content, "TERMINAL OUTPUT") {
-		t.Fatalf("full terminal is missing its identity: %q", content)
+	if command != nil || !m.logOverlay {
+		t.Fatalf("Ctrl+V changed the boot log view: %#v", m)
 	}
 
-	next, command = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
-	if command != nil || !next.(isoProgressModel).terminalView {
-		t.Fatal("ISO full terminal accepted the copy-all shortcut")
-	}
 	for _, hint := range m.helpHints() {
 		text := strings.ToLower(hint.Key + " " + hint.Action)
-		if strings.Contains(text, "copy") || strings.Contains(text, "scroll") || hint.Key == "y" {
-			t.Fatalf("ISO terminal retained an unrelated control: %#v", hint)
+		if strings.Contains(text, "terminal") || strings.Contains(text, "ctrl+v") {
+			t.Fatalf("ISO logs retained an obsolete control: %#v", hint)
 		}
 	}
 
-	hints := (isoProgressModel{}).persistentHints()
-	if len(hints) != 3 || hints[0] != (tuiHint{Key: "v", Action: "log"}) ||
-		hints[1] != (tuiHint{Key: "ctrl+v", Action: "terminal"}) ||
-		hints[2] != (tuiHint{Key: "?", Action: "help"}) {
-		t.Fatalf("ISO progress hints = %#v", hints)
+	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	m = next.(isoProgressModel)
+	if command != nil || m.logOverlay {
+		t.Fatalf("v did not return to progress: %#v", m)
+	}
+
+	helpModel := newISOProgressModel("/tmp/qvos-output-only-progress", true)
+	next, command = helpModel.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	if command != nil || !next.(isoProgressModel).helpOverlay {
+		t.Fatal("ISO progress Help shortcut stopped working")
 	}
 }
 
@@ -1109,6 +1131,39 @@ func TestISOFinaleRejectsProgressOnlyTerminalShortcuts(t *testing.T) {
 	}
 }
 
+func TestISOFinaleUsesAHiddenRebootTimerThatStopsOnInteraction(t *testing.T) {
+	automatic := newISOFinishedModel()
+	next, command := automatic.Update(isoFinishedRebootMsg{})
+	automatic = next.(isoFinishedModel)
+	if command == nil || !automatic.allowQuit || automatic.timerStopped {
+		t.Fatalf("ISO finale did not complete its untouched reboot timer: %#v", automatic)
+	}
+
+	paused := newISOFinishedModel()
+	next, command = paused.Update(tea.KeyPressMsg{Code: 'v', Text: "v"})
+	paused = next.(isoFinishedModel)
+	if command != nil || !paused.timerStopped || paused.allowQuit {
+		t.Fatalf("ISO finale interaction did not stop its timer: %#v", paused)
+	}
+	next, command = paused.Update(isoFinishedRebootMsg{})
+	paused = next.(isoFinishedModel)
+	if command != nil || paused.allowQuit {
+		t.Fatalf("stopped ISO finale timer still rebooted: %#v", paused)
+	}
+
+	content := stripANSI((isoFinishedModel{width: 90, height: 28}).View().Content)
+	for _, expected := range []string{"Finished", "Reboot"} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("ISO finale is missing %q: %q", expected, content)
+		}
+	}
+	for _, hidden := range []string{"Welcome to qvOS", "5", "seconds", "timer"} {
+		if strings.Contains(content, hidden) {
+			t.Fatalf("ISO finale exposed %q: %q", hidden, content)
+		}
+	}
+}
+
 func TestHintRendererWrapsWithoutHidingActions(t *testing.T) {
 	hints := []tuiHint{
 		{Key: "ctrl+c/z", Action: "stop options"},
@@ -1145,6 +1200,29 @@ func TestHelpHintUsesQuietDimGray(t *testing.T) {
 	}
 	if strings.Contains(rendered, sHot.Render("f1")) {
 		t.Fatalf("Help key retained the red primary style: %q", rendered)
+	}
+}
+
+func TestHelpAndTerminalOutputUseTheSharedThinRail(t *testing.T) {
+	help := renderTUIHelp(100, "Help", []tuiHint{{Key: "enter", Action: "continue"}})
+	helpRail := renderTUIRail(66, sDim)
+	if !strings.Contains(help, helpRail) || strings.Contains(help, "━") {
+		t.Fatalf("Help retained a separate or heavy separator: %q", help)
+	}
+
+	terminal := renderTUITerminalOutput(
+		100,
+		30,
+		"Update",
+		[]string{"output"},
+		0,
+		"",
+		"No output",
+		[]tuiHint{{Key: "ctrl+v", Action: "return"}},
+	)
+	terminalRail := renderTUIRail(terminalOutputContentWidth(100), sDim)
+	if strings.Count(terminal, terminalRail) != 2 || strings.Contains(terminal, "━") {
+		t.Fatalf("terminal output retained separate or heavy separators: %q", terminal)
 	}
 }
 
@@ -1190,10 +1268,6 @@ func assertViewFits(t *testing.T, content string, width int, height int) {
 	if hints := (model{updateStopConfirm: true}).rootPersistentHints(); len(hints) != 1 ||
 		hints[0] != (tuiHint{Key: "ctrl+c/z", Action: "again stop"}) {
 		t.Fatalf("stop modal hints = %#v, want repeated-key stop control", hints)
-	}
-	if hints := (isoInstallerModel{shutdownPrompt: true}).persistentHints(); len(hints) != 1 ||
-		hints[0] != (tuiHint{Key: "ctrl+c/z", Action: "again stop"}) {
-		t.Fatalf("ISO stop modal hints = %#v, want repeated-key stop control", hints)
 	}
 }
 

@@ -301,7 +301,7 @@ func renderTUIHelp(width int, title string, hints []tuiHint) string {
 
 	rows := []string{
 		sWhite.Render("qvOS  " + strings.ToUpper(title)),
-		sDeepRed.Render(strings.Repeat("━", contentWidth)),
+		renderTUIRail(contentWidth, sDim),
 	}
 	for _, hint := range hints {
 		key := trimDisplay(strings.TrimSpace(hint.Key), keyWidth)
@@ -362,7 +362,7 @@ func renderTUITerminalOutput(
 			title += strings.Repeat(" ", gap) + status
 		}
 	}
-	body = append(body, title, sDeepRed.Render(strings.Repeat("━", contentWidth)))
+	body = append(body, title, renderTUIRail(contentWidth, sDim))
 	for _, line := range lines {
 		body = append(body, sBright.Render(line))
 	}
@@ -370,7 +370,7 @@ func renderTUITerminalOutput(
 		body = append(body, "")
 	}
 	body = append(body,
-		sDeepRed.Render(strings.Repeat("━", contentWidth)),
+		renderTUIRail(contentWidth, sDim),
 		centerTUIHints(contentWidth, hints...),
 	)
 

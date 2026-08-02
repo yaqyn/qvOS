@@ -8,15 +8,22 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const progressBarWidth = 34
+const progressRailWidth = 34
+
+const (
+	progressGlowLevels     = 7
+	progressGlowStepFrames = 8
+)
 
 type progressScreen struct {
 	Title        string
 	Status       string
 	Phase        loadPhase
 	Progress     float64
+	Frame        int
 	Bar          bool
 	HideProgress bool
+	HideTitle    bool
 	NextStep     string
 	Hints        []tuiHint
 }
@@ -67,7 +74,7 @@ func renderProgressScreen(screen progressScreen, mode layoutMode) string {
 	}
 
 	progress := min(1, max(0, screen.Progress))
-	if mode == layoutMobile || canvasW < progressBarWidth {
+	if (mode == layoutMobile || canvasW < progressRailWidth) && !screen.HideTitle {
 		var content string
 		if screen.Phase == loadRun {
 			if screen.HideProgress {
@@ -84,15 +91,16 @@ func renderProgressScreen(screen progressScreen, mode layoutMode) string {
 		return appendTUIHints(content, canvasW, screen.Hints...)
 	}
 
+	lineWidth := min(progressRailWidth, max(1, canvasW))
 	statusRaw := strings.TrimSpace(screen.Status)
 	if statusRaw == "" {
 		statusRaw = "working"
 	}
-	statusLine := sGray.Render(trimDisplay(statusRaw, progressBarWidth))
+	statusLine := sGray.Render(trimDisplay(statusRaw, lineWidth))
 	if !screen.HideProgress {
 		percentRaw := fmt.Sprintf("%3d%%", int(progress*100))
-		statusRaw = trimDisplay(statusRaw, progressBarWidth-len(percentRaw)-1)
-		gap := progressBarWidth - lipgloss.Width(statusRaw) - len(percentRaw)
+		statusRaw = trimDisplay(statusRaw, max(1, lineWidth-len(percentRaw)-1))
+		gap := lineWidth - lipgloss.Width(statusRaw) - len(percentRaw)
 		if gap < 1 {
 			gap = 1
 		}
@@ -109,13 +117,13 @@ func renderProgressScreen(screen progressScreen, mode layoutMode) string {
 		return lipgloss.PlaceHorizontal(canvasW, lipgloss.Center, value)
 	}
 
-	lines := []string{
-		center(sWhite.Render(titleRaw)),
-		"",
-		center(statusLine),
+	lines := []string{}
+	if !screen.HideTitle {
+		lines = append(lines, center(sWhite.Render(titleRaw)), "")
 	}
-	if screen.Bar {
-		lines = append(lines, "", center(renderProgressBar(screen.Phase, progress)))
+	lines = append(lines, center(statusLine))
+	if screen.Bar && canvasW >= progressRailWidth {
+		lines = append(lines, "", center(renderProgressRail(progress, screen.Frame)))
 	}
 	if screen.Phase == loadOK && strings.TrimSpace(screen.NextStep) != "" {
 		lines = append(lines, "")
@@ -159,7 +167,7 @@ func renderCompactProgress(label string, progress float64) string {
 	return centerCanvas(
 		sWhite.Render(label) +
 			"  " + sDim.Render("·") + "  " +
-			sDeepRed.Render(percent),
+			sMid.Render(percent),
 	)
 }
 
@@ -171,23 +179,43 @@ func renderCompactResult(label string) string {
 	return centerCanvas(sWhite.Render(label))
 }
 
-func renderProgressBar(phase loadPhase, progress float64) string {
+func renderProgressRail(progress float64, frame int) string {
 	progress = min(1, max(0, progress))
-	full := int(math.Round(progress * float64(progressBarWidth)))
-	if full > progressBarWidth {
-		full = progressBarWidth
+	full := int(math.Round(progress * float64(progressRailWidth)))
+	if full > progressRailWidth {
+		full = progressRailWidth
+	}
+	if full == 0 || full == progressRailWidth {
+		return renderTUIRail(full, sRed) + renderTUIRail(progressRailWidth-full, sDim)
 	}
 
-	var bar strings.Builder
-	for i := 0; i < full; i++ {
-		bar.WriteString(sDeepRed.Render("━"))
+	level := progressGlowLevel(frame)
+	if level == 0 {
+		return renderTUIRail(full, sRed) + renderTUIRail(progressRailWidth-full, sDim)
 	}
-	if phase == loadRun && full > 0 && full < progressBarWidth {
-		bar.WriteString(sRed.Render("━"))
-		full++
+	bodyWidth := max(0, full-2)
+	filled := renderTUIRail(bodyWidth, sRed)
+	if full > 1 {
+		filled += renderTUIRail(1, progressGlowStyle((level+1)/2))
 	}
-	for i := full; i < progressBarWidth; i++ {
-		bar.WriteString(sDim.Render("─"))
+	filled += renderTUIRail(1, progressGlowStyle(level))
+	return filled + renderTUIRail(progressRailWidth-full, sDim)
+}
+
+func progressGlowLevel(frame int) int {
+	step := max(0, frame) / progressGlowStepFrames
+	period := progressGlowLevels * 2
+	level := step % period
+	if level > progressGlowLevels {
+		level = period - level
 	}
-	return bar.String()
+	return level
+}
+
+func progressGlowStyle(level int) lipgloss.Style {
+	level = min(progressGlowLevels, max(0, level))
+	channel := 0xb0 + (0xd0-0xb0)*level/progressGlowLevels
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color(fmt.Sprintf("#%02x0000", channel))).
+		Bold(true)
 }

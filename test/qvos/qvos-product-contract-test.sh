@@ -971,24 +971,24 @@ grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/install/helpers/error-title"' \
   "$root/install/helpers/errors.sh" ||
   fail "inherited installer error branding delegation"
 grep -qx 'Name=Yaqyn' "$root/qv/boot/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
-grep -qx 'ConsoleLogBackgroundColor=0x000000' \
+grep -qx 'ConsoleLogBackgroundColor=0x1a1b26' \
   "$root/qv/boot/plymouth/omarchy.plymouth" ||
-  fail "Plymouth exact-black console background"
-grep -qx 'Window.SetBackgroundTopColor(0, 0, 0);' \
+  fail "Plymouth promoted live console background"
+grep -qx 'Window.SetBackgroundTopColor(0.035, 0.035, 0.035);' \
   "$root/qv/boot/plymouth/omarchy.script" ||
-  fail "Plymouth exact-black top background"
-grep -qx 'Window.SetBackgroundBottomColor(0, 0, 0);' \
+  fail "Plymouth promoted live top background"
+grep -qx 'Window.SetBackgroundBottomColor(0.035, 0.035, 0.035);' \
   "$root/qv/boot/plymouth/omarchy.script" ||
-  fail "Plymouth exact-black bottom background"
+  fail "Plymouth promoted live bottom background"
 command -v magick >/dev/null 2>&1 || fail "Plymouth asset color verifier"
-[[ $(magick "$root/qv/boot/plymouth/bullet.png" -depth 8 -format '%[hex:p{7,7}]' info:) == "B00000FF" ]] ||
-  fail "Plymouth normal red password accent"
-[[ $(magick "$root/qv/boot/plymouth/progress_bar.png" -depth 8 -format '%[hex:p{150,5}]' info:) == "D00000" ]] ||
-  fail "Plymouth hot red progress accent"
-[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{0,0}]' info:) == "000000" ]] ||
-  fail "Plymouth preview exact-black background"
-[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{840,697}]' info:) == "B00000" ]] ||
-  fail "Plymouth preview normal red accent"
+[[ $(magick "$root/qv/boot/plymouth/bullet.png" -depth 8 -format '%[hex:p{7,7}]' info:) == "505050FF" ]] ||
+  fail "Plymouth promoted live password accent"
+[[ $(magick "$root/qv/boot/plymouth/progress_bar.png" -depth 8 -format '%[hex:p{150,5}]' info:) == "505050" ]] ||
+  fail "Plymouth promoted live progress accent"
+[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{0,0}]' info:) == "090909" ]] ||
+  fail "Plymouth promoted live preview background"
+[[ $(magick "$root/qv/boot/plymouth/preview-unlock.png" -depth 8 -format '%[hex:p{840,697}]' info:) == "505050" ]] ||
+  fail "Plymouth promoted live preview accent"
 
 limine_theme="$root/qv/boot/limine/limine.conf"
 grep -qx 'timeout: 5' "$limine_theme" || fail "Limine five-second automatic boot"

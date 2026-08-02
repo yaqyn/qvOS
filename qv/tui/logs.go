@@ -7,13 +7,14 @@ import (
 )
 
 type logPanelScreen struct {
-	Lines       []string
-	Width       int
-	Height      int
-	VisibleRows int
-	Scroll      int
-	Empty       string
-	Border      bool
+	Lines         []string
+	Width         int
+	Height        int
+	VisibleRows   int
+	Scroll        int
+	Empty         string
+	Border        bool
+	HideSwitchCue bool
 }
 
 type responsiveLogWidth struct {
@@ -97,6 +98,9 @@ func renderLogPanel(screen logPanelScreen) string {
 	}
 
 	panel := style.Render(strings.Join(lines, "\n"))
+	if screen.HideSwitchCue {
+		return panel
+	}
 	return appendTUILogSwitchCue(panel, width, scrollOffset)
 }
 

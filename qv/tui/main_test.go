@@ -1935,8 +1935,8 @@ func TestBootISOInterruptionKeysRemainGuarded(t *testing.T) {
 				tea.KeyPressMsg{Code: code, Mod: tea.ModCtrl},
 			)
 			model = next.(isoInstallerModel)
-			if command == nil || model.shutdownChoice != 0 {
-				t.Fatal("repeated boot ISO interruption key did not confirm cancellation")
+			if command == nil || model.shutdownChoice != indexChoiceValue(isoShutdownChoices(), "shutdown") {
+				t.Fatal("repeated boot ISO interruption key did not confirm shutdown")
 			}
 		})
 	}
@@ -1948,20 +1948,19 @@ func TestBootISOShutdownPromptRequiresAnExplicitChoice(t *testing.T) {
 		height:         31,
 		step:           isoStepWriting,
 		shutdownPrompt: true,
-		shutdownChoice: 1,
+		shutdownChoice: 0,
 	}
 	content := stripANSI(m.View().Content)
 	for _, expected := range []string{
 		"CANCEL INSTALLATION?",
-		"Cancel",
-		"Continue",
-		"ctrl+c/z again stop",
+		"Resume",
+		"Shutdown",
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("ISO shutdown modal is missing %q: %q", expected, content)
 		}
 	}
-	for _, hidden := range []string{"qvOS", "writing installer config", "%", "f1"} {
+	for _, hidden := range []string{"qvOS", "writing installer config", "%", "f1", "ctrl+c/z", "again stop"} {
 		if strings.Contains(content, hidden) {
 			t.Fatalf("ISO shutdown modal retained %q: %q", hidden, content)
 		}
@@ -1987,14 +1986,14 @@ func TestOutputOnlyISOProgressAllowsOnlyReadOnlyViewKeys(t *testing.T) {
 	if command != nil {
 		t.Fatal("output-only ISO progress started a command from keyboard input")
 	}
-	if !m.noInput || !m.logOverlay || m.terminalView {
-		t.Fatalf("output-only progress did not open its read-only split terminal: %#v", m)
+	if !m.noInput || !m.logOverlay {
+		t.Fatalf("output-only progress did not open its read-only logs: %#v", m)
 	}
 
 	next, command = m.Update(tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl})
 	m = next.(isoProgressModel)
-	if command != nil || !m.noInput || !m.terminalView {
-		t.Fatalf("output-only progress did not open its read-only full terminal: %#v", m)
+	if command != nil || !m.noInput || !m.logOverlay {
+		t.Fatalf("output-only progress accepted the removed Ctrl+V route: %#v", m)
 	}
 }
 
@@ -3245,8 +3244,8 @@ func TestDefaultLandscapeUpdateKeepsVisibleProgressBar(t *testing.T) {
 	if !strings.Contains(content, "UPDATING") ||
 		!strings.Contains(content, "updating system packages") ||
 		!strings.Contains(content, "38%") ||
-		!strings.Contains(content, "━━━━━━━━━━━━━") ||
-		!strings.Contains(content, "────────────────────") {
+		!strings.Contains(content, strings.Repeat(tuiRailGlyph, progressRailWidth)) ||
+		strings.Contains(content, "━") {
 		t.Fatalf("default landscape progress is missing its active stage or loading bar: %q", content)
 	}
 }

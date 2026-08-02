@@ -55,3 +55,12 @@ func TestWrapDisplayLinesPreservesInformationWithoutEllipses(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderTUIRailOwnsOneThinSharedGlyph(t *testing.T) {
+	if got := renderTUIRail(4, sRed); got != sRed.Render("────") {
+		t.Fatalf("shared rail = %q, want one thin styled glyph", got)
+	}
+	if got := renderTUIRail(0, sRed); got != "" {
+		t.Fatalf("empty shared rail = %q, want empty", got)
+	}
+}

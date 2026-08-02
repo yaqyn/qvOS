@@ -13,22 +13,22 @@ import (
 const (
 	defaultISOProgressLogPath = "/var/log/omarchy-install.log"
 	isoProgressPollFrames     = 16
+	isoProgressEstimate       = 4 * 60
 )
 
 type isoProgressModel struct {
-	frame        int
-	width        int
-	height       int
-	logPath      string
-	noInput      bool
-	prototype    bool
-	previewAge   int
-	progress     float64
-	status       string
-	logLines     []string
-	logOverlay   bool
-	terminalView bool
-	helpOverlay  bool
+	frame       int
+	width       int
+	height      int
+	logPath     string
+	noInput     bool
+	prototype   bool
+	previewAge  int
+	progress    float64
+	status      string
+	logLines    []string
+	logOverlay  bool
+	helpOverlay bool
 }
 
 type isoProgressSnapshotMsg struct {
@@ -60,7 +60,7 @@ func runISOProgress(args []string) error {
 
 	options := []tea.ProgramOption{tea.WithFilter(filterISOProgressExitMessages)}
 	// Output-only progress still consumes terminal protocol replies and accepts
-	// read-only terminal/help controls. It ignores every action key.
+	// read-only log/help controls. It ignores every action key.
 	p := newTUIProgram(newISOProgressModel(logPath, noInput), options...)
 	_, err := p.Run()
 	return err
@@ -133,22 +133,9 @@ func (m isoProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpOverlay = helpOverlay
 			return m, nil
 		}
-		if m.terminalView {
-			switch msg.String() {
-			case "v", "V":
-				m.terminalView = false
-				m.logOverlay = true
-			case "ctrl+v", "esc":
-				m.terminalView = false
-			}
-			return m, nil
-		}
 		switch msg.String() {
 		case "v", "V":
 			m.logOverlay = !m.logOverlay
-			return m, nil
-		case "ctrl+v":
-			m.terminalView = true
 			return m, nil
 		}
 		if m.noInput {
@@ -206,23 +193,8 @@ func (m isoProgressModel) View() tea.View {
 	var body string
 	if m.helpOverlay {
 		body = renderTUIHelp(width, "install progress controls", m.helpHints())
-	} else if m.terminalView {
-		body = renderTUITerminalOutput(
-			width,
-			height,
-			"INSTALL",
-			m.logLines,
-			0,
-			"",
-			m.logEmptyStatus(),
-			[]tuiHint{
-				{Key: "v", Action: "split"},
-				{Key: "ctrl+v", Action: "progress"},
-				{Key: "?", Action: "help"},
-			},
-		)
 	} else if m.logOverlay {
-		body = m.renderISOProgressWithLog(width, height, mode)
+		body = m.renderISOLogView(width, height)
 	} else {
 		canvasW, canvasH = fitContentWidth(width), 0
 		body = m.renderISOProgressPanel(mode)
@@ -239,20 +211,12 @@ func (m isoProgressModel) View() tea.View {
 }
 
 func (m isoProgressModel) helpHints() []tuiHint {
-	if m.terminalView {
-		return []tuiHint{
-			{Key: "v", Action: "show split progress and terminal"},
-			{Key: "ctrl+v / esc", Action: "return to installation progress"},
-		}
-	}
-
-	logAction := "show the terminal beside progress"
+	logAction := "show installation logs"
 	if m.logOverlay {
-		logAction = "hide the terminal beside progress"
+		logAction = "show installation progress"
 	}
 	hints := []tuiHint{
 		{Key: "v", Action: logAction},
-		{Key: "ctrl+v", Action: "open the full installer terminal"},
 	}
 	if m.prototype {
 		hints = append(hints,
@@ -263,61 +227,47 @@ func (m isoProgressModel) helpHints() []tuiHint {
 	return hints
 }
 
-func (m isoProgressModel) persistentHints() []tuiHint {
-	logAction := "log"
-	if m.logOverlay {
-		logAction = "progress"
-	}
-	return []tuiHint{
-		{Key: "v", Action: logAction},
-		{Key: "ctrl+v", Action: "terminal"},
-		{Key: "?", Action: "help"},
-	}
-}
-
 func (m isoProgressModel) renderISOProgressPanel(mode layoutMode) string {
-	return renderProgressScreen(progressScreen{
-		Title:    "Installing qvOS",
-		Status:   m.status,
-		Phase:    loadRun,
-		Progress: m.progress,
-		Bar:      true,
-		Hints:    m.persistentHints(),
+	content := renderProgressScreen(progressScreen{
+		Title:     "Installing qvOS",
+		Status:    m.status,
+		Phase:     loadRun,
+		Progress:  m.progress,
+		Frame:     m.frame,
+		Bar:       true,
+		HideTitle: true,
 	}, mode)
+	return m.appendISOProgressFooter(content, canvasW)
 }
 
-func (m isoProgressModel) renderISOProgressWithLog(width, height int, mode layoutMode) string {
-	if width >= desktopMinWidth && isSideComposition(width, height, false) {
-		leftWidth, rightWidth := sideColumnWidths(width)
-		canvasW, canvasH = leftWidth, 0
-		progress := m.renderISOProgressPanel(layoutTablet)
-		canvasW = rightWidth
-		terminal := m.renderISOMiniTerminal(rightWidth, mode, height)
-		canvasW = fitContentWidth(width)
-		return renderISODividedColumns(width, progress, terminal)
+func (m isoProgressModel) renderISOLogView(width, height int) string {
+	panelWidth := min(112, max(20, width-6))
+	panel := renderLogPanel(logPanelScreen{
+		Lines:         m.logLines,
+		Width:         panelWidth,
+		VisibleRows:   terminalOutputContentHeight(height),
+		Empty:         m.logEmptyStatus(),
+		HideSwitchCue: true,
+	})
+	return m.appendISOProgressFooter(panel, panelWidth)
+}
+
+func (m isoProgressModel) appendISOProgressFooter(content string, width int) string {
+	footer := sDim.Render(m.isoProgressEstimateLabel() + "  -  ? Help")
+	footer = lipgloss.PlaceHorizontal(width, lipgloss.Center, footer)
+	if content == "" {
+		return footer
 	}
-
-	canvasW, canvasH = fitContentWidth(width), 0
-	progress := m.renderISOProgressPanel(mode)
-	terminal := m.renderISOMiniTerminal(canvasW, mode, height)
-	return lipgloss.JoinVertical(lipgloss.Center, progress, "", terminal)
+	return content + "\n\n" + footer
 }
 
-func (m isoProgressModel) renderISOMiniTerminal(width int, mode layoutMode, height int) string {
-	panelHeight := actionLogPanelHeight(mode, height)
-	return lipgloss.JoinVertical(
-		lipgloss.Center,
-		sDim.Render("TERMINAL"),
-		"",
-		renderLogPanel(logPanelScreen{
-			Lines:       m.logLines,
-			Width:       min(logSideRightMax, max(1, width)),
-			Height:      panelHeight,
-			VisibleRows: max(1, panelHeight-2),
-			Empty:       m.logEmptyStatus(),
-			Border:      true,
-		}),
-	)
+func (m isoProgressModel) isoProgressEstimateLabel() string {
+	elapsed := max(0, m.frame) / (framesPerSecond * framesPerTick)
+	remaining := isoProgressEstimate - elapsed
+	if remaining <= 0 {
+		return "Any moment now"
+	}
+	return fmt.Sprintf("Estimated %d:%02d", remaining/60, remaining%60)
 }
 
 func (m isoProgressModel) logEmptyStatus() string {

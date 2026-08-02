@@ -3,8 +3,18 @@ package main
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
+
+const tuiRailGlyph = "─"
+
+func renderTUIRail(width int, style lipgloss.Style) string {
+	if width < 1 {
+		return ""
+	}
+	return style.Render(strings.Repeat(tuiRailGlyph, width))
+}
 
 func trimDisplay(value string, maxWidth int) string {
 	if maxWidth < 1 {
@@ -23,10 +33,6 @@ func wrapDisplayLines(lines []string, maxWidth int) []string {
 		wrapped = append(wrapped, strings.Split(ansi.Wrap(line, maxWidth, " "), "\n")...)
 	}
 	return wrapped
-}
-
-func renderSearchField(filter string, mode layoutMode) string {
-	return renderSearchFieldWidth(filter, inputWidthForMode(mode))
 }
 
 func renderSearchFieldWidth(filter string, width int) string {

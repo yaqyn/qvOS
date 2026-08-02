@@ -2,16 +2,28 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
 type isoFinishedModel struct {
-	width       int
-	height      int
-	allowQuit   bool
-	helpOverlay bool
+	width        int
+	height       int
+	allowQuit    bool
+	helpOverlay  bool
+	timerStopped bool
+}
+
+const isoFinishedRebootDelay = 5 * time.Second
+
+type isoFinishedRebootMsg struct{}
+
+func isoFinishedRebootCmd() tea.Cmd {
+	return tea.Tick(isoFinishedRebootDelay, func(time.Time) tea.Msg {
+		return isoFinishedRebootMsg{}
+	})
 }
 
 func runISOFinished() error {
@@ -42,7 +54,7 @@ func filterISOFinishedExitMessages(model tea.Model, msg tea.Msg) tea.Msg {
 }
 
 func (m isoFinishedModel) Init() tea.Cmd {
-	return initialTUICommand()
+	return initialTUICommand(isoFinishedRebootCmd())
 }
 
 func (m isoFinishedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -50,7 +62,14 @@ func (m isoFinishedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+	case isoFinishedRebootMsg:
+		if m.timerStopped {
+			return m, nil
+		}
+		m.allowQuit = true
+		return m, tea.Quit
 	case tea.KeyPressMsg:
+		m.timerStopped = true
 		if helpOverlay, handled := handleTUIHelpKey(m.helpOverlay, msg); handled {
 			m.helpOverlay = helpOverlay
 			return m, nil
@@ -88,7 +107,7 @@ func (m isoFinishedModel) View() tea.View {
 
 func (m isoFinishedModel) renderISOFinishedPanel() string {
 	return strings.Join([]string{
-		centerCanvas(sDim.Render("Welcome to qvOS")),
+		centerCanvas(sGray.Render("Finished")),
 		"",
 		centerCanvas(renderISOPrimaryAction("Reboot")),
 	}, "\n")

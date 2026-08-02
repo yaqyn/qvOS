@@ -70,23 +70,46 @@ func TestSharedProgressScreenKeepsMilestoneAndBarWhenTheyFit(t *testing.T) {
 		canvasW = previousWidth
 	})
 
-	rendered := stripANSI(renderProgressScreen(progressScreen{
+	styled := renderProgressScreen(progressScreen{
 		Title:    "INSTALLING",
 		Status:   "applying qvOS baseline",
 		Phase:    loadRun,
 		Progress: 0.68,
 		Bar:      true,
-	}, layoutTablet))
+	}, layoutTablet)
+	rendered := stripANSI(styled)
 	for _, expected := range []string{
 		"INSTALLING",
 		"applying qvOS baseline",
 		"68%",
-		"━━━━━━━━━━━━━━━━━━━━━━━",
-		"──────────",
+		strings.Repeat(tuiRailGlyph, progressRailWidth),
 	} {
 		if !strings.Contains(rendered, expected) {
 			t.Fatalf("full progress is missing %q: %q", expected, rendered)
 		}
+	}
+	bar := renderProgressRail(0.68, 0)
+	if !strings.Contains(bar, renderTUIRail(23, sRed)) ||
+		!strings.Contains(bar, renderTUIRail(11, sDim)) ||
+		strings.Contains(bar, "━") || strings.Contains(bar, sDeepRed.Render(tuiRailGlyph)) {
+		t.Fatalf("shared progress did not use one thin red/dim rail: %q", bar)
+	}
+}
+
+func TestSharedProgressRailAnimatesOnlyItsTipWhileRunning(t *testing.T) {
+	peakFrame := progressGlowLevels * progressGlowStepFrames
+	base := renderProgressRail(0.68, 0)
+	peak := renderProgressRail(0.68, peakFrame)
+	if base == peak {
+		t.Fatal("progress tip did not animate")
+	}
+	if !strings.Contains(peak, renderTUIRail(1, sHot)) ||
+		!strings.Contains(peak, renderTUIRail(11, sDim)) ||
+		strings.Contains(peak, "━") {
+		t.Fatalf("animated progress tip is not restrained to the shared thin rail: %q", peak)
+	}
+	if complete := renderProgressRail(1, peakFrame); strings.Contains(complete, sHot.Render(tuiRailGlyph)) {
+		t.Fatalf("completed progress retained the animated tip: %q", complete)
 	}
 }
 

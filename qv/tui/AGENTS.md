@@ -119,20 +119,55 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
 - The boot setup has exactly three numbered pages. Step 1/3, Region, keeps
   Keyboard and Time zone visible together while showing searchable matches only
   for the focused field. Reserve the filter and result rows so searching never
-  moves either column, field, divider, tracker, or title. Step 2/3, Account,
+  moves either column, field, context line, or title. Step 2/3, Account,
   keeps Username, Machine Name, Password, and Confirm Password visible
-  together. Wide screens put the
-  left-aligned fields or choices left of one dim divider and the centered dim
-  tracker, uppercase page title, and one short explanation on the right; narrow
-  screens stack the same content. Tab and Shift+Tab cycle every field. Enter
-  commits the focused field and moves forward; only exact password confirmation
-  reaches the drive page. Reject unsupported username and machine-name
+  together. Wide screens put left-aligned fields or choices in the left column
+  with no divider. The right column keeps the restrained model above one
+  centered `qvOS · Step N/3` line and one restrained bright uppercase page title; never
+  place setup guidance there. Every page reserves the same two-row contextual
+  hint slot beneath its left controls. Region, Account, and Install drive change
+  that slot with focus or state, and unused rows remain blank so copy never moves
+  the composition. Narrow screens stack the same content. Ring models are pure
+  grayscale with bright white highlights and must never render red. Active fields
+  use near-white text and a red rail; incomplete inactive fields use slightly
+  brighter gray, and valid completed fields dim so remaining work stays clear.
+  Red is limited to active field rails, the active selected-disk rail, the
+  focused final action, and progress. Never add selection glyphs or filled
+  buttons. Setup validation uses concise sentence-case guidance in bright
+  grayscale, never red; it replaces the contextual hint in the same fixed slot
+  and never adds a second message or marker. Left and Right cycle the active
+  selectable unit on every setup step: Region fields, Account fields, drive
+  choices, and final Back/Continue actions. Tab and Shift+Tab provide the same
+  forward and backward cycling on every setup step. Up and Down navigate Region matches,
+  then also cycle Account fields, drive choices, and final actions. Enter commits
+  the focused field and moves forward. Request enhanced key event types and
+  default every non-text control to the one shared repeat guard. Only ordinary
+  text editing and Step 1 Up/Down list navigation may repeat. Enter, Escape,
+  arrows outside that exception, Tab, Shift+Tab, F1, exit shortcuts, and future
+  control keys resolve once per physical press. Preserve rapid deliberate Enter
+  taps without delay; distinguish them from the later typematic hold burst. When a terminal cannot
+  distinguish repeats, use the shared burst fallback; never change global
+  keyboard repeat settings or duplicate timing logic by step. Only exact
+  password confirmation reaches the drive page. Reject unsupported username and machine-name
   characters while typing, keep full name and email unset, prefill Machine Name
   with `qvOS`, require disk encryption, and detect the installed kernel. Step
-  3/3, Install drive, is the final screen: selecting a drive turns that
-  same screen into the erase confirmation, and only its second explicit Enter
-  starts installation. Do not add identity, review, or confirmation screens
-  elsewhere.
+  3/3, Install drive, is the final screen: selecting a drive keeps the complete
+  selected drive on the left while the right panel removes its model, identity,
+  tracker, and title. The left hint becomes the bright erase sentence without a
+  marker, and the completed disk's rail and text dim. The right becomes only
+  two stacked fields: `Back` first and selected by default, then `Continue`.
+  Only the focused field is near-white with a red underline; the other is dim.
+  Arrows and Tab cycle them, Escape mirrors Back, and installation starts only
+  after focus moves to Continue and Enter confirms it. Returning to the drive
+  list preserves the selected disk and account details. Wrap complete disk
+  descriptions instead of truncating them. Prefix every wrapped line of only
+  the active selected disk with one continuous red rail; dim that rail after
+  selection. Do not add boxes, buttons, numbering, markers, extra disk
+  decoration, or identity, review, or confirmation screens elsewhere.
+- The boot setup exit guard shows only `Resume` followed by `Shutdown`, with
+  Resume as the safe default. Keep repeated Ctrl+C or Ctrl+Z functional as the
+  direct shutdown shortcut, but never expose that shortcut as persistent copy
+  on the decision screen.
 - Information actions are direct read-only surfaces, not miniature
   transactions. Start them immediately, authorize first only when sudo is
   required, and make their sanitized owner output the primary panel. Never add
@@ -307,24 +342,33 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   controls. Shared action and prototype flows replace the identity/model
   column while preserving the normal action column. In true fullscreen, those
   log-capable flows render the log panel in the 3D model's exact stage slot.
-  Boot installation progress uses `V` for a progress-left/mini-terminal-right
-  split and `Ctrl+V` for full terminal output. Empty running logs use the shared
-  `Preparing` animation rather than waiting copy. A confirmed cancellation
+  Boot installation progress uses `V` to replace progress with one frameless,
+  title-free log view; `V` returns to progress, and there is no boot `Ctrl+V`
+  route. Empty running logs use the shared `Preparing` animation rather than
+  waiting copy. A confirmed cancellation
   freezes progress immediately; canceled results say canceled and never animate
   toward `100%` or imply success.
 - Output-only ISO progress ignores mutating action keys but accepts only its
-  read-only split terminal, full terminal, and Help controls. It has no manual
-  log navigation or copy-all shortcut. Retain Bubble Tea's input reader so
+  read-only `V` log toggle and Help control. It has no manual log navigation,
+  copy-all shortcut, or full-terminal state. Retain Bubble Tea's input reader so
   terminal capability replies are consumed instead of leaking into visible
   logs. Its exit-message filter guards interactive interrupt and suspend
   messages but must pass `QuitMsg`, which is how Bubble Tea reports the parent
   installer's SIGTERM. The parent owns a bounded TERM-then-KILL fallback; a
   presentation child must never hold the installation open after its phase.
 - Keep the active operation, real milestone, percentage, and a visible bar in
-  non-mobile progress views. Use one quiet selection marker for choices; do not
-  frame action labels as buttons. The destructive install confirmation and
-  finale use one red selection chevron plus a bright white action label on
-  black. Advance ISO installation only from explicit lifecycle markers and
+  non-mobile progress views. Do not frame action labels as buttons. Boot
+  installation is the restrained exception: omit the redundant
+  `INSTALLING QVOS` heading and render only its current loading message,
+  percentage, and the shared thin red/dim rail. While progress is below `100%`,
+  only the rail's last two filled cells may breathe from red toward hot red;
+  completion is solid. Its centered dim footer counts down from
+  `Estimated 4:00`, changes to `Any moment now` at zero, and keeps `? Help`
+  beside it. The estimate never drives the observed milestone percentage. Its
+  setup choices, destructive confirmation, and finale use dim/near-white
+  grayscale without markers; red
+  rails identify only the focused field and selected disk. Advance ISO
+  installation only from explicit lifecycle markers and
   owned install-script phases; generic package-hook counters such as `(4/6)`
   describe a local transaction and must never become global install progress.
 - The smallest progress view may omit the bar, but it must keep the active
@@ -351,21 +395,28 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   Install. Never detach long work or hide it behind a notification.
   Immediate application launches may return after a verified handoff; never
   use this route for destructive work.
+- `renderTUIRail` is the only horizontal rail primitive. Fields,
+  authorization, progress, Help, and terminal output use its thin `─` glyph;
+  never reintroduce heavy separators or duplicate rule renderers.
 - Keep persistent controls to one context-critical action plus quiet dim-gray
   Help when the hint area has room. Compact hint areas show only the primary
   action. Label Help consistently as `F1`; also accept `Shift+?` outside text
   fields so passwords and filters keep their full character set. The three boot
-  setup pages and finale intentionally hide
-  persistent controls; their keyboard, Help, shutdown, and validation behavior
-  remains active. Boot installation progress visibly labels `v log`,
-  `ctrl+v terminal`, and `? help`. Put every
-  other active keyboard action in the contextual help overlay. Labels describe
-  the action result, not implementation details. Completed, stopped, and failed
+  setup pages and finale intentionally hide persistent controls; their
+  keyboard, Help, shutdown, and validation behavior remains active. Boot
+  installation progress shows only the centered dim estimate and `? Help`
+  footer. `V` remains documented inside contextual Help and toggles the simple
+  log replacement without a persistent label. Put every other active keyboard
+  action in the contextual help overlay. Labels describe the action result, not
+  implementation details. Completed, stopped, and failed
   log-producing results keep `V` and `Ctrl+V` active until the user leaves, but
   keep those known shortcuts in contextual Help instead of the persistent
-  result row. The boot finale is the exception: only Enter reboots, and `V` or
-  `Ctrl+V` does nothing there. Never discard captured history for general
-  result flows.
+  result row. The boot finale is the exception: it shows only dim `Finished`
+  and a bright grayscale `Reboot`, then automatically continues after a hidden
+  five-second timer. Any key stops that timer; Enter continues immediately.
+  The finale has no log or terminal view, so `V` and `Ctrl+V` only count as
+  interaction and never open a second log lifecycle.
+  Never discard captured history for general result flows.
 - Authorization surfaces use the shared frameless password rail under the
   generic `Auth Required` title; the model identity owns the action name. Keep
   one blank row between the title and rail and another between the rail and one
@@ -383,12 +434,13 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   An open side log may show one borderless, non-red `ctrl+v switch` cue directly
   below its panel; the full terminal view renders the same action as a normal
   persistent control.
-- Boot installation progress maps `V` to a same-process split with progress on
-  the left and a mini terminal on the right. `Ctrl+V` alone opens full terminal
-  output. That terminal follows current output and omits manual navigation,
-  copy-all, and unrelated result controls. Its percentage advances only when an
-  observed installer milestone is complete; never interpolate progress from
-  elapsed time.
+- Boot installation progress maps `V` to one same-process, frameless,
+  title-free log view that completely replaces the loading rail; `V` returns to
+  progress. Both views keep the same centered dim estimate and `? Help` footer.
+  Boot has no `Ctrl+V` route, terminal heading, border, switch cue, manual
+  navigation, copy-all, or unrelated result controls. Its percentage advances
+  only when an observed installer milestone is complete; never interpolate
+  progress from elapsed time.
 - Internal `qvOS action:`, `qvOS ISO progress:`, and `qvOS target apply:`
   protocols drive status only. Never retain them in visible logs, terminal
   output, copied history, or result details; preserve every real owner output

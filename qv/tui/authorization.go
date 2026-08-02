@@ -80,7 +80,7 @@ func renderPasswordField(password []rune, mode layoutMode) string {
 
 	count := min(len(password), fieldWidth)
 	if count == 0 {
-		return sDim.Render(strings.Repeat("─", fieldWidth))
+		return renderTUIRail(fieldWidth, sDim)
 	}
 
 	return sBright.Render(strings.Repeat("•", count))

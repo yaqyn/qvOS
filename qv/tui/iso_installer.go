@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -41,6 +42,14 @@ const (
 	isoAccountFieldCount
 )
 
+type isoDiskConfirmationAction int
+
+const (
+	isoDiskConfirmationBack isoDiskConfirmationAction = iota
+	isoDiskConfirmationContinue
+	isoDiskConfirmationActionCount
+)
+
 type isoChoice struct {
 	Label string
 	Value string
@@ -52,28 +61,38 @@ type isoDiskChoice struct {
 }
 
 type isoInstallerModel struct {
-	step            isoStep
-	frame           int
-	width, height   int
-	preview         bool
-	filter          []rune
-	username        []rune
-	hostname        []rune
-	password        []rune
-	passwordConfirm []rune
-	regionalFocus   isoRegionalField
-	accountFocus    isoAccountField
-	choiceIndex     int
-	diskConfirm     bool
-	shutdownPrompt  bool
-	shutdownChoice  int
-	allowQuit       bool
-	errorText       string
-	helpOverlay     bool
-	keyboards       []isoChoice
-	timezones       []isoChoice
-	disks           []isoDiskChoice
-	config          isoInstallerConfig
+	step              isoStep
+	frame             int
+	width, height     int
+	preview           bool
+	filter            []rune
+	username          []rune
+	hostname          []rune
+	password          []rune
+	passwordConfirm   []rune
+	regionalFocus     isoRegionalField
+	accountFocus      isoAccountField
+	choiceIndex       int
+	diskConfirm       bool
+	diskConfirmAction isoDiskConfirmationAction
+	shutdownPrompt    bool
+	shutdownChoice    int
+	allowQuit         bool
+	errorText         string
+	helpOverlay       bool
+	keyboards         []isoChoice
+	timezones         []isoChoice
+	disks             []isoDiskChoice
+	config            isoInstallerConfig
+	repeatKey         string
+	repeatPending     tea.KeyPressMsg
+	repeatPendingSet  bool
+	repeatSuppressing bool
+	repeatGeneration  uint64
+	repeatReleaseKey  string
+	repeatReleaseSet  bool
+	repeatReleaseGen  uint64
+	repeatLastPressAt time.Time
 }
 
 type isoInstallerDoneMsg struct {
@@ -85,6 +104,20 @@ type isoExitRequestedMsg struct{}
 type isoPowerOffDoneMsg struct {
 	err error
 }
+
+type isoRepeatGuardTimerMsg struct {
+	generation uint64
+}
+
+type isoRepeatReleaseTimerMsg struct {
+	generation uint64
+}
+
+const (
+	isoRepeatBurstWindow   = 100 * time.Millisecond
+	isoRepeatReleaseWindow = 10 * time.Millisecond
+	isoFastEnterTapWindow  = 200 * time.Millisecond
+)
 
 func runISOInstaller(preview ...bool) error {
 	if err := ensureISOInstallerRuntime(); err != nil {
@@ -166,7 +199,7 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case isoInstallerDoneMsg:
 		if msg.err != nil {
 			m.step = isoStepError
-			m.errorText = errorMessage(msg.err)
+			m.errorText = "could not prepare the installation"
 			return m, nil
 		}
 		m.allowQuit = true
@@ -177,19 +210,175 @@ func (m isoInstallerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.shutdownPrompt = true
 			m.shutdownChoice = 0
-			m.errorText = shortError(msg.err)
+			m.errorText = "could not shut down"
 		}
 		return m, nil
+	case isoRepeatGuardTimerMsg:
+		return m.handleISORepeatGuardTimer(msg)
+	case isoRepeatReleaseTimerMsg:
+		return m.handleISORepeatReleaseTimer(msg)
+	case tea.KeyReleaseMsg:
+		return m.handleISORepeatRelease(msg)
 	case tea.KeyPressMsg:
-		if !m.shutdownPrompt {
-			if helpOverlay, handled := handleTUIHelpKeyWithQuestion(m.helpOverlay, msg, !m.capturesTextInput()); handled {
-				m.helpOverlay = helpOverlay
-				return m, nil
-			}
-		}
-		return m.handleISOKey(msg)
+		return m.handleISOKeyPress(msg)
 	}
 	return m, nil
+}
+
+func (m isoInstallerModel) handleISOKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	commands := make([]tea.Cmd, 0, 2)
+	m.cancelISORepeatRelease(msg.String())
+	if m.repeatPendingSet && msg.String() != m.repeatKey {
+		var command tea.Cmd
+		m, command = m.commitISOPendingRepeat()
+		commands = append(commands, command)
+	}
+
+	if !m.isISORepeatAllowedKey(msg) {
+		allow, command := m.guardISORepeatPress(msg)
+		commands = append(commands, command)
+		if !allow {
+			return m, tea.Batch(commands...)
+		}
+	} else {
+		m.resetISORepeatGuard()
+	}
+
+	next, command := m.handleISOResolvedKey(msg)
+	commands = append(commands, command)
+	return next, tea.Batch(commands...)
+}
+
+func (m isoInstallerModel) handleISOResolvedKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if !m.shutdownPrompt {
+		if helpOverlay, handled := handleTUIHelpKeyWithQuestion(
+			m.helpOverlay,
+			msg,
+			!m.capturesTextInput(),
+		); handled {
+			m.helpOverlay = helpOverlay
+			return m, nil
+		}
+	}
+	return m.handleISOKey(msg)
+}
+
+func (m isoInstallerModel) isISORepeatAllowedKey(msg tea.KeyPressMsg) bool {
+	switch msg.String() {
+	case "up", "down":
+		return !m.shutdownPrompt && !m.helpOverlay && m.step == isoStepRegional
+	case "backspace", "ctrl+h", "ctrl+u":
+		return m.capturesTextInput()
+	}
+	return m.capturesTextInput() && msg.Key().Text != ""
+}
+
+func (m *isoInstallerModel) guardISORepeatPress(msg tea.KeyPressMsg) (bool, tea.Cmd) {
+	key := msg.String()
+	now := time.Now()
+	if msg.Key().IsRepeat {
+		m.repeatKey = key
+		m.repeatPending = tea.KeyPressMsg{}
+		m.repeatPendingSet = false
+		m.repeatSuppressing = true
+		return false, m.restartISORepeatGuardTimer()
+	}
+
+	if key != m.repeatKey {
+		m.resetISORepeatGuard()
+		m.repeatKey = key
+		m.repeatLastPressAt = now
+		return true, nil
+	}
+	if m.repeatSuppressing {
+		return false, m.restartISORepeatGuardTimer()
+	}
+	if m.repeatPendingSet {
+		m.repeatPending = tea.KeyPressMsg{}
+		m.repeatPendingSet = false
+		m.repeatSuppressing = true
+		return false, m.restartISORepeatGuardTimer()
+	}
+	if key == "enter" && now.Sub(m.repeatLastPressAt) < isoFastEnterTapWindow {
+		m.repeatLastPressAt = now
+		return true, nil
+	}
+
+	m.repeatPending = msg
+	m.repeatPendingSet = true
+	m.repeatLastPressAt = now
+	return false, m.restartISORepeatGuardTimer()
+}
+
+func (m *isoInstallerModel) restartISORepeatGuardTimer() tea.Cmd {
+	m.repeatGeneration++
+	generation := m.repeatGeneration
+	return tea.Tick(isoRepeatBurstWindow, func(time.Time) tea.Msg {
+		return isoRepeatGuardTimerMsg{generation: generation}
+	})
+}
+
+func (m *isoInstallerModel) resetISORepeatGuard() {
+	m.repeatGeneration++
+	m.repeatKey = ""
+	m.repeatPending = tea.KeyPressMsg{}
+	m.repeatPendingSet = false
+	m.repeatSuppressing = false
+	m.repeatLastPressAt = time.Time{}
+	m.cancelISORepeatRelease("")
+}
+
+func (m isoInstallerModel) handleISORepeatGuardTimer(msg isoRepeatGuardTimerMsg) (tea.Model, tea.Cmd) {
+	if msg.generation != m.repeatGeneration {
+		return m, nil
+	}
+	if m.repeatSuppressing {
+		m.resetISORepeatGuard()
+		return m, nil
+	}
+	if !m.repeatPendingSet {
+		return m, nil
+	}
+	return m.commitISOPendingRepeat()
+}
+
+func (m isoInstallerModel) commitISOPendingRepeat() (isoInstallerModel, tea.Cmd) {
+	msg := m.repeatPending
+	m.repeatPending = tea.KeyPressMsg{}
+	m.repeatPendingSet = false
+	next, command := m.handleISOResolvedKey(msg)
+	return next.(isoInstallerModel), command
+}
+
+func (m isoInstallerModel) handleISORepeatRelease(msg tea.KeyReleaseMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	if key == "" || key != m.repeatKey {
+		return m, nil
+	}
+	m.repeatReleaseGen++
+	generation := m.repeatReleaseGen
+	m.repeatReleaseKey = key
+	m.repeatReleaseSet = true
+	return m, tea.Tick(isoRepeatReleaseWindow, func(time.Time) tea.Msg {
+		return isoRepeatReleaseTimerMsg{generation: generation}
+	})
+}
+
+func (m isoInstallerModel) handleISORepeatReleaseTimer(msg isoRepeatReleaseTimerMsg) (tea.Model, tea.Cmd) {
+	if msg.generation != m.repeatReleaseGen || !m.repeatReleaseSet {
+		return m, nil
+	}
+	m.resetISORepeatGuard()
+	return m, nil
+}
+
+func (m *isoInstallerModel) cancelISORepeatRelease(key string) {
+	if key != "" && (!m.repeatReleaseSet || key != m.repeatReleaseKey) {
+		return
+	}
+	m.repeatReleaseGen++
+	m.repeatReleaseKey = ""
+	m.repeatReleaseSet = false
 }
 
 func (m isoInstallerModel) handleISOKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -227,7 +416,7 @@ func (m isoInstallerModel) handleISOKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd
 
 func (m isoInstallerModel) requestISOExit() (tea.Model, tea.Cmd) {
 	m.shutdownPrompt = true
-	m.shutdownChoice = 1
+	m.shutdownChoice = 0
 	m.errorText = ""
 	return m, nil
 }
@@ -252,20 +441,22 @@ func (m isoInstallerModel) handleISOShutdownKey(msg tea.KeyPressMsg) (tea.Model,
 			m.shutdownChoice++
 		}
 	case "ctrl+c", "ctrl+z":
-		m.shutdownChoice = 0
+		m.shutdownChoice = indexChoiceValue(isoShutdownChoices(), "shutdown")
 		if m.preview {
 			return m, tea.Quit
 		}
 		return m, powerOffCmd()
 	case "enter":
-		if m.shutdownChoice == 0 {
+		choices := isoShutdownChoices()
+		if m.shutdownChoice >= 0 && m.shutdownChoice < len(choices) &&
+			choices[m.shutdownChoice].Value == "shutdown" {
 			if m.preview {
 				return m, tea.Quit
 			}
 			return m, powerOffCmd()
 		}
 		m.shutdownPrompt = false
-		m.shutdownChoice = 1
+		m.shutdownChoice = 0
 	}
 	return m, nil
 }
@@ -279,11 +470,15 @@ func (m isoInstallerModel) handleISORegionalKey(msg tea.KeyPressMsg) (tea.Model,
 			return m, nil
 		}
 		return m.requestISOExit()
-	case "tab":
-		m.setISORegionalFocus((m.regionalFocus + 1) % isoRegionalFieldCount)
+	case "tab", "right":
+		m.setISORegionalFocus(isoRegionalField(cycleISOIndex(
+			int(m.regionalFocus), int(isoRegionalFieldCount), 1,
+		)))
 		return m, nil
-	case "shift+tab":
-		m.setISORegionalFocus((m.regionalFocus - 1 + isoRegionalFieldCount) % isoRegionalFieldCount)
+	case "shift+tab", "left":
+		m.setISORegionalFocus(isoRegionalField(cycleISOIndex(
+			int(m.regionalFocus), int(isoRegionalFieldCount), -1,
+		)))
 		return m, nil
 	case "up":
 		if m.choiceIndex > 0 {
@@ -300,22 +495,12 @@ func (m isoInstallerModel) handleISORegionalKey(msg tea.KeyPressMsg) (tea.Model,
 		}
 		return m.submitISORegionalChoice(choices[m.choiceIndex])
 	case "backspace", "ctrl+h":
-		if len(m.filter) > 0 {
-			m.filter[len(m.filter)-1] = 0
-			m.filter = m.filter[:len(m.filter)-1]
-			m.choiceIndex = 0
-			m.errorText = ""
-		}
+		m.backspaceISOFilter()
 	case "ctrl+u":
-		clearRunes(m.filter)
-		m.filter = nil
-		m.choiceIndex = 0
-		m.errorText = ""
+		m.clearISOFilter()
 	default:
 		if text := msg.Key().Text; text != "" {
-			m.filter = append(m.filter, []rune(text)...)
-			m.choiceIndex = 0
-			m.errorText = ""
+			m.appendISOFilter(text)
 		}
 	}
 	m.clampISOChoiceIndex(len(choices))
@@ -340,7 +525,7 @@ func (m isoInstallerModel) submitISORegionalChoice(choice isoChoice) (tea.Model,
 	if m.regionalFocus == isoRegionalKeyboard {
 		if !m.preview {
 			if err := loadISOKeyboard(choice.Value); err != nil {
-				m.errorText = "could not apply keyboard"
+				m.errorText = "try another keyboard layout"
 				return m, nil
 			}
 		}
@@ -371,12 +556,16 @@ func (m isoInstallerModel) handleISOAccountKey(msg tea.KeyPressMsg) (tea.Model, 
 		m.step = isoStepRegional
 		m.setISORegionalFocus(isoRegionalTimezone)
 		return m, nil
-	case "tab":
-		m.accountFocus = (m.accountFocus + 1) % isoAccountFieldCount
+	case "tab", "down", "right":
+		m.accountFocus = isoAccountField(cycleISOIndex(
+			int(m.accountFocus), int(isoAccountFieldCount), 1,
+		))
 		m.errorText = ""
 		return m, nil
-	case "shift+tab":
-		m.accountFocus = (m.accountFocus - 1 + isoAccountFieldCount) % isoAccountFieldCount
+	case "shift+tab", "up", "left":
+		m.accountFocus = isoAccountField(cycleISOIndex(
+			int(m.accountFocus), int(isoAccountFieldCount), -1,
+		))
 		m.errorText = ""
 		return m, nil
 	case "enter":
@@ -455,7 +644,7 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 	case isoAccountUsername:
 		username := strings.ToLower(strings.TrimSpace(string(m.username)))
 		if !validISOUsername(username) {
-			m.errorText = "username required"
+			m.errorText = "enter a username"
 			return m, nil
 		}
 		m.username = []rune(username)
@@ -464,14 +653,14 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 	case isoAccountHostname:
 		hostname := strings.TrimSpace(string(m.hostname))
 		if !validISOHostname(hostname) {
-			m.errorText = "invalid machine name"
+			m.errorText = "check the machine name"
 			return m, nil
 		}
 		m.config.Hostname = hostname
 		m.accountFocus = isoAccountPassword
 	case isoAccountPassword:
 		if len(m.password) == 0 {
-			m.errorText = "password required"
+			m.errorText = "enter a password"
 			return m, nil
 		}
 		m.accountFocus = isoAccountPasswordConfirm
@@ -479,22 +668,22 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 		username := strings.ToLower(strings.TrimSpace(string(m.username)))
 		if !validISOUsername(username) {
 			m.accountFocus = isoAccountUsername
-			m.errorText = "username required"
+			m.errorText = "enter a username"
 			return m, nil
 		}
 		hostname := strings.TrimSpace(string(m.hostname))
 		if !validISOHostname(hostname) {
 			m.accountFocus = isoAccountHostname
-			m.errorText = "invalid machine name"
+			m.errorText = "check the machine name"
 			return m, nil
 		}
 		if len(m.password) == 0 {
 			m.accountFocus = isoAccountPassword
-			m.errorText = "password required"
+			m.errorText = "enter a password"
 			return m, nil
 		}
 		if string(m.passwordConfirm) != string(m.password) {
-			m.errorText = "passwords do not match"
+			m.errorText = "make sure passwords match"
 			clearRunes(m.passwordConfirm)
 			m.passwordConfirm = nil
 			return m, nil
@@ -514,12 +703,22 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 
 func (m isoInstallerModel) handleISODiskConfirmationKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
-		m.diskConfirm = false
-		m.filter = nil
-		m.errorText = ""
+	case "left", "up", "shift+tab":
+		m.diskConfirmAction = isoDiskConfirmationAction(cycleISOIndex(
+			int(m.diskConfirmAction), int(isoDiskConfirmationActionCount), -1,
+		))
 		return m, nil
+	case "right", "down", "tab":
+		m.diskConfirmAction = isoDiskConfirmationAction(cycleISOIndex(
+			int(m.diskConfirmAction), int(isoDiskConfirmationActionCount), 1,
+		))
+		return m, nil
+	case "esc":
+		return m.returnToISODiskSelection()
 	case "enter":
+		if m.diskConfirmAction == isoDiskConfirmationBack {
+			return m.returnToISODiskSelection()
+		}
 		password := append([]rune(nil), m.password...)
 		clearRunes(m.password)
 		m.password = nil
@@ -535,6 +734,14 @@ func (m isoInstallerModel) handleISODiskConfirmationKey(msg tea.KeyPressMsg) (te
 	return m, nil
 }
 
+func (m isoInstallerModel) returnToISODiskSelection() (tea.Model, tea.Cmd) {
+	m.diskConfirm = false
+	m.diskConfirmAction = isoDiskConfirmationBack
+	m.filter = nil
+	m.errorText = ""
+	return m, nil
+}
+
 func (m isoInstallerModel) handleISODiskKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	choices := m.filteredChoices()
 	switch msg.String() {
@@ -544,45 +751,63 @@ func (m isoInstallerModel) handleISODiskKey(msg tea.KeyPressMsg) (tea.Model, tea
 		m.filter = nil
 		m.errorText = ""
 		return m, nil
-	case "up":
-		if m.choiceIndex > 0 {
-			m.choiceIndex--
-		}
-	case "down":
-		if m.choiceIndex < len(choices)-1 {
-			m.choiceIndex++
-		}
+	case "up", "left":
+		m.choiceIndex = cycleISOIndex(m.choiceIndex, len(choices), -1)
+	case "down", "right", "tab":
+		m.choiceIndex = cycleISOIndex(m.choiceIndex, len(choices), 1)
+	case "shift+tab":
+		m.choiceIndex = cycleISOIndex(m.choiceIndex, len(choices), -1)
 	case "enter":
 		if len(choices) == 0 {
-			m.errorText = "no matches"
+			m.errorText = "no matching choices"
 			return m, nil
 		}
 		return m.submitISODiskChoice(choices[m.choiceIndex])
 	case "backspace", "ctrl+h":
-		if len(m.filter) > 0 {
-			m.filter[len(m.filter)-1] = 0
-			m.filter = m.filter[:len(m.filter)-1]
-			m.choiceIndex = 0
-		}
+		m.backspaceISOFilter()
+	case "ctrl+u":
+		m.clearISOFilter()
 	default:
 		if text := msg.Key().Text; text != "" {
-			m.filter = append(m.filter, []rune(text)...)
-			m.choiceIndex = 0
+			m.appendISOFilter(text)
 		}
 	}
 	m.clampISOChoiceIndex(len(choices))
 	return m, nil
 }
 
+func (m *isoInstallerModel) appendISOFilter(text string) {
+	m.filter = append(m.filter, []rune(text)...)
+	m.choiceIndex = 0
+	m.errorText = ""
+}
+
+func (m *isoInstallerModel) backspaceISOFilter() {
+	if len(m.filter) > 0 {
+		m.filter[len(m.filter)-1] = 0
+		m.filter = m.filter[:len(m.filter)-1]
+	}
+	m.choiceIndex = 0
+	m.errorText = ""
+}
+
+func (m *isoInstallerModel) clearISOFilter() {
+	clearRunes(m.filter)
+	m.filter = nil
+	m.choiceIndex = 0
+	m.errorText = ""
+}
+
 func (m isoInstallerModel) submitISODiskChoice(choice isoChoice) (tea.Model, tea.Cmd) {
 	m.config.Disk = choice.Value
 	m.config.DiskSizeBytes = m.diskSizeFor(choice.Value)
 	if m.config.DiskSizeBytes < isoInstallerMinimumDiskSize {
-		m.errorText = "disk needs " + formatISOBytes(isoInstallerMinimumDiskSize) + " minimum"
+		m.errorText = "choose a drive with at least " + formatISOBytes(isoInstallerMinimumDiskSize)
 		return m, nil
 	}
 	m.config.EncryptInstallation = true
 	m.diskConfirm = true
+	m.diskConfirmAction = isoDiskConfirmationBack
 	m.filter = nil
 	m.errorText = ""
 	return m, nil
@@ -595,6 +820,17 @@ func (m *isoInstallerModel) clampISOChoiceIndex(choiceCount int) {
 	if m.choiceIndex < 0 {
 		m.choiceIndex = 0
 	}
+}
+
+func cycleISOIndex(current, count, delta int) int {
+	if count < 1 {
+		return 0
+	}
+	next := (current + delta) % count
+	if next < 0 {
+		next += count
+	}
+	return next
 }
 
 func writeISOInstallerOutputCmd(cfg isoInstallerConfig, password []rune) tea.Cmd {
@@ -674,16 +910,12 @@ func (m isoInstallerModel) View() tea.View {
 		body = renderTUIHelp(width, "ISO "+m.stepTitle()+" controls", m.helpHints())
 	} else if m.shutdownPrompt {
 		canvasW, canvasH = fitContentWidth(width), 0
-		body = appendTUIHints(
-			m.renderISOShutdownPrompt(mode),
-			canvasW,
-			m.persistentHints()...,
-		)
+		body = m.renderISOShutdownPrompt(mode)
 	} else if m.usesISOSetupSideLayout(width, height) {
 		body = m.renderISOSetupSideBody(width, height, mode)
 	} else {
 		canvasW, canvasH = fitContentWidth(width), 0
-		body = m.renderISOBody(mode)
+		body = m.renderISOStep(mode)
 	}
 
 	placed := renderViewport(termWidth, termHeight, body)
@@ -693,6 +925,7 @@ func (m isoInstallerModel) View() tea.View {
 	v.MouseMode = tea.MouseModeNone
 	v.BackgroundColor = lipgloss.Color(bgTerm)
 	v.WindowTitle = "qvOS ISO"
+	v.KeyboardEnhancements.ReportEventTypes = true
 	return v
 }
 
@@ -703,10 +936,6 @@ func (m isoInstallerModel) usesISOSetupSideLayout(width, height int) bool {
 
 func (m isoInstallerModel) isISOSetupStep() bool {
 	return m.step == isoStepRegional || m.step == isoStepAccount || m.step == isoStepDisk
-}
-
-func (m isoInstallerModel) renderISOBody(mode layoutMode) string {
-	return m.renderISOStep(mode)
 }
 
 func (m isoInstallerModel) capturesTextInput() bool {
@@ -720,17 +949,11 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 		Key:    "ctrl+c / ctrl+d / ctrl+z / ctrl+q / ctrl+\\",
 		Action: "open the guarded shutdown prompt",
 	}
-	if m.shutdownPrompt {
-		return []tuiHint{
-			{Key: "ctrl+c / ctrl+z", Action: "stop now"},
-			{Key: "arrows", Action: "choose cancel or continue"},
-			{Key: "enter", Action: "confirm the selected option"},
-		}
-	}
 	if m.step == isoStepDisk && m.diskConfirm {
 		return []tuiHint{
-			{Key: "enter", Action: "install qvOS on the selected drive"},
-			{Key: "esc", Action: "change the selected drive"},
+			{Key: "arrows / tab", Action: "choose Back or Continue"},
+			{Key: "enter", Action: "confirm the selected option"},
+			{Key: "esc", Action: "return to the drive list"},
 			exitHint,
 		}
 	}
@@ -746,7 +969,7 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 		return []tuiHint{
 			{Key: "type", Action: "filter the focused choices"},
 			{Key: "↑ / ↓", Action: "move between matches"},
-			{Key: "tab / shift+tab", Action: "move between fields"},
+			{Key: "← / → / tab", Action: "cycle fields"},
 			{Key: "backspace / ctrl+u", Action: "edit or clear the filter"},
 			{Key: "enter", Action: "use the selection and move forward"},
 			{Key: "esc", Action: "move back or return"},
@@ -755,7 +978,7 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 	case isoStepAccount:
 		return []tuiHint{
 			{Key: "type", Action: "enter the focused field"},
-			{Key: "tab / shift+tab", Action: "move between fields"},
+			{Key: "arrows / tab", Action: "cycle fields"},
 			{Key: "backspace", Action: "delete one character"},
 			{Key: "ctrl+u", Action: "clear the focused field"},
 			{Key: "enter", Action: "move forward or continue"},
@@ -765,7 +988,7 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 	case isoStepDisk:
 		return []tuiHint{
 			{Key: "type", Action: "filter the available drives"},
-			{Key: "↑ / ↓", Action: "move between drives"},
+			{Key: "arrows / tab", Action: "move between drives"},
 			{Key: "backspace / ctrl+u", Action: "edit or clear the filter"},
 			{Key: "enter", Action: "select the install drive"},
 			{Key: "esc", Action: "return to account setup"},
@@ -774,13 +997,6 @@ func (m isoInstallerModel) helpHints() []tuiHint {
 	default:
 		return []tuiHint{exitHint}
 	}
-}
-
-func (m isoInstallerModel) persistentHints() []tuiHint {
-	if m.shutdownPrompt {
-		return []tuiHint{{Key: "ctrl+c/z", Action: "again stop"}}
-	}
-	return nil
 }
 
 func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
@@ -793,18 +1009,16 @@ func (m isoInstallerModel) renderISOStep(mode layoutMode) string {
 			Status:       "securing setup details",
 			Phase:        loadRun,
 			HideProgress: true,
-			Hints:        m.persistentHints(),
 		}, mode)
 	} else if m.step == isoStepError {
 		return renderFailureScreen(failureScreen{
 			Subject: "SETUP",
 			Message: m.errorText,
-			Hints:   m.persistentHints(),
 		})
 	} else {
 		content = m.renderISOSetupStack(mode)
 	}
-	return appendTUIHints(content, canvasW, m.persistentHints()...)
+	return content
 }
 
 func (m isoInstallerModel) renderISOSetupSideBody(width, height int, mode layoutMode) string {
@@ -812,15 +1026,15 @@ func (m isoInstallerModel) renderISOSetupSideBody(width, height int, mode layout
 	canvasW, canvasH = leftWidth, 0
 	left := m.renderISOSetupControl(mode)
 	canvasW = rightWidth
-	right := m.renderISOSetupContext(rightWidth, mode)
-	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok {
+	right := m.renderISOSetupContext(mode)
+	if iconWidth, iconHeight, ok := fitSideIconCanvas(width, height); ok && !m.diskConfirm {
 		canvasW, canvasH = iconWidth, iconHeight
 		icon := renderModelRole(m.isoSetupModelRole(), m.frame)
 		canvasW, canvasH = rightWidth, 0
 		right = lipgloss.JoinVertical(lipgloss.Center, icon, "", right)
 	}
 	canvasW = fitContentWidth(width)
-	return renderISODividedColumns(width, left, right)
+	return renderISOColumns(width, left, right)
 }
 
 func (m isoInstallerModel) isoSetupModelRole() modelRole {
@@ -835,33 +1049,37 @@ func (m isoInstallerModel) isoSetupModelRole() modelRole {
 }
 
 func (m isoInstallerModel) renderISOSetupStack(mode layoutMode) string {
+	if m.step == isoStepDisk && m.diskConfirm {
+		return lipgloss.JoinVertical(
+			lipgloss.Center,
+			m.renderISOSetupControl(mode),
+			"",
+			m.renderISOSetupContext(mode),
+		)
+	}
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		m.renderISOSetupContext(canvasW, mode),
+		m.renderISOSetupContext(mode),
 		"",
 		m.renderISOSetupControl(mode),
 	)
 }
 
-func (m isoInstallerModel) renderISOSetupContext(width int, mode layoutMode) string {
-	lines := []string{}
-	if m.step == isoStepRegional {
-		lines = append(lines, sWhite.Render("qvOS")+sDim.Render("  WELCOME"))
-		if mode != layoutMobile {
-			lines = append(lines, "")
-		}
-	}
-	if tracker := m.renderISOStepTracker(); tracker != "" {
-		lines = append(lines, tracker, "")
-	}
-	lines = append(lines, sWhite.Render(strings.ToUpper(m.stepTitle())), "")
-	briefStyle := sGray
+func (m isoInstallerModel) renderISOSetupContext(mode layoutMode) string {
 	if m.step == isoStepDisk && m.diskConfirm {
-		briefStyle = sRed
+		return m.renderISOFinalConfirmation(mode)
 	}
-	for _, line := range wrapDisplayLines([]string{m.stepBrief()}, max(18, min(width, 46))) {
-		lines = append(lines, briefStyle.Render(line))
+	if mode == layoutMobile && m.step == isoStepAccount {
+		return sGray.Render("qvOS") +
+			sDim.Render(" · ") + m.renderISOStepTracker() +
+			sDim.Render(" · ") + sISOBright.Render(strings.ToUpper(m.stepTitle()))
 	}
+	lines := []string{}
+	if tracker := m.renderISOStepTracker(); tracker != "" {
+		identity := sGray.Render("qvOS") + sDim.Render(" · ") + tracker
+		lines = append(lines, identity, "")
+	}
+	lines = append(lines, sISOBright.Render(strings.ToUpper(m.stepTitle())))
 	return lipgloss.JoinVertical(lipgloss.Center, lines...)
 }
 
@@ -875,30 +1093,24 @@ func (m isoInstallerModel) renderISOSetupControl(mode layoutMode) string {
 		if m.diskConfirm {
 			return m.renderISODiskConfirmationControl(mode)
 		}
-		return m.renderISOChoiceControl(mode)
+		return m.renderISODiskControl(mode)
 	default:
 		return ""
 	}
 }
 
-func renderISODividedColumns(width int, left, right string) string {
+func renderISOColumns(width int, left, right string) string {
 	leftWidth, rightWidth := sideColumnWidths(width)
 	leftColumn := lipgloss.NewStyle().Width(leftWidth).Align(lipgloss.Center).Render(left)
 	rightColumn := lipgloss.NewStyle().Width(rightWidth).Align(lipgloss.Center).Render(right)
-	dividerHeight := max(lipgloss.Height(leftColumn), lipgloss.Height(rightColumn))
-	dividerLines := make([]string, dividerHeight)
-	for index := range dividerLines {
-		dividerLines[index] = sDim.Render("│")
-	}
-	divider := strings.Join(dividerLines, "\n")
-	leftGap := strings.Repeat(" ", sideGap/2)
-	rightGap := strings.Repeat(" ", sideGap-sideGap/2)
+	gap := lipgloss.NewStyle().
+		Width(sideGap + 1).
+		Height(max(lipgloss.Height(leftColumn), lipgloss.Height(rightColumn))).
+		Render("")
 	return lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		leftColumn,
-		leftGap,
-		divider,
-		rightGap,
+		gap,
 		rightColumn,
 	)
 }
@@ -915,7 +1127,7 @@ func (m isoInstallerModel) renderISOShutdownPrompt(mode layoutMode) string {
 	lines := []string{centerCanvas(title), centerCanvas(subtitle), ""}
 	lines = append(lines, centerLines(choices)...)
 	if m.errorText != "" {
-		lines = append(lines, "", centerCanvas(sRed.Render(m.errorText)))
+		lines = append(lines, "", centerCanvas(sGray.Render(m.errorText)))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -924,54 +1136,163 @@ func (m isoInstallerModel) renderISORegionalControl(mode layoutMode) string {
 	keyboard := selectedISOChoiceLabel(m.keyboards, m.config.Keyboard)
 	timezone := selectedISOChoiceLabel(m.timezones, m.config.Timezone)
 	lines := []string{
-		renderISONamedField("Keyboard", keyboard, keyboard == "", m.regionalFocus == isoRegionalKeyboard, mode),
+		renderISONamedField("Keyboard", keyboard, m.regionalFocus == isoRegionalKeyboard,
+			m.regionalFocus == isoRegionalTimezone && keyboard != "", mode),
 		"",
-		renderISONamedField("Time zone", timezone, timezone == "", m.regionalFocus == isoRegionalTimezone, mode),
+		renderISONamedField("Time zone", timezone, m.regionalFocus == isoRegionalTimezone,
+			false, mode),
 		"",
 	}
 	status := ""
-	if m.errorText != "" {
-		status = sRed.Render(m.errorText)
-	} else if filter := strings.TrimSpace(string(m.filter)); filter != "" {
+	if filter := strings.TrimSpace(string(m.filter)); filter != "" {
 		status = sDim.Render("Search ") + sBright.Render(filter)
 	}
 	lines = append(lines, status, "")
 	lines = append(lines, m.visibleChoiceRows(m.filteredChoices(), mode)...)
-	return renderISOControlBlock(lines, "", mode)
+	lines = append(lines, "")
+	lines = append(lines, m.renderISOSetupHint(mode)...)
+	return renderISOControlBlock(lines, mode)
 }
 
 func (m isoInstallerModel) renderISOAccountControl(mode layoutMode) string {
 	username := string(m.username)
-	usernamePlaceholder := username == ""
-	if usernamePlaceholder {
-		username = "username"
-	}
+	usernameComplete := validISOUsername(strings.TrimSpace(username))
 	hostname := string(m.hostname)
-	hostnamePlaceholder := hostname == ""
-	if hostnamePlaceholder {
-		hostname = "machine-name"
-	}
+	hostnameComplete := validISOHostname(strings.TrimSpace(hostname))
 	fields := []string{
-		renderISONamedField("Username", username, usernamePlaceholder, m.accountFocus == isoAccountUsername, mode),
-		renderISONamedField("Machine Name", hostname, hostnamePlaceholder, m.accountFocus == isoAccountHostname, mode),
-		renderISONamedField("Password", strings.Repeat("•", len(m.password)), false, m.accountFocus == isoAccountPassword, mode),
-		renderISONamedField("Confirm Password", strings.Repeat("•", len(m.passwordConfirm)), false, m.accountFocus == isoAccountPasswordConfirm, mode),
+		renderISONamedField("Username", username, m.accountFocus == isoAccountUsername,
+			usernameComplete, mode),
+		renderISONamedField("Machine Name", hostname, m.accountFocus == isoAccountHostname,
+			hostnameComplete, mode),
+		renderISONamedField("Password", strings.Repeat("•", len(m.password)), m.accountFocus == isoAccountPassword,
+			len(m.password) > 0, mode),
+		renderISONamedField("Confirm Password", strings.Repeat("•", len(m.passwordConfirm)), m.accountFocus == isoAccountPasswordConfirm,
+			len(m.passwordConfirm) > 0 && string(m.passwordConfirm) == string(m.password), mode),
 	}
 	separator := "\n\n"
 	if mode == layoutMobile {
 		separator = "\n"
 	}
 	lines := strings.Split(strings.Join(fields, separator), "\n")
-	return renderISOControlBlock(lines, m.errorText, mode)
+	lines = append(lines, "")
+	lines = append(lines, m.renderISOSetupHint(mode)...)
+	return renderISOControlBlock(lines, mode)
 }
 
-func (m isoInstallerModel) renderISOChoiceControl(mode layoutMode) string {
+const isoSetupHintRows = 2
+
+func (m isoInstallerModel) renderISOSetupHint(mode layoutMode) []string {
+	hint := m.isoSetupHintText(mode)
+	style := sDim
+	if m.errorText != "" {
+		hint = compactISOSetupError(m.errorText, mode)
+		style = sISOBright
+	} else if m.step == isoStepDisk && m.diskConfirm {
+		style = sISOBright
+	}
+	return renderISOFixedCopy(hint, inputWidthForMode(mode), isoSetupHintRows, style)
+}
+
+func (m isoInstallerModel) isoSetupHintText(mode layoutMode) string {
+	switch m.step {
+	case isoStepRegional:
+		if mode == layoutMobile {
+			if m.regionalFocus == isoRegionalKeyboard {
+				return "typing layout"
+			}
+			return "time zone"
+		}
+		if m.regionalFocus == isoRegionalKeyboard {
+			return "Choose how qvOS types."
+		}
+		return "Choose how qvOS keeps time."
+	case isoStepAccount:
+		if mode == layoutMobile {
+			switch m.accountFocus {
+			case isoAccountUsername:
+				return "lowercase name"
+			case isoAccountHostname:
+				return "this device"
+			case isoAccountPassword:
+				return "long + unique"
+			case isoAccountPasswordConfirm:
+				return "type it again"
+			}
+		}
+		switch m.accountFocus {
+		case isoAccountUsername:
+			return "Use lowercase letters and numbers."
+		case isoAccountHostname:
+			return "Name this machine on your network."
+		case isoAccountPassword:
+			return "Use a long, unique password."
+		case isoAccountPasswordConfirm:
+			return "Type the same password again."
+		}
+	case isoStepDisk:
+		if m.diskConfirm {
+			if mode == layoutMobile {
+				return "Erase this drive."
+			}
+			return "Everything on this drive will be erased."
+		}
+		if mode == layoutMobile {
+			return "Choose install drive."
+		}
+		return "Choose where qvOS will be installed."
+	}
+	return ""
+}
+
+func compactISOSetupError(message string, mode layoutMode) string {
+	if mode == layoutMobile {
+		switch message {
+		case "enter a username":
+			return "enter username"
+		case "check the machine name":
+			return "check name"
+		case "enter a password":
+			return "enter password"
+		case "make sure passwords match":
+			return "passwords differ"
+		case "try another keyboard layout":
+			return "try another layout"
+		case "no matching choices":
+			return "no matches"
+		}
+		if minimum, found := strings.CutPrefix(message, "choose a drive with at least "); found {
+			return "at least " + minimum
+		}
+	}
+	return message
+}
+
+func renderISOFixedCopy(text string, width, rowCount int, style lipgloss.Style) []string {
+	wrapped := wrapDisplayLines([]string{strings.TrimSpace(text)}, width)
+	if strings.TrimSpace(text) == "" {
+		wrapped = nil
+	}
+	rows := make([]string, 0, rowCount)
+	for index := 0; index < rowCount; index++ {
+		if index >= len(wrapped) {
+			rows = append(rows, "")
+			continue
+		}
+		rows = append(rows, style.Render(wrapped[index]))
+	}
+	return rows
+}
+
+func (m isoInstallerModel) renderISODiskControl(mode layoutMode) string {
 	lines := []string{}
 	if filter := strings.TrimSpace(string(m.filter)); filter != "" {
 		lines = append(lines, sDim.Render("Search ")+sBright.Render(filter), "")
 	}
-	lines = append(lines, m.visibleChoiceRows(m.filteredChoices(), mode)...)
-	return renderISOControlBlock(lines, m.errorText, mode)
+	choices := m.filteredChoices()
+	lines = append(lines, m.visibleDiskChoiceRows(choices, mode)...)
+	lines = append(lines, "")
+	lines = append(lines, m.renderISOSetupHint(mode)...)
+	return renderISOControlBlock(lines, mode)
 }
 
 func (m isoInstallerModel) renderISODiskConfirmationControl(mode layoutMode) string {
@@ -982,29 +1303,34 @@ func (m isoInstallerModel) renderISODiskConfirmationControl(mode layoutMode) str
 			break
 		}
 	}
-	diskLabel = trimDisplay(diskLabel, inputWidthForMode(mode))
-	return renderISOControlBlock([]string{
-		sBright.Render(diskLabel),
-		"",
-		renderISOPrimaryAction("Install qvOS"),
-	}, m.errorText, mode)
+	lines := renderISOCompletedDisk(diskLabel, inputWidthForMode(mode))
+	lines = append(lines, "")
+	lines = append(lines, m.renderISOSetupHint(mode)...)
+	return renderISOControlBlock(lines, mode)
 }
 
-func renderISONamedField(label, value string, placeholder, active bool, mode layoutMode) string {
-	labelStyle := sGray
-	if active {
-		labelStyle = sWhite
+func (m isoInstallerModel) renderISOFinalConfirmation(mode layoutMode) string {
+	labels := []string{"Back", "Continue"}
+	lines := make([]string, 0, len(labels)*2-1)
+	for index, label := range labels {
+		active := isoDiskConfirmationAction(index) == m.diskConfirmAction
+		lines = append(lines, renderISOInputField(label, active, !active, mode))
+		if index < len(labels)-1 {
+			lines = append(lines, "")
+		}
 	}
+	return renderISOControlBlock(lines, mode)
+}
+
+func renderISONamedField(label, value string, active, complete bool, mode layoutMode) string {
+	labelStyle := isoFieldTextStyle(active, complete)
 	return strings.Join([]string{
 		labelStyle.Render(label),
-		renderISOInputField(value, placeholder, active, mode),
+		renderISOInputField(value, active, complete, mode),
 	}, "\n")
 }
 
-func renderISOControlBlock(lines []string, errorText string, mode layoutMode) string {
-	if errorText != "" {
-		lines = append(lines, "", sRed.Render(errorText))
-	}
+func renderISOControlBlock(lines []string, mode layoutMode) string {
 	return lipgloss.NewStyle().
 		Width(inputWidthForMode(mode)).
 		Align(lipgloss.Left).
@@ -1024,7 +1350,7 @@ func (m isoInstallerModel) visibleChoiceRows(choices []isoChoice, mode layoutMod
 	limit := isoChoiceRowLimit(mode)
 	rows := make([]string, 0, limit)
 	if len(choices) == 0 {
-		rows = append(rows, sRed.Render("no matches"))
+		rows = append(rows, sGray.Render("no matching choices"))
 		return append(rows, make([]string, limit-len(rows))...)
 	}
 
@@ -1051,6 +1377,78 @@ func (m isoInstallerModel) visibleChoiceRows(choices []isoChoice, mode layoutMod
 	return rows
 }
 
+func (m isoInstallerModel) visibleDiskChoiceRows(choices []isoChoice, mode layoutMode) []string {
+	lineLimit := isoDiskLineLimit(mode)
+	if len(choices) == 0 {
+		rows := []string{sGray.Render("no matching choices")}
+		return append(rows, make([]string, lineLimit-len(rows))...)
+	}
+
+	selected := min(max(m.choiceIndex, 0), len(choices)-1)
+	itemHeight := func(index int) int {
+		return len(wrapDisplayLines([]string{choices[index].Label}, max(1, inputWidthForMode(mode)-2)))
+	}
+	start, end := selected, selected
+	used := itemHeight(selected)
+	for {
+		changed := false
+		if start > 0 {
+			height := itemHeight(start - 1)
+			if used+1+height <= lineLimit {
+				start--
+				used += 1 + height
+				changed = true
+			}
+		}
+		if end+1 < len(choices) {
+			height := itemHeight(end + 1)
+			if used+1+height <= lineLimit {
+				end++
+				used += 1 + height
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+
+	rows := make([]string, 0, max(lineLimit, used))
+	for index := start; index <= end; index++ {
+		if len(rows) > 0 {
+			rows = append(rows, "")
+		}
+		if index == selected {
+			rows = append(rows, renderISOSelectedDisk(choices[index].Label, inputWidthForMode(mode))...)
+			continue
+		}
+		for _, line := range wrapDisplayLines([]string{choices[index].Label}, max(1, inputWidthForMode(mode)-2)) {
+			rows = append(rows, "  "+sGray.Render(line))
+		}
+	}
+	for len(rows) < lineLimit {
+		rows = append(rows, "")
+	}
+	return rows
+}
+
+func renderISOSelectedDisk(label string, width int) []string {
+	return renderISODiskRows(label, width, sRed, sISOBright)
+}
+
+func renderISOCompletedDisk(label string, width int) []string {
+	return renderISODiskRows(label, width, sDeepRed, sGray)
+}
+
+func renderISODiskRows(label string, width int, railStyle, textStyle lipgloss.Style) []string {
+	lines := wrapDisplayLines([]string{label}, max(1, width-2))
+	rows := make([]string, 0, len(lines))
+	for _, line := range lines {
+		rows = append(rows, railStyle.Render("│")+" "+textStyle.Render(line))
+	}
+	return rows
+}
+
 func isoChoiceRowLimit(mode layoutMode) int {
 	switch mode {
 	case layoutMobile:
@@ -1059,6 +1457,17 @@ func isoChoiceRowLimit(mode layoutMode) int {
 		return 5
 	default:
 		return 7
+	}
+}
+
+func isoDiskLineLimit(mode layoutMode) int {
+	switch mode {
+	case layoutMobile:
+		return 5
+	case layoutTablet:
+		return 7
+	default:
+		return 9
 	}
 }
 
@@ -1091,22 +1500,6 @@ func (m isoInstallerModel) stepTitle() string {
 	}
 }
 
-func (m isoInstallerModel) stepBrief() string {
-	switch m.step {
-	case isoStepRegional:
-		return "Choose how qvOS types and keeps time."
-	case isoStepAccount:
-		return "Create your sign-in and name this machine."
-	case isoStepDisk:
-		if m.diskConfirm {
-			return "Everything on this drive will be erased."
-		}
-		return "Choose where qvOS will be installed."
-	default:
-		return "Prepare qvOS for this machine."
-	}
-}
-
 func inputWidthForMode(mode layoutMode) int {
 	switch mode {
 	case layoutMobile:
@@ -1128,31 +1521,42 @@ func renderISOOptionRows(choices []isoChoice, active int) []string {
 
 func renderISOChoiceRow(label string, selected bool) string {
 	if selected {
-		return sRed.Render("•") + " " + sWhite.Render(label)
+		return sISOBright.Render(label)
 	}
-	return sDim.Render("  ") + sGray.Render(label)
+	return sGray.Render(label)
 }
 
 func renderISOPrimaryAction(label string) string {
-	return sRed.Render("›") + " " + sWhite.Render(label)
+	return sISOBright.Render(label)
 }
 
-func renderISOInputField(value string, placeholder bool, active bool, mode layoutMode) string {
+func renderISOInputField(value string, active, complete bool, mode layoutMode) string {
 	fieldWidth := inputWidthForMode(mode)
 	value = trimDisplay(value, fieldWidth)
 
-	labelStyle := sWhite
-	if placeholder {
-		labelStyle = sMid
-	}
+	labelStyle := isoFieldTextStyle(active, complete)
 
 	valueLine := lipgloss.PlaceHorizontal(fieldWidth, lipgloss.Left, labelStyle.Render(value))
-	ruleStyle := sDim
-	if active {
-		ruleStyle = sDeepRed
+	ruleStyle := sGray
+	switch {
+	case active:
+		ruleStyle = sRed
+	case complete:
+		ruleStyle = sDim
 	}
-	rule := ruleStyle.Render(strings.Repeat("─", fieldWidth))
+	rule := renderTUIRail(fieldWidth, ruleStyle)
 	return strings.Join([]string{valueLine, rule}, "\n")
+}
+
+func isoFieldTextStyle(active, complete bool) lipgloss.Style {
+	switch {
+	case active:
+		return sISOBright
+	case complete:
+		return sGray
+	default:
+		return sMid
+	}
 }
 
 func centerLines(lines []string) []string {
@@ -1177,7 +1581,7 @@ func centerLinesWithWidth(lines []string, width int) []string {
 }
 
 func isoShutdownChoices() []isoChoice {
-	return []isoChoice{{Label: "Cancel", Value: "shutdown"}, {Label: "Continue", Value: "continue"}}
+	return []isoChoice{{Label: "Resume", Value: "resume"}, {Label: "Shutdown", Value: "shutdown"}}
 }
 
 func isoKeyboardChoices() []isoChoice {
@@ -1420,15 +1824,6 @@ func orderISOTimezones(zones []string, current, guessed string) []string {
 func indexChoiceValue(choices []isoChoice, value string) int {
 	for i, choice := range choices {
 		if choice.Value == value {
-			return i
-		}
-	}
-	return 0
-}
-
-func indexDiskValue(disks []isoDiskChoice, value string) int {
-	for i, disk := range disks {
-		if disk.Choice.Value == value {
 			return i
 		}
 	}

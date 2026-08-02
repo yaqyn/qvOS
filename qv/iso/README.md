@@ -35,26 +35,50 @@ the previous one.
   not `unmanaged`, and reject build-only Git reflogs or private builder
   identity in the embedded checkout.
 - Boot the image and capture the Limine, Plymouth, installer, progress, and
-  finale surfaces. Their pixels must use exact black (`#000000`) and neutral
-  grayscale; Plymouth and the installer may use only qvOS red tonal accents
-  (`#5f0000`/`#b00000`/`#d00000`), while Limine stays grayscale-only. Reject
-  inherited Omarchy/Tokyo Night colors or stale glyphs from an earlier TUI
-  frame. Confirm the installer starts directly at its qvOS welcome on Step 1/3,
-  then uses one ring for Region, two for Account, and three for Install drive.
-  Verify Region shows Keyboard with Time zone, Account shows Username, Machine
-  Name, Password, and Confirm Password, and the drive step becomes its own final
-  erase confirmation. Wide screens use the divided side composition with the
-  model and context on the right; narrow screens stack safely without a model.
-  Confirm Region filtering does not move any field, divider, tracker, title, or
-  column; Tab and Shift+Tab cycle every field; invalid account characters do not
-  enter; and password mismatches cannot continue. Primary actions use a red
-  chevron and white label without a filled background. Progress exposes `v log`,
-  `ctrl+v terminal`, and `? help`; V opens the same-process side log, while
-  Ctrl+V opens the minimal full terminal with no copy-all or navigation actions.
-  Confirm both shortcuts are inactive on the finale. Verify the live-media
-  progress process exits before target-install progress starts, and that target
-  progress exits before the finale or error fallback; two renderers must never
-  own the installer terminal together.
+  finale surfaces. Limine and the TUI use exact black (`#000000`) and neutral
+  grayscale, with red reserved for the installer's active field and selected
+  disk rails, focused final action field, and loading bar. Ring models remain
+  pure grayscale with bright white highlights. Plymouth must match the promoted
+  live theme with its graphite `#090909` graphical background and exact promoted
+  assets. Reject stale glyphs from an earlier TUI frame. Confirm the installer
+  starts directly on Step 1/3, then uses one ring for Region, two for Account,
+  and three for Install drive. Verify Region shows Keyboard with Time zone,
+  Account shows Username, Machine Name, Password, and Confirm Password, and the
+  drive step becomes its own final erase confirmation. After selection, the
+  complete drive remains
+  dimmed on the left and its fixed hint becomes the bright marker-free erase
+  notice. The right removes its model and setup hierarchy, leaving only stacked
+  `Back` and `Continue` fields. Back is selected by default; arrows and Tab move
+  the bright red-underlined focus, Escape returns, and only an explicit Enter
+  on Continue starts installation. Disk descriptions wrap in full and only the
+  active selected disk carries one continuous red rail across its wrapped lines;
+  the rail becomes deep red after confirmation. No confirmation box, marker, or
+  button chrome is present. Wide screens keep left controls and the restrained
+  model plus compact context on
+  the right without a divider; narrow screens stack safely without a model.
+  Confirm Region filtering does not move any field, context line, title, or
+  column. Left and Right cycle the active fields or choices on every step; Up
+  and Down navigate Region matches, then cycle Account fields, drive choices,
+  and final actions. Tab and Shift+Tab retain field navigation. Invalid account
+  characters do not enter, and password mismatches cannot continue. Every setup step keeps the
+  same two-row contextual hint slot beneath its left controls. Validation
+  replaces that hint with calm bright-gray copy, never a second message or
+  marker, and cannot move the form. Focused fields use near-white text with a
+  red rail, incomplete inactive fields stay slightly brighter, and valid
+  completed fields dim. Choices and primary actions use dim/near-white
+  grayscale without markers or filled backgrounds; the focused field and
+  selected disk get red rails. Progress shows only its loading message,
+  percentage, shared thin red/dim rail with a restrained breathing tip, and
+  centered dim `Estimated 4:00  -  ? Help` footer. The estimate becomes
+  `Any moment now` at zero and never drives milestone progress. V replaces the
+  rail with one same-process frameless, title-free log view and returns to
+  progress. Boot has no Ctrl+V route, switch cue, copy-all, or navigation
+  actions. Confirm the finale has no log or terminal view, shows `Finished` and
+  `Reboot`, and automatically continues after a hidden five-second timer that
+  any key stops. Verify the live-media progress process exits before
+  target-install progress starts, and that target progress exits before the
+  finale or error fallback; two renderers must never own the installer terminal
+  together.
 - Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
   menu. All displayed product, entry, publisher, and application names must say
   `qvOS`; inherited internal compatibility identifiers may remain lowercase
