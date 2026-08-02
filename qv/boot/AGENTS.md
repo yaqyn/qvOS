@@ -12,6 +12,10 @@ to obtain a custom menu layout.
 Keep the promoted live theme's graphite `#090909` graphical background and
 exact promoted assets together. The installer TUI remains an independent
 exact-black renderer and must clear Plymouth before painting its first frame.
+`qv/boot/limine/`, `qv/boot/sddm/`, and `qv/boot/wayland-sessions/` likewise
+own their installed payloads. Do not restore parallel copies under `default/`.
+Public `bin/omarchy-*` boot routes are direct adapters to executable owners in
+this directory; they must not retain inherited fallback implementations.
 
 - Keep the Limine screen center-only on exact black: explicit empty branding,
   hidden interface help, no wallpaper, and no custom font or renderer fork.
@@ -30,7 +34,7 @@ exact-black renderer and must clear Plymouth before painting its first frame.
   change `/boot` through explicit privileged operations; never weaken its mount
   mask to make an unprivileged read convenient.
 
-Run `bash -n` and ShellCheck for changed shell, then
+Run `qv/boot/check`, `bash -n`, and ShellCheck for changed shell, then
 `test/qvos/qvos-product-contract-test.sh`, the instruction guard, and the full
 qvOS shell suite when shared boot/install contracts change. Apply with
 `omarchy-refresh-limine`, compare the generated live header with the source,

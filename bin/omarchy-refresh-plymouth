@@ -3,16 +3,4 @@
 # omarchy:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the qvOS default and rebuild it.
 # omarchy:requires-sudo=true
 
-qvos_owner="$OMARCHY_PATH/qv/boot/refresh-plymouth"
-if [[ -x $qvos_owner ]]; then
-  exec "$qvos_owner" "$@"
-fi
-
-sudo cp -r ~/.local/share/omarchy/default/plymouth/* /usr/share/plymouth/themes/omarchy/
-sudo plymouth-set-default-theme omarchy
-
-if command -v limine-mkinitcpio &>/dev/null; then
-  sudo limine-mkinitcpio
-else
-  sudo mkinitcpio -P
-fi
+exec "$OMARCHY_PATH/qv/boot/refresh-plymouth" "$@"

@@ -1,0 +1,75 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+native_manifest="$root/qv/boot/native-paths"
+retired_manifest="$root/qv/boot/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected_native=(
+  bin/omarchy-config-direct-boot
+  bin/omarchy-plymouth-preview
+  bin/omarchy-plymouth-reset
+  bin/omarchy-plymouth-set
+  bin/omarchy-refresh-limine
+  bin/omarchy-refresh-plymouth
+  bin/omarchy-refresh-sddm
+)
+expected_retired=(
+  default/limine/
+  default/plymouth/
+  default/sddm/omarchy/
+  default/wayland-sessions/omarchy.desktop
+)
+
+mapfile -t native_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest"
+)
+mapfile -t retired_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
+)
+[[ ${native_paths[*]} == "${expected_native[*]}" ]] ||
+  fail "native boot route inventory"
+[[ ${retired_paths[*]} == "${expected_retired[*]}" ]] ||
+  fail "retired inherited boot payload inventory"
+
+for route in "${expected_native[@]}"; do
+  owner=${route#bin/omarchy-}
+  [[ -x $root/$route ]] || fail "boot route mode: $route"
+  [[ -x $root/qv/boot/$owner ]] || fail "boot owner mode: $owner"
+  grep -Fqx "exec \"\$OMARCHY_PATH/qv/boot/$owner\" \"\$@\"" \
+    "$root/$route" || fail "boot route is not a direct owner adapter: $route"
+  if rg -q 'qvos_owner=|default/(limine|plymouth|sddm/omarchy)' "$root/$route"; then
+    fail "boot route retains inherited fallback implementation: $route"
+  fi
+done
+
+for retired in "${expected_retired[@]}"; do
+  retired=${retired%/}
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired inherited boot payload remains: $retired"
+done
+
+if rg -q '(OMARCHY_PATH[^\"]*|local/share/omarchy/)default/(limine|plymouth|sddm/omarchy|wayland-sessions/omarchy)' \
+  "$root/bin" "$root/install" "$root/qv/boot" \
+  "$root/default/elephant/omarchy_unlocks.lua" \
+  --glob '!check'; then
+  fail "active boot lifecycle still reads a retired inherited payload"
+fi
+
+grep -Fq 'qv/boot/limine/default.conf' \
+  "$root/install/login/limine-snapper.sh" || fail "fresh Limine defaults owner"
+grep -Fq 'qv/boot/limine/limine.conf' \
+  "$root/install/login/limine-snapper.sh" || fail "fresh Limine config owner"
+grep -Fq 'qv/boot/plymouth' \
+  "$root/install/login/plymouth.sh" || fail "fresh Plymouth owner"
+grep -Fqx 'omarchy-refresh-sddm' \
+  "$root/install/login/sddm.sh" || fail "fresh SDDM owner route"
+grep -Fq 'qv/boot/wayland-sessions/omarchy.desktop' \
+  "$root/install/login/sddm.sh" || fail "fresh Wayland session owner"
+
+printf 'ok - qvOS boot commands and payloads have one native owner\n'

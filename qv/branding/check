@@ -54,13 +54,7 @@ identity_paths=(
   default/elephant/omarchy_background_selector.lua
   default/elephant/omarchy_themes.lua
   default/elephant/omarchy_unlocks.lua
-  default/limine/default.conf
-  default/limine/limine.conf
   default/omarchy-skill/SKILL.md
-  default/plymouth/omarchy.plymouth
-  default/plymouth/omarchy.script
-  default/sddm/omarchy/metadata.desktop
-  default/wayland-sessions/omarchy.desktop
   install/first-run/install-voxtype.hook
   install/first-run/welcome.sh
   install/config/hardware/apple/fix-suspend-nvme.sh
@@ -68,6 +62,12 @@ identity_paths=(
   install/helpers/logging.sh
   install/helpers/presentation.sh
   install/preflight/guard.sh
+  qv/boot/limine/default.conf
+  qv/boot/limine/limine.conf
+  qv/boot/plymouth/omarchy.plymouth
+  qv/boot/plymouth/omarchy.script
+  qv/boot/sddm/metadata.desktop
+  qv/boot/wayland-sessions/omarchy.desktop
   qv/update/qvos-update
 )
 

@@ -3,10 +3,4 @@
 # omarchy:summary=Refresh the SDDM theme from default
 # omarchy:requires-sudo=true
 
-qvos_owner="$OMARCHY_PATH/qv/boot/refresh-sddm"
-if [[ -x $qvos_owner ]]; then
-  exec "$qvos_owner" "$@"
-fi
-
-sudo rm -rf /usr/share/sddm/themes/omarchy
-sudo cp -r $OMARCHY_PATH/default/sddm/omarchy /usr/share/sddm/themes/omarchy
+exec "$OMARCHY_PATH/qv/boot/refresh-sddm" "$@"

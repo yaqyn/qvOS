@@ -1,4 +1,4 @@
-# Install omarchy SDDM theme
+# Install the qvOS SDDM theme
 omarchy-refresh-sddm
 
 # Setup SDDM login service

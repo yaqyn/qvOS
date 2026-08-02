@@ -23,19 +23,13 @@ fi
 inherited_seams=(
   bin/omarchy-branding-about
   bin/omarchy-branding-screensaver
-  bin/omarchy-config-direct-boot
   bin/omarchy-first-run
   bin/omarchy-install-browser
   bin/omarchy-install-gaming-xbox-controllers
   bin/omarchy-install-gaming-retroarch
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
-  bin/omarchy-plymouth-reset
-  bin/omarchy-plymouth-set
   bin/omarchy-refresh-hyprland
-  bin/omarchy-refresh-limine
-  bin/omarchy-refresh-plymouth
-  bin/omarchy-refresh-sddm
   bin/omarchy-show-logo
   bin/omarchy-theme-bg-install
   bin/omarchy-tz-select
@@ -225,13 +219,7 @@ done
 pass "retired upstream paths are explicit and absent"
 
 fallback_seams=(
-  bin/omarchy-config-direct-boot
   bin/omarchy-launch-floating-terminal-with-presentation
-  bin/omarchy-plymouth-reset
-  bin/omarchy-plymouth-set
-  bin/omarchy-refresh-limine
-  bin/omarchy-refresh-plymouth
-  bin/omarchy-refresh-sddm
   bin/omarchy-windows-vm
   install/packaging/npx.sh
   install/packaging/webapps.sh

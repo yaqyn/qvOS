@@ -1,0 +1,8 @@
+# Inherited command routes promoted to native qvOS boot ownership.
+bin/omarchy-config-direct-boot
+bin/omarchy-plymouth-preview
+bin/omarchy-plymouth-reset
+bin/omarchy-plymouth-set
+bin/omarchy-refresh-limine
+bin/omarchy-refresh-plymouth
+bin/omarchy-refresh-sddm

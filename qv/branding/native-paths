@@ -45,13 +45,7 @@ config/systemd/user/omarchy-battery-monitor.service
 config/systemd/user/omarchy-battery-monitor.timer
 config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json
-default/limine/default.conf
-default/limine/limine.conf
 default/omarchy-skill/SKILL.md
-default/plymouth/omarchy.plymouth
-default/plymouth/omarchy.script
-default/sddm/omarchy/metadata.desktop
-default/wayland-sessions/omarchy.desktop
 install/config/hardware/apple/fix-suspend-nvme.sh
 install/first-run/install-voxtype.hook
 install/first-run/welcome.sh

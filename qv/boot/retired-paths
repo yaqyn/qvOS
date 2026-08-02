@@ -1,0 +1,5 @@
+# Superseded inherited boot payloads retired in favor of qv/boot.
+default/limine/
+default/plymouth/
+default/sddm/omarchy/
+default/wayland-sessions/omarchy.desktop

@@ -1,6 +1,0 @@
-[SddmGreeterTheme]
-Name=qvOS
-Description=Minimal terminal-style login theme matching the Limine bootloader aesthetic
-Author=qvOS
-Type=sddm-theme
-Version=1.0
