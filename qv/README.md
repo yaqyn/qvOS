@@ -121,8 +121,10 @@ Until a domain is promoted, keep implementations in `qv/` and touch inherited
 Omarchy paths only at the seam that exposes, installs, or refreshes them:
 
 - `bin/` owns CLI routes and menu handoffs.
-- `qv/config/files/` owns qvOS config sources; inherited `config/` and
-  `default/` remain upstream-owned.
+- `config/` owns promoted qvOS defaults such as the singular binding source;
+  `qv/config/files/` owns only specialized sources that still need a separate
+  installed path. Unpromoted inherited `config/` and `default/` paths remain
+  upstream-owned.
 - `install/` owns fresh-install payloads. Future existing-system transitions
   belong in `qv/migrations/` behind thin Omarchy migration stubs.
 - `test/qvos/*-test.sh` guards qvOS product and integration contracts;

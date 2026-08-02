@@ -205,8 +205,12 @@ pass "native qvOS paths are explicit reviewed upstream departures"
 
 for path in "${retired_paths[@]}"; do
   if [[ $path == */ ]]; then
-    git -C "$root" ls-tree -r --name-only "$upstream_ref" -- "$path" |
-      grep -q . || fail "$path retired qvOS prefix no longer exists upstream"
+    retired_upstream_count=$(
+      git -C "$root" ls-tree -r --name-only "$upstream_ref" -- "$path" |
+        awk 'END { print NR }'
+    )
+    ((retired_upstream_count > 0)) ||
+      fail "$path retired qvOS prefix no longer exists upstream"
     [[ ! -e $root/${path%/} && ! -L $root/${path%/} ]] ||
       fail "$path retired qvOS prefix remains in the working tree"
     [[ -z $(git -C "$root" ls-files -- "$path") ]] ||

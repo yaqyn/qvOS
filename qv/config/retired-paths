@@ -1,0 +1,4 @@
+# Inherited config paths intentionally absent from qvOS.
+default/hypr/bindings.conf
+default/hypr/bindings/
+default/hypr/plain-bindings.conf

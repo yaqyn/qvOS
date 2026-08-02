@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+bindings="$root/config/hypr/bindings.conf"
+hyprland="$root/config/hypr/hyprland.conf"
+native_manifest="$root/qv/config/native-paths"
+retired_manifest="$root/qv/config/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ ! -e $root/default/hypr/bindings ]] || fail "inherited binding directory remains"
+[[ ! -e $root/default/hypr/bindings.conf ]] || fail "inherited binding loader remains"
+[[ ! -e $root/default/hypr/plain-bindings.conf ]] || fail "alternate inherited binding map remains"
+[[ ! -e $root/qv/config/files/hypr/qv/bindings.conf ]] ||
+  fail "qvOS binding overlay remains"
+[[ ! -e $root/qv/config/files/hypr/bindings.conf ]] ||
+  fail "duplicate qvOS binding source remains"
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'config/hypr/bindings.conf\nconfig/hypr/hyprland.conf' ]] ||
+  fail "native config inventory changed"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf' ]] ||
+  fail "retired binding inventory changed"
+
+[[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
+  fail "native binding source is not included exactly once"
+if rg -q 'default/hypr/bindings|qv/bindings\.conf' "$hyprland" "$root/qv/config/files/hypr/qv.conf"; then
+  fail "retired binding layer remains sourced"
+fi
+if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
+  fail "native binding source still contains overlay unbinds"
+fi
+
+duplicate_bindings=$(
+  awk -F',' '/^bind[a-z]* = / {
+    modifiers=$1
+    sub(/^bind[a-z]* = /, "", modifiers)
+    key=$2
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", modifiers)
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+    print modifiers "|" key
+  }' "$bindings" |
+    sort |
+    uniq -d |
+    grep -Fvx '|F9' || true
+)
+[[ -z $duplicate_bindings ]] || fail "duplicate modifier and key pairs: $duplicate_bindings"
+[[ $(grep -Ec '^binddr? = , F9, (Start|Stop) dictation \(push-to-talk\),' "$bindings") == 2 ]] ||
+  fail "F9 press/release exception is incomplete"
+
+printf 'ok - qvOS bindings have one native source and no inherited overlay\n'

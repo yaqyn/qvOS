@@ -1,21 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-# qvos:contract=qv/config/files/hypr/bindings.conf
+# qvos:contract=config/hypr/bindings.conf
+# qvos:contract=config/hypr/hyprland.conf
 # qvos:contract=qv/config/files/hypr/input.conf
-# qvos:contract=qv/config/files/hypr/hyprland.conf
 # qvos:contract=qv/config/files/hypr/qv.conf
-# qvos:contract=qv/config/files/hypr/qv/bindings.conf
 # qvos:contract=qv/config/files/hypr/qv/looknfeel.conf
 # qvos:contract=qv/config/files/hypr/qv/windows.conf
 
 config_owner="$OMARCHY_PATH/qv/config/refresh"
 config_paths=(
-  hypr/bindings.conf
   hypr/input.conf
-  hypr/hyprland.conf
   hypr/qv.conf
-  hypr/qv/bindings.conf
   hypr/qv/looknfeel.conf
   hypr/qv/windows.conf
 )

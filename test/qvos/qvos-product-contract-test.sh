@@ -324,17 +324,19 @@ if grep -Fq '' "$root/qv/menu/extension.sh"; then
 fi
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qv/menu/extension.sh" \
-  "$root/qv/config/files/hypr/qv/bindings.conf" \
+  "$root/config/hypr/bindings.conf" \
   "$root/qv/waybar/overrides.jsonc"; then
   fail "retired qvOS feature menu"
 fi
-grep -Fq '`qv/config/refresh-hyprland` is the authoritative inventory' \
+grep -Fq '`config/hypr/bindings.conf` is the single authoritative qvOS binding source.' \
   "$root/qv/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"
-grep -Fq 'otherwise update the' "$root/qv/config/AGENTS.md" ||
-  fail "qvOS Hyprland top-level source instruction"
-grep -Fq 'owned top-level source' "$root/qv/config/AGENTS.md" ||
-  fail "qvOS Hyprland top-level source instruction"
+grep -Fq 'There is no inherited binding layer and no qvOS binding overlay.' \
+  "$root/qv/config/AGENTS.md" ||
+  fail "qvOS singular binding ownership instruction"
+grep -Fq '`qv/config/refresh-hyprland` is the authoritative inventory of the remaining' \
+  "$root/qv/config/AGENTS.md" ||
+  fail "qvOS specialized Hyprland source instruction"
 [[ -x $root/qv/config/refresh-hyprland ]] ||
   fail "qvOS Hyprland config reconciler"
 grep -Fqx '"$OMARCHY_PATH/qv/config/refresh-hyprland"' \

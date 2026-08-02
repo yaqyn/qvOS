@@ -178,12 +178,12 @@ collect_source_contracts() {
   fi
 
   mapfile -t contract_dependencies < <(
-    sed -n 's|^# qvos:contract=\(qv/[[:alnum:]_./-]*\)$|\1|p' \
+    sed -nE 's~^# qvos:contract=((qv|config|default|bin)/[[:alnum:]_./-]*)$~\1~p' \
       "$contract_root/$source" |
       sort -u
   )
   while IFS= read -r contract_line; do
-    [[ $contract_line =~ ^#\ qvos:contract=qv/[[:alnum:]_./-]+$ ]] ||
+    [[ $contract_line =~ ^#\ qvos:contract=(qv|config|default|bin)/[[:alnum:]_./-]+$ ]] ||
       fail "$source has an invalid qvos:contract declaration"
   done < <(grep -E '^# qvos:contract=' "$contract_root/$source" || true)
 

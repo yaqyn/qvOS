@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 actions="$root/qv/config/files/Thunar/uca.xml"
-bindings="$root/qv/config/files/hypr/qv/bindings.conf"
+bindings="$root/config/hypr/bindings.conf"
 feature_dir="$root/qv/thunar"
 gtk_css="$root/qv/config/files/gtk-3.0/gtk.css"
 

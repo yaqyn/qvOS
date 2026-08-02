@@ -2,9 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qv/config/files/hypr/qv/bindings.conf"
-clipboard="$root/default/hypr/bindings/clipboard.conf"
-utilities="$root/default/hypr/bindings/utilities.conf"
+bindings="$root/config/hypr/bindings.conf"
 packages=$("$root/qv/install/packaging/resolve" base)
 
 pass() {
@@ -30,13 +28,6 @@ assert_binding 'bindd = SUPER CTRL ALT, Q, Proton Calendar, exec, omarchy-launch
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, Q, Proton Account, exec, omarchy-launch-webapp "https://account.proton.me"' "Proton Account binding"
 pass "the Q family owns all selected Proton apps"
 
-assert_binding 'unbind = SUPER CTRL, A' "inherited audio binding override"
-assert_binding 'unbind = SUPER CTRL, B' "inherited Bluetooth binding override"
-assert_binding 'unbind = SUPER CTRL, C' "inherited capture menu override"
-assert_binding 'unbind = SUPER CTRL, S' "inherited Share binding override"
-assert_binding 'unbind = SUPER CTRL ALT, W' "inherited Weather binding override"
-assert_binding 'unbind = SUPER CTRL, Z' "inherited zoom binding override"
-assert_binding 'unbind = SUPER CTRL ALT, Z' "inherited reset zoom binding override"
 assert_binding 'bindd = SUPER, A, ChatGPT, exec, omarchy-launch-webapp "https://chatgpt.com"' "ChatGPT binding"
 assert_binding "bindd = SUPER SHIFT, A, Codex YOLO, exec, ~/.local/share/qvos/desktop/context/qvos-launch-terminal-here codex-yolo \"\$HOME\"" "home Codex YOLO binding"
 assert_binding 'bindd = SUPER CTRL, A, Recraft, exec, omarchy-launch-webapp "https://www.recraft.ai/"' "Recraft binding"
@@ -50,9 +41,6 @@ assert_binding 'bindd = SUPER ALT, C, X, exec, omarchy-launch-webapp "https://x.
 assert_binding 'bindd = SUPER CTRL ALT, C, Bluesky, exec, omarchy-launch-webapp "https://bsky.app/"' "Bluesky binding"
 pass "the C family owns communication and social apps"
 
-assert_binding 'unbind = SUPER CTRL, R' "inherited Set reminder override"
-assert_binding 'unbind = SUPER SHIFT CTRL, R' "inherited Clear reminders override"
-assert_binding 'unbind = SUPER CTRL ALT, R' "inherited Show reminders override"
 assert_binding 'bindd = SUPER, R, Quran, exec, omarchy-launch-webapp "https://quran.com/"' "Quran binding"
 assert_binding 'bindd = SUPER SHIFT, R, Qayyimental on Telegram, exec, uwsm-app -- Telegram -- "https://t.me/Qayyimental"' "Qayyimental Telegram binding"
 assert_binding 'bindd = SUPER CTRL, R, Qirtaas, exec, omarchy-launch-webapp "https://qirtaas.io/dashboard"' "Qirtaas binding"
@@ -62,19 +50,14 @@ assert_binding 'bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-remind
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show' "Show reminders binding"
 pass "the R family owns Quran destinations and relocated reminders"
 
-if grep -Eq '^(unbind|bind[a-z]*) = SUPER, C,' "$bindings"; then
-  fail "qvOS overrides inherited Universal copy"
-fi
-grep -Fqx 'bindd = SUPER, C, Universal copy, sendshortcut, CTRL, Insert, activewindow' "$clipboard" || fail "inherited Universal copy binding"
+assert_binding 'bindd = SUPER, C, Universal copy, sendshortcut, CTRL, Insert, activewindow' "Universal copy binding"
 assert_binding 'bindd = SUPER SHIFT, PRINT, Capture menu, exec, omarchy-menu capture' "relocated Capture menu binding"
-pass "Universal copy stays inherited and Capture moves to Super+Shift+Print"
+pass "Universal copy and Capture have singular qvOS bindings"
 
-assert_binding 'unbind = SUPER, SPACE' "inherited app launcher override"
 assert_binding 'bindd = SUPER, SPACE, qvOS apps, exec, omarchy-menu apps' "shared qvOS Apps menu binding"
 pass "Super+Space opens the shared qvOS menu in Apps mode"
 
-grep -Fqx 'bindd = SUPER CTRL, W, Wifi controls, exec, omarchy-launch-wifi' "$utilities" ||
-  fail "inherited Wifi binding"
+assert_binding 'bindd = SUPER CTRL, W, Wifi controls, exec, omarchy-launch-wifi' "Wifi binding"
 assert_binding 'bindd = SUPER SHIFT, W, Audio controls, exec, omarchy-launch-audio' "audio binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, W, Bluetooth controls, exec, omarchy-launch-bluetooth' "Bluetooth binding"
 pass "the W family provides Wifi, Audio, and Bluetooth controls"
@@ -108,7 +91,7 @@ assert_binding 'bindd = SUPER SHIFT, grave, Move window to gaming workspace, mov
 assert_binding 'bindd = SUPER CTRL, grave, Steam, exec, setsid gtk-launch steam >/dev/null 2>&1' "Steam binding"
 pass "the grave family uses Shift for workspace movement and Ctrl for Steam"
 
-if grep -Eq '^bindd = SUPER( SHIFT)?, (M|P),|^bindd = SUPER SHIFT, C, Proton|^bindd = SUPER CTRL, Q, Proton Pass,|^bindd = SUPER SHIFT CTRL, Q, Proton Account,|^bindd = SUPER ALT, Q, Proton Docs,|^bindd = SUPER SHIFT ALT, Q, Proton Meet,|^bindd = SUPER SHIFT CTRL ALT, Q, Proton Account Settings,|^bindd = SUPER( SHIFT)?, D, Proton (Drive|Docs),' "$bindings"; then
+if grep -Eq '^bindd = SUPER( SHIFT)?, (M|P), Proton|^bindd = SUPER SHIFT, C, Proton|^bindd = SUPER CTRL, Q, Proton Pass,|^bindd = SUPER SHIFT CTRL, Q, Proton Account,|^bindd = SUPER ALT, Q, Proton Docs,|^bindd = SUPER SHIFT ALT, Q, Proton Meet,|^bindd = SUPER SHIFT CTRL ALT, Q, Proton Account Settings,|^bindd = SUPER( SHIFT)?, D, Proton (Drive|Docs),' "$bindings"; then
   fail "retired Proton route"
 fi
 
