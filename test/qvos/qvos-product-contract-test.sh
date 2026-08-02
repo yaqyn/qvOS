@@ -510,6 +510,23 @@ grep -Fq 'DisableDownloadTimeout' \
   fail "qvOS ISO slow-link builder support"
 grep -Fq -- '-buildvcs=false' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO reproducible TUI build"
+[[ -x $root/qv/tui/source-hash ]] || fail "qvOS TUI source-hash owner mode"
+[[ $("$root/qv/tui/source-hash" "$root/qv/tui") =~ ^[0-9a-f]{64}$ ]] ||
+  fail "qvOS TUI source-hash owner output"
+grep -Fq '"$source_dir/source-hash" "$source_dir"' "$root/qv/tui/install" ||
+  fail "qvOS TUI installer source-hash ownership"
+grep -Fq 'qvos_tui_source_hash=$("$qvos_tui_source/source-hash" "$qvos_tui_source")' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO TUI source-hash ownership"
+grep -Fq -- '-X main.buildSourceHash=$qvos_tui_source_hash' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO TUI source provenance"
+grep -Fq 'config core.logAllRefUpdates false' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO embedded source reflog suppression"
+grep -Fq 'rm -rf -- "$build_cache_dir/airootfs/root/omarchy/.git/logs"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO embedded source reflog cleanup"
 grep -Fq 'for attempt in 1 2 3' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO bounded package download retries"
 grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \

@@ -30,7 +30,10 @@ the previous one.
 - Inspect the completed image and prove that its embedded qvOS source equals
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with
-  `core.filemode=true`; do not infer any of this from the build command.
+  `core.filemode=true`; do not infer any of this from the build command. Verify
+  the embedded `qvos-tui --source-hash` equals the shared source digest and is
+  not `unmanaged`, and reject build-only Git reflogs or private builder
+  identity in the embedded checkout.
 - Boot the image and capture the Limine, Plymouth, installer, progress, and
   finale surfaces. Their pixels must use exact black (`#000000`) and neutral
   grayscale; Plymouth and the installer may use only qvOS red tonal accents

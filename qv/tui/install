@@ -44,17 +44,7 @@ usage() {
 }
 
 source_hash() {
-  (
-    cd "$source_dir"
-    find . -type f \
-      \( -name '*.go' -o -name go.mod -o -name go.sum \) \
-      ! -name '*_test.go' \
-      -print0 |
-      sort -z |
-      xargs -0 sha256sum |
-      sha256sum |
-      awk '{print $1}'
-  )
+  "$source_dir/source-hash" "$source_dir"
 }
 
 installed_hash() {

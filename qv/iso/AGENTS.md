@@ -33,6 +33,11 @@ embedded source, installer integration, or release-image verification.
   `profiledef.sh` entries from the embedded Git tree's tracked `100755` modes;
   never maintain a second executable inventory. Reject an artifact unless the
   embedded worktree is clean with file-mode checking enabled.
+- Build the ISO TUI with the exact digest from `qv/tui/source-hash` and verify
+  the embedded binary reports that digest, never `unmanaged`. Disable and
+  remove clone reflogs before image assembly so transient builder identity is
+  absent; retain the usable `OS` branch, `origin/OS` tracking, and clean Git
+  worktree.
 - The live ISO, Plymouth, Limine, and installer TUI use exact black
   (`#000000`) and neutral grayscale. Plymouth and the installer TUI may use
   only the Yaqyn red tonal accents (`#5f0000`/`#b00000`/`#d00000`); Limine

@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+source_dir=${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)}
+
+if [[ ! -d $source_dir ]]; then
+  echo "qvOS TUI source directory not found: $source_dir" >&2
+  exit 2
+fi
+
+(
+  cd "$source_dir"
+  find . -type f \
+    \( -name '*.go' -o -name go.mod -o -name go.sum \) \
+    ! -name '*_test.go' \
+    -print0 |
+    sort -z |
+    xargs -0 sha256sum |
+    sha256sum |
+    awk '{print $1}'
+)

@@ -54,6 +54,9 @@ such as `qv/menu/AGENTS.md` or `qv/iso/AGENTS.md`.
   runtime adapters may resolve delegated owners from `OMARCHY_PATH`, but never
   mix a current binary with presentation or cancellation adapters from the
   live Omarchy checkout.
+- `qv/tui/source-hash` is the single owner for binary source provenance.
+  Every local, live, and ISO build embeds its output in `buildSourceHash`, and
+  verification rejects `unmanaged` or any value that differs from that owner.
 
 ## Durable UX Contract
 
