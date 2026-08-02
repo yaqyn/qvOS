@@ -151,25 +151,24 @@ Every qvOS change must leave one traceable lifecycle.
 - After each verified local commit, align and verify this live installation
   from the development repository. Do not run the interactive updater or
   package upgrades unless the task requires them.
-- Treat qvOS as an overlay on Omarchy. Keep inherited source byte-for-byte
-  upstream by default; give each feature one owner under `qv/<domain>/` or
-  `qv/<feature>/`, and keep its source, payloads, references, guards, and tests
-  together. All qvOS tests live under `test/qvos/`.
-- Before editing inherited source, prove no hook, include, installer, migration,
-  or qvOS-owned command can complete the task. Otherwise use the smallest stable
-  delegation seam. When touching inherited qvOS logic, move it to its owner and
-  guard against renewed drift.
-- Keep qvOS config sources separate from inherited defaults and reconcile them
-  after upstream install, refresh, migration, or update. Deploy runtime content
-  outside `~/.local/share/omarchy`; keep that checkout clean.
-- Use thin, absent-safe adapters only when they complete a user task. qvOS must
-  remain complete and healthy with no qvCORE stack installed. Shared refresh
-  paths preserve optional integrations without installing stacks.
+- Treat qvOS as an independent downstream distribution and Omarchy as a
+  read-only upstream, never product authority. qvOS owns branding, composition,
+  defaults, exposed capability, installation, update policy, and releases.
+- During the native transition, keep each inherited implementation byte-for-byte
+  until its domain is promoted. Then port selected capability into one owner
+  under `qv/<domain>/` or `qv/<feature>/` and remove the inherited implementation,
+  overlay, adapter, fallback, and stale state together. All qvOS tests live under
+  `test/qvos/`.
+- Keep current qvOS config sources separate until their domain is promoted and
+  reconcile them after inherited install, refresh, migration, or update paths.
+  Deploy runtime content outside `~/.local/share/omarchy`; keep it clean.
+- Use thin, absent-safe adapters only as transition seams that complete a user
+  task. qvOS must remain complete and healthy with no qvCORE stack installed.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
   Verify fresh install, update, removal, and live behavior where applicable.
-- Preserve safe upstream capability during conflicts. Omit it only when broken,
-  unsafe, incompatible, or intentionally out of scope, and state why.
+- Preserve useful upstream capability through explicit review and native ports.
+  Omit it when unsafe, incompatible, unwanted, or out of scope, and state why.
 
 ## Zero Duplication
 
@@ -179,8 +178,8 @@ the owner and two consumers, and leave no equivalent implementation behind.
 
 ## Main qvsync Workflow
 
-`qvsync` is the main qvOS evolution loop: preserve new Omarchy capability while
-keeping qvOS cleaner, integrated, and deliberately differentiated.
+`qvsync` is the read-only upstream intake loop. It never merges, cherry-picks,
+moves product branches, or publishes refs.
 
 1. Start with `git qvsync --audit`. Read every upstream commit and diff, then
    search qvOS owners, installed payloads, tests, and history for the same
@@ -191,20 +190,20 @@ keeping qvOS cleaner, integrated, and deliberately differentiated.
 3. Record each commit's capability, qvOS owner or history, decision (`adopt`,
    `combine`, `retire-qvos`, `preserve`, or `no-impact`), cleanup, and
    verification. Explain every `preserve` and `no-impact`.
-4. Prefer an equal-or-better mature upstream owner. Port only qvOS
-   differentiators to its supported seam, remove superseded source, payloads,
-   hooks, state, migrations, adapters, and tests, then prove replacement and
-   residue removal.
+4. Port selected capability into one native qvOS owner. Remove superseded
+   source, payloads, hooks, state, migrations, adapters, and tests, then prove
+   replacement and residue removal.
 5. Treat maintainer roadmaps as advisory signals only; never merge or depend on
    unshipped work.
-6. A clean merge is not compatibility proof. If adaptation is needed, integrate
-   locally without publishing, update owners and guards, verify affected fresh
-   install, update, removal, and live paths, then commit the complete adaptation.
-7. Approve only the exact audit target with `--reviewed-upstream <full-sha>`;
-   audit again if it advances and stop before pushing unresolved risk.
-8. Run qvsync only from a clean verified post-commit tree. Require the upstream
-   block here to match `upstream/master:AGENTS.md` byte-for-byte, then report the
-   ledger, commit, checks, qvsync result, and final status.
+6. Never merge or cherry-pick an upstream commit into qvOS. Port reviewed code
+   deliberately, update owners and guards, and verify affected fresh install,
+   update, removal, live, and cleanup paths.
+7. Record every commit in `qv/git/upstream-reviews/<target-sha>.psv`, then use
+   `--record-reviewed-upstream <full-sha>` only for that exact fetched target.
+   Commit the ledger, baseline, and verified adaptation together.
+8. Require the opening upstream policy block here to match the reviewed target
+   byte-for-byte. qvsync never publishes; use normal Git publication only when
+   explicitly requested and report the ledger, checks, baseline, and status.
 
 Command mechanics and publication checks live in `qv/git/AGENTS.md`; they
 supplement this workflow and never replace its judgment.
@@ -234,7 +233,7 @@ Read every matching route completely before editing:
   contract, and add its root route in the same change so future work inherits
   the reusable learning without bloating this file.
 - Do not document simple or one-off work or duplicate an existing workflow.
-  Keep the permanent operating model, overlay and ownership boundaries, main
+  Keep the permanent operating model, downstream and ownership boundaries, main
   qvsync workflow, and repository-wide invariants here. Never move them out
   merely to reduce root size.
 - Keep every workflow concise: trigger and scope, source of truth, ordered

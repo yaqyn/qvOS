@@ -155,7 +155,7 @@ print_roadmap_signals() {
     printf "%s\n" "${signals[$index]}"
   done
   if ((${#signals[@]} > 20)); then
-    printf "  ... %d more maintainer-owned pull requests\n" "$(( ${#signals[@]} - 20 ))"
+    printf "  ... %d more maintainer-owned pull requests\n" "$((${#signals[@]} - 20))"
   fi
 }
 
@@ -215,6 +215,8 @@ printf "  1. Read every upstream commit and its complete diff.\n"
 printf "  2. Search current qvOS owners, installed payloads, tests, and qvOS history.\n"
 printf "  3. Inspect relevant roadmap signals for impending replacement architecture.\n"
 printf "  4. Classify each capability: adopt, combine, retire-qvos, preserve, or no-impact.\n"
-printf "  5. Port qvOS differentiators onto the best upstream seam and remove superseded code.\n"
+printf "  5. Port selected capability into one native qvOS owner and remove duplicate implementations.\n"
 printf "  6. Verify fresh install, update, removal, live runtime, and cleanup paths that changed.\n"
+printf "  7. Record every commit in qv/git/upstream-reviews/<target-sha>.psv.\n"
+printf "  8. Never merge or cherry-pick the upstream commit into qvOS.\n"
 printf "\nFull patch: git diff --find-renames %s %s\n" "$base_sha" "$target_sha"

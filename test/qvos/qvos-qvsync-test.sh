@@ -43,7 +43,12 @@ git -C "$repo" config user.name "qvOS Test"
 git -C "$repo" config user.email "test@qvos.invalid"
 git -C "$repo" add qv
 git -C "$repo" commit -qm "Add qvsync fixture"
+base_sha=$(git -C "$repo" rev-parse HEAD)
+printf '%s\n' "$base_sha" >"$repo/qv/git/reviewed-upstream"
+git -C "$repo" add qv/git/reviewed-upstream
+git -C "$repo" commit -qm "Record upstream baseline"
 git -C "$repo" switch -qc OS
+os_head=$(git -C "$repo" rev-parse HEAD)
 
 (
   cd "$repo"
@@ -51,21 +56,20 @@ git -C "$repo" switch -qc OS
 )
 
 # shellcheck disable=SC2016
-[[ $(git -C "$repo" config --local --get alias.qvsync) == \
-  '!bash "$(git rev-parse --git-path qvsync)"' ]] ||
+[[ $(git -C "$repo" config --local --get alias.qvsync) == '!bash "$(git rev-parse --git-path qvsync)"' ]] ||
   fail "git qvsync alias"
 # shellcheck disable=SC2016
 grep -Fq 'exec "$repo_root/qv/git/qvsync" "$@"' "$repo/.git/qvsync" ||
   fail "tracked qvsync dispatch"
 pass "installer keeps the executable implementation in tracked source"
 
-if rg -q 'gh api -X PATCH' "$root/qv/git/qvsync"; then
-  fail "qvsync can bypass a rejected Git push through the GitHub API"
+if rg -q 'git merge( |$)|git push( |$)|git_push|push_origin_ref|push_os' \
+  "$root/qv/git/qvsync"; then
+  fail "qvsync retains merge or publication machinery"
 fi
-grep -Fq 'Pushes fail closed through normal Git transport.' \
-  "$root/qv/git/AGENTS.md" ||
-  fail "qvsync fail-closed push instruction"
-pass "qvsync push failures cannot bypass remote policy"
+grep -Fq 'qvsync never publishes' "$root/qv/git/AGENTS.md" ||
+  fail "read-only upstream publication instruction"
+pass "qvsync contains no merge or publication path"
 
 mkdir "$repo/.git/qvsync.lock"
 printf '%s\n' "$$" >"$repo/.git/qvsync.lock/pid"
@@ -74,56 +78,46 @@ if output=$(git -C "$repo" qvsync 2>&1); then
 fi
 grep -Fq 'another qvsync appears to be running' <<<"$output" ||
   fail "active qvsync lock diagnostic"
+[[ -d $repo/.git/qvsync.lock ]] || fail "active qvsync lock was removed"
 rm -rf "$repo/.git/qvsync.lock"
 pass "active qvsync lock is preserved and reported"
 
-touch "$repo/dirty"
 mkdir "$repo/.git/qvsync.lock"
 printf '%s\n' 99999999 >"$repo/.git/qvsync.lock/pid"
 if output=$(git -C "$repo" qvsync 2>&1); then
-  fail "dirty qvsync refusal after stale lock recovery"
+  fail "missing upstream push guard"
 fi
 grep -Fq 'Removing stale qvsync lock' <<<"$output" ||
   fail "stale qvsync lock recovery"
-grep -Fq 'uncommitted changes on OS' <<<"$output" ||
-  fail "dirty worktree diagnostic"
-[[ ! -e $repo/.git/qvsync.lock ]] || fail "recovered qvsync lock cleanup"
-rm "$repo/dirty"
-pass "stale lock recovery retains the clean-tree guard"
-
-if output=$(git -C "$repo" qvsync 2>&1); then
-  fail "missing upstream push guard"
-fi
 grep -Fq 'upstream push URL is not disabled' <<<"$output" ||
   fail "upstream push guard diagnostic"
 grep -Fq 'Expected upstream push URL: DISABLED' <<<"$output" ||
   fail "upstream push remediation"
-pass "qvsync refuses before network access when upstream push is not disabled"
+[[ ! -e $repo/.git/qvsync.lock ]] || fail "recovered qvsync lock cleanup"
+pass "stale lock recovery retains the upstream write guard"
 
 git init --bare -q "$origin_bare"
 git init --bare -q "$upstream_bare"
 git -C "$repo" remote add origin "$origin_bare"
 git -C "$repo" remote add upstream "$upstream_bare"
 git -C "$repo" remote set-url --push upstream DISABLED
-git -C "$repo" push -q origin master OS
-git -C "$repo" push -q "$upstream_bare" master
+git -C "$repo" push -q origin "$base_sha:refs/heads/master" "OS:refs/heads/OS"
+git -C "$repo" push -q "$upstream_bare" "$base_sha:refs/heads/master"
 
 git clone -q "$upstream_bare" "$upstream_work"
 git -C "$upstream_work" config user.name "Upstream Test"
 git -C "$upstream_work" config user.email "upstream@qvos.invalid"
 mkdir -p "$upstream_work/bin"
-printf '%s\n' '#!/bin/bash' 'printf "upstream menu\\n"' \
+printf '%s\n' '#!/bin/bash' 'printf "upstream menu\n"' \
   >"$upstream_work/bin/omarchy-menu"
 chmod 0755 "$upstream_work/bin/omarchy-menu"
 git -C "$upstream_work" add bin/omarchy-menu
 git -C "$upstream_work" commit -qm "Replace the menu architecture"
 git -C "$upstream_work" push -q origin master
-
-base_sha=$(git -C "$repo" rev-parse HEAD)
 upstream_sha=$(git -C "$upstream_work" rev-parse HEAD)
 
-output=$(git -C "$repo" qvsync --audit 2>&1) ||
-  fail "read-only upstream capability audit"
+output=$(git -C "$repo" qvsync 2>&1) ||
+  fail "default read-only upstream audit"
 grep -Fq 'qvOS upstream capability audit' <<<"$output" ||
   fail "capability audit heading"
 grep -Fq "$upstream_sha Replace the menu architecture" <<<"$output" ||
@@ -141,43 +135,88 @@ grep -Fq 'Upstream roadmap signals (advisory only; never merged by qvsync)' \
   fail "capability audit roadmap boundary"
 grep -Fq 'adopt, combine, retire-qvos, preserve, or no-impact' <<<"$output" ||
   fail "capability audit decision contract"
+grep -Fq 'Never merge or cherry-pick the upstream commit into qvOS' <<<"$output" ||
+  fail "capability audit native import boundary"
+[[ $(git -C "$repo" rev-parse HEAD) == "$os_head" ]] ||
+  fail "audit changed local OS"
 [[ $(git --git-dir="$origin_bare" rev-parse refs/heads/master) == "$base_sha" ]] ||
   fail "audit mutated origin master"
-[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/OS) == "$base_sha" ]] ||
+[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/OS) == "$os_head" ]] ||
   fail "audit mutated origin OS"
-pass "audit exposes complete upstream changes and qvOS overlap without publishing"
+pass "default qvsync audits complete upstream changes without integrating or publishing"
 
-if output=$(git -C "$repo" qvsync 2>&1); then
-  fail "unreviewed upstream publish guard"
+if output=$(git -C "$repo" qvsync --reviewed-upstream "$upstream_sha" 2>&1); then
+  fail "retired merge mode refusal"
 fi
-grep -Fq 'upstream capability review is required' <<<"$output" ||
-  fail "unreviewed upstream diagnostic"
-grep -Fq "git qvsync --reviewed-upstream $upstream_sha" <<<"$output" ||
-  fail "exact review retry"
-[[ $(git -C "$repo" rev-parse HEAD) == "$base_sha" ]] ||
-  fail "unreviewed qvsync changed local OS"
-[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/master) == "$base_sha" ]] ||
-  fail "unreviewed qvsync changed origin master"
-pass "qvsync refuses merge and publish until Codex reviews the exact upstream target"
+grep -Fq -- '--reviewed-upstream merge mode has been retired' <<<"$output" ||
+  fail "retired merge mode diagnostic"
+grep -Fq "git qvsync --record-reviewed-upstream $upstream_sha" <<<"$output" ||
+  fail "reviewed import migration guidance"
+pass "legacy merge authorization cannot integrate upstream"
 
-if output=$(git -C "$repo" qvsync --reviewed-upstream "$base_sha" 2>&1); then
+if output=$(git -C "$repo" qvsync --record-reviewed-upstream "$base_sha" 2>&1); then
   fail "stale upstream review guard"
 fi
 grep -Fq 'reviewed upstream SHA does not match the fetched target' <<<"$output" ||
   fail "stale upstream review diagnostic"
 grep -Fq "Fetched:  $upstream_sha" <<<"$output" ||
   fail "refreshed upstream review target"
-pass "stale review approval cannot authorize a newer upstream target"
+[[ $(<"$repo/qv/git/reviewed-upstream") == "$base_sha" ]] ||
+  fail "stale review changed tracked baseline"
+pass "stale review cannot advance the upstream baseline"
 
-git -C "$repo" qvsync --reviewed-upstream "$upstream_sha" >/dev/null
-git -C "$repo" merge-base --is-ancestor "$upstream_sha" HEAD ||
-  fail "reviewed upstream merge"
-[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/master) == "$upstream_sha" ]] ||
-  fail "reviewed origin master update"
-[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/OS) == \
-  "$(git -C "$repo" rev-parse HEAD)" ]] ||
-  fail "reviewed origin OS publish"
-pass "exact reviewed upstream target can merge and publish"
+if output=$(
+  git -C "$repo" qvsync --record-reviewed-upstream "$upstream_sha" 2>&1
+); then
+  fail "missing upstream ledger guard"
+fi
+grep -Fq 'missing upstream review ledger' <<<"$output" ||
+  fail "missing upstream ledger diagnostic"
+
+mkdir -p "$repo/qv/git/upstream-reviews"
+ledger="$repo/qv/git/upstream-reviews/$upstream_sha.psv"
+printf '%s\n' \
+  "# base=$base_sha" \
+  "# target=$upstream_sha" \
+  '# commit|decision|owner|summary|verification' \
+  >"$ledger"
+if output=$(
+  git -C "$repo" qvsync --record-reviewed-upstream "$upstream_sha" 2>&1
+); then
+  fail "incomplete upstream ledger guard"
+fi
+grep -Fq 'upstream commit is missing from the review ledger' <<<"$output" ||
+  fail "incomplete upstream ledger diagnostic"
+pass "review state requires a complete per-commit ledger"
+
+printf '%s\n' \
+  "$upstream_sha|combine|qv/menu|Port the reviewed menu capability|fixture audit and owner checks" \
+  >>"$ledger"
+output=$(
+  git -C "$repo" qvsync --record-reviewed-upstream "$upstream_sha" 2>&1
+) || fail "record exact reviewed upstream target"
+grep -Fq "Recorded reviewed upstream target $upstream_sha" <<<"$output" ||
+  fail "reviewed upstream record result"
+grep -Fq 'No upstream commit was merged or cherry-picked, and no ref was published' \
+  <<<"$output" || fail "reviewed upstream non-integration result"
+[[ $(<"$repo/qv/git/reviewed-upstream") == "$upstream_sha" ]] ||
+  fail "tracked reviewed baseline"
+[[ $(git -C "$repo" rev-parse HEAD) == "$os_head" ]] ||
+  fail "recording review changed local OS history"
+if git -C "$repo" merge-base --is-ancestor "$upstream_sha" HEAD; then
+  fail "recording review merged upstream"
+fi
+[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/master) == "$base_sha" ]] ||
+  fail "recording review mutated origin master"
+[[ $(git --git-dir="$origin_bare" rev-parse refs/heads/OS) == "$os_head" ]] ||
+  fail "recording review mutated origin OS"
+pass "validated review advances only tracked intake state"
+
+output=$(git -C "$repo" qvsync --audit 2>&1) ||
+  fail "post-review upstream audit"
+grep -Fq 'Upstream commits (0)' <<<"$output" ||
+  fail "reviewed baseline audit range"
+pass "future audits start at the tracked reviewed baseline"
 
 grep -Eq 'Start with .*git qvsync --audit' "$root/AGENTS.md" ||
   fail "Codex qvsync audit instruction"
@@ -185,22 +224,18 @@ grep -Fq 'retire-qvos' "$root/AGENTS.md" ||
   fail "Codex capability decision ledger"
 grep -Fq 'maintainer roadmaps as advisory signals' "$root/AGENTS.md" ||
   fail "Codex upstream roadmap instruction"
-grep -Fq 'remove superseded source' "$root/AGENTS.md" ||
-  fail "Codex superseded implementation cleanup"
+grep -Fq 'remove duplicate implementations' "$root/qv/git/qvsync-audit" ||
+  fail "Codex duplicate implementation cleanup"
 grep -Fq 'complete its software reconciliation' "$root/qv/git/AGENTS.md" ||
   fail "qvsync software reconciliation route"
-grep -Fq 'qvOS as an overlay on Omarchy' "$root/AGENTS.md" ||
-  fail "root overlay ownership contract"
-grep -Fq 'qv/<feature>/' "$root/AGENTS.md" ||
-  fail "root feature ownership contract"
+grep -Fq 'independent downstream distribution' "$root/AGENTS.md" ||
+  fail "root downstream product contract"
+grep -Fq 'never product authority' "$root/AGENTS.md" ||
+  fail "root upstream authority boundary"
 grep -Fq 'Never move them out' "$root/AGENTS.md" ||
   fail "root workflow retention contract"
 grep -Fq "automatically create or update the nearest owner-local \`AGENTS.md\`" \
   "$root/AGENTS.md" || fail "conditional workflow documentation contract"
-grep -Fq 'conditional or multi-stage' "$root/AGENTS.md" ||
-  fail "conditional workflow creation threshold"
-grep -Fq 'safety invariant, or UX' "$root/AGENTS.md" ||
-  fail "owner-local reusable learning contract"
 workflow_count=0
 while IFS= read -r -d '' workflow_agents; do
   workflow_agents=${workflow_agents#"$root/"}
@@ -222,4 +257,4 @@ qvos_policy_bytes=$(
   fail "root qvOS contract grew beyond 110 lines"
 ((qvos_policy_bytes <= 7000)) ||
   fail "root qvOS contract grew beyond 7000 bytes"
-pass "root keeps qvsync and overlay policy while conditional workflows stay local"
+pass "root keeps downstream intake policy while conditional workflows stay local"

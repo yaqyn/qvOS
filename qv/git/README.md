@@ -4,10 +4,23 @@ Tracked qvOS git helper source lives here.
 
 Run `qv/git/install-qvsync` from this repository to install the local `git qvsync` alias and point `.git/qvsync` at the tracked `qv/git/qvsync` implementation.
 
-`git qvsync --audit` fetches current refs and prints every upstream commit,
-changed path, and mechanical qvOS overlap hint without merging or publishing.
-It also lists open maintainer-owned roadmap work as advisory context so Codex
-can avoid deepening architecture that upstream is already replacing.
-When `origin/OS` does not contain the fetched upstream target, normal qvsync
-refuses until Codex reviews that exact change set and retries with
-`git qvsync --reviewed-upstream <full-sha>`.
+`git qvsync` and `git qvsync --audit` fetch upstream and print every commit
+after the tracked `reviewed-upstream` baseline, every changed path, and
+mechanical qvOS overlap hints. They never merge, cherry-pick, move local
+branches, or publish refs. Open maintainer-owned roadmap work is advisory
+context only.
+
+After porting selected capabilities into native qvOS owners, create
+`upstream-reviews/<target-sha>.psv` with these exact comment headers:
+
+```text
+# base=<previous-reviewed-sha>
+# target=<target-sha>
+# commit|decision|owner|summary|verification
+```
+
+Add one five-field row for every upstream commit. Supported decisions are
+`adopt`, `combine`, `retire-qvos`, `preserve`, and `no-impact`. Then run
+`git qvsync --record-reviewed-upstream <target-sha>`. The command validates the
+complete ledger and advances only the tracked baseline file. Commit the
+ledger, baseline, and verified qvOS adaptations as one logical unit.

@@ -1,8 +1,12 @@
 # qv
 
-qvOS-owned source lives here.
+Canonical qvOS domain source lives here during the native transition.
 
-Keep upstream Omarchy files in their existing locations whenever practical. Put qvOS-only helpers, assets, and generated support files under this namespace so upstream syncs stay easy to review.
+Omarchy remains a read-only upstream. Keep an inherited implementation intact
+until its domain is promoted, then port only selected capability into one qvOS
+owner and remove the inherited implementation, overlay, adapter, and fallback
+together. The end state has one native owner, not an upstream system plus an
+active overlay.
 
 Expected layout:
 
@@ -40,8 +44,9 @@ catalog is Proton and qvDEV. Every stack exposes only Install and Uninstall.
 
 ## Product lifecycle
 
-qvOS has one supported base: a solid, gaming-ready Arch system curated through
-Omarchy. The base keeps Omarchy's on-demand OpenAI Codex wrapper plus software
+qvOS has one supported base: a solid, gaming-ready Arch system curated by
+qvOS with reviewed capability from Omarchy. The base currently keeps Omarchy's
+on-demand OpenAI Codex wrapper plus software
 with an independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
 The package resolver layers validated qvOS additions and exclusions over
 Omarchy's original manifests; qvOS does not copy or replace those manifests.
@@ -110,10 +115,10 @@ action for Omarchy's base package, and preserves optional stack payloads
 without reinstalling them. Proton and qvDEV install and remove their own
 actions.
 
-## Upstream boundary
+## Native transition boundary
 
-Keep implementations in `qv/`; touch inherited Omarchy paths only at the seam
-that exposes, installs, or refreshes them:
+Until a domain is promoted, keep implementations in `qv/` and touch inherited
+Omarchy paths only at the seam that exposes, installs, or refreshes them:
 
 - `bin/` owns CLI routes and menu handoffs.
 - `qv/config/files/` owns qvOS config sources; inherited `config/` and
@@ -125,6 +130,7 @@ that exposes, installs, or refreshes them:
 - `qv/theme/yaqyn/` is the qvOS theme overlay; Omarchy's inherited theme
   catalog remains available.
 
-When one of these seams changes, trace it back to its `qv/` owner and verify
-both the fresh-install and update paths. This keeps qvsync conflicts localized
-and makes intentional omissions from upstream visible during review.
+When promoting a domain, trace every seam back to its `qv/` owner, choose the
+single native implementation, remove all duplicate paths, and verify fresh
+install, update, removal, and live behavior. qvsync reports later upstream
+changes for selective review but never merges them into qvOS.
