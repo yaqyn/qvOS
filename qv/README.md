@@ -30,7 +30,7 @@ qv/
   security/    Codex-operated security auditing and hardening workflow.
   share/       LocalSend request routing.
   shell/       qvOS shell additions.
-  theme/       The Yaqyn qvOS theme overlay.
+  theme/       Bundled Yaqyn theme and compatible user-theme lifecycle.
   thunar/      Thunar feature entry points.
   tmux/        Persistent tmux session manager.
   tui/         ISO installer, progress UI, and image build tooling.
@@ -127,8 +127,9 @@ Omarchy paths only at the seam that exposes, installs, or refreshes them:
   belong in `qv/migrations/` behind thin Omarchy migration stubs.
 - `test/qvos/*-test.sh` guards qvOS product and integration contracts;
   `test/qvos/run.sh` runs them together with all upstream root tests.
-- `qv/theme/yaqyn/` is the qvOS theme overlay; Omarchy's inherited theme
-  catalog remains available.
+- `qv/theme/yaqyn/` is qvOS's only bundled theme. The renderer reads Yaqyn and
+  compatible custom themes only from the user theme directory; users can copy
+  Yaqyn, install an Omarchy-format Git theme, or link one from elsewhere.
 
 When promoting a domain, trace every seam back to its `qv/` owner, choose the
 single native implementation, remove all duplicate paths, and verify fresh

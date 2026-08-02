@@ -1,11 +1,20 @@
 #!/bin/bash
 
 # omarchy:summary=List available themes
-# omarchy:examples=omarchy theme list | omarchy theme set "Tokyo Night"
+# omarchy:examples=omarchy theme list | omarchy theme set Yaqyn | omarchy theme set my-theme
 
-{
-  find ~/.config/omarchy/themes/ -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -printf '%f\n'
-  find "$OMARCHY_PATH/themes/" -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
-} | sort -u | while read -r name; do
-  echo "$name" | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'
-done
+set -euo pipefail
+
+themes_dir="$HOME/.config/omarchy/themes"
+[[ -d $themes_dir ]] || exit 0
+
+find "$themes_dir" \
+  -mindepth 1 \
+  -maxdepth 1 \
+  \( -type d -o -type l \) \
+  ! -name 'yaqyn.bak.*' \
+  -printf '%f\n' |
+  sort -u |
+  while read -r name; do
+    printf '%s\n' "$name" | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'
+  done

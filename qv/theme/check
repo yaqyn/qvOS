@@ -1,0 +1,71 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+native_manifest="$root/qv/theme/native-paths"
+retired_manifest="$root/qv/theme/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ ! -e $root/themes ]] || fail "inherited theme catalog remains"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "themes/" ]] ||
+  fail "retired theme inventory is broader than the inherited catalog"
+
+mapfile -t native_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest"
+)
+[[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+  fail "native theme paths are not sorted and unique"
+
+for required_path in \
+  bin/omarchy-plymouth-set-by-theme \
+  bin/omarchy-theme-install \
+  bin/omarchy-theme-list \
+  bin/omarchy-theme-remove \
+  bin/omarchy-theme-set \
+  bin/omarchy-theme-update \
+  default/elephant/omarchy_themes.lua \
+  default/elephant/omarchy_unlocks.lua \
+  install/config/theme.sh; do
+  grep -Fqx "$required_path" "$native_manifest" ||
+    fail "native theme owner is missing: $required_path"
+done
+
+if rg -q '\$OMARCHY_PATH/themes' \
+  "$root/bin/omarchy-theme-list" \
+  "$root/bin/omarchy-theme-set" \
+  "$root/bin/omarchy-plymouth-set-by-theme" \
+  "$root/default/elephant/omarchy_themes.lua" \
+  "$root/default/elephant/omarchy_unlocks.lua"; then
+  fail "active theme lifecycle still reads the inherited catalog"
+fi
+
+grep -Fq 'qv/theme/name' "$root/bin/omarchy-theme-set" ||
+  fail "theme renderer bypasses the shared name validator"
+grep -Fq 'qv/theme/name' "$root/bin/omarchy-theme-remove" ||
+  fail "theme removal bypasses the shared name validator"
+grep -Fq 'cannot be replaced by a theme repository' "$root/bin/omarchy-theme-install" ||
+  fail "Yaqyn install protection"
+grep -Fq 'cannot be removed' "$root/bin/omarchy-theme-remove" ||
+  fail "Yaqyn removal protection"
+# shellcheck disable=SC2016
+grep -Fqx '"$OMARCHY_PATH/qv/theme/configure"' "$root/install/config/theme.sh" ||
+  fail "fresh install does not delegate to the qvOS theme owner"
+if rg -q 'qv/theme/install|qv/install/config/theme' "$root/qv/install/configure"; then
+  fail "qvOS install duplicates the theme owner"
+fi
+
+grep -Fq 'present:omarchy-theme-install' "$root/qv/menu/concepts.psv" ||
+  fail "compatible Git theme installation is not reachable"
+grep -Fq 'present:qv/tui/task/selectable-owner theme-remove' "$root/qv/menu/concepts.psv" ||
+  fail "custom theme removal is not reachable"
+grep -Fq 'present:omarchy-theme-update' "$root/qv/menu/concepts.psv" ||
+  fail "custom theme updates are not reachable"
+# shellcheck disable=SC2016
+grep -Fq 'current_theme=$(<"$theme_name_path")' "$root/qv/install/post-update-hook" ||
+  fail "post-update does not preserve the selected custom theme"
+
+printf 'ok - Yaqyn is the only bundled theme and compatible user themes remain supported\n'

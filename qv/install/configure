@@ -5,12 +5,10 @@
 
   config_source="$OMARCHY_PATH/qv/config/files"
   monitor_owner="$OMARCHY_PATH/qv/config/monitor-autodetect"
-  yaqyn_source="$OMARCHY_PATH/qv/theme/yaqyn"
 
   for source_path in \
     "$config_source" \
     "$monitor_owner" \
-    "$yaqyn_source" \
     "$OMARCHY_PATH/qv/shell/install"; do
     if [[ ! -e $source_path ]]; then
       echo "Missing qvOS configuration source: $source_path" >&2
@@ -27,12 +25,8 @@
     "$OMARCHY_PATH/qv/branding/logo.txt" \
     "$HOME/.config/omarchy/branding/screensaver.txt"
 
-  "$OMARCHY_PATH/qv/theme/install"
-
   # shellcheck source=qv/install/config/mimetypes
   source "$OMARCHY_PATH/qv/install/config/mimetypes"
-  # shellcheck source=qv/install/config/theme
-  source "$OMARCHY_PATH/qv/install/config/theme"
   # shellcheck source=qv/install/desktop
   source "$OMARCHY_PATH/qv/install/desktop"
 )

@@ -2,8 +2,9 @@
 set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-yaqyn_target="$HOME/.config/omarchy/themes/yaqyn"
 config_source="$OMARCHY_PATH/qv/config/files"
+theme_name_path="$HOME/.config/omarchy/current/theme.name"
+current_theme="Yaqyn"
 
 # shellcheck source=qv/install/desktop
 source "$OMARCHY_PATH/qv/install/desktop"
@@ -27,8 +28,13 @@ for target_file in "${!branding_sources[@]}"; do
   fi
 done
 
-if [[ ! -e $yaqyn_target || -L $yaqyn_target ]]; then
-  "$OMARCHY_PATH/qv/theme/install"
+if [[ -f $theme_name_path ]]; then
+  current_theme=$(<"$theme_name_path")
+fi
+"$OMARCHY_PATH/qv/theme/install"
+if ! OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy-theme-set "$current_theme"; then
+  echo "The selected theme is no longer available; returning to Yaqyn." >&2
+  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy-theme-set "Yaqyn"
 fi
 
 hyprland_config="$HOME/.config/hypr/hyprland.conf"

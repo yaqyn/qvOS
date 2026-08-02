@@ -7,17 +7,24 @@
 # Resolve a theme by name and apply its unlock.png + colors.toml as the
 # Plymouth boot screen via omarchy-plymouth-set.
 
+set -euo pipefail
+
 if [[ $# -ne 1 ]]; then
   echo "Usage: omarchy-plymouth-set-by-theme <theme-name>" >&2
   exit 1
 fi
 
-theme=$1
+themes_dir="$HOME/.config/omarchy/themes"
+theme=$("$OMARCHY_PATH/qv/theme/name" --resolve "$themes_dir" "$1")
+theme_dir="$themes_dir/$theme"
 
-if [[ -d ~/.config/omarchy/themes/$theme ]]; then
-  theme_dir=~/.config/omarchy/themes/$theme
-else
-  theme_dir="$OMARCHY_PATH/themes/$theme"
+if [[ ! -d $theme_dir ]]; then
+  echo "Theme '$theme' does not exist in $HOME/.config/omarchy/themes" >&2
+  exit 1
+fi
+if [[ ! -f $theme_dir/colors.toml || ! -f $theme_dir/unlock.png ]]; then
+  echo "Theme '$theme' does not provide colors.toml and unlock.png." >&2
+  exit 1
 fi
 
 bg=$(awk -F'"' '/^background/{print $2}' "$theme_dir/colors.toml")

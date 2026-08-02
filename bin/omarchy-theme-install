@@ -5,8 +5,10 @@
 # omarchy:examples=omarchy theme install https://github.com/example/omarchy-example-theme.git
 # omarchy:examples=omarchy theme install git@github.com:example/omarchy-example-theme.git
 
-if [[ -z $1 ]]; then
-  echo -e "\e[32mSee https://manuals.omamix.org/2/the-omarchy-manual/90/extra-themes\n\e[0m"
+set -euo pipefail
+
+if [[ -z ${1:-} ]]; then
+  printf '\e[32mInstall a compatible theme repository.\e[0m\n\n'
   REPO_URL=$(gum input --placeholder="Git repo URL (https or git@host:org/repo.git)" --header="")
 else
   REPO_URL="$1"
@@ -22,18 +24,23 @@ THEMES_DIR="$HOME/.config/omarchy/themes"
 REPO_PATH="$REPO_URL"
 [[ $REPO_PATH != *"://"* && $REPO_PATH == *:*/* ]] && REPO_PATH="${REPO_PATH#*:}"
 THEME_NAME=$(basename "$REPO_PATH" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]')
+THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" "$THEME_NAME")
 THEME_PATH="$THEMES_DIR/$THEME_NAME"
 
-# Remove existing theme if present
-if [[ -d $THEME_PATH ]]; then
-  rm -rf "$THEME_PATH"
+if [[ $THEME_NAME == "yaqyn" ]]; then
+  echo "Yaqyn is bundled with qvOS and cannot be replaced by a theme repository." >&2
+  exit 1
 fi
-
-# Clone the repo directly to ~/.config/omarchy/themes
-if ! git clone "$REPO_URL" "$THEME_PATH"; then
-  echo "Error: Failed to clone theme repo."
+if [[ -e $THEME_PATH || -L $THEME_PATH ]]; then
+  echo "Theme '$THEME_NAME' already exists; remove it explicitly before reinstalling." >&2
   exit 1
 fi
 
-# Apply the new theme with omarchy-theme-set
-omarchy-theme-set $THEME_NAME
+mkdir -p "$THEMES_DIR"
+if ! git clone "$REPO_URL" "$THEME_PATH"; then
+  rm -rf -- "$THEME_PATH"
+  echo "Error: Failed to clone theme repo." >&2
+  exit 1
+fi
+
+omarchy-theme-set "$THEME_NAME"

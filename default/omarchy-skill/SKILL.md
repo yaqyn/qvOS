@@ -209,10 +209,18 @@ cp ~/.config/hypr/bindings.conf ~/.config/hypr/bindings.conf.bak.$(date +%s)
 
 ### Pattern 2: Make a new theme
 
-1. Create a directory under ~/.config/omarchy/themes.
-2. See how an existing theme is done via ~/.local/share/omarchy/themes/catppuccin.
-3. Download a matching background (or several) from the internet and put them in ~/.config/omarchy/themes/[name-of-new-theme]
-4. When done with the theme, run `omarchy theme set "Name of new theme"`
+Yaqyn is the only bundled qvOS theme. Create a custom theme by copying it:
+
+```bash
+mkdir -p ~/.config/omarchy/themes/my-theme
+cp -a ~/.config/omarchy/themes/yaqyn/. ~/.config/omarchy/themes/my-theme/
+omarchy theme set my-theme
+```
+
+You can instead install a compatible theme repository with
+`omarchy theme install <git-url>`, or link a compatible theme directory as a
+lowercase slug under `~/.config/omarchy/themes/`. qvOS preserves custom theme
+directories and external links during updates.
 
 ### Pattern 3: Use Hooks for Automation
 
@@ -390,6 +398,6 @@ This skill intentionally does not cover qvOS source development. Do not use this
 - "Set a reminder to pickup jack in 15 minutes" -> `omarchy reminder 15 "Pickup Jack"`
 - "Show my reminders" -> `omarchy reminder show`
 - "Clear all reminders" -> `omarchy reminder clear`
-- "Customize the catppuccin theme colors" -> Create `~/.config/omarchy/themes/catppuccin-custom/` by copying from stock, then edit
+- "Customize the Yaqyn theme colors" -> Copy Yaqyn to `~/.config/omarchy/themes/yaqyn-custom/`, edit the copy, then apply it
 - "Run a script every time I change themes" -> Create `~/.config/omarchy/hooks/theme-set`
 - "Reset waybar to defaults" -> `omarchy refresh waybar`

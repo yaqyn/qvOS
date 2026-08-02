@@ -4,11 +4,22 @@ set -euo pipefail
 source_dir="$OMARCHY_PATH/qv/theme/yaqyn"
 runtime_dir="$HOME/.local/share/qvos/theme/yaqyn"
 target="$HOME/.config/omarchy/themes/yaqyn"
+themes_dir="$HOME/.config/omarchy/themes"
+backup_dir="$HOME/.local/state/qvos/theme-backups"
+retired_catalog=$(realpath -m -- "$OMARCHY_PATH/themes")
 
 if [[ ! -d $source_dir ]]; then
   echo "Missing Yaqyn theme source: $source_dir" >&2
   exit 1
 fi
+
+mkdir -p "$themes_dir"
+while IFS= read -r -d '' theme_link; do
+  link_target=$(realpath -m -- "$theme_link")
+  if [[ $link_target == "$retired_catalog/"* ]]; then
+    rm -f -- "$theme_link"
+  fi
+done < <(find "$themes_dir" -mindepth 1 -maxdepth 1 -type l -print0)
 
 if [[ -e $target || -L $target ]]; then
   target_link=""
@@ -16,11 +27,12 @@ if [[ -e $target || -L $target ]]; then
   if [[ $target_link == "$runtime_dir" ]]; then
     rm -f -- "$target"
   else
-    backup_target="$target.bak.$(date +%s)"
+    mkdir -p "$backup_dir"
+    backup_target="$backup_dir/yaqyn.$(date +%s)"
     backup_index=0
     while [[ -e $backup_target || -L $backup_target ]]; do
       ((backup_index += 1))
-      backup_target="$target.bak.$(date +%s).$backup_index"
+      backup_target="$backup_dir/yaqyn.$(date +%s).$backup_index"
     done
     mv -- "$target" "$backup_target"
     printf 'Preserved the existing Yaqyn theme as %s.\n' "$backup_target"
@@ -30,6 +42,6 @@ fi
 rm -rf -- "$runtime_dir"
 mkdir -p \
   "$(dirname -- "$runtime_dir")" \
-  "$(dirname -- "$target")"
+  "$themes_dir"
 cp -a "$source_dir" "$runtime_dir"
 ln -s "$runtime_dir" "$target"

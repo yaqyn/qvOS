@@ -1,0 +1,14 @@
+# Inherited paths promoted to qvOS theme ownership.
+bin/omarchy-plymouth-set-by-theme
+bin/omarchy-theme-install
+bin/omarchy-theme-list
+bin/omarchy-theme-remove
+bin/omarchy-theme-set
+bin/omarchy-theme-set-foot
+bin/omarchy-theme-set-templates
+bin/omarchy-theme-set-vscode
+bin/omarchy-theme-update
+default/elephant/omarchy_background_selector.lua
+default/elephant/omarchy_themes.lua
+default/elephant/omarchy_unlocks.lua
+install/config/theme.sh

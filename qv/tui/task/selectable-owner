@@ -12,11 +12,13 @@ usage() {
 }
 
 list_extra_themes() {
+  [[ -d $HOME/.config/omarchy/themes ]] || return 0
   find "$HOME/.config/omarchy/themes" \
     -mindepth 1 \
     -maxdepth 1 \
-    -type d \
-    ! -xtype l \
+    \( -type d -o -type l \) \
+    ! -iname 'yaqyn' \
+    ! -name 'yaqyn.bak.*' \
     -printf '%f\n' |
     sort
 }

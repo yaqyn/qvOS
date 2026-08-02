@@ -905,36 +905,51 @@ set -e
 [[ $share_output == "LocalSend is not installed" ]] || fail "missing LocalSend error"
 pass "direct LocalSend route fails clearly when unavailable"
 
-install -d "$test_root/.config/omarchy/themes/yaqyn"
+install -d \
+  "$test_root/.config/omarchy/themes/yaqyn" \
+  "$test_root/custom-theme"
 printf 'personal theme\n' >"$test_root/.config/omarchy/themes/yaqyn/personal-marker"
+cp -a "$root/qv/theme/yaqyn/." "$test_root/custom-theme/"
+touch "$test_root/custom-theme/preview-unlock.png"
+ln -s "$test_root/custom-theme" "$test_root/.config/omarchy/themes/custom"
 HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/theme/install" >/dev/null
-compgen -G "$test_root/.config/omarchy/themes/yaqyn.bak.*/personal-marker" >/dev/null ||
+compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/personal-marker" >/dev/null ||
   fail "personal Yaqyn theme backup"
 
 theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
-grep -Fqx 'Yaqyn' <<<"$theme_list" || fail "qvOS Yaqyn theme overlay"
-grep -Fqx 'Tokyo Night' <<<"$theme_list" || fail "inherited Omarchy themes"
-pass "Yaqyn is layered over the complete Omarchy theme catalog"
+grep -Fqx 'Yaqyn' <<<"$theme_list" || fail "bundled qvOS Yaqyn theme"
+grep -Fqx 'Custom' <<<"$theme_list" || fail "linked compatible user theme"
+if grep -Fqx 'Tokyo Night' <<<"$theme_list"; then
+  fail "retired inherited theme catalog"
+fi
+pass "Yaqyn is the only bundled theme while compatible user themes remain available"
 
 HOME="$test_root" OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "qvOS Style entries"
 local root = arg[1]
 
 dofile(root .. "/default/elephant/omarchy_themes.lua")
 local themes = GetEntries()
-assert(#themes > 1)
+assert(#themes == 2)
 local yaqyn_theme
+local custom_theme
 for _, theme in ipairs(themes) do
   if theme.Text == "Yaqyn  " then yaqyn_theme = theme end
+  if theme.Text == "Custom  " then custom_theme = theme end
 end
 assert(yaqyn_theme)
 assert(yaqyn_theme.Preview:match("/%.config/omarchy/themes/yaqyn/preview%.png$"))
-assert(yaqyn_theme.Actions.activate == "omarchy-theme-set yaqyn")
+assert(yaqyn_theme.Actions.activate == "omarchy-theme-set 'yaqyn'")
+assert(custom_theme)
+assert(custom_theme.Preview:match("/%.config/omarchy/themes/custom/preview%.png$"))
+assert(custom_theme.Actions.activate == "omarchy-theme-set 'custom'")
 
 dofile(root .. "/qv/menu/elephant/omarchy_unlocks.lua")
 local unlocks = GetEntries()
 local yaqyn_unlock
+local custom_unlock
 for _, unlock in ipairs(unlocks) do
   if unlock.Text == "Yaqyn  " then yaqyn_unlock = unlock end
+  if unlock.Text == "Custom  " then custom_unlock = unlock end
 end
 assert(yaqyn_unlock)
 assert(yaqyn_unlock.Preview == root .. "/qv/boot/plymouth/preview-unlock.png")
@@ -942,20 +957,22 @@ assert(
   yaqyn_unlock.Actions.activate
     == "omarchy-launch-floating-terminal-with-presentation 'omarchy-plymouth-reset'"
 )
+assert(custom_unlock)
+assert(custom_unlock.Preview:match("/%.config/omarchy/themes/custom/preview%-unlock%.png$"))
 LUA
-pass "dynamic Style catalogs preserve Omarchy themes and add Yaqyn"
+pass "dynamic Style catalogs expose Yaqyn and compatible user themes only"
 
-grep -qx 'omarchy-theme-set "Yaqyn"' "$root/qv/install/config/theme" || fail "fresh install theme"
+grep -qx 'omarchy-theme-set "Yaqyn"' "$root/qv/theme/configure" || fail "fresh install theme"
 if rg -q 'chmod[[:space:]]+a\\+rw' \
-  "$root/qv/install/config/theme" \
+  "$root/qv/theme/configure" \
   "$root/bin/omarchy-install-browser"; then
   fail "world-writable browser policy setup"
 fi
 grep -Fq 'sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed' \
-  "$root/qv/install/config/theme" ||
+  "$root/qv/theme/configure" ||
   fail "root-owned Chromium policy directory"
 grep -Fq 'sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json' \
-  "$root/qv/install/config/theme" ||
+  "$root/qv/theme/configure" ||
   fail "user-owned Chromium theme policy"
 if rg -q 'chmod[[:space:]]+666' "$root/qv/install/helpers/logging"; then
   fail "world-writable install log"

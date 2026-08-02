@@ -59,15 +59,60 @@ for path in "${inherited_seams[@]}"; do
   inherited_seam_set[$path]=1
 done
 
-mapfile -t native_paths < <(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
-    "$root/qv/branding/native-paths"
+mapfile -t native_manifests < <(
+  find "$root/qv" -mindepth 2 -maxdepth 2 -type f -name native-paths | sort
 )
+mapfile -t retired_manifests < <(
+  find "$root/qv" -mindepth 2 -maxdepth 2 -type f -name retired-paths | sort
+)
+
+native_paths=()
+retired_paths=()
+retired_prefixes=()
 declare -A native_path_set=()
-for path in "${native_paths[@]}"; do
-  [[ -z ${inherited_seam_set[$path]:-} ]] ||
-    fail "$path is classified as both a native path and an inherited seam"
-  native_path_set[$path]=1
+declare -A retired_path_set=()
+
+for manifest in "${native_manifests[@]}"; do
+  mapfile -t manifest_paths < <(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest"
+  )
+  for path in "${manifest_paths[@]}"; do
+    [[ -z ${native_path_set[$path]:-} ]] ||
+      fail "$path is claimed by multiple native-path manifests"
+    [[ -z ${inherited_seam_set[$path]:-} ]] ||
+      fail "$path is classified as both a native path and an inherited seam"
+    native_paths+=("$path")
+    native_path_set[$path]=1
+  done
+done
+
+for manifest in "${retired_manifests[@]}"; do
+  mapfile -t manifest_paths < <(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest"
+  )
+  for path in "${manifest_paths[@]}"; do
+    [[ -z ${retired_path_set[$path]:-} ]] ||
+      fail "$path is claimed by multiple retired-path manifests"
+    retired_paths+=("$path")
+    retired_path_set[$path]=1
+    [[ $path != */ ]] || retired_prefixes+=("$path")
+  done
+done
+
+is_retired_path() {
+  local candidate=$1
+  local prefix
+
+  [[ -n ${retired_path_set[$candidate]:-} ]] && return 0
+  for prefix in "${retired_prefixes[@]}"; do
+    [[ $candidate == "$prefix"* ]] && return 0
+  done
+  return 1
+}
+
+for path in "${inherited_seams[@]}" "${native_paths[@]}"; do
+  ! is_retired_path "$path" ||
+    fail "$path is classified as both active and retired"
 done
 
 upstream_file_matches() {
@@ -105,6 +150,7 @@ while IFS= read -r entry; do
   esac
   [[ -n ${inherited_seam_set[$path]:-} ]] && continue
   [[ -n ${native_path_set[$path]:-} ]] && continue
+  is_retired_path "$path" && continue
 
   upstream_file_matches "$mode" "$object" "$path" ||
     fail "$path differs from upstream outside the audited seam list"
@@ -156,6 +202,25 @@ for path in "${native_paths[@]}"; do
     "$path" && fail "$path native qvOS path no longer differs from upstream"
 done
 pass "native qvOS paths are explicit reviewed upstream departures"
+
+for path in "${retired_paths[@]}"; do
+  if [[ $path == */ ]]; then
+    git -C "$root" ls-tree -r --name-only "$upstream_ref" -- "$path" |
+      grep -q . || fail "$path retired qvOS prefix no longer exists upstream"
+    [[ ! -e $root/${path%/} && ! -L $root/${path%/} ]] ||
+      fail "$path retired qvOS prefix remains in the working tree"
+    [[ -z $(git -C "$root" ls-files -- "$path") ]] ||
+      fail "$path retired qvOS prefix remains tracked"
+  else
+    git -C "$root" cat-file -e "$upstream_ref:$path" ||
+      fail "$path retired qvOS path no longer exists upstream"
+    [[ ! -e $root/$path && ! -L $root/$path ]] ||
+      fail "$path retired qvOS path remains in the working tree"
+    [[ -z $(git -C "$root" ls-files -- "$path") ]] ||
+      fail "$path retired qvOS path remains tracked"
+  fi
+done
+pass "retired upstream paths are explicit and absent"
 
 fallback_seams=(
   bin/omarchy-config-direct-boot

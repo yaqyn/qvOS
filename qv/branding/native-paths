@@ -18,7 +18,6 @@ bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu
 bin/omarchy-notification-send
-bin/omarchy-plymouth-set-by-theme
 bin/omarchy-refresh-chromium
 bin/omarchy-refresh-config
 bin/omarchy-refresh-fastfetch
@@ -42,10 +41,6 @@ bin/omarchy-restart-mako
 bin/omarchy-restart-opencode
 bin/omarchy-screensaver
 bin/omarchy-state
-bin/omarchy-theme-set
-bin/omarchy-theme-set-foot
-bin/omarchy-theme-set-templates
-bin/omarchy-theme-set-vscode
 bin/omarchy-toggle
 bin/omarchy-update
 bin/omarchy-update-available
@@ -63,9 +58,6 @@ config/systemd/user/omarchy-battery-monitor.service
 config/systemd/user/omarchy-battery-monitor.timer
 config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json
-default/elephant/omarchy_background_selector.lua
-default/elephant/omarchy_themes.lua
-default/elephant/omarchy_unlocks.lua
 default/limine/default.conf
 default/limine/limine.conf
 default/omarchy-skill/SKILL.md

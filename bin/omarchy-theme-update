@@ -2,9 +2,18 @@
 
 # omarchy:summary=Update user-installed git themes
 
-for dir in ~/.config/omarchy/themes/*/; do
-  if [[ -d $dir ]] && [[ ! -L ${dir%/} ]] && [[ -d $dir/.git ]]; then
-    echo "Updating: $(basename "$dir")"
-    git -C "$dir" pull
+set -euo pipefail
+
+updated=0
+shopt -s nullglob
+for theme_dir in "$HOME/.config/omarchy/themes"/*/; do
+  if [[ -d $theme_dir ]] && [[ ! -L ${theme_dir%/} ]] && [[ -d $theme_dir/.git ]]; then
+    echo "Updating: $(basename "$theme_dir")"
+    git -C "$theme_dir" pull --ff-only
+    updated=1
   fi
 done
+
+if ((updated == 0)); then
+  echo "No Git-managed custom themes are installed."
+fi
