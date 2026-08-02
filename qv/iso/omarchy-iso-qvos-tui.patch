@@ -19,12 +19,14 @@
  
  # Pre-import the omarchy signing key so pacman can verify packages without a keyserver lookup
  pacman-key --add /builder/omarchy.gpg
-@@ -43,6 +52,32 @@ else
+@@ -43,6 +52,34 @@ else
    git clone -b $OMARCHY_INSTALLER_REF https://github.com/$OMARCHY_INSTALLER_REPO.git "$build_cache_dir/airootfs/root/omarchy"
  fi
  
 +# Do not ship transient builder identity in the embedded Git checkout.
-+git -C "$build_cache_dir/airootfs/root/omarchy" config core.logAllRefUpdates false
++git -c safe.directory="$build_cache_dir/airootfs/root/omarchy" \
++  -C "$build_cache_dir/airootfs/root/omarchy" \
++  config --local core.logAllRefUpdates false
 +rm -rf -- "$build_cache_dir/airootfs/root/omarchy/.git/logs"
 +
 +# Build qvOS boot/install TUI from the staged installer source.
@@ -52,7 +54,7 @@
  # Make log uploader available in the ISO too
  mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
  cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
-@@ -50,42 +85,117 @@ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache
+@@ -50,42 +87,117 @@ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache
 -# Copy the Omarchy Plymouth theme to the ISO
 +# Copy the qvOS Plymouth theme to the ISO
  mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
@@ -188,7 +190,7 @@
  
  # Create a symlink to the offline mirror instead of duplicating it.
  # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,
-@@ -98,6 +208,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
+@@ -98,6 +210,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
  cp $build_cache_dir/pacman-offline.conf "$build_cache_dir/airootfs/etc/pacman.conf"
  
  # Finally, we assemble the entire ISO

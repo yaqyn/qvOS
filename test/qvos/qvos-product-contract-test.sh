@@ -521,7 +521,10 @@ grep -Fq 'qvos_tui_source_hash=$("$qvos_tui_source/source-hash" "$qvos_tui_sourc
 grep -Fq -- '-X main.buildSourceHash=$qvos_tui_source_hash' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO TUI source provenance"
-grep -Fq 'config core.logAllRefUpdates false' \
+grep -Fq 'safe.directory="$build_cache_dir/airootfs/root/omarchy"' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO command-scoped embedded source trust"
+grep -Fq 'config --local core.logAllRefUpdates false' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO embedded source reflog suppression"
 grep -Fq 'rm -rf -- "$build_cache_dir/airootfs/root/omarchy/.git/logs"' \
