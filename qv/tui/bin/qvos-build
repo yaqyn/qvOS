@@ -180,26 +180,50 @@ checkout_git_ref() {
   local ref="$2"
 
   if [[ $ref == "HEAD" ]]; then
-    git -C "$target" checkout -q HEAD
+    retry_git_transfer -C "$target" checkout -q HEAD
   elif git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$ref"; then
-    git -C "$target" checkout -q -B "$ref" "origin/$ref"
+    retry_git_transfer -C "$target" checkout -q -B "$ref" "origin/$ref"
   elif git -C "$target" show-ref --verify --quiet "refs/tags/$ref"; then
-    git -C "$target" checkout -q "tags/$ref"
+    retry_git_transfer -C "$target" checkout -q "tags/$ref"
   else
-    git -C "$target" fetch --tags origin "$ref"
-    git -C "$target" checkout -q FETCH_HEAD
+    retry_git_transfer -C "$target" fetch --tags origin "$ref"
+    retry_git_transfer -C "$target" checkout -q FETCH_HEAD
   fi
+}
+
+retry_git_transfer() {
+  local attempt
+
+  for attempt in 1 2 3; do
+    if git -c http.version=HTTP/1.1 "$@"; then
+      return 0
+    fi
+    ((attempt == 3)) && return 1
+    echo "qvOS ISO progress: retrying Git transfer ($((attempt + 1))/3)" >&2
+    sleep "$((attempt * 2))"
+  done
 }
 
 clone_git_source() {
   local repo="$1"
   local ref="$2"
   local target="$3"
+  local attempt
 
   if [[ -d $repo ]]; then
     git clone --no-checkout "$repo" "$target"
   else
-    git clone --filter=blob:none --no-checkout "$repo" "$target"
+    for attempt in 1 2 3; do
+      if git -c http.version=HTTP/1.1 clone \
+        --filter=blob:none --no-checkout "$repo" "$target"; then
+        break
+      fi
+      ((attempt == 3)) && return 1
+      [[ -n $target && $target != "/" && $target != "." ]] || return 2
+      rm -rf -- "$target"
+      echo "qvOS ISO progress: retrying Git clone ($((attempt + 1))/3)" >&2
+      sleep "$((attempt * 2))"
+    done
   fi
   checkout_git_ref "$target" "$ref"
 }
