@@ -777,7 +777,7 @@ pass "qvOS TUI exposes only supported lifecycle actions on the matching Omarchy 
 grep -Fq '(qvOS|Omarchy)([[:space:]]|$)' "$root/qv/boot/config-direct-boot" || fail "current and legacy EFI label detection"
 grep -Fq -- '--label "qvOS"' "$root/qv/boot/config-direct-boot" || fail "qvOS EFI label"
 grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qv/boot/limine/default.conf" || fail "qvOS Limine OS name"
-grep -Fxq 'interface_branding: qvOS Bootloader' "$root/qv/boot/limine/limine.conf" || fail "qvOS Limine header"
+grep -Fxq 'interface_branding:' "$root/qv/boot/limine/limine.conf" || fail "qvOS Limine empty header"
 grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
 grep -Fq 'GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"' "$root/bin/omarchy" || fail "upstream branch identity"
 pass "visible system branding is qvOS without renaming Omarchy internals"
@@ -991,9 +991,24 @@ command -v magick >/dev/null 2>&1 || fail "Plymouth asset color verifier"
   fail "Plymouth preview normal red accent"
 
 limine_theme="$root/qv/boot/limine/limine.conf"
+grep -qx 'timeout: 5' "$limine_theme" || fail "Limine five-second automatic boot"
+grep -qx 'default_entry: 2' "$limine_theme" || fail "Limine qvOS default entry"
+grep -qx 'remember_last_entry: no' "$limine_theme" || fail "Limine stable qvOS default"
+grep -qx 'interface_branding:' "$limine_theme" || fail "Limine center-only empty branding"
+grep -qx 'interface_help_hidden: yes' "$limine_theme" || fail "Limine hidden help"
+grep -qx 'interface_help_color: 000000' "$limine_theme" || fail "Limine hidden countdown text"
+grep -qx 'interface_help_color_bright: 000000' "$limine_theme" || fail "Limine hidden countdown value"
+grep -qx 'editor_highlighting: no' "$limine_theme" || fail "Limine readable uncolored editor"
 grep -qx 'term_background: 000000' "$limine_theme" || fail "Limine exact-black terminal background"
 grep -qx 'backdrop: 000000' "$limine_theme" || fail "Limine exact-black backdrop"
 grep -qx 'term_background_bright: 000000' "$limine_theme" || fail "Limine exact-black bright background"
+grep -qx 'term_foreground: a0a0a0' "$limine_theme" || fail "Limine restrained menu foreground"
+grep -qx 'term_foreground_bright: b8b8b8' "$limine_theme" || fail "Limine restrained bright foreground"
+grep -qx 'term_palette: 000000;3a3a3a;5a5a5a;707070;8a8a8a;a0a0a0;000000;d6d6d6' \
+  "$limine_theme" || fail "Limine hidden selected-entry comments"
+if rg -q '^wallpaper:' "$limine_theme"; then
+  fail "Limine center-only menu gained a wallpaper"
+fi
 if rg -qi 'b00000|d00000' "$limine_theme"; then
   fail "Limine retained a red accent instead of grayscale-only branding"
 fi
