@@ -34,6 +34,14 @@ all=$("$resolver" all)
 (( $(wc -l <<<"$base") > 100 )) || fail "base manifest is implausibly small"
 (( $(wc -l <<<"$other") > 40 )) || fail "hardware manifest is implausibly small"
 
+for retired_package in mariadb-libs python-poetry-core; do
+  if grep -Fxq "$retired_package" <<<"$all"; then
+    fail "retired package remains in the native manifests: $retired_package"
+  fi
+done
+grep -Fxq 'yaru-icon-theme' <<<"$base" ||
+  fail "Yaru compatibility icons are missing from the base manifest"
+
 install -d "$fixture"
 install -m 0755 "$resolver" "$fixture/resolve"
 install -m 0644 "$base_manifest" "$fixture/base.packages"

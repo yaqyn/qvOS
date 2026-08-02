@@ -67,7 +67,6 @@ localsend
 luarocks
 mako
 man-db
-mariadb-libs
 mise
 mpv
 gnome-disk-utility
@@ -86,7 +85,6 @@ plymouth
 polkit-gnome
 power-profiles-daemon
 python-gobject
-python-poetry-core
 python-terminaltexteffects
 qt5-wayland
 ripgrep
