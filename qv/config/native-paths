@@ -1,3 +1,5 @@
 # Inherited paths promoted to qvOS config ownership.
 config/hypr/bindings.conf
 config/hypr/hyprland.conf
+config/systemd/user/omarchy-battery-monitor.service
+config/systemd/user/omarchy-battery-monitor.timer

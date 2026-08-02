@@ -19,8 +19,12 @@ fail() {
   fail "qvOS binding overlay remains"
 [[ ! -e $root/qv/config/files/hypr/bindings.conf ]] ||
   fail "duplicate qvOS binding source remains"
+[[ ! -e $root/qv/config/files/systemd/user/omarchy-battery-monitor.service ]] ||
+  fail "duplicate battery monitor service remains"
+[[ ! -e $root/qv/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
+  fail "duplicate battery monitor timer remains"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'config/hypr/bindings.conf\nconfig/hypr/hyprland.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'config/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer' ]] ||
   fail "native config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf' ]] ||
   fail "retired binding inventory changed"
@@ -51,4 +55,11 @@ duplicate_bindings=$(
 [[ $(grep -Ec '^binddr? = , F9, (Start|Stop) dictation \(push-to-talk\),' "$bindings") == 2 ]] ||
   fail "F9 press/release exception is incomplete"
 
-printf 'ok - qvOS bindings have one native source and no inherited overlay\n'
+grep -Fq 'Description=qvOS Battery Monitor Check' \
+  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
+  fail "native battery monitor service identity"
+grep -Fq 'Description=qvOS Battery Monitor Timer' \
+  "$root/config/systemd/user/omarchy-battery-monitor.timer" ||
+  fail "native battery monitor timer identity"
+
+printf 'ok - qvOS config has singular native bindings and user services\n'

@@ -41,8 +41,6 @@ bin/omarchy-version-branch
 bin/omarchy-version-channel
 bin/omarchy-windows-vm
 config/fastfetch/config.jsonc
-config/systemd/user/omarchy-battery-monitor.service
-config/systemd/user/omarchy-battery-monitor.timer
 config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json
 default/omarchy-skill/SKILL.md

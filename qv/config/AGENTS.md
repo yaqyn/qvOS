@@ -34,6 +34,11 @@ refresh command installs native `config/hypr/bindings.conf` and
 sources. Put only look, window, input, and future specialized config in the
 `qv/` sublayer. Reconcile after refresh and verify tracked and installed config.
 
+Promoted defaults under `config/` are native qvOS sources and must not be
+duplicated under `qv/config/files/`. This includes the qvOS battery-monitor
+service and timer under `config/systemd/user/`; the ordinary config installer
+deploys them before the qvOS specialized reconciliation stage.
+
 `qv/config/monitor-autodetect` owns display-scale reconciliation on fresh first
 login and explicit Hyprland restore. Let Hyprland choose preferred modes,
 automatic placement, and PPI-based per-monitor scale. Synchronize the global

@@ -447,8 +447,8 @@ grep -Fq -- '--app-id=org.omarchy.terminal' "$root/qv/presentation/run" ||
   fail "inherited terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qv/presentation/run" ||
   fail "qvOS terminal title"
-grep -Fq 'Description=qvOS Battery Monitor Check' "$root/qv/config/files/systemd/user/omarchy-battery-monitor.service" || fail "qvOS battery service label"
-grep -Fq 'Description=qvOS Battery Monitor Timer' "$root/qv/config/files/systemd/user/omarchy-battery-monitor.timer" || fail "qvOS battery timer label"
+grep -Fq 'Description=qvOS Battery Monitor Check' "$root/config/systemd/user/omarchy-battery-monitor.service" || fail "qvOS battery service label"
+grep -Fq 'Description=qvOS Battery Monitor Timer' "$root/config/systemd/user/omarchy-battery-monitor.timer" || fail "qvOS battery timer label"
 grep -Fq 'too small for qvOS layout' "$root/qv/tui/iso_config.go" || fail "qvOS installer layout error"
 [[ ! -e $root/qv/tui/bin/qvos-apply ]] ||
   fail "unsupported qvOS apply action"

@@ -95,7 +95,7 @@ grep -Fq 'Name=qvOS (Hyprland uwsm)' \
   "$root/qv/boot/wayland-sessions/omarchy.desktop" ||
   fail "qvOS session label"
 grep -Fq 'Description=qvOS Battery Monitor Check' \
-  "$root/qv/config/files/systemd/user/omarchy-battery-monitor.service" ||
+  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
   fail "qvOS battery service label"
 
 printf 'ok - visible product identity is qvOS while legacy internals remain compatible\n'
