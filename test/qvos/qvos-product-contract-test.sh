@@ -550,6 +550,23 @@ grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress' \
 grep -Fq 'root/omarchy/qv/boot/plymouth/' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO live Plymouth owner"
+grep -Fq 'root/omarchy/qv/iso/syslinux-splash.png' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO Syslinux splash owner"
+[[ $(magick identify -format '%wx%h' "$root/qv/iso/syslinux-splash.png") == "640x480" ]] ||
+  fail "qvOS Syslinux splash dimensions"
+[[ $(magick "$root/qv/iso/syslinux-splash.png" -depth 8 -format '%[hex:p{0,0}]' info:) == "000000" ]] ||
+  fail "qvOS Syslinux exact-black background"
+[[ $(magick identify -format '%[colorspace]' "$root/qv/iso/syslinux-splash.png") == "Gray" ]] ||
+  fail "qvOS Syslinux splash retained a chromatic pixel"
+for syslinux_grayscale_contract in \
+  'MENU COLOR border       30;40   #00000000 #00000000 none' \
+  'MENU COLOR title        1;37;40 #ffd8d8d8 #00000000 std' \
+  'MENU COLOR sel          7;37;40 #ffffffff #ff303030 all'; do
+  grep -Fq "$syslinux_grayscale_contract" \
+    "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+    fail "qvOS Syslinux grayscale menu: $syslinux_grayscale_contract"
+done
 grep -Fq 'set_qvos_console_colors' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO console palette owner"

@@ -38,11 +38,13 @@ embedded source, installer integration, or release-image verification.
   remove clone reflogs before image assembly so transient builder identity is
   absent; retain the usable `OS` branch, `origin/OS` tracking, and clean Git
   worktree.
-- The live ISO, Plymouth, Limine, and installer TUI use exact black
+- The live ISO, Syslinux, Plymouth, Limine, and installer TUI use exact black
   (`#000000`) and neutral grayscale. Plymouth and the installer TUI may use
   only the Yaqyn red tonal accents (`#5f0000`/`#b00000`/`#d00000`); Limine
-  stays grayscale-only. Stage `qv/boot/plymouth`, never the inherited Omarchy
-  Plymouth payload, and verify the rendered boot/install pixels.
+  and Syslinux stay grayscale-only. Stage `qv/boot/plymouth`, never the
+  inherited Omarchy Plymouth payload; replace the inherited Arch Syslinux
+  splash from `qv/iso/syslinux-splash.png`; and verify the rendered
+  boot/install pixels.
 - Preserve the boot setup, progress, and finale contract in `qv/tui/AGENTS.md`;
   the ISO layer owns no visual fork. Verify its direct Step 1/3 entry, increasing
   ring roles, fixed Region layout, explicit erase gate, real milestone progress,

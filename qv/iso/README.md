@@ -59,6 +59,9 @@ the previous one.
   menu. All displayed product, entry, publisher, and application names must say
   `qvOS`; inherited internal compatibility identifiers may remain lowercase
   `omarchy` only when they are not shown as branding.
+- Inspect the rendered Syslinux splash and menu palette. Its background is
+  exact black, its artwork and text are neutral grayscale, and no inherited
+  Arch blue or red accent remains in this bootloader path.
 
 ## 3. Clean Installation Rehearsal
 
