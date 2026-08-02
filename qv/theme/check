@@ -10,6 +10,7 @@ fail() {
   exit 1
 }
 
+[[ -x $root/qv/theme/validate ]] || fail "theme validator is not executable"
 [[ ! -e $root/themes ]] || fail "inherited theme catalog remains"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "themes/" ]] ||
   fail "retired theme inventory is broader than the inherited catalog"
@@ -26,9 +27,11 @@ for required_path in \
   bin/omarchy-theme-list \
   bin/omarchy-theme-remove \
   bin/omarchy-theme-set \
+  bin/omarchy-theme-set-obsidian \
   bin/omarchy-theme-update \
   default/elephant/omarchy_themes.lua \
   default/elephant/omarchy_unlocks.lua \
+  default/themed/obsidian.css.tpl \
   install/config/theme.sh; do
   grep -Fqx "$required_path" "$native_manifest" ||
     fail "native theme owner is missing: $required_path"
@@ -47,6 +50,12 @@ grep -Fq 'qv/theme/name' "$root/bin/omarchy-theme-set" ||
   fail "theme renderer bypasses the shared name validator"
 grep -Fq 'qv/theme/name' "$root/bin/omarchy-theme-remove" ||
   fail "theme removal bypasses the shared name validator"
+grep -Fq 'qv/theme/validate' "$root/bin/omarchy-theme-install" ||
+  fail "Git theme installation bypasses payload validation"
+grep -Fq 'qv/theme/validate' "$root/bin/omarchy-theme-set" ||
+  fail "theme rendering bypasses payload validation"
+grep -Fq 'qv/theme/validate' "$root/bin/omarchy-theme-set-templates" ||
+  fail "theme template rendering bypasses color validation"
 grep -Fq 'cannot be replaced by a theme repository' "$root/bin/omarchy-theme-install" ||
   fail "Yaqyn install protection"
 grep -Fq 'cannot be removed' "$root/bin/omarchy-theme-remove" ||
@@ -67,5 +76,10 @@ grep -Fq 'present:omarchy-theme-update' "$root/qv/menu/concepts.psv" ||
 # shellcheck disable=SC2016
 grep -Fq 'current_theme=$(<"$theme_name_path")' "$root/qv/install/post-update-hook" ||
   fail "post-update does not preserve the selected custom theme"
+if rg -n 'Omarchy' \
+  "$root/bin/omarchy-theme-set-obsidian" \
+  "$root/default/themed/obsidian.css.tpl"; then
+  fail "Obsidian theme still exposes inherited branding"
+fi
 
 printf 'ok - Yaqyn is the only bundled theme and compatible user themes remain supported\n'

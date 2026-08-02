@@ -1,28 +1,43 @@
 #!/bin/bash
 
-# omarchy:summary=Sync Omarchy theme to all Obsidian vaults
+# omarchy:summary=Sync the current qvOS theme to all Obsidian vaults
 # omarchy:hidden=true
+
+set -euo pipefail
 
 CURRENT_THEME_DIR="$HOME/.config/omarchy/current/theme"
 
 [[ -f $CURRENT_THEME_DIR/obsidian.css ]] || exit 0
+[[ -f $HOME/.config/obsidian/obsidian.json ]] || exit 0
 
-jq -r '.vaults | values[].path' ~/.config/obsidian/obsidian.json 2>/dev/null | while read -r vault_path; do
+while read -r vault_path; do
+  [[ $vault_path == /* ]] || continue
   [[ -d $vault_path/.obsidian ]] || continue
 
-  theme_dir="$vault_path/.obsidian/themes/Omarchy"
+  theme_dir="$vault_path/.obsidian/themes/qvOS"
+  if [[ -L $theme_dir ]]; then
+    echo "Skipping symbolic-link Obsidian theme target: $theme_dir" >&2
+    continue
+  fi
   mkdir -p "$theme_dir"
+  if [[ -L $theme_dir/manifest.json || -L $theme_dir/theme.css ]]; then
+    echo "Skipping unsafe Obsidian theme files in: $theme_dir" >&2
+    continue
+  fi
 
   [[ -f $theme_dir/manifest.json ]] || cat >"$theme_dir/manifest.json" <<'EOF'
 {
-  "name": "Omarchy",
+  "name": "qvOS",
   "version": "1.0.0",
   "minAppVersion": "0.16.0",
-  "description": "Automatically syncs with your current Omarchy system theme colors and fonts",
-  "author": "Omarchy",
-  "authorUrl": "https://omarchy.org"
+  "description": "Automatically syncs with your current qvOS theme colors and fonts",
+  "author": "qvOS",
+  "authorUrl": "https://github.com/Yaqyn-qvOS/qvOS"
 }
 EOF
 
-  cp "$CURRENT_THEME_DIR/obsidian.css" "$theme_dir/theme.css"
-done
+  install -m 0644 "$CURRENT_THEME_DIR/obsidian.css" "$theme_dir/theme.css"
+done < <(
+  jq -r '.vaults | values[]? | .path | strings' \
+    "$HOME/.config/obsidian/obsidian.json" 2>/dev/null || true
+)

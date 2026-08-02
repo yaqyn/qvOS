@@ -5,11 +5,30 @@
 set -euo pipefail
 
 updated=0
+failed=0
 shopt -s nullglob
 for theme_dir in "$HOME/.config/omarchy/themes"/*/; do
   if [[ -d $theme_dir ]] && [[ ! -L ${theme_dir%/} ]] && [[ -d $theme_dir/.git ]]; then
     echo "Updating: $(basename "$theme_dir")"
-    git -C "$theme_dir" pull --ff-only
+    if ! "$OMARCHY_PATH/qv/theme/validate" "${theme_dir%/}"; then
+      echo "Skipping unsafe or incompatible theme: $(basename "$theme_dir")" >&2
+      failed=1
+      continue
+    fi
+    if [[ -n $(git -C "$theme_dir" status --porcelain=v1 --untracked-files=all) ]]; then
+      echo "Skipping theme with local changes: $(basename "$theme_dir")" >&2
+      failed=1
+      continue
+    fi
+    if ! git -C "$theme_dir" pull --ff-only; then
+      failed=1
+      continue
+    fi
+    if ! "$OMARCHY_PATH/qv/theme/validate" "${theme_dir%/}"; then
+      echo "Updated theme is unsafe or incompatible and will not be activated: $(basename "$theme_dir")" >&2
+      failed=1
+      continue
+    fi
     updated=1
   fi
 done
@@ -17,3 +36,5 @@ done
 if ((updated == 0)); then
   echo "No Git-managed custom themes are installed."
 fi
+
+exit "$failed"

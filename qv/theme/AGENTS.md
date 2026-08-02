@@ -16,6 +16,11 @@ not restore the inherited source catalog or a second rendering system.
   stage delegates to it; qvOS install code must not repeat its mutations.
 - Theme list, set, install, remove, update, and appearance providers read only
   the user theme directory. `qv/theme/name` is the shared slug validator.
+- Treat compatible themes as untrusted data. Git installs accept HTTPS or Git
+  SSH only, clone shallowly, validate the complete payload before activation,
+  reject internal links and special files, and never copy Git metadata into the
+  rendered theme. Parse `colors.toml` through `qv/theme/validate`; never build
+  executable template programs from unchecked theme values.
 - Yaqyn is always present and cannot be installed over or removed. Removing an
   active custom theme first returns to Yaqyn without changing the background.
 - Post-update refresh reinstalls Yaqyn and reapplies the selected compatible

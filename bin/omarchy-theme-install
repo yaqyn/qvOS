@@ -14,16 +14,42 @@ else
   REPO_URL="$1"
 fi
 
-if [[ -z $REPO_URL ]]; then
-  exit 1
+[[ -n $REPO_URL ]] || exit 1
+if [[ $REPO_URL == *$'\n'* || $REPO_URL == *$'\r'* || $REPO_URL == *$'\t'* || $REPO_URL == *' '* ]]; then
+  echo "Theme repository URL contains unsupported whitespace." >&2
+  exit 2
+fi
+
+case $REPO_URL in
+  https://*)
+    REPO_ADDRESS=${REPO_URL#https://}
+    REPO_HOST=${REPO_ADDRESS%%/*}
+    REPO_PATH_PART=${REPO_ADDRESS#*/}
+    ;;
+  ssh://git@*)
+    REPO_ADDRESS=${REPO_URL#ssh://git@}
+    REPO_HOST=${REPO_ADDRESS%%/*}
+    REPO_PATH_PART=${REPO_ADDRESS#*/}
+    ;;
+  git@*:*)
+    REPO_ADDRESS=${REPO_URL#git@}
+    REPO_HOST=${REPO_ADDRESS%%:*}
+    REPO_PATH_PART=${REPO_ADDRESS#*:}
+    ;;
+  *)
+    echo "Theme repositories must use HTTPS or Git SSH." >&2
+    exit 2
+    ;;
+esac
+if [[ ! $REPO_HOST =~ ^[[:alnum:]]([[:alnum:].-]*[[:alnum:]])?(:[0-9]{1,5})?$ ]] ||
+  [[ $REPO_HOST == *".."* || -z $REPO_PATH_PART || $REPO_PATH_PART == "$REPO_ADDRESS" ]]; then
+  echo "Theme repository URL is not valid." >&2
+  exit 2
 fi
 
 THEMES_DIR="$HOME/.config/omarchy/themes"
 
-# Strip user@host: prefix from scp-style SSH URLs so basename sees just the path
-REPO_PATH="$REPO_URL"
-[[ $REPO_PATH != *"://"* && $REPO_PATH == *:*/* ]] && REPO_PATH="${REPO_PATH#*:}"
-THEME_NAME=$(basename "$REPO_PATH" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]')
+THEME_NAME=$(basename -- "$REPO_PATH_PART" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]')
 THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" "$THEME_NAME")
 THEME_PATH="$THEMES_DIR/$THEME_NAME"
 
@@ -37,9 +63,14 @@ if [[ -e $THEME_PATH || -L $THEME_PATH ]]; then
 fi
 
 mkdir -p "$THEMES_DIR"
-if ! git clone "$REPO_URL" "$THEME_PATH"; then
+if ! git clone --depth=1 --single-branch -- "$REPO_URL" "$THEME_PATH"; then
   rm -rf -- "$THEME_PATH"
   echo "Error: Failed to clone theme repo." >&2
+  exit 1
+fi
+if ! "$OMARCHY_PATH/qv/theme/validate" "$THEME_PATH"; then
+  rm -rf -- "$THEME_PATH"
+  echo "Error: The repository is not a safe compatible theme." >&2
   exit 1
 fi
 

@@ -27,8 +27,7 @@ for path in "${native_paths[@]}"; do
     fail "native branding path no longer differs from upstream: $path"
 done
 
-if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qv" \
-  --glob '!omarchy-theme-set-obsidian'; then
+if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qv"; then
   fail "public command help still brands qvOS as Omarchy"
 fi
 

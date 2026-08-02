@@ -24,6 +24,7 @@ mkdir -p "$themes_dir/yaqyn"
 printf 'old yaqyn\n' >"$themes_dir/yaqyn/marker"
 ln -s "$external_theme" "$themes_dir/linked"
 ln -s "$root/themes/tokyo-night" "$themes_dir/tokyo-night"
+ln -s "$test_root/missing-theme" "$themes_dir/broken"
 
 HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/theme/install" >/dev/null
 [[ -L $themes_dir/yaqyn ]] || fail "Yaqyn runtime link"
@@ -32,11 +33,28 @@ HOME="$test_root" OMARCHY_PATH="$root" "$root/qv/theme/install" >/dev/null
   fail "external compatible theme link preservation"
 [[ ! -e $themes_dir/tokyo-night && ! -L $themes_dir/tokyo-night ]] ||
   fail "retired stock theme link cleanup"
+[[ -L $themes_dir/broken ]] || fail "unrelated broken theme link preservation"
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
 
 theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
 [[ $theme_list == $'Linked\nPersonal\nYaqyn' ]] || fail "Yaqyn and custom theme list"
+
+"$root/qv/theme/validate" "$root/qv/theme/yaqyn" >/dev/null ||
+  fail "bundled Yaqyn payload validation"
+unsafe_theme="$themes_dir/unsafe"
+cp -a "$root/qv/theme/yaqyn" "$unsafe_theme"
+printf 'accent = "#112233";e touch /tmp/qvos-theme-injection\n' >"$unsafe_theme/colors.toml"
+if "$root/qv/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
+  fail "unsafe color payload rejection"
+fi
+rm -rf -- "$unsafe_theme"
+cp -a "$root/qv/theme/yaqyn" "$unsafe_theme"
+ln -s /etc/passwd "$unsafe_theme/internal-link"
+if "$root/qv/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
+  fail "internal theme link rejection"
+fi
+rm -rf -- "$unsafe_theme"
 
 printf '#!/bin/bash\nexit 0\n' >"$test_bin/theme-command-stub"
 printf '#!/bin/bash\nexit 1\n' >"$test_bin/pgrep"
@@ -111,5 +129,57 @@ set -e
 ((yaqyn_install_status == 1)) || fail "Yaqyn repository protection status"
 [[ $yaqyn_install_output == "Yaqyn is bundled with qvOS and cannot be replaced by a theme repository." ]] ||
   fail "Yaqyn repository protection message"
+
+theme_source="$test_root/theme-source"
+theme_remote="$test_root/remotes/omarchy-remote-theme.git"
+mkdir -p "$theme_source" "$(dirname -- "$theme_remote")"
+cp -a "$root/qv/theme/yaqyn/." "$theme_source/"
+git -C "$theme_source" init -q -b main
+git -C "$theme_source" add .
+git -C "$theme_source" \
+  -c user.name='qvOS Test' \
+  -c user.email='test@qvos.invalid' \
+  commit -qm 'Theme fixture'
+git clone -q --bare "$theme_source" "$theme_remote"
+
+HOME="$test_root" \
+  OMARCHY_PATH="$root" \
+  OMARCHY_THEME_SKIP_BACKGROUND=1 \
+  PATH="$test_bin:/usr/bin" \
+  GIT_ALLOW_PROTOCOL=file \
+  GIT_CONFIG_COUNT=1 \
+  GIT_CONFIG_KEY_0="url.file://$test_root/remotes/.insteadOf" \
+  GIT_CONFIG_VALUE_0='https://themes.example/' \
+  "$root/bin/omarchy-theme-install" \
+  'https://themes.example/omarchy-remote-theme.git' >/dev/null
+[[ -d $themes_dir/remote/.git ]] || fail "Git-managed custom theme source"
+[[ ! -e $test_root/.config/omarchy/current/theme/.git ]] ||
+  fail "rendered theme excludes Git metadata"
+
+set +e
+local_install_output=$(
+  HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
+    "$root/bin/omarchy-theme-install" "$theme_source" 2>&1
+)
+local_install_status=$?
+set -e
+((local_install_status == 2)) || fail "local repository URL rejection status"
+[[ $local_install_output == "Theme repositories must use HTTPS or Git SSH." ]] ||
+  fail "local repository URL rejection message"
+
+vault="$test_root/vault"
+mkdir -p "$vault/.obsidian/themes/Omarchy" "$test_root/.config/obsidian"
+printf 'preserve\n' >"$vault/.obsidian/themes/Omarchy/marker"
+printf 'body {}\n' >"$test_root/.config/omarchy/current/theme/obsidian.css"
+jq -n --arg vault "$vault" '{vaults: {test: {path: $vault}}}' \
+  >"$test_root/.config/obsidian/obsidian.json"
+HOME="$test_root" OMARCHY_PATH="$root" \
+  "$root/bin/omarchy-theme-set-obsidian"
+grep -Fq '"name": "qvOS"' "$vault/.obsidian/themes/qvOS/manifest.json" ||
+  fail "qvOS Obsidian theme identity"
+[[ -f $vault/.obsidian/themes/qvOS/theme.css ]] ||
+  fail "qvOS Obsidian theme stylesheet"
+[[ -f $vault/.obsidian/themes/Omarchy/marker ]] ||
+  fail "legacy Obsidian theme data preservation"
 
 printf 'ok - bundled Yaqyn and compatible directory, Git, and linked theme lifecycles\n'

@@ -13,6 +13,7 @@ fi
 
 CURRENT_THEME_PATH="$HOME/.config/omarchy/current/theme"
 NEXT_THEME_PATH="$HOME/.config/omarchy/current/next-theme"
+PREVIOUS_THEME_PATH="$HOME/.config/omarchy/current/previous-theme"
 USER_THEMES_PATH="$HOME/.config/omarchy/themes"
 
 THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" --resolve "$USER_THEMES_PATH" "$1")
@@ -22,28 +23,50 @@ if [[ ! -d $THEME_PATH ]]; then
   echo "Theme '$THEME_NAME' does not exist in $USER_THEMES_PATH"
   exit 1
 fi
+"$OMARCHY_PATH/qv/theme/validate" "$THEME_PATH"
 
 # Setup clean next theme directory (for atomic theme config swapping)
-rm -rf "$NEXT_THEME_PATH"
+rm -rf -- "$NEXT_THEME_PATH"
+if [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+  if [[ -e $CURRENT_THEME_PATH || -L $CURRENT_THEME_PATH ]]; then
+    rm -rf -- "$PREVIOUS_THEME_PATH"
+  else
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+fi
 mkdir -p "$NEXT_THEME_PATH"
 
 # Copy the bundled Yaqyn theme or one complete compatible user theme.
 cp -a "$THEME_PATH/." "$NEXT_THEME_PATH/"
+rm -rf -- "$NEXT_THEME_PATH/.git"
 
 # Generate colors.toml from alacritty.toml if theme is missing colors.toml
 if [[ ! -f $NEXT_THEME_PATH/colors.toml && -f $NEXT_THEME_PATH/alacritty.toml ]]; then
   omarchy-theme-colors-from-alacritty "$NEXT_THEME_PATH"
 fi
+[[ -f $NEXT_THEME_PATH/colors.toml ]] || {
+  echo "Theme '$THEME_NAME' could not provide a complete color palette." >&2
+  exit 1
+}
 
 # Generate dynamic configs
 omarchy-theme-set-templates
 
-# Swap next theme in as current
-rm -rf "$CURRENT_THEME_PATH"
-mv "$NEXT_THEME_PATH" "$CURRENT_THEME_PATH"
+# Swap next theme in as current while retaining rollback until the new tree lands.
+if [[ -e $CURRENT_THEME_PATH || -L $CURRENT_THEME_PATH ]]; then
+  mv -- "$CURRENT_THEME_PATH" "$PREVIOUS_THEME_PATH"
+fi
+if ! mv -- "$NEXT_THEME_PATH" "$CURRENT_THEME_PATH"; then
+  if [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+  echo "Could not activate theme '$THEME_NAME'; restored the previous theme." >&2
+  exit 1
+fi
+rm -rf -- "$PREVIOUS_THEME_PATH"
 
 # Store theme name for reference
-echo "$THEME_NAME" >"$HOME/.config/omarchy/current/theme.name"
+printf '%s\n' "$THEME_NAME" >"$HOME/.config/omarchy/current/theme.name"
 
 # Change background with theme
 if [[ ${OMARCHY_THEME_SKIP_BACKGROUND:-0} != "1" ]]; then

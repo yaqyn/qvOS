@@ -8,12 +8,12 @@ set -euo pipefail
 themes_dir="$HOME/.config/omarchy/themes"
 [[ -d $themes_dir ]] || exit 0
 
-find "$themes_dir" \
+find -L "$themes_dir" \
   -mindepth 1 \
   -maxdepth 1 \
-  \( -type d -o -type l \) \
+  -type d \
   ! -name 'yaqyn.bak.*' \
-  -printf '%f\n' |
+  -printf '%f\n' 2>/dev/null |
   sort -u |
   while read -r name; do
     printf '%s\n' "$name" | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'

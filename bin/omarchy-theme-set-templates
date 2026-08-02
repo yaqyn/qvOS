@@ -3,6 +3,8 @@
 # omarchy:summary=Generate themed config files from qvOS templates
 # omarchy:hidden=true
 
+set -euo pipefail
+
 TEMPLATES_DIR="$OMARCHY_PATH/default/themed"
 USER_TEMPLATES_DIR="$HOME/.config/omarchy/themed"
 NEXT_THEME_DIR="$HOME/.config/omarchy/current/next-theme"
@@ -17,20 +19,22 @@ hex_to_rgb() {
 # Only generate dynamic templates for themes with a colors.toml definition
 if [[ -f $COLORS_FILE ]]; then
   sed_script=$(mktemp)
+  output_candidate=""
+  validated_colors=""
 
-  while IFS='=' read -r key value; do
-    key="${key//[\"\' ]/}"                # strip quotes and spaces from key
-    [[ $key && $key != \#* ]] || continue # skip empty lines and comments
-    value="${value#*[\"\']}"
-    value="${value%%[\"\']*}" # extract value between quotes (ignores inline comments)
+  cleanup() {
+    [[ -z $output_candidate ]] || rm -f -- "$output_candidate"
+    rm -f -- "$sed_script"
+  }
+  trap cleanup EXIT
 
+  validated_colors=$("$OMARCHY_PATH/qv/theme/validate" --colors "$COLORS_FILE")
+  while IFS=$'\t' read -r key value; do
     printf 's|{{ %s }}|%s|g\n' "$key" "$value"            # {{ key }} -> value
     printf 's|{{ %s_strip }}|%s|g\n' "$key" "${value#\#}" # {{ key_strip }} -> value without leading #
-    if [[ $value =~ ^# ]]; then
-      rgb=$(hex_to_rgb "$value")
-      echo "s|{{ ${key}_rgb }}|${rgb}|g"
-    fi
-  done <"$COLORS_FILE" >"$sed_script"
+    rgb=$(hex_to_rgb "$value")
+    printf 's|{{ %s_rgb }}|%s|g\n' "$key" "$rgb"
+  done <<<"$validated_colors" >"$sed_script"
 
   shopt -s nullglob
 
@@ -41,9 +45,18 @@ if [[ -f $COLORS_FILE ]]; then
 
     # Don't overwrite configs already exists in the output directory (copied from theme specific folder)
     if [[ ! -f $output_path ]]; then
-      sed -f "$sed_script" "$tpl" >"$output_path"
+      output_candidate=$(mktemp "$NEXT_THEME_DIR/.${filename}.XXXXXX")
+      sed -f "$sed_script" "$tpl" >"$output_candidate"
+      if grep -Eq '\{\{ [a-z][a-z0-9_]*(_strip|_rgb)? \}\}' "$output_candidate"; then
+        echo "Theme template has unresolved color placeholders: $tpl" >&2
+        exit 1
+      fi
+      chmod 0644 "$output_candidate"
+      mv -- "$output_candidate" "$output_path"
+      output_candidate=""
     fi
   done
 
-  rm "$sed_script"
+  trap - EXIT
+  cleanup
 fi
