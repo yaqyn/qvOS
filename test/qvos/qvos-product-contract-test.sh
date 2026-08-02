@@ -426,9 +426,9 @@ grep -Fqx '"$OMARCHY_PATH/qv/menu/install" --install' \
   fail "qvOS first-run menu reconciliation"
 grep -Fq 'output="qvOS ${output#Omarchy }"' \
   "$root/qv/update/update-available" || fail "qvOS update status"
-grep -Fq 'Update qvOS source' "$root/bin/omarchy-update-git" ||
+grep -Fq 'Update qvOS source' "$root/qv/update/update-source" ||
   fail "qvOS source update progress"
-grep -Fq '# omarchy:summary=Safely update qvOS through its upstream update engine' \
+grep -Fq '# omarchy:summary=Safely update qvOS through its native update engine' \
   "$root/bin/omarchy-qvos-update" || fail "qvOS update help"
 grep -Fq 'powers the qvOS Menu' "$root/bin/omarchy-refresh-walker" ||
   fail "qvOS menu help"

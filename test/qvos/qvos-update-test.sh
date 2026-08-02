@@ -37,6 +37,8 @@ install -m 0755 /dev/stdin "$test_bin/git" <<'SCRIPT'
 #!/bin/bash
 if [[ $* == *"branch --show-current"* ]]; then
   printf '%s\n' "${QVOS_TEST_BRANCH:-OS}"
+elif [[ $* == *"status --porcelain=v1 --untracked-files=all"* ]]; then
+  printf '%s' "${QVOS_TEST_SOURCE_STATUS:-}"
 else
   exit 2
 fi
@@ -76,6 +78,7 @@ run_owner() {
     QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
     QVOS_TEST_CONFIRM_STATUS="${QVOS_TEST_CONFIRM_STATUS:-0}" \
     QVOS_TEST_DISPLAY_LOG="$display_log" \
+    QVOS_TEST_SOURCE_STATUS="${QVOS_TEST_SOURCE_STATUS:-}" \
     QVOS_TUI_BINARY="${QVOS_TEST_TUI_BINARY:-}" \
     QVOS_TEST_UPDATE_STATUS="${QVOS_TEST_UPDATE_STATUS:-0}" \
     OMARCHY_PATH="$test_root/live" \
@@ -87,8 +90,8 @@ run_owner() {
 confirmed_output=$(run_owner)
 [[ $(<"$action_log") == $'gum-style\ngum-confirm\nomarchy-update\t-y' ]] ||
   fail "confirmed qvOS update delegation"
-grep -Fq 'upstream update engine' "$display_log" ||
-  fail "qvOS confirmation explains upstream ownership"
+grep -Fq 'qvOS update engine' "$display_log" ||
+  fail "qvOS confirmation explains update ownership"
 grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/commits/OS' "$display_log" ||
   fail "qvOS update history link"
 grep -Fq 'Press Ctrl+C to stop the update if needed' "$display_log" ||
@@ -98,7 +101,7 @@ if grep -Fq 'cannot stop the update' "$display_log"; then
 fi
 grep -Fq 'qvOS update is complete.' <<<"$confirmed_output" ||
   fail "qvOS update completion result"
-pass "qvOS confirms once and delegates once to its upstream update engine"
+pass "qvOS confirms once and delegates once to its update engine"
 
 : >"$action_log"
 run_owner -y >/dev/null
@@ -123,7 +126,7 @@ set -e
   fail "qvOS update cancellation mutation"
 grep -Fq 'qvOS update cancelled.' <<<"$cancel_output" ||
   fail "qvOS update cancellation result"
-pass "qvOS cancellation is explicit and never enters the upstream update engine"
+pass "qvOS cancellation is explicit and never enters the update engine"
 
 : >"$action_log"
 set +e
@@ -138,6 +141,19 @@ grep -Fq "requires the live checkout on branch OS; found 'master'." \
 [[ ! -s $action_log ]] ||
   fail "qvOS update wrong-branch mutation"
 pass "qvOS preflight refuses non-OS branches before confirmation or mutation"
+
+: >"$action_log"
+set +e
+dirty_source_output=$(QVOS_TEST_SOURCE_STATUS=' M local-change' run_owner 2>&1)
+dirty_source_status=$?
+set -e
+((dirty_source_status == 1)) ||
+  fail "qvOS update dirty-source status"
+grep -Fq 'requires a clean live source checkout.' <<<"$dirty_source_output" ||
+  fail "qvOS update dirty-source result"
+[[ ! -s $action_log ]] ||
+  fail "qvOS update dirty-source mutation"
+pass "qvOS preflight refuses source changes before confirmation or mutation"
 
 : >"$action_log"
 set +e
@@ -162,7 +178,7 @@ set -e
 if grep -Fq 'qvOS update is complete.' <<<"$failed_output"; then
   fail "qvOS wrapper claims completion after an upstream failure"
 fi
-pass "qvOS preserves original updater failures without false completion"
+pass "qvOS preserves update-engine failures without false completion"
 
 if grep -Eq \
   'omarchy-update-(git|perform|system-pkgs|aur-pkgs|orphan-pkgs)|omarchy-migrate|omarchy-hook' \
@@ -171,7 +187,7 @@ if grep -Eq \
 fi
 [[ $(grep -c '^omarchy-update -y$' "$owner") == "1" ]] ||
   fail "qvOS wrapper delegation count"
-pass "qvOS owns only preflight and presentation, never upstream update stages"
+pass "qvOS wrapper owns only preflight and presentation, never pipeline stages"
 
 available_output=$(PATH="$test_bin:/usr/bin" "$availability_owner")
 [[ $available_output == "qvOS update available (1.2.3)" ]] ||

@@ -1,0 +1,49 @@
+#!/bin/bash
+set -euo pipefail
+
+official_https="https://github.com/Yaqyn-qvOS/qvOS.git"
+official_ssh="git@github.com:Yaqyn-qvOS/qvOS.git"
+official_ssh_url="ssh://git@github.com/Yaqyn-qvOS/qvOS.git"
+
+[[ -d $OMARCHY_PATH && ! -L $OMARCHY_PATH ]] || {
+  echo "qvOS source checkout is missing or unsafe: $OMARCHY_PATH" >&2
+  exit 1
+}
+branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
+[[ $branch == "OS" ]] || {
+  echo "qvOS source update requires branch OS; found '${branch:-none}'." >&2
+  exit 1
+}
+[[ -z $(git -C "$OMARCHY_PATH" status --porcelain=v1 --untracked-files=all) ]] || {
+  echo "qvOS source has local changes; commit or preserve them before updating." >&2
+  exit 1
+}
+origin_url=$(git -C "$OMARCHY_PATH" config --get remote.origin.url 2>/dev/null || true)
+case $origin_url in
+  "$official_https" | "$official_ssh" | "$official_ssh_url") ;;
+  *)
+    echo "qvOS source update requires the official origin; found '${origin_url:-none}'." >&2
+    exit 1
+    ;;
+esac
+
+reload_hyprland() {
+  hyprctl keyword debug:suppress_errors false &>/dev/null || true
+  hyprctl reload &>/dev/null || true
+}
+trap reload_hyprland EXIT
+
+echo -e "\e[32mUpdate qvOS source\e[0m"
+omarchy-update-time
+hyprctl keyword debug:suppress_errors true &>/dev/null || true
+
+timeout --foreground 180 \
+  git -C "$OMARCHY_PATH" \
+  -c http.lowSpeedLimit=1024 \
+  -c http.lowSpeedTime=30 \
+  pull --ff-only --no-rebase origin OS
+git -C "$OMARCHY_PATH" diff --check
+[[ -z $(git -C "$OMARCHY_PATH" status --porcelain=v1 --untracked-files=all) ]] || {
+  echo "qvOS source became dirty after updating; stopping before package changes." >&2
+  exit 1
+}

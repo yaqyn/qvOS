@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qv/update/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ -x $root/qv/update/update-source ]] || fail "native source updater mode"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
+) ]] || fail "native update paths are not sorted and unique"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/update/update-source" "$@"' \
+  "$root/bin/omarchy-update-git" || fail "source update adapter"
+if rg -n -- '--autostash|reset --merge|pull( |.* )origin master' \
+  "$root/bin/omarchy-update-git" "$root/qv/update/update-source"; then
+  fail "unsafe or inherited source-update behavior remains"
+fi
+grep -Fq 'pull --ff-only --no-rebase origin OS' \
+  "$root/qv/update/update-source" || fail "OS fast-forward-only source update"
+grep -Fq 'status --porcelain=v1 --untracked-files=all' \
+  "$root/qv/update/qvos-update" || fail "live source cleanliness preflight"
+
+printf 'ok - qvOS source updates are clean, official, and fast-forward only\n'

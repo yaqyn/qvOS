@@ -3,7 +3,7 @@
 # omarchy:summary=Reset all qvOS user configs to the defaults
 # omarchy:requires-sudo=true
 
-set -e
+set -euo pipefail
 
 # Overwrite all user configs with the qvOS defaults.
 
@@ -13,12 +13,14 @@ if (( EUID == 0 )); then
 fi
 
 echo "Resetting all qvOS configs"
-cp -R ~/.local/share/omarchy/config/* ~/.config/
-cp ~/.local/share/omarchy/default/bashrc ~/.bashrc
-echo '[[ -f ~/.bashrc ]] && . ~/.bashrc' | tee ~/.bash_profile >/dev/null
+mkdir -p "$HOME/.config"
+cp -a "$OMARCHY_PATH/config/." "$HOME/.config/"
+cp "$OMARCHY_PATH/default/bashrc" "$HOME/.bashrc"
+printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
 
-$(bash $OMARCHY_PATH/install/config/theme.sh)
+bash "$OMARCHY_PATH/install/config/theme.sh"
 
+omarchy-refresh-hyprland
 omarchy-refresh-limine
 omarchy-refresh-plymouth
 omarchy-nvim-setup

@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qv/install/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ -x $root/qv/install/reinstall-source ]] || fail "source reinstall owner mode"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
+) ]] || fail "native install paths are not sorted and unique"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/install/reinstall-source" "$@"' \
+  "$root/bin/omarchy-reinstall-git" || fail "source reinstall adapter"
+if rg -n 'basecamp/omarchy|branch master|rm -rf .*local/share/omarchy' \
+  "$root/bin/omarchy-reinstall-git" "$root/qv/install/reinstall-source" "$root/boot.sh"; then
+  fail "destructive or inherited qvOS source installation remains"
+fi
+grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS.git' \
+  "$root/qv/install/reinstall-source" || fail "official reinstall source"
+grep -Fq 'qv/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
+  fail "native package resolver"
+grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
+  fail "config reset reconciliation"
+
+printf 'ok - qvOS install and reinstall lifecycles preserve source safely\n'

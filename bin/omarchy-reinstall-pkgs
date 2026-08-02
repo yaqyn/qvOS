@@ -3,17 +3,19 @@
 # omarchy:summary=Reinstall all default qvOS packages from the stable channel
 # omarchy:requires-sudo=true
 
-set -e
+set -euo pipefail
 
 # Reinstall all default qvOS packages from the stable channel and downgrade any packages that are too new.
 
-# Set the package repository to the stable mirrors
-omarchy-refresh-pacman
-
-# Downgrade any packages to the stable setup
-sudo pacman -Suu --noconfirm
-
-# Ensure all packages are installed
 resolved_packages=$("$OMARCHY_PATH/qv/install/packaging/resolve" base)
 mapfile -t packages <<<"$resolved_packages"
+((${#packages[@]} > 0)) || {
+  echo "qvOS base package manifest resolved to an empty set." >&2
+  exit 1
+}
+
+# Validate the complete native manifest before changing mirrors or packages.
+omarchy-refresh-pacman
+sudo pacman -Suu --noconfirm
+
 sudo pacman -Syu --noconfirm --needed "${packages[@]}"

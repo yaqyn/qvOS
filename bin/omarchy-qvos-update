@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Safely update qvOS through its upstream update engine
+# omarchy:summary=Safely update qvOS through its native update engine
 # omarchy:args=[-y|--check]
 # omarchy:group=qvos
 # omarchy:name=update

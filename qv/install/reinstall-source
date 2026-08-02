@@ -1,0 +1,71 @@
+#!/bin/bash
+set -euo pipefail
+
+official_repo="https://github.com/Yaqyn-qvOS/qvOS.git"
+target="$HOME/.local/share/omarchy"
+target_parent=${target%/*}
+staging_root=""
+
+cleanup() {
+  [[ -z $staging_root ]] || rm -rf -- "$staging_root"
+}
+trap cleanup EXIT
+
+if ((EUID == 0)); then
+  echo "qvOS source reinstall must run as the desktop user, not root." >&2
+  exit 1
+fi
+if [[ ${OMARCHY_PATH:-$target} != "$target" ]]; then
+  echo "qvOS source reinstall only operates on $target." >&2
+  exit 1
+fi
+if [[ ! -d $target || -L $target ]]; then
+  echo "qvOS source checkout is missing or unsafe: $target" >&2
+  exit 1
+fi
+if [[ $(git -C "$target" branch --show-current 2>/dev/null || true) != "OS" ]]; then
+  echo "qvOS source reinstall requires the current checkout on branch OS." >&2
+  exit 1
+fi
+
+current_head=$(git -C "$target" rev-parse --verify HEAD 2>/dev/null) || {
+  echo "qvOS source checkout has no valid commit." >&2
+  exit 1
+}
+
+staging_root=$(mktemp -d "$target_parent/.qvos-source-stage.XXXXXX")
+staged_source="$staging_root/source"
+if ! git clone --quiet --depth=1 --single-branch --branch OS -- \
+  "$official_repo" "$staged_source"; then
+  echo "Could not clone the official qvOS OS branch; the current source was not changed." >&2
+  exit 1
+fi
+
+staged_head=$(git -C "$staged_source" rev-parse --verify HEAD)
+if [[ $staged_head != "$current_head" ]]; then
+  echo "The official OS branch does not match the installed qvOS commit." >&2
+  echo "Run the normal qvOS update first; the current source was not changed." >&2
+  exit 1
+fi
+git -C "$staged_source" diff --quiet
+git -C "$staged_source" diff --cached --quiet
+[[ -z $(git -C "$staged_source" status --porcelain=v1 --untracked-files=all) ]] || {
+  echo "The replacement qvOS checkout is unexpectedly dirty." >&2
+  exit 1
+}
+git -C "$staged_source" fsck --strict --no-progress >/dev/null
+
+backup_root=$(mktemp -d "$target_parent/.qvos-source-backup.XXXXXX")
+backup_path="$backup_root/omarchy"
+if ! mv -- "$target" "$backup_path"; then
+  echo "Could not preserve the current qvOS source; nothing was replaced." >&2
+  exit 1
+fi
+if ! mv -- "$staged_source" "$target"; then
+  mv -- "$backup_path" "$target"
+  echo "Could not install the replacement qvOS source; restored the original checkout." >&2
+  exit 1
+fi
+
+printf 'Reinstalled qvOS source at %s.\n' "$current_head"
+printf 'Previous source preserved at %s.\n' "$backup_path"

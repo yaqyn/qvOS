@@ -1,7 +1,20 @@
-# qvOS Package Workflow
+# qvOS Installation And Package Workflow
 
 Read this file completely when changing base packages, conditional hardware
-packages, package installation, repair, ISO caching, or live package removal.
+packages, package installation, source reinstall, config reset, online install,
+repair, ISO caching, or live package removal.
+
+Fresh install and source reinstall must never delete an existing checkout.
+Validate repository and ref inputs before privileged work, clone the official
+`OS` branch into same-filesystem staging, verify it, and move it into place.
+Source reinstall may replace only the same installed commit, must preserve the
+complete previous checkout in a uniquely named backup, and must roll back if
+the final move fails. It never returns qvOS to upstream Omarchy.
+
+Resolve and validate the complete native package manifest before changing
+mirrors or invoking Pacman. A config reset copies from `$OMARCHY_PATH`, runs
+the native theme configuration directly, and finishes through the shared
+Hyprland reconciliation owner.
 
 `qv/install/packaging/base.packages` is the singular installed base manifest.
 `qv/install/packaging/other.packages` is the singular ISO inventory for
@@ -21,7 +34,8 @@ them; never restore an inherited manifest plus additions/exclusions model.
   outside the base manifest. Use `omarchy-pkg-drop` only after approval and
   verify the computed Pacman transaction before mutation.
 
-Run the resolver for `base`, `other`, and `all`; package, product, security,
-and upstream-boundary tests; Bash syntax and ShellCheck; and the full qvOS
-suite. Package-manifest changes also require ISO prepare-only verification.
-Do not run package upgrades during source or live parity work.
+Run `qv/install/check`; the resolver for `base`, `other`, and `all`; package,
+source-lifecycle, product, security, and upstream-boundary tests; Bash syntax
+and ShellCheck; and the full qvOS suite. Package-manifest changes also require
+ISO prepare-only verification. Do not run package upgrades during source or
+live parity work.

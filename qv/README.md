@@ -55,10 +55,11 @@ Steam remains optional and uses Omarchy's standard gaming installer and
 remover. qvCORE adds optional integrated stacks without changing qvOS
 identity or base readiness.
 
-- `omarchy qvos update` confirms the operation and verifies branch `OS`, then
-  delegates once to the original `omarchy update` implementation. Omarchy owns
-  snapshots, source and package updates, migrations, orphan cleanup, log
-  analysis, and restarts. After Pacman/AUR, one direct-tool hook updates only
+- `omarchy qvos update` confirms the operation and verifies a clean branch
+  `OS`, then delegates once to the qvOS update pipeline. qvOS owns a bounded,
+  official-origin, fast-forward-only source update; the preserved pipeline owns
+  snapshots, package updates, migrations, orphan cleanup, log analysis, and
+  restarts. After Pacman/AUR, one direct-tool hook updates only
   already-installed manifest entries belonging to qvDEV and Proton. It never
   restores missing tools, installs stacks, authenticates
   accounts, changes integrations, or changes networking.

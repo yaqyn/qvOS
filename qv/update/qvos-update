@@ -24,14 +24,23 @@ esac
 
 preflight() {
   local branch
+  local source_status
 
   branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
   if [[ $branch != "OS" ]]; then
     echo "qvOS update requires the live checkout on branch OS; found '${branch:-none}'." >&2
     return 1
   fi
+  source_status=$(git -C "$OMARCHY_PATH" status --porcelain=v1 --untracked-files=all 2>/dev/null) || {
+    echo "qvOS update cannot inspect the live source checkout." >&2
+    return 1
+  }
+  if [[ -n $source_status ]]; then
+    echo "qvOS update requires a clean live source checkout." >&2
+    return 1
+  fi
   if ! command -v omarchy-update >/dev/null 2>&1; then
-    echo "qvOS update cannot find its upstream update engine." >&2
+    echo "qvOS update cannot find its update engine." >&2
     return 1
   fi
 }
@@ -56,7 +65,7 @@ if [[ $mode == "interactive" ]]; then
   gum style --border normal --padding "1 2" \
     "Ready to update qvOS?" \
     "" \
-    "• The upstream update engine will update qvOS and system packages" \
+    "• The qvOS update engine will update qvOS and system packages" \
     "• Press Ctrl+C to stop the update if needed" \
     "• Make sure you're connected to power or have a full battery" \
     "" \
