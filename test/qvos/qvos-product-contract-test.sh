@@ -512,6 +512,12 @@ grep -Fq -- '-buildvcs=false' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO reproducible TUI build"
 grep -Fq 'for attempt in 1 2 3' "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO bounded package download retries"
+grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO HTTP/1.1 package transport"
+grep -Fq -- '--retry 5 --retry-all-errors' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO bounded curl retries"
 grep -Fq '/omarchy/qv/install/packaging/resolve' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO package resolution"

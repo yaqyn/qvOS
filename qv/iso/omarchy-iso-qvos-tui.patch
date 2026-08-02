@@ -46,7 +46,7 @@
  # Make log uploader available in the ISO too
  mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
  cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
-@@ -50,42 +79,111 @@ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache
+@@ -50,42 +79,117 @@ cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache
 -# Copy the Omarchy Plymouth theme to the ISO
 +# Copy the qvOS Plymouth theme to the ISO
  mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
@@ -128,9 +128,15 @@
 +rm -rf "$offline_mirror_dir"
 +mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
 +
++online_pacman_config=$(mktemp /tmp/pacman-online.XXXXXX)
++cp "/configs/pacman-online-${OMARCHY_MIRROR}.conf" "$online_pacman_config"
++sed -i \
++  '/^\[options\]/a XferCommand = /usr/bin/curl --http1.1 --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output %o --url %u' \
++  "$online_pacman_config"
++
 +echo "qvOS ISO progress: resolving package set"
 +download_offline_packages() {
-+  pacman --config "/configs/pacman-online-${OMARCHY_MIRROR}.conf" --noconfirm -Syw \
++  pacman --config "$online_pacman_config" --noconfirm -Syw \
 +    "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir" --needed
 +}
 +
@@ -150,7 +156,7 @@
 +fi
 +
 +mapfile -t offline_package_urls < <(
-+  pacman --config "/configs/pacman-online-${OMARCHY_MIRROR}.conf" --noconfirm -Sp \
++  pacman --config "$online_pacman_config" --noconfirm -Sp \
 +    "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir"
 +)
 +for package_url in "${offline_package_urls[@]}"; do
@@ -176,7 +182,7 @@
  
  # Create a symlink to the offline mirror instead of duplicating it.
  # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,
-@@ -98,6 +196,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
+@@ -98,6 +202,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
  cp $build_cache_dir/pacman-offline.conf "$build_cache_dir/airootfs/etc/pacman.conf"
  
  # Finally, we assemble the entire ISO

@@ -21,6 +21,9 @@ embedded source, installer integration, or release-image verification.
 - During pre-public development, run full image builds and embedded audits on
   request or for release candidates. For ISO changes, run fast staging and
   contract checks immediately and report any deferred full build.
+- Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
+  release candidate starts with an empty package cache; retries inside that one
+  build may preserve packages already verified during the same run.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   require that commit to equal `origin/OS`, and leave the embedded checkout on
   `OS` tracking `origin/OS` so the installed update guard remains usable. Build
