@@ -216,7 +216,7 @@ Read every matching route completely before editing:
 - qvOS architecture and lifecycle boundaries: `qv/README.md`
 - qvOS identity and theme lifecycle: `qv/branding/AGENTS.md`, `qv/theme/AGENTS.md`
 - qvOS boot presentation and Limine lifecycle: `qv/boot/AGENTS.md`
-- qvCORE catalog and component lifecycle: `qv/core/AGENTS.md`
+- qvCORE and package ownership: `qv/core/AGENTS.md`, `qv/install/AGENTS.md`
 - Menu, search, Walker, and Elephant: `qv/menu/AGENTS.md`
 - qvOS terminal interface and action flows: `qv/tui/AGENTS.md`
 - ISO construction and release images: `qv/iso/AGENTS.md`

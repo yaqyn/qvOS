@@ -5,7 +5,7 @@
 
 set -e
 
-# Reinstall all default Omarchy packages from the stable channel and downgrade any packages that are too new.
+# Reinstall all default qvOS packages from the stable channel and downgrade any packages that are too new.
 
 # Set the package repository to the stable mirrors
 omarchy-refresh-pacman
@@ -14,5 +14,6 @@ omarchy-refresh-pacman
 sudo pacman -Suu --noconfirm
 
 # Ensure all packages are installed
-mapfile -t packages < <(grep -v '^#' "$OMARCHY_PATH/install/omarchy-base.packages" | grep -v '^$')
+resolved_packages=$("$OMARCHY_PATH/qv/install/packaging/resolve" base)
+mapfile -t packages <<<"$resolved_packages"
 sudo pacman -Syu --noconfirm --needed "${packages[@]}"

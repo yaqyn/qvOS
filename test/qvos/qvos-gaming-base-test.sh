@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-additions="$root/qv/install/packaging/base.additions"
+manifest_source="$root/qv/install/packaging/base.packages"
 manifest=$("$root/qv/install/packaging/resolve" base)
 all_packages=$("$root/qv/install/packaging/resolve" all)
 
@@ -32,12 +32,14 @@ while IFS= read -r package; do
 done <<<"$expected_packages"
 pass "qvOS base owns the complete reviewed gaming runtime"
 
-actual_additions=$(
+actual_gaming_packages=$(
   sed -n \
     '/^# qvos:gaming-base:start$/,/^# qvos:gaming-base:end$/p' \
-    "$additions" |
+    "$manifest_source" |
     sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d'
 )
+[[ $actual_gaming_packages == "$expected_packages" ]] ||
+  fail "reviewed gaming section differs from its expected package set"
 
 duplicate_packages=$(
   printf '%s\n' "$manifest" |
@@ -57,10 +59,10 @@ all_duplicates=$(
   fail "resolved package inventory contains duplicates: $all_duplicates"
 pass "promoted gaming packages have one packaging owner"
 
-grep -Fq 'Reviewed at Linutil commit ' "$additions" ||
+grep -Fq 'Reviewed from Linutil ' "$manifest_source" ||
   fail "gaming package review provenance"
 if grep -Eq '^(steam|lib32-jack2|lib32-gst-plugins-base-libs|lib32-vulkan-(intel|radeon)|lib32-nvidia)' \
-  <<<"$actual_additions"; then
+  <<<"$actual_gaming_packages"; then
   fail "gaming base crosses the Steam or hardware-specific ownership boundary"
 fi
-pass "Steam and hardware-specific GPU drivers remain with Omarchy"
+pass "Steam and hardware-specific GPU drivers remain optional"

@@ -47,7 +47,6 @@ inherited_seams=(
   install/login/limine-snapper.sh
   install/login/plymouth.sh
   install/login/sddm.sh
-  install/packaging/base.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
   install/post-install/all.sh
@@ -235,7 +234,6 @@ fallback_seams=(
   bin/omarchy-refresh-plymouth
   bin/omarchy-refresh-sddm
   bin/omarchy-windows-vm
-  install/packaging/base.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
 )
@@ -274,7 +272,6 @@ grep -Fq '"qvOS installation stopped!"' "$root/install/helpers/errors.sh" ||
 pass "installer error fallback exposes qvOS identity"
 
 packaging_seams=(
-  install/packaging/base.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
 )
@@ -332,7 +329,7 @@ for adapter_mode in execute source; do
     fail "base qvOS adapter falls through in $adapter_mode mode"
   fi
 done
-pass "packaging adapters delegate without sourced or executable fallthrough"
+pass "package entrypoints use their native owner without fallback fallthrough"
 
 [[ ! -e $root/install/config/qvos-scripts.sh ]] ||
   fail "qvOS desktop implementation remains under inherited install config"

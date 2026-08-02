@@ -36,41 +36,18 @@ read_manifest() {
   done <"$path"
 }
 
-resolve_layer() {
-  local inherited_path=$1
-  local additions_path=$2
-  local exclusions_path=$3
+emit_manifest() {
+  local manifest_path=$1
   local package
-  local -a inherited=()
-  local -a additions=()
-  local -a exclusions=()
-  local -A inherited_set=()
-  local -A excluded=()
+  local -a packages=()
 
-  read_manifest "$inherited_path" inherited
-  read_manifest "$additions_path" additions
-  read_manifest "$exclusions_path" exclusions
+  read_manifest "$manifest_path" packages
 
-  for package in "${inherited[@]}"; do
-    inherited_set[$package]=1
-  done
-  for package in "${exclusions[@]}"; do
-    [[ -n ${inherited_set[$package]:-} ]] || {
-      echo "Stale package exclusion is not inherited: $package" >&2
+  for package in "${packages[@]}"; do
+    [[ -z ${emitted[$package]:-} ]] || {
+      echo "Package is owned by multiple qvOS manifests: $package" >&2
       return 1
     }
-    excluded[$package]=1
-  done
-  for package in "${additions[@]}"; do
-    [[ -z ${inherited_set[$package]:-} ]] || {
-      echo "Stale package addition is now inherited: $package" >&2
-      return 1
-    }
-  done
-
-  for package in "${inherited[@]}" "${additions[@]}"; do
-    [[ -z ${excluded[$package]:-} ]] || continue
-    [[ -z ${emitted[$package]:-} ]] || continue
     printf '%s\n' "$package"
     emitted[$package]=1
   done
@@ -78,26 +55,14 @@ resolve_layer() {
 
 case ${1:-} in
   base)
-    resolve_layer \
-      "$root/install/omarchy-base.packages" \
-      "$root/qv/install/packaging/base.additions" \
-      "$root/qv/install/packaging/base.exclusions"
+    emit_manifest "$root/qv/install/packaging/base.packages"
     ;;
   other)
-    resolve_layer \
-      "$root/install/omarchy-other.packages" \
-      "$root/qv/install/packaging/other.additions" \
-      "$root/qv/install/packaging/other.exclusions"
+    emit_manifest "$root/qv/install/packaging/other.packages"
     ;;
   all)
-    resolve_layer \
-      "$root/install/omarchy-base.packages" \
-      "$root/qv/install/packaging/base.additions" \
-      "$root/qv/install/packaging/base.exclusions"
-    resolve_layer \
-      "$root/install/omarchy-other.packages" \
-      "$root/qv/install/packaging/other.additions" \
-      "$root/qv/install/packaging/other.exclusions"
+    emit_manifest "$root/qv/install/packaging/base.packages"
+    emit_manifest "$root/qv/install/packaging/other.packages"
     ;;
   *)
     usage

@@ -26,11 +26,10 @@ replace its judgment.
    test in the same change whenever its replacement is complete.
 5. Before recording a reviewed target, refresh the effective reviewed gaming
    set in `test/qvos/qvos-gaming-base-test.sh` against Linutil's current Arch
-   list in `core/tabs/system-setup/gaming-setup.sh`. Keep only packages not
-   already inherited from Omarchy between `qvos:gaming-base:start` and
-   `qvos:gaming-base:end` in `qv/install/packaging/base.additions`. Use current
-   package names, keep the matching 32-bit PipeWire JACK package, and leave
-   hardware-specific GPU drivers to Omarchy's Steam installer.
+   list in `core/tabs/system-setup/gaming-setup.sh`. Update the Gaming-ready
+   runtime section of `qv/install/packaging/base.packages` deliberately. Use
+   current package names, keep the matching 32-bit PipeWire JACK package, and
+   leave hardware-specific GPU drivers to the optional Steam installer.
 6. When upstream changes optional software, its menu leaves, or lifecycle
    owners, read `qv/menu/AGENTS.md` and complete its software reconciliation
    ledger before approving the reviewed upstream SHA.

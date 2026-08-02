@@ -1,19 +1,16 @@
-# Packages installed outside of install/packages.sh or optional packages
-# Utilized by ISO builder to ensure package availability in the ISO
+# Packages cached for conditional hardware and installer paths.
+# They are not all installed on every qvOS system.
 
 autoconf-archive
 asusctl
 base
-base-devel
 broadcom-wl
 btrfs-progs
 dkms
 egl-wayland
-git
 gst-plugin-pipewire
 gtk4-layer-shell
 jdk-openjdk
-libpulse
 intel-ipu7-camera
 intel-lpmd
 intel-media-driver
@@ -48,29 +45,17 @@ yay-debug
 tuxedo-drivers-nocompatcheck-dkms
 yt6801-dkms
 zram-generator
-
-# Intel encoding processing
 libvpl
 vpl-gpu-rt
-
-# Vulkan drivers (auto-detected by hardware)
 vulkan-intel
 vulkan-radeon
 vulkan-asahi
-
-# Surface laptop support packages
 linux-firmware-marvell
-
-# Dell laptop support packages
 dell-xps-touchpad-haptics
-
-# T2 MacBook support packages
 apple-bcm-firmware
 apple-t2-audio-config
 linux-t2
 linux-t2-headers
 t2fanrd
 tiny-dfr
-
-# Framework 16
 qmk-hid

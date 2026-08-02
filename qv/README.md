@@ -48,8 +48,9 @@ qvOS has one supported base: a solid, gaming-ready Arch system curated by
 qvOS with reviewed capability from Omarchy. The base currently keeps Omarchy's
 on-demand OpenAI Codex wrapper plus software
 with an independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
-The package resolver layers validated qvOS additions and exclusions over
-Omarchy's original manifests; qvOS does not copy or replace those manifests.
+The package resolver validates singular qvOS base and conditional-hardware
+manifests; upstream package changes are capability-review input, never an
+automatic change to the qvOS package set.
 Steam remains optional and uses Omarchy's standard gaming installer and
 remover. qvCORE adds optional integrated stacks without changing qvOS
 identity or base readiness.

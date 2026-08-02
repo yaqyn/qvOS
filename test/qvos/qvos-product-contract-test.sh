@@ -31,14 +31,24 @@ if rg -q '/home/qv(/|$)' "$root/qv/iso" "$root/qv/tui"; then
 fi
 pass "ISO-owned source excludes development-machine home paths"
 
-[[ ! -e $root/qv/install/packaging/base.packages &&
-  ! -e $root/qv/install/packaging/other.packages ]] ||
-  fail "copied Omarchy package manifest remains"
+[[ -f $root/qv/install/packaging/base.packages &&
+  -f $root/qv/install/packaging/other.packages ]] ||
+  fail "native qvOS package manifest is missing"
+for retired_package_layer in \
+  install/omarchy-base.packages \
+  install/omarchy-other.packages \
+  qv/install/packaging/base.additions \
+  qv/install/packaging/base.exclusions \
+  qv/install/packaging/other.additions \
+  qv/install/packaging/other.exclusions; do
+  [[ ! -e $root/$retired_package_layer ]] ||
+    fail "retired package layer remains: $retired_package_layer"
+done
 [[ -x $root/qv/install/packaging/resolve ]] ||
   fail "qvOS package resolver mode"
 grep -qx 'localsend' "$base_packages" ||
-  fail "inherited LocalSend package resolution"
-pass "qvOS resolves small deltas over the original Omarchy manifests"
+  fail "qvOS LocalSend package resolution"
+pass "qvOS resolves singular native package manifests"
 
 grep -qx 'chromium' "$base_packages" || fail "Chromium package contract"
 grep -qx 'alacritty' "$base_packages" || fail "Alacritty package contract"
@@ -129,9 +139,9 @@ fi
 pass "Chromium, Alacritty, and Neovim are the qvOS defaults"
 
 for retired_file_manager_package in nautilus nautilus-python sushi; do
-  grep -Fqx "$retired_file_manager_package" \
-    "$root/qv/install/packaging/base.exclusions" ||
-    fail "$retired_file_manager_package disabled base package"
+  if grep -Fqx "$retired_file_manager_package" "$base_packages"; then
+    fail "$retired_file_manager_package remains in the qvOS base"
+  fi
 done
 grep -Fq 'omarchy-cmd-missing nautilus && return 0' \
   "$root/qv/install/config/nautilus-python" ||
@@ -197,8 +207,8 @@ for retired_qvcore_source in \
     fail "retired qvCORE source remains: $retired_qvcore_source"
 done
 [[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
-grep -Fqx 'localsend' "$root/install/omarchy-base.packages" ||
-  fail "Omarchy base LocalSend package"
+grep -Fqx 'localsend' "$base_packages" ||
+  fail "qvOS base LocalSend package"
 grep -Fqx 'sudo ufw allow 53317/udp' "$root/install/first-run/firewall.sh" ||
   fail "Omarchy LocalSend UDP firewall ownership"
 grep -Fqx 'sudo ufw allow 53317/tcp' "$root/install/first-run/firewall.sh" ||
@@ -213,7 +223,7 @@ if rg -q -i 'qvcore share|qv/core/share' \
   "$root/qv/share"; then
   fail "retired qvCORE Share ownership reference"
 fi
-pass "LocalSend and its network policy remain Omarchy-owned"
+pass "LocalSend and its network policy remain base-owned"
 if grep -Eq '^(warp|media)\|' "$root/qv/menu/concepts.psv"; then
   fail "retired WARP or Media qvCORE concept remains"
 fi
@@ -255,11 +265,8 @@ if rg -q 'qv/codex|qvos/codex|qv codex doctor' \
 fi
 pass "qvCORE stays two-stack while Codex remains Omarchy-owned"
 
-grep -Fqx 'qmk-hid' "$root/install/omarchy-other.packages" ||
-  fail "upstream Framework 16 offline package ownership"
-if grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.additions"; then
-  fail "stale qvOS Framework 16 package addition"
-fi
+grep -Fqx 'qmk-hid' "$root/qv/install/packaging/other.packages" ||
+  fail "qvOS Framework 16 offline package ownership"
 grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
 pass "conditional hardware packages remain available offline"
 

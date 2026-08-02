@@ -1,0 +1,3 @@
+# Inherited package manifests intentionally absent from qvOS.
+install/omarchy-base.packages
+install/omarchy-other.packages

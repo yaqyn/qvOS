@@ -82,8 +82,9 @@ assert_binding 'bindd = SUPER CTRL ALT, E, Standard Notes, exec, omarchy-launch-
 assert_binding 'bindd = SUPER SHIFT ALT, E, Google Workspace, exec, omarchy-launch-webapp "https://workspace.google.com/dashboard"' "Google Workspace binding"
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, E, Google Docs, exec, omarchy-launch-webapp "https://docs.google.com/"' "Google Docs binding"
 grep -qx 'obsidian' <<<"$packages" || fail "Obsidian binding requires the default notes package"
-grep -qx 'libreoffice-fresh' "$root/qv/install/packaging/base.exclusions" ||
-  fail "LibreOffice must stay disabled in the default package manifest"
+if grep -qx 'libreoffice-fresh' <<<"$packages"; then
+  fail "LibreOffice must stay outside the qvOS base manifest"
+fi
 pass "the E Alt family owns notes and office tools"
 
 assert_binding 'bindd = SUPER, grave, Gaming workspace, workspace, name:G' "gaming workspace binding"
@@ -103,8 +104,7 @@ if grep -Eq 'Proton Wallet|Codex Docs|Signal|signal-desktop|LibreOffice|uwsm-app
   fail "retired app action"
 fi
 
-grep -qx 'signal-desktop' "$root/qv/install/packaging/base.exclusions" ||
-  fail "Signal must stay disabled in the default package manifest"
-grep -qx 'spotify' "$root/qv/install/packaging/base.exclusions" ||
-  fail "Spotify must stay disabled in the default package manifest"
+if grep -Eq '^(signal-desktop|spotify)$' <<<"$packages"; then
+  fail "retired personal apps remain in the qvOS base manifest"
+fi
 pass "retired app and control routes stay absent or disabled"
