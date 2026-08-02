@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Run the full Omarchy update pipeline
+# omarchy:summary=Run the full qvOS update pipeline
 # omarchy:requires-sudo=true
 
 set -e

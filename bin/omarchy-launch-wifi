@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the Omarchy wifi controls (provided by the Impala TUI).
+# omarchy:summary=Launch the qvOS wifi controls (provided by the Impala TUI).
 
 rfkill unblock wifi
 omarchy-launch-or-focus-tui impala

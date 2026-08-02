@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Toggle Omarchy features between enabled and disabled
+# omarchy:summary=Toggle qvOS features between enabled and disabled
 # omarchy:args=[--enabled-notification <text>] [--disabled-notification <text>] <flag-name>
 
 ENABLED_NOTIFICATION=""

@@ -37,7 +37,7 @@ cleanup() {
 trap cleanup EXIT
 
 output=$("$CLI" --help)
-assert_output_contains "main help renders" "$output" "Omarchy command center"
+assert_output_contains "main help renders" "$output" "qvOS command center"
 assert_output_contains "main help includes hardware group" "$output" "hw"
 assert_output_contains "main help includes package group" "$output" "pkg"
 if grep -Eq '^  [a-z0-9-]+[[:space:]].*\([0-9]+\)$' <<<"$output"; then
@@ -174,7 +174,7 @@ output=$("$CLI" system reboot --help)
 assert_output_contains "system command help is safe" "$output" "omarchy-system-reboot"
 
 output=$("$CLI" dev benchmark --repeat=1)
-assert_output_contains "benchmark command runs" "$output" "Omarchy CLI benchmark"
+assert_output_contains "benchmark command runs" "$output" "qvOS CLI benchmark"
 
 "$CLI" theme list >/dev/null
 pass "safe dispatch works for theme list"

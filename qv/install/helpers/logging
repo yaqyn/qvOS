@@ -34,7 +34,7 @@ start_install_log() {
   OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
   export OMARCHY_START_TIME
 
-  echo "=== Omarchy Installation Started: $OMARCHY_START_TIME ===" \
+  echo "=== qvOS Installation Started: $OMARCHY_START_TIME ===" \
     >>"$OMARCHY_INSTALL_LOG_FILE"
   qvos_tui=$(command -v qvos-tui 2>/dev/null || true)
   if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then

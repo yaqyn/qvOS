@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Restore the default Omarchy Plymouth boot theme and SDDM login screen
+# omarchy:summary=Restore the default qvOS Plymouth boot theme and SDDM login screen
 # omarchy:requires-sudo=true
 
 qvos_owner="$OMARCHY_PATH/qv/boot/plymouth-reset"

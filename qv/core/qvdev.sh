@@ -183,7 +183,7 @@ remove_stack() {
   mapfile -t direct_tools < <("$direct_tool" list-scope qvdev)
 
   echo "qvDEV packages, direct tools and Codex workbench integration will be removed."
-  echo "Omarchy Codex, projects, credentials and personal files will be preserved."
+  echo "qvOS Codex, projects, credentials and personal files will be preserved."
   if ((assume_yes == 0)); then
     gum confirm "Remove the enrolled qvCORE qvDEV stack?" || {
       echo "qvDEV removal canceled; nothing was changed."
@@ -212,7 +212,7 @@ remove_stack() {
     fi
   done
   rm -f "$state_file"
-  echo "Removed qvCORE qvDEV; Omarchy Codex, projects, credentials and personal files were preserved."
+  echo "Removed qvCORE qvDEV; qvOS Codex, projects, credentials and personal files were preserved."
 }
 
 if (($# < 1 || $# > 2)); then

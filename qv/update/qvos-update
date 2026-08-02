@@ -31,7 +31,7 @@ preflight() {
     return 1
   fi
   if ! command -v omarchy-update >/dev/null 2>&1; then
-    echo "qvOS update cannot find the original Omarchy updater." >&2
+    echo "qvOS update cannot find its upstream update engine." >&2
     return 1
   fi
 }
@@ -56,7 +56,7 @@ if [[ $mode == "interactive" ]]; then
   gum style --border normal --padding "1 2" \
     "Ready to update qvOS?" \
     "" \
-    "• The original Omarchy updater will update qvOS and system packages" \
+    "• The upstream update engine will update qvOS and system packages" \
     "• Press Ctrl+C to stop the update if needed" \
     "• Make sure you're connected to power or have a full battery" \
     "" \

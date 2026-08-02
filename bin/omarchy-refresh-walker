@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Overwrite the user configs for the Walker application launcher (which also powers the Omarchy Menu) and restart the services.
+# omarchy:summary=Overwrite the user configs for the Walker application launcher (which also powers the qvOS Menu) and restart the services.
 
 mkdir -p ~/.config/autostart/
 cp $OMARCHY_PATH/default/walker/walker.desktop ~/.config/autostart/

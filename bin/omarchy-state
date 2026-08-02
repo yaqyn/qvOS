@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Manage persistent state files for Omarchy toggles and settings.
+# omarchy:summary=Manage persistent state files for qvOS toggles and settings.
 # omarchy:args=<set|clear> <state-name-or-pattern>
 # omarchy:hidden=true
 

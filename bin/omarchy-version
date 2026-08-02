@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Print the installed Omarchy version
+# omarchy:summary=Print the installed qvOS version
 
 cat $OMARCHY_PATH/version

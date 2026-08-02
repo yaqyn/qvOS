@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Send a desktop notification with Omarchy glyph and body spacing
+# omarchy:summary=Send a desktop notification with qvOS glyph and body spacing
 # omarchy:args=<glyph> <headline> [description] [notify-send options]
 # omarchy:examples=omarchy notification send "󰔛" "Reminder" "5 minutes are up" -u critical
 

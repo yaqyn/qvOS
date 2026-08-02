@@ -1,5 +1,5 @@
 Name = "qvosOmarchyMenu"
-NamePretty = "Omarchy"
+NamePretty = "qvOS"
 Cache = false
 FixedOrder = true
 HideFromProviderlist = true
@@ -522,7 +522,7 @@ function GetEntries(query)
   add_concepts(entries)
 
   -- Learn.
-  add(entries, "", "Omarchy Manual", "More · Learn", { "docs", "help" }, "omarchy-launch-webapp https://learn.omacom.io/2/the-omarchy-manual")
+  add(entries, "", "qvOS Source", "More · Learn", { "docs", "help", "github" }, "omarchy-launch-webapp https://github.com/Yaqyn-qvOS/qvOS")
   add(entries, "", "Hyprland Wiki", "More · Learn", { "docs", "help" }, "omarchy-launch-webapp https://wiki.hypr.land/")
   add(entries, "󰣇", "Arch Wiki", "More · Learn", { "docs", "help" }, "omarchy-launch-webapp https://wiki.archlinux.org/title/Main_page")
   add(entries, "", "Neovim Keymaps", "More · Learn", { "lazyvim", "vim", "docs" }, "omarchy-launch-webapp https://www.lazyvim.org/keymaps")

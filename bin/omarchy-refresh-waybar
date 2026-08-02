@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Reset Waybar config to Omarchy defaults
+# omarchy:summary=Reset Waybar config to qvOS defaults
 # omarchy:examples=omarchy refresh waybar
 
 omarchy-refresh-config waybar/config.jsonc

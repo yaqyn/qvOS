@@ -67,7 +67,7 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/omarchy-update-available" <<'SCRIPT'
 #!/bin/bash
-printf '%s\n' "${QVOS_TEST_AVAILABLE_OUTPUT:-Omarchy update available (1.2.3)}"
+printf '%s\n' "${QVOS_TEST_AVAILABLE_OUTPUT:-qvOS update available (1.2.3)}"
 exit "${QVOS_TEST_AVAILABLE_STATUS:-0}"
 SCRIPT
 
@@ -87,7 +87,7 @@ run_owner() {
 confirmed_output=$(run_owner)
 [[ $(<"$action_log") == $'gum-style\ngum-confirm\nomarchy-update\t-y' ]] ||
   fail "confirmed qvOS update delegation"
-grep -Fq 'original Omarchy updater' "$display_log" ||
+grep -Fq 'upstream update engine' "$display_log" ||
   fail "qvOS confirmation explains upstream ownership"
 grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/commits/OS' "$display_log" ||
   fail "qvOS update history link"
@@ -98,7 +98,7 @@ if grep -Fq 'cannot stop the update' "$display_log"; then
 fi
 grep -Fq 'qvOS update is complete.' <<<"$confirmed_output" ||
   fail "qvOS update completion result"
-pass "qvOS confirms once and delegates once to the original Omarchy updater"
+pass "qvOS confirms once and delegates once to its upstream update engine"
 
 : >"$action_log"
 run_owner -y >/dev/null
@@ -123,7 +123,7 @@ set -e
   fail "qvOS update cancellation mutation"
 grep -Fq 'qvOS update cancelled.' <<<"$cancel_output" ||
   fail "qvOS update cancellation result"
-pass "qvOS cancellation is explicit and never enters Omarchy update"
+pass "qvOS cancellation is explicit and never enters the upstream update engine"
 
 : >"$action_log"
 set +e
@@ -171,14 +171,14 @@ if grep -Eq \
 fi
 [[ $(grep -c '^omarchy-update -y$' "$owner") == "1" ]] ||
   fail "qvOS wrapper delegation count"
-pass "qvOS owns only preflight and presentation, never Omarchy update stages"
+pass "qvOS owns only preflight and presentation, never upstream update stages"
 
 available_output=$(PATH="$test_bin:/usr/bin" "$availability_owner")
 [[ $available_output == "qvOS update available (1.2.3)" ]] ||
   fail "qvOS update-availability presentation"
 set +e
 current_output=$(
-  QVOS_TEST_AVAILABLE_OUTPUT="Omarchy is up to date (1.2.3)" \
+  QVOS_TEST_AVAILABLE_OUTPUT="qvOS is up to date (1.2.3)" \
     QVOS_TEST_AVAILABLE_STATUS=1 \
     PATH="$test_bin:/usr/bin" \
     "$availability_owner"
@@ -189,7 +189,7 @@ set -e
   fail "qvOS update-availability status preservation"
 [[ $current_output == "qvOS is up to date (1.2.3)" ]] ||
   fail "qvOS current-version presentation"
-pass "qvOS relabels only the original update-availability result"
+pass "qvOS preserves upstream status while owning its product label"
 
 install -m 0755 /dev/stdin "$test_bin/qvos-tui" <<'SCRIPT'
 #!/bin/bash

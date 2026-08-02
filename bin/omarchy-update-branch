@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Switch Omarchy branches and update from the selected branch
+# omarchy:summary=Switch qvOS branches and update from the selected branch
 # omarchy:args=<branch>
 
 set -e

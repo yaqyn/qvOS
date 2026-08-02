@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Add or remove an EFI boot entry for the Omarchy UKI, allowing the system to boot directly
+# omarchy:summary=Add or remove an EFI boot entry for the qvOS UKI, allowing the system to boot directly
 # omarchy:requires-sudo=true
 
 if [[ ! -d /sys/firmware/efi ]]; then
@@ -38,7 +38,7 @@ else
   uki_file=$(find /boot/EFI/Linux/ -name "omarchy*.efi" -printf "%f\n" 2>/dev/null | head -1)
 
   if [[ -z $uki_file ]]; then
-    echo "Error: No Omarchy UKI found in /boot/EFI/Linux/" >&2
+    echo "Error: No qvOS UKI found in /boot/EFI/Linux/" >&2
     exit 1
   fi
 

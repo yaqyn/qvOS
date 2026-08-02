@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Set the Omarchy channel, which dictates what git branch and package repository is used.
+# omarchy:summary=Set the qvOS channel, which dictates what git branch and package repository is used.
 # omarchy:args=<stable|rc|edge|dev>
 # omarchy:requires-sudo=true
 

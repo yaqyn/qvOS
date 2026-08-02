@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Print the current Omarchy git branch
+# omarchy:summary=Print the current qvOS git branch
 
 echo $(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref HEAD)

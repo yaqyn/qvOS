@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Set the default browser for Omarchy and XDG handlers
+# omarchy:summary=Set the default browser for qvOS and XDG handlers
 # omarchy:args=[chromium|chrome|brave|brave-origin|edge|firefox|zen]
 # omarchy:examples=omarchy default browser firefox | omarchy default browser brave
 

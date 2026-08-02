@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Launch a floating terminal with the Omarchy presentation wrapper
+# omarchy:summary=Launch a floating terminal with the qvOS presentation wrapper
 # omarchy:args=<command>
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
@@ -13,4 +13,4 @@ if [[ -x $qvos_owner ]]; then
 fi
 
 cmd="$*"
-exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=Omarchy -e bash -c "omarchy-show-logo; $cmd; if (( \$? != 130 )); then omarchy-show-done; fi"
+exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e bash -c "omarchy-show-logo; $cmd; if (( \$? != 130 )); then omarchy-show-done; fi"

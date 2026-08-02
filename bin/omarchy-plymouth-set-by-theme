@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Set the Plymouth boot theme from an Omarchy theme
+# omarchy:summary=Set the Plymouth boot theme from a qvOS theme
 # omarchy:args=<theme-name>
 # omarchy:requires-sudo=true
 

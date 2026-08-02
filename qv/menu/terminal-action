@@ -49,7 +49,7 @@ check_owner() {
   local path
 
   [[ -x $default_owner && -x $install_owner ]] || {
-    echo "The Omarchy terminal owners are unavailable." >&2
+    echo "The qvOS terminal owners are unavailable." >&2
     return 1
   }
   for path in "${managed_files[@]}"; do

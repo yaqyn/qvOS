@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Reload btop configuration (used by the Omarchy theme switching).
+# omarchy:summary=Reload btop configuration (used by the qvOS theme switching).
 
 pkill -SIGUSR2 btop

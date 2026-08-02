@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Creates a new Omarchy migration named after the unix timestamp of the last commit.
+# omarchy:summary=Creates a new qvOS migration named after the unix timestamp of the last commit.
 
 cd ~/.local/share/omarchy
 migration_file="$HOME/.local/share/omarchy/migrations/$(git log -1 --format=%cd --date=unix).sh"

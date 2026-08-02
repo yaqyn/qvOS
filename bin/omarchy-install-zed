@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Install Zed Editor and configure it with the current Omarchy theme
+# omarchy:summary=Install Zed Editor and configure it with the current qvOS theme
 
 echo "Installing Zed Editor..."
 omarchy-pkg-add zed omazed

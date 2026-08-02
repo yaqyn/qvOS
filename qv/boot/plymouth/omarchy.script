@@ -1,4 +1,4 @@
-# Omarchy Plymouth Theme Script
+# qvOS Plymouth Theme Script
 
 Window.SetBackgroundTopColor(0.035, 0.035, 0.035);
 Window.SetBackgroundBottomColor(0.035, 0.035, 0.035);

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Remove a supported browser and clean up Omarchy browser defaults
+# omarchy:summary=Remove a supported browser and clean up qvOS browser defaults
 # omarchy:args=<chrome|brave|brave-origin|edge|firefox|zen>
 # omarchy:examples=omarchy remove browser firefox | omarchy remove browser brave
 # omarchy:requires-sudo=true

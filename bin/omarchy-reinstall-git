@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Reinstall the Omarchy source directory from git
+# omarchy:summary=Reinstall the qvOS source directory from git
 
 set -e
 

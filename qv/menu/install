@@ -108,7 +108,7 @@ require_sources() {
 
   if ! head -n 1 "$walker_theme_source/style.css" |
     grep -Fq '.config/omarchy/current/theme/walker.css'; then
-    echo "Omarchy Walker theme import changed; qvOS menu theme needs review." >&2
+    echo "The upstream Walker theme changed; the qvOS menu theme needs review." >&2
     return 1
   fi
   [[ -x $software_state_source ]] || {

@@ -28,16 +28,16 @@ declare -A GROUP_DESCRIPTIONS
 
 GROUP_DESCRIPTIONS[ac]="AC power detection"
 GROUP_DESCRIPTIONS[battery]="Battery status helpers"
-GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"
+GROUP_DESCRIPTIONS[branch]="qvOS git branch management"
 GROUP_DESCRIPTIONS[branding]="About and screensaver branding"
 GROUP_DESCRIPTIONS[brightness]="Display and keyboard brightness"
 GROUP_DESCRIPTIONS[capture]="Screenshots and screen recording"
-GROUP_DESCRIPTIONS[channel]="Omarchy release channel management"
+GROUP_DESCRIPTIONS[channel]="qvOS release channel management"
 GROUP_DESCRIPTIONS[cmd]="Command and shortcut helpers"
 GROUP_DESCRIPTIONS[config]="System configuration helpers"
 GROUP_DESCRIPTIONS[debug]="Diagnostics and support logs"
 GROUP_DESCRIPTIONS[default]="Default application selection"
-GROUP_DESCRIPTIONS[dev]="Omarchy development tools"
+GROUP_DESCRIPTIONS[dev]="qvOS development tools"
 GROUP_DESCRIPTIONS[drive]="Drive selection and encryption"
 GROUP_DESCRIPTIONS[font]="Font management"
 GROUP_DESCRIPTIONS[hibernation]="Hibernation setup and removal"
@@ -46,7 +46,7 @@ GROUP_DESCRIPTIONS[hw]="Hardware detection and controls"
 GROUP_DESCRIPTIONS[hyprland]="Hyprland window, monitor, and toggle controls"
 GROUP_DESCRIPTIONS[install]="Optional software installers"
 GROUP_DESCRIPTIONS[launch]="Application launchers"
-GROUP_DESCRIPTIONS[menu]="Omarchy menu commands"
+GROUP_DESCRIPTIONS[menu]="qvOS menu commands"
 GROUP_DESCRIPTIONS[migrate]="Migration runner"
 GROUP_DESCRIPTIONS[notification]="Notification helpers"
 GROUP_DESCRIPTIONS[npx]="NPX package wrappers"
@@ -57,7 +57,7 @@ GROUP_DESCRIPTIONS[refresh]="Reset config to defaults"
 GROUP_DESCRIPTIONS[reinstall]="Reinstall and reset workflows"
 GROUP_DESCRIPTIONS[reminder]="Desktop notification reminders"
 GROUP_DESCRIPTIONS[remove]="Removal workflows"
-GROUP_DESCRIPTIONS[restart]="Restart Omarchy components"
+GROUP_DESCRIPTIONS[restart]="Restart qvOS components"
 GROUP_DESCRIPTIONS[setup]="Interactive setup wizards"
 GROUP_DESCRIPTIONS[screensaver]="Screensaver branding and animation"
 GROUP_DESCRIPTIONS[snapshot]="System snapshots"
@@ -65,11 +65,11 @@ GROUP_DESCRIPTIONS[sudo]="Sudo configuration helpers"
 GROUP_DESCRIPTIONS[swayosd]="SwayOSD status display helpers"
 GROUP_DESCRIPTIONS[system]="Reboot, shutdown, logout, and lock"
 GROUP_DESCRIPTIONS[theme]="Theme management"
-GROUP_DESCRIPTIONS[toggle]="Toggle Omarchy features"
+GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"
 GROUP_DESCRIPTIONS[transcode]="Image and video transcoding"
 GROUP_DESCRIPTIONS[tui]="Terminal UI launchers"
 GROUP_DESCRIPTIONS[tz]="Timezone selection"
-GROUP_DESCRIPTIONS[update]="Omarchy and system updates"
+GROUP_DESCRIPTIONS[update]="qvOS and system updates"
 GROUP_DESCRIPTIONS[version]="Version and channel information"
 GROUP_DESCRIPTIONS[voxtype]="Voxtype dictation"
 GROUP_DESCRIPTIONS[weather]="Weather status"
@@ -477,7 +477,7 @@ show_group_list() {
 
 show_main_help() {
   cat <<'EOF'
-Omarchy command center
+qvOS command center
 
 Usage:
   omarchy <command> [args...]
@@ -486,7 +486,7 @@ Usage:
   omarchy <group> <command> --help
 
 Common commands:
-  omarchy update              Update Omarchy and system packages
+  omarchy update              Update qvOS and system packages
   omarchy theme list          List available themes
   omarchy theme set <name>    Apply a theme
   omarchy font list           List available fonts
@@ -511,7 +511,7 @@ show_commands_help() {
 Usage:
   omarchy commands [--all] [--json] [--markdown] [--check]
 
-List commands known to the Omarchy command center.
+List commands known to the qvOS command center.
 
 Options:
   --all       Include commands explicitly marked hidden
@@ -551,9 +551,9 @@ show_commands() {
   local alias_rows=""
 
   if [[ $include_all == "true" ]]; then
-    echo "Omarchy commands (all):"
+    echo "qvOS commands (all):"
   else
-    echo "Omarchy commands:"
+    echo "qvOS commands:"
   fi
 
   while IFS= read -r key; do
@@ -1031,7 +1031,7 @@ dispatch_or_help() {
     return 0
   fi
 
-  echo "Unknown Omarchy command: omarchy ${args[*]}" >&2
+  echo "Unknown qvOS command: omarchy ${args[*]}" >&2
   suggestion=$(suggest_command "${args[0]}")
   if [[ -n $suggestion ]]; then
     echo "Did you mean: omarchy $suggestion ?" >&2

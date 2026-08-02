@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Set the branch for Omarchy's git repository.
+# omarchy:summary=Set the branch for qvOS's git repository.
 # omarchy:args=<master|rc|dev>
 
 if (($# == 0)); then

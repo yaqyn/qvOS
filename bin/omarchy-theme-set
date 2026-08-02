@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Apply an Omarchy theme
+# omarchy:summary=Apply a qvOS theme
 # omarchy:args=<theme-name>
 # omarchy:examples=omarchy theme list | omarchy theme set "Tokyo Night"
 

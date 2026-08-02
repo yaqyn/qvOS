@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Reinstall all default Omarchy packages from the stable channel
+# omarchy:summary=Reinstall all default qvOS packages from the stable channel
 # omarchy:requires-sudo=true
 
 set -e

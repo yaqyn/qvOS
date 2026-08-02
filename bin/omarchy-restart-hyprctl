@@ -1,5 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Reload hyprland configuration (used by the Omarchy theme switching).
+# omarchy:summary=Reload hyprland configuration (used by the qvOS theme switching).
 
 hyprctl reload >/dev/null

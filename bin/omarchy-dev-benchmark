@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Measure Omarchy CLI response times
+# omarchy:summary=Measure qvOS CLI response times
 # omarchy:args=[--repeat=<count>]
 # omarchy:examples=omarchy dev benchmark | omarchy dev benchmark --repeat=10
 
@@ -15,7 +15,7 @@ show_help() {
 Usage:
   omarchy dev benchmark [--repeat=<count>]
 
-Measure response times for common Omarchy CLI surfaces.
+Measure response times for common qvOS CLI surfaces.
 
 Options:
   --repeat=<count>  Number of times to run each case (default: 5)
@@ -99,7 +99,7 @@ if [[ ! $REPEAT =~ ^[0-9]+$ ]] || (( REPEAT < 1 )); then
   exit 2
 fi
 
-printf 'Omarchy CLI benchmark (%d runs each)\n\n' "$REPEAT"
+printf 'qvOS CLI benchmark (%d runs each)\n\n' "$REPEAT"
 run_case "omarchy" "$CLI"
 run_case "omarchy --help" "$CLI" --help
 run_case "omarchy commands" "$CLI" commands

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Apply current Omarchy theme colors to running Foot terminals
+# omarchy:summary=Apply current qvOS theme colors to running Foot terminals
 # omarchy:hidden=true
 
 foot_theme=~/.config/omarchy/current/theme/foot.ini

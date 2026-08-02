@@ -58,7 +58,7 @@ start_install_log() {
 
   export OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 
-  echo "=== Omarchy Installation Started: $OMARCHY_START_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
+  echo "=== qvOS Installation Started: $OMARCHY_START_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
   start_log_output
 }
 
@@ -68,7 +68,7 @@ stop_install_log() {
 
   if [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} ]]; then
     OMARCHY_END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "=== Omarchy Installation Completed: $OMARCHY_END_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
+    echo "=== qvOS Installation Completed: $OMARCHY_END_TIME ===" >>"$OMARCHY_INSTALL_LOG_FILE"
     echo "" >>"$OMARCHY_INSTALL_LOG_FILE"
     echo "=== Installation Time Summary ===" >>"$OMARCHY_INSTALL_LOG_FILE"
 
@@ -96,7 +96,7 @@ stop_install_log() {
       OMARCHY_MINS=$((OMARCHY_DURATION / 60))
       OMARCHY_SECS=$((OMARCHY_DURATION % 60))
 
-      echo "Omarchy:     ${OMARCHY_MINS}m ${OMARCHY_SECS}s" >>"$OMARCHY_INSTALL_LOG_FILE"
+      echo "qvOS:        ${OMARCHY_MINS}m ${OMARCHY_SECS}s" >>"$OMARCHY_INSTALL_LOG_FILE"
 
       if [[ -n $ARCH_DURATION ]]; then
         TOTAL_DURATION=$((ARCH_DURATION + OMARCHY_DURATION))

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Generate themed config files from Omarchy templates
+# omarchy:summary=Generate themed config files from qvOS templates
 # omarchy:hidden=true
 
 TEMPLATES_DIR="$OMARCHY_PATH/default/themed"

@@ -310,7 +310,9 @@ grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||
   fail "Steam install bypasses Omarchy's owner"
 grep -Fq 'show_software_menu gaming' <<<"$remove_gaming_override" ||
   fail "Steam removal bypasses Omarchy's owner"
-grep -Fq '  Omarchy' "$root/bin/omarchy-menu" || fail "upstream Omarchy learning entry"
+grep -Fq '  qvOS Source' "$root/bin/omarchy-menu" || fail "qvOS learning entry"
+grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS' "$root/bin/omarchy-menu" ||
+  fail "qvOS learning destination"
 if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
   "$root/qv/tui"; then
   fail "retired qvOS Repair TUI action remains"
@@ -415,18 +417,18 @@ grep -Fqx '"$OMARCHY_PATH/qv/menu/install" --install' \
   fail "qvOS first-run menu reconciliation"
 grep -Fq 'output="qvOS ${output#Omarchy }"' \
   "$root/qv/update/update-available" || fail "qvOS update status"
-grep -Fq 'Update Omarchy' "$root/bin/omarchy-update-git" ||
-  fail "original Omarchy update progress"
-grep -Fq '# omarchy:summary=Safely update qvOS through the original Omarchy updater' \
+grep -Fq 'Update qvOS source' "$root/bin/omarchy-update-git" ||
+  fail "qvOS source update progress"
+grep -Fq '# omarchy:summary=Safely update qvOS through its upstream update engine' \
   "$root/bin/omarchy-qvos-update" || fail "qvOS update help"
-grep -Fq 'powers the Omarchy Menu' "$root/bin/omarchy-refresh-walker" ||
-  fail "original Omarchy menu help"
-grep -Fq 'Omarchy command center' "$root/bin/omarchy" ||
-  fail "original Omarchy CLI heading"
-grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart Omarchy components"' \
-  "$root/bin/omarchy" || fail "original Omarchy restart help"
-grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle Omarchy features"' \
-  "$root/bin/omarchy" || fail "original Omarchy toggle help"
+grep -Fq 'powers the qvOS Menu' "$root/bin/omarchy-refresh-walker" ||
+  fail "qvOS menu help"
+grep -Fq 'qvOS command center' "$root/bin/omarchy" ||
+  fail "qvOS CLI heading"
+grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart qvOS components"' \
+  "$root/bin/omarchy" || fail "qvOS restart help"
+grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
+  "$root/bin/omarchy" || fail "qvOS toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qv/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qv/menu/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
 grep -Fq 'dofile(omarchy_path .. "/default/elephant/omarchy_unlocks.lua")' \
@@ -779,8 +781,9 @@ grep -Fq -- '--label "qvOS"' "$root/qv/boot/config-direct-boot" || fail "qvOS EF
 grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qv/boot/limine/default.conf" || fail "qvOS Limine OS name"
 grep -Fxq 'interface_branding:' "$root/qv/boot/limine/limine.conf" || fail "qvOS Limine empty header"
 grep -Fq -- '-name "omarchy*.efi"' "$root/qv/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
-grep -Fq 'GROUP_DESCRIPTIONS[branch]="Omarchy git branch management"' "$root/bin/omarchy" || fail "upstream branch identity"
-pass "visible system branding is qvOS without renaming Omarchy internals"
+grep -Fq 'GROUP_DESCRIPTIONS[branch]="qvOS git branch management"' \
+  "$root/bin/omarchy" || fail "qvOS branch identity"
+pass "visible system branding is qvOS while compatibility internals remain stable"
 
 for retired_duplicate in \
   qv/diagnostics/debug \

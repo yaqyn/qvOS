@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Install Helix and configure it to use the current Omarchy theme
+# omarchy:summary=Install Helix and configure it to use the current qvOS theme
 
 echo "Installing Helix..."
 omarchy-pkg-add helix

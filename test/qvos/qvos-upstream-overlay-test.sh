@@ -30,7 +30,6 @@ inherited_seams=(
   bin/omarchy-install-gaming-retroarch
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
-  bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-plymouth-reset
   bin/omarchy-plymouth-set
   bin/omarchy-refresh-hyprland
@@ -42,7 +41,6 @@ inherited_seams=(
   bin/omarchy-tz-select
   bin/omarchy-update-restart
   bin/omarchy-voxtype-install
-  bin/omarchy-windows-vm
   install/config/all.sh
   install/helpers/all.sh
   install/helpers/errors.sh
@@ -59,6 +57,17 @@ inherited_seams=(
 declare -A inherited_seam_set=()
 for path in "${inherited_seams[@]}"; do
   inherited_seam_set[$path]=1
+done
+
+mapfile -t native_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+    "$root/qv/branding/native-paths"
+)
+declare -A native_path_set=()
+for path in "${native_paths[@]}"; do
+  [[ -z ${inherited_seam_set[$path]:-} ]] ||
+    fail "$path is classified as both a native path and an inherited seam"
+  native_path_set[$path]=1
 done
 
 upstream_file_matches() {
@@ -95,6 +104,7 @@ while IFS= read -r entry; do
   AGENTS.md | README.md) continue ;;
   esac
   [[ -n ${inherited_seam_set[$path]:-} ]] && continue
+  [[ -n ${native_path_set[$path]:-} ]] && continue
 
   upstream_file_matches "$mode" "$object" "$path" ||
     fail "$path differs from upstream outside the audited seam list"
@@ -135,6 +145,18 @@ for path in "${inherited_seams[@]}"; do
 done
 pass "every inherited exception is a small qvOS integration seam"
 
+for path in "${native_paths[@]}"; do
+  git -C "$root" cat-file -e "$upstream_ref:$path" ||
+    fail "$path native qvOS path no longer exists in the current upstream target"
+  [[ -f $root/$path && ! -L $root/$path ]] ||
+    fail "$path native qvOS path is missing or unsafe"
+  upstream_file_matches \
+    "$(git -C "$root" ls-tree "$upstream_ref" -- "$path" | awk '{print $1}')" \
+    "$(git -C "$root" rev-parse "$upstream_ref:$path")" \
+    "$path" && fail "$path native qvOS path no longer differs from upstream"
+done
+pass "native qvOS paths are explicit reviewed upstream departures"
+
 fallback_seams=(
   bin/omarchy-config-direct-boot
   bin/omarchy-launch-floating-terminal-with-presentation
@@ -150,11 +172,22 @@ fallback_seams=(
 )
 
 for path in "${fallback_seams[@]}"; do
-  read -r _ removed _ < <(
-    git -C "$root" diff --numstat "$upstream_ref" -- "$path"
+  fallback_diff=$(
+    git -C "$root" diff --unified=0 "$upstream_ref" -- "$path"
   )
-  ((removed == 0)) ||
-    fail "$path removes inherited Omarchy fallback behavior"
+  while IFS= read -r removed_line; do
+    [[ $removed_line != ---* ]] || continue
+    removed_line=${removed_line#-}
+    branded_line=${removed_line//Omarchy/qvOS}
+    legacy_branded_line=${removed_line//Omarchy/(qvOS|Omarchy)}
+    if [[ $removed_line == "$branded_line" ]]; then
+      fail "$path removes inherited fallback behavior"
+    fi
+    if ! grep -Fqx "+$branded_line" <<<"$fallback_diff" &&
+      ! grep -Fqx "+$legacy_branded_line" <<<"$fallback_diff"; then
+      fail "$path removes inherited fallback behavior"
+    fi
+  done < <(grep '^-' <<<"$fallback_diff" || true)
   # shellcheck disable=SC2016
   grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/' "$root/$path" ||
     fail "$path does not name its qvOS owner"
@@ -167,9 +200,9 @@ for path in "${fallback_seams[@]}"; do
 done
 pass "inherited qvOS delegations preserve Omarchy fallbacks"
 
-grep -Fq '"Omarchy installation stopped!"' "$root/install/helpers/errors.sh" ||
-  fail "installer error branding seam removes the inherited fallback"
-pass "installer error branding preserves its inherited fallback"
+grep -Fq '"qvOS installation stopped!"' "$root/install/helpers/errors.sh" ||
+  fail "installer error branding does not expose qvOS"
+pass "installer error fallback exposes qvOS identity"
 
 packaging_seams=(
   install/packaging/base.sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Print the active Omarchy mirror and package channel
+# omarchy:summary=Print the active qvOS mirror and package channel
 
 if grep -q "https://stable-mirror.omarchy.org/" /etc/pacman.d/mirrorlist; then
   mirror="stable"

@@ -1,4 +1,4 @@
-# Directs user to Omarchy Discord
+# Directs the user to upstream support when no qvOS handler is available.
 QR_CODE='
 █▀▀▀▀▀█ ▄ ▄ ▀▄▄▄█ █▀▀▀▀▀█
 █ ███ █ ▄▄▄▄▀▄▀▄▀ █ ███ █
@@ -94,7 +94,7 @@ catch_errors() {
   if [[ -x $qvos_owner ]]; then
     gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "$("$qvos_owner")"
   else
-    gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "Omarchy installation stopped!"
+    gum style --foreground 1 --padding "1 0 1 $PADDING_LEFT" "qvOS installation stopped!"
   fi
   show_log_tail
 

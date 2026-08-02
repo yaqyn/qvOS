@@ -1,8 +1,8 @@
 --
--- Dynamic Omarchy Theme Menu for Elephant/Walker
+-- Dynamic qvOS Theme Menu for Elephant/Walker
 --
 Name = "omarchythemes"
-NamePretty = "Omarchy Themes"
+NamePretty = "qvOS Themes"
 HideFromProviderlist = true
 
 -- Check if file exists using Lua (no subprocess)

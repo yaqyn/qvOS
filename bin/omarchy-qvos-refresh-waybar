@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Apply Omarchy Waybar defaults with qvOS overrides
+# omarchy:summary=Apply qvOS Waybar defaults with qvOS overrides
 # omarchy:group=qvos
 # omarchy:name=refresh waybar
 

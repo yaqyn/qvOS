@@ -1,5 +1,5 @@
 --
--- Dynamic Omarchy Unlocks Menu for Elephant/Walker
+-- Dynamic qvOS Unlocks Menu for Elephant/Walker
 --
 -- A "Default" entry restores the omarchy-shipped Plymouth via
 -- omarchy-plymouth-reset. After that, every theme that has a preview-unlock.png
@@ -7,7 +7,7 @@
 -- <theme>. Both run in a floating terminal so sudo can prompt.
 --
 Name = "omarchyunlocks"
-NamePretty = "Omarchy Unlocks"
+NamePretty = "qvOS Unlocks"
 HideFromProviderlist = true
 FixedOrder = true
 

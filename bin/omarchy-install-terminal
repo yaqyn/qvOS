@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Install one of the approved terminals and set it as the default for Omarchy (Super + Return etc).
+# omarchy:summary=Install one of the approved terminals and set it as the default for qvOS (Super + Return etc).
 # omarchy:args=<alacritty|foot|ghostty|kitty>
 # omarchy:requires-sudo=true
 

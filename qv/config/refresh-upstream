@@ -6,7 +6,7 @@ source_file="$OMARCHY_PATH/config/$config_path"
 target_file="$HOME/.config/$config_path"
 
 if [[ -z $config_path || ! -f $source_file ]]; then
-  echo "Unknown Omarchy config: ${config_path:-<empty>}" >&2
+  echo "Unknown qvOS config: ${config_path:-<empty>}" >&2
   exit 2
 fi
 

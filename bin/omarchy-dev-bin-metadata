@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Show Omarchy bin metadata fields and defaults
+# omarchy:summary=Show qvOS bin metadata fields and defaults
 # omarchy:args=[--json]
 
 set -euo pipefail
@@ -30,7 +30,7 @@ show_json() {
 
 show_help() {
   cat <<'EOF'
-Omarchy bin metadata
+qvOS bin metadata
 
 Metadata lives in the top comment block of each executable bin/omarchy-* file.
 Keep it slim: define only fields that are required or override defaults.

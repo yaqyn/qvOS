@@ -1,5 +1,5 @@
 [Unit]
-Description=Omarchy Battery Monitor Timer
+Description=qvOS Battery Monitor Timer
 Requires=omarchy-battery-monitor.service
 
 [Timer]
