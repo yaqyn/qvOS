@@ -160,6 +160,19 @@ func TestISOProgressUsesTheLatestRealInstallScript(t *testing.T) {
 	}
 }
 
+func TestISOProgressDoesNotTreatPackageHooksAsGlobalProgress(t *testing.T) {
+	log := strings.Join([]string{
+		"Installation completed without any errors.",
+		"(4/6) Reloading system bus configuration...",
+		"(6/6) Updating the info directory file...",
+	}, "\n")
+
+	status, progress := parseISOProgressLog(log)
+	if status != "base system installed" || progress != 0.34 {
+		t.Fatalf("package hook progress = %q %.2f, want base system installed 0.34", status, progress)
+	}
+}
+
 func TestISOTimezoneOrderPrefersConfiguredAndRejectsUnknownZones(t *testing.T) {
 	zones := []string{"Africa/Cairo", "Europe/Paris", "UTC"}
 	if got := orderISOTimezones(zones, "Africa/Cairo", "Europe/Paris"); got[0] != "Africa/Cairo" {
@@ -521,6 +534,19 @@ func TestISOProgressMovesOnlyWhenTheInstallerReportsAMilestone(t *testing.T) {
 	next, _ = m.Update(isoProgressSnapshotMsg{progress: 0.12})
 	if got := next.(isoProgressModel).progress; got != 0.34 {
 		t.Fatalf("older milestone moved progress backward: %v", got)
+	}
+}
+
+func TestISOProgressAllowsTheInstallerToTerminateIt(t *testing.T) {
+	quit := tea.QuitMsg{}
+	if got := filterISOProgressExitMessages(isoProgressModel{}, quit); got == nil {
+		t.Fatal("ISO progress swallowed the installer termination message")
+	}
+
+	for _, guarded := range []tea.Msg{tea.InterruptMsg{}, tea.SuspendMsg{}} {
+		if got := filterISOProgressExitMessages(isoProgressModel{}, guarded); got != nil {
+			t.Fatalf("ISO progress accepted guarded signal message %T", guarded)
+		}
 	}
 }
 

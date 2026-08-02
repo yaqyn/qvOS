@@ -371,7 +371,11 @@ The boot installer keeps one TUI lifecycle:
    target-root Omarchy/qvOS installation while reading their shared log. It has
    no model, advances only from observed milestones, and exposes `v log`,
    `ctrl+v terminal`, and `? help`. V opens a progress-left/mini-terminal-right
-   split; Ctrl+V opens the minimal full terminal.
+   split; Ctrl+V opens the minimal full terminal. The install owner stops this
+   presentation child between phases with bounded TERM-then-KILL teardown; the
+   progress program accepts the termination quit message and cannot hold the
+   installation open after its owned phase ends. Package-manager hook counters
+   remain terminal detail and never masquerade as whole-install percentages.
 3. `--iso-finished` takes over after logging stops and shows only dimmed
    `Welcome to qvOS` with the selected chevron `Reboot` action.
 

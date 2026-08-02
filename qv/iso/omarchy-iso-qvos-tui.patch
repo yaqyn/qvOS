@@ -207,7 +207,7 @@
  # Fix ownership of output files to match host user
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
-@@ -11,24 +11,66 @@ use_omarchy_helpers() {
+@@ -11,24 +11,60 @@ use_omarchy_helpers() {
  
  run_configurator() {
 -  set_tokyo_night_colors
@@ -224,21 +224,15 @@
 +start_qvos_iso_progress() {
 +  if command -v qvos-tui >/dev/null 2>&1; then
 +    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
-+    qvos_iso_progress_pid=$!
++    QVOS_ISO_PROGRESS_PID=$!
 +  else
 +    start_log_output
 +  fi
 +}
 +
 +stop_qvos_iso_progress() {
-+  if [[ -n ${qvos_iso_progress_pid:-} ]]; then
-+    kill "$qvos_iso_progress_pid" 2>/dev/null || true
-+    wait "$qvos_iso_progress_pid" 2>/dev/null || true
-+    unset qvos_iso_progress_pid
-+    clear
-+  else
-+    stop_log_output
-+  fi
++  stop_log_output
++  clear
 +}
 +
  install_arch() {

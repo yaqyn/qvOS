@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -39,8 +37,6 @@ type isoProgressSnapshotMsg struct {
 	lines    []string
 }
 
-var isoProgressStepRE = regexp.MustCompile(`\(([0-9]+)/([0-9]+)\)`)
-
 func runISOProgress(args []string) error {
 	logPath := defaultISOProgressLogPath
 	noInput := false
@@ -72,7 +68,7 @@ func runISOProgress(args []string) error {
 
 func filterISOProgressExitMessages(_ tea.Model, msg tea.Msg) tea.Msg {
 	switch msg.(type) {
-	case tea.QuitMsg, tea.InterruptMsg, tea.SuspendMsg:
+	case tea.InterruptMsg, tea.SuspendMsg:
 		return nil
 	default:
 		return msg
@@ -397,23 +393,6 @@ func parseISOProgressLog(text string) (string, float64) {
 		if strings.Contains(lower, marker.token) && marker.progress >= progress {
 			status = marker.status
 			progress = marker.progress
-		}
-	}
-
-	stepMatches := isoProgressStepRE.FindAllStringSubmatch(clean, -1)
-	if len(stepMatches) > 0 {
-		last := stepMatches[len(stepMatches)-1]
-		current, currentErr := strconv.Atoi(last[1])
-		total, totalErr := strconv.Atoi(last[2])
-		if currentErr == nil && totalErr == nil && total > 0 {
-			ratio := float64(current) / float64(total)
-			if ratio < 0 {
-				ratio = 0
-			}
-			if ratio > 1 {
-				ratio = 1
-			}
-			progress = max(progress, 0.36+ratio*0.56)
 		}
 	}
 

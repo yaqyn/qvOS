@@ -607,6 +607,12 @@ grep -Fq 'mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install
 grep -Fq 'stop_qvos_iso_progress' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS live-media progress stop before target install"
+grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS live-media shared progress process tracking"
+grep -Fq 'stop_log_output' \
+  "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS live-media shared progress teardown"
 grep -Fq 'qv/iso/source-permissions' \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO tracked executable-mode integration"
@@ -616,10 +622,9 @@ grep -Fq 'if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]
 grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
   "$root/qv/install/helpers/logging" ||
   fail "qvOS target install progress process tracking"
-if grep -Fq 'QVOS_ISO_PROGRESS_PID="${qvos_iso_progress_pid:-}"' \
-  "$root/qv/iso/omarchy-iso-qvos-tui.patch"; then
-  fail "qvOS progress PID crosses the chroot PID namespace"
-fi
+grep -Fq 'kill -KILL "$QVOS_ISO_PROGRESS_PID"' \
+  "$root/qv/install/helpers/logging" ||
+  fail "qvOS shared progress forced stop fallback"
 
 progress_bin="$test_root/progress-bin"
 progress_log="$test_root/progress-owner.log"

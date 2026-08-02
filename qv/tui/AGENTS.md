@@ -316,12 +316,17 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   read-only split terminal, full terminal, and Help controls. It has no manual
   log navigation or copy-all shortcut. Retain Bubble Tea's input reader so
   terminal capability replies are consumed instead of leaking into visible
-  logs. Its exit-message filter remains the interruption boundary.
+  logs. Its exit-message filter guards interactive interrupt and suspend
+  messages but must pass `QuitMsg`, which is how Bubble Tea reports the parent
+  installer's SIGTERM. The parent owns a bounded TERM-then-KILL fallback; a
+  presentation child must never hold the installation open after its phase.
 - Keep the active operation, real milestone, percentage, and a visible bar in
   non-mobile progress views. Use one quiet selection marker for choices; do not
   frame action labels as buttons. The destructive install confirmation and
   finale use one red selection chevron plus a bright white action label on
-  black.
+  black. Advance ISO installation only from explicit lifecycle markers and
+  owned install-script phases; generic package-hook counters such as `(4/6)`
+  describe a local transaction and must never become global install progress.
 - The smallest progress view may omit the bar, but it must keep the active
   operation, static dimmed dot, and percentage centered as one stable line.
   On completion, keep the semantic result such as `UPDATED` or `INSTALLED`
