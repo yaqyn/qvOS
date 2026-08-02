@@ -29,6 +29,9 @@ install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker/daemon.json" <
   "bip": "172.17.0.1/16"
 }
 DOCKER
+install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/fstab" <<'FSTAB'
+UUID=TEST-BOOT /boot vfat defaults,fmask=0022,dmask=0022 0 2
+FSTAB
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -136,6 +139,7 @@ pass "later privileged failures cannot break the screensaver runtime"
 
 install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
+  "$test_root/.local/share/dbus-1/services" \
   "$test_root/.local/share/qvos/bin" \
   "$test_root/.local/share/qvos/desktop/context" \
   "$test_root/.local/share/qvos/screensaver" \
@@ -150,6 +154,23 @@ touch \
   "$test_root/.local/share/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
 install -m 0644 /dev/null "$test_root/.bashrc"
+for service_name in \
+  org.freedesktop.FileManager1 \
+  org.xfce.FileManager; do
+  install -m 0644 /dev/stdin \
+    "$test_root/.local/share/dbus-1/services/$service_name.service" <<EOF
+[D-BUS Service]
+Name=$service_name
+Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --gapplication-service
+EOF
+done
+install -m 0644 /dev/stdin \
+  "$test_root/.local/share/dbus-1/services/org.xfce.Thunar.service" <<EOF
+[D-BUS Service]
+Name=org.xfce.Thunar
+Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --gapplication-service
+# user customization
+EOF
 
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qv/install/desktop"
@@ -195,6 +216,16 @@ pass "qvOS post-update hooks install from their feature owners"
 [[ ! -e $test_root/.local/share/qvos/tmux/removed-feature ]] || fail "stale tmux feature cleanup"
 [[ ! -e $test_root/.local/share/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
 pass "stale helper payloads are removed"
+
+for service_name in \
+  org.freedesktop.FileManager1.service \
+  org.xfce.FileManager.service; do
+  [[ ! -e $test_root/.local/share/dbus-1/services/$service_name ]] ||
+    fail "exact stale D-Bus service cleanup: $service_name"
+done
+[[ -f $test_root/.local/share/dbus-1/services/org.xfce.Thunar.service ]] ||
+  fail "modified D-Bus service preservation"
+pass "only exact obsolete qvOS D-Bus launchers are removed"
 
 [[ ! -e $root/qv/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"

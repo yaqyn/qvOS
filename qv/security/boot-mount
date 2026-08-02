@@ -1,0 +1,148 @@
+#!/bin/bash
+set -euo pipefail
+
+mode=apply
+if [[ ${1:-} == "--check" ]]; then
+  mode=check
+  shift
+fi
+(($# == 0)) || {
+  echo "Usage: qv/security/boot-mount [--check]" >&2
+  exit 2
+}
+
+system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
+fstab="$system_root/etc/fstab"
+candidate=""
+backup_file=""
+fstab_changed=0
+
+cleanup() {
+  [[ -z $candidate ]] || rm -f -- "$candidate"
+}
+trap cleanup EXIT
+
+if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
+  echo "A custom qvOS security system root is only valid in tests." >&2
+  exit 2
+fi
+[[ -e $fstab || -L $fstab ]] || exit 0
+[[ -f $fstab && ! -L $fstab ]] || {
+  echo "qvOS requires a regular fstab file: $fstab" >&2
+  exit 1
+}
+
+read -r boot_entries boot_vfat_entries < <(
+  awk '
+    /^[[:space:]]*#/ || NF == 0 { next }
+    $2 == "/boot" {
+      entries++
+      if ($3 == "vfat") {
+        vfat_entries++
+      }
+    }
+    END { print entries + 0, vfat_entries + 0 }
+  ' "$fstab"
+)
+((boot_entries <= 1)) || {
+  echo "Expected at most one active /boot entry in $fstab." >&2
+  exit 1
+}
+((boot_entries == 1)) || exit 0
+((boot_vfat_entries == 1)) || exit 0
+
+candidate=$(mktemp)
+awk '
+  function secure_options(options,    count, fields, i, result) {
+    count = split(options, fields, ",")
+    result = ""
+    for (i = 1; i <= count; i++) {
+      if (fields[i] ~ /^(fmask|dmask|umask)=/) {
+        continue
+      }
+      if (fields[i] != "") {
+        result = result (result == "" ? "" : ",") fields[i]
+      }
+    }
+    return result (result == "" ? "" : ",") "fmask=0077,dmask=0077"
+  }
+  /^[[:space:]]*#/ || NF == 0 {
+    print
+    next
+  }
+  $2 == "/boot" && $3 == "vfat" {
+    if (NF < 6) {
+      exit 3
+    }
+    output = $1 "\t" $2 "\t" $3 "\t" secure_options($4) "\t" $5 "\t" $6
+    for (i = 7; i <= NF; i++) {
+      output = output "\t" $i
+    }
+    print output
+    next
+  }
+  { print }
+' "$fstab" >"$candidate" || {
+  echo "Could not construct a safe /boot mount policy from $fstab." >&2
+  exit 1
+}
+
+[[ $mode == "apply" ]] || exit 0
+
+if [[ -n $system_root ]]; then
+  install -m 0644 "$candidate" "$fstab"
+  exit 0
+fi
+
+[[ $(findmnt -n -o FSTYPE --target /boot 2>/dev/null || true) == "vfat" ]] || {
+  echo "The active /boot mount is not the expected vfat filesystem." >&2
+  exit 1
+}
+current_options=$(findmnt -n -o OPTIONS --target /boot)
+if ! cmp -s "$candidate" "$fstab"; then
+  fstab_changed=1
+fi
+if ((fstab_changed == 0)) &&
+  [[ ,$current_options, == *",fmask=0077,"* ]] &&
+  [[ ,$current_options, == *",dmask=0077,"* ]]; then
+  exit 0
+fi
+
+if ((EUID == 0)); then
+  backup_file=$(mktemp /etc/fstab.qvos-backup.XXXXXX)
+  install -o root -g root -m 0600 "$fstab" "$backup_file"
+  ((fstab_changed == 0)) || install -o root -g root -m 0644 "$candidate" "$fstab"
+else
+  backup_file=$(/usr/bin/sudo /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
+  /usr/bin/sudo /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
+  if ((fstab_changed)); then
+    /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
+  fi
+fi
+
+remount_status=0
+if ((EUID == 0)); then
+  mount -o remount /boot || remount_status=$?
+else
+  /usr/bin/sudo /usr/bin/mount -o remount /boot || remount_status=$?
+fi
+current_options=$(findmnt -n -o OPTIONS --target /boot 2>/dev/null || true)
+if ((remount_status != 0)) ||
+  [[ ,$current_options, != *",fmask=0077,"* ]] ||
+  [[ ,$current_options, != *",dmask=0077,"* ]]; then
+  if ((fstab_changed)); then
+    if ((EUID == 0)); then
+      install -o root -g root -m 0644 "$backup_file" "$fstab"
+      mount -o remount /boot || true
+    else
+      /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
+        "$backup_file" "$fstab"
+      /usr/bin/sudo /usr/bin/mount -o remount /boot || true
+    fi
+  fi
+  echo "Could not apply private /boot mount permissions; restored the prior fstab policy." >&2
+  exit 1
+fi
+
+printf 'Protected /boot with fmask=0077,dmask=0077; fstab backup: %s\n' \
+  "$backup_file"

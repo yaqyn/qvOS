@@ -5,13 +5,13 @@
 
 machine_id=$(</etc/machine-id)
 extra_uki="/boot/EFI/Linux/${machine_id}_linux.efi"
-if [[ -f /boot/EFI/Linux/omarchy_linux.efi && -f $extra_uki ]]; then
+if sudo test -f /boot/EFI/Linux/omarchy_linux.efi && sudo test -f "$extra_uki"; then
   echo "Cleanup extra UKI"
   sudo rm -f -- "$extra_uki"
 fi
 echo "Resetting limine config"
 
-if [[ -f /boot/limine.conf ]]; then
+if sudo test -f /boot/limine.conf; then
   sudo cp -a -- \
     /boot/limine.conf \
     "/boot/limine.conf.bak.$(date +%s)"

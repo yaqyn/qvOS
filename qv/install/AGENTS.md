@@ -15,6 +15,9 @@ Resolve and validate the complete native package manifest before changing
 mirrors or invoking Pacman. A config reset copies from `$OMARCHY_PATH`, runs
 the native theme configuration directly, and finishes through the shared
 Hyprland reconciliation owner.
+Remove obsolete qvOS state only through `qv/install/cleanup-obsolete`, and only
+when its former owner is absent and the installed payload is an exact known
+qvOS artifact. Preserve symbolic links, modified files, and foreign data.
 
 `qv/install/packaging/base.packages` is the singular installed base manifest.
 `qv/install/packaging/other.packages` is the singular ISO inventory for

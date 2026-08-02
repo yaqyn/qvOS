@@ -26,6 +26,9 @@ exact-black renderer and must clear Plymouth before painting its first frame.
   renderer for separate selected and unselected colors.
 - Preserve the generated menu tree, keyboard and mouse behavior, editor,
   snapshots, EFI fallback, boot verification, and Secure Boot behavior.
+- The EFI system partition is root-only on qvOS. Boot commands inspect or
+  change `/boot` through explicit privileged operations; never weaken its mount
+  mask to make an unprivileged read convenient.
 
 Run `bash -n` and ShellCheck for changed shell, then
 `test/qvos/qvos-product-contract-test.sh`, the instruction guard, and the full

@@ -26,6 +26,7 @@
     qv/direct/post-update-hook
     qv/direct/tool
     qv/direct/update
+    qv/install/cleanup-obsolete
     qv/install/post-update-hook
     qv/menu/concepts.psv
     qv/menu/elephant/omarchy_unlocks.lua
@@ -59,6 +60,7 @@
     qv/screensaver/qvos-launch-screensaver
     qv/screensaver/qvos-screensaver
     qv/security/60-qvos-security.conf
+    qv/security/boot-mount
     qv/security/dev-share
     qv/security/dev-share-firewall
     qv/security/install
@@ -114,6 +116,8 @@
       exit 1
     fi
   done
+
+  "$OMARCHY_PATH/qv/install/cleanup-obsolete"
 
   for feature in desktop direct tmux waybar windows; do
     feature_source="$OMARCHY_PATH/qv/$feature"

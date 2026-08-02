@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+legacy_thunar_helper="$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
+[[ ! -e $legacy_thunar_helper && ! -L $legacy_thunar_helper ]] || exit 0
+
+legacy_service_dir="$HOME/.local/share/dbus-1/services"
+legacy_service_names=(
+  'org.freedesktop.FileManager1|org.freedesktop.FileManager1.service'
+  'org.xfce.FileManager|org.xfce.FileManager.service'
+  'org.xfce.Thunar|org.xfce.Thunar.service'
+)
+for legacy_service in "${legacy_service_names[@]}"; do
+  service_bus_name=${legacy_service%%|*}
+  service_filename=${legacy_service#*|}
+  service_path="$legacy_service_dir/$service_filename"
+  [[ -f $service_path && ! -L $service_path ]] || continue
+  expected_service=$(printf \
+    '[D-BUS Service]\nName=%s\nExec=%s --gapplication-service' \
+    "$service_bus_name" "$legacy_thunar_helper")
+  if [[ $(<"$service_path") == "$expected_service" ]]; then
+    rm -f -- "$service_path"
+  fi
+done
+rmdir -- "$HOME/.local/share/qvos/defaults" 2>/dev/null || true

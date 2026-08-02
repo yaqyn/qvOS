@@ -45,6 +45,7 @@ if [[ ! -f $pacman_config ]]; then
   echo "Missing pacman configuration: $pacman_config" >&2
   exit 1
 fi
+"$OMARCHY_PATH/qv/security/boot-mount" --check
 
 read -r \
   omarchy_sections \
@@ -181,6 +182,8 @@ if [[ -d $system_install_tree ]]; then
       -exec /usr/bin/chmod go-w -- {} +
   fi
 fi
+
+"$OMARCHY_PATH/qv/security/boot-mount"
 
 if [[ -z $system_root ]]; then
   if ((docker_changed)) &&

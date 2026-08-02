@@ -6,6 +6,7 @@ runner="$root/qv/security/lynis-audit"
 root_helper="$root/qv/security/lynis-audit-root"
 baseline="$root/qv/security/60-qvos-security.conf"
 installer="$root/qv/security/install"
+boot_mount="$root/qv/security/boot-mount"
 dev_share="$root/qv/security/dev-share"
 dev_share_helper="$root/qv/security/dev-share-firewall"
 test_root="$(mktemp -d)"
@@ -24,7 +25,7 @@ fail() {
 
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
-[[ -x $installer && -f $baseline && -x $dev_share && -x $dev_share_helper ]] \
+[[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper ]] \
   || fail "security baseline installer is available"
 grep -Fq 'qv/security/AGENTS.md' "$root/AGENTS.md" \
   || fail "root security workflow route"
@@ -262,6 +263,11 @@ install -m 0644 /dev/stdin "$security_system_root/etc/docker/daemon.json" <<'DOC
   "bip": "172.17.0.1/16"
 }
 DOCKER
+install -m 0644 /dev/stdin "$security_system_root/etc/fstab" <<'FSTAB'
+# qvOS test mounts
+UUID=TEST-BOOT /boot vfat rw,relatime,fmask=0022,dmask=0022,utf8 0 2
+UUID=TEST-ROOT / btrfs rw,relatime 0 0
+FSTAB
 install -m 0777 /dev/null \
   "$system_install_tree/cache/test-package/dist/program.js"
 install -m 0775 /dev/null \
@@ -310,6 +316,32 @@ jq -e '
   .bip == "172.17.0.1/16"
 ' "$security_system_root/etc/docker/daemon.json" >/dev/null \
   || fail "Docker defaults to loopback without losing inherited configuration"
+[[ $(awk '$2 == "/boot" { print $4 }' "$security_system_root/etc/fstab") == \
+  "rw,relatime,utf8,fmask=0077,dmask=0077" ]] ||
+  fail "EFI system partition root-only mount policy"
+[[ $(awk '$2 == "/" { print $4 }' "$security_system_root/etc/fstab") == \
+  "rw,relatime" ]] || fail "non-EFI mount policy preservation"
+fstab_checksum=$(sha256sum "$security_system_root/etc/fstab")
+QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
+  "$boot_mount"
+[[ $(sha256sum "$security_system_root/etc/fstab") == "$fstab_checksum" ]] ||
+  fail "EFI mount policy idempotence"
+
+ambiguous_boot_root="$test_root/ambiguous-boot-system"
+install -d "$ambiguous_boot_root/etc"
+install -m 0644 /dev/stdin "$ambiguous_boot_root/etc/fstab" <<'FSTAB'
+UUID=TEST-BOOT-A /boot vfat defaults 0 2
+UUID=TEST-BOOT-B /boot vfat defaults 0 2
+FSTAB
+cp "$ambiguous_boot_root/etc/fstab" "$test_root/ambiguous-fstab-original"
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$ambiguous_boot_root" \
+  "$boot_mount" --check >/dev/null 2>&1; then
+  fail "ambiguous EFI mount policy accepted"
+fi
+cmp -s "$test_root/ambiguous-fstab-original" "$ambiguous_boot_root/etc/fstab" ||
+  fail "ambiguous EFI mount policy mutation"
 [[ $(stat -c '%a' "$system_install_tree/cache/test-package/dist/program.js") == "755" ]] \
   || fail "world-writable system package program mode"
 [[ $(stat -c '%a' "$system_install_tree/global/node_modules/test-package/program.js") == "755" ]] \

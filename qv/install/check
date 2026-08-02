@@ -10,6 +10,7 @@ fail() {
 }
 
 [[ -x $root/qv/install/reinstall-source ]] || fail "source reinstall owner mode"
+[[ -x $root/qv/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
 ) ]] || fail "native install paths are not sorted and unique"
