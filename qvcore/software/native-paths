@@ -3,3 +3,4 @@ bin/omarchy-install-nordvpn
 bin/omarchy-install-vscode
 bin/omarchy-voxtype-install
 bin/omarchy-voxtype-remove
+default/mako/core.ini

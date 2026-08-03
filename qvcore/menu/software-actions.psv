@@ -1,5 +1,5 @@
 # slug|probe kind|probe value|install presentation|install sudo|uninstall presentation|uninstall sudo|install owner|uninstall owner
-dictation|command|voxtype|tui|true|tui|true|omarchy-voxtype-install --yes|omarchy-voxtype-remove
+dictation|command|voxtype|tui|true|tui|true|qv-voxtype-install --yes|qv-voxtype-remove
 windows|file|.config/windows/docker-compose.yml|tui|true|tui|false|qvcore/windows/manage install|qvcore/windows/manage uninstall
 ruby-on-rails|command|rails|tui|true|tui|true|omarchy-install-dev-env ruby|omarchy-remove-dev-env ruby
 go|mise|go|tui|true|tui|true|omarchy-install-dev-env go|omarchy-remove-dev-env go

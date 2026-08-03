@@ -24,7 +24,11 @@ for route in \
   omarchy-install-nordvpn \
   omarchy-install-vscode \
   omarchy-voxtype-install \
-  omarchy-voxtype-remove; do
+  omarchy-voxtype-remove \
+  qv-install-nordvpn \
+  qv-install-vscode \
+  qv-voxtype-install \
+  qv-voxtype-remove; do
   install -m 0755 "$root/bin/$route" "$fixture/bin/$route"
 done
 for owner in \
@@ -40,15 +44,15 @@ install -m 0755 /dev/stdin "$fixture/qvcore/theme/install-vscode" <<'STUB'
 printf 'install-vscode-theme\n' >>"$QVOS_TEST_ACTION_LOG"
 STUB
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-add" <<'STUB'
 #!/bin/bash
 printf 'pkg-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-aur-add" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-aur-add" <<'STUB'
 #!/bin/bash
 printf 'aur-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-drop" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-drop" <<'STUB'
 #!/bin/bash
 printf 'pkg-drop:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
@@ -98,7 +102,7 @@ install -m 0755 /dev/stdin "$test_bin/systemctl" <<'STUB'
 #!/bin/bash
 printf 'systemctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'STUB'
 #!/bin/bash
 exit 0
 STUB
@@ -123,7 +127,7 @@ install -D -m 0600 /dev/stdin "$settings_file" <<'SETTINGS'
 SETTINGS
 cp "$argv_file" "$test_root/argv.before"
 cp "$settings_file" "$test_root/settings.before"
-run_software "$fixture/bin/omarchy-install-vscode" >/dev/null
+run_software "$fixture/bin/qv-install-vscode" >/dev/null
 cmp -s "$test_root/argv.before" "$argv_file" ||
   fail "VS Code argv preservation"
 cmp -s "$test_root/settings.before" "$settings_file" ||
@@ -147,7 +151,7 @@ install -D -m 0644 /dev/stdin "$unit_file" <<'UNIT'
 [Service]
 ExecStart=voxtype daemon
 UNIT
-run_software "$fixture/bin/omarchy-voxtype-install" --yes >/dev/null
+run_software "$fixture/bin/qv-voxtype-install" --yes >/dev/null
 grep -Fqx 'language = "custom"' "$config_file" ||
   fail "Voxtype config preservation"
 grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
@@ -156,7 +160,7 @@ if grep -Fq 'pkg-add:wtype' "$action_log"; then
   fail "Voxtype install claimed qvOS base wtype"
 fi
 
-run_software "$fixture/bin/omarchy-voxtype-remove" >/dev/null
+run_software "$fixture/bin/qv-voxtype-remove" >/dev/null
 [[ -f $config_file && -f $model_file ]] ||
   fail "Voxtype configuration or model removal"
 [[ ! -e $unit_file ]] || fail "Voxtype exact service-unit cleanup"
@@ -182,7 +186,7 @@ if grep -Fq 'usermod' "$action_log" ||
   fail "NordVPN requested redundant group mutation or reboot"
 fi
 : >"$action_log"
-run_software "$fixture/bin/omarchy-install-nordvpn" --defer-reboot \
+run_software "$fixture/bin/qv-install-nordvpn" --defer-reboot \
   >"$test_root/nordvpn-new-group.out"
 grep -Fqx 'sudo:usermod -aG nordvpn qv' "$action_log" ||
   fail "NordVPN group mutation"

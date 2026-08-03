@@ -67,6 +67,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-aur-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-aur-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+ln -s omarchy-pkg-aur-add "$test_bin/qv-pkg-aur-add"
 install -m 0755 /dev/stdin "$test_bin/voxtype" <<'SCRIPT'
 #!/bin/bash
 printf 'voxtype:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
@@ -132,14 +133,14 @@ installer_owner() {
   ' "$root/qvcore/menu/software-installers.psv"
 }
 
-[[ $(software_owner dictation 8) == "omarchy-voxtype-install --yes" ]] ||
+[[ $(software_owner dictation 8) == "qv-voxtype-install --yes" ]] ||
   fail "Dictation catalog lost its noninteractive owner contract"
 [[ $(software_owner xbox-controller 8) == "qv-install-gaming-xbox-controllers --defer-reboot" ]] ||
   fail "Xbox Controllers catalog lost its deferred reboot contract"
 [[ $(software_owner proton 9) == "services/proton/manage remove --yes" &&
 $(software_owner devel 9) == "development/devel/manage remove --yes" ]] ||
   fail "optional integration removal catalog lost its noninteractive owner contract"
-[[ $(installer_owner nordvpn) == "omarchy-install-nordvpn --defer-reboot" ]] ||
+[[ $(installer_owner nordvpn) == "qv-install-nordvpn --defer-reboot" ]] ||
   fail "NordVPN catalog lost its deferred reboot contract"
 
 while IFS= read -r owner; do
@@ -233,11 +234,11 @@ grep -qE '^--oauth2-client-secret=.+$' "$chromium_flags" ||
 [[ $(run_owner "$root/qvcore/menu/software-installer-state" chromium-account) == "installed" ]] ||
   fail "Chromium Account semantic result probe"
 
-run_owner "$root/bin/omarchy-voxtype-install" --yes >/dev/null
+run_owner "$root/bin/qv-voxtype-install" --yes >/dev/null
 grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
   fail "Dictation noninteractive TUI owner"
 
-nord_output=$(run_owner "$root/bin/omarchy-install-nordvpn" --defer-reboot)
+nord_output=$(run_owner "$root/bin/qv-install-nordvpn" --defer-reboot)
 grep -Fqx 'qvOS action: reboot required: NordVPN group membership changed' \
   <<<"$nord_output" ||
   fail "NordVPN deferred reboot signal"

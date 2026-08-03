@@ -1,8 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/omarchy-theme-set-vscode
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 (( $# == 0 )) || {
-  echo "Usage: omarchy-install-vscode" >&2
+  echo "Usage: qv install vscode" >&2
   exit 2
 }
 
@@ -10,7 +13,7 @@ argv_file="$HOME/.vscode/argv.json"
 settings_file="$HOME/.config/Code/User/settings.json"
 
 echo "Installing VS Code..."
-omarchy-pkg-add visual-studio-code-bin
+qv-pkg-add visual-studio-code-bin
 
 if [[ ! -e $argv_file && ! -L $argv_file ]]; then
   install -D -m 0644 /dev/stdin "$argv_file" <<'ARGV'
@@ -33,7 +36,7 @@ else
   echo "Preserving existing VS Code settings.json."
 fi
 
-"$OMARCHY_PATH/qvcore/theme/install-vscode"
+"$QVOS_PATH/qvcore/theme/install-vscode"
 omarchy-theme-set-vscode
 
 echo "VS Code installed. Open it from the app launcher."

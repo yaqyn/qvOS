@@ -4,9 +4,10 @@ Read this file completely when changing qvOS-owned optional software install or
 removal owners, their package boundaries, local configuration, services,
 downloads, launches, or reboot handoff.
 
-- Public inherited command names are metadata-only adapters. Put mutation in
-  one `qvcore/software/` owner and keep state, presentation, sudo, and probe fields
-  truthful in the menu/TUI catalogs.
+- Native routes are `qv install nordvpn`, `qv install vscode`, and
+  `qv voxtype install/remove`. Public inherited names are metadata-free
+  adapters only. Put mutation in one `qvcore/software/` owner and keep state,
+  presentation, sudo, and probe fields truthful in the menu/TUI catalogs.
 - Optional owners never claim or remove a qvOS base package. Normal uninstall
   preserves user configuration, models, credentials, and other application
   data unless a separately scoped TUI choice explicitly owns deletion.
@@ -19,6 +20,9 @@ downloads, launches, or reboot handoff.
 - Stop and remove exact service units before final daemon reload, but retain
   configuration and downloaded data for reinstall. Notifications and desktop
   refreshes after verified installation are best-effort.
+- Native owners use qvOS package, command, restart, and reboot helpers. Until
+  hardware and theme commands are promoted, declare the exact inherited
+  Voxtype Vulkan probe and VS Code theme setter in their TUI source contracts.
 
 Run `qvcore/software/check`, Bash syntax, ShellCheck, focused software/TUI tests,
 `qvcore/tui/owner-contracts --check`, and the full qvOS suite. Do not install,

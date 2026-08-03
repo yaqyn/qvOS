@@ -9,28 +9,38 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-install-nordvpn\nbin/omarchy-install-vscode\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-remove'
+expected=$'bin/omarchy-install-nordvpn\nbin/omarchy-install-vscode\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-remove\ndefault/mako/core.ini'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native optional-software inventory"
 
 declare -A owner_by_route=(
-  [bin/omarchy-install-nordvpn]=qvcore/software/nordvpn-install
-  [bin/omarchy-install-vscode]=qvcore/software/vscode-install
-  [bin/omarchy-voxtype-install]=qvcore/software/voxtype-install
-  [bin/omarchy-voxtype-remove]=qvcore/software/voxtype-remove
+  [install-nordvpn]=qvcore/software/nordvpn-install
+  [install-vscode]=qvcore/software/vscode-install
+  [voxtype-install]=qvcore/software/voxtype-install
+  [voxtype-remove]=qvcore/software/voxtype-remove
 )
 for route in "${!owner_by_route[@]}"; do
   owner=${owner_by_route[$route]}
-  [[ -x $root/$route && -x $root/$owner ]] ||
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
     fail "optional-software adapter or owner mode: $route"
-  (( $(wc -l <"$root/$route") <= 10 )) ||
-    fail "optional-software adapter contains implementation: $route"
-  # shellcheck disable=SC2016
-  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
-    fail "optional-software compatibility adapter: $route"
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native optional-software adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
+    fail "optional-software compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native optional-software adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "optional-software compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    # shellcheck disable=SC2016
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "optional-software adapter owner: $route"
+  done
 done
 
-if rg -n 'omarchy-pkg-(add|drop).*wtype|rm[[:space:]]+-rf.*voxtype' \
+if rg -n 'qv-pkg-(add|drop).*wtype|rm[[:space:]]+-rf.*voxtype' \
   "$root/qvcore/software"; then
   fail "Dictation owner claims a base package or deletes user data"
 fi
@@ -41,5 +51,35 @@ fi
 # shellcheck disable=SC2016
 grep -Fq 'id -nG "$USER"' "$root/qvcore/software/nordvpn-install" ||
   fail "NordVPN owner does not detect active group access"
+compatibility_path_refs=$(
+  # This intentionally matches the literal compatibility fallback expression.
+  # shellcheck disable=SC2016
+  rg -n 'OMARCHY_PATH' \
+    "$root/qvcore/software" \
+    --glob '!AGENTS.md' \
+    --glob '!check' \
+    --glob '!native-paths' |
+    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' || true
+)
+if [[ -n $compatibility_path_refs ]]; then
+  printf '%s\n' "$compatibility_path_refs" >&2
+  fail "native optional-software owner dereferences the compatibility source root"
+fi
+if rg -n 'omarchy-(pkg|cmd|system)-(add|aur-add|drop|present|reboot)' \
+  "$root/qvcore/software" \
+  --glob '!AGENTS.md' \
+  --glob '!check' \
+  --glob '!native-paths'; then
+  fail "native optional-software owner calls a compatibility helper"
+fi
+if rg -n 'omarchy-(install-(nordvpn|vscode)|voxtype-(install|remove))' \
+  "$root/qvcore/menu" \
+  "$root/qvcore/tui" \
+  "$root/default/mako/core.ini" \
+  --glob '!owner-contracts.psv'; then
+  fail "native qvOS surfaces call optional-software compatibility routes"
+fi
+grep -Fq 'qv-voxtype-install' "$root/default/mako/core.ini" ||
+  fail "Dictation notification does not use the native owner route"
 
 printf 'ok - optional software preserves base ownership and user data\n'

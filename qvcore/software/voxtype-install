@@ -1,12 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/omarchy-hw-vulkan
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 noninteractive=false
 case $# in
 0) ;;
 1)
   [[ $1 == "--yes" ]] || {
-    echo "Usage: omarchy-voxtype-install [--yes]" >&2
+    echo "Usage: qv voxtype install [--yes]" >&2
     exit 2
   }
   noninteractive=true
@@ -25,9 +28,9 @@ config_file="$HOME/.config/voxtype/config.toml"
   exit 1
 }
 
-omarchy-pkg-add voxtype-bin
+qv-pkg-add voxtype-bin
 if [[ ! -e $config_file ]]; then
-  install -D -m 0644 "$OMARCHY_PATH/default/voxtype/config.toml" "$config_file"
+  install -D -m 0644 "$QVOS_PATH/default/voxtype/config.toml" "$config_file"
 else
   echo "Preserving existing Voxtype configuration."
 fi
