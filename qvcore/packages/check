@@ -47,6 +47,20 @@ for operation in "${operations[@]}"; do
     fail "package compatibility adapter ownership: $operation"
 done
 
+for owner in update-aur update-keyring remove-orphans update-system; do
+  [[ -x $root/qvcore/packages/$owner ]] ||
+    fail "native package-update owner mode: $owner"
+done
+retired_manifest="$root/qvcore/packages/retired-paths"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
+) ]] || fail "retired package paths are not sorted and unique"
+while IFS= read -r retired; do
+  [[ -n $retired && $retired != \#* ]] || continue
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired package-update path remains: $retired"
+done <"$retired_manifest"
+
 native_refresh="$root/bin/qv-refresh-pacman"
 compatibility_refresh="$root/bin/omarchy-refresh-pacman"
 [[ -x $native_refresh && -x $compatibility_refresh ]] ||
@@ -125,13 +139,24 @@ if rg -n '^\[qvos\]$|pkgs\.qvos|mirror\.qvos' \
   "$root/default/pacman" "$root/qvcore"; then
   fail "qvOS claims package infrastructure it does not operate"
 fi
-grep -Fq 'omarchy-keyring' "$root/bin/omarchy-update-keyring" || {
+grep -Fq 'omarchy-keyring' "$root/qvcore/packages/update-keyring" || {
   fail "Omarchy keyring package contract is missing"
 }
 grep -Fq '40DFB630FF42BCFFB047046CF0134EE680CAC571' \
-  "$root/bin/omarchy-update-keyring" || {
+  "$root/qvcore/packages/update-keyring" || {
   fail "Omarchy signing fingerprint contract is missing"
 }
+grep -Fq 'pacman -Syu --noconfirm' "$root/qvcore/packages/update-system" ||
+  fail "native package full-upgrade stage"
+if rg -n 'pacman -Syyu|for pkg in|xargs|eval' \
+  "$root/qvcore/packages/update-system" \
+  "$root/qvcore/packages/remove-orphans"; then
+  fail "wasteful refresh or rebuilt package arguments remain"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'pacman -Rs --noconfirm -- "${orphans[@]}"' \
+  "$root/qvcore/packages/remove-orphans" ||
+  fail "single argument-safe orphan cleanup"
 grep -Fq 'SigLevel = Required DatabaseOptional' \
   "$root/qvcore/security/install" || {
   fail "Omarchy package signatures are not required by qvOS"

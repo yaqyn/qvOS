@@ -60,7 +60,7 @@ for native_adapter in "$QVOS_PATH"/bin/qv-*; do
 done
 
 qv_update_help=$("$QVOS_PATH/bin/qv" update --help)
-[[ $qv_update_help == *"omarchy-qvos-update"* ]] || {
+[[ $qv_update_help == *"qv-update"* ]] || {
   echo "qv update does not resolve to the guarded qvOS update owner." >&2
   exit 1
 }

@@ -54,8 +54,8 @@ jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
   (."custom/omarchy"."on-click" == "omarchy-menu") and
-  (."custom/update".exec == "omarchy-qvos-update-available") and
-  (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
+  (."custom/update".exec == "qv-update-available") and
+  (."custom/update"."on-click" == "qv-launch-update") and
   (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
@@ -197,8 +197,8 @@ jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
   (."custom/omarchy"."on-click" == "omarchy-menu") and
-  (."custom/update".exec == "omarchy-qvos-update-available") and
-  (."custom/update"."on-click" == "omarchy-launch-qvos-update") and
+  (."custom/update".exec == "qv-update-available") and
+  (."custom/update"."on-click" == "qv-launch-update") and
   (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
   (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")

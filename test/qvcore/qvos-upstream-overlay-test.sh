@@ -293,13 +293,11 @@ public_adapters=(
   bin/omarchy-battery-protection
   bin/omarchy-install-qvcore
   bin/omarchy-launch-qvos-task
-  bin/omarchy-launch-qvos-update
+  bin/omarchy-launch-update
   bin/omarchy-qvcore-remove
   bin/omarchy-qvos-refresh-waybar
   bin/omarchy-qvos-setup-dns
   bin/omarchy-qvos-share
-  bin/omarchy-qvos-update
-  bin/omarchy-qvos-update-available
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep
   bin/omarchy-system-suspend-if-safe

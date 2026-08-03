@@ -57,8 +57,9 @@ for route in "${!migration_owners[@]}"; do
       "$adapter" || fail "migration adapter owner: $route"
   done
 done
-grep -Fqx 'qv-migrate' "$root/bin/omarchy-update-perform" ||
-  fail "update pipeline does not call the native migration route"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
+  fail "update pipeline does not call the native migration owner"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
   "$root/qvcore/install/preflight/migrations.sh" ||

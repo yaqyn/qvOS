@@ -571,7 +571,7 @@ show_remove_menu() {
 }
 
 show_update_menu() {
-  omarchy-launch-qvos-update
+  qv-launch-update
 }
 
 show_update_process_menu() {

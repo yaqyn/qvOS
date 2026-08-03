@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
+noidle_applied=false
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/update/perform" >&2
+  exit 2
+}
+
+restore_idle() {
+  [[ $noidle_applied == "true" ]] || return 0
+  hyprctl dispatch tagwindow -- -noidle &>/dev/null || true
+}
+trap restore_idle EXIT
+
+if hyprctl dispatch tagwindow +noidle &>/dev/null; then
+  noidle_applied=true
+fi
+
+"$QVOS_PATH/qvcore/packages/update-keyring"
+"$QVOS_PATH/qvcore/update/available-reset"
+"$QVOS_PATH/qvcore/packages/update-system"
+"$QVOS_PATH/qvcore/migrations/run"
+"$QVOS_PATH/qvcore/packages/update-aur"
+"$QVOS_PATH/qvcore/packages/remove-orphans"
+omarchy-hook post-update
+"$QVOS_PATH/qvcore/update/analyze-log"
+"$QVOS_PATH/qvcore/update/restart"

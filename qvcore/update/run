@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
+runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
+lock_file="$runtime_root/qvos-update.lock"
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/update/run" >&2
+  exit 2
+}
+
+[[ -d $runtime_root && ! -L $runtime_root && -O $runtime_root ]] || {
+  echo "qvOS update: refusing unsafe runtime directory: $runtime_root" >&2
+  exit 1
+}
+if [[ -e $lock_file || -L $lock_file ]]; then
+  [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] || {
+    echo "qvOS update: refusing unsafe update lock: $lock_file" >&2
+    exit 1
+  }
+fi
+
+lock_fd=${QVOS_UPDATE_LOCK_FD:-}
+inherited_lock=false
+if [[ $lock_fd =~ ^[0-9]+$ && -e /proc/$$/fd/$lock_fd ]]; then
+  inherited_target=$(readlink -f -- "/proc/$$/fd/$lock_fd" 2>/dev/null || true)
+  if [[ $inherited_target == "$lock_file" ]]; then
+    flock -n "$lock_fd" || {
+      echo "qvOS update: another update is already running." >&2
+      exit 1
+    }
+    inherited_lock=true
+  fi
+fi
+if [[ $inherited_lock != "true" ]]; then
+  exec 9>>"$lock_file"
+  chmod 0600 -- "$lock_file"
+  flock -n 9 || {
+    echo "qvOS update: another update is already running." >&2
+    exit 1
+  }
+  lock_fd=9
+fi
+export QVOS_UPDATE_LOCK_FD=$lock_fd
+
+if [[ ${QVOS_UPDATE_CAPTURED:-0} != "1" ]]; then
+  update_log=$("$QVOS_PATH/qvcore/update/log-path" prepare)
+  script_command=$(printf '%q ' "$QVOS_PATH/qvcore/update/run")
+  exec env \
+    QVOS_PATH="$QVOS_PATH" \
+    OMARCHY_PATH="$QVOS_PATH" \
+    QVOS_UPDATE_CAPTURED=1 \
+    QVOS_UPDATE_LOG_PATH="$update_log" \
+    QVOS_UPDATE_LOCK_FD="$lock_fd" \
+    script -qefc "$script_command" "$update_log"
+fi
+
+update_log=$("$QVOS_PATH/qvcore/update/log-path" read)
+[[ ${QVOS_UPDATE_LOG_PATH:-$update_log} == "$update_log" ]] || {
+  echo "qvOS update: refusing a non-owned update log path." >&2
+  exit 1
+}
+export QVOS_UPDATE_LOG_PATH="$update_log"
+
+failure_message() {
+  local status=${1:-$?}
+
+  printf '\n\033[0;31mqvOS update stopped after an error.\n' >&2
+  printf 'Review %s, correct the reported cause, and retry.\n' "$update_log" >&2
+  printf 'Report qvOS issues at https://github.com/Yaqyn-qvOS/qvOS/issues\033[0m\n' >&2
+  exit "$status"
+}
+trap failure_message ERR
+
+if "$QVOS_PATH/qvcore/update/snapshot" create; then
+  snapshot_status=0
+else
+  snapshot_status=$?
+fi
+if (( snapshot_status != 0 && snapshot_status != 127 )); then
+  failure_message "$snapshot_status"
+fi
+
+"$QVOS_PATH/qvcore/update/update-source"
+"$QVOS_PATH/qvcore/update/perform"

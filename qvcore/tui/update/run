@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
 stop_update_tree() {
   trap - HUP TERM
   trap '' INT
@@ -16,11 +18,12 @@ capture_update_log() {
 
 case ${1:-} in
 "")
-  update_log=${QVOS_UPDATE_LOG_PATH:-/tmp/omarchy-update.log}
+  update_log=$("$QVOS_PATH/qvcore/update/log-path" prepare)
   set +e
-  OMARCHY_UPDATE_DEFER_REBOOT=1 \
-    OMARCHY_UPDATE_LOGGED=1 \
-    omarchy-qvos-update -y 2>&1 |
+  QVOS_UPDATE_CAPTURED=1 \
+    QVOS_UPDATE_DEFER_REBOOT=1 \
+    QVOS_UPDATE_LOG_PATH="$update_log" \
+    qv-update -y 2>&1 |
     capture_update_log "$update_log"
   statuses=("${PIPESTATUS[@]}")
   if ((statuses[0] != 0)); then
@@ -29,7 +32,7 @@ case ${1:-} in
   exit "${statuses[1]}"
   ;;
 --check)
-  exec omarchy-qvos-update --check
+  exec qv-update --check
   ;;
 *)
   echo "Usage: qvcore/tui/update/run [--check]" >&2

@@ -69,7 +69,6 @@ identity_paths=(
   bin/omarchy-reinstall-configs
   bin/omarchy-remove-preinstalls
   bin/omarchy-update-available
-  bin/omarchy-update-git
   bin/omarchy-windows-vm
   boot.sh
   config/fastfetch/config.jsonc

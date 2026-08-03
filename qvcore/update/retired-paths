@@ -1,4 +1,12 @@
-# Unsupported inherited source/channel switchers retired by qvOS.
+# Unsupported or superseded inherited update routes retired by qvOS.
 bin/omarchy-branch-set
 bin/omarchy-channel-set
+bin/omarchy-state
+bin/omarchy-update-analyze-logs
+bin/omarchy-update-available-reset
 bin/omarchy-update-branch
+bin/omarchy-update-confirm
+bin/omarchy-update-git
+bin/omarchy-update-perform
+bin/omarchy-update-restart
+bin/omarchy-update-without-idle

@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/packages/update-aur" >&2
+  exit 2
+}
+
+if ! pacman -Qem -q >/dev/null 2>&1; then
+  exit 0
+fi
+
+if "$QVOS_PATH/qvcore/packages/aur-accessible"; then
+  echo -e "\e[32m\nUpdate AUR packages\e[0m"
+  yay -Sua --noconfirm --cleanafter --ignore gcc14,gcc14-libs
+  echo
+else
+  echo -e "\e[33m\nAUR is unavailable; installed AUR packages were not updated.\e[0m"
+  echo
+fi

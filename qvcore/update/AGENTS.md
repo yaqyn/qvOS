@@ -3,6 +3,11 @@
 Read this file completely when changing qvOS source updates, the public update
 wrapper, update stages, update failure handling, or reboot handoff.
 
+`qvcore/update/source-check` singularly validates the resolved checkout,
+OS branch, cleanliness, and official qvOS origin. Product preflight, source
+update, and availability checks all call it; mutation paths recheck immediately
+before use to close time-of-check gaps.
+
 `qvcore/update/update-source` owns source synchronization. The public inherited
 command is a thin compatibility adapter. Resolve `QVOS_PATH` first and the
 inherited environment name second. Require a clean non-symbolic checkout
@@ -15,10 +20,33 @@ branch and channel switchers are retired; experimental upstream refs belong in
 separate development checkouts and never mutate the installed OS.
 
 `qvcore/update/qvos-update` owns product preflight and presentation, then delegates
-once to the update pipeline. Its read-only check must reject a dirty or non-OS
-live checkout before authorization. Package operations, migrations, hooks, and
-reboot behavior remain discrete pipeline stages; do not duplicate them in the
-wrapper.
+once to `qvcore/update/run`. Its read-only check must reject a dirty or non-OS
+live checkout before authorization. `qv update` is the native public route;
+matching inherited public routes are metadata-free compatibility adapters only,
+while raw internal stage commands are retired.
+
+`run` serializes the complete transaction, writes its PTY output only to the
+private fixed qvOS state log, creates an optional pre-update snapshot, updates
+source, then delegates once to `perform`. Reject links, foreign ownership, and
+caller-selected log paths. The TUI may capture the same pipeline once but must
+use the same log owner and qvOS environment names. Never restore a predictable
+`/tmp` log or a second update engine.
+
+`perform` owns stage ordering only. Package mutation belongs to
+`qvcore/packages/`, migration to `qvcore/migrations/run`, and post-update hooks
+to their hook owner. Any no-idle tag must be removed through an EXIT trap after
+success, failure, or interruption. Initramfs log analysis fails closed before
+restart when success cannot be proven.
+
+`update-available` compares the installed commit with the official remote OS
+head using bounded network time. Equal and locally-ahead source are current;
+remote-ahead or divergent source offers an update. Tags are not the release or
+availability authority.
+
+`snapshot`, `time-sync`, and `firmware` are native qvOS owners. Snapshot config
+names are validated; time sync verifies the service after restarting it; and
+firmware installation delegates package installation to the native package
+owner. Never invoke these mutations during source-only verification.
 
 `qvcore/migrations/run` is the update pipeline's only migration engine. It reads
 only native numeric owners, serializes runs, keeps private atomic qvOS markers,
@@ -40,7 +68,7 @@ Hyprland process safely, accept only exact restart-marker service slugs, and
 clear each marker only after its restart owner succeeds. Delegate every reboot
 choice to `qvcore/update/reboot-request`; never restore an inherited fallback.
 
-Run `qvcore/update/check`, Bash syntax, ShellCheck, the focused update and source
+Run `qvcore/update/check`, `qvcore/packages/check`, Bash syntax, ShellCheck, the focused update and source
 lifecycle tests, and the full qvOS suite. A source-only audit must not invoke
 the interactive updater or package upgrades. Live verification requires a
 clean checkout and exact development/live commit parity.

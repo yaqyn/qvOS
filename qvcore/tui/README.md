@@ -353,7 +353,7 @@ main hub and `--update` direct mode reuse one flow:
 2. Reuse the shared sudo authorization surface as the only start gate. It uses
    the generic `Auth Required` title and places the dimmed, unlabeled action
    summary beneath the password rail.
-3. Delegate once to `omarchy-qvos-update -y`, show known stage milestones, and
+3. Delegate once to `qv-update -y`, show known stage milestones, and
    retain all other output in the optional log view.
 4. Defer inherited kernel, Hyprland, and reboot-required prompts to the shared
    post-success Reboot Now/Later screen.
@@ -365,7 +365,7 @@ the background. `Keep Updating` is the safe default; only explicitly choosing
 Closing the Update window drains the same active-update stop path. The
 non-interruptible
 keyboard guard remains exclusive to boot/ISO installation. If the TUI is
-unavailable, `omarchy-qvos-update` retains its plain terminal confirmation and
+unavailable, `qv-update` retains its plain terminal confirmation and
 update path. A stopped Update renders `UPDATE STOPPED`; it never presents
 `100%`, `UPDATED`, or `update complete`.
 

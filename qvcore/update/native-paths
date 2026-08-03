@@ -1,8 +1,7 @@
-# Inherited paths promoted to native qvOS update ownership.
-bin/omarchy-state
+# Inherited public paths promoted to native qvOS update ownership.
+bin/omarchy-snapshot
 bin/omarchy-update
 bin/omarchy-update-available
-bin/omarchy-update-git
-bin/omarchy-update-keyring
-bin/omarchy-update-perform
-bin/omarchy-update-restart
+bin/omarchy-update-firmware
+bin/omarchy-update-time
+default/snapper/root

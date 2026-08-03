@@ -23,7 +23,7 @@ every command is present and no command is missing. The old hidden terminal-CWD
 helper is retired; `qvcore/desktop/context/qvos-active-location` is the singular
 tested desktop-context resolver.
 
-`qv update` must resolve only to `omarchy-qvos-update`, which delegates to the
+`qv update` must resolve only to `qv-update`, which delegates to the
 guarded qvOS update owner. Never expose the inherited raw updater or its
 implementation subcommands as native `qv update` routes. Do not run an update
 or package upgrade while testing CLI dispatch; use help, metadata checks, and

@@ -198,7 +198,10 @@ register_command() {
   local has_summary="false"
   local metadata_errors=""
 
-  if [[ $QVOS_CLI_NAME == "qv" && ($file_binary == "omarchy-update" || $file_binary == omarchy-update-*) ]]; then
+  if [[
+    $file_binary == "omarchy-update" ||
+    $file_binary == omarchy-update-*
+  ]]; then
     return 0
   fi
 
@@ -276,15 +279,6 @@ register_command() {
     fallback_group="${stem%%-*}"
     fallback_name="${stem#*-}"
     fallback_name="${fallback_name//-/ }"
-  fi
-
-  if [[ $QVOS_CLI_NAME == "qv" && $file_binary == "omarchy-qvos-update" ]]; then
-    group="update"
-    name=""
-    name_seen="true"
-    fallback_group="update"
-    fallback_name=""
-    fallback_route="qv update"
   fi
 
   [[ -z $binary ]] && binary="$file_binary"
@@ -447,10 +441,22 @@ resolve_direct_route() {
   local binary_prefix=""
   local candidate=""
 
-  if [[ $QVOS_CLI_NAME == "qv" && ${args[0]} == "update" ]]; then
-    DIRECT_RESOLVED_BINARY="omarchy-qvos-update"
-    DIRECT_RESOLVED_COUNT=1
-    return 0
+  if [[ ${args[0]} == "update" ]]; then
+    for (( prefix_count = argc; prefix_count >= 2; prefix_count-- )); do
+      binary="qv-$(join_words "-" "${args[@]:0:prefix_count}")"
+      candidate="$QVOS_COMMAND_DIR/$binary"
+      if [[ -f $candidate && -x $candidate ]]; then
+        DIRECT_RESOLVED_BINARY="$binary"
+        DIRECT_RESOLVED_COUNT="$prefix_count"
+        return 0
+      fi
+    done
+    if [[ -f $QVOS_COMMAND_DIR/qv-update && -x $QVOS_COMMAND_DIR/qv-update ]]; then
+      DIRECT_RESOLVED_BINARY="qv-update"
+      DIRECT_RESOLVED_COUNT=1
+      return 0
+    fi
+    return 1
   fi
 
   for (( prefix_count = argc; prefix_count >= 1; prefix_count-- )); do

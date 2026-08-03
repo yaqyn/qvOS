@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/update/analyze-log" >&2
+  exit 2
+}
+
+update_log=${QVOS_UPDATE_LOG_PATH:-$("$QVOS_PATH/qvcore/update/log-path" read)}
+owned_log=$("$QVOS_PATH/qvcore/update/log-path" read)
+[[ $update_log == "$owned_log" ]] || {
+  echo "qvOS update: refusing to analyze a non-owned log path." >&2
+  exit 1
+}
+
+if grep -Fq "Updating linux initcpios" "$update_log" &&
+  ! grep -Fq "Initcpio image generation successful" "$update_log"; then
+  echo "qvOS update: initramfs generation may have failed; stopping before restart." >&2
+  exit 1
+fi

@@ -307,13 +307,13 @@ pass "desktop keyring support stays complete"
 grep -Fq 'Text = "󱅾  Update qvOS"' \
   "$root/qvcore/menu/elephant/qvos_menu.lua" ||
   fail "qvOS update menu icon"
-grep -Fq 'Actions = { activate = "omarchy-launch-qvos-update" }' \
+grep -Fq 'Actions = { activate = "qv-launch-update" }' \
   "$root/qvcore/menu/elephant/qvos_menu.lua" ||
   fail "qvOS update menu route"
 update_override=$(
   sed -n '/^show_update_menu()/,/^}/p' "$root/qvcore/menu/extension.sh"
 )
-[[ $update_override == $'show_update_menu() {\n  omarchy-launch-qvos-update\n}' ]] ||
+[[ $update_override == $'show_update_menu() {\n  qv-launch-update\n}' ]] ||
   fail "Update qvOS is not direct"
 if rg -q 'qvos-system|qvOS System' \
   "$root/qvcore/menu/extension.sh" \
@@ -421,7 +421,7 @@ fi
 if grep -Fq 'tea.WithInput(nil)' "$root/qvcore/tui/iso_progress.go"; then
   fail "qvOS output-only progress disabled terminal response consumption"
 fi
-grep -Fq 'omarchy-launch-qvos-update' "$root/qvcore/theme/yaqyn/mako.ini" ||
+grep -Fq 'qv-launch-update' "$root/qvcore/theme/yaqyn/mako.ini" ||
   fail "qvOS update notification TUI route"
 grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \
   "$root/qvcore/config/files/hypr/qv/windows.conf" ||
@@ -444,12 +444,12 @@ qvos_first_run_line=$(grep -nF '"$QVOS_PATH/qvcore/install/first-run/gnome-theme
 grep -Fqx '"$QVOS_PATH/qvcore/menu/install" --install' \
   "$root/qvcore/install/first-run/run" ||
   fail "qvOS first-run menu reconciliation"
-grep -Fq 'output="qvOS ${output#Omarchy }"' \
+grep -Fq 'ls-remote --heads origin refs/heads/OS' \
   "$root/qvcore/update/update-available" || fail "qvOS update status"
 grep -Fq 'Update qvOS source' "$root/qvcore/update/update-source" ||
   fail "qvOS source update progress"
-grep -Fq '# omarchy:summary=Safely update qvOS through its native update engine' \
-  "$root/bin/omarchy-qvos-update" || fail "qvOS update help"
+grep -Fq '# qv:summary=Update qvOS and system packages safely' \
+  "$root/bin/qv-update" || fail "qvOS update help"
 grep -Fq 'powers the qvOS Menu' "$root/bin/omarchy-refresh-walker" ||
   fail "qvOS menu help"
 grep -Fq 'QVOS_CLI_NAME=qv' "$root/bin/qv" ||

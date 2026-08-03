@@ -1,0 +1,29 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+provider_fingerprint="40DFB630FF42BCFFB047046CF0134EE680CAC571"
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/packages/update-keyring" >&2
+  exit 2
+}
+
+if "$QVOS_PATH/qvcore/packages/missing" omarchy-keyring ||
+  ! sudo pacman-key --list-keys "$provider_fingerprint" &>/dev/null; then
+  sudo pacman-key --recv-keys "$provider_fingerprint" \
+    --keyserver keys.openpgp.org
+  sudo pacman-key --lsign-key "$provider_fingerprint"
+
+  # Refresh only long enough to install the provider keyring; update-system
+  # performs the required full upgrade immediately after this stage.
+  sudo pacman -Sy --noconfirm
+  "$QVOS_PATH/qvcore/packages/add" omarchy-keyring
+  sudo pacman-key --list-keys "$provider_fingerprint" >/dev/null
+fi
+
+echo -e "\e[32m\nUpdate Arch signing keys\e[0m"
+sudo pacman -Sy --noconfirm -- archlinux-keyring \
+  >/dev/null \
+  2> >(grep -vE '^warning: archlinux-keyring-[^ ]+ is up to date -- reinstalling$' >&2)
+echo "Keys are correct"

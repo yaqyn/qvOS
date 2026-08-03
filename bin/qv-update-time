@@ -1,4 +1,9 @@
 #!/bin/bash
 
+# qv:summary=Restart and verify system time synchronization
+# qv:group=update
+# qv:name=time
+# qv:requires-sudo=true
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/update/time-sync" "$@"

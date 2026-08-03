@@ -28,13 +28,19 @@ install -d "$test_bin"
 
 project="$test_root/project"
 remote="$test_root/qvos.git"
-install -d "$project"
+install -d "$project/qvcore/update"
 git -C "$project" init -q -b OS
 install -m 0755 /dev/stdin "$project/install.sh" <<'SCRIPT'
 #!/bin/bash
 printf 'installed\n' >>"$QVOS_TEST_BOOT_LOG"
 SCRIPT
 printf 'one\n' >"$project/version"
+install -m 0755 /dev/stdin "$project/qvcore/update/time-sync" <<'SCRIPT'
+#!/bin/bash
+printf 'time\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+install -m 0755 "$root/qvcore/update/source-check" \
+  "$project/qvcore/update/source-check"
 git -C "$project" add .
 git -C "$project" \
   -c user.name='qvOS Test' \
@@ -91,10 +97,6 @@ grep -Fq 'does not match the installed qvOS commit' <<<"$reinstall_mismatch_outp
   fail "reinstall commit-mismatch preservation"
 pass "source reinstall never doubles as an unreviewed update"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-update-time" <<'SCRIPT'
-#!/bin/bash
-printf 'time\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
 printf 'hyprctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"

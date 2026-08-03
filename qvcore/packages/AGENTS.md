@@ -43,6 +43,13 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
   assessed before advancing the reviewed upstream SHA.
 - AUR is optional and user-initiated. Required qvOS base capability must not
   silently move from the curated providers to an unreviewed AUR recipe.
+- `qvcore/packages/update-{keyring,system,aur}` and `remove-orphans` own package
+  stages inside the native qvOS update transaction. The keyring stage may use
+  one partial database refresh only to establish the credited provider and
+  Arch keyrings immediately before the full `pacman -Syu`. Update AUR packages
+  only when foreign packages exist and AUR is reachable. Remove all verified
+  orphans in one argument-safe transaction and report failures honestly.
+  Their inherited raw stage commands are retired, not compatibility APIs.
 
 Run `qvcore/packages/check`, Bash syntax, ShellCheck, the package, security,
 source-lifecycle, qvsync, and full qvOS suites. Package upgrades and live channel

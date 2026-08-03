@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/update/available-reset" >&2
+  exit 2
+}
+
+pkill -RTMIN+7 -x waybar 2>/dev/null || true

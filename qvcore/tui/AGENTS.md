@@ -32,7 +32,7 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   owner; when a second consumer appears, extract the behavior in the same
   change and remove both local implementations. Thin model adapters carry only
   model-specific state and copy.
-- Keep mutation, package, and update behavior in its existing qvOS or Omarchy
+- Keep mutation, package, and update behavior in its existing qvOS
   owner. TUI adapters delegate once and never reproduce an engine.
 - Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
   for update, and ISO flows retain their inherited fallback.

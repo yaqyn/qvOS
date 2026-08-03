@@ -1,0 +1,5 @@
+# Inherited package-update stages retired after native pipeline promotion.
+bin/omarchy-update-aur-pkgs
+bin/omarchy-update-keyring
+bin/omarchy-update-orphan-pkgs
+bin/omarchy-update-system-pkgs

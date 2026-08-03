@@ -1,23 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Update qvOS and system packages
-# omarchy:args=[-y]
-# omarchy:examples=omarchy update | omarchy update -y
-# omarchy:requires-sudo=true
-
-set -e
-
-# Run the update inside a PTY so pacman/yay keep showing download progress
-# while still logging the full session for later analysis.
-if [[ -z $OMARCHY_UPDATE_LOGGED ]]; then
-  script_command=$(printf '%q ' "$0" "$@")
-  exec env OMARCHY_UPDATE_LOGGED=1 script -qefc "$script_command" "/tmp/omarchy-update.log"
-fi
-
-trap 'echo ""; echo -e "\033[0;31mSomething went wrong during the update!\n\nPlease review the output above carefully, correct the error, and retry the update.\n\nReport qvOS issues at https://github.com/Yaqyn-qvOS/qvOS/issues\033[0m"' ERR
-
-if [[ $1 == "-y" ]] || omarchy-update-confirm; then
-  omarchy-snapshot create || (($? == 127))
-  omarchy-update-git
-  omarchy-update-perform
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/update/qvos-update" "$@"

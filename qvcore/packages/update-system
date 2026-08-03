@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/packages/update-system" >&2
+  exit 2
+}
+
+echo -e "\e[32m\nUpdate system packages\e[0m"
+sudo pacman -Syu --noconfirm

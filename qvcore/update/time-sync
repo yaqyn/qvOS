@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv update time" >&2
+  exit 2
+}
+
+echo "Synchronizing system time..."
+sudo systemctl restart systemd-timesyncd.service
+systemctl is-active --quiet systemd-timesyncd.service || {
+  echo "qvOS time synchronization service did not become active." >&2
+  exit 1
+}

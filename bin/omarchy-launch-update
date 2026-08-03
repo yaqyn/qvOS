@@ -1,0 +1,4 @@
+#!/bin/bash
+
+tui_runtime=${QVOS_TUI_RUNTIME:-$HOME/.local/lib/qvos/tui}
+exec "$tui_runtime/update/launch" "$@"

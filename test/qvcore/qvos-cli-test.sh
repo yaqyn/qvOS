@@ -28,14 +28,14 @@ compat_help=$("$compat_cli" --help)
   .ok == true and
   (all(.commands[]; .route | startswith("qv "))) and
   ([.commands[].binary | select(. == "omarchy-update" or startswith("omarchy-update-"))] | length == 0) and
-  ([.commands[] | select(.route == "qv update" and .binary == "omarchy-qvos-update")] | length == 1) and
+  ([.commands[] | select(.route == "qv update" and .binary == "qv-update")] | length == 1) and
   ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1)
 ' >/dev/null || fail "native command catalog"
 
 update_help=$("$qv_cli" update --help)
 [[ $update_help == *"Usage:"* ]] || fail "native update help"
 [[ $update_help == *"qv update"* ]] || fail "native update usage"
-[[ $update_help == *"omarchy-qvos-update"* ]] || fail "guarded update binary"
+[[ $update_help == *"qv-update"* ]] || fail "guarded update binary"
 [[ $update_help != *"omarchy-update-perform"* ]] || fail "raw updater isolation"
 
 set +e
@@ -43,7 +43,7 @@ update_perform_output=$("$qv_cli" update perform 2>&1)
 update_perform_status=$?
 set -e
 (( update_perform_status == 2 )) || fail "raw updater route rejection status"
-[[ $update_perform_output == *"Usage: omarchy-qvos-update"* ]] ||
+[[ $update_perform_output == *"Usage: qv update"* ]] ||
   fail "raw updater route rejection owner"
 
 test_root=$(mktemp -d)

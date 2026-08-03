@@ -9,7 +9,7 @@ func TestProgressFromLineUsesRealUpdateMilestones(t *testing.T) {
 		progress     float64
 		wantProgress bool
 	}{
-		{"Update Omarchy", "updating qvOS source", 0.10, true},
+		{"Update qvOS source", "updating qvOS source", 0.10, true},
 		{"Update Arch signing keys", "updating signing keys", 0.20, true},
 		{"Update system packages", "updating system packages", 0.38, true},
 		{"Running migration (1780000000)", "running migrations", 0.56, true},

@@ -47,8 +47,8 @@
   },
   "custom/update": {
     "format": "",
-    "exec": "omarchy-update-available",
-    "on-click": "omarchy-launch-floating-terminal-with-presentation omarchy-update",
+    "exec": "qv-update-available",
+    "on-click": "qv-launch-update",
     "tooltip-format": "qvOS update available",
     "signal": 7,
     "interval": 21600

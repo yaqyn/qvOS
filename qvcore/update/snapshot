@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 1 )) || {
+  echo "Usage: qv snapshot <create|restore>" >&2
+  exit 2
+}
+operation=$1
+[[ $operation == "create" || $operation == "restore" ]] || {
+  echo "Usage: qv snapshot <create|restore>" >&2
+  exit 2
+}
+
+command -v snapper >/dev/null 2>&1 || exit 127
+
+case $operation in
+create)
+  [[ -f $QVOS_PATH/version && ! -L $QVOS_PATH/version ]] || {
+    echo "qvOS snapshot: installed version is unavailable." >&2
+    exit 1
+  }
+  description="qvOS $(<"$QVOS_PATH/version")"
+  echo -e "\e[32mCreate system snapshot\e[0m"
+  config_output=$(sudo snapper --csvout list-configs)
+  mapfile -t configs < <(
+    awk -F, 'NR > 1 && $1 ~ /^[[:alnum:]_.-]+$/ { print $1 }' <<<"$config_output"
+  )
+  for config in "${configs[@]}"; do
+    sudo snapper -c "$config" create -c number -d "$description"
+    sudo snapper -c "$config" cleanup number
+  done
+  echo
+  ;;
+restore)
+  command -v limine-snapper-restore >/dev/null 2>&1 || {
+    echo "qvOS snapshot restore is unavailable." >&2
+    exit 1
+  }
+  sudo limine-snapper-restore
+  ;;
+esac

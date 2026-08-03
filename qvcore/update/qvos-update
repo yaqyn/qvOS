@@ -2,11 +2,12 @@
 set -euo pipefail
 
 source_path=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$(readlink -f -- "$source_path" 2>/dev/null || true)
+QVOS_PATH=$(readlink -f -- "$source_path" 2>/dev/null || true)
+OMARCHY_PATH=$QVOS_PATH
 mode=interactive
 
 usage() {
-  echo "Usage: omarchy-qvos-update [-y|--check]" >&2
+  echo "Usage: qv update [-y|--check]" >&2
 }
 
 if (($# > 1)); then
@@ -24,23 +25,8 @@ case ${1:-} in
 esac
 
 preflight() {
-  local branch
-  local source_status
-
-  branch=$(git -C "$OMARCHY_PATH" branch --show-current 2>/dev/null || true)
-  if [[ $branch != "OS" ]]; then
-    echo "qvOS update requires the live checkout on branch OS; found '${branch:-none}'." >&2
-    return 1
-  fi
-  source_status=$(git -C "$OMARCHY_PATH" status --porcelain=v1 --untracked-files=all 2>/dev/null) || {
-    echo "qvOS update cannot inspect the live source checkout." >&2
-    return 1
-  }
-  if [[ -n $source_status ]]; then
-    echo "qvOS update requires a clean live source checkout." >&2
-    return 1
-  fi
-  if ! command -v omarchy-update >/dev/null 2>&1; then
+  "$QVOS_PATH/qvcore/update/source-check" "$QVOS_PATH"
+  if [[ ! -x $QVOS_PATH/qvcore/update/run ]]; then
     echo "qvOS update cannot find its update engine." >&2
     return 1
   fi
@@ -79,5 +65,5 @@ if [[ $mode == "interactive" ]]; then
   fi
 fi
 
-omarchy-update -y
+"$QVOS_PATH/qvcore/update/run"
 echo -e "\e[32m\nqvOS update is complete.\e[0m"

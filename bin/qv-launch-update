@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Open the qvOS Update interface
+# qv:group=launch
+# qv:name=update
+# qv:hidden=true
+
+tui_runtime=${QVOS_TUI_RUNTIME:-$HOME/.local/lib/qvos/tui}
+exec "$tui_runtime/update/launch" "$@"

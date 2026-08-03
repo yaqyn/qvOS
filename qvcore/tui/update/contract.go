@@ -23,7 +23,6 @@ type stage struct {
 }
 
 var stages = []stage{
-	{"Update Omarchy", "updating qvOS source", 0.10},
 	{"Update qvOS", "updating qvOS source", 0.10},
 	{"Update Arch signing keys", "updating signing keys", 0.20},
 	{"Update system packages", "updating system packages", 0.38},

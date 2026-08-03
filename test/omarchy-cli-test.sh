@@ -167,8 +167,8 @@ assert_output_contains "command help renders without executing" "$output" "Binar
 assert_output_contains "theme set help names binary" "$output" "qv-theme-set"
 
 output=$(timeout 5 "$CLI" update --help)
-assert_output_contains "mutating command help does not execute target" "$output" "omarchy-update"
-assert_output_contains "root command help shows related child commands" "$output" "omarchy update perform"
+assert_output_contains "mutating command help does not execute target" "$output" "qv-update"
+assert_output_contains "root command help shows related child commands" "$output" "omarchy update firmware"
 
 output=$("$CLI" screenshot --help)
 assert_output_contains "root alias resolves to command help" "$output" "omarchy-capture-screenshot"
@@ -200,6 +200,7 @@ pass "safe dispatch works for font current"
 
 for binary in \
   omarchy-update \
+  qv-update \
   qv-theme-set \
   omarchy-capture-screenshot \
   omarchy-system-reboot \

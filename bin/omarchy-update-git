@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Pull the latest qvOS git changes
-
-set -euo pipefail
-
-exec "$OMARCHY_PATH/qvcore/update/update-source" "$@"

@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Show qvOS update availability
-# omarchy:group=qvos
-# omarchy:name=update available
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/update/update-available" "$@"

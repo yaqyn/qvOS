@@ -89,7 +89,7 @@ func TestUpdateActionUsesTheQvOSMaintenanceOwner(t *testing.T) {
 		t.Fatalf("update environment = %q", environment)
 	}
 
-	status, progress := scriptProgressFromLine(actionUpdate, "Update Omarchy")
+	status, progress := scriptProgressFromLine(actionUpdate, "Update qvOS source")
 	if status != "updating qvOS source" || progress <= 0 {
 		t.Fatalf("source update progress = %q, %f", status, progress)
 	}

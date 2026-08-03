@@ -1,0 +1,68 @@
+#!/bin/bash
+set -euo pipefail
+
+operation=${1:-read}
+(( $# == 1 )) || {
+  echo "Usage: qvcore/update/log-path <prepare|read>" >&2
+  exit 2
+}
+[[ $operation == "prepare" || $operation == "read" ]] || {
+  echo "Usage: qvcore/update/log-path <prepare|read>" >&2
+  exit 2
+}
+
+local_root="$HOME/.local"
+state_parent="$local_root/state"
+qvos_root="$state_parent/qvos"
+state_root="$qvos_root/update"
+log_path="$state_root/update.log"
+
+fail() {
+  printf 'qvOS update log: %s\n' "$1" >&2
+  exit 1
+}
+
+safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || fail "refusing unsafe directory: $path"
+  else
+    install -d -m "$mode" -- "$path"
+  fi
+}
+
+[[ -d $HOME && ! -L $HOME && -O $HOME ]] ||
+  fail "refusing unsafe home directory: $HOME"
+ensure_directory 0755 "$local_root"
+ensure_directory 0700 "$state_parent"
+ensure_directory 0700 "$qvos_root"
+ensure_directory 0700 "$state_root"
+chmod 0700 -- "$qvos_root" "$state_root"
+
+if [[ -e $log_path || -L $log_path ]]; then
+  [[ -f $log_path && ! -L $log_path && -O $log_path ]] ||
+    fail "refusing unsafe log file: $log_path"
+fi
+
+case $operation in
+prepare)
+  if [[ -e $log_path ]]; then
+    : >"$log_path"
+  else
+    install -m 0600 /dev/null "$log_path"
+  fi
+  chmod 0600 -- "$log_path"
+  ;;
+read)
+  [[ -f $log_path && ! -L $log_path && -O $log_path ]] ||
+    fail "update log is unavailable: $log_path"
+  ;;
+esac
+
+printf '%s\n' "$log_path"

@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv update firmware" >&2
+  exit 2
+}
+
+echo -e "\e[32mUpdate Firmware\e[0m"
+if ! command -v fwupdmgr >/dev/null 2>&1; then
+  "$QVOS_PATH/qvcore/packages/add" fwupd
+fi
+
+if [[ -d /sys/firmware/efi && -f /usr/lib/fwupd/efi/fwupdx64.efi ]]; then
+  sudo install -D -m 0644 -- \
+    /usr/lib/fwupd/efi/fwupdx64.efi \
+    /boot/EFI/arch/fwupdx64.efi
+fi
+
+fwupdmgr refresh --force
+sudo fwupdmgr update

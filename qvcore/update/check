@@ -2,59 +2,128 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-manifest="$root/qvcore/update/native-paths"
+native_manifest="$root/qvcore/update/native-paths"
+retired_manifest="$root/qvcore/update/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-[[ -x $root/qvcore/update/update-source ]] || fail "native source updater mode"
-[[ -x $root/qvcore/update/state ]] || fail "native update-state owner mode"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest" | sort -u
 ) ]] || fail "native update paths are not sorted and unique"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
+) ]] || fail "retired update paths are not sorted and unique"
+
+owners=(
+  analyze-log
+  available-reset
+  firmware
+  log-path
+  perform
+  qvos-update
+  reboot-request
+  restart
+  run
+  snapshot
+  source-check
+  state
+  time-sync
+  update-available
+  update-source
+)
+for owner in "${owners[@]}"; do
+  [[ -x $root/qvcore/update/$owner ]] || fail "native update owner mode: $owner"
+done
+
+declare -A compatibility_owners=(
+  [omarchy-snapshot]=snapshot
+  [omarchy-update]=qvos-update
+  [omarchy-update-available]=update-available
+  [omarchy-update-firmware]=firmware
+  [omarchy-update-time]=time-sync
+)
+for adapter in "${!compatibility_owners[@]}"; do
+  path="$root/bin/$adapter"
+  owner=${compatibility_owners[$adapter]}
+  [[ -x $path ]] || fail "update compatibility adapter mode: $adapter"
+  (( $(wc -l <"$path") <= 6 )) ||
+    fail "update compatibility adapter contains implementation: $adapter"
+  ! rg -q '^# (qv|omarchy):' "$path" ||
+    fail "update compatibility adapter duplicates metadata: $adapter"
+  grep -Fq "qvcore/update/$owner" "$path" ||
+    fail "update compatibility adapter owner: $adapter"
+done
+
+declare -A native_owners=(
+  [qv-snapshot]=snapshot
+  [qv-update]=qvos-update
+  [qv-update-available]=update-available
+  [qv-update-firmware]=firmware
+  [qv-update-time]=time-sync
+)
+for adapter in "${!native_owners[@]}"; do
+  path="$root/bin/$adapter"
+  owner=${native_owners[$adapter]}
+  [[ -x $path ]] || fail "native update adapter mode: $adapter"
+  (( $(wc -l <"$path") <= 12 )) ||
+    fail "native update adapter contains implementation: $adapter"
+  rg -q '^# qv:summary=' "$path" || fail "native update metadata: $adapter"
+  grep -Fq "qvcore/update/$owner" "$path" || fail "native update owner: $adapter"
+done
+
 # shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/update/update-source" "$@"' \
-  "$root/bin/omarchy-update-git" || fail "source update adapter"
-if rg -n -- '--autostash|reset --merge|pull( |.* )origin master' \
-  "$root/bin/omarchy-update-git" "$root/qvcore/update/update-source"; then
-  fail "unsafe or inherited source-update behavior remains"
+grep -Fqx '"$QVOS_PATH/qvcore/update/run"' "$root/qvcore/update/qvos-update" ||
+  fail "guarded update wrapper does not delegate once to the native engine"
+if rg -n 'omarchy-update|omarchy-migrate|/tmp/omarchy-update' \
+  "$root/qvcore/update/qvos-update" \
+  "$root/qvcore/update/run" \
+  "$root/qvcore/update/perform" \
+  "$root/qvcore/tui/update/run"; then
+  fail "native update engine retains an inherited route or public tmp log"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'qvos_root="$state_parent/qvos"' "$root/qvcore/update/log-path" ||
+  fail "private qvOS update state root"
+# shellcheck disable=SC2016
+grep -Fq 'log_path="$state_root/update.log"' "$root/qvcore/update/log-path" ||
+  fail "private qvOS update log path"
+grep -Fq 'trap restore_idle EXIT' "$root/qvcore/update/perform" ||
+  fail "update no-idle cleanup trap"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
+  fail "native migration owner in update pipeline"
+grep -Fq 'ls-remote --heads origin refs/heads/OS' \
+  "$root/qvcore/update/update-available" || fail "official OS availability check"
+if rg -n 'rev-list --tags|describe --tags|ls-remote --tags' \
+  "$root/qvcore/update/update-available"; then
+  fail "tag-based update availability remains"
 fi
 grep -Fq 'pull --ff-only --no-rebase origin OS' \
   "$root/qvcore/update/update-source" || fail "OS fast-forward-only source update"
+grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/qvos-update" ||
+  fail "guarded wrapper source contract"
+grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/update-source" ||
+  fail "source updater source contract"
 # shellcheck disable=SC2016
-grep -Fq 'source_path=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
-  "$root/qvcore/update/update-source" || fail "native source-root precedence"
-grep -Fq 'status --porcelain=v1 --untracked-files=all' \
-  "$root/qvcore/update/qvos-update" || fail "live source cleanliness preflight"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$QVOS_PATH/qvcore/update/state" "$@"' \
-  "$root/bin/omarchy-state" || fail "update-state compatibility adapter"
+grep -Fq '/source-check" "$source_path"' "$root/qvcore/update/update-available" ||
+  fail "availability source contract"
+if rg -n -- '--autostash|reset --merge|pull( |.* )origin master' \
+  "$root/qvcore/update/update-source"; then
+  fail "unsafe or inherited source-update behavior remains"
+fi
 grep -Fq '.local/state/qvos/update' "$root/qvcore/update/restart" ||
   fail "native restart marker state"
 if rg -q '\.local/state/omarchy|omarchy-state clear' "$root/qvcore/update/restart"; then
   fail "restart owner retains active Omarchy state"
 fi
-[[ -x $root/qvcore/update/restart ]] || fail "native update restart owner mode"
-(( $(wc -l <"$root/bin/omarchy-update-restart") <= 10 )) ||
-  fail "update restart compatibility adapter contains implementation"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/update/restart" "$@"' \
-  "$root/bin/omarchy-update-restart" ||
-  fail "update restart compatibility adapter"
-if rg -q 'gum confirm|omarchy-system-reboot|if \[\[ -x .*qvcore/update' \
-  "$root/bin/omarchy-update-restart"; then
-  fail "update restart compatibility route retains a fallback"
-fi
-for retired_switcher in \
-  bin/omarchy-branch-set \
-  bin/omarchy-channel-set \
-  bin/omarchy-update-branch; do
-  [[ ! -e $root/$retired_switcher && ! -L $root/$retired_switcher ]] ||
-    fail "unsupported source switcher remains: $retired_switcher"
-  grep -Fqx "$retired_switcher" "$root/qvcore/update/retired-paths" ||
-    fail "retired source switcher is not inventoried: $retired_switcher"
-done
 
-printf 'ok - qvOS source updates are clean, official, and fast-forward only\n'
+while IFS= read -r retired; do
+  [[ -n $retired && $retired != \#* ]] || continue
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired update path remains: $retired"
+done <"$retired_manifest"
+
+printf 'ok - qvOS owns one private, fail-closed update transaction\n'
