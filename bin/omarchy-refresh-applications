@@ -1,24 +1,31 @@
 #!/bin/bash
 
-# omarchy:summary=Ensure all default .desktop, web apps, TUIs, and npx wrappers are installed.
+# omarchy:summary=Ensure all default qvOS desktop apps, TUIs, and npx wrappers are installed.
 
-mkdir -p ~/.local/share/icons/hicolor/48x48/apps/
-cp ~/.local/share/omarchy/applications/icons/*.png ~/.local/share/icons/hicolor/48x48/apps/
-gtk-update-icon-cache ~/.local/share/icons/hicolor &>/dev/null
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
+mkdir -p "$HOME/.local/share/icons/hicolor/48x48/apps/"
+cp "$OMARCHY_PATH"/applications/icons/*.png \
+  "$HOME/.local/share/icons/hicolor/48x48/apps/"
+gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null
 
 # Copy .desktop declarations
-mkdir -p ~/.local/share/applications
-cp ~/.local/share/omarchy/applications/*.desktop ~/.local/share/applications/
-cp ~/.local/share/omarchy/applications/hidden/*.desktop ~/.local/share/applications/
+mkdir -p "$HOME/.local/share/applications"
+cp "$OMARCHY_PATH"/applications/*.desktop "$HOME/.local/share/applications/"
+cp "$OMARCHY_PATH"/applications/hidden/*.desktop \
+  "$HOME/.local/share/applications/"
 
 if omarchy-cmd-present foot; then
-  cp ~/.local/share/omarchy/default/foot/foot.desktop ~/.local/share/applications/
+  cp "$OMARCHY_PATH/default/foot/foot.desktop" \
+    "$HOME/.local/share/applications/"
 fi
 
-# Refresh the webapps, TUIs, and npx wrappers
-bash $OMARCHY_PATH/install/packaging/icons.sh
-bash $OMARCHY_PATH/install/packaging/webapps.sh
-bash $OMARCHY_PATH/install/packaging/tuis.sh
-bash $OMARCHY_PATH/install/packaging/npx.sh
+# Refresh icons, TUIs, and qvOS-owned npx wrappers.
+bash "$OMARCHY_PATH/install/packaging/icons.sh"
+"$OMARCHY_PATH/qv/install/packaging/webapps"
+bash "$OMARCHY_PATH/install/packaging/tuis.sh"
+"$OMARCHY_PATH/qv/install/packaging/npx"
 
-update-desktop-database ~/.local/share/applications
+update-desktop-database "$HOME/.local/share/applications"

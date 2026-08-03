@@ -18,6 +18,10 @@ for first_run_owner in prepare root run gnome-theme icons; do
   [[ -x $root/qv/install/first-run/$first_run_owner ]] ||
     fail "first-run owner mode: $first_run_owner"
 done
+for packaging_owner in npx webapps; do
+  [[ -x $root/qv/install/packaging/$packaging_owner ]] ||
+    fail "packaging owner mode: $packaging_owner"
+done
 [[ ! -e $root/qv/install/first-run/apply ]] ||
   fail "first-run overlay remains"
 [[ ! -e $root/qv/install/helpers/logging ]] || fail "duplicate install logger remains"
@@ -62,5 +66,21 @@ if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|
   "$root/qv/install" "$root/install/preflight"; then
   fail "broad passwordless first-run command remains"
 fi
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qv/install/packaging/webapps"' \
+  "$root/install/packaging/all.sh" || fail "native webapps stage wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qv/install/packaging/npx"' \
+  "$root/install/packaging/all.sh" || fail "native npx stage wiring"
+# shellcheck disable=SC2016
+grep -Fqx '"$OMARCHY_PATH/qv/install/packaging/webapps"' \
+  "$root/bin/omarchy-refresh-applications" ||
+  fail "native webapps refresh wiring"
+# shellcheck disable=SC2016
+grep -Fqx '"$OMARCHY_PATH/qv/install/packaging/npx"' \
+  "$root/bin/omarchy-refresh-applications" || fail "native npx refresh wiring"
+[[ ! -e $root/install/packaging/npx.sh &&
+  ! -e $root/install/packaging/webapps.sh ]] ||
+  fail "inherited npx or webapps packaging remains"
 
 printf 'ok - qvOS install and reinstall lifecycles preserve source safely\n'

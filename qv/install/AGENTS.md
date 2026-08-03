@@ -39,6 +39,11 @@ running after it; retain `yaru-icon-theme` only for compatible external themes.
 `qv/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths. `qv/install/packaging/resolve` validates and emits
 them; never restore an inherited manifest plus additions/exclusions model.
+`install/packaging/all.sh` calls the native qvOS npx and empty-webapp owners
+directly, and `omarchy-refresh-applications` uses those same owners. Never
+restore inherited npx/webapp implementations, fallbacks, or source/execute
+adapters. Keep Codex, Pi, and GHUI in the singular npx owner until their product
+ownership changes deliberately; qvOS ships no webapp desktop launchers.
 
 - Keep qvOS complete without qvCORE. Stack packages stay in their qvCORE owner;
   base packages may provide only shared prerequisites such as `mise`.

@@ -36,8 +36,6 @@ inherited_seams=(
   install/login/limine-snapper.sh
   install/login/plymouth.sh
   install/login/sddm.sh
-  install/packaging/npx.sh
-  install/packaging/webapps.sh
 )
 
 declare -A inherited_seam_set=()
@@ -215,8 +213,6 @@ pass "retired upstream paths are explicit and absent"
 fallback_seams=(
   bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-windows-vm
-  install/packaging/npx.sh
-  install/packaging/webapps.sh
 )
 
 for path in "${fallback_seams[@]}"; do
@@ -252,20 +248,6 @@ grep -Fq '"qvOS installation stopped!"' "$root/install/helpers/errors.sh" ||
   fail "installer error branding does not expose qvOS"
 pass "installer error fallback exposes qvOS identity"
 
-packaging_seams=(
-  install/packaging/npx.sh
-  install/packaging/webapps.sh
-)
-# shellcheck disable=SC2016
-for path in "${packaging_seams[@]}"; do
-  grep -Fq 'if [[ ${BASH_SOURCE[0]} -ef $0 ]]; then' "$root/$path" ||
-    fail "$path does not distinguish execution from sourcing"
-  grep -Fq 'exit "$qvos_owner_status"' "$root/$path" ||
-    fail "$path does not stop executable fallthrough"
-  grep -Fq 'return "$qvos_owner_status"' "$root/$path" ||
-    fail "$path does not stop sourced fallthrough"
-done
-
 omarchy-npx-install() {
   printf 'npx:%s|%s\n' "$1" "$2"
 }
@@ -277,40 +259,24 @@ omarchy-pkg-add() {
 }
 export -f omarchy-npx-install omarchy-webapp-install omarchy-pkg-add
 
-run_packaging_adapter() {
-  local mode=$1
-  local path=$2
+npx_output=$(OMARCHY_PATH="$root" "$root/qv/install/packaging/npx") ||
+  fail "native npx owner failed"
+webapps_output=$(OMARCHY_PATH="$root" "$root/qv/install/packaging/webapps") ||
+  fail "native webapps owner failed"
+base_output=$(
+  OMARCHY_PATH="$root" OMARCHY_INSTALL="$root/install" \
+    bash -c 'source "$1"' _ "$root/install/packaging/base.sh"
+) || fail "base qvOS owner failed"
 
-  case $mode in
-  execute)
-    OMARCHY_PATH="$root" OMARCHY_INSTALL="$root/install" bash "$root/$path"
-    ;;
-  source)
-    OMARCHY_PATH="$root" OMARCHY_INSTALL="$root/install" \
-      bash -c 'source "$1"' _ "$root/$path"
-    ;;
-  esac
-}
-
-for adapter_mode in execute source; do
-  npx_output=$(run_packaging_adapter "$adapter_mode" install/packaging/npx.sh) ||
-    fail "npx qvOS adapter failed in $adapter_mode mode"
-  webapps_output=$(run_packaging_adapter "$adapter_mode" install/packaging/webapps.sh) ||
-    fail "webapps qvOS adapter failed in $adapter_mode mode"
-  base_output=$(run_packaging_adapter "$adapter_mode" install/packaging/base.sh) ||
-    fail "base qvOS adapter failed in $adapter_mode mode"
-
-  [[ $npx_output == $'npx:@openai/codex|codex\nnpx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
-    fail "npx qvOS adapter falls through in $adapter_mode mode"
-  [[ -z $webapps_output ]] ||
-    fail "webapps qvOS adapter falls through in $adapter_mode mode"
-  grep -Fqx 'pkg:xdg-user-dirs' <<<"$base_output" ||
-    fail "base qvOS adapter omits additions in $adapter_mode mode"
-  if grep -Fqx 'pkg:1password-beta' <<<"$base_output"; then
-    fail "base qvOS adapter falls through in $adapter_mode mode"
-  fi
-done
-pass "package entrypoints use their native owner without fallback fallthrough"
+[[ $npx_output == $'npx:@openai/codex|codex\nnpx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
+  fail "native npx owner inventory"
+[[ -z $webapps_output ]] || fail "native webapps owner is not empty"
+grep -Fqx 'pkg:xdg-user-dirs' <<<"$base_output" ||
+  fail "base qvOS owner omits additions"
+if grep -Fqx 'pkg:1password-beta' <<<"$base_output"; then
+  fail "base qvOS owner falls through to an inherited manifest"
+fi
+pass "package entrypoints use singular native owners"
 
 [[ ! -e $root/install/config/qvos-scripts.sh ]] ||
   fail "qvOS desktop implementation remains under inherited install config"

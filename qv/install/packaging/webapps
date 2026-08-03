@@ -1,2 +1,4 @@
-# qvOS does not preinstall webapp desktop launchers.
-:
+#!/bin/bash
+set -euo pipefail
+
+# qvOS intentionally has no bundled webapp desktop launchers.
