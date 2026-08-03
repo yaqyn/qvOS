@@ -100,6 +100,8 @@
     qv/tui/update/launch
     qv/tui/update/run
     qv/update/reboot-request
+    qv/windows/command
+    qv/windows/lib
     qv/windows/manage
     qv/windows/launch
     qv/tmux/qvos-tmux

@@ -22,6 +22,12 @@ fail() {
   exit 1
 }
 
+(( $(wc -l <"$launcher") <= 10 )) ||
+  fail "presentation compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/presentation/run" "$@"' "$launcher" ||
+  fail "presentation compatibility adapter is not direct"
+
 install -d \
   "$test_bin" \
   "$test_omarchy/qv/branding" \

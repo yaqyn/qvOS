@@ -30,12 +30,16 @@ done
 adapter_routes=(
   bin/omarchy-branding-about
   bin/omarchy-branding-screensaver
+  bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-show-logo
+  bin/omarchy-windows-vm
 )
 adapter_owners=(
   qv/branding/about
   qv/branding/screensaver
+  qv/presentation/run
   qv/branding/show-logo
+  qv/windows/command
 )
 for index in "${!adapter_routes[@]}"; do
   route=${adapter_routes[$index]}
@@ -90,7 +94,9 @@ identity_paths=(
   qv/boot/sddm/metadata.desktop
   qv/boot/wayland-sessions/omarchy.desktop
   qv/install/helpers/errors
+  qv/presentation/run
   qv/update/qvos-update
+  qv/windows/command
 )
 
 for path in "${identity_paths[@]}"; do

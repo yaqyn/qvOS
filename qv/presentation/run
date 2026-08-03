@@ -1,7 +1,16 @@
 #!/bin/bash
+set -euo pipefail
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 branding_owner="$OMARCHY_PATH/qv/branding/show-logo"
+
+(( $# > 0 )) || {
+  echo "Usage: omarchy-launch-floating-terminal-with-presentation <command> [args...]" >&2
+  exit 2
+}
+if (( $# == 1 )) && [[ $1 == *[[:space:]]* ]]; then
+  set -- bash -c "$1"
+fi
 
 # shellcheck disable=SC2016
 exec setsid uwsm-app -- \

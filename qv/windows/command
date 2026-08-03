@@ -1,0 +1,365 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+source "$OMARCHY_PATH/qv/windows/lib"
+
+config_dir="$HOME/.config/windows"
+compose_file="$config_dir/docker-compose.yml"
+storage_dir="$HOME/.windows"
+shared_dir="$HOME/Windows"
+container_name=omarchy-windows
+windows_user=
+windows_password=
+
+usage() {
+  cat <<'USAGE'
+Usage: omarchy-windows-vm <install|remove|launch|stop|status> [options]
+
+Commands:
+  install                  Configure the Windows VM
+  remove                   Remove its configuration or virtual disk
+  launch [--keep-alive]    Start and connect; stop after disconnect by default
+  stop                     Stop the Windows VM
+  status                   Show configuration and runtime status
+  help                     Show this help
+
+Launch options:
+  -k, --keep-alive         Keep the VM running after RDP disconnects
+USAGE
+}
+
+fail_usage() {
+  echo "$1" >&2
+  usage >&2
+  exit 2
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Required Windows VM command is unavailable: $1" >&2
+    return 1
+  }
+}
+
+require_owned_path() {
+  local path=$1
+  local owner
+
+  [[ -e $path ]] || return 0
+  owner=$(stat -c '%u' -- "$path")
+  [[ $owner == "$(id -u)" ]] || {
+    echo "Refusing Windows path owned by another user: $path" >&2
+    return 1
+  }
+}
+
+compose_value() {
+  local index=$1
+  local key=$2
+  local -n destination=$3
+  local prefix="      $key: \""
+  local line=${compose_lines[$index]}
+
+  [[ $line == "$prefix"*'"' ]] || {
+    echo "Windows VM configuration has an invalid $key field." >&2
+    return 1
+  }
+  destination=${line#"$prefix"}
+  destination=${destination%"\""}
+  [[ $destination != *'"'* ]] || {
+    echo "Windows VM configuration has an invalid $key value." >&2
+    return 1
+  }
+}
+
+load_compose() {
+  local repair_mode=$1
+  local compose_mode
+  local version
+  local ram_size
+  local cpu_cores
+  local disk_size
+  local timezone
+  local arguments
+  local storage_mapping="$storage_dir:/storage"
+  local shared_mapping="$shared_dir:/shared"
+
+  qvos_windows_require_safe_path "$config_dir" directory
+  qvos_windows_require_safe_path "$compose_file" file
+  [[ -f $compose_file ]] || {
+    echo "Windows VM is not configured. Run: omarchy-windows-vm install" >&2
+    return 1
+  }
+  require_owned_path "$config_dir"
+  require_owned_path "$compose_file"
+
+  compose_mode=$(stat -c '%a' -- "$compose_file")
+  if [[ $compose_mode != "600" ]]; then
+    if [[ $repair_mode == "true" ]]; then
+      chmod 0600 -- "$compose_file"
+    else
+      echo "Windows VM configuration permissions are unsafe (expected 0600)." >&2
+      return 1
+    fi
+  fi
+
+  mapfile -t compose_lines <"$compose_file"
+  (( ${#compose_lines[@]} == 27 )) || {
+    echo "Refusing an unrecognized Windows VM Compose configuration." >&2
+    return 1
+  }
+
+  [[ ${compose_lines[0]} == "services:" &&
+    ${compose_lines[1]} == "  windows:" &&
+    ${compose_lines[2]} == "    image: dockurr/windows" &&
+    ${compose_lines[3]} == "    container_name: $container_name" &&
+    ${compose_lines[4]} == "    environment:" &&
+    ${compose_lines[13]} == "    devices:" &&
+    ${compose_lines[14]} == "      - /dev/kvm" &&
+    ${compose_lines[15]} == "      - /dev/net/tun" &&
+    ${compose_lines[16]} == "    cap_add:" &&
+    ${compose_lines[17]} == "      - NET_ADMIN" &&
+    ${compose_lines[18]} == "    ports:" &&
+    ${compose_lines[19]} == "      - 127.0.0.1:8006:8006" &&
+    ${compose_lines[20]} == "      - 127.0.0.1:3389:3389/tcp" &&
+    ${compose_lines[21]} == "      - 127.0.0.1:3389:3389/udp" &&
+    ${compose_lines[22]} == "    volumes:" &&
+    (${compose_lines[23]} == "      - $storage_mapping" ||
+      ${compose_lines[23]} == "      - \"$storage_mapping\"") &&
+    (${compose_lines[24]} == "      - $shared_mapping" ||
+      ${compose_lines[24]} == "      - \"$shared_mapping\"") &&
+    ${compose_lines[25]} == "    restart: unless-stopped" &&
+    ${compose_lines[26]} == "    stop_grace_period: 2m" ]] || {
+    echo "Refusing a Windows VM configuration outside the qvOS security profile." >&2
+    return 1
+  }
+
+  compose_value 5 VERSION version
+  compose_value 6 RAM_SIZE ram_size
+  compose_value 7 CPU_CORES cpu_cores
+  compose_value 8 DISK_SIZE disk_size
+  compose_value 9 USERNAME windows_user
+  compose_value 10 PASSWORD windows_password
+  compose_value 11 TZ timezone
+  compose_value 12 ARGUMENTS arguments
+
+  [[ $version == "11" ]] &&
+    [[ $ram_size =~ ^(2|4|8|16|32|64)G$ ]] &&
+    [[ $cpu_cores =~ ^[0-9]+$ ]] && (( 10#$cpu_cores > 0 && 10#$cpu_cores <= 65535 )) &&
+    [[ $disk_size =~ ^(32|64|128|256|512)G$ ]] &&
+    qvos_windows_valid_username "$windows_user" &&
+    qvos_windows_valid_password "$windows_password" &&
+    qvos_windows_valid_timezone "$timezone" &&
+    [[ $arguments == "-rtc base=localtime,clock=host,driftfix=slew" ]] || {
+    windows_password=
+    echo "Refusing invalid values in the Windows VM configuration." >&2
+    return 1
+  }
+}
+
+container_status() {
+  docker inspect --format '{{.State.Status}}' "$container_name" 2>/dev/null || true
+}
+
+wait_for_windows() {
+  local attempt
+  local logs
+  local status
+
+  echo "Waiting for Windows to become ready (up to two minutes)..."
+  for ((attempt = 1; attempt <= 60; attempt++)); do
+    if nc -z -w 1 127.0.0.1 3389 >/dev/null 2>&1; then
+      echo "Windows is ready."
+      return 0
+    fi
+    logs=$(docker logs --tail 200 "$container_name" 2>&1 || true)
+    if [[ ${logs,,} == *"windows started successfully"* ]]; then
+      echo "Windows is ready."
+      return 0
+    fi
+    status=$(container_status)
+    if [[ $status == "exited" || $status == "dead" ]]; then
+      echo "Windows stopped before it became ready. Check: docker logs $container_name" >&2
+      return 1
+    fi
+    if (( attempt % 5 == 0 )); then
+      printf 'Still preparing Windows... %d seconds elapsed.\n' "$((attempt * 2))"
+    fi
+    sleep 2
+  done
+
+  echo "Windows did not become ready within two minutes. Check: docker logs $container_name" >&2
+  return 1
+}
+
+display_scale_argument() {
+  local scale_percent
+
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+  scale_percent=$(hyprctl monitors -j 2>/dev/null |
+    jq -r 'first(.[] | select(.focused == true) | ((.scale // 1) * 100 | floor)) // 100' 2>/dev/null || true)
+  [[ $scale_percent =~ ^[0-9]+$ ]] || return 0
+  if (( scale_percent >= 170 )); then
+    printf '/scale:180\n'
+  elif (( scale_percent >= 130 )); then
+    printf '/scale:140\n'
+  fi
+}
+
+start_if_needed() {
+  local status
+
+  status=$(container_status)
+  if [[ $status == "running" ]]; then
+    wait_for_windows
+    return
+  fi
+
+  echo "Starting the Windows VM..."
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Starting Windows VM" "This can take up to two minutes" -t 15000 || true
+  fi
+  if ! docker-compose -f "$compose_file" up -d; then
+    command -v notify-send >/dev/null 2>&1 &&
+      notify-send -u critical "Windows VM" "Failed to start Windows" || true
+    echo "Windows VM failed to start. Check: docker logs $container_name" >&2
+    return 1
+  fi
+  wait_for_windows
+}
+
+stop_windows() {
+  (( $# == 0 )) || fail_usage "stop accepts no options."
+  load_compose true
+  require_command docker-compose
+  echo "Stopping the Windows VM..."
+  docker-compose -f "$compose_file" down
+  echo "Windows VM stopped."
+}
+
+status_windows() {
+  local status
+
+  (( $# == 0 )) || fail_usage "status accepts no options."
+  load_compose false
+  require_command docker
+  docker info >/dev/null 2>&1 || {
+    echo "Docker is unavailable; the Windows VM runtime status cannot be read." >&2
+    return 1
+  }
+  status=$(container_status)
+  case $status in
+  running)
+    cat <<'STATUS'
+Windows VM: running
+Web interface: http://127.0.0.1:8006
+Remote desktop: 127.0.0.1:3389
+Connect: omarchy-windows-vm launch
+Stop: omarchy-windows-vm stop
+STATUS
+    ;;
+  "")
+    echo "Windows VM: configured, not started"
+    echo "Start: omarchy-windows-vm launch"
+    ;;
+  *)
+    echo "Windows VM: $status"
+    echo "Start: omarchy-windows-vm launch"
+    ;;
+  esac
+}
+
+launch_windows() {
+  local keep_alive=false
+  local rdp_status
+  local scale_argument
+  local -a rdp_arguments
+
+  case ${1:-} in
+  "") ;;
+  -k | --keep-alive)
+    keep_alive=true
+    shift
+    ;;
+  *) fail_usage "Unknown launch option: ${1:-}" ;;
+  esac
+  (( $# == 0 )) || fail_usage "launch accepts only --keep-alive."
+
+  load_compose true
+  require_command docker
+  require_command docker-compose
+  require_command nc
+  require_command xfreerdp3
+  start_if_needed
+
+  scale_argument=$(display_scale_argument)
+  rdp_arguments=(
+    "/u:$windows_user"
+    /from-stdin:force
+    /v:127.0.0.1:3389
+    /f
+    /grab-keyboard
+    /sound
+    /microphone
+    /clipboard
+    /cert:ignore
+    "/title:qvOS Windows VM"
+    /dynamic-resolution
+    /gfx:AVC444
+    "/floatbar:sticky:off,default:visible,show:fullscreen"
+  )
+  [[ -z $scale_argument ]] || rdp_arguments+=("$scale_argument")
+
+  if [[ $keep_alive == "true" ]]; then
+    echo "Connecting to Windows. The VM will stay running after disconnect."
+  else
+    echo "Connecting to Windows. The VM will stop after disconnect."
+  fi
+
+  set +e
+  printf '%s\n' "$windows_password" | xfreerdp3 "${rdp_arguments[@]}"
+  rdp_status=${PIPESTATUS[1]}
+  set -e
+  windows_password=
+
+  if [[ $keep_alive == "false" ]]; then
+    echo "Remote desktop closed; stopping the Windows VM..."
+    if ! docker-compose -f "$compose_file" down; then
+      echo "Remote desktop closed, but the Windows VM could not be stopped." >&2
+      (( rdp_status != 0 )) || return 1
+    else
+      echo "Windows VM stopped."
+    fi
+  else
+    echo "Remote desktop closed; the Windows VM is still running."
+    echo "Stop it with: omarchy-windows-vm stop"
+  fi
+  return "$rdp_status"
+}
+
+operation=${1:-help}
+[[ $# == 0 ]] || shift
+case $operation in
+install | remove)
+  (( $# == 0 )) || fail_usage "$operation accepts no options."
+  exec "$OMARCHY_PATH/qv/windows/launch"
+  ;;
+launch | start)
+  launch_windows "$@"
+  ;;
+stop | down)
+  stop_windows "$@"
+  ;;
+status)
+  status_windows "$@"
+  ;;
+help | --help | -h)
+  (( $# == 0 )) || fail_usage "help accepts no options."
+  usage
+  ;;
+*)
+  fail_usage "Unknown Windows VM command: $operation"
+  ;;
+esac

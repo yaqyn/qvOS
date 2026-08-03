@@ -4,13 +4,5 @@
 # omarchy:args=<command>
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-qvos_owner="$OMARCHY_PATH/qv/presentation/run"
-if [[ -x $qvos_owner ]]; then
-  if (($# == 1)) && [[ $1 == *[[:space:]]* ]]; then
-    exec "$qvos_owner" bash -c "$1"
-  fi
-  exec "$qvos_owner" "$@"
-fi
 
-cmd="$*"
-exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=qvOS -e bash -c "omarchy-show-logo; $cmd; if (( \$? != 130 )); then omarchy-show-done; fi"
+exec "$OMARCHY_PATH/qv/presentation/run" "$@"

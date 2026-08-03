@@ -6,6 +6,7 @@ set -euo pipefail
 # qvos:uninstall-summary=Remove Windows VM configuration while keeping its virtual disk
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+source "$OMARCHY_PATH/qv/windows/lib"
 operation=${1:-}
 [[ -n $operation ]] && shift
 
@@ -109,29 +110,7 @@ require_positive_integer() {
 }
 
 require_safe_path() {
-  local path=$1
-  local kind=$2
-
-  if [[ -L $path ]]; then
-    echo "Refusing symlinked Windows $kind: $path" >&2
-    return 1
-  fi
-  if [[ -e $path ]]; then
-    case $kind in
-    directory)
-      [[ -d $path ]] || {
-        echo "Windows path is not a directory: $path" >&2
-        return 1
-      }
-      ;;
-    file)
-      [[ -f $path ]] || {
-        echo "Windows path is not a regular file: $path" >&2
-        return 1
-      }
-      ;;
-    esac
-  fi
+  qvos_windows_require_safe_path "$@"
 }
 
 check_base_prerequisites() {
@@ -284,15 +263,11 @@ validate_form_values() {
     echo "Invalid Windows CPU allocation." >&2
     return 1
   }
-  [[ $windows_user =~ ^[A-Za-z][A-Za-z0-9._-]{0,31}$ ]] || {
+  qvos_windows_valid_username "$windows_user" || {
     echo "Windows user names must start with a letter and use letters, numbers, dots, dashes, or underscores." >&2
     return 1
   }
-  ((${#windows_password} >= 8 && ${#windows_password} <= 64)) || {
-    echo "The Windows password must contain 8 to 64 characters." >&2
-    return 1
-  }
-  [[ $windows_password =~ ^[A-Za-z0-9@%+=:,.!?_-]+$ ]] || {
+  qvos_windows_valid_password "$windows_password" || {
     echo "The Windows password may use letters, numbers, and common safe symbols." >&2
     return 1
   }
@@ -318,7 +293,7 @@ write_compose_file() {
   local timezone
 
   timezone=$(timedatectl show -p Timezone --value 2>/dev/null || true)
-  [[ -n $timezone ]] || timezone=UTC
+  qvos_windows_valid_timezone "$timezone" || timezone=UTC
   temporary=$(mktemp "$config_dir/.docker-compose.XXXXXX")
   chmod 0600 "$temporary"
   {
@@ -345,8 +320,8 @@ write_compose_file() {
     printf '      - 127.0.0.1:3389:3389/tcp\n'
     printf '      - 127.0.0.1:3389:3389/udp\n'
     printf '    volumes:\n'
-    printf '      - %s:/storage\n' "$storage_dir"
-    printf '      - %s:/shared\n' "$shared_dir"
+    printf '      - %s\n' "$(yaml_quote "$storage_dir:/storage")"
+    printf '      - %s\n' "$(yaml_quote "$shared_dir:/shared")"
     printf '    restart: unless-stopped\n'
     printf '    stop_grace_period: 2m\n'
   } >"$temporary"

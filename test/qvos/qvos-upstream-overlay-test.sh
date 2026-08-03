@@ -194,39 +194,10 @@ for path in "${retired_paths[@]}"; do
 done
 pass "retired upstream paths are explicit and absent"
 
-fallback_seams=(
-  bin/omarchy-launch-floating-terminal-with-presentation
-  bin/omarchy-windows-vm
-)
-
-for path in "${fallback_seams[@]}"; do
-  fallback_diff=$(
-    git -C "$root" diff --unified=0 "$upstream_ref" -- "$path"
-  )
-  while IFS= read -r removed_line; do
-    [[ $removed_line != ---* ]] || continue
-    removed_line=${removed_line#-}
-    branded_line=${removed_line//Omarchy/qvOS}
-    legacy_branded_line=${removed_line//Omarchy/(qvOS|Omarchy)}
-    if [[ $removed_line == "$branded_line" ]]; then
-      fail "$path removes inherited fallback behavior"
-    fi
-    if ! grep -Fqx "+$branded_line" <<<"$fallback_diff" &&
-      ! grep -Fqx "+$legacy_branded_line" <<<"$fallback_diff"; then
-      fail "$path removes inherited fallback behavior"
-    fi
-  done < <(grep '^-' <<<"$fallback_diff" || true)
-  # shellcheck disable=SC2016
-  grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/' "$root/$path" ||
-    fail "$path does not name its qvOS owner"
-  rg -q '^[[:space:]]*if \[\[ -(x|f) \$qvos_owner \]\]; then$' "$root/$path" ||
-    fail "$path qvOS owner is not availability-guarded"
-  if rg -q '^exec "\$OMARCHY_PATH/qv/' "$root/$path" ||
-    rg -U -q '^source .*qv/.*\nreturn$' "$root/$path"; then
-    fail "$path makes inherited Omarchy fallback unreachable"
-  fi
-done
-pass "inherited qvOS delegations preserve Omarchy fallbacks"
+if rg -n 'qvos_owner=' "$root/bin"; then
+  fail "a public command still retains an inherited availability fallback"
+fi
+pass "promoted public commands retain no inherited availability fallbacks"
 
 omarchy-npx-install() {
   printf 'npx:%s|%s\n' "$1" "$2"

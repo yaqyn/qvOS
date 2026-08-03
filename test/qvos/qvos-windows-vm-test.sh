@@ -11,6 +11,8 @@ docker_log="$test_root/docker.log"
 launch_log="$test_root/launch.log"
 post_launch_log="$test_root/post-launch.log"
 session_launch_log="$test_root/session-launch.log"
+rdp_args_log="$test_root/rdp-args.log"
+rdp_password_log="$test_root/rdp-password.log"
 image_state="$test_root/windows-image"
 container_state="$test_root/windows-container"
 
@@ -26,10 +28,12 @@ fail() {
 
 install -d \
   "$test_home" \
+  "$test_source/qv/windows" \
   "$test_source/applications/icons" \
   "$test_bin"
 touch "$test_root/kvm"
 printf 'icon fixture\n' >"$test_source/applications/icons/windows.png"
+install -m 0644 "$root/qv/windows/lib" "$test_source/qv/windows/lib"
 
 install -m 0755 /dev/stdin "$test_bin/package-owner" <<'SCRIPT'
 #!/bin/bash
@@ -38,16 +42,25 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/docker-compose" <<'SCRIPT'
 #!/bin/bash
 printf 'compose %s\n' "$*" >>"$QVOS_TEST_DOCKER_LOG"
-if [[ ${1:-} == "-f" && ${3:-} == "down" && -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]]; then
-  unlink "$QVOS_TEST_WINDOWS_CONTAINER_STATE"
+if [[ ${1:-} == "-f" && ${3:-} == "up" && ${QVOS_TEST_COMPOSE_TOUCH_CONTAINER:-false} == "true" ]]; then
+  touch "$QVOS_TEST_WINDOWS_CONTAINER_STATE"
+elif [[ ${1:-} == "-f" && ${3:-} == "down" && -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]]; then
+  unlink -- "$QVOS_TEST_WINDOWS_CONTAINER_STATE"
 fi
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/docker" <<'SCRIPT'
 #!/bin/bash
 printf 'docker %s\n' "$*" >>"$QVOS_TEST_DOCKER_LOG"
 case $* in
+"info")
+  exit 0
+  ;;
 "image inspect dockurr/windows")
   [[ -e $QVOS_TEST_WINDOWS_IMAGE_STATE ]]
+  ;;
+"inspect --format {{.State.Status}} omarchy-windows")
+  [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]] || exit 1
+  printf 'running\n'
   ;;
 "inspect omarchy-windows")
   [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]]
@@ -57,6 +70,9 @@ case $* in
   ;;
 "logs --follow omarchy-windows")
   printf 'Downloading Windows installer...\n'
+  printf 'Windows started successfully\n'
+  ;;
+"logs --tail 200 omarchy-windows")
   printf 'Windows started successfully\n'
   ;;
 esac
@@ -78,6 +94,29 @@ install -m 0755 /dev/stdin "$test_bin/uwsm" <<'SCRIPT'
 exit 0
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-windows-vm" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/xfreerdp3" <<'SCRIPT'
+#!/bin/bash
+IFS= read -r password || true
+printf '%s\n' "$password" >"$QVOS_TEST_WINDOWS_RDP_PASSWORD_LOG"
+printf '%s\n' "$@" >"$QVOS_TEST_WINDOWS_RDP_ARGS_LOG"
+exit "${QVOS_TEST_WINDOWS_RDP_STATUS:-0}"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
+#!/bin/bash
+printf '[{"focused":true,"scale":1.5}]\n'
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/nc" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/sleep" <<'SCRIPT'
 #!/bin/bash
 exit 0
 SCRIPT
@@ -114,6 +153,19 @@ run_windows_live_owner() {
     QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
     QVOS_TEST_WINDOWS_SESSION_LAUNCH_LOG="$session_launch_log" \
     "$root/qv/windows/manage" "$@"
+}
+
+run_windows_command() {
+  HOME="$test_home" \
+    OMARCHY_PATH="$test_source" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_TEST_DOCKER_LOG="$docker_log" \
+    QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
+    QVOS_TEST_WINDOWS_RDP_ARGS_LOG="$rdp_args_log" \
+    QVOS_TEST_WINDOWS_RDP_PASSWORD_LOG="$rdp_password_log" \
+    QVOS_TEST_WINDOWS_RDP_STATUS="${QVOS_TEST_WINDOWS_RDP_STATUS:-0}" \
+    QVOS_TEST_COMPOSE_TOUCH_CONTAINER=true \
+    "$root/qv/windows/command" "$@"
 }
 
 schema=$(run_windows install --qvos-form)
@@ -225,9 +277,8 @@ if rg -i '\b(super|ctrl|alt|shift|f[0-9]+)\b' "$root/qv/tui/success-guidance.psv
 fi
 printf 'ok - every Windows lifecycle stage stays inside shared TUI contracts\n'
 
-install -d \
-  "$test_source/qv/windows" \
-  "$test_home/.local/share/qvos/tui/action"
+install -d "$test_home/.local/share/qvos/tui/action"
+install -m 0755 "$root/qv/windows/command" "$test_source/qv/windows/command"
 install -m 0755 "$root/qv/windows/launch" "$test_source/qv/windows/launch"
 install -m 0755 /dev/stdin "$test_home/.local/share/qvos/tui/action/launch" <<'SCRIPT'
 #!/bin/bash
@@ -242,3 +293,75 @@ done
 [[ $(<"$launch_log") == $'windows\nwindows' ]] ||
   fail "direct Windows lifecycle commands bypassed the TUI"
 printf 'ok - direct Install and Remove commands converge on the same Windows TUI\n'
+
+(( $(wc -l <"$root/bin/omarchy-windows-vm") <= 10 )) ||
+  fail "Windows compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/windows/command" "$@"' "$root/bin/omarchy-windows-vm" ||
+  fail "Windows compatibility adapter is not direct"
+if grep -Fq 'requires-sudo=true' "$root/bin/omarchy-windows-vm"; then
+  fail "Windows compatibility adapter elevates the full user lifecycle"
+fi
+printf 'ok - the public Windows command is a direct unprivileged adapter\n'
+
+run_windows install >/dev/null
+compose_file="$test_home/.config/windows/docker-compose.yml"
+chmod 0644 "$compose_file"
+: >"$docker_log"
+launch_output=$(run_windows_command launch)
+[[ $(stat -c '%a' "$compose_file") == "600" ]] ||
+  fail "Windows launch did not repair private Compose permissions"
+[[ ! -e $container_state ]] || fail "Windows launch did not auto-stop the VM"
+[[ $(<"$rdp_password_log") == "private-pass" ]] ||
+  fail "Windows launch did not send the credential over standard input"
+grep -Fqx '/from-stdin:force' "$rdp_args_log" ||
+  fail "Windows launch did not require standard-input credentials"
+grep -Fqx '/u:docker' "$rdp_args_log" || fail "Windows launch omitted the user"
+grep -Fqx '/f' "$rdp_args_log" || fail "Windows launch omitted fullscreen mode"
+grep -Fqx '/scale:140' "$rdp_args_log" || fail "Windows launch omitted accessible display scaling"
+if grep -Fq 'private-pass' "$rdp_args_log" || [[ $launch_output == *private-pass* ]]; then
+  fail "Windows launch exposed its credential in arguments or output"
+fi
+grep -Fq 'compose -f ' "$docker_log" || fail "Windows launch did not use Compose"
+printf 'ok - Windows launch keeps credentials out of argv and adapts display scaling\n'
+
+: >"$docker_log"
+run_windows_command launch --keep-alive >/dev/null
+[[ -e $container_state ]] || fail "Windows keep-alive stopped the VM"
+status_output=$(run_windows_command status)
+grep -Fq 'Windows VM: running' <<<"$status_output" || fail "Windows runtime status"
+run_windows_command stop >/dev/null
+[[ ! -e $container_state ]] || fail "Windows stop retained the container"
+printf 'ok - Windows keep-alive, status, and stop are explicit and accessible\n'
+
+set +e
+QVOS_TEST_WINDOWS_RDP_STATUS=42 run_windows_command launch >/dev/null 2>&1
+rdp_status=$?
+set -e
+(( rdp_status == 42 )) || fail "Windows launch hid the RDP failure status"
+[[ ! -e $container_state ]] || fail "Windows RDP failure retained the container"
+printf 'ok - Windows launch preserves failures while still auto-stopping safely\n'
+
+cp -- "$compose_file" "$test_root/safe-compose.yml"
+sed -i 's/127\.0\.0\.1:8006:8006/0.0.0.0:8006:8006/' "$compose_file"
+: >"$docker_log"
+if run_windows_command launch >/dev/null 2>&1; then
+  fail "Windows launch accepted a public Compose listener"
+fi
+[[ ! -s $docker_log ]] || fail "Windows launch invoked Docker for an unsafe Compose file"
+cp -- "$test_root/safe-compose.yml" "$compose_file"
+printf '    privileged: true\n' >>"$compose_file"
+if run_windows_command status >/dev/null 2>&1; then
+  fail "Windows status accepted an extended Compose service"
+fi
+cp -- "$test_root/safe-compose.yml" "$compose_file"
+mv -- "$compose_file" "$test_root/real-compose.yml"
+ln -s "$test_root/real-compose.yml" "$compose_file"
+: >"$docker_log"
+if run_windows_command launch >/dev/null 2>&1; then
+  fail "Windows launch accepted a symlinked Compose file"
+fi
+[[ ! -s $docker_log ]] || fail "Windows launch invoked Docker for a symlinked Compose file"
+unlink -- "$compose_file"
+mv -- "$test_root/real-compose.yml" "$compose_file"
+printf 'ok - Windows rejects public listeners, foreign structure, and symlinked config before Docker\n'
