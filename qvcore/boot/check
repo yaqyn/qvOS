@@ -1,0 +1,133 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+native_manifest="$root/qvcore/boot/native-paths"
+retired_manifest="$root/qvcore/boot/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected_native_routes=(
+  bin/omarchy-config-direct-boot
+  bin/omarchy-plymouth-preview
+  bin/omarchy-plymouth-reset
+  bin/omarchy-plymouth-set
+  bin/omarchy-refresh-limine
+  bin/omarchy-refresh-plymouth
+  bin/omarchy-refresh-sddm
+)
+expected_native_compat=(
+  migrations/1752091783.sh
+  migrations/1752292967.sh
+  migrations/1777396666.sh
+  migrations/1778148645.sh
+)
+expected_native=(
+  "${expected_native_routes[@]}"
+  "${expected_native_compat[@]}"
+)
+expected_retired=(
+  default/limine/
+  default/plymouth/
+  default/sddm/hyprland.conf
+  default/sddm/omarchy/
+  default/wayland-sessions/omarchy.desktop
+  install/login/all.sh
+  install/login/limine-snapper.sh
+  install/login/plymouth.sh
+  install/login/sddm.sh
+)
+
+mapfile -t native_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest"
+)
+mapfile -t retired_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
+)
+[[ ${native_paths[*]} == "${expected_native[*]}" ]] ||
+  fail "native boot route inventory"
+[[ ${retired_paths[*]} == "${expected_retired[*]}" ]] ||
+  fail "retired inherited boot payload inventory"
+
+for route in "${expected_native_routes[@]}"; do
+  owner=${route#bin/omarchy-}
+  [[ -x $root/$route ]] || fail "boot route mode: $route"
+  [[ -x $root/qvcore/boot/$owner ]] || fail "boot owner mode: $owner"
+  # shellcheck disable=SC2016
+  grep -Fqx 'OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}' \
+    "$root/$route" || fail "boot route direct-invocation source root: $route"
+  grep -Fqx "exec \"\$OMARCHY_PATH/qvcore/boot/$owner\" \"\$@\"" \
+    "$root/$route" || fail "boot route is not a direct owner adapter: $route"
+  if rg -q 'qvos_owner=|default/(limine|plymouth|sddm/omarchy)' "$root/$route"; then
+    fail "boot route retains inherited fallback implementation: $route"
+  fi
+done
+
+for retired in "${expected_retired[@]}"; do
+  retired=${retired%/}
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired inherited boot payload remains: $retired"
+done
+
+if rg -q '(OMARCHY_PATH[^\"]*|local/share/omarchy/)default/(limine|plymouth|sddm(/hyprland\.conf|/omarchy)|wayland-sessions/omarchy)|install/login/(all|limine-snapper|plymouth|sddm)\.sh' \
+  "$root/bin" "$root/install" "$root/qvcore/boot" \
+  "$root/migrations" \
+  "$root/default/elephant/omarchy_unlocks.lua" \
+  --glob '!check' --glob '!retired-paths'; then
+  fail "active boot lifecycle still reads a retired inherited payload"
+fi
+
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qvcore/boot/install"' \
+  "$root/install.sh" || fail "native login stage wiring"
+[[ -f $root/qvcore/boot/install && ! -x $root/qvcore/boot/install ]] ||
+  fail "native login stage mode"
+expected_install_stage=$'run_logged "$OMARCHY_PATH/qvcore/boot/install-plymouth"\nrun_logged "$OMARCHY_INSTALL/login/default-keyring.sh"\nrun_logged "$OMARCHY_PATH/qvcore/boot/install-sddm"\nrun_logged "$OMARCHY_INSTALL/login/hibernation.sh"\nrun_logged "$OMARCHY_PATH/qvcore/boot/install-limine-snapper"'
+[[ $(<"$root/qvcore/boot/install") == "$expected_install_stage" ]] ||
+  fail "native login stage order"
+
+for owner in \
+  install-limine-snapper \
+  install-plymouth \
+  install-sddm \
+  install-sddm-session \
+  install-sddm-wayland \
+  sync-theme; do
+  [[ -x $root/qvcore/boot/$owner ]] || fail "native boot install owner mode: $owner"
+done
+grep -Fq 'qvcore/boot/limine/default.conf' \
+  "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine defaults owner"
+grep -Fq 'qvcore/boot/limine/limine.conf' \
+  "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine config owner"
+# shellcheck disable=SC2016
+grep -Fqx '"$OMARCHY_PATH/qvcore/boot/sync-theme" plymouth' \
+  "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"
+if rg -q 'mkinitcpio' "$root/qvcore/boot/install-plymouth"; then
+  fail "fresh Plymouth stage performs a redundant image rebuild"
+fi
+# shellcheck disable=SC2016
+grep -Fqx '"$OMARCHY_PATH/qvcore/boot/sync-theme" sddm' \
+  "$root/qvcore/boot/install-sddm" || fail "fresh SDDM theme owner"
+grep -Fq 'qvcore/boot/wayland-sessions/omarchy.desktop' \
+  "$root/qvcore/boot/install-sddm-session" || fail "fresh Wayland session owner"
+grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
+  "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
+grep -Fq "pam_gnome_keyring\\.so/d" \
+  "$root/qvcore/boot/install-sddm" || fail "SDDM keyring compatibility"
+
+for migration in 1752091783 1752292967; do
+  # shellcheck disable=SC2016
+  grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-plymouth"' \
+    "$root/migrations/$migration.sh" || fail "Plymouth migration owner: $migration"
+done
+# shellcheck disable=SC2016
+grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-sddm-session"' \
+  "$root/migrations/1777396666.sh" || fail "SDDM session migration owner"
+# shellcheck disable=SC2016
+grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-sddm-wayland"' \
+  "$root/migrations/1778148645.sh" || fail "SDDM migration owner"
+
+printf 'ok - qvOS boot commands and payloads have one native owner\n'

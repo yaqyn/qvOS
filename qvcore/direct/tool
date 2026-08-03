@@ -1,0 +1,740 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/direct/manifest.tsv
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+manifest="$script_dir/manifest.tsv"
+install_dir="$HOME/.local/bin"
+semgrep_root="$HOME/.local/share/qvos/devel-tools/semgrep"
+work_dir=""
+
+tool_id=""
+tool_label=""
+tool_method=""
+tool_commands=""
+tool_source=""
+tool_asset_x86=""
+tool_asset_arm=""
+tool_asset_kind=""
+
+cleanup() {
+  if [[ -n $work_dir && -d $work_dir ]]; then
+    rm -rf -- "$work_dir"
+  fi
+}
+trap cleanup EXIT
+
+usage() {
+  echo "Usage: tool <install|update|remove|verify|installed|list-scope> <tool-or-scope>" >&2
+}
+
+run_bounded() {
+  local duration=$1
+  shift
+
+  timeout --foreground --kill-after=5s "$duration" "$@"
+}
+
+validate_manifest() {
+  awk -F '\t' '
+    /^#/ || NF == 0 { next }
+    NF != 9 { invalid = 1; next }
+    $2 !~ /^(devel|proton)$/ { invalid = 1 }
+    $4 !~ /^(mise|github|uv-tool|npm|pass|proton-drive)$/ {
+      invalid = 1
+    }
+    $1 == "" || $3 == "" || $5 == "" || $6 == "" { invalid = 1 }
+    seen[$1]++ { invalid = 1 }
+    END { exit invalid }
+  ' "$manifest"
+}
+
+load_tool() {
+	local wanted=$1
+	local extra
+
+	while IFS=$'\t' read -r \
+		tool_id \
+		_ \
+    tool_label \
+    tool_method \
+    tool_commands \
+    tool_source \
+    tool_asset_x86 \
+    tool_asset_arm \
+    tool_asset_kind \
+    extra; do
+    [[ -n $tool_id && $tool_id != "#"* ]] || continue
+    [[ $tool_id == "$wanted" ]] || continue
+    [[ -z ${extra:-} ]] || return 1
+    return 0
+  done <"$manifest"
+
+  return 1
+}
+
+tool_path() {
+  printf '%s/%s\n' "$install_dir" "$1"
+}
+
+command_works() {
+  local command_name=$1
+  local command_path=${2:-}
+
+  if [[ -z $command_path ]]; then
+    command_path=$(command -v "$command_name" 2>/dev/null || true)
+  fi
+  [[ -n $command_path && -x $command_path ]] || return 1
+
+  if [[ $command_name == "proton-drive" ]]; then
+    run_bounded 15s "$command_path" version >/dev/null 2>&1
+  else
+    run_bounded 15s "$command_path" --version >/dev/null 2>&1
+  fi
+}
+
+binary_version() {
+  local command_path=$1
+  local command_name=$2
+  local output
+
+  if [[ $command_name == "proton-drive" ]]; then
+    output=$(run_bounded 15s "$command_path" version 2>&1) || return 1
+  else
+    output=$(run_bounded 15s "$command_path" --version 2>&1) || return 1
+  fi
+  if [[ $output =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  else
+    return 1
+  fi
+}
+
+mise_installed() {
+  local command_name
+  local commands=()
+
+  command -v mise >/dev/null 2>&1 || return 1
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    run_bounded 15s mise which "$command_name" >/dev/null 2>&1 ||
+      return 1
+  done
+}
+
+github_installed() {
+  local command_name
+  local commands=()
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    if [[ -x $(tool_path "$command_name") ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+semgrep_installed() {
+  local semgrep_path="$install_dir/semgrep"
+
+  [[ -x $semgrep_path ]] &&
+    [[ -x $semgrep_root/bin/semgrep ]] &&
+    [[ $semgrep_path -ef $semgrep_root/bin/semgrep ]] &&
+    command_works semgrep "$semgrep_path"
+}
+
+npm_installed() {
+  local command_name
+  local global_prefix
+  local commands=()
+
+  command -v npm >/dev/null 2>&1 || return 1
+  run_bounded 20s npm list --global --depth=0 "$tool_source" \
+    >/dev/null 2>&1 || return 1
+  global_prefix=$(run_bounded 15s npm prefix --global) || return 1
+  [[ -n $global_prefix ]] || return 1
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    command_works "$command_name" "$global_prefix/bin/$command_name" ||
+      return 1
+  done
+}
+
+exact_binary_installed() {
+  local command_name=${tool_commands%% *}
+  local command_path
+
+  command_path=$(tool_path "$command_name")
+  command_works "$command_name" "$command_path"
+}
+
+tool_installed() {
+  case $tool_method in
+  mise) mise_installed ;;
+  github) github_installed ;;
+  uv-tool) semgrep_installed ;;
+  npm) npm_installed ;;
+  pass | proton-drive) exact_binary_installed ;;
+  esac
+}
+
+verify_github() {
+  local command_name
+  local command_path
+  local commands=()
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    command_path=$(tool_path "$command_name")
+    command_works "$command_name" "$command_path" || return 1
+  done
+}
+
+verify_tool() {
+  case $tool_method in
+  mise) mise_installed ;;
+  github) verify_github ;;
+  uv-tool) semgrep_installed ;;
+  npm) npm_installed ;;
+  pass | proton-drive) exact_binary_installed ;;
+  esac
+}
+
+ensure_work_dir() {
+  if [[ -z $work_dir ]]; then
+    work_dir=$(mktemp -d)
+  fi
+}
+
+download_file() {
+  local url=$1
+  local target=$2
+
+  run_bounded 300s curl \
+    --connect-timeout 15 \
+    --max-time 300 \
+    --max-filesize 536870912 \
+    --retry 3 \
+    --retry-delay 1 \
+    --silent \
+    --show-error \
+    -fL \
+    -o "$target" \
+    "$url"
+}
+
+github_release_metadata() {
+  if command -v gh >/dev/null 2>&1 &&
+    run_bounded 15s gh auth status --hostname github.com >/dev/null 2>&1; then
+    run_bounded 30s gh api "repos/$tool_source/releases/latest"
+  else
+    run_bounded 30s curl \
+      --connect-timeout 10 \
+      --max-time 30 \
+      --retry 2 \
+      --retry-delay 1 \
+      -fsSL \
+      "https://api.github.com/repos/$tool_source/releases/latest"
+  fi
+}
+
+find_release_binary() {
+  local extract_dir=$1
+  local binary=$2
+  local candidate
+  local resolved
+  local candidates=()
+
+  mapfile -t candidates < <(find "$extract_dir" -type f -name "$binary" -print)
+  ((${#candidates[@]} == 1)) || {
+    echo "Expected one $binary binary in the verified $tool_label archive." >&2
+    return 1
+  }
+  candidate=${candidates[0]}
+  resolved=$(readlink -f -- "$candidate")
+  [[ $resolved == "$extract_dir/"* ]] || {
+    echo "Unsafe $tool_label archive path: $candidate" >&2
+    return 1
+  }
+  printf '%s\n' "$candidate"
+}
+
+install_github_release() {
+  local update_only=$1
+  local release_json
+  local release_tag
+  local release_version
+  local asset_template
+  local asset_name
+  local asset_info
+  local asset_url
+  local asset_digest
+  local expected_prefix
+  local expected_digest
+  local actual_digest
+  local download_path
+  local extract_dir=""
+  local command_name
+  local command_path
+  local candidate
+  local candidate_version
+  local pending
+  local commands=()
+  local selected_commands=()
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    command_path=$(tool_path "$command_name")
+    if ((update_only)); then
+      [[ -x $command_path ]] && selected_commands+=("$command_name")
+    else
+      [[ -x $command_path ]] || selected_commands+=("$command_name")
+    fi
+  done
+  ((${#selected_commands[@]} > 0)) || return 0
+
+  case $(uname -m) in
+  x86_64 | amd64) asset_template=$tool_asset_x86 ;;
+  aarch64 | arm64) asset_template=$tool_asset_arm ;;
+  *)
+    echo "$tool_label does not support architecture: $(uname -m)" >&2
+    return 1
+    ;;
+  esac
+
+  release_json=$(github_release_metadata)
+  release_tag=$(
+    jq -er '.tag_name | select(type == "string" and length > 0)' \
+      <<<"$release_json"
+  )
+  release_version=${release_tag#v}
+  [[ $release_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+    echo "Invalid $tool_label release tag: $release_tag" >&2
+    return 1
+  }
+
+  asset_name=${asset_template//%VERSION%/$release_version}
+  asset_info=$(
+    jq -er --arg asset "$asset_name" '
+      .assets[]
+      | select(.name == $asset)
+      | [(.browser_download_url // ""), (.digest // "")]
+      | @tsv
+    ' <<<"$release_json"
+  )
+  IFS=$'\t' read -r asset_url asset_digest <<<"$asset_info"
+  expected_prefix="https://github.com/$tool_source/releases/download/"
+  if [[ $asset_url != "$expected_prefix"* ]] ||
+    [[ ! $asset_digest =~ ^sha256:[[:xdigit:]]{64}$ ]]; then
+    echo "$tool_label release $release_tag has no verified $asset_name asset." >&2
+    return 1
+  fi
+
+  ensure_work_dir
+  download_path="$work_dir/$asset_name"
+  download_file "$asset_url" "$download_path"
+  expected_digest=${asset_digest#sha256:}
+  actual_digest=$(sha256sum "$download_path" | awk '{print $1}')
+  [[ $actual_digest == "$expected_digest" ]] || {
+    echo "$tool_label release checksum verification failed." >&2
+    return 1
+  }
+
+  if [[ $tool_asset_kind == "archive" ]]; then
+    extract_dir="$work_dir/$tool_id-extracted"
+    install -d "$extract_dir"
+    bsdtar -xzf "$download_path" -C "$extract_dir"
+  elif [[ $tool_asset_kind != "binary" ]]; then
+    echo "Unsupported $tool_label asset kind: $tool_asset_kind" >&2
+    return 1
+  fi
+
+  install -d -m 0755 "$install_dir"
+  for command_name in "${selected_commands[@]}"; do
+    if [[ $tool_asset_kind == "archive" ]]; then
+      candidate=$(find_release_binary "$extract_dir" "$command_name")
+    else
+      candidate=$download_path
+    fi
+    chmod 0755 "$candidate"
+    candidate_version=$(binary_version "$candidate" "$command_name") || {
+      echo "Could not verify the $tool_label candidate." >&2
+      return 1
+    }
+    [[ $candidate_version == "$release_version" ]] || {
+      echo "$tool_label candidate is $candidate_version, expected $release_version." >&2
+      return 1
+    }
+
+    command_path=$(tool_path "$command_name")
+    pending="$command_path.next.$$"
+    install -m 0755 "$candidate" "$pending"
+    mv -f -- "$pending" "$command_path"
+    command_works "$command_name" "$command_path" || {
+      echo "$tool_label failed post-install verification: $command_name" >&2
+      return 1
+    }
+  done
+}
+
+install_mise() {
+  if mise_installed; then
+    return 0
+  fi
+  command -v mise >/dev/null 2>&1 || {
+    echo "$tool_label requires the qvOS base package: mise" >&2
+    return 1
+  }
+  run_bounded 600s mise use --global "$tool_source"
+  mise_installed
+}
+
+update_mise() {
+  mise_installed || return 0
+  run_bounded 600s mise use --global "$tool_source"
+  mise_installed
+}
+
+remove_mise() {
+  mise_installed || return 0
+  run_bounded 300s mise unuse --global --yes "$tool_source"
+  ! mise_installed
+}
+
+install_semgrep() {
+  local version
+
+  if [[ -e $install_dir/semgrep || -L $install_dir/semgrep ]]; then
+    semgrep_installed && return 0
+    echo "The existing Semgrep command is not Devel-managed." >&2
+    return 1
+  fi
+  command -v uv >/dev/null 2>&1 || {
+    echo "Semgrep requires Devel uv." >&2
+    return 1
+  }
+  version=$(run_bounded 30s mise latest pipx:semgrep)
+  [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  UV_TOOL_DIR="$HOME/.local/share/qvos/devel-tools" \
+    UV_TOOL_BIN_DIR="$install_dir" \
+    run_bounded 600s uv tool install --force --managed-python \
+    "semgrep==$version"
+  semgrep_installed
+}
+
+update_semgrep() {
+  local version
+
+  semgrep_installed || return 0
+  command -v uv >/dev/null 2>&1 || {
+    echo "Semgrep update requires the installed Devel uv tool." >&2
+    return 1
+  }
+  version=$(run_bounded 30s mise latest pipx:semgrep)
+  [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+  UV_TOOL_DIR="$HOME/.local/share/qvos/devel-tools" \
+    UV_TOOL_BIN_DIR="$install_dir" \
+    run_bounded 600s uv tool install --force --managed-python \
+    "semgrep==$version"
+  semgrep_installed
+}
+
+remove_semgrep() {
+  semgrep_installed || return 0
+  command -v uv >/dev/null 2>&1 || {
+    echo "Semgrep removal requires the installed Devel uv tool." >&2
+    return 1
+  }
+  UV_TOOL_DIR="$HOME/.local/share/qvos/devel-tools" \
+    UV_TOOL_BIN_DIR="$install_dir" \
+    run_bounded 300s uv tool uninstall semgrep
+  ! semgrep_installed
+}
+
+install_npm() {
+  local command_name
+  local commands=()
+
+  npm_installed && return 0
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    if command -v "$command_name" >/dev/null 2>&1; then
+      echo "The existing $tool_label command is not the Devel npm installation." >&2
+      return 1
+    fi
+  done
+  command -v npm >/dev/null 2>&1 || {
+    echo "$tool_label requires Devel Node.js and npm." >&2
+    return 1
+  }
+  run_bounded 600s npm install --global "$tool_source@latest"
+  npm_installed
+}
+
+update_npm() {
+  npm_installed || return 0
+  run_bounded 600s npm install --global "$tool_source@latest"
+  npm_installed
+}
+
+remove_npm() {
+  npm_installed || return 0
+  run_bounded 300s npm uninstall --global "$tool_source"
+  ! npm_installed
+}
+
+install_pass_binary() {
+  local metadata
+  local platform
+  local version
+  local info
+  local url
+  local checksum
+  local expected_url
+  local actual_checksum
+  local download
+  local candidate_version
+  local pending
+  local pass_path="$install_dir/pass-cli"
+
+  case $(uname -m) in
+  x86_64 | amd64) platform="x86_64" ;;
+  aarch64 | arm64) platform="aarch64" ;;
+  *)
+    echo "Proton Pass CLI does not support architecture: $(uname -m)" >&2
+    return 1
+    ;;
+  esac
+
+  ensure_work_dir
+  metadata="$work_dir/pass-versions.json"
+  download_file "$tool_source" "$metadata"
+  info=$(
+    jq -er --arg platform "$platform" '
+      select(.formatVersion == 1)
+      | .passCliVersions as $release
+      | [
+          ($release.version // ""),
+          ($release.urls.linux[$platform].url // ""),
+          ($release.urls.linux[$platform].hash // "")
+        ]
+      | @tsv
+    ' "$metadata"
+  )
+  IFS=$'\t' read -r version url checksum <<<"$info"
+  if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    [[ ! $checksum =~ ^[[:xdigit:]]{64}$ ]]; then
+    echo "Could not resolve a verified Proton Pass CLI release." >&2
+    return 1
+  fi
+  expected_url="https://proton.me/download/pass-cli/$version/pass-cli-linux-$platform"
+  [[ $url == "$expected_url" ]] || {
+    echo "Unexpected Proton Pass CLI download URL." >&2
+    return 1
+  }
+
+  download="$work_dir/pass-cli-$version-$platform"
+  download_file "$url" "$download"
+  actual_checksum=$(sha256sum "$download" | awk '{print $1}')
+  [[ $actual_checksum == "$checksum" ]] || {
+    echo "Proton Pass CLI checksum verification failed." >&2
+    return 1
+  }
+  chmod 0755 "$download"
+  candidate_version=$(binary_version "$download" pass-cli) || {
+    echo "Could not verify the Proton Pass CLI candidate." >&2
+    return 1
+  }
+  [[ $candidate_version == "$version" ]] || {
+    echo "Proton Pass CLI candidate is $candidate_version, expected $version." >&2
+    return 1
+  }
+
+  install -d -m 0755 "$install_dir"
+  pending="$pass_path.next.$$"
+  install -m 0755 "$download" "$pending"
+  mv -f -- "$pending" "$pass_path"
+  exact_binary_installed
+}
+
+install_pass() {
+  local pass_path="$install_dir/pass-cli"
+
+  if [[ -e $pass_path || -L $pass_path ]]; then
+    exact_binary_installed && return 0
+    echo "The existing Proton Pass CLI is not compatible." >&2
+    return 1
+  fi
+
+  install_pass_binary
+}
+
+update_pass() {
+  exact_binary_installed || return 0
+  install_pass_binary
+}
+
+install_proton_drive() {
+  local metadata
+  local platform
+  local info
+  local url
+  local checksum
+  local download
+  local pending
+  local drive_path="$install_dir/proton-drive"
+
+  case $(uname -m) in
+  x86_64 | amd64) platform="linux/x64" ;;
+  aarch64 | arm64) platform="linux/arm64" ;;
+  *)
+    echo "Proton Drive CLI does not support architecture: $(uname -m)" >&2
+    return 1
+    ;;
+  esac
+
+  metadata=$(
+    run_bounded 30s curl \
+      --connect-timeout 10 \
+      --max-time 30 \
+      --retry 2 \
+      --retry-delay 1 \
+      -fsSL \
+      "$tool_source"
+  )
+  info=$(
+    jq -er --arg platform "$platform" '
+      [
+        .Releases[]
+        | select(.CategoryName == "Stable")
+        | .Files[]
+        | select(.Platform == $platform)
+      ][0]
+      | [(.Url // ""), (.Sha512CheckSum // "")]
+      | @tsv
+    ' <<<"$metadata"
+  )
+  IFS=$'\t' read -r url checksum <<<"$info"
+  if [[ $url != "https://proton.me/download/drive/cli/"*"/proton-drive" ]] ||
+    [[ ! $checksum =~ ^[[:xdigit:]]{128}$ ]]; then
+    echo "Could not resolve a verified Proton Drive CLI download." >&2
+    return 1
+  fi
+
+  ensure_work_dir
+  download="$work_dir/proton-drive"
+  download_file "$url" "$download"
+  printf '%s  %s\n' "$checksum" "$download" |
+    sha512sum --check --status
+  chmod 0755 "$download"
+  binary_version "$download" proton-drive >/dev/null
+
+  install -d -m 0755 "$install_dir"
+  pending="$drive_path.next.$$"
+  install -m 0755 "$download" "$pending"
+  mv -f -- "$pending" "$drive_path"
+  exact_binary_installed
+}
+
+install_tool() {
+  case $tool_method in
+  mise) install_mise ;;
+  github)
+    if verify_github; then
+      return 0
+    fi
+    install_github_release 0
+    verify_github
+    ;;
+  uv-tool) install_semgrep ;;
+  npm) install_npm ;;
+  pass) install_pass ;;
+  proton-drive)
+    if [[ -e $install_dir/proton-drive || -L $install_dir/proton-drive ]]; then
+      exact_binary_installed && return 0
+      echo "The existing Proton Drive CLI is not compatible." >&2
+      return 1
+    fi
+    install_proton_drive
+    ;;
+  esac
+}
+
+update_tool() {
+  tool_installed || return 0
+
+  case $tool_method in
+  mise) update_mise ;;
+  github) install_github_release 1 ;;
+  uv-tool) update_semgrep ;;
+  npm) update_npm ;;
+  pass) update_pass ;;
+  proton-drive) install_proton_drive ;;
+  esac
+}
+
+remove_exact_binaries() {
+  local command_name
+  local command_path
+  local commands=()
+
+  read -r -a commands <<<"$tool_commands"
+  for command_name in "${commands[@]}"; do
+    command_path=$(tool_path "$command_name")
+    if [[ -e $command_path || -L $command_path ]]; then
+      rm -f -- "$command_path"
+    fi
+  done
+}
+
+remove_tool() {
+  case $tool_method in
+  mise) remove_mise ;;
+  github | pass | proton-drive)
+    remove_exact_binaries
+    ! tool_installed
+    ;;
+  uv-tool) remove_semgrep ;;
+  npm) remove_npm ;;
+  esac
+}
+
+if (($# != 2)); then
+  usage
+  exit 2
+fi
+
+if [[ ! -f $manifest ]] || ! validate_manifest; then
+  echo "The qvOS direct-tool manifest is missing or invalid: $manifest" >&2
+  exit 1
+fi
+
+action=$1
+target=$2
+case $action in
+list-scope)
+  awk -F '\t' -v scope="$target" '
+    $1 !~ /^#/ && NF > 0 && $2 == scope { print $1 }
+  ' "$manifest"
+  ;;
+install | update | remove | verify | installed)
+  load_tool "$target" || {
+    echo "Unknown qvOS direct tool: $target" >&2
+    exit 2
+  }
+  case $action in
+  install) install_tool ;;
+  update) update_tool ;;
+  remove) remove_tool ;;
+  verify) verify_tool ;;
+  installed) tool_installed ;;
+  esac
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac

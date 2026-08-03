@@ -4,4 +4,4 @@
 
 set -euo pipefail
 
-exec "$OMARCHY_PATH/qv/install/reinstall-source" "$@"
+exec "$OMARCHY_PATH/qvcore/install/reinstall-source" "$@"

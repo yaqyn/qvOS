@@ -5,4 +5,4 @@
 # omarchy:hidden=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/power/suspend-if-safe" "$@"
+exec "$OMARCHY_PATH/qvcore/power/suspend-if-safe" "$@"

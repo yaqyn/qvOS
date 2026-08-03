@@ -135,10 +135,9 @@ fi
 
 # qvOS Additions
 
-The opening policy block is the verbatim upstream Omarchy `AGENTS.md` from
-<https://github.com/basecamp/omarchy/blob/master/AGENTS.md>. Never edit that
-block for qvOS-only work. During `qvsync`, update it only from upstream and keep
-all qvOS policy below this separator.
+The opening policy block is the verbatim upstream Omarchy `AGENTS.md`. Never
+edit it for qvOS-only work; update it only from upstream during `qvsync` and
+keep all qvOS policy below this separator.
 
 ## Core Contract
 
@@ -156,14 +155,15 @@ Every qvOS change must leave one traceable lifecycle.
   defaults, exposed capability, installation, update policy, and releases.
 - During the native transition, keep each inherited implementation byte-for-byte
   until its domain is promoted. Then port selected capability into one owner
-  under `qv/<domain>/` or `qv/<feature>/` and remove the inherited implementation,
-  overlay, adapter, fallback, and stale state together. All qvOS tests live under
-  `test/qvos/`.
+  under `qvcore/<domain>/` or `qvcore/<feature>/` and remove the inherited
+  implementation, overlay, adapter, fallback, and stale state together. qvOS
+  tests live under `test/` and mirror their owner boundary.
 - Keep current qvOS config sources separate until their domain is promoted and
   reconcile them after inherited install, refresh, migration, or update paths.
   Deploy runtime content outside `~/.local/share/omarchy`; keep it clean.
 - Use thin, absent-safe adapters only as transition seams that complete a user
-  task. qvOS must remain complete and healthy with no qvCORE stack installed.
+  task. qvCORE is mandatory; qvOS must remain complete and healthy with no
+  optional Service or Development integration installed.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
   Verify fresh install, update, removal, and live behavior where applicable.
@@ -198,34 +198,34 @@ moves product branches, or publishes refs.
 6. Never merge or cherry-pick an upstream commit into qvOS. Port reviewed code
    deliberately, update owners and guards, and verify affected fresh install,
    update, removal, live, and cleanup paths.
-7. Record every commit in `qv/git/upstream-reviews/<target-sha>.psv`, then use
+7. Record every commit in `upstream/qvsync/upstream-reviews/<target-sha>.psv`, then use
    `--record-reviewed-upstream <full-sha>` only for that exact fetched target.
    Commit the ledger, baseline, and verified adaptation together.
 8. Require the opening upstream policy block here to match the reviewed target
    byte-for-byte. qvsync never publishes; use normal Git publication only when
    explicitly requested and report the ledger, checks, baseline, and status.
 
-Command mechanics and publication checks live in `qv/git/AGENTS.md`; they
+Command mechanics and publication checks live in `upstream/qvsync/AGENTS.md`; they
 supplement this workflow and never replace its judgment.
 
 ## Workflow Routing
 
-Root-started Codex sessions do not discover nested instructions automatically.
-Read every matching route completely before editing:
+Root-started sessions must read every matching route completely before editing:
 
-- qvOS architecture and lifecycle boundaries: `qv/README.md`
-- qvOS identity, theme, and browser lifecycle: `qv/branding/AGENTS.md`, `qv/theme/AGENTS.md`, `qv/browser/AGENTS.md`
-- qvOS boot presentation and Limine lifecycle: `qv/boot/AGENTS.md`
-- qvCORE, gaming, install, package, and update ownership: `qv/core/AGENTS.md`, `qv/gaming/AGENTS.md`, `qv/install/AGENTS.md`, `qv/update/AGENTS.md`
-- Menu, search, Walker, Elephant, and optional software: `qv/menu/AGENTS.md`, `qv/software/AGENTS.md`
-- qvOS terminal interface and action flows: `qv/tui/AGENTS.md`
-- ISO construction and release images: `qv/iso/AGENTS.md`
-- qvOS Hyprland config and reconciliation: `qv/config/AGENTS.md`
-- qvOS battery protection and charging thresholds: `qv/power/AGENTS.md`
-- Windows VM configuration, data scope, and rollback: `qv/windows/AGENTS.md`
-- qvOS security auditing and balanced hardening: `qv/security/AGENTS.md`
-- Screensaver lifecycle and cursor handling: `qv/screensaver/AGENTS.md`
-- Commit and qvsync command mechanics: `qv/git/AGENTS.md`
+- qvOS identity, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
+- qvOS boot presentation and Limine lifecycle: `qvcore/boot/AGENTS.md`
+- qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
+- Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`
+- Gaming, install, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/update/AGENTS.md`
+- Menu, search, Walker, Elephant, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/software/AGENTS.md`
+- qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
+- ISO construction and release images: `release/iso/AGENTS.md`
+- qvOS Hyprland config and reconciliation: `qvcore/config/AGENTS.md`
+- qvOS battery protection and charging thresholds: `qvcore/power/AGENTS.md`
+- Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
+- Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`
+- Commit and qvsync command mechanics: `upstream/qvsync/AGENTS.md`
+- Retained Omarchy command and state compatibility: `compat/omarchy/AGENTS.md`
 
 ## Future Workflow Instructions
 

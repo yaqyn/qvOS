@@ -1,0 +1,969 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=services/proton/skill
+# qvos:contract=qvcore/direct/tool
+# qvos:contract=qvcore/install/migrate-structure
+# qvos:contract=qvcore/thunar/actions.sh
+# qvos:contract=qvcore/thunar/proton-drive-upload
+
+component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source_root="$(cd -- "$component_dir/../.." && pwd)"
+qvcore_dir="$source_root/qvcore"
+state_file="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/services/proton"
+direct_tool="$qvcore_dir/direct/tool"
+proton_skill_source="$component_dir/skill"
+codex_skill_dir="$HOME/.codex/skills/proton-cli"
+codex_pass_root="$HOME/.local/share/qvos-codex/proton-pass"
+codex_pass_session_dir="$codex_pass_root/data/proton-pass-cli/.session"
+codex_pass_session_file="$codex_pass_session_dir/session.json"
+codex_pass_probe_db="$codex_pass_session_dir/pass-cli.db"
+codex_pass_pat_key="$codex_pass_session_dir/pat_key"
+pass_cli="$HOME/.local/bin/pass-cli"
+drive_cli="$HOME/.local/bin/proton-drive"
+thunar_actions_source="$qvcore_dir/thunar/actions.sh"
+thunar_upload_source="$qvcore_dir/thunar/proton-drive-upload"
+thunar_upload_runtime="$HOME/.local/share/qvos/thunar/proton-drive-upload"
+thunar_upload_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/proton-drive-upload\" \"\$@\"' qvos-thunar %F"
+pass_admin_root=""
+created_pat_id=""
+codex_pat=""
+restart_bridge_on_cleanup=0
+
+pass_installed=0
+drive_installed=0
+bridge_installed=0
+account_cli_installed=0
+codex_integration_installed=0
+
+pass_auth_ready=0
+drive_auth_ready=0
+mail_auth_ready=0
+auth_ready_count=0
+remove_assume_yes=0
+
+declare -a removal_packages=()
+remove_codex_skill=0
+
+# Thunar integration inventory and lifecycle
+
+# shellcheck source=../thunar/actions.sh
+# shellcheck disable=SC1091 # The owner contract validates this dynamic sibling source.
+source "$thunar_actions_source"
+
+cleanup() {
+  unset codex_pat pat_json pat_value
+
+  if [[ -n $created_pat_id && -n $pass_admin_root && -d $pass_admin_root ]]; then
+    run_pass_admin personal-access-token delete \
+      --personal-access-token-id "$created_pat_id" >/dev/null 2>&1 || true
+    run_pass_codex logout --force >/dev/null 2>&1 || true
+  fi
+
+  cleanup_pass_admin
+
+  if ((restart_bridge_on_cleanup)); then
+    systemctl --user start protonmail-bridge.service >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+pass_cli_installed() {
+  "$direct_tool" verify pass-cli
+}
+
+drive_cli_installed() {
+  "$direct_tool" verify proton-drive
+}
+
+bridge_cli_installed() {
+  omarchy-cmd-present protonmail-bridge-core
+}
+
+account_cli_is_installed() {
+  omarchy-cmd-present protonvpn
+}
+
+status_label() {
+  local state=$1
+  local ready_label=$2
+  local missing_label=$3
+
+  if ((state)); then
+    printf '%s\n' "$ready_label"
+  else
+    printf '%s\n' "$missing_label"
+  fi
+}
+
+upload_action_is_installed() {
+  qvos_thunar_action_matches \
+    "qvos-proton-drive-upload" \
+    "folder-remote" \
+    "Upload to Proton Drive" \
+    "$thunar_upload_command" \
+    "Upload the selected files and folders to private Proton Drive storage." \
+    "*" \
+    directories audio-files image-files other-files text-files video-files
+}
+
+desktop_integration_ready() {
+  [[ -x $thunar_upload_runtime ]] &&
+    cmp -s "$thunar_upload_source" "$thunar_upload_runtime" &&
+    upload_action_is_installed
+}
+
+install_desktop_integration() {
+  install -d "$HOME/.local/share/qvos/thunar"
+  install -m 0755 "$thunar_upload_source" "$thunar_upload_runtime"
+  qvos_thunar_ensure_action \
+    "qvos-proton-drive-upload" \
+    "folder-remote" \
+    "Upload to Proton Drive" \
+    "$thunar_upload_command" \
+    "Upload the selected files and folders to private Proton Drive storage." \
+    "*" \
+    directories audio-files image-files other-files text-files video-files
+}
+
+remove_desktop_integration() {
+  qvos_thunar_remove_action "qvos-proton-drive-upload"
+  rm -f "$thunar_upload_runtime"
+}
+
+qvos_codex_skill_is_owned() {
+  local installed_inventory
+  local source_inventory
+
+  [[ -d $codex_skill_dir ]] || return 1
+  source_inventory=$(
+    find "$proton_skill_source" -type f -printf '%P\n' | sort
+  )
+  installed_inventory=$(
+    find "$codex_skill_dir" -type f -printf '%P\n' | sort
+  )
+  [[ $installed_inventory == "$source_inventory" ]] || return 1
+
+  while IFS= read -r path; do
+    cmp -s \
+      "$proton_skill_source/$path" \
+      "$codex_skill_dir/$path" ||
+      return 1
+  done <<<"$source_inventory"
+}
+
+inventory_removal() {
+  local package
+
+  removal_packages=()
+  remove_codex_skill=0
+
+  for package in protonmail-bridge-core proton-vpn-cli; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      removal_packages+=("$package")
+    fi
+  done
+  qvos_codex_skill_is_owned && remove_codex_skill=1
+}
+
+preflight_removal() {
+  local command
+
+  for command in pacman systemctl; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+      echo "Proton removal requires: $command" >&2
+      return 1
+    fi
+  done
+  if ((${#removal_packages[@]} > 0)); then
+    for command in omarchy-pkg-drop sudo; do
+      if ! command -v "$command" >/dev/null 2>&1; then
+        echo "Proton removal requires: $command" >&2
+        return 1
+      fi
+    done
+    if ! pacman -Rs --print "${removal_packages[@]}" >/dev/null; then
+      echo "Pacman could not prepare the Proton removal transaction." >&2
+      return 1
+    fi
+  fi
+  if ((remove_codex_skill)); then
+    if ! command -v gio >/dev/null 2>&1; then
+      echo "Proton removal requires: gio" >&2
+      return 1
+    fi
+  fi
+  if ((remove_assume_yes == 0)) &&
+    ! command -v gum >/dev/null 2>&1; then
+    echo "Proton removal requires: gum" >&2
+    return 1
+  fi
+}
+
+print_removal_plan() {
+  local package
+  echo "Remove the enrolled Proton Service:"
+  for package in "${removal_packages[@]}"; do
+    printf '  Package: %s\n' "$package"
+  done
+  printf '  Direct tool: Proton Pass CLI\n'
+  printf '  Direct tool: Proton Drive CLI\n'
+  ((remove_codex_skill == 0)) ||
+    printf '  Integration: %s\n' "$codex_skill_dir"
+  echo "  qvOS desktop and Codex integrations"
+  echo ""
+  echo "Proton cloud data and saved local authentication state will be preserved."
+}
+
+verify_removal() {
+  local package
+  for package in protonmail-bridge-core proton-vpn-cli; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+      echo "Proton removal failed: $package remains installed." >&2
+      return 1
+    fi
+  done
+  "$direct_tool" installed pass-cli &&
+    {
+      echo "Proton removal failed: Proton Pass CLI remains installed." >&2
+      return 1
+    }
+  "$direct_tool" installed proton-drive &&
+    {
+      echo "Proton removal failed: Proton Drive CLI remains installed." >&2
+      return 1
+    }
+  if [[ -e $state_file || -e $thunar_upload_runtime ]] ||
+    upload_action_is_installed; then
+    echo "Proton removal failed: qvOS desktop integration remains." >&2
+    return 1
+  fi
+}
+
+remove_local_proton() {
+  if [[ ! -f $state_file ]]; then
+    echo "Proton is not enrolled; nothing was changed."
+    return
+  fi
+
+  inventory_removal
+  preflight_removal
+
+  print_removal_plan
+  if ((remove_assume_yes == 0)); then
+    gum confirm \
+      "Remove all listed local Proton software while preserving Proton data?" ||
+      {
+        echo "Proton removal canceled; nothing was changed."
+        return 130
+      }
+  fi
+
+  if systemctl --user is-active --quiet protonmail-bridge.service; then
+    systemctl --user stop protonmail-bridge.service
+  fi
+  if systemctl is-enabled --quiet proton.VPN.service ||
+    systemctl is-active --quiet proton.VPN.service; then
+    sudo systemctl disable --now proton.VPN.service
+  fi
+
+  remove_desktop_integration
+  if ((remove_codex_skill)); then
+    gio trash "$codex_skill_dir"
+  elif [[ -e $codex_skill_dir ]]; then
+    echo "Preserved customized Proton Codex integration: $codex_skill_dir"
+  fi
+  if ((${#removal_packages[@]} > 0)); then
+    omarchy-pkg-drop "${removal_packages[@]}"
+  fi
+  "$direct_tool" remove pass-cli
+  "$direct_tool" remove proton-drive
+  rm -f "$state_file"
+
+  verify_removal
+  echo "Removed the local Proton Service."
+  echo "Proton cloud data and saved local authentication state were preserved."
+}
+
+codex_integration_is_installed() {
+  local isolated_dir
+
+  [[ -f $codex_skill_dir/SKILL.md ]] &&
+    [[ -f $codex_skill_dir/agents/openai.yaml ]] &&
+    cmp -s "$proton_skill_source/SKILL.md" "$codex_skill_dir/SKILL.md" &&
+    cmp -s \
+      "$proton_skill_source/agents/openai.yaml" \
+      "$codex_skill_dir/agents/openai.yaml" ||
+    return 1
+
+  for isolated_dir in \
+    "$codex_pass_root" \
+    "$codex_pass_root/data" \
+    "$codex_pass_root/config" \
+    "$codex_pass_root/cache"; do
+    [[ -d $isolated_dir ]] &&
+      [[ $(stat -c '%a' "$isolated_dir") == "700" ]] ||
+      return 1
+  done
+}
+
+inventory_components() {
+  local installed_count=0
+
+  pass_installed=0
+  drive_installed=0
+  bridge_installed=0
+  account_cli_installed=0
+  codex_integration_installed=0
+
+  pass_cli_installed && pass_installed=1
+  drive_cli_installed && drive_installed=1
+  bridge_cli_installed && bridge_installed=1
+  account_cli_is_installed && account_cli_installed=1
+  codex_integration_is_installed && codex_integration_installed=1
+
+  installed_count=$((installed_count + pass_installed))
+  installed_count=$((installed_count + drive_installed))
+  installed_count=$((installed_count + bridge_installed))
+  installed_count=$((installed_count + account_cli_installed))
+  installed_count=$((installed_count + codex_integration_installed))
+
+  echo "Proton component inventory: $installed_count/5 installed"
+  printf '  %-16s %s\n' "Pass CLI" \
+    "$(status_label "$pass_installed" "ready" "missing")"
+  printf '  %-16s %s\n' "Drive CLI" \
+    "$(status_label "$drive_installed" "ready" "missing")"
+  printf '  %-16s %s\n' "Mail Bridge" \
+    "$(status_label "$bridge_installed" "ready" "missing")"
+  printf '  %-16s %s\n' "Account CLI" \
+    "$(status_label "$account_cli_installed" "ready" "missing")"
+  printf '  %-16s %s\n' "Codex skill" \
+    "$(status_label "$codex_integration_installed" "ready" "missing")"
+}
+
+install_codex_integration() {
+  local isolated_dir
+
+  if [[ ! -f $proton_skill_source/SKILL.md ]] ||
+    [[ ! -f $proton_skill_source/agents/openai.yaml ]]; then
+    echo "Missing Proton Codex skill assets: $proton_skill_source" >&2
+    return 1
+  fi
+
+  install -d -m 0700 \
+    "$codex_pass_root" \
+    "$codex_pass_root/data" \
+    "$codex_pass_root/config" \
+    "$codex_pass_root/cache"
+  install -d -m 0755 "$codex_skill_dir/agents"
+  install -m 0644 "$proton_skill_source/SKILL.md" "$codex_skill_dir/SKILL.md"
+  install -m 0644 \
+    "$proton_skill_source/agents/openai.yaml" \
+    "$codex_skill_dir/agents/openai.yaml"
+
+  cmp -s "$proton_skill_source/SKILL.md" "$codex_skill_dir/SKILL.md" ||
+    return 1
+  cmp -s \
+    "$proton_skill_source/agents/openai.yaml" \
+    "$codex_skill_dir/agents/openai.yaml" ||
+    return 1
+
+  for isolated_dir in \
+    "$codex_pass_root" \
+    "$codex_pass_root/data" \
+    "$codex_pass_root/config" \
+    "$codex_pass_root/cache"; do
+    if [[ $(stat -c '%a' "$isolated_dir") != "700" ]]; then
+      echo "Unsafe Proton Codex directory mode: $isolated_dir" >&2
+      return 1
+    fi
+  done
+}
+
+run_pass_codex() {
+  env \
+    XDG_DATA_HOME="$codex_pass_root/data" \
+    XDG_CONFIG_HOME="$codex_pass_root/config" \
+    XDG_CACHE_HOME="$codex_pass_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
+    PROTON_PASS_AGENT_REASON="Set up qvOS Codex access" \
+    "$pass_cli" "$@"
+}
+
+run_pass_admin() {
+  env \
+    XDG_DATA_HOME="$pass_admin_root/data" \
+    XDG_CONFIG_HOME="$pass_admin_root/config" \
+    XDG_CACHE_HOME="$pass_admin_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
+    PROTON_PASS_AGENT_REASON="Set up qvOS Codex Vault access" \
+    "$pass_cli" "$@"
+}
+
+cleanup_pass_admin() {
+  if [[ -n $pass_admin_root && -d $pass_admin_root ]]; then
+    run_pass_admin logout --force >/dev/null 2>&1 || true
+    rm -rf "$pass_admin_root"
+    pass_admin_root=""
+  fi
+}
+
+open_pass_admin() {
+  pass_admin_root=$(mktemp -d "${TMPDIR:-/tmp}/qvos-proton-pass-admin.XXXXXX")
+  install -d -m 0700 \
+    "$pass_admin_root/data" \
+    "$pass_admin_root/config" \
+    "$pass_admin_root/cache"
+
+  echo ""
+  echo "Proton Pass authentication"
+  echo "A browser will open for a temporary full-access setup session."
+  run_pass_admin login
+  if ! run_pass_admin info --output json >/dev/null 2>&1 ||
+    ! run_pass_admin vault list --output json >/dev/null 2>&1; then
+    echo "The temporary Proton Pass setup session could not be verified." >&2
+    return 1
+  fi
+}
+
+pass_codex_ready() {
+  local info_json
+  local vault_json
+
+  info_json=$(run_pass_codex info --output json 2>/dev/null) || return 1
+  jq -e '
+    .personal_access_token_name
+    | type == "string" and length > 0
+  ' <<<"$info_json" >/dev/null || return 1
+  vault_json=$(run_pass_codex vault list --output json 2>/dev/null) || return 1
+  jq -e '
+    (.vaults // [])
+    | length == 1 and .[0].name == "Codex Vault"
+  ' <<<"$vault_json" >/dev/null
+}
+
+pass_codex_probe_cache_only() {
+  local unexpected
+
+  [[ -f $codex_pass_probe_db ]] || return 1
+  [[ ! -e $codex_pass_session_file && ! -L $codex_pass_session_file ]] ||
+    return 1
+  unexpected=$(
+    find "$codex_pass_root/data" \
+      -type f \
+      ! -path "$codex_pass_probe_db" \
+      -print -quit
+  )
+  [[ -z $unexpected ]]
+}
+
+replace_incompatible_pass_session() {
+  local existing_pat_name=$1
+  local existing_pat_id
+  local pat_count
+  local pat_list
+
+  pat_list=$(run_pass_admin personal-access-token list --output json)
+  pat_count=$(
+    jq --arg name "$existing_pat_name" \
+      '[.[] | select(.name == $name)] | length' <<<"$pat_list"
+  )
+
+  if ((pat_count == 0)); then
+    echo "The incompatible Codex PAT was not found; its local session was preserved." >&2
+    return 1
+  elif ((pat_count > 1)); then
+    echo "Multiple PATs match the Codex session; none were changed." >&2
+    return 1
+  fi
+
+  existing_pat_id=$(
+    jq -er --arg name "$existing_pat_name" '
+      [.[] | select(.name == $name)]
+      | if length == 1 then .[0].pat_id else error("PAT is not unique") end
+    ' <<<"$pat_list"
+  )
+  run_pass_admin personal-access-token delete \
+    --personal-access-token-id "$existing_pat_id" >/dev/null
+  run_pass_codex logout --force >/dev/null 2>&1 || true
+  echo "Replaced the incompatible isolated Proton Pass session."
+}
+
+replace_unverified_pass_session() {
+  local existing_pat_id=""
+  local pat_count
+  local pat_list
+
+  pat_list=$(run_pass_admin personal-access-token list --output json)
+  pat_count=$(
+    jq '[
+      .[]
+      | select(
+          (.name // "")
+          | test("^(\\[Agent\\] )?qvOS Codex( |$)")
+        )
+    ] | length' <<<"$pat_list"
+  )
+
+  if ((pat_count > 1)); then
+    echo "Multiple qvOS Codex PATs exist; none were changed." >&2
+    echo "Resolve the duplicate PATs before retrying Proton Install." >&2
+    return 1
+  elif ((pat_count == 1)); then
+    existing_pat_id=$(
+      jq -er '[
+        .[]
+        | select(
+            (.name // "")
+            | test("^(\\[Agent\\] )?qvOS Codex( |$)")
+          )
+      ] | .[0].pat_id' <<<"$pat_list"
+    )
+    run_pass_admin personal-access-token delete \
+      --personal-access-token-id "$existing_pat_id" >/dev/null
+  fi
+
+  if ! run_pass_codex logout --force >/dev/null 2>&1; then
+    echo "The invalid isolated Proton Pass session could not be logged out." >&2
+    return 1
+  fi
+  if [[ -e $codex_pass_session_file || -L $codex_pass_session_file ||
+    -e $codex_pass_pat_key || -L $codex_pass_pat_key ]]; then
+    echo "The invalid isolated Proton Pass session remains after logout." >&2
+    return 1
+  fi
+
+  if [[ -n $existing_pat_id ]]; then
+    echo "Revoked the previous qvOS Codex PAT and cleared its invalid local session."
+  else
+    echo "Cleared the invalid local session; no matching qvOS Codex PAT remained."
+  fi
+}
+
+setup_pass_auth() {
+  local existing_pat_name=""
+  local info_json
+  local pat_json=""
+  local pat_name
+  local pat_value=""
+  local vault_count
+  local vault_json
+  local vault_share_id
+  local replace_unverified=0
+
+  if pass_codex_ready; then
+    echo "Proton Pass Codex access is already ready; keeping it."
+    return
+  fi
+
+  if info_json=$(run_pass_codex info --output json 2>/dev/null); then
+    if ! vault_json=$(run_pass_codex vault list --output json 2>/dev/null); then
+      echo "Could not inspect the existing Proton Pass Codex scope." >&2
+      echo "Retry when Proton Pass is reachable; the session was not changed." >&2
+      return 1
+    fi
+
+    existing_pat_name=$(
+      jq -er '
+        .personal_access_token_name
+        | select(type == "string" and length > 0)
+      ' <<<"$info_json"
+    )
+    if [[ $existing_pat_name == "[Agent] "* ]]; then
+      existing_pat_name=${existing_pat_name#"[Agent] "}
+    fi
+    echo "The isolated Proton Pass session has an incompatible vault scope."
+  elif find "$codex_pass_root/data" -type f -print -quit | grep -q .; then
+    if pass_codex_probe_cache_only; then
+      echo "Continuing past the unauthenticated Proton Pass probe cache."
+    else
+      echo "Existing Proton Pass Codex session data could not be verified." >&2
+      echo "Replacement signs in temporarily and changes only an exact qvOS Codex PAT." >&2
+      command -v gum >/dev/null 2>&1 || {
+        echo "Proton Pass session replacement requires: gum" >&2
+        return 1
+      }
+      if ! gum confirm "Replace the invalid isolated qvOS Codex Pass session?"; then
+        echo "The invalid session was preserved; Proton Install was canceled."
+        return 130
+      fi
+      replace_unverified=1
+    fi
+  fi
+
+  open_pass_admin
+  if [[ -n $existing_pat_name ]]; then
+    replace_incompatible_pass_session "$existing_pat_name"
+  elif ((replace_unverified)); then
+    replace_unverified_pass_session
+  fi
+
+  vault_json=$(run_pass_admin vault list --output json)
+  vault_count=$(
+    jq '[.vaults[] | select(.name == "Codex Vault")] | length' <<<"$vault_json"
+  )
+
+  if ((vault_count == 0)); then
+    echo "Creating Codex Vault..."
+    run_pass_admin vault create --name "Codex Vault" >/dev/null
+    vault_json=$(run_pass_admin vault list --output json)
+  elif ((vault_count > 1)); then
+    echo "Multiple vaults named Codex Vault exist; resolve them before retrying." >&2
+    return 1
+  fi
+
+  vault_share_id=$(
+    jq -er '
+      [.vaults[] | select(.name == "Codex Vault")]
+      | if length == 1 then .[0].share_id else error("Codex Vault is not unique") end
+    ' <<<"$vault_json"
+  )
+
+  pat_name="qvOS Codex $(date -u +%Y%m%dT%H%M%SZ)"
+  pat_json=$(
+    run_pass_admin personal-access-token create \
+      --name "$pat_name" \
+      --expiration 1y \
+      --output json
+  )
+  created_pat_id=$(jq -er '.pat_id | select(length > 0)' <<<"$pat_json")
+  pat_value=$(jq -er '.env_var | select(length > 0)' <<<"$pat_json")
+  unset pat_json
+
+  if [[ $pat_value == PROTON_PASS_PERSONAL_ACCESS_TOKEN=* ]]; then
+    codex_pat=${pat_value#PROTON_PASS_PERSONAL_ACCESS_TOKEN=}
+  elif [[ $pat_value == pst_*::* ]]; then
+    codex_pat=$pat_value
+  else
+    unset pat_value
+    echo "Proton Pass returned an unexpected PAT response." >&2
+    return 1
+  fi
+  unset pat_value
+
+  if [[ $codex_pat != pst_*::* ]]; then
+    echo "Proton Pass returned an invalid PAT format." >&2
+    return 1
+  fi
+
+  run_pass_admin personal-access-token access grant \
+    --personal-access-token-id "$created_pat_id" \
+    --share-id "$vault_share_id" \
+    --role viewer >/dev/null
+
+  env \
+    XDG_DATA_HOME="$codex_pass_root/data" \
+    XDG_CONFIG_HOME="$codex_pass_root/config" \
+    XDG_CACHE_HOME="$codex_pass_root/cache" \
+    PROTON_PASS_LINUX_KEYRING=dbus \
+    PROTON_PASS_AGENT_REASON="Authorize qvOS Codex Vault access" \
+    PROTON_PASS_PERSONAL_ACCESS_TOKEN="$codex_pat" \
+    "$pass_cli" login >/dev/null
+  unset codex_pat
+
+  if ! pass_codex_ready; then
+    echo "Proton Pass Codex access failed its scope verification." >&2
+    return 1
+  fi
+
+  created_pat_id=""
+  cleanup_pass_admin
+  echo "Proton Pass is ready with viewer access to Codex Vault only."
+}
+
+drive_ready() {
+  "$drive_cli" filesystem info -j /my-files >/dev/null 2>&1
+}
+
+setup_drive_auth() {
+  if drive_ready; then
+    echo "Proton Drive is already ready; keeping it."
+    return
+  fi
+
+  echo ""
+  echo "Proton Drive authentication"
+  echo "A browser will open; keep this terminal open until authentication completes."
+  "$drive_cli" auth login
+
+  if ! drive_ready; then
+    echo "Proton Drive authentication could not access /my-files." >&2
+    return 1
+  fi
+
+  echo "Proton Drive is ready."
+}
+
+bridge_listener_count() {
+  ss -ltnp 2>/dev/null |
+    awk '
+      $4 ~ /^127[.]0[.]0[.]1:/ && /protonmail-brid/ { count++ }
+      END { print count + 0 }
+    '
+}
+
+bridge_ready() {
+  local listener_count
+
+  systemctl --user is-active --quiet protonmail-bridge.service ||
+    return 1
+  listener_count=$(bridge_listener_count)
+  ((listener_count >= 2))
+}
+
+wait_for_bridge() {
+  local attempts=$1
+  local attempt
+
+  for ((attempt = 0; attempt < attempts; attempt++)); do
+    if bridge_ready; then
+      return
+    fi
+    sleep 1
+  done
+
+  return 1
+}
+
+inspect_bridge_auth() {
+  local bridge_output
+  local was_active=0
+
+  if systemctl --user is-active --quiet protonmail-bridge.service; then
+    was_active=1
+    restart_bridge_on_cleanup=1
+    systemctl --user stop protonmail-bridge.service
+  fi
+
+  if ! bridge_output=$(
+    printf 'list\nexit\n' |
+      QVOS_PROTON_BRIDGE_MODE=inspect protonmail-bridge-core --cli 2>/dev/null
+  ); then
+    if ((was_active)); then
+      systemctl --user start protonmail-bridge.service
+      restart_bridge_on_cleanup=0
+    fi
+    return 1
+  fi
+
+  if ((was_active)); then
+    systemctl --user start protonmail-bridge.service
+    restart_bridge_on_cleanup=0
+  fi
+
+  grep -Eq \
+    '\([[:space:]]*(connected|signed out|locked)[[:space:]]*,' \
+    <<<"$bridge_output"
+}
+
+inventory_authentication() {
+  pass_auth_ready=0
+  drive_auth_ready=0
+  mail_auth_ready=0
+  auth_ready_count=0
+
+  pass_codex_ready && pass_auth_ready=1
+  drive_ready && drive_auth_ready=1
+  inspect_bridge_auth && mail_auth_ready=1
+
+  auth_ready_count=$((auth_ready_count + pass_auth_ready))
+  auth_ready_count=$((auth_ready_count + drive_auth_ready))
+  auth_ready_count=$((auth_ready_count + mail_auth_ready))
+
+  echo ""
+  echo "Proton authentication inventory: $auth_ready_count/3 configured"
+  printf '  %-16s %s\n' "Pass" \
+    "$(status_label "$pass_auth_ready" "configured" "needs-setup")"
+  printf '  %-16s %s\n' "Drive" \
+    "$(status_label "$drive_auth_ready" "configured" "needs-setup")"
+  printf '  %-16s %s\n' "Mail Bridge" \
+    "$(status_label "$mail_auth_ready" "configured" "needs-setup")"
+}
+
+setup_mail_auth() {
+  if ((mail_auth_ready)); then
+    systemctl --user start protonmail-bridge.service
+    if wait_for_bridge 30; then
+      echo "Proton Mail Bridge is already authenticated; keeping it."
+      return
+    fi
+
+    systemctl --user stop protonmail-bridge.service >/dev/null 2>&1 || true
+    echo "The existing Proton Mail Bridge account needs authentication."
+    echo "At the Bridge prompt: type list, then login <account name or index>,"
+    echo "complete authentication, and type exit."
+  fi
+
+  systemctl --user stop protonmail-bridge.service >/dev/null 2>&1 || true
+
+  echo ""
+  echo "Proton Mail Bridge authentication"
+  echo "At the Bridge prompt: type login, complete authentication, then type exit."
+  QVOS_PROTON_BRIDGE_MODE=login protonmail-bridge-core --cli
+
+  systemctl --user start protonmail-bridge.service
+  if ! wait_for_bridge 30; then
+    echo "Proton Mail Bridge did not expose local IMAP and SMTP listeners." >&2
+    return 1
+  fi
+
+  echo "Proton Mail Bridge is ready."
+}
+
+verify_proton_setup() {
+  pass_codex_ready ||
+    {
+      echo "Proton Pass verification failed." >&2
+      return 1
+    }
+  drive_ready ||
+    {
+      echo "Proton Drive verification failed." >&2
+      return 1
+    }
+  bridge_ready ||
+    {
+      echo "Proton Mail Bridge verification failed." >&2
+      return 1
+    }
+}
+
+# Entry point
+
+usage() {
+  echo "Usage: services/proton/manage <install|remove> [--yes]" >&2
+}
+
+if (($# < 1 || $# > 2)); then
+  usage
+  exit 2
+fi
+case $1 in
+install | remove) ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+if (($# == 2)); then
+  [[ $2 == "--yes" && $1 == "remove" ]] || {
+    usage
+    exit 2
+  }
+  remove_assume_yes=1
+fi
+
+"$qvcore_dir/install/migrate-structure" --proton
+
+if [[ $1 == "remove" ]]; then
+  remove_local_proton
+  exit
+fi
+
+dependency_packages=()
+system_changes_needed=0
+
+[[ -x $direct_tool ]] || {
+  echo "The qvOS direct-tool manager is unavailable: $direct_tool" >&2
+  exit 1
+}
+inventory_components
+
+for dependency in curl jq openssl; do
+  if omarchy-cmd-missing "$dependency"; then
+    dependency_packages+=("$dependency")
+  fi
+done
+if omarchy-cmd-missing ss; then
+  dependency_packages+=("iproute2")
+fi
+
+if ((${#dependency_packages[@]} > 0)) ||
+  ((bridge_installed == 0 || account_cli_installed == 0)) ||
+  systemctl is-enabled --quiet proton.VPN.service ||
+  systemctl is-active --quiet proton.VPN.service; then
+  system_changes_needed=1
+fi
+
+if ((system_changes_needed)); then
+  echo ""
+  echo "Authorizing missing Proton system components..."
+  sudo -v
+fi
+
+if ((${#dependency_packages[@]} > 0)); then
+  omarchy-pkg-add "${dependency_packages[@]}"
+fi
+
+if ((bridge_installed == 0)); then
+  omarchy-pkg-add protonmail-bridge-core
+fi
+
+if ((account_cli_installed == 0)); then
+  omarchy-pkg-add proton-vpn-cli
+fi
+
+if ((pass_installed == 0)); then
+  "$direct_tool" install pass-cli
+fi
+
+if ((drive_installed == 0)); then
+  "$direct_tool" install proton-drive
+fi
+
+if ((codex_integration_installed == 0)); then
+  install_codex_integration
+fi
+
+if systemctl is-enabled --quiet proton.VPN.service ||
+  systemctl is-active --quiet proton.VPN.service; then
+  sudo systemctl disable --now proton.VPN.service
+fi
+
+if systemctl --user is-enabled --quiet protonmail-bridge.service; then
+  systemctl --user disable protonmail-bridge.service
+fi
+
+if systemctl is-enabled --quiet proton.VPN.service; then
+  echo "Proton VPN daemon is still enabled at boot" >&2
+  exit 1
+fi
+
+if systemctl --user is-enabled --quiet protonmail-bridge.service; then
+  echo "Proton Mail Bridge is still enabled at login" >&2
+  exit 1
+fi
+
+echo ""
+inventory_components
+if ((pass_installed == 0 || drive_installed == 0 || bridge_installed == 0 || \
+  account_cli_installed == 0 || codex_integration_installed == 0)); then
+  echo "Proton component installation is incomplete." >&2
+  exit 1
+fi
+
+inventory_authentication
+
+setup_pass_auth
+setup_drive_auth
+setup_mail_auth
+verify_proton_setup
+install_desktop_integration
+desktop_integration_ready || {
+  echo "Proton desktop integration verification failed." >&2
+  exit 1
+}
+install -d -m 0700 "$(dirname -- "$state_file")"
+install -m 0600 /dev/null "$state_file"
+
+echo ""
+echo "Proton is installed:"
+echo "  Pass CLI:    pass-cli"
+echo "  Drive CLI:   proton-drive"
+echo "  Account CLI: protonvpn"
+echo "  Mail Bridge: protonmail-bridge-core --cli"
+echo "  Bridge run:  systemctl --user start protonmail-bridge.service"
+echo "  Codex skill: ~/.codex/skills/proton-cli"
+echo "  Codex Pass:  ~/.local/share/qvos-codex/proton-pass"
+echo "  Drive upload: Thunar > Upload to Proton Drive"

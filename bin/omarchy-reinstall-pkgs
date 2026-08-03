@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Reinstall all default qvOS packages from the stable channel and downgrade any packages that are too new.
 
-resolved_packages=$("$OMARCHY_PATH/qv/install/packaging/resolve" base)
+resolved_packages=$("$OMARCHY_PATH/qvcore/install/packaging/resolve" base)
 mapfile -t packages <<<"$resolved_packages"
 ((${#packages[@]} > 0)) || {
   echo "qvOS base package manifest resolved to an empty set." >&2

@@ -29,7 +29,7 @@ function GetEntries()
   local home = os.getenv("HOME")
   local user_themes_dir = home .. "/.config/omarchy/themes"
   local omarchy_path = os.getenv("OMARCHY_PATH") or ""
-  local default_preview = omarchy_path .. "/qv/boot/plymouth/preview-unlock.png"
+  local default_preview = omarchy_path .. "/qvcore/boot/plymouth/preview-unlock.png"
 
   local handle = io.popen(
     "find -L " .. shell_escape(user_themes_dir)

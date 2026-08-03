@@ -1,0 +1,85 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+bindings="$root/config/hypr/bindings.conf"
+hyprland="$root/config/hypr/hyprland.conf"
+native_manifest="$root/qvcore/config/native-paths"
+retired_manifest="$root/qvcore/config/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ ! -e $root/default/hypr/bindings ]] || fail "inherited binding directory remains"
+[[ ! -e $root/default/hypr/bindings.conf ]] || fail "inherited binding loader remains"
+[[ ! -e $root/default/hypr/plain-bindings.conf ]] || fail "alternate inherited binding map remains"
+[[ ! -e $root/qvcore/config/files/hypr/qv/bindings.conf ]] ||
+  fail "qvOS binding overlay remains"
+[[ ! -e $root/qvcore/config/files/hypr/bindings.conf ]] ||
+  fail "duplicate qvOS binding source remains"
+[[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.service ]] ||
+  fail "duplicate battery monitor service remains"
+[[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
+  fail "duplicate battery monitor timer remains"
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-refresh-hyprland\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer' ]] ||
+  fail "native config inventory changed"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf' ]] ||
+  fail "retired binding inventory changed"
+
+[[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
+  fail "native binding source is not included exactly once"
+if rg -q 'default/hypr/bindings|qvcore/bindings\.conf' "$hyprland" "$root/qvcore/config/files/hypr/qv.conf"; then
+  fail "retired binding layer remains sourced"
+fi
+if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
+  fail "native binding source still contains overlay unbinds"
+fi
+
+duplicate_bindings=$(
+  awk -F',' '/^bind[a-z]* = / {
+    modifiers=$1
+    sub(/^bind[a-z]* = /, "", modifiers)
+    key=$2
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", modifiers)
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+    print modifiers "|" key
+  }' "$bindings" |
+    sort |
+    uniq -d |
+    grep -Fvx '|F9' || true
+)
+[[ -z $duplicate_bindings ]] || fail "duplicate modifier and key pairs: $duplicate_bindings"
+[[ $(grep -Ec '^binddr? = , F9, (Start|Stop) dictation \(push-to-talk\),' "$bindings") == 2 ]] ||
+  fail "F9 press/release exception is incomplete"
+
+grep -Fq 'Description=qvOS Battery Monitor Check' \
+  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
+  fail "native battery monitor service identity"
+grep -Fq 'Description=qvOS Battery Monitor Timer' \
+  "$root/config/systemd/user/omarchy-battery-monitor.timer" ||
+  fail "native battery monitor timer identity"
+
+[[ -x $root/bin/omarchy-refresh-hyprland && -x $root/qvcore/config/refresh-hyprland ]] ||
+  fail "Hyprland restore adapter or owner is not executable"
+(( $(wc -l <"$root/bin/omarchy-refresh-hyprland") <= 10 )) ||
+  fail "Hyprland restore compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qvcore/config/refresh-hyprland" "$@"' \
+  "$root/bin/omarchy-refresh-hyprland" ||
+  fail "Hyprland restore compatibility adapter does not delegate directly"
+
+[[ -x $root/bin/omarchy-tz-select && -x $root/qvcore/config/timezone ]] ||
+  fail "timezone adapter or owner is not executable"
+(( $(wc -l <"$root/bin/omarchy-tz-select") <= 10 )) ||
+  fail "timezone compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qvcore/config/timezone" "$@"' \
+  "$root/bin/omarchy-tz-select" ||
+  fail "timezone compatibility adapter does not delegate directly"
+grep -Fq 'timedatectl list-timezones' "$root/qvcore/config/timezone" ||
+  fail "timezone owner does not validate the selected inventory"
+
+printf 'ok - qvOS config has singular native bindings and user services\n'

@@ -7,4 +7,4 @@
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/network/setup-dns" "$@"
+exec "$OMARCHY_PATH/qvcore/network/setup-dns" "$@"

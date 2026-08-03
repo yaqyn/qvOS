@@ -10,7 +10,7 @@ shopt -s nullglob
 for theme_dir in "$HOME/.config/omarchy/themes"/*/; do
   if [[ -d $theme_dir ]] && [[ ! -L ${theme_dir%/} ]] && [[ -d $theme_dir/.git ]]; then
     echo "Updating: $(basename "$theme_dir")"
-    if ! "$OMARCHY_PATH/qv/theme/validate" "${theme_dir%/}"; then
+    if ! "$OMARCHY_PATH/qvcore/theme/validate" "${theme_dir%/}"; then
       echo "Skipping unsafe or incompatible theme: $(basename "$theme_dir")" >&2
       failed=1
       continue
@@ -24,7 +24,7 @@ for theme_dir in "$HOME/.config/omarchy/themes"/*/; do
       failed=1
       continue
     fi
-    if ! "$OMARCHY_PATH/qv/theme/validate" "${theme_dir%/}"; then
+    if ! "$OMARCHY_PATH/qvcore/theme/validate" "${theme_dir%/}"; then
       echo "Updated theme is unsafe or incompatible and will not be activated: $(basename "$theme_dir")" >&2
       failed=1
       continue

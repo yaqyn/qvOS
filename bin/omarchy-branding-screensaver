@@ -7,4 +7,4 @@
 # omarchy:examples=omarchy branding screensaver image | omarchy branding screensaver text | omarchy branding screensaver reset
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/branding/screensaver" "$@"
+exec "$OMARCHY_PATH/qvcore/branding/screensaver" "$@"

@@ -1,0 +1,38 @@
+# slug|probe kind|probe value|install presentation|install sudo|uninstall presentation|uninstall sudo|install owner|uninstall owner
+dictation|command|voxtype|tui|true|tui|true|omarchy-voxtype-install --yes|omarchy-voxtype-remove
+windows|file|.config/windows/docker-compose.yml|tui|true|tui|false|qvcore/windows/manage install|qvcore/windows/manage uninstall
+ruby-on-rails|command|rails|tui|true|tui|true|omarchy-install-dev-env ruby|omarchy-remove-dev-env ruby
+go|mise|go|tui|true|tui|true|omarchy-install-dev-env go|omarchy-remove-dev-env go
+php|package|php|tui|true|tui|true|omarchy-install-dev-env php|omarchy-remove-dev-env php
+python|mise|python|tui|true|tui|true|omarchy-install-dev-env python|omarchy-remove-dev-env python
+elixir|mise|elixir|tui|true|tui|true|omarchy-install-dev-env elixir|omarchy-remove-dev-env elixir
+zig|mise|zig|tui|true|tui|true|omarchy-install-dev-env zig|omarchy-remove-dev-env zig
+rust|command|rustup|tui|true|tui|true|omarchy-install-dev-env rust|omarchy-remove-dev-env rust
+java|mise|java|tui|true|tui|true|omarchy-install-dev-env java|omarchy-remove-dev-env java
+dotnet|mise|dotnet|tui|true|tui|true|omarchy-install-dev-env dotnet|omarchy-remove-dev-env dotnet
+ocaml|command|opam|native|true|tui|true|omarchy-install-dev-env ocaml|omarchy-remove-dev-env ocaml
+clojure|mise|clojure|tui|true|tui|true|omarchy-install-dev-env clojure|omarchy-remove-dev-env clojure
+scala|mise|scala|tui|true|tui|true|omarchy-install-dev-env scala|omarchy-remove-dev-env scala
+node|mise|node|tui|true|tui|true|omarchy-install-dev-env node|omarchy-remove-dev-env node
+bun|mise|bun|tui|true|tui|true|omarchy-install-dev-env bun|omarchy-remove-dev-env bun
+deno|mise|deno|tui|true|tui|true|omarchy-install-dev-env deno|omarchy-remove-dev-env deno
+laravel|command|laravel|tui|true|tui|true|omarchy-install-dev-env laravel|omarchy-remove-dev-env laravel
+symfony|package|symfony-cli|tui|true|tui|true|omarchy-install-dev-env symfony|omarchy-remove-dev-env symfony
+phoenix|mix-archive|phx_new|tui|true|tui|true|omarchy-install-dev-env phoenix|omarchy-remove-dev-env phoenix
+chrome|package|google-chrome|tui|true|tui|true|omarchy-install-browser chrome|omarchy-remove-browser chrome
+edge|package|microsoft-edge-stable-bin|tui|true|tui|true|omarchy-install-browser edge|omarchy-remove-browser edge
+brave|package|brave-bin|tui|true|tui|true|omarchy-install-browser brave|omarchy-remove-browser brave
+brave-origin|package|brave-origin-beta-bin|tui|true|tui|true|omarchy-install-browser brave-origin|omarchy-remove-browser brave-origin
+firefox|package|firefox|tui|true|tui|true|omarchy-install-browser firefox|omarchy-remove-browser firefox
+zen|package|zen-browser-bin|tui|true|tui|true|omarchy-install-browser zen|omarchy-remove-browser zen
+steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|qvcore/menu/steam-remove
+retroarch|package|retroarch|tui|true|tui|true|omarchy-install-gaming-retroarch|omarchy-remove-gaming-retroarch
+minecraft|package|minecraft-launcher|tui|true|tui|true|omarchy-pkg-add minecraft-launcher|omarchy-remove-gaming-minecraft
+geforce-now|flatpak|com.nvidia.geforcenow|native|true|tui|false|omarchy-install-gaming-geforce-now|omarchy-remove-gaming-geforce-now
+xbox-cloud|file|.local/share/applications/Xbox Cloud Gaming.desktop|tui|false|tui|false|omarchy-install-gaming-xbox-cloud|omarchy-remove-gaming-xbox-cloud
+xbox-controller|package|xpadneo-dkms|tui|true|tui|true|omarchy-install-gaming-xbox-controllers --defer-reboot|omarchy-remove-gaming-xbox-controllers --defer-reboot
+moonlight|package|moonlight-qt|tui|true|tui|true|omarchy-install-gaming-moonlight|omarchy-remove-gaming-moonlight
+lutris|package|lutris|tui|true|tui|true|omarchy-install-gaming-lutris|omarchy-remove-gaming-lutris
+heroic|package|heroic-games-launcher-bin|tui|true|tui|true|omarchy-install-gaming-heroic|omarchy-remove-gaming-heroic
+proton|state|services/proton|native|true|tui|true|services/proton/manage install|services/proton/manage remove --yes
+devel|state|development/devel|tui|true|tui|true|development/devel/manage install|development/devel/manage remove --yes

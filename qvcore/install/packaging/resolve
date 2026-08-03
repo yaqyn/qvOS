@@ -1,0 +1,70 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
+declare -A emitted=()
+
+usage() {
+  echo "Usage: $(basename "$0") <base|other|all>" >&2
+  exit 2
+}
+
+read_manifest() {
+  local path=$1
+  local output_name=$2
+  local line
+  local -n output=$output_name
+  local -A seen=()
+
+  [[ -f $path ]] || {
+    echo "Missing package manifest: $path" >&2
+    return 1
+  }
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ -z $line || $line == "#"* ]] && continue
+    if [[ ! $line =~ ^[-[:alnum:]@._+]+$ ]]; then
+      echo "Invalid package entry in $path: $line" >&2
+      return 1
+    fi
+    if [[ -n ${seen[$line]:-} ]]; then
+      echo "Duplicate package entry in $path: $line" >&2
+      return 1
+    fi
+    seen[$line]=1
+    output+=("$line")
+  done <"$path"
+}
+
+emit_manifest() {
+  local manifest_path=$1
+  local package
+  local -a packages=()
+
+  read_manifest "$manifest_path" packages
+
+  for package in "${packages[@]}"; do
+    [[ -z ${emitted[$package]:-} ]] || {
+      echo "Package is owned by multiple qvOS manifests: $package" >&2
+      return 1
+    }
+    printf '%s\n' "$package"
+    emitted[$package]=1
+  done
+}
+
+case ${1:-} in
+  base)
+    emit_manifest "$root/qvcore/install/packaging/base.packages"
+    ;;
+  other)
+    emit_manifest "$root/qvcore/install/packaging/other.packages"
+    ;;
+  all)
+    emit_manifest "$root/qvcore/install/packaging/base.packages"
+    emit_manifest "$root/qvcore/install/packaging/other.packages"
+    ;;
+  *)
+    usage
+    ;;
+esac

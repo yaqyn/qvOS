@@ -30,7 +30,7 @@ else
   THEME_NAME="$1"
 fi
 
-THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" --resolve "$THEMES_DIR" "$THEME_NAME")
+THEME_NAME=$("$OMARCHY_PATH/qvcore/theme/name" --resolve "$THEMES_DIR" "$THEME_NAME")
 THEME_PATH="$THEMES_DIR/$THEME_NAME"
 
 if [[ ${THEME_NAME,,} == "yaqyn" ]]; then

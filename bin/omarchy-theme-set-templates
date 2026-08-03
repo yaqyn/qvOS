@@ -28,7 +28,7 @@ if [[ -f $COLORS_FILE ]]; then
   }
   trap cleanup EXIT
 
-  validated_colors=$("$OMARCHY_PATH/qv/theme/validate" --colors "$COLORS_FILE")
+  validated_colors=$("$OMARCHY_PATH/qvcore/theme/validate" --colors "$COLORS_FILE")
   while IFS=$'\t' read -r key value; do
     printf 's|{{ %s }}|%s|g\n' "$key" "$value"            # {{ key }} -> value
     printf 's|{{ %s_strip }}|%s|g\n' "$key" "${value#\#}" # {{ key_strip }} -> value without leading #

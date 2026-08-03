@@ -16,14 +16,14 @@ NEXT_THEME_PATH="$HOME/.config/omarchy/current/next-theme"
 PREVIOUS_THEME_PATH="$HOME/.config/omarchy/current/previous-theme"
 USER_THEMES_PATH="$HOME/.config/omarchy/themes"
 
-THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" --resolve "$USER_THEMES_PATH" "$1")
+THEME_NAME=$("$OMARCHY_PATH/qvcore/theme/name" --resolve "$USER_THEMES_PATH" "$1")
 THEME_PATH="$USER_THEMES_PATH/$THEME_NAME"
 
 if [[ ! -d $THEME_PATH ]]; then
   echo "Theme '$THEME_NAME' does not exist in $USER_THEMES_PATH"
   exit 1
 fi
-"$OMARCHY_PATH/qv/theme/validate" "$THEME_PATH"
+"$OMARCHY_PATH/qvcore/theme/validate" "$THEME_PATH"
 
 # Setup clean next theme directory (for atomic theme config swapping)
 rm -rf -- "$NEXT_THEME_PATH"

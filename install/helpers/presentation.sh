@@ -23,7 +23,7 @@ else
   export TERM_HEIGHT=24
 fi
 
-LOGO_PATH="$OMARCHY_PATH/qv/branding/logo.txt"
+LOGO_PATH="$OMARCHY_PATH/qvcore/branding/logo.txt"
 LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' \
   "$LOGO_PATH" 2>/dev/null || echo 0)
 LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)

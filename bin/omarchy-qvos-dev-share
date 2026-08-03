@@ -6,4 +6,4 @@
 # omarchy:hidden=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/security/dev-share" "$@"
+exec "$OMARCHY_PATH/qvcore/security/dev-share" "$@"

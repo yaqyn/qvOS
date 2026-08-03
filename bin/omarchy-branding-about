@@ -7,4 +7,4 @@
 # omarchy:examples=omarchy branding about image | omarchy branding about text | omarchy branding about reset
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/branding/about" "$@"
+exec "$OMARCHY_PATH/qvcore/branding/about" "$@"

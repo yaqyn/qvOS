@@ -1,0 +1,280 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+slug=${1:-}
+action=${2:-}
+action_state=${3:-}
+default_owner="$OMARCHY_PATH/bin/omarchy-default-terminal"
+install_owner="$OMARCHY_PATH/bin/omarchy-install-terminal"
+default_file="$HOME/.config/xdg-terminals.list"
+desktop_file=""
+
+case $slug in
+alacritty)
+  package="alacritty"
+  desktop_file="$HOME/.local/share/applications/Alacritty.desktop"
+  ;;
+foot)
+  package="foot"
+  desktop_file="$HOME/.local/share/applications/foot.desktop"
+  ;;
+ghostty)
+  package="ghostty"
+  ;;
+kitty)
+  package="kitty"
+  ;;
+*)
+  echo "Usage: qvcore/menu/terminal-action <alacritty|foot|ghostty|kitty>" >&2
+  exit 2
+  ;;
+esac
+
+config_path="$HOME/.config/$package"
+managed_files=("$default_file")
+[[ -z $desktop_file ]] || managed_files+=("$desktop_file")
+
+terminal_state() {
+  if ! pacman -Q "$package" >/dev/null 2>&1; then
+    printf 'available\n'
+  elif [[ $("$default_owner") == "$slug" ]]; then
+    printf 'active\n'
+  else
+    printf 'installed\n'
+  fi
+}
+
+check_owner() {
+  local path
+
+  [[ -x $default_owner && -x $install_owner ]] || {
+    echo "The qvOS terminal owners are unavailable." >&2
+    return 1
+  }
+  for path in "${managed_files[@]}"; do
+    if [[ -L $path || (-e $path && ! -f $path) ]]; then
+      echo "Cannot safely manage terminal settings: $path" >&2
+      return 1
+    fi
+  done
+}
+
+validate_rollback_state_path() {
+  local parent
+
+  [[ $action_state == /* && $action_state != "/" && ! -L $action_state ]] || return 1
+  parent=$(dirname -- "$action_state")
+  [[ -d $parent && ! -L $parent && -O $parent ]]
+}
+
+snapshot_files() {
+  local index
+  local path
+  local stage=$1
+  local stage_dir="$action_state/$stage"
+
+  [[ ! -e $stage_dir ]] || return 1
+  install -d -m 0700 "$stage_dir"
+  for index in "${!managed_files[@]}"; do
+    path=${managed_files[$index]}
+    if [[ -f $path ]]; then
+      cp -p -- "$path" "$stage_dir/$index"
+      printf 'present\n' >"$stage_dir/$index.state"
+    else
+      printf 'absent\n' >"$stage_dir/$index.state"
+    fi
+  done
+}
+
+files_match_snapshot() {
+  local index
+  local marker
+  local path
+  local snapshot
+  local stage=$1
+  local stage_dir="$action_state/$stage"
+
+  [[ -d $stage_dir && ! -L $stage_dir && -O $stage_dir ]] || return 1
+  for index in "${!managed_files[@]}"; do
+    path=${managed_files[$index]}
+    snapshot="$stage_dir/$index"
+    [[ -f $stage_dir/$index.state && ! -L $stage_dir/$index.state ]] || return 1
+    IFS= read -r marker <"$stage_dir/$index.state"
+    case $marker in
+    present)
+      [[ -f $path && ! -L $path && -f $snapshot && ! -L $snapshot ]] || return 1
+      cmp -s -- "$snapshot" "$path" || return 1
+      [[ $(stat -c '%a' "$snapshot") == "$(stat -c '%a' "$path")" ]] || return 1
+      ;;
+    absent)
+      [[ ! -e $path && ! -L $path ]] || return 1
+      ;;
+    *)
+      return 1
+      ;;
+    esac
+  done
+}
+
+tree_inventory() {
+  local root=$1
+
+  find "$root" -printf '%P\t%y\t%m\t%u\t%g\t%l\n' | LC_ALL=C sort
+}
+
+config_matches_snapshot() {
+  local snapshot="$action_state/after/config"
+
+  [[ -d $config_path && ! -L $config_path && -d $snapshot && ! -L $snapshot ]] || return 1
+  diff -qr --no-dereference "$snapshot" "$config_path" >/dev/null || return 1
+  [[ $(tree_inventory "$snapshot") == "$(tree_inventory "$config_path")" ]]
+}
+
+snapshot_terminal_state() {
+  validate_rollback_state_path || return 1
+  [[ ! -e $action_state ]] || return 1
+  install -d -m 0700 "$action_state"
+  printf '%s\n' "$slug" >"$action_state/slug"
+  printf '%s\n' "$("$default_owner")" >"$action_state/default"
+  if [[ -e $config_path || -L $config_path ]]; then
+    printf 'present\n' >"$action_state/config.state"
+  else
+    printf 'absent\n' >"$action_state/config.state"
+  fi
+  snapshot_files before
+}
+
+seal_terminal_state() {
+  local marker
+
+  [[ -f $action_state/slug && $(<"$action_state/slug") == "$slug" ]] || return 1
+  [[ $(terminal_state) == "active" ]] || return 1
+  snapshot_files after
+  IFS= read -r marker <"$action_state/config.state"
+  if [[ $marker == "absent" ]]; then
+    [[ -d $config_path && ! -L $config_path ]] || return 1
+    cp -a -- "$config_path" "$action_state/after/config"
+  elif [[ $marker != "present" ]]; then
+    return 1
+  fi
+}
+
+restore_files() {
+  local index
+  local marker
+  local path
+  local snapshot
+  local temporary
+
+  for index in "${!managed_files[@]}"; do
+    path=${managed_files[$index]}
+    snapshot="$action_state/before/$index"
+    IFS= read -r marker <"$action_state/before/$index.state"
+    case $marker in
+    present)
+      temporary=$(mktemp "$(dirname -- "$path")/.qvos-terminal-rollback.XXXXXX")
+      cp -p -- "$snapshot" "$temporary"
+      mv -f -- "$temporary" "$path"
+      ;;
+    absent)
+      rm -f -- "$path"
+      ;;
+    *)
+      return 1
+      ;;
+    esac
+  done
+}
+
+restore_terminal_state() {
+  local marker
+  local previous_default
+
+  validate_rollback_state_path || return 1
+  [[ -f $action_state/slug && ! -L $action_state/slug ]] || return 1
+  [[ $(<"$action_state/slug") == "$slug" ]] || return 1
+  [[ -f $action_state/default && ! -L $action_state/default ]] || return 1
+  IFS= read -r previous_default <"$action_state/default"
+  IFS= read -r marker <"$action_state/config.state"
+  if [[ ! -d $action_state/after ]]; then
+    files_match_snapshot before || return 1
+    if [[ $marker == "absent" ]]; then
+      [[ ! -e $config_path && ! -L $config_path ]] || return 1
+    elif [[ $marker != "present" ]]; then
+      return 1
+    fi
+    [[ $("$default_owner") == "$previous_default" ]]
+    return
+  fi
+  files_match_snapshot after || return 1
+  if [[ $marker == "absent" ]]; then
+    config_matches_snapshot || return 1
+    rm -rf -- "$config_path"
+  elif [[ $marker != "present" ]]; then
+    return 1
+  fi
+  restore_files
+  files_match_snapshot before || return 1
+  [[ $("$default_owner") == "$previous_default" ]]
+}
+
+apply_terminal() {
+  [[ $(terminal_state) != "available" ]] || {
+    echo "$slug is not installed." >&2
+    return 1
+  }
+  "$default_owner" "$slug"
+  [[ $(terminal_state) == "active" ]] || {
+    echo "$slug could not be made the default terminal." >&2
+    return 1
+  }
+}
+
+install_terminal() {
+  "$install_owner" "$slug"
+  [[ $(terminal_state) == "active" ]] || {
+    echo "$slug did not finish as the default terminal." >&2
+    return 1
+  }
+}
+
+case $action in
+--qvos-rollback-check)
+  (($# == 2)) || exit 2
+  check_owner
+  ;;
+--qvos-rollback-snapshot)
+  (($# == 3)) || exit 2
+  umask 077
+  check_owner
+  snapshot_terminal_state
+  ;;
+--qvos-rollback-seal)
+  (($# == 3)) || exit 2
+  seal_terminal_state
+  ;;
+--qvos-rollback-restore)
+  (($# == 3)) || exit 2
+  restore_terminal_state
+  ;;
+--state)
+  (($# == 2)) || exit 2
+  check_owner
+  terminal_state
+  ;;
+--apply)
+  (($# == 2)) || exit 2
+  check_owner
+  apply_terminal
+  ;;
+"")
+  (($# == 1)) || exit 2
+  check_owner
+  install_terminal
+  ;;
+*)
+  echo "Usage: qvcore/menu/terminal-action <terminal> [--state|--apply]" >&2
+  exit 2
+  ;;
+esac

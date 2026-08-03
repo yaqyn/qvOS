@@ -5,4 +5,4 @@
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 
-exec "$OMARCHY_PATH/qv/boot/refresh-sddm" "$@"
+exec "$OMARCHY_PATH/qvcore/boot/refresh-sddm" "$@"

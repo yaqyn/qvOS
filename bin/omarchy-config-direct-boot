@@ -5,4 +5,4 @@
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 
-exec "$OMARCHY_PATH/qv/boot/config-direct-boot" "$@"
+exec "$OMARCHY_PATH/qvcore/boot/config-direct-boot" "$@"

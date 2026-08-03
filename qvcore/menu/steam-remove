@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+# omarchy:summary=Remove Steam while keeping game libraries, settings, and caches
+# omarchy:requires-sudo=true
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
+keep_choice="Keep Game Libraries"
+remove_choice="Remove Local Game Libraries"
+
+list_choices() {
+  printf '%s\n' "$keep_choice" "$remove_choice"
+}
+
+usage() {
+  echo "Usage: qvcore/menu/steam-remove --list | -- <removal-scope>" >&2
+}
+
+case ${1:-} in
+--list)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  list_choices
+  ;;
+--)
+  (($# == 2)) || {
+    usage
+    exit 2
+  }
+  case $2 in
+  "$keep_choice")
+    "$OMARCHY_PATH/bin/omarchy-pkg-drop" steam
+    echo "Steam was removed; game libraries, settings, and caches were kept."
+    ;;
+  "$remove_choice")
+    "$OMARCHY_PATH/bin/omarchy-remove-gaming-steam"
+    ;;
+  *)
+    echo "Unknown Steam removal scope: $2" >&2
+    exit 2
+    ;;
+  esac
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac

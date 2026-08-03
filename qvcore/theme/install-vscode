@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/theme/yaqyn/vscode/extension
+
+extension_dir="$OMARCHY_PATH/qvcore/theme/yaqyn/vscode/extension"
+extension_version=$(jq -r .version "$extension_dir/package.json" 2>/dev/null)
+extension="$extension_dir/yaqyn-theme-$extension_version.vsix"
+
+if [[ -f $extension ]]; then
+  code --install-extension "$extension" --force
+fi

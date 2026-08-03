@@ -1,5 +1,0 @@
-run_logged "$OMARCHY_PATH/qv/boot/install-plymouth"
-run_logged "$OMARCHY_INSTALL/login/default-keyring.sh"
-run_logged "$OMARCHY_PATH/qv/boot/install-sddm"
-run_logged "$OMARCHY_INSTALL/login/hibernation.sh"
-run_logged "$OMARCHY_PATH/qv/boot/install-limine-snapper"

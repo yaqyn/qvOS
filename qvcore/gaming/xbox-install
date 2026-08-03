@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/gaming/xbox-files.psv
+defer_reboot=false
+case $# in
+0) ;;
+1)
+  [[ $1 == "--defer-reboot" ]] || {
+    echo "Usage: omarchy-install-gaming-xbox-controllers [--defer-reboot]" >&2
+    exit 2
+  }
+  defer_reboot=true
+  ;;
+*) exit 2 ;;
+esac
+
+files_owner="$OMARCHY_PATH/qvcore/gaming/xbox-files"
+"$files_owner" check
+echo "Installing Xbox controller Bluetooth support..."
+omarchy-pkg-add linux-headers xpadneo-dkms
+"$files_owner" write
+
+needs_reboot=false
+if ! id -nG "$USER" | grep -qw input; then
+  sudo usermod -aG input "$USER"
+  needs_reboot=true
+fi
+if lsmod | grep -q '^xpad '; then
+  sudo modprobe -r xpad 2>/dev/null || needs_reboot=true
+fi
+if [[ $needs_reboot == "false" ]] && ! sudo modprobe hid_xpadneo; then
+  needs_reboot=true
+fi
+
+if [[ $needs_reboot == "true" ]]; then
+  if [[ $defer_reboot == "true" ]]; then
+    echo "qvOS action: reboot required: Xbox controller setup needs a reboot"
+  elif gum confirm "Reboot needed to finish Xbox controller setup. Reboot now?"; then
+    omarchy-system-reboot
+  fi
+fi
+
+echo
+echo "Pair the controller from Bluetooth settings after any required reboot."

@@ -1,9 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-
-clear
-printf '\033[32m\n'
-cat -- "$OMARCHY_PATH/qv/branding/logo.txt"
-printf '\033[0m\n\n'

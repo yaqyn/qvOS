@@ -1,0 +1,164 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+tui_root=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
+# shellcheck source=qvcore/tui/owner-resolver
+source "$tui_root/owner-resolver"
+catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
+slug=${QVOS_ACTION_SLUG:-}
+operation=${QVOS_ACTION_OPERATION:-}
+selection=${QVOS_ACTION_SELECTIONS:-}
+expected_state=${QVOS_FONT_STATE:-}
+
+installer_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted && $1 ~ /^font-/ {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+selected_operation() {
+  case "$expected_state:$selection" in
+  "installed:Apply Now") printf 'apply\n' ;;
+  installed:Uninstall | active:Uninstall) printf 'uninstall\n' ;;
+  *) return 1 ;;
+  esac
+}
+
+font_options() {
+  if [[ $expected_state == "active" ]]; then
+    printf 'Uninstall\n'
+  else
+    printf 'Apply Now\nUninstall\n'
+  fi
+}
+
+load_font() {
+  local record
+
+  [[ $operation == "task" ]] || {
+    echo "Invalid qvOS font action operation." >&2
+    return 2
+  }
+  [[ $expected_state == "installed" || $expected_state == "active" ]] || {
+    echo "Invalid qvOS font action state." >&2
+    return 2
+  }
+  record=$(installer_record) || {
+    echo "Unknown qvOS font: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    presentation \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner_command <<<"$record"
+  [[ $presentation == "tui" && $owner_command == "qvcore/menu/font-install "* ]] || {
+    echo "Invalid qvOS font owner for $slug." >&2
+    return 1
+  }
+  read -r -a owner_args <<<"$owner_command"
+  qvos_resolve_owner owner_args
+}
+
+preflight() {
+  local state
+
+  [[ -f $catalog ]] || {
+    echo "The qvOS font action source is incomplete." >&2
+    return 1
+  }
+  [[ -x ${owner_args[0]} ]] || {
+    echo "The qvOS font owner is unavailable: ${owner_args[0]}" >&2
+    return 1
+  }
+  state=$("${owner_args[@]}" --state)
+  [[ $state == "$expected_state" ]] || {
+    echo "$slug changed state; reopen Fonts to refresh its action." >&2
+    return 1
+  }
+}
+
+verify_result() {
+  local font_operation=$1
+  local state
+
+  state=$("${owner_args[@]}" --state)
+  if [[ $font_operation == "apply" && $state != "active" ]]; then
+    echo "The $slug Apply owner finished without activating the font." >&2
+    return 1
+  fi
+  if [[ $font_operation == "uninstall" && $state != "available" ]]; then
+    echo "The $slug Uninstall owner finished without removing the font." >&2
+    return 1
+  fi
+}
+
+cancel_status() {
+  local font_operation
+  local state
+
+  font_operation=$(selected_operation) || {
+    printf 'unknown\n'
+    return
+  }
+  if ! state=$("${owner_args[@]}" --state 2>/dev/null); then
+    printf 'unknown\n'
+  elif [[ $font_operation == "apply" && $state == "active" ]] ||
+    [[ $font_operation == "uninstall" && $state == "available" ]]; then
+    printf 'target-reached\n'
+  else
+    printf 'target-not-detected\n'
+  fi
+}
+
+load_font
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  preflight
+  exit
+  ;;
+--options)
+  (($# == 1)) || exit 2
+  preflight
+  font_options
+  exit
+  ;;
+--cancel-status)
+  (($# == 1)) || exit 2
+  cancel_status
+  exit
+  ;;
+"")
+  ;;
+*)
+  echo "Usage: qvcore/tui/action/font-run [--check|--options|--cancel-status]" >&2
+  exit 2
+  ;;
+esac
+
+preflight
+font_operation=$(selected_operation) || {
+  echo "Choose an available font action." >&2
+  exit 2
+}
+echo "qvOS action: preparing"
+echo "qvOS action: applying"
+"${owner_args[@]}" "--$font_operation"
+echo "qvOS action: verifying"
+verify_result "$font_operation"
+echo "qvOS action: complete"

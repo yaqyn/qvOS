@@ -15,5 +15,5 @@ if omarchy-cmd-missing uwsm; then
     sed -i 's/^GTK_IM_MODULE=fcitx$//' "$HOME/.config/environment.d/fcitx.conf"
   fi
 
-  "$OMARCHY_PATH/qv/boot/install-plymouth"
+  "$OMARCHY_PATH/qvcore/boot/install-plymouth"
 fi

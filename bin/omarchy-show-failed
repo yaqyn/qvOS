@@ -4,4 +4,4 @@
 # omarchy:args=[exit-status]
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/presentation/show-failed" "$@"
+exec "$OMARCHY_PATH/qvcore/presentation/show-failed" "$@"

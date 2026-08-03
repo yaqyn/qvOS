@@ -4,4 +4,4 @@
 
 set -euo pipefail
 
-exec "$OMARCHY_PATH/qv/update/update-source" "$@"
+exec "$OMARCHY_PATH/qvcore/update/update-source" "$@"

@@ -1,0 +1,313 @@
+#!/bin/bash
+set -euo pipefail
+
+contract_root=${QVOS_OWNER_CONTRACT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+manifest="$contract_root/qvcore/tui/owner-contracts.psv"
+external_catalog="$contract_root/qvcore/tui/external-owners.psv"
+task_catalog="$contract_root/qvcore/tui/task/actions.psv"
+software_catalog="$contract_root/qvcore/menu/software-actions.psv"
+installer_catalog="$contract_root/qvcore/menu/software-installers.psv"
+mode=${1:---check}
+
+declare -A external_owners=()
+declare -A used_external_owners=()
+declare -A owner_uses=()
+declare -A contracted_sources=()
+
+fail() {
+  printf 'qvOS TUI owner contract: %s\n' "$1" >&2
+  exit 1
+}
+
+add_owner() {
+  local owner=$1
+  local use=$2
+
+  [[ -n $owner ]] || fail "empty owner for $use"
+  if [[ -n ${owner_uses[$owner]:-} ]]; then
+    owner_uses["$owner"]+=",${use}"
+  else
+    owner_uses["$owner"]=$use
+  fi
+}
+
+load_external_owners() {
+  local command
+  local reason
+  local extra
+
+  [[ -f $external_catalog ]] ||
+    fail "missing external owner catalog: ${external_catalog#"$contract_root/"}"
+
+  while IFS='|' read -r command reason extra; do
+    [[ $command == \#* || -z $command ]] && continue
+    [[ -n $reason && -z ${extra:-} ]] ||
+      fail "invalid external owner row: $command"
+    [[ -z ${external_owners[$command]:-} ]] ||
+      fail "duplicate external owner: $command"
+    external_owners["$command"]=$reason
+  done <"$external_catalog"
+}
+
+load_task_owners() {
+  local slug
+  local owner
+  local extra
+
+  while IFS='|' read -r \
+    slug \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner \
+    extra; do
+    [[ $slug == \#* || -z $slug ]] && continue
+    [[ -n $owner && -z ${extra:-} ]] ||
+      fail "invalid fixed-task owner row: $slug"
+    add_owner "$owner" "task:$slug"
+  done <"$task_catalog"
+}
+
+load_software_owners() {
+  local slug
+  local install_owner
+  local uninstall_owner
+  local extra
+
+  while IFS='|' read -r \
+    slug \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    install_owner \
+    uninstall_owner \
+    extra; do
+    [[ $slug == \#* || -z $slug ]] && continue
+    [[ -n $install_owner && -n $uninstall_owner && -z ${extra:-} ]] ||
+      fail "invalid Software owner row: $slug"
+    add_owner "$install_owner" "software:$slug:install"
+    add_owner "$uninstall_owner" "software:$slug:uninstall"
+  done <"$software_catalog"
+}
+
+load_installer_owners() {
+  local slug
+  local owner
+  local extra
+
+  while IFS='|' read -r \
+    slug \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner \
+    extra; do
+    [[ $slug == \#* || -z $slug ]] && continue
+    [[ -n $owner && -z ${extra:-} ]] ||
+      fail "invalid install-only owner row: $slug"
+    add_owner "$owner" "installer:$slug"
+  done <"$installer_catalog"
+}
+
+resolve_entrypoint() {
+  local owner=$1
+  local candidate=""
+  local suffix=""
+  local word_index
+  local prefix_count
+  local -a words=()
+
+  read -r -a words <<<"$owner"
+  ((${#words[@]} > 0)) || fail "empty owner command"
+
+  if [[ -n ${external_owners[${words[0]}]:-} ]]; then
+    printf 'external\n'
+    return
+  fi
+
+  if [[ ${words[0]} == "omarchy" ]]; then
+    for ((prefix_count = ${#words[@]} - 1; prefix_count >= 1; prefix_count--)); do
+      suffix=${words[1]}
+      for ((word_index = 2; word_index <= prefix_count; word_index++)); do
+        suffix+="-${words[$word_index]}"
+      done
+      candidate="bin/omarchy-$suffix"
+      [[ -f $contract_root/$candidate ]] && break
+      candidate=""
+    done
+  elif [[ ${words[0]} == */* ]]; then
+    candidate=${words[0]}
+  else
+    candidate="bin/${words[0]}"
+  fi
+
+  [[ -n $candidate && -f $contract_root/$candidate ]] ||
+    fail "unresolved repository owner: $owner"
+  printf '%s\n' "$candidate"
+}
+
+collect_source_contracts() {
+  local source=$1
+  local contract_line
+  local dependency
+  local directory_source
+  local -a contract_dependencies=()
+  local -a dependencies=()
+  local -a directory_sources=()
+
+  [[ -z ${contracted_sources[$source]:-} ]] || return
+  contracted_sources["$source"]=1
+
+  if ! grep -Iq . "$contract_root/$source"; then
+    return
+  fi
+
+  mapfile -t contract_dependencies < <(
+    sed -nE 's~^# qvos:contract=((qvcore|services|development|release|compat|config|default|bin)/[[:alnum:]_./-]*)$~\1~p' \
+      "$contract_root/$source" |
+      sort -u
+  )
+  while IFS= read -r contract_line; do
+    [[ $contract_line =~ ^#\ qvos:contract=(qvcore|services|development|release|compat|config|default|bin)/[[:alnum:]_./-]+$ ]] ||
+      fail "$source has an invalid qvos:contract declaration"
+  done < <(grep -E '^# qvos:contract=' "$contract_root/$source" || true)
+
+  for dependency in "${contract_dependencies[@]}"; do
+    [[ -e $contract_root/$dependency ]] ||
+      fail "$source contracts missing source: $dependency"
+    if [[ -f $contract_root/$dependency ]]; then
+      collect_source_contracts "$dependency"
+      continue
+    fi
+
+    mapfile -d '' -t directory_sources < <(
+      find "$contract_root/$dependency" -type f -print0 | sort -z
+    )
+    for directory_source in "${directory_sources[@]}"; do
+      collect_source_contracts "${directory_source#"$contract_root/"}"
+    done
+  done
+
+  mapfile -t dependencies < <(
+    # shellcheck disable=SC2016
+    grep -oE \
+      '\$OMARCHY_PATH/(qvcore|services|development|release|compat|bin)/[[:alnum:]_./-]+' \
+      "$contract_root/$source" |
+      sed 's|^\$OMARCHY_PATH/||' |
+      sort -u
+  )
+  for dependency in "${dependencies[@]}"; do
+    [[ -e $contract_root/$dependency ]] ||
+      fail "$source delegates to missing source: $dependency"
+    [[ -f $contract_root/$dependency ]] || continue
+    collect_source_contracts "$dependency"
+  done
+}
+
+source_contracts() {
+  local owner=$1
+  local entrypoint
+  local source
+  local hash
+  local -a sources=()
+
+  if ! entrypoint=$(resolve_entrypoint "$owner"); then
+    return 1
+  fi
+  if [[ $entrypoint == "external" ]]; then
+    printf 'external@-\n'
+    return
+  fi
+
+  contracted_sources=()
+  collect_source_contracts "$entrypoint"
+  mapfile -t sources < <(
+    printf '%s\n' "${!contracted_sources[@]}" | sort
+  )
+
+  for source in "${sources[@]}"; do
+    read -r hash _ < <(sha256sum "$contract_root/$source")
+    printf '%s@%s\n' "$source" "$hash"
+  done | paste -sd ',' -
+}
+
+sorted_csv() {
+  tr ',' '\n' <<<"$1" | sort -u | paste -sd ',' -
+}
+
+write_expected_manifest() {
+  local output=$1
+  local owner
+  local uses
+  local sources
+  local external
+  local command
+  local -a owners=()
+
+  mapfile -t owners < <(printf '%s\n' "${!owner_uses[@]}" | sort)
+  {
+    printf '# owner|uses|sources\n'
+    for owner in "${owners[@]}"; do
+      read -r command _ <<<"$owner"
+      if [[ -n ${external_owners[$command]:-} ]]; then
+        used_external_owners["$command"]=1
+      fi
+      uses=$(sorted_csv "${owner_uses[$owner]}")
+      if ! sources=$(source_contracts "$owner"); then
+        return 1
+      fi
+      printf '%s|%s|%s\n' "$owner" "$uses" "$sources"
+    done
+  } >"$output"
+
+  for external in "${!external_owners[@]}"; do
+    [[ -n ${used_external_owners[$external]:-} ]] ||
+      fail "unused external owner classification: $external"
+  done
+}
+
+case $mode in
+--check | --write)
+  ;;
+*)
+  fail "usage: qvcore/tui/owner-contracts [--check|--write]"
+  ;;
+esac
+
+load_external_owners
+load_task_owners
+load_software_owners
+load_installer_owners
+
+expected=$(mktemp)
+trap 'rm -f -- "$expected"' EXIT
+if ! write_expected_manifest "$expected"; then
+  exit 1
+fi
+
+if [[ $mode == "--write" ]]; then
+  install -m 0644 "$expected" "$manifest"
+  printf 'Updated %s\n' "${manifest#"$contract_root/"}"
+elif [[ ! -f $manifest ]]; then
+  fail "missing reviewed manifest: ${manifest#"$contract_root/"}"
+elif ! cmp -s "$expected" "$manifest"; then
+  diff -u "$manifest" "$expected" >&2 || true
+  fail "catalog owners or their sources changed; review them, then run qvcore/tui/owner-contracts --write"
+else
+  printf 'qvOS TUI owner contracts match every routed action.\n'
+fi

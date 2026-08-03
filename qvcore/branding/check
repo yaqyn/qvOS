@@ -1,0 +1,129 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/branding/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+mapfile -t native_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest"
+)
+
+if ((${#native_paths[@]} > 0)); then
+  [[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+    fail "native branding paths are not sorted and unique"
+fi
+
+for path in "${native_paths[@]}"; do
+  [[ -f $root/$path && ! -L $root/$path ]] ||
+    fail "native branding path is missing or unsafe: $path"
+  git -C "$root" cat-file -e "upstream/master:$path" ||
+    fail "native branding path is not inherited: $path"
+  git -C "$root" diff --quiet upstream/master -- "$path" &&
+    fail "native branding path no longer differs from upstream: $path"
+done
+
+adapter_routes=(
+  bin/omarchy-branding-about
+  bin/omarchy-branding-screensaver
+  bin/omarchy-launch-floating-terminal-with-presentation
+  bin/omarchy-show-logo
+  bin/omarchy-windows-vm
+)
+adapter_owners=(
+  qvcore/branding/about
+  qvcore/branding/screensaver
+  qvcore/presentation/run
+  qvcore/branding/show-logo
+  qvcore/windows/command
+)
+for index in "${!adapter_routes[@]}"; do
+  route=${adapter_routes[$index]}
+  owner=${adapter_owners[$index]}
+
+  [[ -x $root/$route && -x $root/$owner ]] ||
+    fail "branding adapter or owner is not executable: $route"
+  (($(wc -l <"$root/$route") <= 10)) ||
+    fail "branding compatibility adapter contains implementation: $route"
+  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
+    fail "branding compatibility adapter does not delegate directly: $route"
+done
+
+if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qvcore"; then
+  fail "public command help still brands qvOS as Omarchy"
+fi
+
+identity_paths=(
+  bin/omarchy
+  bin/omarchy-debug
+  bin/omarchy-dev-benchmark
+  bin/omarchy-dev-bin-metadata
+  bin/omarchy-launch-floating-terminal-with-presentation
+  bin/omarchy-menu
+  bin/omarchy-refresh-config
+  bin/omarchy-reinstall
+  bin/omarchy-reinstall-configs
+  bin/omarchy-remove-preinstalls
+  bin/omarchy-update-available
+  bin/omarchy-update-git
+  bin/omarchy-windows-vm
+  boot.sh
+  config/fastfetch/config.jsonc
+  config/systemd/user/omarchy-battery-monitor.service
+  config/systemd/user/omarchy-battery-monitor.timer
+  config/waybar/config.jsonc
+  default/chromium/extensions/copy-url/manifest.json
+  default/elephant/omarchy_background_selector.lua
+  default/elephant/omarchy_themes.lua
+  default/elephant/omarchy_unlocks.lua
+  default/omarchy-skill/SKILL.md
+  install/first-run/install-voxtype.hook
+  install/first-run/welcome.sh
+  install/config/hardware/apple/fix-suspend-nvme.sh
+  install/helpers/logging.sh
+  install/helpers/presentation.sh
+  install/preflight/guard.sh
+  qvcore/boot/limine/default.conf
+  qvcore/boot/limine/limine.conf
+  qvcore/boot/plymouth/omarchy.plymouth
+  qvcore/boot/plymouth/omarchy.script
+  qvcore/boot/sddm/metadata.desktop
+  qvcore/boot/wayland-sessions/omarchy.desktop
+  qvcore/install/helpers/errors
+  qvcore/presentation/run
+  qvcore/update/qvos-update
+  qvcore/windows/command
+)
+
+for path in "${identity_paths[@]}"; do
+  [[ -f $root/$path ]] || fail "missing visible identity source: $path"
+  if rg -n 'Omarchy' "$root/$path"; then
+    fail "visible identity source still exposes Omarchy: $path"
+  fi
+done
+
+# shellcheck disable=SC2016
+grep -Fqx 'OMARCHY_REF="${OMARCHY_REF:-OS}"' "$root/boot.sh" ||
+  fail "online installer does not default to the qvOS product branch"
+# shellcheck disable=SC2016
+grep -Fqx 'OMARCHY_REPO="${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}"' \
+  "$root/boot.sh" ||
+  fail "online installer does not default to the qvOS repository"
+
+grep -Fqx 'NamePretty = "qvOS"' \
+  "$root/qvcore/menu/elephant/qvos_menu.lua" ||
+  fail "qvOS menu provider label"
+grep -Fq '"qvOS Source"' "$root/qvcore/menu/elephant/qvos_menu.lua" ||
+  fail "qvOS learning destination"
+grep -Fq 'Name=qvOS (Hyprland uwsm)' \
+  "$root/qvcore/boot/wayland-sessions/omarchy.desktop" ||
+  fail "qvOS session label"
+grep -Fq 'Description=qvOS Battery Monitor Check' \
+  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
+  fail "qvOS battery service label"
+
+printf 'ok - visible product identity is qvOS while legacy internals remain compatible\n'

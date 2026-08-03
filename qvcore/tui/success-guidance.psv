@@ -1,0 +1,59 @@
+# slug|operation|next step
+windows|install|Launch Windows from the app launcher to download and complete Windows setup.
+dictation|install|Open Dictation from the qvOS controls to start using it.
+ruby-on-rails|install|Open a new terminal and run: rails new myproject
+go|install|Open a new terminal and run: go version
+php|install|Open a new terminal and run: php --version
+python|install|Open a new terminal and run: python --version or uv --version
+elixir|install|Open a new terminal and run: iex
+zig|install|Open a new terminal and run: zig version
+rust|install|Open a new terminal and run: rustc --version
+java|install|Open a new terminal and run: java --version
+dotnet|install|Open a new terminal and run: dotnet --info
+clojure|install|Open a new terminal and run: clj
+scala|install|Open a new terminal and run: scala-cli
+node|install|Open a new terminal and run: node --version
+bun|install|Open a new terminal and run: bun --version
+deno|install|Open a new terminal and run: deno --version
+laravel|install|Open a new terminal and run: laravel new myproject
+symfony|install|Open a new terminal and run: symfony new --webapp myproject
+phoenix|install|Open a new terminal and run: mix phx.new my_app
+chrome|install|Open Setup > Defaults > Browser to make Chrome your default.
+edge|install|Open Setup > Defaults > Browser to make Edge your default.
+brave|install|Open Setup > Defaults > Browser to make Brave your default.
+brave-origin|install|Open Setup > Defaults > Browser to make Brave Origin your default.
+firefox|install|Open Setup > Defaults > Browser to make Firefox your default.
+zen|install|Open Setup > Defaults > Browser to make Zen your default.
+steam|install|Open Steam and sign in.
+retroarch|install|Add ROMs to ~/Games/roms and BIOS files to ~/Games/bios, then open RetroArch.
+minecraft|install|Open Minecraft Launcher from the app launcher and sign in.
+xbox-cloud|install|Open Xbox Cloud Gaming and sign in.
+xbox-controller|install|After any required reboot, open Bluetooth settings to pair the controller.
+moonlight|install|Open Moonlight and add your Sunshine host.
+lutris|install|Open Lutris, wait for the runtimes, then use + to add games.
+heroic|install|Open Heroic and sign in.
+devel|install|Right-click a project folder and choose Open Codex Here.
+dropbox|install|Open the top-right hidden tray, right-click Dropbox, and complete setup.
+nordvpn|install|After rebooting, open a terminal and run: nordvpn login
+bitwarden|install|Open Bitwarden and sign in.
+chromium-account|install|Restart Chromium, then open Settings > You and Google to sign in.
+vscode|install|Open VS Code from the app launcher.
+cursor|install|Open Cursor from the app launcher.
+zed|install|Open Zed from the app launcher.
+sublime-text|install|Open Sublime Text from the app launcher.
+helix|install|Open a new terminal and run: hx
+vim|install|Open a terminal and run: vim
+emacs|install|Open Emacs from the app launcher, or run: emacsclient -c
+font-cascadia-mono|install|Open a new terminal to see the selected font.
+font-meslo-mono|install|Open a new terminal to see the selected font.
+font-fira-code|install|Open a new terminal to see the selected font.
+font-victor-code|install|Open a new terminal to see the selected font.
+font-bitstream-vera|install|Open a new terminal to see the selected font.
+font-iosevka|install|Open a new terminal to see the selected font.
+alacritty|install|Open a new terminal to use Alacritty as the default.
+foot|install|Open a new terminal to use Foot as the default.
+ghostty|install|Open a new terminal to use Ghostty as the default.
+kitty|install|Open a new terminal to use Kitty as the default.
+lm-studio|install|Open LM Studio from the app launcher to download or choose a model.
+ollama|install|Open a terminal and run: ollama run <model>
+crush|install|Open a terminal and run: crush

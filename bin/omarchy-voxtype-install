@@ -5,4 +5,4 @@
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/software/voxtype-install" "$@"
+exec "$OMARCHY_PATH/qvcore/software/voxtype-install" "$@"

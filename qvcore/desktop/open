@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "Usage: qvcore/desktop/open <path>" >&2
+  exit 2
+fi
+
+setsid xdg-open "$1" >/dev/null 2>&1 &

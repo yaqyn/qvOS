@@ -2,4 +2,4 @@
 
 # qvOS owns the complete base package policy.
 # shellcheck source=/dev/null
-source "$OMARCHY_PATH/qv/install/packaging/base"
+source "$OMARCHY_PATH/qvcore/install/packaging/base"

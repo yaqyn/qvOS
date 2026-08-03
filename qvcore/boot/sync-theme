@@ -1,0 +1,100 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+source "$OMARCHY_PATH/qvcore/boot/install-lib"
+qvos_boot_init
+
+staging=
+backup=
+target=
+
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  if [[ -n $staging ]] && qvos_boot_root_exists "$staging"; then
+    sudo rm -rf -- "$staging" || status=1
+  fi
+  if [[ -n $backup ]] && qvos_boot_root_exists "$backup"; then
+    if [[ -n $target ]] && ! qvos_boot_root_exists "$target"; then
+      sudo mv -- "$backup" "$target" || status=1
+    else
+      sudo rm -rf -- "$backup" || status=1
+    fi
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+usage() {
+  echo "Usage: ${0##*/} <plymouth|sddm>" >&2
+  exit 2
+}
+
+(( $# == 1 )) || usage
+case $1 in
+plymouth)
+  source_dir="$OMARCHY_PATH/qvcore/boot/plymouth"
+  target=$(qvos_boot_path /usr/share/plymouth/themes/omarchy)
+  ;;
+sddm)
+  source_dir="$OMARCHY_PATH/qvcore/boot/sddm"
+  target=$(qvos_boot_path /usr/share/sddm/themes/omarchy)
+  ;;
+*) usage ;;
+esac
+
+[[ -d $source_dir && ! -L $source_dir ]] || {
+  echo "qvOS boot theme source is unavailable: $source_dir" >&2
+  exit 1
+}
+if [[ -n $(find "$source_dir" -mindepth 1 -maxdepth 1 ! -type f -print -quit) ]]; then
+  echo "qvOS boot theme contains an unsupported entry" >&2
+  exit 1
+fi
+
+mapfile -d '' -t payloads < <(
+  find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print0 | sort -z
+)
+(( ${#payloads[@]} > 0 )) || {
+  echo "qvOS boot theme is empty: $source_dir" >&2
+  exit 1
+}
+
+parent=${target%/*}
+sudo install -d -m 0755 -- "$parent"
+staging=$(sudo mktemp -d "$parent/.qvos-$1.XXXXXX")
+[[ $staging == "$parent/.qvos-$1."* ]] || {
+  echo "Unexpected boot theme staging path" >&2
+  exit 1
+}
+
+for source_file in "${payloads[@]}"; do
+  sudo install -m 0644 -- "$source_file" "$staging/${source_file##*/}"
+done
+sudo chmod 0755 "$staging"
+
+if qvos_boot_root_exists "$target"; then
+  backup=$(sudo mktemp -d "$parent/.qvos-$1-backup.XXXXXX")
+  [[ $backup == "$parent/.qvos-$1-backup."* ]] || {
+    echo "Unexpected boot theme backup path" >&2
+    exit 1
+  }
+  sudo rmdir -- "$backup"
+  sudo mv -- "$target" "$backup"
+fi
+
+if ! sudo mv -- "$staging" "$target"; then
+  if [[ -n $backup ]] && qvos_boot_root_exists "$backup"; then
+    sudo mv -- "$backup" "$target"
+    backup=
+  fi
+  exit 1
+fi
+staging=
+
+if [[ -n $backup ]]; then
+  sudo rm -rf -- "$backup"
+  backup=
+fi

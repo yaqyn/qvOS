@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+# omarchy:summary=Refresh the SDDM theme from default
+# omarchy:requires-sudo=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+
+exec "$OMARCHY_PATH/qvcore/boot/sync-theme" sddm

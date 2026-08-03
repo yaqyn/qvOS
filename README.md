@@ -7,10 +7,20 @@ read-only upstream, not its product identity.
   capabilities, installation, update policy, and release behavior.
 - Useful Omarchy capability is reviewed and ported into native qvOS owners;
   upstream commits are never merged automatically into qvOS.
-- During the native transition, canonical qvOS configuration, policy, assets,
-  and implementation live under `qv/` while inherited implementations are
-  retired one domain at a time.
-- qvCORE is a separate, optional collection of two integrated stacks. Each has
-  only Install and Remove; qvOS does not require any stack to be healthy.
+- `qvcore/` is the mandatory native implementation of qvOS. It owns the
+  installed product domains and is not an optional software bundle.
+- Optional integrations are classified by purpose. Proton belongs to Services;
+  the workstation formerly named qvDEV is now Devel under Development. qvOS
+  remains complete without either optional integration.
 
-See [`qv/README.md`](qv/README.md) for the ownership map and lifecycle.
+```text
+qvcore/       Mandatory installed qvOS implementation.
+services/     Optional service integrations, currently Proton.
+development/  Optional development integrations, currently Devel.
+release/      Image construction and release evidence.
+upstream/     Read-only upstream review tooling and records.
+compat/       Narrow migration adapters for supported legacy qvOS states.
+test/         Tests split along the same ownership boundaries.
+```
+
+See [`qvcore/README.md`](qvcore/README.md) for the ownership map and lifecycle.

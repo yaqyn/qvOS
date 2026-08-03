@@ -24,8 +24,8 @@ fi
 
 # Refresh icons, TUIs, and qvOS-owned npx wrappers.
 bash "$OMARCHY_PATH/install/packaging/icons.sh"
-"$OMARCHY_PATH/qv/install/packaging/webapps"
+"$OMARCHY_PATH/qvcore/install/packaging/webapps"
 bash "$OMARCHY_PATH/install/packaging/tuis.sh"
-"$OMARCHY_PATH/qv/install/packaging/npx"
+"$OMARCHY_PATH/qvcore/install/packaging/npx"
 
 update-desktop-database "$HOME/.local/share/applications"

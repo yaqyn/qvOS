@@ -1,0 +1,186 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+catalog="$OMARCHY_PATH/qvcore/menu/software-actions.psv"
+inventory_loaded=false
+declare -A package_inventory=()
+declare -A mise_inventory=()
+declare -A flatpak_inventory=()
+
+usage() {
+  echo "Usage: qvcore/menu/software-state [--all|<slug>]" >&2
+}
+
+action_record() {
+  local wanted=$1
+
+  awk -F '|' -v wanted="$wanted" '
+    $1 !~ /^#/ && NF == 9 && $1 == wanted {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+load_inventory() {
+  local value
+  local version
+
+  [[ $inventory_loaded == "false" ]] || return
+  while IFS= read -r value; do
+    [[ -n $value ]] && package_inventory["$value"]=1
+  done < <(pacman -Qq 2>/dev/null || true)
+
+  if command -v mise >/dev/null 2>&1; then
+    while read -r value version _; do
+      [[ -n $value && -n ${version:-} ]] && mise_inventory["$value"]=1
+    done < <(mise ls --global 2>/dev/null || true)
+  fi
+
+  if command -v flatpak >/dev/null 2>&1; then
+    while IFS= read -r value; do
+      [[ -n $value ]] && flatpak_inventory["$value"]=1
+    done < <(flatpak list --app --columns=application 2>/dev/null || true)
+  fi
+  inventory_loaded=true
+}
+
+probe_ready() {
+  local kind=$1
+  local value=$2
+
+  case $kind in
+  command)
+    command -v "$value" >/dev/null 2>&1
+    ;;
+  file)
+    [[ -e $HOME/$value ]]
+    ;;
+  flatpak)
+    load_inventory
+    [[ -n ${flatpak_inventory[$value]:-} ]]
+    ;;
+  mise)
+    load_inventory
+    [[ -n ${mise_inventory[$value]:-} ]]
+    ;;
+  mix-archive)
+    load_inventory
+    [[ -n ${mise_inventory[elixir]:-} ]] &&
+      mise x elixir -- mix archive 2>/dev/null |
+        grep -Eq "(^|[[:space:]])${value}([[:space:]]|$)"
+    ;;
+  package)
+    load_inventory
+    [[ -n ${package_inventory[$value]:-} ]]
+    ;;
+  state)
+    [[ -f ${XDG_STATE_HOME:-$HOME/.local/state}/qvos/$value ]]
+    ;;
+  *)
+    echo "Unsupported software probe: $kind" >&2
+    return 2
+    ;;
+  esac
+}
+
+state_for() {
+  local slug=$1
+  local record
+  local probe_kind
+  local probe_value
+
+  record=$(action_record "$slug") || {
+    echo "Unknown software action: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    probe_kind \
+    probe_value \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ \
+    _ <<<"$record"
+
+  if probe_ready "$probe_kind" "$probe_value"; then
+    printf 'uninstall\n'
+  else
+    printf 'install\n'
+  fi
+}
+
+all_states() {
+  local slug
+  local probe_kind
+  local probe_value
+  local install_presentation
+  local install_sudo
+  local uninstall_presentation
+  local uninstall_sudo
+  local install_owner
+  local uninstall_owner
+  local extra
+  local state
+
+  while IFS='|' read -r \
+    slug \
+    probe_kind \
+    probe_value \
+    install_presentation \
+    install_sudo \
+    uninstall_presentation \
+    uninstall_sudo \
+    install_owner \
+    uninstall_owner \
+    extra; do
+    [[ -n $slug && $slug != "#"* ]] || continue
+    [[ -n $probe_kind && -n $probe_value ]] &&
+      [[ $install_presentation == "tui" || $install_presentation == "native" ]] &&
+      [[ $install_sudo == "true" || $install_sudo == "false" ]] &&
+      [[ $uninstall_presentation == "tui" || $uninstall_presentation == "native" ]] &&
+      [[ $uninstall_sudo == "true" || $uninstall_sudo == "false" ]] &&
+      [[ -n $install_owner && -n $uninstall_owner && -z ${extra:-} ]] || {
+      echo "Invalid software action entry: $slug" >&2
+      return 1
+    }
+
+    if probe_ready "$probe_kind" "$probe_value"; then
+      state="uninstall"
+    else
+      state="install"
+    fi
+    printf '%s\t%s\n' "$slug" "$state"
+  done <"$catalog"
+}
+
+[[ -f $catalog ]] || {
+  echo "Missing software action catalog: $catalog" >&2
+  exit 1
+}
+
+case ${1:-} in
+--all)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  all_states
+  ;;
+"")
+  usage
+  exit 2
+  ;;
+*)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  state_for "$1"
+  ;;
+esac

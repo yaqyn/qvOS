@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# omarchy:summary=Compatibility route for former optional qvCORE integrations
+# omarchy:args=<proton|qvdev|devel>
+# omarchy:hidden=true
+# omarchy:requires-sudo=true
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
+if (($# != 1)); then
+  echo "Usage: omarchy-install-qvcore <proton|qvdev|devel>" >&2
+  exit 2
+fi
+
+case $1 in
+proton) exec "$OMARCHY_PATH/services/proton/manage" install ;;
+qvdev | devel) exec "$OMARCHY_PATH/development/devel/manage" install ;;
+*)
+  echo "Usage: omarchy-install-qvcore <proton|qvdev|devel>" >&2
+  exit 2
+  ;;
+esac

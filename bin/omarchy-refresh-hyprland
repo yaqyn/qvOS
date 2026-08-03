@@ -3,4 +3,4 @@
 # omarchy:summary=Overwrite all the user configs in ~/.config/hypr with the qvOS defaults.
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/config/refresh-hyprland" "$@"
+exec "$OMARCHY_PATH/qvcore/config/refresh-hyprland" "$@"

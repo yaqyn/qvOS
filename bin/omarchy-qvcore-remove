@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# omarchy:summary=Remove one enrolled qvCORE stack while preserving personal data
-# omarchy:group=qvcore
-# omarchy:name=remove
-# omarchy:args=<proton|qvdev>
-# omarchy:examples=omarchy qvcore remove qvdev
+# omarchy:summary=Compatibility route for former qvCORE integration removal
+# omarchy:args=<proton|qvdev|devel> [--yes]
+# omarchy:hidden=true
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/core/remove" "$@"
+exec "$OMARCHY_PATH/compat/omarchy/remove-qvcore" "$@"

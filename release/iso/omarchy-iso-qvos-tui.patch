@@ -1,0 +1,494 @@
+--- builder/build-iso.sh
++++ builder/build-iso.sh
+@@ -4,8 +4,17 @@ set -e
+ 
+ # Note that these are packages installed to the Arch container used to build the ISO.
+ pacman-key --init
++if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
++  if [[ $QVOS_ARCH_MIRROR != https://* ]]; then
++    echo "QVOS_ARCH_MIRROR must use HTTPS" >&2
++    exit 2
++  fi
++  printf 'Server = %s/$repo/os/$arch\n' "${QVOS_ARCH_MIRROR%/}" >/etc/pacman.d/mirrorlist
++  grep -qxF "DisableDownloadTimeout" /etc/pacman.conf ||
++    sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
++fi
+ pacman --noconfirm -Sy archlinux-keyring
+-pacman --noconfirm -Sy archiso git sudo base-devel jq grub
++pacman --noconfirm -Sy archiso git sudo base-devel jq grub go
+ 
+ # Pre-import the omarchy signing key so pacman can verify packages without a keyserver lookup
+ pacman-key --add /builder/omarchy.gpg
+@@ -43,49 +52,145 @@ else
+   git clone -b $OMARCHY_INSTALLER_REF https://github.com/$OMARCHY_INSTALLER_REPO.git "$build_cache_dir/airootfs/root/omarchy"
+ fi
+ 
++# Do not ship transient builder identity in the embedded Git checkout.
++git -c safe.directory="$build_cache_dir/airootfs/root/omarchy" \
++  -C "$build_cache_dir/airootfs/root/omarchy" \
++  config --local core.logAllRefUpdates false
++rm -rf -- "$build_cache_dir/airootfs/root/omarchy/.git/logs"
++
++# Build qvOS boot/install TUI from the staged installer source.
++if [[ -d "$build_cache_dir/airootfs/root/omarchy/qvcore/tui" ]]; then
++  echo "qvOS ISO progress: staging qvOS TUI installer"
++  qvos_tui_source="$build_cache_dir/airootfs/root/omarchy/qvcore/tui"
++  qvos_tui_source_hash=$("$qvos_tui_source/source-hash" "$qvos_tui_source")
++  export GOMODCACHE="${GOMODCACHE:-/var/cache/qvos/go/pkg/mod}"
++  export GOCACHE="${GOCACHE:-/var/cache/qvos/go/build}"
++  mkdir -p \
++    "$GOMODCACHE" \
++    "$GOCACHE" \
++    "$build_cache_dir/airootfs/usr/local/bin"
++  (
++    cd "$qvos_tui_source"
++    go build \
++      -buildvcs=false \
++      -trimpath \
++      -ldflags="-s -w -X main.buildSourceHash=$qvos_tui_source_hash" \
++      -o "$build_cache_dir/airootfs/usr/local/bin/qvos-tui" \
++      .
++  )
++fi
++
+-# Make log uploader available in the ISO too
+-mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
+-cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
+-
+-# Copy the Omarchy Plymouth theme to the ISO
++# Copy the qvOS Plymouth theme to the ISO
+ mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
+-cp -r "$build_cache_dir/airootfs/root/omarchy/default/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy/"
++cp -r "$build_cache_dir/airootfs/root/omarchy/qvcore/boot/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy/"
++
++# Replace inherited Arch artwork with the qvOS grayscale BIOS boot splash.
++cp "$build_cache_dir/airootfs/root/omarchy/release/iso/syslinux-splash.png" \
++  "$build_cache_dir/syslinux/splash.png"
+ 
+ # Download and verify Node.js binary for offline installation
+ NODE_DIST_URL="https://nodejs.org/dist/latest"
++node_cache_dir="/var/cache/qvos/node"
++mkdir -p "$node_cache_dir"
+ 
+ # Get checksums and parse filename and SHA
+ NODE_SHASUMS=$(curl -fsSL "$NODE_DIST_URL/SHASUMS256.txt")
+ NODE_FILENAME=$(echo "$NODE_SHASUMS" | grep "linux-x64.tar.gz" | awk '{print $2}')
+ NODE_SHA=$(echo "$NODE_SHASUMS" | grep "linux-x64.tar.gz" | awk '{print $1}')
++NODE_TARBALL="$node_cache_dir/$NODE_FILENAME"
+ 
+-# Download the tarball
+-curl -fsSL "$NODE_DIST_URL/$NODE_FILENAME" -o "/tmp/$NODE_FILENAME"
+-
+-# Verify SHA256 checksum
+-echo "$NODE_SHA /tmp/$NODE_FILENAME" | sha256sum -c - || {
++if [[ ! -f $NODE_TARBALL ]] ||
++  ! echo "$NODE_SHA $NODE_TARBALL" | sha256sum -c -; then
++  echo "qvOS ISO progress: caching node runtime"
++  curl -fsSL "$NODE_DIST_URL/$NODE_FILENAME" -o "$NODE_TARBALL.tmp"
++  echo "$NODE_SHA $NODE_TARBALL.tmp" | sha256sum -c - || {
+     echo "ERROR: Node.js checksum verification failed!"
++    rm -f "$NODE_TARBALL.tmp"
+     exit 1
+-}
++  }
++  mv -f "$NODE_TARBALL.tmp" "$NODE_TARBALL"
++fi
+ 
+ # Copy to ISO
+ mkdir -p "$build_cache_dir/airootfs/opt/packages/"
+-cp "/tmp/$NODE_FILENAME" "$build_cache_dir/airootfs/opt/packages/"
++cp "$NODE_TARBALL" "$build_cache_dir/airootfs/opt/packages/"
+ 
+ # Add our additional packages to packages.x86_64
+ arch_packages=(linux-t2 git gum jq openssl plymouth tzupdate omarchy-keyring lvm2 cryptsetup parted)
+ printf '%s\n' "${arch_packages[@]}" >>"$build_cache_dir/packages.x86_64"
+ 
+-# Build list of all the packages needed for the offline mirror
+-all_packages=($(cat "$build_cache_dir/packages.x86_64"))
+-all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-base.packages" | grep -v '^$'))
+-all_packages+=($(grep -v '^#' "$build_cache_dir/airootfs/root/omarchy/install/omarchy-other.packages" | grep -v '^$'))
+-all_packages+=($(grep -v '^#' /builder/archinstall.packages | grep -v '^$'))
++# Resolve the native qvOS package manifests.
++qvos_package_resolver="$build_cache_dir/airootfs/root/omarchy/qvcore/install/packaging/resolve"
++[[ -x $qvos_package_resolver ]] || {
++  echo "Missing qvOS package resolver: $qvos_package_resolver" >&2
++  exit 1
++}
++qvos_package_list=$("$qvos_package_resolver" all)
++mapfile -t qvos_packages <<<"$qvos_package_list"
+ 
+-# Download all the packages to the offline mirror inside the ISO
+-mkdir -p /tmp/offlinedb
+-pacman --config /configs/pacman-online-${OMARCHY_MIRROR}.conf --noconfirm -Syw "${all_packages[@]}" --cachedir $offline_mirror_dir/ --dbpath /tmp/offlinedb
+-repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "$offline_mirror_dir/"*.pkg.tar.zst
++# Build list of all the packages needed for the offline mirror.
++mapfile -t all_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' "$build_cache_dir/packages.x86_64")
++mapfile -t archinstall_packages < <(sed '/^[[:space:]]*#/d;/^[[:space:]]*$/d' /builder/archinstall.packages)
++all_packages+=("${qvos_packages[@]}" "${archinstall_packages[@]}")
++
++# Download packages into the reusable host cache, then copy only this build's
++# resolved package files into the offline mirror inside the ISO filesystem.
++package_cache_dir="/var/cache/pacman/pkg"
++offline_db_dir=$(mktemp -d /tmp/offlinedb.XXXXXX)
++rm -rf "$offline_mirror_dir"
++mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
++
++online_pacman_config=$(mktemp /tmp/pacman-online.XXXXXX)
++cp "/configs/pacman-online-${OMARCHY_MIRROR}.conf" "$online_pacman_config"
++sed -i \
++  '/^\[options\]/a XferCommand = /usr/bin/curl --http1.1 --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output %o --url %u' \
++  "$online_pacman_config"
++
++echo "qvOS ISO progress: resolving package set"
++download_offline_packages() {
++  pacman --config "$online_pacman_config" --noconfirm -Syw \
++    "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir" --needed
++}
++
++download_complete=false
++for attempt in 1 2 3; do
++  if download_offline_packages; then
++    download_complete=true
++    break
++  fi
++  if (( attempt < 3 )); then
++    echo "Offline package download failed; retrying cached transfer ($attempt/3)..." >&2
++  fi
++done
++if [[ $download_complete != "true" ]]; then
++  echo "Offline package download failed after 3 attempts" >&2
++  exit 1
++fi
++
++mapfile -t offline_package_urls < <(
++  pacman --config "$online_pacman_config" --noconfirm -Sp \
++    "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir"
++)
++for package_url in "${offline_package_urls[@]}"; do
++  package_file="${package_url##*/}"
++  [[ $package_file == *.pkg.tar.* ]] || continue
++  if [[ ! -f $package_cache_dir/$package_file ]]; then
++    echo "ERROR: package $package_file was not downloaded to $package_cache_dir"
++    exit 1
++  fi
++  cp "$package_cache_dir/$package_file" "$offline_mirror_dir/"
++done
++
++mapfile -t offline_packages < <(
++  find "$offline_mirror_dir" -maxdepth 1 -type f -name "*.pkg.tar.*" ! -name "*.sig" | sort
++)
++if (( ${#offline_packages[@]} == 0 )); then
++  echo "ERROR: offline package mirror is empty"
++  exit 1
++fi
++
++echo "qvOS ISO progress: indexing package mirror"
++repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "${offline_packages[@]}"
+ 
+ # Create a symlink to the offline mirror instead of duplicating it.
+ # mkarchiso needs packages at /var/cache/omarchy/mirror/offline in the container,
+@@ -98,6 +200,10 @@ ln -s "$offline_mirror_dir" "/var/cache/omarchy/mirror/offline"
+ cp $build_cache_dir/pacman-offline.conf "$build_cache_dir/airootfs/etc/pacman.conf"
+ 
+ # Finally, we assemble the entire ISO
++echo "qvOS ISO progress: creating ISO image"
++"$build_cache_dir/airootfs/root/omarchy/release/iso/source-permissions" \
++  "$build_cache_dir/airootfs/root/omarchy" \
++  >>"$build_cache_dir/profiledef.sh"
+ mkarchiso -v -w "$build_cache_dir/work/" -o "/out/" "$build_cache_dir/"
+ 
+ # Fix ownership of output files to match host user
+--- configs/airootfs/root/.automated_script.sh
++++ configs/airootfs/root/.automated_script.sh
+@@ -11,24 +11,60 @@ use_omarchy_helpers() {
+ 
+ run_configurator() {
+-  set_tokyo_night_colors
++  set_qvos_console_colors
+-  ./configurator
++  if command -v qvos-tui >/dev/null 2>&1; then
++    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer
++  else
++    ./configurator
++  fi
+   export OMARCHY_USER="$(jq -r '.users[0].username' user_credentials.json)"
+ }
+ 
++start_qvos_iso_progress() {
++  if command -v qvos-tui >/dev/null 2>&1; then
++    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
++    QVOS_ISO_PROGRESS_PID=$!
++  else
++    start_log_output
++  fi
++}
++
++stop_qvos_iso_progress() {
++  stop_log_output
++  clear
++}
++
+ install_arch() {
+-  clear_logo
+-  gum style --foreground 3 --padding "1 0 0 $PADDING_LEFT" "Installing..."
+-  echo
++  if ! command -v qvos-tui >/dev/null 2>&1; then
++    clear_logo
++    gum style --foreground 3 --padding "1 0 0 $PADDING_LEFT" "Installing..."
++    echo
++  fi
+ 
+   touch /var/log/omarchy-install.log
+ 
+-  start_log_output
++  start_qvos_iso_progress
+ 
+   # Set CURRENT_SCRIPT for the trap to display better when nothing is returned for some reason
++  local install_status
+   CURRENT_SCRIPT="install_base_system"
++  set +e
+   install_base_system > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >>/var/log/omarchy-install.log) 2>&1
++  install_status=$?
+   unset CURRENT_SCRIPT
+-  stop_log_output
++  set -e
++
++  if (( install_status != 0 )); then
++    stop_qvos_iso_progress
++    return "$install_status"
++  fi
++
++  if [[ -x /usr/local/bin/qvos-tui ]]; then
++    install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui
++  fi
++  install -Dm0640 /dev/null /mnt/var/log/omarchy-install.log
++  mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log
++  stop_qvos_iso_progress
++  return 0
+ }
+ 
+ install_omarchy() {
+@@ -46,28 +87,28 @@ install_omarchy() {
+-# Set Tokyo Night color scheme for the terminal
+-set_tokyo_night_colors() {
++# Set the qvOS black, grayscale, and red color scheme for the terminal
++set_qvos_console_colors() {
+   if [[ $(tty) == "/dev/tty"* ]]; then
+-    # Tokyo Night color palette
++    # Keep every non-red ANSI slot neutral on the reduced-color Linux VT.
+-    echo -en "\e]P01a1b26" # black (background)
+-    echo -en "\e]P1f7768e" # red
+-    echo -en "\e]P29ece6a" # green
+-    echo -en "\e]P3e0af68" # yellow
+-    echo -en "\e]P47aa2f7" # blue
+-    echo -en "\e]P5bb9af7" # magenta
+-    echo -en "\e]P67dcfff" # cyan
+-    echo -en "\e]P7a9b1d6" # white
+-    echo -en "\e]P8414868" # bright black
+-    echo -en "\e]P9f7768e" # bright red
+-    echo -en "\e]PA9ece6a" # bright green
+-    echo -en "\e]PBe0af68" # bright yellow
+-    echo -en "\e]PC7aa2f7" # bright blue
+-    echo -en "\e]PDbb9af7" # bright magenta
+-    echo -en "\e]PE7dcfff" # bright cyan
+-    echo -en "\e]PFc0caf5" # bright white (foreground)
++    echo -en "\e]P0000000" # black (background)
++    echo -en "\e]P1b00000" # red
++    echo -en "\e]P2707070" # grayscale
++    echo -en "\e]P38a8a8a" # grayscale
++    echo -en "\e]P4a0a0a0" # grayscale
++    echo -en "\e]P5b8b8b8" # grayscale
++    echo -en "\e]P6909090" # grayscale
++    echo -en "\e]P7c8c8c8" # foreground
++    echo -en "\e]P8404040" # bright black
++    echo -en "\e]P9d00000" # bright red
++    echo -en "\e]PA9a9a9a" # grayscale
++    echo -en "\e]PBb0b0b0" # grayscale
++    echo -en "\e]PCc6c6c6" # grayscale
++    echo -en "\e]PDdddddd" # grayscale
++    echo -en "\e]PEa8a8a8" # grayscale
++    echo -en "\e]PFffffff" # bright foreground
+ 
+     # Set default foreground and background
+     echo -en "\033[0m"
+     clear
+   fi
+ }
+ 
+ install_disk() {
+--- configs/profiledef.sh
++++ configs/profiledef.sh
+@@ -23,4 +23,4 @@ file_permissions=(
+   ["/root/configurator"]="0:0:755"
+   ["/var/cache/omarchy/mirror/offline/"]="0:0:775"
+-  ["/usr/local/bin/omarchy-upload-log"]="0:0:755"
++  ["/usr/local/bin/qvos-tui"]="0:0:755"
+ )
+--- configs/efiboot/loader/entries/01-archiso-x86_64-linux.conf
++++ configs/efiboot/loader/entries/01-archiso-x86_64-linux.conf
+@@ -1,4 +1,4 @@
+-title    Omarchy (x86_64, UEFI)
++title    qvOS (x86_64, UEFI)
+ sort-key 01
+ linux    /%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ initrd   /%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+--- configs/grub/grub.cfg
++++ configs/grub/grub.cfg
+@@ -52,13 +52,13 @@ timeout_style=hidden
+ 
+ # Menu entries
+ 
+-menuentry "Omarchy (%ARCH%, ${archiso_platform})" --class arch --class gnu-linux --class gnu --class os --id 'archlinux' {
++menuentry "qvOS (%ARCH%, ${archiso_platform})" --class arch --class gnu-linux --class gnu --class os --id 'archlinux' {
+     set gfxpayload=keep
+     linux /%INSTALL_DIR%/boot/%ARCH%/vmlinuz-linux-t2 archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% quiet splash xe.enable_panel_replay=0
+     initrd /%INSTALL_DIR%/boot/%ARCH%/initramfs-linux-t2.img
+ }
+ 
+-menuentry "Omarchy with speakup screen reader (%ARCH%, ${archiso_platform})" --hotkey s --class arch --class gnu-linux --class gnu --class os --id 'archlinux-accessibility' {
++menuentry "qvOS with speakup screen reader (%ARCH%, ${archiso_platform})" --hotkey s --class arch --class gnu-linux --class gnu --class os --id 'archlinux-accessibility' {
+     set gfxpayload=keep
+     linux /%INSTALL_DIR%/boot/%ARCH%/vmlinuz-linux-t2 archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% accessibility=on xe.enable_panel_replay=0
+     initrd /%INSTALL_DIR%/boot/%ARCH%/initramfs-linux-t2.img
+--- configs/grub/loopback.cfg
++++ configs/grub/loopback.cfg
+@@ -28,13 +28,13 @@ timeout_style=hidden
+ 
+ # Menu entries
+ 
+-menuentry "Omarchy (%ARCH%, ${archiso_platform})" --class arch --class gnu-linux --class gnu --class os --id 'archlinux' {
++menuentry "qvOS (%ARCH%, ${archiso_platform})" --class arch --class gnu-linux --class gnu --class os --id 'archlinux' {
+     set gfxpayload=keep
+     linux /%INSTALL_DIR%/boot/%ARCH%/vmlinuz-linux-t2 archisobasedir=%INSTALL_DIR% img_dev=UUID=${archiso_img_dev_uuid} img_loop="${iso_path}" quiet splash xe.enable_panel_replay=0
+     initrd /%INSTALL_DIR%/boot/%ARCH%/initramfs-linux-t2.img
+ }
+ 
+-menuentry "Omarchy with speakup screen reader (%ARCH%, ${archiso_platform})" --hotkey s --class arch --class gnu-linux --class gnu --class os --id 'archlinux-accessibility' {
++menuentry "qvOS with speakup screen reader (%ARCH%, ${archiso_platform})" --hotkey s --class arch --class gnu-linux --class gnu --class os --id 'archlinux-accessibility' {
+     set gfxpayload=keep
+     linux /%INSTALL_DIR%/boot/%ARCH%/vmlinuz-linux-t2 archisobasedir=%INSTALL_DIR% img_dev=UUID=${archiso_img_dev_uuid} img_loop="${iso_path}" accessibility=on xe.enable_panel_replay=0
+     initrd /%INSTALL_DIR%/boot/%ARCH%/initramfs-linux-t2.img
+--- configs/profiledef.sh
++++ configs/profiledef.sh
+@@ -1,10 +1,10 @@
+ #!/usr/bin/env bash
+ # shellcheck disable=SC2034
+ 
+-iso_name="omarchy"
+-iso_label="OMARCHY_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
+-iso_publisher="Omarchy <https://omarchy.org>"
+-iso_application="Omarchy Installer"
++iso_name="qvos"
++iso_label="QVOS_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
++iso_publisher="qvOS <https://github.com/Yaqyn-qvOS/qvOS>"
++iso_application="qvOS Installer"
+ iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
+ install_dir="arch"
+ buildmodes=('iso')
+--- configs/syslinux/archiso_head.cfg
++++ configs/syslinux/archiso_head.cfg
+@@ -1,6 +1,6 @@
+ SERIAL 0 115200
+ UI vesamenu.c32
+-MENU TITLE Omarchy
++MENU TITLE qvOS
+ MENU BACKGROUND splash.png
+ 
+ MENU WIDTH 78
+@@ -14,15 +14,15 @@ MENU HELPMSGENDROW 29
+ 
+ # Refer to https://wiki.syslinux.org/wiki/index.php/Comboot/menu.c32
+ 
+-MENU COLOR border       30;44   #40ffffff #a0000000 std
+-MENU COLOR title        1;36;44 #9033ccff #a0000000 std
+-MENU COLOR sel          7;37;40 #e0ffffff #20ffffff all
+-MENU COLOR unsel        37;44   #50ffffff #a0000000 std
+-MENU COLOR help         37;40   #c0ffffff #a0000000 std
+-MENU COLOR timeout_msg  37;40   #80ffffff #00000000 std
+-MENU COLOR timeout      1;37;40 #c0ffffff #00000000 std
+-MENU COLOR msg07        37;40   #90ffffff #a0000000 std
+-MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
++MENU COLOR border       30;40   #00000000 #00000000 none
++MENU COLOR title        1;37;40 #ffd8d8d8 #00000000 std
++MENU COLOR sel          7;37;40 #ffffffff #ff303030 all
++MENU COLOR unsel        37;40   #ff989898 #00000000 std
++MENU COLOR help         37;40   #ffc8c8c8 #00000000 std
++MENU COLOR timeout_msg  37;40   #ff777777 #00000000 std
++MENU COLOR timeout      1;37;40 #ffb8b8b8 #00000000 std
++MENU COLOR msg07        37;40   #ff989898 #00000000 std
++MENU COLOR tabmsg       37;40   #ff777777 #00000000 std
+ 
+ MENU CLEAR
+ MENU IMMEDIATE
+--- configs/syslinux/archiso_pxe-linux.cfg
++++ configs/syslinux/archiso_pxe-linux.cfg
+@@ -1,9 +1,9 @@
+ LABEL arch64_nbd
+ TEXT HELP
+-Boot the Omarchy install medium using NBD.
+-It allows you to install Omarchy or perform system maintenance.
++Boot the qvOS install medium using NBD.
++It allows you to install qvOS or perform system maintenance.
+ ENDTEXT
+-MENU LABEL Omarchy install medium (x86_64, NBD)
++MENU LABEL qvOS install medium (x86_64, NBD)
+ LINUX ::/%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ INITRD ::/%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+ APPEND archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% archiso_nbd_srv=${pxeserver} cms_verify=y
+@@ -11,10 +11,10 @@ SYSAPPEND 3
+ 
+ LABEL arch64_nfs
+ TEXT HELP
+-Boot the Omarchy live medium using NFS.
+-It allows you to install Omarchy or perform system maintenance.
++Boot the qvOS live medium using NFS.
++It allows you to install qvOS or perform system maintenance.
+ ENDTEXT
+-MENU LABEL Omarchy install medium (x86_64, NFS)
++MENU LABEL qvOS install medium (x86_64, NFS)
+ LINUX ::/%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ INITRD ::/%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+ APPEND archisobasedir=%INSTALL_DIR% archiso_nfs_srv=${pxeserver}:/run/archiso/bootmnt cms_verify=y
+@@ -22,10 +22,10 @@ SYSAPPEND 3
+ 
+ LABEL arch64_http
+ TEXT HELP
+-Boot the Omarchy live medium using HTTP.
+-It allows you to install Omarchy or perform system maintenance.
++Boot the qvOS live medium using HTTP.
++It allows you to install qvOS or perform system maintenance.
+ ENDTEXT
+-MENU LABEL Omarchy install medium (x86_64, HTTP)
++MENU LABEL qvOS install medium (x86_64, HTTP)
+ LINUX ::/%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ INITRD ::/%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+ APPEND archisobasedir=%INSTALL_DIR% archiso_http_srv=http://${pxeserver}/ cms_verify=y
+--- configs/syslinux/archiso_sys-linux.cfg
++++ configs/syslinux/archiso_sys-linux.cfg
+@@ -1,9 +1,9 @@
+ LABEL arch64
+ TEXT HELP
+-Boot the Omarchy install medium on BIOS.
+-It allows you to install Omarchy or perform system maintenance.
++Boot the qvOS install medium on BIOS.
++It allows you to install qvOS or perform system maintenance.
+ ENDTEXT
+-MENU LABEL Omarchy install medium (x86_64, BIOS)
++MENU LABEL qvOS install medium (x86_64, BIOS)
+ LINUX /%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ INITRD /%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+ APPEND archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% quiet splash xe.enable_panel_replay=0
+@@ -11,10 +11,10 @@ APPEND archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% quiet splas
+ # Accessibility boot option
+ LABEL arch64speech
+ TEXT HELP
+-Boot the Omarchy install medium on BIOS with speakup screen reader.
+-It allows you to install Omarchy or perform system maintenance with speech feedback.
++Boot the qvOS install medium on BIOS with speakup screen reader.
++It allows you to install qvOS or perform system maintenance with speech feedback.
+ ENDTEXT
+-MENU LABEL Omarchy install medium (x86_64, BIOS) with ^speech
++MENU LABEL qvOS install medium (x86_64, BIOS) with ^speech
+ LINUX /%INSTALL_DIR%/boot/x86_64/vmlinuz-linux-t2
+ INITRD /%INSTALL_DIR%/boot/x86_64/initramfs-linux-t2.img
+ APPEND archisobasedir=%INSTALL_DIR% archisosearchuuid=%ARCHISO_UUID% accessibility=on xe.enable_panel_replay=0

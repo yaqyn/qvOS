@@ -50,7 +50,7 @@ fi
 THEMES_DIR="$HOME/.config/omarchy/themes"
 
 THEME_NAME=$(basename -- "$REPO_PATH_PART" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]')
-THEME_NAME=$("$OMARCHY_PATH/qv/theme/name" "$THEME_NAME")
+THEME_NAME=$("$OMARCHY_PATH/qvcore/theme/name" "$THEME_NAME")
 THEME_PATH="$THEMES_DIR/$THEME_NAME"
 
 if [[ $THEME_NAME == "yaqyn" ]]; then
@@ -68,7 +68,7 @@ if ! git clone --depth=1 --single-branch -- "$REPO_URL" "$THEME_PATH"; then
   echo "Error: Failed to clone theme repo." >&2
   exit 1
 fi
-if ! "$OMARCHY_PATH/qv/theme/validate" "$THEME_PATH"; then
+if ! "$OMARCHY_PATH/qvcore/theme/validate" "$THEME_PATH"; then
   rm -rf -- "$THEME_PATH"
   echo "Error: The repository is not a safe compatible theme." >&2
   exit 1

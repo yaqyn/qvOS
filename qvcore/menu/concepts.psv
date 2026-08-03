@@ -1,0 +1,76 @@
+# slug|icon|name|breadcrumb|keywords|label 1|action 1|label 2|action 2|...
+theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:omarchy-theme-install|Remove|present:qvcore/tui/task/selectable-owner theme-remove|Update|present:omarchy-theme-update
+background||Background|Settings · Appearance|wallpaper,appearance,style|Choose|menu:background|Install|run:omarchy-theme-bg-install
+font||Font|Settings · Appearance|typeface,appearance,style|Choose|menu:font|Install|menu:install-font
+screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:omarchy-launch-screensaver force|Toggle|run:omarchy-toggle-screensaver|Edit Text|run:omarchy-branding-screensaver text|Set Image|run:omarchy-branding-screensaver image|Restore|run:omarchy-branding-screensaver reset
+unlock-screen|󰟵|Unlock Screen|Settings · Appearance|plymouth,boot,style|Open|run:omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400
+look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|Edit|edit:.config/hypr/looknfeel.conf
+about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:omarchy-branding-about text|Set Image|run:omarchy-branding-about image|Restore|run:omarchy-branding-about reset
+wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:omarchy-launch-wifi|Restart|present:omarchy-restart-wifi
+bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:omarchy-launch-bluetooth|Restart|present:omarchy-restart-bluetooth
+dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:omarchy-qvos-setup-dns
+audio||Audio|Settings · Devices|sound,volume,wiremix|Open|run:omarchy-launch-audio|Restart|present:omarchy-restart-pipewire
+monitors|󰍹|Monitors|Settings · Devices|display,screen,config|Edit|edit:.config/hypr/monitors.conf
+input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.config/hypr/input.conf
+keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
+hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
+package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
+web-app||Web App|Settings · Software|website,pwa|Install|present:omarchy-webapp-install|Remove|present:qvcore/tui/task/selectable-owner webapp-remove
+tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:qvcore/tui/task/selectable-owner tui-remove
+development|󰵮|Development|Settings · Software|languages,runtime,dev|Browse|menu:software-development
+browser||Browser|Settings · Software|web,chromium,firefox|Browse|menu:software-browser
+gaming||Gaming|Settings · Software|steam,games|Browse|menu:software-gaming
+services||Services|Settings · Software|proton,dropbox,vpn,bitwarden|Browse|menu:software-services
+editor||Editor|Settings · Software|code,ide|Browse|menu:install-editor
+terminal||Terminal|Settings · Software|shell,console|Browse|menu:install-terminal
+ai|󱚤|AI|Settings · Software|ollama,lm studio,dictation|Browse|menu:install-ai
+dictation||Dictation|Settings · Software|voice,voxtype,ai
+windows|󰍲|Windows|Settings · Software|vm,virtual machine
+power-profile|󱐋|Power Profile|Settings · System|battery,performance|Configure|menu:power
+battery-protection|󰁹|Battery Protection|Settings · System|battery,charging,limit,conservation|Status|present:omarchy battery protection status|Enable|present:omarchy battery protection enable|Disable|present:omarchy battery protection disable|Full Charge Once|present:omarchy battery protection full-charge-once|Report|present:omarchy battery protection report
+system-sleep||System Sleep|Settings · System|suspend,hibernate|Configure|menu:system-sleep
+defaults||Defaults|Settings · System|browser,terminal,editor|Configure|menu:setup-defaults
+config||Config|Settings · System|defaults,refresh,reset|Edit|menu:setup-config|Restore|menu:update-config
+date-time||Date & Time|Settings · System|clock,timezone,sync|Timezone|present:qvcore/tui/task/selectable-owner timezone|Sync|present:omarchy-update-time
+firmware||Firmware|Settings · System|fwupd,upgrade|Update|present:omarchy-update-firmware
+password||Password|Settings · Security|user,login,luks,encryption|User|present:passwd|Drive Encryption|present:omarchy-drive-password
+fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
+fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2
+passwordless-sudo|󰟵|Passwordless Sudo|Settings · Security|sudo,password,security|Configure|present:omarchy-sudo-passwordless
+share||Share|More · Share|localsend,send|Send|menu:share
+ruby-on-rails|󰫏|Ruby on Rails|Settings · Software · Development|ruby,rails
+devel|󰵮|Devel|Settings · Software · Development|codex,workbench,tools,developer workstation
+javascript||JavaScript|Settings · Software · Development|node,bun,deno,js|Browse|menu:software-javascript
+go||Go|Settings · Software · Development|golang,runtime
+php||PHP|Settings · Software · Development|laravel,symfony,runtime
+python||Python|Settings · Software · Development|runtime,language
+elixir||Elixir|Settings · Software · Development|phoenix,runtime
+zig||Zig|Settings · Software · Development|runtime,language
+rust||Rust|Settings · Software · Development|cargo,runtime
+java||Java|Settings · Software · Development|jdk,runtime
+dotnet||.NET|Settings · Software · Development|dotnet,runtime
+ocaml||OCaml|Settings · Software · Development|runtime,language
+clojure||Clojure|Settings · Software · Development|runtime,language
+scala||Scala|Settings · Software · Development|runtime,language
+node||Node.js|Settings · Software · Development · JavaScript|node,npm
+bun||Bun|Settings · Software · Development · JavaScript|javascript,runtime
+deno||Deno|Settings · Software · Development · JavaScript|javascript,runtime
+laravel||Laravel|Settings · Software · Development · PHP|php,framework
+symfony||Symfony|Settings · Software · Development · PHP|php,framework
+phoenix||Phoenix|Settings · Software · Development · Elixir|elixir,framework
+chrome||Chrome|Settings · Software · Browser|google,web
+edge||Edge|Settings · Software · Browser|microsoft,web
+brave||Brave|Settings · Software · Browser|web,browser
+brave-origin|󰖟|Brave Origin|Settings · Software · Browser|web,browser
+firefox||Firefox|Settings · Software · Browser|mozilla,web
+zen|󰖟|Zen|Settings · Software · Browser|firefox,web
+steam||Steam|Settings · Software · Gaming|games,valve
+retroarch||RetroArch|Settings · Software · Gaming|games,emulator
+minecraft|󰍳|Minecraft|Settings · Software · Gaming|games,launcher
+geforce-now|󰢹|NVIDIA GeForce NOW|Settings · Software · Gaming|games,cloud,nvidia
+xbox-cloud||Xbox Cloud Gaming|Settings · Software · Gaming|games,cloud,xbox
+xbox-controller|󰂯|Xbox Controller|Settings · Software · Gaming|games,gamepad,xbox
+moonlight|󰍹|Moonlight|Settings · Software · Gaming|games,gamestream
+lutris||Lutris|Settings · Software · Gaming|games,battle.net
+heroic|󱓟|Heroic|Settings · Software · Gaming|games,epic
+proton|󰌾|Proton|Settings · Software · Services|pass,drive,mail,vpn,service,proton cli

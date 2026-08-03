@@ -3,4 +3,4 @@
 # omarchy:summary=Install RetroArch with the full libretro core set plus FBNeo and a ~/Games ROM directory.
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/gaming/retroarch-install" "$@"
+exec "$OMARCHY_PATH/qvcore/gaming/retroarch-install" "$@"

@@ -1,0 +1,128 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+tui_root=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
+# shellcheck source=qvcore/tui/owner-resolver
+source "$tui_root/owner-resolver"
+catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
+slug=${QVOS_ACTION_SLUG:-}
+operation=${QVOS_ACTION_OPERATION:-}
+mode=${QVOS_TERMINAL_MODE:-}
+
+terminal_record() {
+  awk -F '|' -v wanted="$slug" '
+    $1 !~ /^#/ && NF == 11 && $1 == wanted &&
+      ($1 == "alacritty" || $1 == "foot" || $1 == "ghostty" || $1 == "kitty") {
+      print
+      found = 1
+      exit
+    }
+    END { exit !found }
+  ' "$catalog"
+}
+
+load_terminal() {
+  local record
+
+  [[ $operation == "task" ]] || {
+    echo "Invalid qvOS terminal action operation." >&2
+    return 2
+  }
+  record=$(terminal_record) || {
+    echo "Unknown qvOS terminal: $slug" >&2
+    return 2
+  }
+  IFS='|' read -r \
+    _ \
+    _ \
+    title \
+    _ \
+    _ \
+    presentation \
+    _ \
+    _ \
+    _ \
+    _ \
+    owner_command <<<"$record"
+  [[ $presentation == "tui" && $owner_command == "qvcore/menu/terminal-action $slug" ]] || {
+    echo "Invalid qvOS terminal owner for $slug." >&2
+    return 1
+  }
+  read -r -a owner_args <<<"$owner_command"
+  qvos_resolve_owner owner_args
+  owner=${owner_args[0]}
+}
+
+preflight() {
+  local state
+
+  [[ -f $catalog && -x $owner ]] || {
+    echo "The qvOS terminal action source is incomplete." >&2
+    return 1
+  }
+  state=$("$owner" "$slug" --state)
+  case $mode in
+  apply)
+    [[ $state == "installed" ]] || {
+      echo "$title is no longer waiting to become the default terminal." >&2
+      return 1
+    }
+    ;;
+  default)
+    [[ $state == "active" ]] || {
+      echo "$title is no longer the default terminal." >&2
+      return 1
+    }
+    ;;
+  *)
+    echo "Invalid qvOS terminal action mode." >&2
+    return 2
+    ;;
+  esac
+}
+
+cancel_status() {
+  if [[ $("$owner" "$slug" --state 2>/dev/null || true) == "active" ]]; then
+    printf 'target-reached\n'
+  else
+    printf 'target-not-detected\n'
+  fi
+}
+
+load_terminal
+
+case ${1:-} in
+--check)
+  (($# == 1)) || exit 2
+  preflight
+  exit
+  ;;
+--cancel-status)
+  (($# == 1)) || exit 2
+  cancel_status
+  exit
+  ;;
+"")
+  ;;
+*)
+  echo "Usage: qvcore/tui/action/terminal-run [--check|--cancel-status]" >&2
+  exit 2
+  ;;
+esac
+
+preflight
+if [[ $mode == "default" ]]; then
+  printf 'Status: Already default\n'
+  exit
+fi
+
+echo "qvOS action: preparing"
+echo "qvOS action: applying"
+"$owner" "$slug" --apply
+echo "qvOS action: verifying"
+[[ $("$owner" "$slug" --state) == "active" ]] || {
+  echo "$title did not become the default terminal." >&2
+  exit 1
+}
+echo "qvOS action: complete"

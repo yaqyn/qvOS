@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+themes_dir="$HOME/.config/omarchy/themes"
+theme_name_file="$HOME/.config/omarchy/current/theme.name"
+
+[[ -f $theme_name_file ]] || {
+  echo "No current qvOS theme is selected." >&2
+  exit 1
+}
+
+raw_theme_name=$(<"$theme_name_file")
+theme_name=$("$OMARCHY_PATH/qvcore/theme/name" --resolve "$themes_dir" "$raw_theme_name")
+[[ -d $themes_dir/$theme_name ]] || {
+  echo "The current theme '$theme_name' is not installed." >&2
+  exit 1
+}
+
+background_dir="$HOME/.config/omarchy/backgrounds/$theme_name"
+mkdir -p -- "$background_dir"
+"$OMARCHY_PATH/qvcore/desktop/open" "$background_dir"

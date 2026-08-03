@@ -7,4 +7,4 @@
 # omarchy:examples=omarchy battery protection status | omarchy battery protection enable plugged-in | omarchy battery protection report
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/power/battery-protection" "$@"
+exec "$OMARCHY_PATH/qvcore/power/battery-protection" "$@"

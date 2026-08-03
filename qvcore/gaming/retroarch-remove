@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/gaming/retroarch.packages
+(( $# == 0 )) || {
+  echo "Usage: omarchy-remove-gaming-retroarch" >&2
+  exit 2
+}
+
+package_output=$("$OMARCHY_PATH/qvcore/gaming/retroarch-packages")
+mapfile -t packages <<<"$package_output"
+omarchy-pkg-drop "${packages[@]}"
+
+echo
+echo "RetroArch and its qvOS core packages were removed."
+echo "Configuration, saves, cache, ROMs, and BIOS files were preserved."

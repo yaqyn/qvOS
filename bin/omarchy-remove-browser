@@ -6,4 +6,4 @@
 # omarchy:requires-sudo=true
 
 OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
-exec "$OMARCHY_PATH/qv/browser/remove" "$@"
+exec "$OMARCHY_PATH/qvcore/browser/remove" "$@"
