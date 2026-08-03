@@ -25,6 +25,11 @@ grep -Fq 'release/iso/source-permissions' \
 # shellcheck disable=SC2016
 grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-$reviewed_iso_ref}"' \
   "$root/release/iso/build" || fail "release ISO defaults to reviewed ref"
+grep -Fq 'clone_git_source "$omarchy_iso_repo" "$omarchy_iso_ref" "$target"' \
+  "$root/release/iso/build" || fail "local ISO source bypasses reviewed ref"
+if rg -q 'copy_tree|fresh-cloning ISO builder source local' "$root/release/iso/build"; then
+  fail "local ISO source bypass remains"
+fi
 if grep -Fq 'QVOS_OMARCHY_ISO_REF:-main' "$root/release/iso/build"; then
   fail "release ISO follows a floating upstream branch"
 fi

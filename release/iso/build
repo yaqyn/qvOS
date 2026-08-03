@@ -170,18 +170,6 @@ default_qvos_source_ref() {
   fi
 }
 
-copy_tree() {
-  local source="$1"
-  local target="$2"
-
-  mkdir -p "$target"
-  tar \
-    --exclude=.git \
-    --exclude=release \
-    -C "$source" \
-    -cf - . | tar -C "$target" -xf -
-}
-
 checkout_git_ref() {
   local target="$1"
   local ref="$2"
@@ -261,13 +249,8 @@ checkout_qvos_update_branch() {
 stage_omarchy_iso() {
   local target="$1"
 
-  if [[ -d $omarchy_iso_repo ]]; then
-    echo "qvOS ISO progress: fresh-cloning ISO builder source local"
-    copy_tree "$omarchy_iso_repo" "$target"
-  else
-    echo "qvOS ISO progress: fresh-cloning ISO builder source $omarchy_iso_ref"
-    clone_git_source "$omarchy_iso_repo" "$omarchy_iso_ref" "$target"
-  fi
+  echo "qvOS ISO progress: fresh-cloning ISO builder source $omarchy_iso_ref"
+  clone_git_source "$omarchy_iso_repo" "$omarchy_iso_ref" "$target"
 
   if [[ $prepare_only == "true" ]]; then
     echo "qvOS ISO progress: skipping build-tool submodules for prepare-only"

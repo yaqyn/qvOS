@@ -715,6 +715,8 @@ source <(sed -n '/^retry_git_transfer() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
 source <(sed -n '/^clone_git_source() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
+source <(sed -n '/^stage_omarchy_iso() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
 source <(sed -n '/^checkout_qvos_update_branch() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
 source <(sed -n '/^stage_qvos_source() {$/,/^}$/p' "$iso_build")
@@ -761,6 +763,31 @@ grep -Fq 'pinned qvOS source commit to equal origin/OS' \
   <<<"$iso_mismatch_output" ||
   fail "qvOS ISO mismatched commit failure"
 pass "qvOS ISO embeds the exact origin/OS commit on its usable update branch"
+
+iso_builder_fixture="$test_root/iso-builder"
+iso_builder_stage="$test_root/iso-builder-stage"
+git init -q -b main "$iso_builder_fixture"
+git -C "$iso_builder_fixture" config user.name Fixture
+git -C "$iso_builder_fixture" config user.email fixture@example.invalid
+printf 'reviewed builder\n' >"$iso_builder_fixture/builder"
+git -C "$iso_builder_fixture" add builder
+git -C "$iso_builder_fixture" commit -q -m 'Reviewed builder'
+reviewed_builder_commit=$(git -C "$iso_builder_fixture" rev-parse HEAD)
+printf 'unreviewed worktree\n' >"$iso_builder_fixture/builder"
+# shellcheck disable=SC2034
+omarchy_iso_repo="$iso_builder_fixture"
+# shellcheck disable=SC2034
+omarchy_iso_ref="$reviewed_builder_commit"
+# shellcheck disable=SC2034
+prepare_only=true
+stage_omarchy_iso "$iso_builder_stage" >/dev/null
+[[ $(git -C "$iso_builder_stage" rev-parse HEAD) == "$reviewed_builder_commit" ]] ||
+  fail "qvOS ISO local builder commit identity"
+[[ $(<"$iso_builder_stage/builder") == "reviewed builder" ]] ||
+  fail "qvOS ISO local builder worktree isolation"
+[[ -z $(git -C "$iso_builder_stage" status --porcelain=v1 --untracked-files=all) ]] ||
+  fail "qvOS ISO local builder stage cleanliness"
+pass "local ISO builders obey the same reviewed commit pin"
 
 publish_fixture="$test_root/iso-publish"
 publish_bin="$publish_fixture/bin"
