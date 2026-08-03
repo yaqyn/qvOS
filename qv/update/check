@@ -24,6 +24,17 @@ grep -Fq 'pull --ff-only --no-rebase origin OS' \
   "$root/qv/update/update-source" || fail "OS fast-forward-only source update"
 grep -Fq 'status --porcelain=v1 --untracked-files=all' \
   "$root/qv/update/qvos-update" || fail "live source cleanliness preflight"
+[[ -x $root/qv/update/restart ]] || fail "native update restart owner mode"
+(( $(wc -l <"$root/bin/omarchy-update-restart") <= 10 )) ||
+  fail "update restart compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/update/restart" "$@"' \
+  "$root/bin/omarchy-update-restart" ||
+  fail "update restart compatibility adapter"
+if rg -q 'gum confirm|omarchy-system-reboot|if \[\[ -x .*qv/update' \
+  "$root/bin/omarchy-update-restart"; then
+  fail "update restart compatibility route retains a fallback"
+fi
 for retired_switcher in \
   bin/omarchy-branch-set \
   bin/omarchy-channel-set \

@@ -26,7 +26,6 @@ inherited_seams=(
   bin/omarchy-install-gaming-retroarch
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
-  bin/omarchy-update-restart
   bin/omarchy-voxtype-install
   install/helpers/errors.sh
   install/login/limine-snapper.sh

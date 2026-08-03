@@ -19,6 +19,12 @@ live checkout before authorization. Package operations, migrations, hooks, and
 reboot behavior remain discrete pipeline stages; do not duplicate them in the
 wrapper.
 
+`qv/update/restart` singularly detects post-update reboot and service-restart
+requirements. Use only package-owned kernel images, inspect one running
+Hyprland process safely, accept only exact restart-marker service slugs, and
+clear each marker only after its restart owner succeeds. Delegate every reboot
+choice to `qv/update/reboot-request`; never restore an inherited fallback.
+
 Run `qv/update/check`, Bash syntax, ShellCheck, the focused update and source
 lifecycle tests, and the full qvOS suite. A source-only audit must not invoke
 the interactive updater or package upgrades. Live verification requires a

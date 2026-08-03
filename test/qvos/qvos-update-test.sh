@@ -10,6 +10,7 @@ tui_shared_launch="$root/qv/tui/launch"
 tui_launch="$root/qv/tui/update/launch"
 launch_adapter="$root/bin/omarchy-launch-qvos-update"
 update_restart="$root/bin/omarchy-update-restart"
+update_restart_owner="$root/qv/update/restart"
 reboot_request="$root/qv/update/reboot-request"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
@@ -335,6 +336,17 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-system-reboot" <<'SCRIPT'
 #!/bin/bash
 printf 'reboot\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/omarchy-restart-waybar" <<'SCRIPT'
+#!/bin/bash
+printf 'restart-waybar\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
+exit "${QVOS_TEST_RESTART_STATUS:-0}"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/omarchy-state" <<'SCRIPT'
+#!/bin/bash
+[[ $1 == "clear" && $# == 2 ]] || exit 2
+printf 'clear:%s\n' "$2" >>"$QVOS_TEST_REBOOT_ACTION_LOG"
+rm -- "$HOME/.local/state/omarchy/$2"
+SCRIPT
 restart_action_log="$test_root/restart-actions.log"
 restart_output=$(
   HOME="$test_root/restart-home" \
@@ -349,6 +361,37 @@ grep -Fqx 'qvOS action: reboot required: Linux kernel updated' <<<"$restart_outp
   fail "deferred Update kernel reboot signal"
 [[ ! -s $restart_action_log ]] ||
   fail "deferred Update prompted or rebooted inside the captured process"
+restart_marker="$test_root/restart-home/.local/state/omarchy/restart-waybar-required"
+touch "$restart_marker"
+HOME="$test_root/restart-home" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  OMARCHY_UPDATE_DEFER_REBOOT=1 \
+  QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \
+  "$update_restart" >/dev/null
+[[ ! -e $restart_marker ]] ||
+  fail "successful service restart retained its marker"
+grep -Fqx 'restart-waybar' "$restart_action_log" ||
+  fail "service restart owner delegation"
+grep -Fqx 'clear:restart-waybar-required' "$restart_action_log" ||
+  fail "successful service restart marker cleanup"
+touch "$restart_marker"
+set +e
+HOME="$test_root/restart-home" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  OMARCHY_UPDATE_DEFER_REBOOT=1 \
+  QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \
+  QVOS_TEST_RESTART_STATUS=9 \
+  "$update_restart" >/dev/null 2>&1
+restart_failure_status=$?
+set -e
+(( restart_failure_status == 9 )) ||
+  fail "service restart failure status"
+[[ -f $restart_marker ]] ||
+  fail "failed service restart lost its retry marker"
+[[ -x $update_restart_owner ]] ||
+  fail "native update restart owner"
 hyprland_output=$(
   OMARCHY_UPDATE_DEFER_REBOOT=1 \
     "$reboot_request" \
@@ -357,6 +400,16 @@ hyprland_output=$(
 )
 grep -Fqx 'qvOS action: reboot required: Hyprland updated' <<<"$hyprland_output" ||
   fail "deferred Update Hyprland reboot signal"
+: >"$restart_action_log"
+QVOS_TEST_ACTION_LOG="$restart_action_log" \
+  QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \
+  QVOS_TEST_CONFIRM_STATUS=1 \
+  PATH="$test_bin:/usr/bin" \
+  "$reboot_request" \
+  "Hyprland updated" \
+  "Hyprland has been updated. Reboot?"
+[[ $(<"$restart_action_log") == "gum-confirm" ]] ||
+  fail "declined reboot remains a successful user choice"
 pass "qvOS Update defers kernel and Hyprland reboot decisions to the shared TUI"
 
 install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'

@@ -4,3 +4,4 @@ bin/omarchy-update-available
 bin/omarchy-update-git
 bin/omarchy-update-keyring
 bin/omarchy-update-perform
+bin/omarchy-update-restart
