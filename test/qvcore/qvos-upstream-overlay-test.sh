@@ -313,20 +313,6 @@ for path in "${public_adapters[@]}"; do
 done
 pass "qvOS public commands are thin source or checked-runtime adapters"
 
-shopt -s nullglob
-migration_owners=("$root"/qvcore/migrations/*.sh)
-shopt -u nullglob
-for owner in "${migration_owners[@]}"; do
-  migration=$(basename -- "$owner")
-  stub="$root/migrations/$migration"
-
-  [[ -f $stub && ! -x $stub ]] ||
-    fail "$migration inherited migration seam mode"
-  (($(wc -l <"$stub") == 2)) ||
-    fail "$migration contains implementation outside qvcore/migrations"
-  head -n 1 "$stub" | grep -Eq '^echo ".+"$' ||
-    fail "$migration migration description"
-  grep -Fqx "source \"\$OMARCHY_PATH/qvcore/migrations/$migration\"" "$stub" ||
-    fail "$migration qvOS migration delegation"
-done
-pass "qvOS migration seams keep implementation under qvcore/migrations"
+"$root/qvcore/migrations/check" >/dev/null ||
+  fail "native migration ownership contract"
+pass "qvOS migrations have one native source and no inherited replay tree"

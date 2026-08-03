@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+migration_root="$QVOS_PATH/qvcore/migrations"
+mode=edit
+
+case ${1:-} in
+"") ;;
+--no-edit) mode=no-edit ;;
+*)
+  echo "Usage: qv dev add migration [--no-edit]" >&2
+  exit 2
+  ;;
+esac
+(($# <= 1)) || {
+  echo "Usage: qv dev add migration [--no-edit]" >&2
+  exit 2
+}
+
+[[ -d $migration_root && ! -L $migration_root ]] || {
+  echo "Missing qvOS migration directory: $migration_root" >&2
+  exit 1
+}
+git -C "$QVOS_PATH" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+  echo "qvOS migration creation requires a Git checkout." >&2
+  exit 1
+}
+
+timestamp=$(date +%s)
+migration_file="$migration_root/$timestamp.sh"
+[[ ! -e $migration_file && ! -L $migration_file ]] || {
+  echo "A qvOS migration already exists for timestamp $timestamp." >&2
+  exit 1
+}
+install -m 0644 /dev/null "$migration_file"
+printf '# shellcheck shell=bash\n\n' >"$migration_file"
+
+if [[ $mode == "edit" ]]; then
+  editor=${VISUAL:-${EDITOR:-nvim}}
+  if [[ $editor == *[[:space:]]* ]] || ! command -v "$editor" >/dev/null 2>&1; then
+    echo "Set VISUAL or EDITOR to one executable command." >&2
+    exit 1
+  fi
+  "$editor" "$migration_file"
+fi
+
+printf '%s\n' "$migration_file"

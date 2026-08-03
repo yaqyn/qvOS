@@ -20,6 +20,12 @@ live checkout before authorization. Package operations, migrations, hooks, and
 reboot behavior remain discrete pipeline stages; do not duplicate them in the
 wrapper.
 
+`qvcore/migrations/run` is the update pipeline's only migration engine. It reads
+only native numeric owners, serializes runs, keeps private atomic qvOS markers,
+and stops the update on failure without allowing a skip. The inherited
+`omarchy-migrate` command is a thin ABI adapter; no update path may read or
+replay the retired top-level Omarchy migration tree.
+
 `qvcore/update/restart` singularly detects post-update reboot and service-restart
 requirements. Use only package-owned kernel images, inspect one running
 Hyprland process safely, accept only exact restart-marker service slugs, and

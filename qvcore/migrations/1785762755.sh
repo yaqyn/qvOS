@@ -1,6 +1,5 @@
-# shellcheck shell=bash
-
 echo "Migrate qvOS source and runtime ownership"
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 
-"$OMARCHY_PATH/qvcore/install/migrate-source-root"
-"$OMARCHY_PATH/qvcore/config/migrate-runtime-root"
+"$QVOS_PATH/qvcore/install/migrate-source-root"
+"$QVOS_PATH/qvcore/config/migrate-runtime-root"

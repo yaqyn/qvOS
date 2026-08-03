@@ -16,6 +16,9 @@ exact-black renderer and must clear Plymouth before painting its first frame.
 own their installed payloads. Do not restore parallel copies under `default/`.
 Public `bin/omarchy-*` boot routes are direct adapters to executable owners in
 this directory; they must not retain inherited fallback implementations.
+Historical boot migrations are retired because native fresh-install and boot
+owners already converge the selected state; future transitions use only the
+native migration domain.
 
 `qvcore/boot/install` singularly owns the ordered login stage. Its native leaves
 install Plymouth without an early image rebuild, install the SDDM theme,

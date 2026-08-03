@@ -6,8 +6,8 @@
 - Prefer `(( ))` over numeric operators inside `[[ ]]` (e.g., `(( count < 50 ))`, not `[[ $count -lt 50 ]]`)
 - For strings/paths with spaces, quote them instead of escaping spaces with `\ ` (e.g., `"$APP_DIR/Disk Usage.desktop"`, not `$APP_DIR/Disk\ Usage.desktop`)
 - Shebangs must use `#!/bin/bash` consistently (never `#!/usr/bin/env bash`)
-- Scripts under `qvcore/install/`, `qvcore/boot/login/`, and `migrations/` may
-  be sourced and intentionally omit shebangs
+- Scripts under `qvcore/install/`, `qvcore/boot/login/`, and numeric owners
+  under `qvcore/migrations/` may be sourced and intentionally omit shebangs
 
 # Command Architecture
 
@@ -137,32 +137,19 @@ This copies the selected source from
 
 # Migrations
 
-New qvOS migrations have one implementation under `qvcore/migrations/` and a
-two-line compatibility stub under `migrations/`. Do not add new implementation
-to the inherited migration tree. Existing historical scripts remain frozen
-until their baseline is retired or their complete capability is promoted.
+`qvcore/migrations/` is the only migration source. The inherited top-level
+`migrations/` tree is retired and must remain absent; its historical outcomes
+belong in fresh-install owners, never in a replayable qvOS update path.
+`qvcore/migrations/run` serializes execution, fails closed, and records private
+atomic markers under `~/.local/state/qvos/migrations`. Fresh installation marks
+current migrations without executing them through its exact native owner.
 
-New migration format:
-- File permissions must be `0644` (`-rw-r--r--`); migrations are sourced, not executed directly
-- the root stub has no shebang, starts with an `echo`, and sources its exact
-  `qvcore/migrations/<timestamp>.sh` owner
-- the native owner uses `$QVOS_PATH`; retain `$OMARCHY_PATH` only in a thin
-  compatibility stub while that ABI exists
-- Prefer helper commands such as `omarchy-cmd-present`, `omarchy-cmd-missing`, `omarchy-pkg-present`, and `omarchy-pkg-missing`
-
-Some historical migrations predate these rules. Do not copy their structure or
-restore references to the retired top-level installer.
-
-Migrations may use raw `pacman`, `command -v`, or direct config edits when needed for historical compatibility or one-off repair work.
-
-Example:
-```bash
-echo "Disable fingerprint in hyprlock if fingerprint auth is not configured"
-
-if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep -q "finger"; then
-  sed -i 's/fingerprint:enabled = .*/fingerprint:enabled = false/' ~/.config/hypr/hyprlock.conf
-fi
-```
+Create migrations with `qv dev add migration`. Numeric migration files are
+`0644`, have no shebang, start with a concise `echo`, use `$QVOS_PATH`, and are
+idempotent so an interrupted unmarked run can safely retry. Prefer existing
+command and package helpers, but direct package-manager or config work is
+allowed when it is the migration's reviewed purpose. Never add a skip path or
+restore Omarchy migration state as an active dependency.
 # Repository Contract
 
 This entire file is qvOS-owned and must describe the current repository, not a
@@ -262,6 +249,7 @@ Root-started sessions must read every matching route completely before editing:
 - Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
 - Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`
 - Commit and qvsync command mechanics: `upstream/qvsync/AGENTS.md`
+- Native migration execution and state cleanup: `qvcore/migrations/AGENTS.md`
 - Retained Omarchy command and state compatibility: `compat/omarchy/AGENTS.md`
 
 ## Future Workflow Instructions

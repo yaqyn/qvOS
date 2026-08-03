@@ -23,6 +23,7 @@ qvcore/
   direct/      Verified manifest-driven direct software and updates.
   install/     Complete native qvOS installation lifecycle.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
+  migrations/  Native ordered migrations and private applied-state ownership.
   network/     qvOS DNS policy and optional WARP routing.
   packages/    Omarchy package-provider boundary and Stable configuration.
   power/       Sleep inhibition, guarded suspend, and opt-in battery protection.
@@ -158,8 +159,8 @@ exposes, installs, or refreshes the native owner:
   paths remain upstream-owned.
 - `qvcore/install/` owns the complete fresh-install implementation and
   `qvcore/boot/login/` owns its login leaves. The retired top-level `install/`
-  tree must not return. Future existing-system transitions belong in
-  `qvcore/migrations/` behind thin Omarchy migration stubs.
+  tree must not return. Existing-system transitions live only in
+  `qvcore/migrations/`; the historical top-level migration tree is retired.
 - `test/qvcore/run.sh` recursively runs the qvCORE, Services, Development,
   Release, Upstream, Compatibility, and inherited root shell suites.
 - `qvcore/theme/yaqyn/` is qvOS's only bundled theme. The renderer reads Yaqyn and

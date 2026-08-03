@@ -186,7 +186,7 @@ pass "Thunar is singular and Nautilus install integration is retired"
 grep -qx 'gnome-keyring' "$base_packages" || fail "desktop keyring package contract"
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/boot/login/default-keyring.sh"' "$root/qvcore/boot/install" || fail "default keyring setup contract"
 grep -Fq "pam_gnome_keyring\\.so/d" "$root/qvcore/boot/install-sddm" || fail "SDDM keyring setup contract"
-if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; then
+if rg -q 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/qvcore/migrations"; then
   fail "retired keyring removal migration"
 fi
 
@@ -278,8 +278,7 @@ for retired_path in \
 done
 if rg -q 'qvcore/codex|qvos/codex|qv codex doctor' \
   "$root/qvcore" \
-  "$root/bin" \
-  "$root/migrations"; then
+  "$root/bin"; then
   fail "retired qvOS Codex inspection reference remains"
 fi
 pass "qvCORE is mandatory while Proton and Devel remain independent integrations"
@@ -898,7 +897,7 @@ done
 pass "debug, capture notifications, and inherited launcher providers stay Omarchy-owned"
 [[ ! -e $root/qvcore/launcher ]] ||
   fail "redundant qvOS launcher domain"
-if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin" "$root/migrations"; then
+if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin"; then
   fail "qvOS launcher ownership reference"
 fi
 

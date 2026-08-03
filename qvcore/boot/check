@@ -19,16 +19,6 @@ expected_native_routes=(
   bin/omarchy-refresh-plymouth
   bin/omarchy-refresh-sddm
 )
-expected_native_compat=(
-  migrations/1752091783.sh
-  migrations/1752292967.sh
-  migrations/1777396666.sh
-  migrations/1778148645.sh
-)
-expected_native=(
-  "${expected_native_routes[@]}"
-  "${expected_native_compat[@]}"
-)
 expected_retired=(
   default/limine/
   default/plymouth/
@@ -43,7 +33,7 @@ mapfile -t native_paths < <(
 mapfile -t retired_paths < <(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
 )
-[[ ${native_paths[*]} == "${expected_native[*]}" ]] ||
+[[ ${native_paths[*]} == "${expected_native_routes[*]}" ]] ||
   fail "native boot route inventory"
 [[ ${retired_paths[*]} == "${expected_retired[*]}" ]] ||
   fail "retired inherited boot payload inventory"
@@ -71,7 +61,6 @@ done
 
 if rg -q '(OMARCHY_PATH[^\"]*|local/share/omarchy/)default/(limine|plymouth|sddm(/hyprland\.conf|/omarchy)|wayland-sessions/omarchy)|install/login/(all|limine-snapper|plymouth|sddm)\.sh' \
   "$root/bin" "$root/qvcore/boot" \
-  "$root/migrations" \
   "$root/default/elephant/omarchy_unlocks.lua" \
   --glob '!check' --glob '!retired-paths'; then
   fail "active boot lifecycle still reads a retired inherited payload"
@@ -119,17 +108,5 @@ grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
 grep -Fq "pam_gnome_keyring\\.so/d" \
   "$root/qvcore/boot/install-sddm" || fail "SDDM keyring compatibility"
-
-for migration in 1752091783 1752292967; do
-  # shellcheck disable=SC2016
-  grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-plymouth"' \
-    "$root/migrations/$migration.sh" || fail "Plymouth migration owner: $migration"
-done
-# shellcheck disable=SC2016
-grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-sddm-session"' \
-  "$root/migrations/1777396666.sh" || fail "SDDM session migration owner"
-# shellcheck disable=SC2016
-grep -Fq '"$OMARCHY_PATH/qvcore/boot/install-sddm-wayland"' \
-  "$root/migrations/1778148645.sh" || fail "SDDM migration owner"
 
 printf 'ok - qvOS boot commands and payloads have one native owner\n'

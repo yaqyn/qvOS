@@ -1,0 +1,2 @@
+# Historical Omarchy migrations are not part of the qvOS update lifecycle.
+migrations/

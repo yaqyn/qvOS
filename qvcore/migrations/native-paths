@@ -1,0 +1,3 @@
+# Inherited command routes promoted to native qvOS migration ownership.
+bin/omarchy-dev-add-migration
+bin/omarchy-migrate

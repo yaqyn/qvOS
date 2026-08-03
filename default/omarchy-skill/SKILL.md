@@ -50,9 +50,7 @@ This directory contains qvOS source files managed by git. Any changes will be:
 ├── bin/                    # Source scripts (symlinked to PATH)
 ├── config/                 # Default config templates
 ├── default/                # System defaults
-├── qvcore/                 # Native qvOS owners, including Yaqyn
-├── migrations/             # Update migrations
-└── install/                # Installation scripts
+└── qvcore/                 # Native owners, installer, migrations, and Yaqyn
 ```
 
 **Reading `~/.local/share/qvos/` is SAFE and useful** - do it freely to:
@@ -381,7 +379,7 @@ omarchy reminder clear
 ## Out of Scope
 
 This skill intentionally does not cover qvOS source development. Do not use this skill for:
-- Editing files in `~/.local/share/qvos/` (`bin/`, `config/`, `default/`, `qvcore/`, `migrations/`, etc.)
+- Editing files in `~/.local/share/qvos/` (`bin/`, `config/`, `default/`, `qvcore/`, etc.)
 - Creating or editing migrations
 - Running `omarchy dev ...` commands
 

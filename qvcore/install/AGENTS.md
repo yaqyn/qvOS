@@ -25,6 +25,9 @@ Hyprland reconciliation owner.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
+Fresh install seeds only numeric owners from `qvcore/migrations/` through
+`qvcore/migrations/run --mark-current`; it never executes existing-system
+migrations or records the retired Omarchy marker tree.
 
 The complete installer implementation lives under `qvcore/install/`, with
 login leaves under `qvcore/boot/login/`. The top-level `install.sh` is the only

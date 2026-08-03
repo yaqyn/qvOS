@@ -1,0 +1,201 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+migration_root="$QVOS_PATH/qvcore/migrations"
+local_root="$HOME/.local"
+state_parent="$local_root/state"
+qvos_state_root="$state_parent/qvos"
+state_root="$qvos_state_root/migrations"
+legacy_root="$state_parent/omarchy/migrations"
+legacy_parent=${legacy_root%/*}
+runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
+lock_file="$runtime_root/qvos-migrations.lock"
+mode=run
+temporary=""
+migrations=()
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+
+fail() {
+  printf 'qvOS migrations: %s\n' "$1" >&2
+  exit 1
+}
+
+safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+safe_marker() {
+  [[ -f $1 && ! -L $1 && -O $1 && ! -s $1 ]]
+}
+
+ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || fail "refusing unsafe directory: $path"
+  else
+    install -d -m "$mode" "$path"
+  fi
+}
+
+validate_existing_directory() {
+  local path=$1
+
+  [[ ! -e $path && ! -L $path ]] || safe_directory "$path" ||
+    fail "refusing unsafe directory: $path"
+}
+
+record_marker() {
+  local target=$1
+
+  if [[ -e $target || -L $target ]]; then
+    safe_marker "$target" || fail "refusing unsafe migration marker: $target"
+    chmod 0600 -- "$target"
+    return 0
+  fi
+
+  temporary=$(mktemp "$state_root/.qvos-migration.XXXXXX")
+  chmod 0600 -- "$temporary"
+  mv -- "$temporary" "$target"
+  temporary=""
+}
+
+validate_migration_sources() {
+  local file
+  local name
+
+  [[ -d $migration_root && ! -L $migration_root ]] ||
+    fail "missing native migration directory: $migration_root"
+  while IFS= read -r -d '' file; do
+    name=${file##*/}
+    [[ $name =~ ^[0-9]+\.sh$ ]] ||
+      fail "invalid native migration filename: $name"
+    [[ -f $file && ! -L $file ]] ||
+      fail "refusing unsafe native migration: $file"
+    migrations+=("$file")
+  done < <(find -P "$migration_root" -maxdepth 1 -name '*.sh' -print0 | sort -z)
+}
+
+validate_qvos_state() {
+  local entry
+  local name
+
+  while IFS= read -r -d '' entry; do
+    name=${entry##*/}
+    if [[ $name =~ ^[0-9]+\.sh$ ]]; then
+      safe_marker "$entry" ||
+        fail "refusing unsafe migration marker: $entry"
+    elif [[ $name == .qvos-migration.?????? ]] && safe_marker "$entry"; then
+      rm -f -- "$entry"
+    else
+      fail "refusing unexpected qvOS migration state: $entry"
+    fi
+  done < <(find -P "$state_root" -mindepth 1 -maxdepth 1 -print0)
+}
+
+validate_legacy_state() {
+  local entry
+  local relative
+
+  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
+  safe_directory "$legacy_root" ||
+    fail "refusing unsafe legacy migration state: $legacy_root"
+  while IFS= read -r -d '' entry; do
+    relative=${entry#"$legacy_root"/}
+    if [[ -d $entry ]]; then
+      [[ $relative == "skipped" && ! -L $entry && -O $entry ]] ||
+        fail "refusing unexpected legacy migration directory: $entry"
+    else
+      [[ $relative =~ ^(skipped/)?[0-9]+\.sh$ ]] ||
+        fail "refusing unexpected legacy migration state: $entry"
+      safe_marker "$entry" ||
+        fail "refusing unsafe legacy migration marker: $entry"
+    fi
+  done < <(find -P "$legacy_root" -mindepth 1 -print0)
+}
+
+adopt_legacy_marker() {
+  local name=$1
+  local legacy="$legacy_root/$name"
+
+  [[ -f $legacy ]] || return 0
+  record_marker "$state_root/$name"
+}
+
+remove_legacy_state() {
+  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
+  find -P "$legacy_root" -depth -mindepth 1 -delete
+  rmdir -- "$legacy_root"
+}
+
+case ${1:-} in
+"") ;;
+--mark-current)
+  (($# == 1)) || {
+    echo "Usage: qvcore/migrations/run [--mark-current]" >&2
+    exit 2
+  }
+  [[ ${QVOS_INSTALL:-} == "$QVOS_PATH/qvcore/install" ]] ||
+    fail "--mark-current is reserved for the fresh installer"
+  mode=mark
+  ;;
+*)
+  echo "Usage: qvcore/migrations/run [--mark-current]" >&2
+  exit 2
+  ;;
+esac
+
+validate_migration_sources
+validate_existing_directory "$HOME"
+validate_existing_directory "$local_root"
+validate_existing_directory "$state_parent"
+validate_existing_directory "$legacy_parent"
+validate_legacy_state
+ensure_directory 0755 "$local_root"
+ensure_directory 0700 "$state_parent"
+ensure_directory 0700 "$qvos_state_root"
+ensure_directory 0700 "$state_root"
+chmod 0700 -- "$qvos_state_root" "$state_root"
+
+safe_directory "$runtime_root" ||
+  fail "refusing unsafe runtime directory: $runtime_root"
+if [[ -e $lock_file || -L $lock_file ]]; then
+  [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] ||
+    fail "refusing unsafe migration lock: $lock_file"
+fi
+exec 9>>"$lock_file"
+chmod 0600 -- "$lock_file"
+flock -n 9 || fail "another migration run is active"
+validate_qvos_state
+
+for file in "${migrations[@]}"; do
+  name=${file##*/}
+  marker="$state_root/$name"
+  if [[ $mode == "mark" ]]; then
+    record_marker "$marker"
+    continue
+  fi
+  [[ -e $marker ]] && continue
+  adopt_legacy_marker "$name"
+  [[ -e $marker ]] && continue
+
+  printf 'Running qvOS migration: %s\n' "${name%.sh}"
+  if env QVOS_PATH="$QVOS_PATH" OMARCHY_PATH="$QVOS_PATH" bash "$file"; then
+    :
+  else
+    migration_status=$?
+    printf 'qvOS migrations: migration %s failed; correct the error and retry\n' \
+      "${name%.sh}" >&2
+    exit "$migration_status"
+  fi
+  record_marker "$marker"
+done
+
+remove_legacy_state
+printf 'qvOS migrations are current.\n'

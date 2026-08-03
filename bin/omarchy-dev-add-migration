@@ -1,15 +1,7 @@
 #!/bin/bash
 
-# omarchy:summary=Creates a new qvOS migration named after the unix timestamp of the last commit.
+# omarchy:summary=Create a native qvOS migration.
+# omarchy:args=[--no-edit]
 
-set -euo pipefail
-
-cd "$OMARCHY_PATH"
-migration_file="$OMARCHY_PATH/migrations/$(git log -1 --format=%cd --date=unix).sh"
-touch "$migration_file"
-
-if [[ ${1:-} != "--no-edit" ]]; then
-  nvim "$migration_file"
-fi
-
-printf '%s\n' "$migration_file"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/migrations/add" "$@"

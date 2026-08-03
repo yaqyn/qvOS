@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+native_manifest="$root/qvcore/migrations/native-paths"
+retired_manifest="$root/qvcore/migrations/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected_native=$'bin/omarchy-dev-add-migration\nbin/omarchy-migrate'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == "$expected_native" ]] ||
+  fail "native migration route inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "migrations/" ]] ||
+  fail "retired migration tree inventory"
+[[ ! -e $root/migrations && ! -L $root/migrations ]] ||
+  fail "historical inherited migration tree remains"
+
+for owner in run add check; do
+  [[ -x $root/qvcore/migrations/$owner ]] ||
+    fail "native migration owner mode: $owner"
+done
+for migration in "$root"/qvcore/migrations/[0-9]*.sh; do
+  [[ -f $migration && ! -L $migration && ! -x $migration ]] ||
+    fail "native migration source mode: $migration"
+  [[ ${migration##*/} =~ ^[0-9]+\.sh$ ]] ||
+    fail "native migration filename: $migration"
+  head -n 1 "$migration" | grep -Eq '^echo ".+"$' ||
+    fail "native migration description: $migration"
+  if rg -q 'OMARCHY_PATH|local/state/omarchy' "$migration"; then
+    fail "native migration retains Omarchy ownership: $migration"
+  fi
+done
+
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/migrations/run" "$@"' \
+  "$root/bin/omarchy-migrate" || fail "migration compatibility adapter"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/migrations/add" "$@"' \
+  "$root/bin/omarchy-dev-add-migration" || fail "migration creator adapter"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
+  "$root/qvcore/install/preflight/migrations.sh" ||
+  fail "fresh-install migration seeding"
+if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
+  "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
+  fail "inherited migration runner behavior remains"
+fi
+
+printf 'ok - qvOS owns a private fail-closed migration lifecycle\n'
