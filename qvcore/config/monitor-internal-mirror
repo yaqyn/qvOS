@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/config/toggle-lib
+source "$QVOS_PATH/qvcore/config/toggle-lib"
+
+toggle_name="internal-monitor-mirror"
+disable_toggle_name="internal-monitor-disable"
+toggle_flag="$qvos_hypr_toggle_root/$toggle_name.conf"
+internal=$(hyprctl monitors -j | jq -r '[.[] | select(.name | contains("eDP")).name][0] // empty')
+external=$(hyprctl monitors -j | jq -r '[.[] | select(.name | contains("eDP") | not).name][0] // empty')
+
+enable() {
+  [[ -n $external ]] || {
+    notify-send -u low "󰍹    No external monitors found for mirror"
+    return 1
+  }
+  [[ -n $internal ]] || {
+    notify-send -u low "󰍹    No laptop monitor found to mirror"
+    return 1
+  }
+
+  if "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$disable_toggle_name"; then
+    "$QVOS_PATH/qvcore/config/hyprland-toggle" "$disable_toggle_name"
+  fi
+  if "$QVOS_PATH/qvcore/config/hyprland-toggle-disabled" "$toggle_name"; then
+    printf 'monitor=%s, preferred, auto, 1, mirror, %s\n' \
+      "$external" "$internal" | qvos_toggle_write "$toggle_flag"
+    notify-send -u low "󰍹    Mirroring enabled ($external)"
+    hyprctl reload
+  fi
+}
+
+disable() {
+  if "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
+    "$QVOS_PATH/qvcore/config/hyprland-toggle" \
+      --disabled-notification "󰍹    Extended mode restored" \
+      "$toggle_name"
+  fi
+}
+
+recover() {
+  if ! omarchy-hw-external-monitors &&
+    "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
+    "$QVOS_PATH/qvcore/config/hyprland-toggle" "$toggle_name"
+  fi
+}
+
+case ${1:-} in
+on) enable ;;
+off) disable ;;
+toggle)
+  if "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
+    disable
+  else
+    enable
+  fi
+  ;;
+recover) recover ;;
+*)
+  echo "Usage: qv hyprland monitor internal mirror <on|off|toggle|recover>" >&2
+  exit 2
+  ;;
+esac

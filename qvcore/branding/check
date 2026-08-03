@@ -73,8 +73,8 @@ identity_paths=(
   bin/omarchy-windows-vm
   boot.sh
   config/fastfetch/config.jsonc
-  config/systemd/user/omarchy-battery-monitor.service
-  config/systemd/user/omarchy-battery-monitor.timer
+  config/systemd/user/qvos-battery-monitor.service
+  config/systemd/user/qvos-battery-monitor.timer
   config/waybar/config.jsonc
   default/chromium/extensions/copy-url/manifest.json
   default/elephant/omarchy_background_selector.lua
@@ -123,7 +123,7 @@ grep -Fq 'Name=qvOS (Hyprland uwsm)' \
   "$root/qvcore/boot/wayland-sessions/omarchy.desktop" ||
   fail "qvOS session label"
 grep -Fq 'Description=qvOS Battery Monitor Check' \
-  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
+  "$root/config/systemd/user/qvos-battery-monitor.service" ||
   fail "qvOS battery service label"
 
 printf 'ok - visible product identity is qvOS while legacy internals remain compatible\n'

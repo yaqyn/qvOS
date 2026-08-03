@@ -23,7 +23,6 @@ install -d \
   "$test_bin" \
   "$test_home/.config/Thunar" \
   "$test_home/.config/hypr" \
-  "$test_home/.config/systemd/user" \
   "$test_home/.config/uwsm"
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 #!/bin/bash
@@ -52,15 +51,6 @@ export USER_SETTING=preserved
 export PATH="$HOME/.local/share/qvos/bin:$PATH"
 # qvOS PATH end
 CONFIG
-install -m 0644 /dev/stdin \
-  "$test_home/.config/systemd/user/omarchy-battery-monitor.service" <<'CONFIG'
-ExecStart=%h/.local/share/omarchy/bin/omarchy-battery-monitor
-CONFIG
-install -m 0644 /dev/stdin \
-  "$test_home/.config/systemd/user/omarchy-recover-internal-monitor.service" <<'CONFIG'
-ExecStart=%h/.local/share/omarchy/bin/omarchy-hw-recover-internal-monitor
-CONFIG
-
 HOME="$test_home" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
@@ -94,13 +84,7 @@ grep -Fqx 'export USER_SETTING=preserved' "$test_home/.config/uwsm/env" ||
 if grep -Fq '# qvOS PATH begin' "$test_home/.config/uwsm/env"; then
   fail "duplicate source path block cleanup"
 fi
-grep -Fq '.local/share/qvos/bin/omarchy-battery-monitor' \
-  "$test_home/.config/systemd/user/omarchy-battery-monitor.service" ||
-  fail "battery-monitor source migration"
-grep -Fq '.local/share/qvos/bin/omarchy-hw-recover-internal-monitor' \
-  "$test_home/.config/systemd/user/omarchy-recover-internal-monitor.service" ||
-  fail "monitor-recovery source migration"
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "6" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "4" ]] ||
   fail "changed config backup count"
 [[ $(<"$systemctl_log") == "--user daemon-reload" ]] ||
   fail "user service reload"

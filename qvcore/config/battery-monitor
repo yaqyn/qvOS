@@ -1,0 +1,53 @@
+#!/bin/bash
+set -euo pipefail
+
+battery_threshold=10
+notification_flag="/run/user/$UID/qvos-battery-notified"
+legacy_notification_flag="/run/user/$UID/omarchy_battery_notified"
+battery_level=$(omarchy-battery-remaining)
+battery_device=$(upower -e | awk '/BAT/ && !found { print; found = 1 }')
+
+[[ ! -L $notification_flag && ! -L $legacy_notification_flag ]] || {
+  echo "Refusing unsafe qvOS battery notification state." >&2
+  exit 1
+}
+for state_file in "$notification_flag" "$legacy_notification_flag"; do
+  [[ ! -e $state_file || (-f $state_file && -O $state_file) ]] || {
+    echo "Refusing unsafe qvOS battery notification state: $state_file" >&2
+    exit 1
+  }
+done
+if [[ -f $legacy_notification_flag ]]; then
+  if [[ -e $notification_flag ]]; then
+    rm -f -- "$legacy_notification_flag"
+  else
+    mv -- "$legacy_notification_flag" "$notification_flag"
+  fi
+fi
+[[ ! -e $notification_flag ]] || chmod 0600 -- "$notification_flag"
+
+[[ -n $battery_device ]] || exit 0
+battery_state=$(upower -i "$battery_device" | awk '$1 == "state:" && !found { print $2; found = 1 }')
+
+send_notification() {
+  local level=$1
+
+  notify-send \
+    -u critical \
+    "󱐋 Time to recharge!" \
+    "Battery is down to ${level}%" \
+    -i battery-caution \
+    -t 30000
+  omarchy-hook battery-low "$level"
+}
+
+if [[ $battery_level =~ ^[0-9]+$ ]] &&
+  [[ $battery_state == "discharging" ]] &&
+  (( battery_level <= battery_threshold )); then
+  if [[ ! -f $notification_flag ]]; then
+    send_notification "$battery_level"
+    install -m 0600 /dev/null "$notification_flag"
+  fi
+else
+  rm -f -- "$notification_flag" "$legacy_notification_flag"
+fi

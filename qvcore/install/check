@@ -89,6 +89,11 @@ fi
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
   "$root/qvcore/install/config/run" || fail "qvOS configuration stage"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
+  "$root/qvcore/install/config/run" || fail "native qvOS toggle-state stage"
+[[ ! -e $root/qvcore/install/config/omarchy-toggles.sh ]] ||
+  fail "retired inherited toggle-state stage"
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
 if rg -n 'Nautilus action icons|nautilus-python/extensions' \

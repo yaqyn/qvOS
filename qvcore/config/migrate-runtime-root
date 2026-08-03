@@ -110,15 +110,6 @@ rewrite_literals \
   'export QVOS_PATH=$HOME/.local/share/qvos' \
   'export PATH=$OMARCHY_PATH/bin:$PATH:$HOME/.local/bin' \
   'export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin'
-rewrite_literals \
-  "$HOME/.config/systemd/user/omarchy-battery-monitor.service" \
-  '.local/share/omarchy/bin/omarchy-battery-monitor' \
-  '.local/share/qvos/bin/omarchy-battery-monitor'
-rewrite_literals \
-  "$HOME/.config/systemd/user/omarchy-recover-internal-monitor.service" \
-  '.local/share/omarchy/bin/omarchy-hw-recover-internal-monitor' \
-  '.local/share/qvos/bin/omarchy-hw-recover-internal-monitor'
-
 if ((changed_files > 0)); then
   systemctl --user daemon-reload
   printf 'Migrated %d qvOS config file(s) to native source and runtime roots.\n' \

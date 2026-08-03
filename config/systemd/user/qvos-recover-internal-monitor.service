@@ -1,0 +1,19 @@
+[Unit]
+Description=qvOS internal monitor recovery
+Before=graphical-session-pre.target
+ConditionPathExists=%h/.local/state/qvos/toggles/hypr/internal-monitor-disable.conf
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/share/qvos/qvcore/config/recover-internal-monitor
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=full
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=graphical-session-pre.target

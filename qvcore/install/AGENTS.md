@@ -81,6 +81,10 @@ The active marker lives under `.local/state/qvos/install`; migrate the former
 parents, and never leave both markers active.
 The native GNOME and icon owners replace the inherited GNOME theme rather than
 running after it.
+Before first-run services are enabled, run the native config toggle-state and
+user-service reconcilers. Battery monitoring and internal-monitor recovery use
+only `qvos-*` unit identities; inherited unit names and toggle roots are
+existing-system migration inputs, never fresh state.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for

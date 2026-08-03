@@ -37,9 +37,27 @@ config in the `qvcore/` sublayer. Reconcile after refresh and verify tracked and
 installed config.
 
 Promoted defaults under `config/` are native qvOS sources and must not be
-duplicated under `qvcore/config/files/`. This includes the qvOS battery-monitor
-service and timer under `config/systemd/user/`; the ordinary config installer
-deploys them before the qvOS specialized reconciliation stage.
+duplicated under `qvcore/config/files/`. qvOS-managed user units use `qvos-*`
+filenames under `config/systemd/user/` and execute one native owner under
+`qvcore/config/`. `user-services` atomically deploys those units, preserves the
+enabled and active state of exact inherited units, disables their old names,
+and archives safe old files privately. First run and every post-update desktop
+reconciliation invoke it; never restore an active `omarchy-*` unit.
+Only manage the user systemd instance when `HOME` is the active account home.
+Cross-home fixtures may deploy files but must never contact the real manager;
+the test override accepts only an executable temporary `systemctl` fixture.
+
+`toggle-state` singularly migrates safe, user-owned toggle files from
+`.local/state/omarchy/toggles` into the private
+`.local/state/qvos/toggles` tree, rejects conflicts before mutation, installs
+the inert flags file, and rewrites only the exact inherited Hyprland source
+line with a backup. Toggle templates and command implementations live under
+`qvcore/config/`; inherited `bin/omarchy-*` routes are metadata-bearing adapters
+only. Keep state files private, validate names and ownership before mutation,
+and preserve every compatible custom toggle during install and update.
+Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`,
+the first-run and desktop-install suites, `systemd-analyze verify` after live
+alignment, and the full qvOS suite.
 
 `migrate-runtime-root` changes only exact retired qvOS path literals in named
 active configs. Back up each changed regular user-owned file, preserve all

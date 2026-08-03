@@ -45,6 +45,8 @@ printf 'hook:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
 first_run_paths=(
+  qvcore/config/toggle-state
+  qvcore/config/user-services
   qvcore/install/first-run/battery-monitor.sh
   qvcore/install/first-run/recover-internal-monitor.sh
   qvcore/install/first-run/swayosd.sh
@@ -103,6 +105,8 @@ fi
 run_first_run
 expected_run=$(printf '%s\n' \
   "sudo:$test_helper apply" \
+  'owner:qvcore/config/toggle-state:' \
+  'owner:qvcore/config/user-services:' \
   'owner:qvcore/install/first-run/battery-monitor.sh:' \
   'owner:qvcore/install/first-run/recover-internal-monitor.sh:' \
   'owner:qvcore/install/first-run/swayosd.sh:' \

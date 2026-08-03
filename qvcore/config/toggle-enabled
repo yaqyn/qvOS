@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/config/toggle-lib
+source "$QVOS_PATH/qvcore/config/toggle-lib"
+
+(( $# == 1 )) && qvos_toggle_validate_name "$1" || exit 2
+flag="$qvos_toggle_root/$1"
+qvos_toggle_safe_file "$flag" || exit 1
+[[ -f $flag ]]

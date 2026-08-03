@@ -110,6 +110,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `config/` and `default/` remain reviewed sources only for domains not yet
   promoted
 - `qvcore/config/files/` owns specialized native installed sources
+- `qvcore/config/toggles/` owns toggle templates; active toggle state lives
+  privately under `~/.local/state/qvos/toggles`
+- qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
+  inherited unit names are migration input only
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
 - `default/themed/*.tpl` remains the compatible custom-theme template format
 

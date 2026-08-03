@@ -247,6 +247,9 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/nautilus-python.sh')
         ;;
+      '$OMARCHY_INSTALL/config/omarchy-toggles.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/config/toggle-state'
+        ;;
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
         ;;

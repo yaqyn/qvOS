@@ -1,0 +1,266 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_root="$QVOS_PATH/config/systemd/user"
+unit_root="$HOME/.config/systemd/user"
+backup_root="$HOME/.local/state/qvos/backups/pre-native-user-services"
+backup_parent=${backup_root%/*}
+qvos_state_root=${backup_parent%/*}
+state_root=${qvos_state_root%/*}
+state_parent=${state_root%/*}
+temporary=""
+changed=false
+manage_systemd=false
+legacy_present=false
+
+native_units=(
+  qvos-battery-monitor.service
+  qvos-battery-monitor.timer
+  qvos-recover-internal-monitor.service
+)
+legacy_units=(
+  omarchy-battery-monitor.service
+  omarchy-battery-monitor.timer
+  omarchy-recover-internal-monitor.service
+)
+legacy_backups=()
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+
+safe_owned_directory() {
+  local path=$1
+
+  [[ -d $path && ! -L $path && -O $path ]]
+}
+
+safe_owned_file_or_absent() {
+  local path=$1
+
+  [[ ! -e $path && ! -L $path ]] ||
+    [[ -f $path && ! -L $path && -O $path ]]
+}
+
+ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_owned_directory "$path" || {
+      echo "Refusing unsafe qvOS user-service directory: $path" >&2
+      return 1
+    }
+  else
+    install -d -m "$mode" "$path"
+  fi
+}
+
+unit_is_enabled() {
+  local state
+
+  state=$(systemctl --user is-enabled "$1" 2>/dev/null || true)
+  [[ $state == "enabled" || $state == "enabled-runtime" ||
+    $state == "linked" || $state == "linked-runtime" ]]
+}
+
+unit_is_active() {
+  [[ $(systemctl --user is-active "$1" 2>/dev/null || true) == "active" ]]
+}
+
+configure_systemd_access() {
+  local account_home
+  local systemctl_command
+
+  account_home=$(getent passwd "$UID" | cut -d: -f6)
+  if [[ -n $account_home && $HOME == "$account_home" ]]; then
+    manage_systemd=true
+    return 0
+  fi
+  [[ ${QVOS_USER_SERVICES_TESTING:-} == "1" ]] || return 0
+  systemctl_command=$(command -v systemctl 2>/dev/null || true)
+  [[ $systemctl_command == /tmp/* && -f $systemctl_command &&
+    -x $systemctl_command && ! -L $systemctl_command ]] || {
+    echo "Invalid qvOS user-service test command." >&2
+    return 1
+  }
+  manage_systemd=true
+}
+
+install_unit() {
+  local source=$1
+  local target=$2
+
+  [[ -f $source && ! -L $source ]] || {
+    echo "Missing qvOS user-service source: $source" >&2
+    return 1
+  }
+  safe_owned_file_or_absent "$target" || {
+    echo "Refusing unsafe qvOS user-service target: $target" >&2
+    return 1
+  }
+  if [[ -f $target ]] && cmp -s "$source" "$target"; then
+    [[ $(stat -c '%a' "$target") == "644" ]] || chmod 0644 -- "$target"
+    return 0
+  fi
+
+  temporary=$(mktemp "$unit_root/.qvos-user-service.XXXXXX")
+  install -m 0644 "$source" "$temporary"
+  mv -f -- "$temporary" "$target"
+  temporary=""
+  changed=true
+}
+
+ensure_backup_root() {
+  ensure_directory 0700 "$state_parent"
+  ensure_directory 0700 "$state_root"
+  ensure_directory 0700 "$qvos_state_root"
+  ensure_directory 0700 "$backup_parent"
+  ensure_directory 0700 "$backup_root"
+}
+
+archive_legacy_file() {
+  local legacy=$1
+  local target
+
+  [[ ! -e $legacy && ! -L $legacy ]] && return 0
+  ensure_backup_root
+  target=$(archive_target "$legacy")
+  if [[ -e $target ]]; then
+    rm -f -- "$legacy"
+  else
+    mv -- "$legacy" "$target"
+    chmod 0600 -- "$target"
+  fi
+  changed=true
+}
+
+archive_target() {
+  local archive_name=${1##*/}
+
+  archive_name="pre-qvos-${archive_name#omarchy-}"
+  printf '%s/%s\n' "$backup_root" "$archive_name"
+}
+
+preflight_archive_file() {
+  local legacy=$1
+  local target
+
+  safe_owned_file_or_absent "$legacy" || {
+    echo "Refusing unsafe legacy user-service file: $legacy" >&2
+    return 1
+  }
+  target=$(archive_target "$legacy")
+  safe_owned_file_or_absent "$target" || {
+    echo "Refusing unsafe qvOS user-service backup: $target" >&2
+    return 1
+  }
+  if [[ -e $legacy && -e $target ]] && ! cmp -s "$legacy" "$target"; then
+    echo "Conflicting qvOS user-service backup: $target" >&2
+    return 1
+  fi
+}
+
+for unit in "${native_units[@]}"; do
+  [[ -f $source_root/$unit && ! -L $source_root/$unit ]] || {
+    echo "Missing qvOS user-service source: $source_root/$unit" >&2
+    exit 1
+  }
+  safe_owned_file_or_absent "$unit_root/$unit" || {
+    echo "Refusing unsafe qvOS user-service target: $unit_root/$unit" >&2
+    exit 1
+  }
+done
+for unit in "${legacy_units[@]}"; do
+  preflight_archive_file "$unit_root/$unit"
+  if [[ -e $unit_root/$unit || -L $unit_root/$unit ]]; then
+    legacy_present=true
+  fi
+done
+while IFS= read -r -d '' legacy_backup; do
+  legacy_backups+=("$legacy_backup")
+  preflight_archive_file "$legacy_backup"
+  legacy_present=true
+done < <(
+  [[ ! -d $unit_root ]] || find -P "$unit_root" -maxdepth 1 \
+    \( -name 'omarchy-battery-monitor.*.bak.*' -o \
+    -name 'omarchy-recover-internal-monitor.service.bak.*' \) -print0
+)
+for backup_directory in \
+  "$state_parent" \
+  "$state_root" \
+  "$qvos_state_root" \
+  "$backup_parent" \
+  "$backup_root"; do
+  if [[ -e $backup_directory || -L $backup_directory ]]; then
+    safe_owned_directory "$backup_directory" || {
+      echo "Refusing unsafe qvOS user-service backup directory: $backup_directory" >&2
+      exit 1
+    }
+  fi
+done
+
+configure_systemd_access
+if [[ $legacy_present == "true" && $manage_systemd != "true" ]]; then
+  echo "Refusing to migrate legacy user services outside the active account home." >&2
+  exit 1
+fi
+
+ensure_directory 0755 "$HOME/.config"
+ensure_directory 0755 "$HOME/.config/systemd"
+ensure_directory 0755 "$unit_root"
+for unit in "${native_units[@]}"; do
+  install_unit "$source_root/$unit" "$unit_root/$unit"
+done
+
+legacy_battery_enabled=false
+legacy_battery_active=false
+legacy_recovery_enabled=false
+legacy_recovery_active=false
+if [[ $manage_systemd == "true" ]]; then
+  unit_is_enabled omarchy-battery-monitor.timer && legacy_battery_enabled=true
+  unit_is_active omarchy-battery-monitor.timer && legacy_battery_active=true
+  unit_is_enabled omarchy-recover-internal-monitor.service && legacy_recovery_enabled=true
+  unit_is_active omarchy-recover-internal-monitor.service && legacy_recovery_active=true
+fi
+
+if [[ $manage_systemd == "true" ]] &&
+  [[ $changed == "true" || $legacy_battery_enabled == "true" ||
+  $legacy_battery_active == "true" || $legacy_recovery_enabled == "true" ||
+  $legacy_recovery_active == "true" ]]; then
+  systemctl --user daemon-reload
+fi
+if [[ $legacy_battery_enabled == "true" ]]; then
+  systemctl --user enable qvos-battery-monitor.timer
+fi
+if [[ $legacy_battery_active == "true" ]]; then
+  systemctl --user start qvos-battery-monitor.timer
+fi
+if [[ $legacy_recovery_enabled == "true" ]]; then
+  systemctl --user enable qvos-recover-internal-monitor.service
+fi
+if [[ $legacy_recovery_active == "true" ]]; then
+  systemctl --user start qvos-recover-internal-monitor.service
+fi
+
+if [[ $manage_systemd == "true" ]]; then
+  for unit in "${legacy_units[@]}"; do
+    if [[ -e $unit_root/$unit || -L $unit_root/$unit ]] ||
+      unit_is_enabled "$unit" || unit_is_active "$unit"; then
+      systemctl --user disable --now "$unit"
+    fi
+  done
+fi
+
+for unit in "${legacy_units[@]}"; do
+  archive_legacy_file "$unit_root/$unit"
+done
+for legacy_backup in "${legacy_backups[@]}"; do
+  archive_legacy_file "$legacy_backup"
+done
+
+if [[ $manage_systemd == "true" && $changed == "true" ]]; then
+  systemctl --user daemon-reload
+fi

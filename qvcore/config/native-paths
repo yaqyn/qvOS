@@ -1,11 +1,19 @@
 # Inherited paths promoted to qvOS config ownership.
+bin/omarchy-battery-monitor
+bin/omarchy-hw-recover-internal-monitor
+bin/omarchy-hyprland-monitor-internal
+bin/omarchy-hyprland-monitor-internal-mirror
+bin/omarchy-hyprland-toggle
+bin/omarchy-hyprland-toggle-disabled
+bin/omarchy-hyprland-toggle-enabled
 bin/omarchy-refresh-hyprland
+bin/omarchy-toggle
+bin/omarchy-toggle-enabled
+bin/omarchy-toggle-touchpad
+bin/omarchy-toggle-touchscreen
 bin/omarchy-tz-select
 config/hypr/bindings.conf
 config/hypr/hyprland.conf
-config/systemd/user/omarchy-battery-monitor.service
-config/systemd/user/omarchy-battery-monitor.timer
-config/systemd/user/omarchy-recover-internal-monitor.service
 config/uwsm/env
 default/bash/envs
 default/bash/rc

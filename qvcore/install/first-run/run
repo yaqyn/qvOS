@@ -70,6 +70,8 @@ chmod 0600 -- "$marker"
 
 "$sudo" "$root_helper" apply
 
+"$QVOS_PATH/qvcore/config/toggle-state"
+"$QVOS_PATH/qvcore/config/user-services"
 bash "$QVOS_PATH/qvcore/install/first-run/battery-monitor.sh"
 bash "$QVOS_PATH/qvcore/install/first-run/recover-internal-monitor.sh"
 bash "$QVOS_PATH/qvcore/install/first-run/swayosd.sh"

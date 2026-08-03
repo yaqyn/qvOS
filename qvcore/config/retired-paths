@@ -1,4 +1,8 @@
 # Inherited config paths intentionally absent from qvOS.
+config/systemd/user/omarchy-battery-monitor.service
+config/systemd/user/omarchy-battery-monitor.timer
+config/systemd/user/omarchy-recover-internal-monitor.service
 default/hypr/bindings.conf
 default/hypr/bindings/
 default/hypr/plain-bindings.conf
+default/hypr/toggles/

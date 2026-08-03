@@ -23,11 +23,15 @@ fail() {
   fail "duplicate battery monitor service remains"
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
   fail "duplicate battery monitor timer remains"
+[[ ! -e $root/qvcore/config/files/systemd/user/qvos-battery-monitor.service ]] ||
+  fail "duplicate native battery monitor service remains"
+[[ ! -e $root/qvcore/config/files/systemd/user/qvos-battery-monitor.timer ]] ||
+  fail "duplicate native battery monitor timer remains"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-refresh-hyprland\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-hyprland\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf' ]] ||
-  fail "retired binding inventory changed"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
+  fail "retired config inventory changed"
 
 [[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"
@@ -56,11 +60,64 @@ duplicate_bindings=$(
   fail "F9 press/release exception is incomplete"
 
 grep -Fq 'Description=qvOS Battery Monitor Check' \
-  "$root/config/systemd/user/omarchy-battery-monitor.service" ||
+  "$root/config/systemd/user/qvos-battery-monitor.service" ||
   fail "native battery monitor service identity"
 grep -Fq 'Description=qvOS Battery Monitor Timer' \
-  "$root/config/systemd/user/omarchy-battery-monitor.timer" ||
+  "$root/config/systemd/user/qvos-battery-monitor.timer" ||
   fail "native battery monitor timer identity"
+grep -Fqx 'source = ~/.local/state/qvos/toggles/hypr/*.conf' "$hyprland" ||
+  fail "native toggle-state source"
+grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/battery-monitor' \
+  "$root/config/systemd/user/qvos-battery-monitor.service" ||
+  fail "native battery monitor owner"
+grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/recover-internal-monitor' \
+  "$root/config/systemd/user/qvos-recover-internal-monitor.service" ||
+  fail "native monitor recovery owner"
+
+toggle_adapters=(
+  omarchy-battery-monitor:battery-monitor
+  omarchy-hw-recover-internal-monitor:recover-internal-monitor
+  omarchy-hyprland-monitor-internal:monitor-internal
+  omarchy-hyprland-monitor-internal-mirror:monitor-internal-mirror
+  omarchy-hyprland-toggle:hyprland-toggle
+  omarchy-hyprland-toggle-disabled:hyprland-toggle-disabled
+  omarchy-hyprland-toggle-enabled:hyprland-toggle-enabled
+  omarchy-toggle:toggle
+  omarchy-toggle-enabled:toggle-enabled
+  omarchy-toggle-touchpad:toggle-touchpad
+  omarchy-toggle-touchscreen:toggle-touchscreen
+)
+for adapter in "${toggle_adapters[@]}"; do
+  route=${adapter%%:*}
+  owner=${adapter#*:}
+  [[ -x $root/bin/$route && -x $root/qvcore/config/$owner ]] ||
+    fail "toggle adapter or owner mode: $route"
+  (( $(wc -l <"$root/bin/$route") <= 10 )) ||
+    fail "toggle compatibility adapter contains implementation: $route"
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/config/$owner\" \"\$@\"" \
+    "$root/bin/$route" || fail "toggle compatibility adapter owner: $route"
+done
+for owner in toggle-state user-services; do
+  [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
+done
+if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy-(battery-monitor|recover-internal-monitor)\.(service|timer)' \
+  "$root/bin" \
+  "$root/config" \
+  "$root/qvcore/config/battery-monitor" \
+  "$root/qvcore/config/hyprland-toggle" \
+  "$root/qvcore/config/hyprland-toggle-disabled" \
+  "$root/qvcore/config/hyprland-toggle-enabled" \
+  "$root/qvcore/config/monitor-internal" \
+  "$root/qvcore/config/monitor-internal-mirror" \
+  "$root/qvcore/config/recover-internal-monitor" \
+  "$root/qvcore/config/toggle" \
+  "$root/qvcore/config/toggle-enabled" \
+  "$root/qvcore/config/toggle-lib" \
+  "$root/qvcore/config/toggle-touchpad" \
+  "$root/qvcore/config/toggle-touchscreen" \
+  "$root/qvcore/config/toggles"; then
+  fail "retired toggle or user-service identity remains active"
+fi
 
 [[ -x $root/bin/omarchy-refresh-hyprland && -x $root/qvcore/config/refresh-hyprland ]] ||
   fail "Hyprland restore adapter or owner is not executable"

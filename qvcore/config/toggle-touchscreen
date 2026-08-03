@@ -1,0 +1,47 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/config/toggle-lib
+source "$QVOS_PATH/qvcore/config/toggle-lib"
+
+state_conf="$qvos_hypr_toggle_root/touchscreen-disabled.conf"
+device=$(omarchy-hw-touchscreen)
+
+[[ -n $device && $device != *$'\n'* && $device != *$'\r'* ]] || {
+  echo "No touchscreen device found" >&2
+  exit 1
+}
+
+enable() {
+  hyprctl keyword "device[$device]:enabled" true >/dev/null
+  qvos_toggle_remove "$state_conf"
+  omarchy-swayosd-client \
+    --custom-icon device-support-touch-symbolic \
+    --custom-message "Touchscreen enabled"
+}
+
+disable() {
+  hyprctl keyword "device[$device]:enabled" false >/dev/null
+  printf 'device {\n  name = %s\n  enabled = false\n}\n' "$device" |
+    qvos_toggle_write "$state_conf"
+  omarchy-swayosd-client \
+    --custom-icon touch-disabled-symbolic \
+    --custom-message "Touchscreen disabled"
+}
+
+case ${1:-toggle} in
+on) enable ;;
+off) disable ;;
+toggle)
+  if [[ -f $state_conf ]]; then
+    enable
+  else
+    disable
+  fi
+  ;;
+*)
+  echo "Usage: qv toggle touchscreen [on|off|toggle]" >&2
+  exit 2
+  ;;
+esac

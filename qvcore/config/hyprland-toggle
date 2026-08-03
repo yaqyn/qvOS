@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/config/toggle-lib
+source "$QVOS_PATH/qvcore/config/toggle-lib"
+
+enabled_notification=""
+disabled_notification=""
+
+while (( $# > 1 )); do
+  case $1 in
+  --enabled-notification)
+    (( $# >= 2 )) || exit 2
+    enabled_notification=$2
+    shift 2
+    ;;
+  --disabled-notification)
+    (( $# >= 2 )) || exit 2
+    disabled_notification=$2
+    shift 2
+    ;;
+  *) break ;;
+  esac
+done
+
+(( $# == 1 )) || {
+  echo "Usage: qv hyprland toggle [--enabled-notification <text>] [--disabled-notification <text>] <flag-name>" >&2
+  exit 2
+}
+flag_name=$1
+qvos_hypr_toggle_validate_name "$flag_name" || {
+  echo "Invalid qvOS Hyprland toggle name: $flag_name" >&2
+  exit 2
+}
+flag="$qvos_hypr_toggle_root/$flag_name.conf"
+flag_source="$QVOS_PATH/qvcore/config/toggles/$flag_name.conf"
+qvos_toggle_safe_file "$flag" || {
+  echo "Refusing unsafe qvOS Hyprland toggle file: $flag" >&2
+  exit 1
+}
+
+if [[ -f $flag ]]; then
+  qvos_toggle_remove "$flag"
+  [[ -z $disabled_notification ]] || notify-send -u low "$disabled_notification"
+elif [[ -f $flag_source && ! -L $flag_source ]]; then
+  qvos_toggle_ensure_dir "$qvos_hypr_toggle_root"
+  install -m 0600 "$flag_source" "$flag"
+  [[ -z $enabled_notification ]] || notify-send -u low "$enabled_notification"
+else
+  echo "Flag not found: $flag_name" >&2
+  exit 1
+fi
+
+hyprctl reload

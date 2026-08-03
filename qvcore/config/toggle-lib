@@ -1,0 +1,66 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034
+
+qvos_toggle_root="$HOME/.local/state/qvos/toggles"
+qvos_hypr_toggle_root="$qvos_toggle_root/hypr"
+
+qvos_toggle_validate_name() {
+  local name=$1
+
+  [[ $name =~ ^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$ ]]
+}
+
+qvos_hypr_toggle_validate_name() {
+  local name=$1
+
+  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ ]]
+}
+
+qvos_toggle_safe_file() {
+  local path=$1
+
+  [[ ! -e $path && ! -L $path ]] ||
+    [[ -f $path && ! -L $path && -O $path ]]
+}
+
+qvos_toggle_ensure_dir() {
+  local path=$1
+
+  if [[ -e $path || -L $path ]]; then
+    [[ -d $path && ! -L $path && -O $path ]] || {
+      echo "Refusing unsafe qvOS toggle directory: $path" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 "$path"
+  fi
+  chmod 0700 -- "$path"
+}
+
+qvos_toggle_write() {
+  local path=$1
+  local temporary
+
+  qvos_toggle_safe_file "$path" || {
+    echo "Refusing unsafe qvOS toggle file: $path" >&2
+    return 1
+  }
+  qvos_toggle_ensure_dir "$(dirname -- "$path")"
+  temporary=$(mktemp "$(dirname -- "$path")/.qvos-toggle.XXXXXX")
+  if ! cat >"$temporary" ||
+    ! chmod 0600 -- "$temporary" ||
+    ! mv -f -- "$temporary" "$path"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+qvos_toggle_remove() {
+  local path=$1
+
+  qvos_toggle_safe_file "$path" || {
+    echo "Refusing unsafe qvOS toggle file: $path" >&2
+    return 1
+  }
+  rm -f -- "$path"
+}

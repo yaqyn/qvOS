@@ -151,10 +151,11 @@ inherited implementation intact and touch Omarchy paths only at the seam that
 exposes, installs, or refreshes the native owner:
 
 - `bin/` owns CLI routes and menu handoffs.
-- `config/` owns promoted qvOS defaults such as the singular binding source;
-  `qvcore/config/files/` owns only specialized sources that still need a separate
-  installed path. Unpromoted inherited `config/` and `default/` paths remain
-  upstream-owned.
+- `config/` owns promoted qvOS defaults such as the singular binding source and
+  native `qvos-*` user units; `qvcore/config/` owns toggle templates, private
+  state migration, service reconciliation, and specialized sources that still
+  need a separate installed path. Unpromoted inherited `config/` and `default/`
+  paths remain upstream-owned.
 - `qvcore/install/` owns the complete fresh-install implementation and
   `qvcore/boot/login/` owns its login leaves. The retired top-level `install/`
   tree must not return. Future existing-system transitions belong in
