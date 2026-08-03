@@ -3,6 +3,48 @@ set -euo pipefail
 
 legacy_thunar_helper="$HOME/.local/lib/qvos/defaults/qvos-launch-thunar"
 [[ ! -e $legacy_thunar_helper && ! -L $legacy_thunar_helper ]] || exit 0
+legacy_share_helper="$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
+
+legacy_desktop="$HOME/.local/share/applications/thunar.desktop"
+if [[ -f $legacy_desktop && ! -L $legacy_desktop && -O $legacy_desktop ]]; then
+  desktop_exec_count=0
+  legacy_exec_count=0
+  while IFS= read -r desktop_line; do
+    [[ $desktop_line == Exec=* ]] || continue
+    ((desktop_exec_count += 1))
+    desktop_command=${desktop_line#Exec=}
+    if [[ $desktop_command == "$legacy_share_helper "* ||
+      $desktop_command == "$legacy_thunar_helper "* ]]; then
+      ((legacy_exec_count += 1))
+    fi
+  done <"$legacy_desktop"
+  if ((desktop_exec_count > 0 && desktop_exec_count == legacy_exec_count)); then
+    rm -f -- "$legacy_desktop"
+  fi
+fi
+
+legacy_user_unit="$HOME/.config/systemd/user/thunar.service"
+if [[ -f $legacy_user_unit && ! -L $legacy_user_unit && -O $legacy_user_unit ]]; then
+  normalized_unit=$(awk '
+    /^[[:space:]]*($|#)/ { next }
+    { print }
+  ' "$legacy_user_unit")
+  for helper in "$legacy_share_helper" "$legacy_thunar_helper"; do
+    expected_unit=$(printf '%s\n' \
+      '[Unit]' \
+      'Description=Thunar file manager' \
+      'Documentation=man:Thunar(1)' \
+      '[Service]' \
+      'Type=dbus' \
+      "ExecStart=$helper --daemon" \
+      'BusName=org.xfce.FileManager' \
+      'KillMode=process')
+    if [[ $normalized_unit == "$expected_unit" ]]; then
+      rm -f -- "$legacy_user_unit"
+      break
+    fi
+  done
+fi
 
 legacy_service_dir="$HOME/.local/share/dbus-1/services"
 legacy_service_names=(
@@ -14,12 +56,32 @@ for legacy_service in "${legacy_service_names[@]}"; do
   service_bus_name=${legacy_service%%|*}
   service_filename=${legacy_service#*|}
   service_path="$legacy_service_dir/$service_filename"
-  [[ -f $service_path && ! -L $service_path ]] || continue
-  expected_service=$(printf \
-    '[D-BUS Service]\nName=%s\nExec=%s --gapplication-service' \
-    "$service_bus_name" "$legacy_thunar_helper")
-  if [[ $(<"$service_path") == "$expected_service" ]]; then
-    rm -f -- "$service_path"
-  fi
+  [[ -f $service_path && ! -L $service_path && -O $service_path ]] || continue
+  for helper in "$legacy_share_helper" "$legacy_thunar_helper"; do
+    expected_service=$(printf \
+      '[D-BUS Service]\nName=%s\nExec=%s --gapplication-service' \
+      "$service_bus_name" "$helper")
+    if [[ $(<"$service_path") == "$expected_service" ]]; then
+      rm -f -- "$service_path"
+      break
+    fi
+  done
 done
+
+legacy_plugin_dir="$HOME/.local/lib/qvos/defaults/thunarx-3"
+if [[ -d $legacy_plugin_dir && ! -L $legacy_plugin_dir && -O $legacy_plugin_dir ]]; then
+  plugins_safe=true
+  while IFS= read -r -d '' legacy_plugin; do
+    plugin_name=${legacy_plugin##*/}
+    if [[ ! -L $legacy_plugin ||
+      $(readlink -- "$legacy_plugin") != "/usr/lib/thunarx-3/$plugin_name" ]]; then
+      plugins_safe=false
+      break
+    fi
+  done < <(find "$legacy_plugin_dir" -mindepth 1 -maxdepth 1 -print0)
+  if [[ $plugins_safe == "true" ]]; then
+    find "$legacy_plugin_dir" -mindepth 1 -maxdepth 1 -type l -delete
+    rmdir -- "$legacy_plugin_dir" 2>/dev/null || true
+  fi
+fi
 rmdir -- "$HOME/.local/lib/qvos/defaults" 2>/dev/null || true

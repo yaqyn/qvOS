@@ -69,6 +69,7 @@
     qvcore/shell/install
     qvcore/thunar/actions.sh
     qvcore/thunar/codex
+    qvcore/thunar/install
     qvcore/thunar/launch
     qvcore/thunar/open-here
     qvcore/thunar/proton-drive-upload
@@ -143,6 +144,7 @@
   install -d "$thunar_runtime"
   for feature in \
     actions.sh \
+    install \
     launch \
     open-here \
     reconcile-default-actions \
@@ -153,6 +155,8 @@
   done
   cp -a "$preserved_thunar/." "$thunar_runtime/"
   rm -rf -- "$preserved_thunar"
+
+  "$thunar_runtime/install"
 
   for integration_owner in \
     "$OMARCHY_PATH/services/proton/manage" \

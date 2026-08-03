@@ -32,6 +32,9 @@ fi
 pass "ISO-owned source excludes development-machine home paths"
 
 if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
+  --glob '!qvcore/config/migrate-runtime-root' \
+  --glob '!qvcore/install/cleanup-obsolete' \
+  --glob '!qvcore/shell/install' \
   "$root/bin" \
   "$root/config" \
   "$root/development" \
@@ -39,6 +42,13 @@ if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|
   "$root/services"; then
   fail "generated runtime payload still occupies the canonical source root"
 fi
+grep -Fq "'.local/share/qvos/desktop/' '.local/lib/qvos/desktop/'" \
+  "$root/qvcore/config/migrate-runtime-root" ||
+  fail "legacy runtime config cleanup"
+grep -Fq 'legacy_runtime_source=' "$root/qvcore/shell/install" ||
+  fail "legacy shell runtime cleanup"
+grep -Fq 'legacy_share_helper=' "$root/qvcore/install/cleanup-obsolete" ||
+  fail "legacy Thunar runtime cleanup"
 grep -Fq 'mkdir -p "$HOME/.local/lib/qvos"' "$root/qvcore/install/desktop" ||
   fail "native qvOS runtime root"
 grep -Fq 'runtime_root="$lib_root/qvos"' \

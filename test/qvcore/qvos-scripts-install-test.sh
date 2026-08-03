@@ -140,8 +140,11 @@ pass "later privileged failures cannot break the screensaver runtime"
 
 install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
+  "$test_root/.config/systemd/user" \
   "$test_root/.local/share/dbus-1/services" \
+  "$test_root/.local/share/applications" \
   "$test_root/.local/lib/qvos/bin" \
+  "$test_root/.local/lib/qvos/defaults/thunarx-3" \
   "$test_root/.local/lib/qvos/desktop/context" \
   "$test_root/.local/lib/qvos/screensaver" \
   "$test_root/.local/lib/qvos/thunar" \
@@ -154,7 +157,32 @@ touch \
   "$test_root/.local/lib/qvos/tmux/removed-feature" \
   "$test_root/.local/lib/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/waybar/prayer-data.sh"
-install -m 0644 /dev/null "$test_root/.bashrc"
+install -m 0644 /dev/stdin "$test_root/.bashrc" <<'BASHRC'
+source "$HOME/.local/share/qvos/shell/aliases"
+BASHRC
+install -m 0644 /dev/stdin \
+  "$test_root/.local/share/applications/thunar.desktop" <<EOF
+[Desktop Entry]
+Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar %U
+[Desktop Action Home]
+Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar %U
+EOF
+install -m 0644 /dev/stdin \
+  "$test_root/.config/systemd/user/thunar.service" <<EOF
+[Unit]
+Description=Thunar file manager
+Documentation=man:Thunar(1)
+
+[Service]
+Type=dbus
+ExecStart=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --daemon
+BusName=org.xfce.FileManager
+KillMode=process
+EOF
+for plugin_name in thunar-apr.so thunar-uca.so; do
+  ln -s "/usr/lib/thunarx-3/$plugin_name" \
+    "$test_root/.local/lib/qvos/defaults/thunarx-3/$plugin_name"
+done
 for service_name in \
   org.freedesktop.FileManager1 \
   org.xfce.FileManager; do
@@ -228,6 +256,21 @@ done
   fail "modified D-Bus service preservation"
 pass "only exact obsolete qvOS D-Bus launchers are removed"
 
+[[ ! -e $test_root/.local/share/applications/thunar.desktop ]] ||
+  fail "obsolete qvOS Thunar desktop override cleanup"
+[[ ! -e $test_root/.config/systemd/user/thunar.service ]] ||
+  fail "obsolete qvOS Thunar service cleanup"
+[[ ! -e $test_root/.local/lib/qvos/defaults ]] ||
+  fail "obsolete qvOS Thunar plugin-root cleanup"
+[[ -L $test_root/.local/bin/thunar &&
+  $(readlink -- "$test_root/.local/bin/thunar") == \
+    "$test_root/.local/lib/qvos/thunar/launch" ]] ||
+  fail "native qvOS Thunar command route"
+grep -Fqx 'ExecStart=%h/.local/lib/qvos/thunar/launch --daemon' \
+  "$test_root/.config/systemd/user/thunar.service.d/qvos.conf" ||
+  fail "native qvOS Thunar service route"
+pass "retired Thunar launch state converges on its native runtime owner"
+
 [[ ! -e $root/qvcore/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
 
@@ -239,7 +282,7 @@ done
 installed_thunar_inventory="$(
   find "$test_root/.local/lib/qvos/thunar" -type f -printf '%P\n' | sort
 )"
-[[ $installed_thunar_inventory == $'actions.sh\nlaunch\nopen-here\nreconcile-default-actions\nset-background\nshare\ntranscode' ]] ||
+[[ $installed_thunar_inventory == $'actions.sh\ninstall\nlaunch\nopen-here\nreconcile-default-actions\nset-background\nshare\ntranscode' ]] ||
   fail "default Thunar feature inventory"
 for optional_thunar_feature in codex proton-drive-upload; do
   [[ ! -e $test_root/.local/lib/qvos/thunar/$optional_thunar_feature ]] ||
@@ -254,6 +297,24 @@ for optional_thunar_feature in codex proton-drive-upload; do
   printf 'stale optional integration\n' \
     >"$test_root/.local/lib/qvos/thunar/$optional_thunar_feature"
 done
+install -m 0644 /dev/stdin \
+  "$test_root/.local/share/applications/thunar.desktop" <<EOF
+[Desktop Entry]
+Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar %U
+[Desktop Action Custom]
+Exec=/usr/bin/custom-file-manager
+EOF
+install -m 0644 /dev/stdin \
+  "$test_root/.config/systemd/user/thunar.service" <<EOF
+[Unit]
+Description=Thunar file manager
+[Service]
+Type=dbus
+ExecStart=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --daemon
+Environment=USER_CUSTOM=1
+BusName=org.xfce.FileManager
+KillMode=process
+EOF
 power_helper_state_before=$(stat -c '%u:%g:%a|%i|%y' \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb")
 install -d -m 0700 \
@@ -269,6 +330,12 @@ HOME="$test_root" OMARCHY_PATH="$root" \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb") == \
   "$power_helper_state_before" ]] ||
   fail "desktop refresh rewrote an exact privileged power helper"
+grep -Fq 'Exec=/usr/bin/custom-file-manager' \
+  "$test_root/.local/share/applications/thunar.desktop" ||
+  fail "custom Thunar desktop override preservation"
+grep -Fq 'Environment=USER_CUSTOM=1' \
+  "$test_root/.config/systemd/user/thunar.service" ||
+  fail "custom Thunar service preservation"
 for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qvcore/thunar/$optional_thunar_feature" \
@@ -414,6 +481,15 @@ grep -Fqx \
   'source "$HOME/.local/lib/qvos/shell/aliases"' \
   "$test_root/.bashrc" ||
   fail "runtime shell source line"
+# shellcheck disable=SC2016
+[[ $(grep -Fxc 'source "$HOME/.local/lib/qvos/shell/aliases"' \
+  "$test_root/.bashrc") == "1" ]] ||
+  fail "duplicate runtime shell source line"
+# shellcheck disable=SC2016
+if grep -Fqx 'source "$HOME/.local/share/qvos/shell/aliases"' \
+  "$test_root/.bashrc"; then
+  fail "obsolete runtime shell source line"
+fi
 compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
   fail "Bash configuration backup"
 pass "Bash loads the source-independent qvOS shell overlay"

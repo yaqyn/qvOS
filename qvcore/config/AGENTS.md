@@ -41,6 +41,11 @@ duplicated under `qvcore/config/files/`. This includes the qvOS battery-monitor
 service and timer under `config/systemd/user/`; the ordinary config installer
 deploys them before the qvOS specialized reconciliation stage.
 
+`migrate-runtime-root` changes only exact retired qvOS path literals in named
+active configs. Back up each changed regular user-owned file, preserve all
+other content, refuse links and foreign ownership, and remain a no-op after
+success. Keep its inherited migration stub thin and its implementation native.
+
 `qvcore/config/timezone` owns both the direct searchable picker and the TUI-selected
 mutation. Revalidate every selected zone against `timedatectl list-timezones`
 immediately before sudo, return cancellation distinctly, and restart Waybar

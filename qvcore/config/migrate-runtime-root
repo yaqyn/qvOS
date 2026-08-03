@@ -1,0 +1,126 @@
+#!/bin/bash
+set -euo pipefail
+
+temporary=""
+changed_files=0
+uwsm_env="$HOME/.config/uwsm/env"
+
+cleanup() {
+  [[ -z $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+
+rewrite_literals() {
+  local target=$1
+  shift
+  local -a old_literals=()
+  local -a new_literals=()
+  local backup
+  local filtered
+  local index
+  local line
+
+  [[ ! -e $target && ! -L $target ]] && return 0
+  [[ -f $target && ! -L $target && -O $target ]] || {
+    echo "Refusing unsafe qvOS runtime-root config: $target" >&2
+    return 1
+  }
+  (($# > 0 && $# % 2 == 0)) || return 2
+  while (($# > 0)); do
+    old_literals+=("$1")
+    new_literals+=("$2")
+    shift 2
+  done
+
+  temporary=$(mktemp "$(dirname -- "$target")/.qvos-runtime-root.XXXXXX")
+  while IFS= read -r line || [[ -n $line ]]; do
+    for index in "${!old_literals[@]}"; do
+      line=${line//"${old_literals[$index]}"/"${new_literals[$index]}"}
+    done
+    printf '%s\n' "$line"
+  done <"$target" >"$temporary"
+
+  if [[ $target == "$uwsm_env" ]]; then
+    filtered=$(mktemp "$(dirname -- "$target")/.qvos-runtime-root.XXXXXX")
+    awk '
+      $0 == "# qvOS PATH begin" {
+        buffering = 1
+        count = 1
+        lines[count] = $0
+        next
+      }
+      buffering {
+        lines[++count] = $0
+        if ($0 == "# qvOS PATH end") {
+          if (count != 3 || lines[2] != "export PATH=\"$HOME/.local/share/qvos/bin:$PATH\"") {
+            for (line_number = 1; line_number <= count; line_number++) {
+              print lines[line_number]
+            }
+          }
+          delete lines
+          buffering = 0
+          count = 0
+        }
+        next
+      }
+      { print }
+      END {
+        if (buffering) {
+          for (line_number = 1; line_number <= count; line_number++) {
+            print lines[line_number]
+          }
+        }
+      }
+    ' "$temporary" >"$filtered"
+    mv -f -- "$filtered" "$temporary"
+  fi
+
+  chmod --reference="$target" "$temporary"
+  if cmp -s "$temporary" "$target"; then
+    rm -f -- "$temporary"
+    temporary=""
+    return 0
+  fi
+
+  backup="$target.bak.$(date +%s%N)"
+  cp -a -- "$target" "$backup"
+  mv -f -- "$temporary" "$target"
+  temporary=""
+  ((changed_files += 1))
+}
+
+rewrite_literals \
+  "$HOME/.config/hypr/bindings.conf" \
+  '.local/share/qvos/desktop/' '.local/lib/qvos/desktop/' \
+  '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/' \
+  '.local/share/qvos/tmux/' '.local/lib/qvos/tmux/'
+rewrite_literals \
+  "$HOME/.config/hypr/hypridle.conf" \
+  '.local/share/qvos/bin/omarchy-launch-screensaver' \
+  '.local/lib/qvos/bin/omarchy-launch-screensaver' \
+  '.local/share/qvos/bin/omarchy-system-suspend-if-safe' \
+  '.local/lib/qvos/bin/omarchy-system-suspend-if-safe'
+rewrite_literals \
+  "$HOME/.config/Thunar/uca.xml" \
+  '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/'
+# shellcheck disable=SC2016
+rewrite_literals \
+  "$uwsm_env" \
+  'export OMARCHY_PATH=$HOME/.local/share/omarchy' \
+  'export QVOS_PATH=$HOME/.local/share/qvos' \
+  'export PATH=$OMARCHY_PATH/bin:$PATH:$HOME/.local/bin' \
+  'export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin'
+rewrite_literals \
+  "$HOME/.config/systemd/user/omarchy-battery-monitor.service" \
+  '.local/share/omarchy/bin/omarchy-battery-monitor' \
+  '.local/share/qvos/bin/omarchy-battery-monitor'
+rewrite_literals \
+  "$HOME/.config/systemd/user/omarchy-recover-internal-monitor.service" \
+  '.local/share/omarchy/bin/omarchy-hw-recover-internal-monitor' \
+  '.local/share/qvos/bin/omarchy-hw-recover-internal-monitor'
+
+if ((changed_files > 0)); then
+  systemctl --user daemon-reload
+  printf 'Migrated %d qvOS config file(s) to native source and runtime roots.\n' \
+    "$changed_files"
+fi

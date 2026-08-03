@@ -220,7 +220,7 @@ Root-started sessions must read every matching route completely before editing:
 - Menu, search, Walker, Elephant, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/software/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
-- qvOS Hyprland config and reconciliation: `qvcore/config/AGENTS.md`
+- qvOS Hyprland and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`
 - qvOS battery protection and charging thresholds: `qvcore/power/AGENTS.md`
 - Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
 - Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`

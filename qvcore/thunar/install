@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+runtime_launcher="$HOME/.local/lib/qvos/thunar/launch"
+command_link="$HOME/.local/bin/thunar"
+unit_dir="$HOME/.config/systemd/user/thunar.service.d"
+unit_dropin="$unit_dir/qvos.conf"
+expected_dropin=$'[Service]\nExecStart=\nExecStart=%h/.local/lib/qvos/thunar/launch --daemon'
+
+[[ -x $runtime_launcher && ! -L $runtime_launcher ]] || {
+  echo "Missing qvOS Thunar runtime launcher: $runtime_launcher" >&2
+  exit 1
+}
+
+if [[ -e $command_link || -L $command_link ]]; then
+  [[ -L $command_link && $(readlink -- "$command_link") == "$runtime_launcher" ]] || {
+    echo "Refusing to replace a foreign Thunar command: $command_link" >&2
+    exit 1
+  }
+fi
+if [[ -e $unit_dir || -L $unit_dir ]]; then
+  [[ -d $unit_dir && ! -L $unit_dir && -O $unit_dir ]] || {
+    echo "Refusing unsafe qvOS Thunar unit directory: $unit_dir" >&2
+    exit 1
+  }
+fi
+if [[ -e $unit_dropin || -L $unit_dropin ]]; then
+  [[ -f $unit_dropin && ! -L $unit_dropin && -O $unit_dropin &&
+    $(<"$unit_dropin") == "$expected_dropin" ]] || {
+    echo "Refusing unsafe qvOS Thunar unit override: $unit_dropin" >&2
+    exit 1
+  }
+fi
+
+install -d "$HOME/.local/bin" "$unit_dir"
+ln -sfn "$runtime_launcher" "$command_link"
+if [[ ! -f $unit_dropin || $(stat -c '%a' -- "$unit_dropin") != "644" ]]; then
+  install -m 0644 /dev/stdin "$unit_dropin" <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=%h/.local/lib/qvos/thunar/launch --daemon
+UNIT
+fi
+
+systemctl --user daemon-reload

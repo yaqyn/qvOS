@@ -68,7 +68,7 @@ grep -Fqx '  background-color: #2a2a2a;' "$gtk_css" ||
   fail "visible GTK menu separator color"
 pass "native menu section separators render as thin lines"
 
-expected_features=$'actions.sh\ncodex\nlaunch\nopen-here\nproton-drive-upload\nreconcile-default-actions\nset-background\nshare\ntranscode'
+expected_features=$'AGENTS.md\nactions.sh\ncodex\ninstall\nlaunch\nopen-here\nproton-drive-upload\nreconcile-default-actions\nset-background\nshare\ntranscode'
 actual_features="$(find "$feature_dir" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $actual_features == "$expected_features" ]] ||
   fail "Thunar feature script inventory"
@@ -76,6 +76,7 @@ actual_features="$(find "$feature_dir" -maxdepth 1 -type f -printf '%f\n' | sort
 [[ ! -x $feature_dir/actions.sh ]] || fail "Thunar action library executable mode"
 for feature in \
   codex \
+  install \
   launch \
   open-here \
   proton-drive-upload \
@@ -88,6 +89,16 @@ for feature in \
     fail "$feature shebang"
 done
 pass "Thunar features and their shared action library stay in one domain"
+
+grep -Fq 'exec /usr/bin/Thunar "$@"' "$feature_dir/launch" ||
+  fail "Thunar launcher bypasses its local compatibility link"
+if rg -q 'command -v (t|T)hunar|exec (t|T)hunar ' "$feature_dir/launch"; then
+  fail "Thunar launcher can recurse through its local compatibility link"
+fi
+grep -Fq 'ExecStart=%h/.local/lib/qvos/thunar/launch --daemon' \
+  "$feature_dir/install" ||
+  fail "Thunar D-Bus service override"
+pass "Thunar desktop and D-Bus routes converge without launcher recursion"
 
 if find "$root/qvcore" \
   \( -path "$feature_dir" -o -path "$root/qvcore/config" \) -prune -o -type f \
@@ -111,6 +122,36 @@ cleanup() {
 }
 trap cleanup EXIT
 install -d "$test_bin"
+
+foreign_command_home="$test_root/foreign-command-home"
+install -d \
+  "$foreign_command_home/.local/bin" \
+  "$foreign_command_home/.local/lib/qvos/thunar"
+install -m 0755 "$feature_dir/launch" \
+  "$foreign_command_home/.local/lib/qvos/thunar/launch"
+printf 'foreign command\n' >"$foreign_command_home/.local/bin/thunar"
+if HOME="$foreign_command_home" "$feature_dir/install" >/dev/null 2>&1; then
+  fail "foreign Thunar command accepted"
+fi
+[[ $(<"$foreign_command_home/.local/bin/thunar") == "foreign command" ]] ||
+  fail "foreign Thunar command preservation"
+
+foreign_unit_home="$test_root/foreign-unit-home"
+install -d \
+  "$foreign_unit_home/.config/systemd/user/thunar.service.d" \
+  "$foreign_unit_home/.local/lib/qvos/thunar"
+install -m 0755 "$feature_dir/launch" \
+  "$foreign_unit_home/.local/lib/qvos/thunar/launch"
+printf 'foreign unit\n' \
+  >"$foreign_unit_home/.config/systemd/user/thunar.service.d/qvos.conf"
+if HOME="$foreign_unit_home" "$feature_dir/install" >/dev/null 2>&1; then
+  fail "foreign Thunar unit override accepted"
+fi
+[[ $(<"$foreign_unit_home/.config/systemd/user/thunar.service.d/qvos.conf") == \
+  "foreign unit" && ! -e $foreign_unit_home/.local/bin/thunar ]] ||
+  fail "foreign Thunar unit override preservation"
+pass "Thunar installation refuses foreign command and service ownership"
+
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"

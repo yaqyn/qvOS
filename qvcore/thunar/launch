@@ -29,12 +29,12 @@ fi
 refresh_thunarx_plugins || true
 export THUNARX_DIRS="$plugin_runtime_dir"
 
-if command -v thunar >/dev/null 2>&1; then
-  exec thunar "$@"
+if [[ -x /usr/bin/Thunar ]]; then
+  exec /usr/bin/Thunar "$@"
 fi
 
-if command -v Thunar >/dev/null 2>&1; then
-  exec Thunar "$@"
+if [[ -x /usr/bin/thunar ]]; then
+  exec /usr/bin/thunar "$@"
 fi
 
 printf 'qvOS Defaults: Thunar is not installed.\n' >&2
