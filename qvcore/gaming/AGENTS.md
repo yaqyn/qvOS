@@ -11,6 +11,10 @@ lifecycle.
 - `qvcore/gaming/xbox-files` owns the two xpadneo module files. Preflight both files
   before package mutation, accept only absent or exact qvOS content, and never
   overwrite or delete a foreign file or symbolic link.
+- Native routes are `qv install/remove gaming retroarch` and
+  `qv install/remove gaming xbox controllers`. Inherited names are
+  metadata-free compatibility adapters only; native owners use `QVOS_PATH`,
+  qvOS package helpers, and the native system-reboot route.
 - Preserve unrelated `input` group membership. Swap xpad/xpadneo live when
   safe and request a reboot only when the group or running driver cannot take
   effect immediately. Captured TUI owners use explicit `--defer-reboot`.

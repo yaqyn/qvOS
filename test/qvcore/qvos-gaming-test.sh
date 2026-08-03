@@ -17,7 +17,9 @@ fail() {
 install -d "$fixture/bin" "$fixture/qvcore/gaming" "$test_bin"
 for route in \
   omarchy-install-gaming-retroarch \
-  omarchy-remove-gaming-retroarch; do
+  omarchy-remove-gaming-retroarch \
+  qv-install-gaming-retroarch \
+  qv-remove-gaming-retroarch; do
   install -m 0755 "$root/bin/$route" "$fixture/bin/$route"
 done
 for source in \
@@ -29,11 +31,11 @@ done
 install -m 0644 "$root/qvcore/gaming/retroarch.packages" \
   "$fixture/qvcore/gaming/retroarch.packages"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-add" <<'STUB'
 #!/bin/bash
 printf 'add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-drop" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-drop" <<'STUB'
 #!/bin/bash
 printf 'drop:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
@@ -71,7 +73,7 @@ run_retroarch() {
     "$@"
 }
 
-run_retroarch "$fixture/bin/omarchy-install-gaming-retroarch" >/dev/null
+run_retroarch "$fixture/bin/qv-install-gaming-retroarch" >/dev/null
 add_packages=$(sed -n 's/^add://p' "$action_log")
 [[ -n $add_packages ]] || fail "RetroArch package install delegation"
 grep -qw 'libretro-database-git' <<<"$add_packages" ||
@@ -83,7 +85,7 @@ grep -Fqx 'custom_setting = "preserve"' "$config_file" ||
 grep -Fqx '#reference "custom.slangp"' "$preset" ||
   fail "RetroArch custom global shader preservation"
 
-run_retroarch "$fixture/bin/omarchy-remove-gaming-retroarch" >/dev/null
+run_retroarch "$fixture/bin/qv-remove-gaming-retroarch" >/dev/null
 drop_packages=$(sed -n 's/^drop://p' "$action_log")
 [[ $drop_packages == "$add_packages" ]] ||
   fail "RetroArch install and removal package symmetry"

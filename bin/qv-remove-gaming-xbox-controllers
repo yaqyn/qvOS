@@ -1,4 +1,8 @@
 #!/bin/bash
 
+# qv:summary=Remove qvOS Xbox controller driver support
+# qv:args=[--defer-reboot]
+# qv:requires-sudo=true
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/gaming/xbox-remove" "$@"

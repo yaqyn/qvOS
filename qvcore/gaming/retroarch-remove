@@ -2,14 +2,15 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/gaming/retroarch.packages
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 (( $# == 0 )) || {
-  echo "Usage: omarchy-remove-gaming-retroarch" >&2
+  echo "Usage: qv remove gaming retroarch" >&2
   exit 2
 }
 
-package_output=$("$OMARCHY_PATH/qvcore/gaming/retroarch-packages")
+package_output=$("$QVOS_PATH/qvcore/gaming/retroarch-packages")
 mapfile -t packages <<<"$package_output"
-omarchy-pkg-drop "${packages[@]}"
+qv-pkg-drop "${packages[@]}"
 
 echo
 echo "RetroArch and its qvOS core packages were removed."

@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-manifest="$OMARCHY_PATH/qvcore/gaming/retroarch.packages"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+manifest="$QVOS_PATH/qvcore/gaming/retroarch.packages"
 declare -A seen=()
 count=0
 

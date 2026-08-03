@@ -14,23 +14,33 @@ expected_paths=$'bin/omarchy-install-gaming-retroarch\nbin/omarchy-install-gamin
   fail "native gaming inventory"
 
 declare -A owner_by_route=(
-  [bin/omarchy-install-gaming-retroarch]=qvcore/gaming/retroarch-install
-  [bin/omarchy-install-gaming-xbox-controllers]=qvcore/gaming/xbox-install
-  [bin/omarchy-remove-gaming-retroarch]=qvcore/gaming/retroarch-remove
-  [bin/omarchy-remove-gaming-xbox-controllers]=qvcore/gaming/xbox-remove
+  [install-gaming-retroarch]=qvcore/gaming/retroarch-install
+  [install-gaming-xbox-controllers]=qvcore/gaming/xbox-install
+  [remove-gaming-retroarch]=qvcore/gaming/retroarch-remove
+  [remove-gaming-xbox-controllers]=qvcore/gaming/xbox-remove
 )
 for route in "${!owner_by_route[@]}"; do
   owner=${owner_by_route[$route]}
-  [[ -x $root/$route && -x $root/$owner ]] ||
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
     fail "gaming adapter or owner mode: $route"
-  (( $(wc -l <"$root/$route") <= 10 )) ||
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native gaming adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
     fail "gaming compatibility adapter contains implementation: $route"
-  # shellcheck disable=SC2016
-  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
-    fail "gaming compatibility adapter: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native gaming adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "gaming compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    # shellcheck disable=SC2016
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "gaming adapter owner: $route"
+  done
 done
 
-install_packages=$(OMARCHY_PATH="$root" "$root/qvcore/gaming/retroarch-packages")
+install_packages=$(QVOS_PATH="$root" "$root/qvcore/gaming/retroarch-packages")
 [[ -z $(printf '%s\n' "$install_packages" | sort | uniq -d) ]] ||
   fail "RetroArch package inventory is not unique"
 grep -Fqx 'libretro-database-git' <<<"$install_packages" ||
@@ -39,8 +49,35 @@ if rg -n 'rm[[:space:]]+-rf.*retroarch|\.config/retroarch|\.local/share/retroarc
   "$root/qvcore/gaming/retroarch-remove"; then
   fail "normal RetroArch removal deletes user data"
 fi
-grep -Fqx 'xbox-controller|package|xpadneo-dkms|tui|true|tui|true|omarchy-install-gaming-xbox-controllers --defer-reboot|omarchy-remove-gaming-xbox-controllers --defer-reboot' \
+grep -Fqx 'xbox-controller|package|xpadneo-dkms|tui|true|tui|true|qv-install-gaming-xbox-controllers --defer-reboot|qv-remove-gaming-xbox-controllers --defer-reboot' \
   "$root/qvcore/menu/software-actions.psv" ||
   fail "Xbox controller TUI reboot deferral"
+# This intentionally matches the literal compatibility fallback expression.
+# shellcheck disable=SC2016
+compatibility_path_refs=$(
+  rg -n 'OMARCHY_PATH' \
+    "$root/qvcore/gaming" \
+    --glob '!AGENTS.md' \
+    --glob '!check' \
+    --glob '!native-paths' |
+    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' || true
+)
+if [[ -n $compatibility_path_refs ]]; then
+  printf '%s\n' "$compatibility_path_refs" >&2
+  fail "native gaming owner still dereferences the compatibility source root"
+fi
+if rg -n 'omarchy-(pkg|system)-(add|drop|reboot)' \
+  "$root/qvcore/gaming" \
+  --glob '!AGENTS.md' \
+  --glob '!check' \
+  --glob '!native-paths'; then
+  fail "native gaming owner still calls a compatibility helper"
+fi
+if rg -n 'omarchy-(install|remove)-gaming-(retroarch|xbox-controllers)' \
+  "$root/qvcore/menu" \
+  "$root/qvcore/tui" \
+  --glob '!owner-contracts.psv'; then
+  fail "native qvOS surfaces still call gaming compatibility routes"
+fi
 
 printf 'ok - gaming owners preserve user data and exact driver state\n'

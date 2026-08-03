@@ -62,6 +62,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+ln -s omarchy-pkg-add "$test_bin/qv-pkg-add"
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-aur-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-aur-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
@@ -133,7 +134,7 @@ installer_owner() {
 
 [[ $(software_owner dictation 8) == "omarchy-voxtype-install --yes" ]] ||
   fail "Dictation catalog lost its noninteractive owner contract"
-[[ $(software_owner xbox-controller 8) == "omarchy-install-gaming-xbox-controllers --defer-reboot" ]] ||
+[[ $(software_owner xbox-controller 8) == "qv-install-gaming-xbox-controllers --defer-reboot" ]] ||
   fail "Xbox Controllers catalog lost its deferred reboot contract"
 [[ $(software_owner proton 9) == "services/proton/manage remove --yes" &&
 $(software_owner devel 9) == "development/devel/manage remove --yes" ]] ||
@@ -241,7 +242,7 @@ grep -Fqx 'qvOS action: reboot required: NordVPN group membership changed' \
   <<<"$nord_output" ||
   fail "NordVPN deferred reboot signal"
 
-xbox_output=$(run_owner "$root/bin/omarchy-install-gaming-xbox-controllers" --defer-reboot)
+xbox_output=$(run_owner "$root/bin/qv-install-gaming-xbox-controllers" --defer-reboot)
 grep -Fqx 'qvOS action: reboot required: Xbox controller setup needs a reboot' \
   <<<"$xbox_output" ||
   fail "Xbox Controllers deferred reboot signal"

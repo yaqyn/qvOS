@@ -2,12 +2,13 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/gaming/retroarch.packages
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 (( $# == 0 )) || {
-  echo "Usage: omarchy-install-gaming-retroarch" >&2
+  echo "Usage: qv install gaming retroarch" >&2
   exit 2
 }
 
-package_output=$("$OMARCHY_PATH/qvcore/gaming/retroarch-packages")
+package_output=$("$QVOS_PATH/qvcore/gaming/retroarch-packages")
 mapfile -t packages <<<"$package_output"
 config_dir="$HOME/.config/retroarch"
 config_file="$config_dir/retroarch.cfg"
@@ -17,7 +18,7 @@ config_file="$config_dir/retroarch.cfg"
 }
 
 echo "Installing RetroArch..."
-omarchy-pkg-add "${packages[@]}"
+qv-pkg-add "${packages[@]}"
 
 mkdir -p "$HOME/Games/bios" "$HOME/Games/roms"
 mkdir -p "$config_dir"
