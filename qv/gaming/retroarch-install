@@ -1,0 +1,77 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qv/gaming/retroarch.packages
+(( $# == 0 )) || {
+  echo "Usage: omarchy-install-gaming-retroarch" >&2
+  exit 2
+}
+
+package_output=$("$OMARCHY_PATH/qv/gaming/retroarch-packages")
+mapfile -t packages <<<"$package_output"
+config_dir="$HOME/.config/retroarch"
+config_file="$config_dir/retroarch.cfg"
+[[ ! -L $config_file ]] || {
+  echo "Refusing to configure RetroArch through a symbolic-link config." >&2
+  exit 1
+}
+
+echo "Installing RetroArch..."
+omarchy-pkg-add "${packages[@]}"
+
+mkdir -p "$HOME/Games/bios" "$HOME/Games/roms"
+mkdir -p "$config_dir"
+touch "$config_file"
+
+set_config() {
+  local key=$1
+  local value=$2
+  local replacement="$key = \"$value\""
+  local staged
+  staged=$(mktemp --tmpdir="$config_dir" .retroarch.cfg.XXXXXX)
+  chmod --reference="$config_file" "$staged"
+  if ! awk -v key="$key" -v replacement="$replacement" '
+    index($0, key " = ") == 1 {
+      if (!replaced) print replacement
+      replaced = 1
+      next
+    }
+    { print }
+    END { if (!replaced) print replacement }
+  ' "$config_file" >"$staged"; then
+    rm -f -- "$staged"
+    return 1
+  fi
+  if ! mv -f -- "$staged" "$config_file"; then
+    rm -f -- "$staged"
+    return 1
+  fi
+}
+
+set_config rgui_browser_directory "$HOME/Games/roms"
+set_config system_directory "$HOME/Games/bios"
+set_config libretro_directory "/usr/lib/libretro"
+set_config libretro_info_path "/usr/share/libretro/info"
+set_config overlay_directory "/usr/share/libretro/overlays"
+set_config osk_overlay_directory "/usr/share/libretro/overlays/keyboards"
+set_config video_shader_dir "/usr/share/libretro/shaders/shaders_slang"
+set_config joypad_autoconfig_dir "/usr/share/libretro/autoconfig"
+set_config content_database_path "/usr/share/libretro/database/rdb"
+set_config cheat_database_path "/usr/share/libretro/database/cht"
+set_config cursor_directory "/usr/share/libretro/database/cursors"
+set_config video_driver "vulkan"
+set_config menu_driver "xmb"
+set_config video_shader_enable "true"
+set_config auto_shaders_enable "true"
+set_config content_show_images "false"
+set_config content_show_video "false"
+
+preset="$config_dir/config/global.slangp"
+if [[ ! -e $preset && ! -L $preset ]]; then
+  install -D -m 0644 /dev/stdin "$preset" <<'PRESET'
+#reference "/usr/share/libretro/shaders/shaders_slang/crt/crt-royale.slangp"
+PRESET
+fi
+
+echo
+echo "RetroArch is ready. ROMs stay in ~/Games/roms and BIOS files in ~/Games/bios."

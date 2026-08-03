@@ -1,0 +1,5 @@
+# Inherited gaming paths promoted to native qvOS ownership.
+bin/omarchy-install-gaming-retroarch
+bin/omarchy-install-gaming-xbox-controllers
+bin/omarchy-remove-gaming-retroarch
+bin/omarchy-remove-gaming-xbox-controllers

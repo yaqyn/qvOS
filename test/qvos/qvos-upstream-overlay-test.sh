@@ -21,8 +21,6 @@ else
 fi
 
 inherited_seams=(
-  bin/omarchy-install-gaming-xbox-controllers
-  bin/omarchy-install-gaming-retroarch
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
   bin/omarchy-voxtype-install
