@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+terminal_file=${QVOS_DEFAULTS_TERMINAL_FILE:-$HOME/.config/xdg-terminals.list}
+
+# shellcheck source=qvcore/defaults/lib
+source "$QVOS_PATH/qvcore/defaults/lib"
+
+usage() {
+  echo "Usage: qv default terminal [alacritty|foot|ghostty|kitty]" >&2
+}
+
+(( $# <= 1 )) || {
+  usage
+  exit 2
+}
+
+if (( $# == 0 )); then
+  if [[ ! -e $terminal_file && ! -L $terminal_file ]]; then
+    exit 0
+  fi
+  qvos_defaults_validate_target "$terminal_file"
+  desktop_id=$(awk '!/^[[:space:]]*(#|$)/ { print; exit }' "$terminal_file")
+  case $desktop_id in
+  Alacritty.desktop) printf 'alacritty\n' ;;
+  foot.desktop) printf 'foot\n' ;;
+  com.mitchellh.ghostty.desktop) printf 'ghostty\n' ;;
+  kitty.desktop) printf 'kitty\n' ;;
+  *) printf '%s\n' "$desktop_id" ;;
+  esac
+  exit
+fi
+
+case $1 in
+alacritty) terminal="alacritty"; desktop_id="Alacritty.desktop"; name="Alacritty"; glyph="" ;;
+foot) terminal="foot"; desktop_id="foot.desktop"; name="Foot"; glyph="" ;;
+ghostty) terminal="ghostty"; desktop_id="com.mitchellh.ghostty.desktop"; name="Ghostty"; glyph="" ;;
+kitty) terminal="kitty"; desktop_id="kitty.desktop"; name="Kitty"; glyph="" ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+command -v -- "$terminal" >/dev/null 2>&1 || {
+  echo "qvOS defaults: $name is not installed." >&2
+  exit 1
+}
+
+mode=0600
+if [[ -e $terminal_file || -L $terminal_file ]]; then
+  qvos_defaults_validate_target "$terminal_file"
+  mode=$(stat -c '%a' "$terminal_file")
+fi
+
+qvos_defaults_atomic_write "$terminal_file" "$mode" <<EOF
+# Terminal emulator preference order for xdg-terminal-exec
+# The first found and valid terminal will be used
+$desktop_id
+EOF
+
+qvos_defaults_notify "$glyph    $name is now the default terminal"

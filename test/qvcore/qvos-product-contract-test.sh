@@ -156,7 +156,7 @@ fi
   fail "failed qvOS config staging created a misleading backup"
 pass "config refreshes honor staged and installed Omarchy roots"
 
-grep -Fqx 'xdg-settings set default-web-browser chromium.desktop' "$root/qvcore/install/config/mimetypes" || fail "browser default contract"
+grep -Fqx '"$QVOS_PATH/qvcore/defaults/browser" chromium' "$root/qvcore/install/config/mimetypes" || fail "browser default contract"
 grep -Fqx 'editor_desktop=nvim.desktop' "$root/qvcore/install/config/mimetypes" || fail "text MIME default contract"
 if grep -Eq 'editor_desktop=(code|code-oss)\.desktop|command -v (code|code-oss)' "$root/qvcore/install/config/mimetypes"; then
   fail "retired Code text MIME preference"

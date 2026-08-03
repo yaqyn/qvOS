@@ -1,0 +1,77 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/defaults/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-default-browser\nbin/omarchy-default-editor\nbin/omarchy-default-terminal'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native defaults inventory"
+
+for application in browser editor terminal; do
+  owner="$root/qvcore/defaults/$application"
+  native_adapter="$root/bin/qv-default-$application"
+  compatibility_adapter="$root/bin/omarchy-default-$application"
+
+  [[ -x $owner && -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "$application default owner or adapter mode"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native $application default adapter contains implementation"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "$application default compatibility adapter contains implementation"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native $application default metadata"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "$application default compatibility adapter duplicates metadata"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/defaults/$application\" \"\$@\"" "$adapter" ||
+      fail "$application default adapter ownership"
+  done
+done
+
+[[ -x $root/qvcore/defaults/lib ]] || fail "defaults shared library mode"
+# shellcheck disable=SC2016
+grep -Fq 'mv -T -- "$temporary" "$target"' "$root/qvcore/defaults/lib" ||
+  fail "default files are not replaced atomically"
+if rg -n 'sed -i|cat >.*(uwsm/default|xdg-terminals)' \
+  "$root/qvcore/defaults/browser" \
+  "$root/qvcore/defaults/editor" \
+  "$root/qvcore/defaults/terminal" \
+  "$root/qvcore/defaults/lib"; then
+  fail "default owner retains an in-place configuration write"
+fi
+
+grep -Fqx '  qv-default-browser chromium' "$root/qvcore/browser/remove" ||
+  fail "browser removal bypasses native default ownership"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/defaults/browser" chromium' \
+  "$root/qvcore/install/config/mimetypes" ||
+  fail "fresh install bypasses native browser default ownership"
+if rg -n 'xdg-settings set default-web-browser|xdg-mime default .*x-scheme-handler/(http|https)' \
+  "$root/qvcore/browser" "$root/qvcore/install"; then
+  fail "browser association mutation remains duplicated"
+fi
+
+if rg -n 'omarchy-default-(browser|editor|terminal)' \
+  "$root/bin/omarchy-menu" "$root/qvcore/menu" \
+  --glob '!AGENTS.md' --glob '!owner-contracts.psv'; then
+  fail "native menus call a default compatibility route"
+fi
+
+for frontend in qv omarchy; do
+  for application in browser editor terminal; do
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend default $application" \
+      --arg binary "qv-default-$application" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend default $application native route"
+  done
+done
+
+printf 'ok - qvOS application defaults have one safe native owner\n'

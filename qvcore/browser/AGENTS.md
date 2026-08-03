@@ -17,7 +17,8 @@ delegate each selected operation once through the shared TUI.
 - Remove only exact qvOS-created flags, policy, and environment files. Never
   recursively delete a shared policy tree or user browser profile.
 - Preserve the Firefox/Zen Wayland environment while either browser remains.
-  Restore Chromium as the default before removing the active optional browser.
+  Restore Chromium through `qv-default-browser` before removing the active
+  optional browser; do not duplicate XDG association mutation here.
 - Store qvOS-owned Wayland environment under the `qvos-` filename. Migrate the
   exact retired Omarchy filename without touching other environment files.
 - Installation remains noninteractive and stream-safe. Validate the browser

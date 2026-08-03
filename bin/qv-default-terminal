@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# qv:summary=Set the default terminal used by xdg-terminal-exec
+# qv:args=[alacritty|foot|ghostty|kitty]
+# qv:examples=qv default terminal ghostty | qv default terminal kitty
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/defaults/terminal" "$@"

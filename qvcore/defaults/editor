@@ -1,0 +1,70 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+editor_file=${QVOS_DEFAULTS_EDITOR_FILE:-$HOME/.config/uwsm/default}
+
+# shellcheck source=qvcore/defaults/lib
+source "$QVOS_PATH/qvcore/defaults/lib"
+
+usage() {
+  echo "Usage: qv default editor [code|cursor|zed|sublime_text|helix|vim|emacs|nvim]" >&2
+}
+
+(( $# <= 1 )) || {
+  usage
+  exit 2
+}
+
+if (( $# == 0 )); then
+  if [[ ! -e $editor_file && ! -L $editor_file ]]; then
+    exit 0
+  fi
+  qvos_defaults_validate_target "$editor_file"
+  awk '/^export EDITOR=/ { sub(/^export EDITOR=/, ""); print; exit }' "$editor_file"
+  exit
+fi
+
+case $1 in
+code) editor="code"; name="VSCode"; glyph="" ;;
+cursor) editor="cursor"; name="Cursor"; glyph="" ;;
+zed | zeditor) editor="zeditor"; name="Zed"; glyph="" ;;
+sublime_text) editor="sublime_text"; name="Sublime Text"; glyph="" ;;
+helix) editor="helix"; name="Helix"; glyph="" ;;
+vim) editor="vim"; name="Vim"; glyph="" ;;
+emacs) editor="emacs"; name="Emacs"; glyph="" ;;
+nvim) editor="nvim"; name="Neovim"; glyph="" ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+command -v -- "$editor" >/dev/null 2>&1 || {
+  echo "qvOS defaults: $name is not installed." >&2
+  exit 1
+}
+
+mode=0600
+source_file=/dev/null
+if [[ -e $editor_file || -L $editor_file ]]; then
+  qvos_defaults_validate_target "$editor_file"
+  mode=$(stat -c '%a' "$editor_file")
+  source_file=$editor_file
+fi
+
+awk -v editor="$editor" '
+  /^export EDITOR=/ {
+    if (!written) {
+      print "export EDITOR=" editor
+      written = 1
+    }
+    next
+  }
+  { print }
+  END {
+    if (!written) print "export EDITOR=" editor
+  }
+' "$source_file" | qvos_defaults_atomic_write "$editor_file" "$mode"
+
+qvos_defaults_notify "$glyph    $name is now the default editor" "      Effective after logging out"

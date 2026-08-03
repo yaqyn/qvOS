@@ -54,7 +54,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   Ghostty, and Kitty through `action/terminal-launch` from every menu surface.
   `qvcore/menu/terminal-action` reports `available`, `installed`, or `active`,
   delegates missing installs to `omarchy-install-terminal`, and delegates an
-  installed non-default choice to `omarchy-default-terminal`. Never present
+  installed non-default choice to `qv-default-terminal`. Never present
   Install for an installed terminal or request sudo merely to make it default.
   The active terminal opens direct `Already default` information.
 - A concept with both availability and active/default/applied state follows the

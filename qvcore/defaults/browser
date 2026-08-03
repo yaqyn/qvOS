@@ -1,0 +1,98 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: qv default browser [chromium|chrome|brave|brave-origin|edge|firefox|zen]" >&2
+}
+
+(( $# <= 1 )) || {
+  usage
+  exit 2
+}
+
+command -v -- xdg-settings >/dev/null 2>&1 || {
+  echo "qvOS defaults: xdg-settings is unavailable." >&2
+  exit 1
+}
+
+current_browser() {
+  local desktop_id
+
+  desktop_id=$(xdg-settings get default-web-browser) || {
+    echo "qvOS defaults: could not read the default browser." >&2
+    return 1
+  }
+  case $desktop_id in
+  chromium.desktop) printf 'chromium\n' ;;
+  google-chrome.desktop) printf 'chrome\n' ;;
+  brave-browser.desktop) printf 'brave\n' ;;
+  brave-origin-beta.desktop) printf 'brave-origin\n' ;;
+  microsoft-edge.desktop) printf 'edge\n' ;;
+  firefox.desktop) printf 'firefox\n' ;;
+  zen.desktop) printf 'zen\n' ;;
+  *) printf '%s\n' "$desktop_id" ;;
+  esac
+}
+
+if (( $# == 0 )); then
+  current_browser
+  exit
+fi
+
+case $1 in
+chromium) desktop_id="chromium.desktop"; name="Chromium"; glyph="" ;;
+chrome) desktop_id="google-chrome.desktop"; name="Chrome"; glyph="󰊯" ;;
+brave) desktop_id="brave-browser.desktop"; name="Brave"; glyph="󰖟" ;;
+brave-origin) desktop_id="brave-origin-beta.desktop"; name="Brave Origin"; glyph="󰖟" ;;
+edge) desktop_id="microsoft-edge.desktop"; name="Edge"; glyph="󰇩" ;;
+firefox) desktop_id="firefox.desktop"; name="Firefox"; glyph="󰈹" ;;
+zen) desktop_id="zen.desktop"; name="Zen"; glyph="󰰷" ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+if [[ -n ${QVOS_DEFAULTS_APPLICATION_DIRS:-} ]]; then
+  application_dirs=$QVOS_DEFAULTS_APPLICATION_DIRS
+else
+  application_dirs="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  IFS=: read -r -a data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+  for data_dir in "${data_dirs[@]}"; do
+    [[ -z $data_dir ]] || application_dirs+="${application_dirs:+:}$data_dir/applications"
+  done
+fi
+
+desktop_available=0
+IFS=: read -r -a application_dir_list <<<"$application_dirs"
+for application_dir in "${application_dir_list[@]}"; do
+  if [[ -f $application_dir/$desktop_id ]]; then
+    desktop_available=1
+    break
+  fi
+done
+(( desktop_available == 1 )) || {
+  echo "qvOS defaults: $name is not installed." >&2
+  exit 1
+}
+
+previous_desktop=$(xdg-settings get default-web-browser) || {
+  echo "qvOS defaults: could not read the previous browser." >&2
+  exit 1
+}
+
+if ! xdg-settings set default-web-browser "$desktop_id" ||
+  [[ $(xdg-settings check default-web-browser "$desktop_id") != "yes" ]]; then
+  if [[ $previous_desktop == *.desktop ]] &&
+    xdg-settings set default-web-browser "$previous_desktop" &&
+    [[ $(xdg-settings check default-web-browser "$previous_desktop") == "yes" ]]; then
+    echo "qvOS defaults: browser selection failed; restored $previous_desktop." >&2
+  else
+    echo "qvOS defaults: browser selection failed and the previous default could not be verified." >&2
+  fi
+  exit 1
+fi
+
+if command -v -- notify-send >/dev/null 2>&1; then
+  notify-send -u low "$glyph    $name is now the default browser" >/dev/null 2>&1 || true
+fi

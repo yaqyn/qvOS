@@ -47,6 +47,11 @@ if rg -n 'rm[[:space:]]+-rf[[:space:]]+.*etc/(brave|opt)' \
 fi
 grep -Fq 'remove_firefox_wayland_if_unused' "$root/qvcore/browser/remove" ||
   fail "Firefox-family Wayland cleanup ownership"
+grep -Fq 'qv-default-browser chromium' "$root/qvcore/browser/remove" ||
+  fail "active browser removal bypasses the default owner"
+if rg -n 'xdg-settings set|xdg-mime default' "$root/qvcore/browser/remove"; then
+  fail "browser removal duplicates default-association mutation"
+fi
 if rg -n 'omarchy-(pkg|cmd)-(add|aur-add|drop|missing|present)' \
   "$root/qvcore/browser" \
   --glob '!AGENTS.md' \

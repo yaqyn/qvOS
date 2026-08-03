@@ -1,0 +1,4 @@
+# Inherited default-application commands promoted to native qvOS ownership.
+bin/omarchy-default-browser
+bin/omarchy-default-editor
+bin/omarchy-default-terminal

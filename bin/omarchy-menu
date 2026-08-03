@@ -381,7 +381,7 @@ show_setup_default_browser_menu() {
   browser_desktop_exists zen.desktop && options="${options:+$options\n}󰖟  Zen"
 
   local current=""
-  case "$(omarchy-default-browser)" in
+  case "$(qv-default-browser)" in
   chromium) current="  Chromium" ;;
   chrome) current="󰊯  Chrome" ;;
   brave) current="󰖟  Brave" ;;
@@ -392,13 +392,13 @@ show_setup_default_browser_menu() {
   esac
 
   case $(menu "Default Browser" "$options" "" "$current") in
-  *Chromium*) omarchy-default-browser chromium ;;
-  *Chrome*) omarchy-default-browser chrome ;;
-  *"Brave Origin"*) omarchy-default-browser brave-origin ;;
-  *Brave*) omarchy-default-browser brave ;;
-  *Edge*) omarchy-default-browser edge ;;
-  *Firefox*) omarchy-default-browser firefox ;;
-  *Zen*) omarchy-default-browser zen ;;
+  *Chromium*) qv-default-browser chromium ;;
+  *Chrome*) qv-default-browser chrome ;;
+  *"Brave Origin"*) qv-default-browser brave-origin ;;
+  *Brave*) qv-default-browser brave ;;
+  *Edge*) qv-default-browser edge ;;
+  *Firefox*) qv-default-browser firefox ;;
+  *Zen*) qv-default-browser zen ;;
   *) show_setup_default_menu ;;
   esac
 }
@@ -411,7 +411,7 @@ show_setup_default_terminal_menu() {
   omarchy-cmd-present kitty && options="${options:+$options\n}  Kitty"
 
   local current=""
-  case "$(omarchy-default-terminal)" in
+  case "$(qv-default-terminal)" in
   alacritty) current="  Alacritty" ;;
   foot) current="  Foot" ;;
   ghostty) current="  Ghostty" ;;
@@ -419,10 +419,10 @@ show_setup_default_terminal_menu() {
   esac
 
   case $(menu "Default Terminal" "$options" "" "$current") in
-  *Alacritty*) omarchy-default-terminal alacritty ;;
-  *Foot*) omarchy-default-terminal foot ;;
-  *Ghostty*) omarchy-default-terminal ghostty ;;
-  *Kitty*) omarchy-default-terminal kitty ;;
+  *Alacritty*) qv-default-terminal alacritty ;;
+  *Foot*) qv-default-terminal foot ;;
+  *Ghostty*) qv-default-terminal ghostty ;;
+  *Kitty*) qv-default-terminal kitty ;;
   *) show_setup_default_menu ;;
   esac
 }
@@ -439,7 +439,7 @@ show_setup_default_editor_menu() {
   omarchy-cmd-present emacs && options="${options:+$options\n}  Emacs"
 
   local current=""
-  case "$(omarchy-default-editor)" in
+  case "$(qv-default-editor)" in
   nvim) current="  Neovim" ;;
   code) current="  VSCode" ;;
   cursor) current="  Cursor" ;;
@@ -451,14 +451,14 @@ show_setup_default_editor_menu() {
   esac
 
   case $(menu "Default Editor" "$options" "" "$current") in
-  *Neovim*) omarchy-default-editor nvim ;;
-  *VSCode*) omarchy-default-editor code ;;
-  *Cursor*) omarchy-default-editor cursor ;;
-  *Zed*) omarchy-default-editor zed ;;
-  *Sublime*) omarchy-default-editor sublime_text ;;
-  *Helix*) omarchy-default-editor helix ;;
-  *Vim*) omarchy-default-editor vim ;;
-  *Emacs*) omarchy-default-editor emacs ;;
+  *Neovim*) qv-default-editor nvim ;;
+  *VSCode*) qv-default-editor code ;;
+  *Cursor*) qv-default-editor cursor ;;
+  *Zed*) qv-default-editor zed ;;
+  *Sublime*) qv-default-editor sublime_text ;;
+  *Helix*) qv-default-editor helix ;;
+  *Vim*) qv-default-editor vim ;;
+  *Emacs*) qv-default-editor emacs ;;
   *) show_setup_default_menu ;;
   esac
 }

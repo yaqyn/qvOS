@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-default-browser
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
 usage() {
@@ -24,10 +26,7 @@ set_fallback_default_browser() {
     return 1
   }
 
-  xdg-settings set default-web-browser chromium.desktop
-  xdg-mime default chromium.desktop x-scheme-handler/http
-  xdg-mime default chromium.desktop x-scheme-handler/https
-  xdg-mime default chromium.desktop text/html
+  qv-default-browser chromium
 }
 
 remove_policy_files() {

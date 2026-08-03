@@ -56,6 +56,10 @@ install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'STUB'
 #!/bin/bash
 exit 0
 STUB
+install -m 0755 /dev/stdin "$test_bin/qv-default-browser" <<'STUB'
+#!/bin/bash
+printf 'default-browser:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+STUB
 install -m 0755 /dev/stdin "$test_bin/qv-theme-set-browser" <<'STUB'
 #!/bin/bash
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
@@ -123,7 +127,7 @@ QVOS_TEST_DEFAULT_BROWSER=firefox.desktop \
   run_browser "$fixture/bin/qv-remove-browser" firefox >/dev/null
 [[ ! -e $test_home/.config/environment.d/qvos-firefox-wayland.conf ]] ||
   fail "unused Firefox-family Wayland cleanup"
-grep -Fqx 'xdg-settings:set default-web-browser chromium.desktop' "$action_log" ||
+grep -Fqx 'default-browser:chromium' "$action_log" ||
   fail "removed active browser fallback"
 
 printf '%s\n' 'CUSTOM_FIREFOX_SETTING=1' \

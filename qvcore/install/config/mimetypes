@@ -25,9 +25,7 @@ for archive_mime in \
   xdg-mime default engrampa.desktop "$archive_mime"
 done
 
-xdg-settings set default-web-browser chromium.desktop
-xdg-mime default chromium.desktop x-scheme-handler/http
-xdg-mime default chromium.desktop x-scheme-handler/https
+"$QVOS_PATH/qvcore/defaults/browser" chromium
 
 for video_mime in \
   video/mp4 \

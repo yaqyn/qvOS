@@ -78,6 +78,9 @@ cat >"$default_file" <<EOF
 $desktop_id
 EOF
 SCRIPT
+cp -- \
+  "$test_omarchy/bin/omarchy-default-terminal" \
+  "$test_omarchy/bin/qv-default-terminal"
 install -m 0755 /dev/stdin "$test_omarchy/bin/omarchy-install-terminal" <<'SCRIPT'
 #!/bin/bash
 slug=${1:-}

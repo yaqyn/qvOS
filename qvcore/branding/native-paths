@@ -2,7 +2,6 @@
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
 bin/omarchy-debug
-bin/omarchy-default-browser
 bin/omarchy-dev-benchmark
 bin/omarchy-dev-bin-metadata
 bin/omarchy-install-helix
