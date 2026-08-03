@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+themes_dir="$HOME/.config/omarchy/themes"
+current_name_path="$HOME/.config/omarchy/current/theme.name"
+current_name=""
+managed=0
+updated=0
+failed=0
+active_updated=0
+[[ -f $current_name_path ]] && current_name=$(<"$current_name_path")
+shopt -s nullglob
+for theme_dir in "$themes_dir"/*/; do
+  if [[ -d $theme_dir ]] && [[ ! -L ${theme_dir%/} ]] && [[ -d $theme_dir/.git ]]; then
+    ((managed += 1))
+    theme_name=$(basename -- "$theme_dir")
+    echo "Updating: $theme_name"
+    if ! "$QVOS_PATH/qvcore/theme/validate" "${theme_dir%/}"; then
+      echo "Skipping unsafe or incompatible theme: $theme_name" >&2
+      failed=1
+      continue
+    fi
+    if [[ -n $(git -C "$theme_dir" status --porcelain=v1 --untracked-files=all) ]]; then
+      echo "Skipping theme with local changes: $theme_name" >&2
+      failed=1
+      continue
+    fi
+    previous_head=$(git -C "$theme_dir" rev-parse --verify HEAD)
+    if ! git -C "$theme_dir" pull --ff-only; then
+      failed=1
+      continue
+    fi
+    if ! "$QVOS_PATH/qvcore/theme/validate" "${theme_dir%/}"; then
+      echo "Updated theme is unsafe or incompatible; restoring $theme_name." >&2
+      if ! git -C "$theme_dir" reset --hard "$previous_head" >/dev/null ||
+        ! git -C "$theme_dir" clean -fd >/dev/null ||
+        ! "$QVOS_PATH/qvcore/theme/validate" "${theme_dir%/}"; then
+        echo "Could not restore theme safely: $theme_name" >&2
+      fi
+      failed=1
+      continue
+    fi
+    current_head=$(git -C "$theme_dir" rev-parse --verify HEAD)
+    if [[ $current_head != "$previous_head" ]]; then
+      ((updated += 1))
+      [[ $theme_name == "$current_name" ]] && active_updated=1
+    fi
+  fi
+done
+
+if ((managed == 0)); then
+  echo "No Git-managed custom themes are installed."
+elif ((updated == 0 && failed == 0)); then
+  echo "Git-managed custom themes are already current."
+fi
+
+if ((active_updated)); then
+  if ! QVOS_THEME_SKIP_BACKGROUND=1 qv-theme-set "$current_name"; then
+    echo "The active theme was updated but could not be reapplied: $current_name" >&2
+    failed=1
+  fi
+fi
+
+exit "$failed"

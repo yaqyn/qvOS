@@ -26,7 +26,7 @@ ln -s "$external_theme" "$themes_dir/linked"
 ln -s "$root/themes/tokyo-night" "$themes_dir/tokyo-night"
 ln -s "$test_root/missing-theme" "$themes_dir/broken"
 
-HOME="$test_root" OMARCHY_PATH="$root" "$root/qvcore/theme/install" >/dev/null
+HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/install" >/dev/null
 [[ -L $themes_dir/yaqyn ]] || fail "Yaqyn runtime link"
 [[ -f $themes_dir/personal/marker ]] || fail "personal theme data preservation"
 [[ -L $themes_dir/linked && -f $themes_dir/linked/marker ]] ||
@@ -37,7 +37,7 @@ HOME="$test_root" OMARCHY_PATH="$root" "$root/qvcore/theme/install" >/dev/null
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
 
-theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
+theme_list=$(HOME="$test_root" QVOS_PATH="$root" "$root/bin/qv-theme-list")
 [[ $theme_list == $'Linked\nPersonal\nYaqyn' ]] || fail "Yaqyn and custom theme list"
 
 "$root/qvcore/theme/validate" "$root/qvcore/theme/yaqyn" >/dev/null ||
@@ -53,6 +53,21 @@ cp -a "$root/qvcore/theme/yaqyn" "$unsafe_theme"
 ln -s /etc/passwd "$unsafe_theme/internal-link"
 if "$root/qvcore/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
   fail "internal theme link rejection"
+fi
+rm -rf -- "$unsafe_theme"
+cp -a "$root/qvcore/theme/yaqyn" "$unsafe_theme"
+printf '112233; __import__("os").system("touch /tmp/qvos-theme-injection")\n' \
+  >"$unsafe_theme/keyboard.rgb"
+if "$root/qvcore/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
+  fail "keyboard code-injection payload rejection"
+fi
+rm -rf -- "$unsafe_theme"
+cp -a "$root/qvcore/theme/yaqyn" "$unsafe_theme"
+jq '.extension = "publisher.package;touch-pwned"' \
+  "$unsafe_theme/vscode.json" >"$unsafe_theme/vscode.json.next"
+mv -- "$unsafe_theme/vscode.json.next" "$unsafe_theme/vscode.json"
+if "$root/qvcore/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
+  fail "unsafe editor extension metadata rejection"
 fi
 rm -rf -- "$unsafe_theme"
 
@@ -76,26 +91,18 @@ for command in \
   omarchy-restart-opencode \
   omarchy-restart-swayosd \
   omarchy-restart-terminal \
-  omarchy-restart-waybar \
-  omarchy-theme-bg-next \
-  omarchy-theme-colors-from-alacritty \
-  omarchy-theme-set-browser \
-  omarchy-theme-set-foot \
-  omarchy-theme-set-gnome \
-  omarchy-theme-set-keyboard \
-  omarchy-theme-set-obsidian \
-  omarchy-theme-set-templates \
-  omarchy-theme-set-vscode; do
+  omarchy-restart-waybar; do
   ln -s theme-command-stub "$test_bin/$command"
 done
-ln -s "$root/bin/omarchy-theme-set" "$test_bin/omarchy-theme-set"
+ln -s "$root/bin/qv-theme-set" "$test_bin/qv-theme-set"
 
 theme_set_output=$(
   HOME="$test_root" \
-    OMARCHY_PATH="$root" \
-    OMARCHY_THEME_SKIP_BACKGROUND=1 \
+    QVOS_PATH="$root" \
+    QVOS_THEME_SKIP_BACKGROUND=1 \
+    QVOS_THEME_SKIP_INTEGRATIONS=1 \
     PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-theme-set" "Personal" 2>&1
+    "$root/bin/qv-theme-set" "Personal" 2>&1
 ) || fail "custom theme selection command"
 [[ -z $theme_set_output ]] || fail "custom theme selection emitted warnings"
 [[ $(<"$test_root/.config/omarchy/current/theme.name") == "personal" ]] ||
@@ -105,10 +112,11 @@ theme_set_output=$(
 
 theme_set_output=$(
   HOME="$test_root" \
-    OMARCHY_PATH="$root" \
-    OMARCHY_THEME_SKIP_BACKGROUND=1 \
+    QVOS_PATH="$root" \
+    QVOS_THEME_SKIP_BACKGROUND=1 \
+    QVOS_THEME_SKIP_INTEGRATIONS=1 \
     PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-theme-set" "Linked" 2>&1
+    "$root/bin/qv-theme-set" "Linked" 2>&1
 ) || fail "linked theme selection command"
 [[ -z $theme_set_output ]] || fail "linked theme selection emitted warnings"
 [[ $(<"$test_root/.config/omarchy/current/theme/marker") == "linked" ]] ||
@@ -116,8 +124,8 @@ theme_set_output=$(
 
 set +e
 yaqyn_remove_output=$(
-  HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-theme-remove" "Yaqyn" 2>&1
+  HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+    "$root/bin/qv-theme-remove" "Yaqyn" 2>&1
 )
 yaqyn_remove_status=$?
 set -e
@@ -125,8 +133,8 @@ set -e
 [[ $yaqyn_remove_output == "Yaqyn is the bundled qvOS theme and cannot be removed." ]] ||
   fail "Yaqyn removal protection message"
 
-HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-theme-remove" "Linked"
+HOME="$test_root" QVOS_PATH="$root" QVOS_THEME_SKIP_INTEGRATIONS=1 \
+  PATH="$test_bin:/usr/bin" "$root/bin/qv-theme-remove" "Linked"
 [[ ! -L $themes_dir/linked ]] || fail "linked theme removal"
 [[ -f $external_theme/marker ]] || fail "external linked theme target preservation"
 [[ $(<"$test_root/.config/omarchy/current/theme.name") == "yaqyn" ]] ||
@@ -134,8 +142,8 @@ HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
 
 set +e
 yaqyn_install_output=$(
-  HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-theme-install" \
+  HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+    "$root/bin/qv-theme-install" \
     "https://example.com/omarchy-yaqyn-theme.git" 2>&1
 )
 yaqyn_install_status=$?
@@ -157,23 +165,51 @@ git -C "$theme_source" \
 git clone -q --bare "$theme_source" "$theme_remote"
 
 HOME="$test_root" \
-  OMARCHY_PATH="$root" \
-  OMARCHY_THEME_SKIP_BACKGROUND=1 \
+  QVOS_PATH="$root" \
+  QVOS_THEME_SKIP_BACKGROUND=1 \
+  QVOS_THEME_SKIP_INTEGRATIONS=1 \
   PATH="$test_bin:/usr/bin" \
   GIT_ALLOW_PROTOCOL=file \
   GIT_CONFIG_COUNT=1 \
   GIT_CONFIG_KEY_0="url.file://$test_root/remotes/.insteadOf" \
   GIT_CONFIG_VALUE_0='https://themes.example/' \
-  "$root/bin/omarchy-theme-install" \
+  "$root/bin/qv-theme-install" \
   'https://themes.example/omarchy-remote-theme.git' >/dev/null
 [[ -d $themes_dir/remote/.git ]] || fail "Git-managed custom theme source"
 [[ ! -e $test_root/.config/omarchy/current/theme/.git ]] ||
   fail "rendered theme excludes Git metadata"
 
+previous_remote_head=$(git -C "$themes_dir/remote" rev-parse HEAD)
+printf 'invalid keyboard payload\n' >"$theme_source/keyboard.rgb"
+git -C "$theme_source" add keyboard.rgb
+git -C "$theme_source" \
+  -c user.name='qvOS Test' \
+  -c user.email='test@qvos.invalid' \
+  commit -qm 'Invalid theme update'
+git -C "$theme_source" push -q "$theme_remote" main
+set +e
+HOME="$test_root" \
+  QVOS_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  GIT_ALLOW_PROTOCOL=file \
+  GIT_CONFIG_COUNT=1 \
+  GIT_CONFIG_KEY_0="url.file://$test_root/remotes/.insteadOf" \
+  GIT_CONFIG_VALUE_0='https://themes.example/' \
+  "$root/bin/qv-theme-update" >/dev/null 2>&1
+theme_update_status=$?
+set -e
+((theme_update_status == 1)) || fail "invalid Git theme update status"
+[[ $(git -C "$themes_dir/remote" rev-parse HEAD) == "$previous_remote_head" ]] ||
+  fail "invalid Git theme update rollback"
+[[ -z $(git -C "$themes_dir/remote" status --porcelain=v1 --untracked-files=all) ]] ||
+  fail "invalid Git theme update cleanup"
+"$root/qvcore/theme/validate" "$themes_dir/remote" >/dev/null ||
+  fail "restored Git theme validation"
+
 set +e
 local_install_output=$(
-  HOME="$test_root" OMARCHY_PATH="$root" PATH="$test_bin:/usr/bin" \
-    "$root/bin/omarchy-theme-install" "$theme_source" 2>&1
+  HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+    "$root/bin/qv-theme-install" "$theme_source" 2>&1
 )
 local_install_status=$?
 set -e
@@ -187,8 +223,8 @@ printf 'preserve\n' >"$vault/.obsidian/themes/Omarchy/marker"
 printf 'body {}\n' >"$test_root/.config/omarchy/current/theme/obsidian.css"
 jq -n --arg vault "$vault" '{vaults: {test: {path: $vault}}}' \
   >"$test_root/.config/obsidian/obsidian.json"
-HOME="$test_root" OMARCHY_PATH="$root" \
-  "$root/bin/omarchy-theme-set-obsidian"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/bin/qv-theme-set-obsidian"
 grep -Fq '"name": "qvOS"' "$vault/.obsidian/themes/qvOS/manifest.json" ||
   fail "qvOS Obsidian theme identity"
 [[ -f $vault/.obsidian/themes/qvOS/theme.css ]] ||
@@ -199,8 +235,8 @@ grep -Fq '"name": "qvOS"' "$vault/.obsidian/themes/qvOS/manifest.json" ||
 background_fixture="$test_root/background-fixture"
 background_home="$test_root/background-home"
 background_log="$test_root/background-open.log"
-install -D -m 0755 "$root/bin/omarchy-theme-bg-install" \
-  "$background_fixture/bin/omarchy-theme-bg-install"
+install -D -m 0755 "$root/bin/qv-theme-bg-install" \
+  "$background_fixture/bin/qv-theme-bg-install"
 install -D -m 0755 "$root/qvcore/theme/backgrounds" \
   "$background_fixture/qvcore/theme/backgrounds"
 install -D -m 0755 "$root/qvcore/theme/name" \
@@ -214,20 +250,48 @@ mkdir -p \
   "$background_home/.config/omarchy/themes/yaqyn"
 printf 'yaqyn\n' >"$background_home/.config/omarchy/current/theme.name"
 HOME="$background_home" \
-  OMARCHY_PATH="$background_fixture" \
+  QVOS_PATH="$background_fixture" \
   QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
-  "$background_fixture/bin/omarchy-theme-bg-install"
+  "$background_fixture/bin/qv-theme-bg-install"
 expected_background="$background_home/.config/omarchy/backgrounds/yaqyn"
 [[ -d $expected_background && $(<"$background_log") == "$expected_background" ]] ||
   fail "validated current-theme background directory"
 printf '../escape\n' >"$background_home/.config/omarchy/current/theme.name"
 if HOME="$background_home" \
-  OMARCHY_PATH="$background_fixture" \
+  QVOS_PATH="$background_fixture" \
   QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
-  "$background_fixture/bin/omarchy-theme-bg-install" >/dev/null 2>&1; then
+  "$background_fixture/bin/qv-theme-bg-install" >/dev/null 2>&1; then
   fail "theme background path traversal rejection"
 fi
 [[ ! -e $background_home/.config/omarchy/escape ]] ||
   fail "invalid theme name created an external background directory"
+
+editor_home="$test_root/editor-home"
+editor_bin="$test_root/editor-bin"
+editor_log="$test_root/editor.log"
+mkdir -p "$editor_home/.config/omarchy/current/theme" "$editor_bin"
+cp "$root/qvcore/theme/yaqyn/vscode.json" \
+  "$editor_home/.config/omarchy/current/theme/vscode.json"
+install -m 0755 /dev/stdin "$editor_bin/qv-cmd-present" <<'COMMAND'
+#!/bin/bash
+[[ $1 == "code" ]]
+COMMAND
+install -m 0755 /dev/stdin "$editor_bin/qv-toggle-enabled" <<'TOGGLE'
+#!/bin/bash
+exit 1
+TOGGLE
+install -m 0755 /dev/stdin "$editor_bin/code" <<'CODE'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_TEST_EDITOR_LOG"
+[[ ${1:-} == "--list-extensions" ]]
+CODE
+HOME="$editor_home" \
+  PATH="$editor_bin:/usr/bin" \
+  QVOS_TEST_EDITOR_LOG="$editor_log" \
+  "$root/qvcore/theme/set-vscode" 2>/dev/null
+[[ $(<"$editor_log") == "--list-extensions" ]] ||
+  fail "external theme editor extension remains user-controlled"
+[[ ! -e $editor_home/.config/Code/User/settings.json ]] ||
+  fail "missing editor extension changed editor settings"
 
 printf 'ok - bundled Yaqyn and compatible directory, Git, and linked theme lifecycles\n'

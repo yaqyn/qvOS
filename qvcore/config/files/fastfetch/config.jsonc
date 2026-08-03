@@ -136,7 +136,7 @@
       "type": "command",
       "key": "theme",
       "keyColor": "bright_black",
-      "text": "theme=$(omarchy-theme-current 2>/dev/null || echo qvos); printf '%s  \\e[38;5;238m● \\e[38;5;245m● \\e[38;5;160m●\\n' \"$theme\""
+      "text": "theme=$(qv-theme-current 2>/dev/null || echo qvos); printf '%s  \\e[38;5;238m● \\e[38;5;245m● \\e[38;5;160m●\\n' \"$theme\""
     },
     {
       "type": "command",

@@ -6,6 +6,49 @@ usage() {
   exit 2
 }
 
+validate_single_line() {
+  local path=$1
+  local label=$2
+  local pattern=$3
+  local value
+
+  [[ ! -e $path && ! -L $path ]] && return 0
+  [[ -f $path && ! -L $path ]] || {
+    echo "$label must be a regular file: $path" >&2
+    return 1
+  }
+  IFS= read -r value <"$path" || [[ -n $value ]] || {
+    echo "$label is empty: $path" >&2
+    return 1
+  }
+  if (( $(awk 'END { print NR }' "$path") != 1 )) || [[ ! $value =~ $pattern ]]; then
+    echo "Invalid $label: $path" >&2
+    return 1
+  fi
+}
+
+validate_vscode_theme() {
+  local path=$1
+  local name
+  local extension
+
+  [[ ! -e $path && ! -L $path ]] && return 0
+  [[ -f $path && ! -L $path ]] || {
+    echo "VS Code theme metadata must be a regular file: $path" >&2
+    return 1
+  }
+  if ! name=$(jq -er '.name | select(type == "string")' "$path" 2>/dev/null) ||
+    ! extension=$(jq -er '.extension | select(type == "string")' "$path" 2>/dev/null); then
+    echo "Invalid VS Code theme metadata: $path" >&2
+    return 1
+  fi
+  if [[ ! $name =~ ^[[:alnum:]][[:alnum:]._+():/\ -]{0,127}$ ]] ||
+    [[ ! $extension =~ ^[[:alnum:]][[:alnum:]-]{0,63}\.[[:alnum:]][[:alnum:]_.-]{0,127}$ ]]; then
+    echo "Unsafe VS Code theme metadata: $path" >&2
+    return 1
+  fi
+}
+
 emit_colors() {
   local colors_file=$1
   local line
@@ -123,3 +166,17 @@ else
   echo "Theme requires a regular colors.toml or alacritty.toml: $theme_path" >&2
   exit 1
 fi
+
+validate_single_line \
+  "$resolved_theme/keyboard.rgb" \
+  "keyboard color" \
+  '^#?[0-9A-Fa-f]{6}$'
+validate_single_line \
+  "$resolved_theme/chromium.theme" \
+  "browser color" \
+  '^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]),([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]),([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+validate_single_line \
+  "$resolved_theme/icons.theme" \
+  "icon theme name" \
+  '^[[:alnum:]][[:alnum:]_.+-]{0,127}$'
+validate_vscode_theme "$resolved_theme/vscode.json"

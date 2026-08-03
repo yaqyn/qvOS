@@ -9,23 +9,38 @@ install a compatible Omarchy-format Git theme, or link a compatible theme into
 `~/.config/omarchy/themes/`. Keep one renderer for bundled and user themes; do
 not restore the inherited source catalog or a second rendering system.
 
+The `~/.config/omarchy/{themes,current,backgrounds,themed}` namespace is a
+documented external-theme compatibility ABI, not an inherited source owner.
+Native commands are `qv-theme-*` and `qv-plymouth-set-by-theme`; matching
+`omarchy-*` files are metadata-free compatibility adapters only. Implement
+behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
+
 - `qvcore/theme/install` owns the source-independent runtime and removes only
   inherited stock-theme symlinks. Preserve real user directories, external
   links, and backups. It owns and may replace only the Yaqyn runtime link.
 - `qvcore/theme/configure` is the single fresh-install owner. The inherited install
   stage delegates to it; qvOS install code must not repeat its mutations.
 - Theme list, set, install, remove, update, and appearance providers read only
-  the user theme directory. `qvcore/theme/name` is the shared slug validator.
+  the user theme directory. `qvcore/theme/name` is the shared slug validator,
+  and `qvcore/theme/validate` owns payload and optional-integration validation.
 - `qvcore/theme/backgrounds` opens only the validated current installed theme's
   user-background directory. Preserve compatible theme links, but never use
   unchecked `theme.name` content as a path component.
-- Treat compatible themes as untrusted data. Git installs accept HTTPS or Git
-  SSH only, clone shallowly, validate the complete payload before activation,
-  reject internal links and special files, and never copy Git metadata into the
-  rendered theme. Parse `colors.toml` through `qvcore/theme/validate`; never build
-  executable template programs from unchecked theme values.
+- Treat theme paths, colors, and integration metadata as untrusted input. Git
+  installs accept HTTPS or Git SSH only, clone shallowly, validate before
+  activation, reject internal links and special files, and never copy Git
+  metadata into the rendered theme. Themes still contain application config,
+  so describe them as user-selected trusted content rather than a sandbox.
+  Parse `colors.toml` through the validator; never interpolate theme values into
+  source code or terminal control sequences. Never install an editor extension
+  declared by an external theme. The explicit VS Code installer may install only
+  the bundled, version-checked Yaqyn VSIX.
 - Yaqyn is always present and cannot be installed over or removed. Removing an
   active custom theme first returns to Yaqyn without changing the background.
+- Theme activation stages and validates a complete next tree, swaps it
+  atomically, and preserves the prior tree until the name marker lands. Git
+  updates require a clean checkout and restore the exact prior commit if the
+  pulled payload fails validation.
 - Post-update refresh reinstalls Yaqyn and reapplies the selected compatible
   custom theme when it still exists; otherwise it falls back to Yaqyn.
 - List promoted inherited files in `native-paths` and deliberately absent

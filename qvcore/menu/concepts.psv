@@ -1,6 +1,6 @@
 # slug|icon|name|breadcrumb|keywords|label 1|action 1|label 2|action 2|...
-theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:omarchy-theme-install|Remove|present:qvcore/tui/task/selectable-owner theme-remove|Update|present:omarchy-theme-update
-background||Background|Settings · Appearance|wallpaper,appearance,style|Choose|menu:background|Install|run:omarchy-theme-bg-install
+theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:qv-theme-install|Remove|present:qvcore/tui/task/selectable-owner theme-remove|Update|present:qv-theme-update
+background||Background|Settings · Appearance|wallpaper,appearance,style|Choose|menu:background|Install|run:qv-theme-bg-install
 font||Font|Settings · Appearance|typeface,appearance,style|Choose|menu:font|Install|menu:install-font
 screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:omarchy-launch-screensaver force|Toggle|run:omarchy-toggle-screensaver|Edit Text|run:omarchy-branding-screensaver text|Set Image|run:omarchy-branding-screensaver image|Restore|run:omarchy-branding-screensaver reset
 unlock-screen|󰟵|Unlock Screen|Settings · Appearance|plymouth,boot,style|Open|run:omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400

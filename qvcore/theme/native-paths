@@ -1,11 +1,21 @@
 # Inherited paths promoted to qvOS theme ownership.
 bin/omarchy-plymouth-set-by-theme
 bin/omarchy-theme-bg-install
+bin/omarchy-theme-bg-next
+bin/omarchy-theme-bg-set
+bin/omarchy-theme-colors-from-alacritty
+bin/omarchy-theme-current
 bin/omarchy-theme-install
 bin/omarchy-theme-list
+bin/omarchy-theme-refresh
 bin/omarchy-theme-remove
 bin/omarchy-theme-set
+bin/omarchy-theme-set-browser
 bin/omarchy-theme-set-foot
+bin/omarchy-theme-set-gnome
+bin/omarchy-theme-set-keyboard
+bin/omarchy-theme-set-keyboard-asus-rog
+bin/omarchy-theme-set-keyboard-f16
 bin/omarchy-theme-set-obsidian
 bin/omarchy-theme-set-templates
 bin/omarchy-theme-set-vscode

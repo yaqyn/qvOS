@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -euo pipefail
+
+FRAMEWORK16_THEME="$HOME/.config/omarchy/current/theme/keyboard.rgb"
+
+if qv-cmd-present qmk_hid && [[ -f $FRAMEWORK16_THEME ]]; then
+  hex=$(<"$FRAMEWORK16_THEME")
+  hex="${hex#\#}"
+  [[ $hex =~ ^[0-9A-Fa-f]{6}$ ]] || {
+    echo "Invalid Framework keyboard color: $FRAMEWORK16_THEME" >&2
+    exit 1
+  }
+
+  # Convert hex to QMK HSV (0-255 scale) using Python's colorsys
+  read -r h s < <(python3 - "$hex" <<'PYTHON'
+import colorsys
+import sys
+
+color = sys.argv[1]
+r, g, b = (int(color[index:index + 2], 16) / 255 for index in (0, 2, 4))
+h, s, v = colorsys.rgb_to_hsv(r, g, b)
+print(int(h * 255), int(s * 255))
+PYTHON
+  )
+
+  qmk_hid via --rgb-effect 1 2>/dev/null
+  qmk_hid via --rgb-hue "$h" 2>/dev/null
+  qmk_hid via --rgb-saturation "$s" 2>/dev/null
+  qmk_hid via --rgb-brightness 100 2>/dev/null
+  qmk_hid via --save 2>/dev/null
+fi

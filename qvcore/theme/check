@@ -10,95 +10,159 @@ fail() {
   exit 1
 }
 
-[[ -x $root/qvcore/theme/validate ]] || fail "theme validator is not executable"
+for owner in \
+  apply-plymouth \
+  background-next \
+  background-set \
+  backgrounds \
+  colors-from-alacritty \
+  configure \
+  current \
+  install \
+  install-external \
+  list \
+  name \
+  refresh \
+  remove \
+  set \
+  set-browser \
+  set-foot \
+  set-gnome \
+  set-keyboard \
+  set-keyboard-asus-rog \
+  set-keyboard-f16 \
+  set-obsidian \
+  set-templates \
+  set-vscode \
+  update \
+  validate; do
+  [[ -x $root/qvcore/theme/$owner ]] || fail "theme owner mode: $owner"
+done
+
+declare -A route_owners=(
+  [plymouth-set-by-theme]=apply-plymouth
+  [theme-bg-install]=backgrounds
+  [theme-bg-next]=background-next
+  [theme-bg-set]=background-set
+  [theme-colors-from-alacritty]=colors-from-alacritty
+  [theme-current]=current
+  [theme-install]=install-external
+  [theme-list]=list
+  [theme-refresh]=refresh
+  [theme-remove]=remove
+  [theme-set]=set
+  [theme-set-browser]=set-browser
+  [theme-set-foot]=set-foot
+  [theme-set-gnome]=set-gnome
+  [theme-set-keyboard]=set-keyboard
+  [theme-set-keyboard-asus-rog]=set-keyboard-asus-rog
+  [theme-set-keyboard-f16]=set-keyboard-f16
+  [theme-set-obsidian]=set-obsidian
+  [theme-set-templates]=set-templates
+  [theme-set-vscode]=set-vscode
+  [theme-update]=update
+)
+
+for route in "${!route_owners[@]}"; do
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  owner="qvcore/theme/${route_owners[$route]}"
+  [[ -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "theme adapter mode: $route"
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native theme adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "theme compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native theme adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "theme compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "theme adapter owner: $route"
+  done
+done
+
 [[ ! -e $root/themes ]] || fail "inherited theme catalog remains"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "themes/" ]] ||
   fail "retired theme inventory is broader than the inherited catalog"
 
-mapfile -t native_paths < <(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest"
-)
-[[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
-  fail "native theme paths are not sorted and unique"
-
-for required_path in \
-  bin/omarchy-plymouth-set-by-theme \
-  bin/omarchy-theme-bg-install \
-  bin/omarchy-theme-install \
-  bin/omarchy-theme-list \
-  bin/omarchy-theme-remove \
-  bin/omarchy-theme-set \
-  bin/omarchy-theme-set-obsidian \
-  bin/omarchy-theme-update \
-  default/elephant/omarchy_themes.lua \
-  default/elephant/omarchy_unlocks.lua \
-  default/themed/obsidian.css.tpl; do
-  grep -Fqx "$required_path" "$native_manifest" ||
-    fail "native theme owner is missing: $required_path"
+for inventory in "$native_manifest" "$retired_manifest"; do
+  [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u
+  ) ]] || fail "theme path inventory is not sorted and unique: $inventory"
+done
+for route in "${!route_owners[@]}"; do
+  grep -Fqx "bin/omarchy-$route" "$native_manifest" ||
+    fail "native theme inventory is missing: bin/omarchy-$route"
 done
 
-[[ -x $root/qvcore/theme/backgrounds ]] ||
-  fail "theme background owner is not executable"
-(( $(wc -l <"$root/bin/omarchy-theme-bg-install") <= 10 )) ||
-  fail "theme background compatibility adapter contains implementation"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/theme/backgrounds" "$@"' \
-  "$root/bin/omarchy-theme-bg-install" ||
-  fail "theme background compatibility adapter does not delegate directly"
-grep -Fq 'qvcore/theme/name' "$root/qvcore/theme/backgrounds" ||
-  fail "theme background owner bypasses the shared name validator"
-
-if rg -q '\$OMARCHY_PATH/themes' \
-  "$root/bin/omarchy-theme-list" \
-  "$root/bin/omarchy-theme-set" \
-  "$root/bin/omarchy-plymouth-set-by-theme" \
-  "$root/default/elephant/omarchy_themes.lua" \
-  "$root/default/elephant/omarchy_unlocks.lua"; then
-  fail "active theme lifecycle still reads the inherited catalog"
+compatibility_path_refs=$(
+  # This intentionally matches the literal compatibility fallback expression.
+  # shellcheck disable=SC2016
+  rg -n 'OMARCHY_PATH' "$root/qvcore/theme" \
+    --glob '!AGENTS.md' --glob '!check' --glob '!native-paths' |
+    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-' || true
+)
+if [[ -n $compatibility_path_refs ]]; then
+  printf '%s\n' "$compatibility_path_refs" >&2
+  fail "native theme owner dereferences the compatibility source root"
 fi
 
-grep -Fq 'qvcore/theme/name' "$root/bin/omarchy-theme-set" ||
+if rg -n \
+  'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))([^[:alnum:]_-]|$)' \
+  "$root/qvcore" "$root/config" "$root/default/elephant" \
+  --glob '!AGENTS.md' --glob '!check' --glob '!native-paths' \
+  --glob '!owner-contracts.psv'; then
+  fail "native qvOS surface calls a theme compatibility route"
+fi
+
+grep -Fq 'qvcore/theme/name' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses the shared name validator"
-grep -Fq 'qvcore/theme/name' "$root/bin/omarchy-theme-remove" ||
-  fail "theme removal bypasses the shared name validator"
-grep -Fq 'qvcore/theme/validate' "$root/bin/omarchy-theme-install" ||
+grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/install-external" ||
   fail "Git theme installation bypasses payload validation"
-grep -Fq 'qvcore/theme/validate' "$root/bin/omarchy-theme-set" ||
-  fail "theme rendering bypasses payload validation"
-grep -Fq 'qvcore/theme/validate' "$root/bin/omarchy-theme-set-templates" ||
-  fail "theme template rendering bypasses color validation"
-grep -Fq 'cannot be replaced by a theme repository' "$root/bin/omarchy-theme-install" ||
+grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set" ||
+  fail "theme renderer bypasses payload validation"
+grep -Fq 'cannot be replaced by a theme repository' "$root/qvcore/theme/install-external" ||
   fail "Yaqyn install protection"
-grep -Fq 'cannot be removed' "$root/bin/omarchy-theme-remove" ||
+grep -Fq 'cannot be removed' "$root/qvcore/theme/remove" ||
   fail "Yaqyn removal protection"
 # shellcheck disable=SC2016
+grep -Fq 'reset --hard "$previous_head"' "$root/qvcore/theme/update" ||
+  fail "invalid Git theme update rollback"
+if rg -n -- '--install-extension|int\('\''\$hex' \
+  "$root/qvcore/theme/set-vscode" \
+  "$root/qvcore/theme/set-keyboard-f16"; then
+  fail "theme data can still install editor code or enter Python source"
+fi
+
 [[ -f $root/qvcore/install/config/theme.sh &&
   ! -x $root/qvcore/install/config/theme.sh ]] ||
   fail "fresh install theme owner mode"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/theme/configure"' "$root/qvcore/install/config/theme.sh" ||
   fail "fresh install does not delegate to the qvOS theme owner"
-# shellcheck disable=SC2016
-grep -Fqx 'rm -f -- "$HOME/.config/chromium/SingletonLock" # otherwise archiso will own the chromium singleton' \
-  "$root/qvcore/install/config/theme.sh" ||
-  fail "fresh install does not remove only the Chromium singleton lock"
 if rg -q 'qvcore/theme/install|qvcore/install/config/theme' "$root/qvcore/install/configure"; then
   fail "qvOS install duplicates the theme owner"
 fi
 
-grep -Fq 'present:omarchy-theme-install' "$root/qvcore/menu/concepts.psv" ||
+grep -Fq 'present:qv-theme-install' "$root/qvcore/menu/concepts.psv" ||
   fail "compatible Git theme installation is not reachable"
 grep -Fq 'present:qvcore/tui/task/selectable-owner theme-remove' "$root/qvcore/menu/concepts.psv" ||
   fail "custom theme removal is not reachable"
-grep -Fq 'present:omarchy-theme-update' "$root/qvcore/menu/concepts.psv" ||
+grep -Fq 'present:qv-theme-update' "$root/qvcore/menu/concepts.psv" ||
   fail "custom theme updates are not reachable"
+grep -Fq 'activate = "qv-theme-set "' "$root/default/elephant/omarchy_themes.lua" ||
+  fail "theme provider bypasses the native qvOS command"
+grep -Fq 'qv-plymouth-set-by-theme' "$root/default/elephant/omarchy_unlocks.lua" ||
+  fail "unlock provider bypasses the native qvOS command"
 # shellcheck disable=SC2016
 grep -Fq 'current_theme=$(<"$theme_name_path")' "$root/qvcore/install/post-update-hook" ||
   fail "post-update does not preserve the selected custom theme"
 if rg -n 'Omarchy' \
-  "$root/bin/omarchy-theme-set-obsidian" \
+  "$root/qvcore/theme/set-obsidian" \
   "$root/default/themed/obsidian.css.tpl"; then
   fail "Obsidian theme still exposes inherited branding"
 fi
 
-printf 'ok - Yaqyn is the only bundled theme and compatible user themes remain supported\n'
+printf 'ok - qvOS owns one hardened Yaqyn and compatible-theme lifecycle\n'

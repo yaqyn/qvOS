@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# qvos:contract=bin/omarchy-theme-set-vscode
+# qvos:contract=bin/qv-theme-set-vscode
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 (( $# == 0 )) || {
@@ -37,6 +37,6 @@ else
 fi
 
 "$QVOS_PATH/qvcore/theme/install-vscode"
-omarchy-theme-set-vscode
+qv-theme-set-vscode
 
 echo "VS Code installed. Open it from the app launcher."

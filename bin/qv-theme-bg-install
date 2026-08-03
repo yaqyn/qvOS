@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# qv:summary=Open the current theme's background folder
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/theme/backgrounds" "$@"

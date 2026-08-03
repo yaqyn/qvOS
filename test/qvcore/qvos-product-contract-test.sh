@@ -171,7 +171,7 @@ done
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
 if grep -Eq '^[[:space:]]*nautilus([[:space:]]|$)' \
-  "$root/bin/omarchy-theme-bg-install" \
+  "$root/bin/qv-theme-bg-install" \
   "$root/bin/omarchy-install-gaming-retroarch"; then
   fail "direct Nautilus launcher remains"
 fi
@@ -1018,7 +1018,7 @@ HOME="$test_root" OMARCHY_PATH="$root" "$root/qvcore/theme/install" >/dev/null
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/personal-marker" >/dev/null ||
   fail "personal Yaqyn theme backup"
 
-theme_list=$(HOME="$test_root" OMARCHY_PATH="$root" "$root/bin/omarchy-theme-list")
+theme_list=$(HOME="$test_root" QVOS_PATH="$root" "$root/bin/qv-theme-list")
 grep -Fqx 'Yaqyn' <<<"$theme_list" || fail "bundled qvOS Yaqyn theme"
 grep -Fqx 'Custom' <<<"$theme_list" || fail "linked compatible user theme"
 if grep -Fqx 'Tokyo Night' <<<"$theme_list"; then
@@ -1040,10 +1040,10 @@ for _, theme in ipairs(themes) do
 end
 assert(yaqyn_theme)
 assert(yaqyn_theme.Preview:match("/%.config/omarchy/themes/yaqyn/preview%.png$"))
-assert(yaqyn_theme.Actions.activate == "omarchy-theme-set 'yaqyn'")
+assert(yaqyn_theme.Actions.activate == "qv-theme-set 'yaqyn'")
 assert(custom_theme)
 assert(custom_theme.Preview:match("/%.config/omarchy/themes/custom/preview%.png$"))
-assert(custom_theme.Actions.activate == "omarchy-theme-set 'custom'")
+assert(custom_theme.Actions.activate == "qv-theme-set 'custom'")
 
 dofile(root .. "/qvcore/menu/elephant/omarchy_unlocks.lua")
 local unlocks = GetEntries()
@@ -1064,7 +1064,7 @@ assert(custom_unlock.Preview:match("/%.config/omarchy/themes/custom/preview%-unl
 LUA
 pass "dynamic Style catalogs expose Yaqyn and compatible user themes only"
 
-grep -qx 'omarchy-theme-set "Yaqyn"' "$root/qvcore/theme/configure" || fail "fresh install theme"
+grep -qx 'qv-theme-set "Yaqyn"' "$root/qvcore/theme/configure" || fail "fresh install theme"
 if rg -q 'chmod[[:space:]]+a\\+rw' \
   "$root/qvcore/theme/configure" \
   "$root/qvcore/browser/install"; then

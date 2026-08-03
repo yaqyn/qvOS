@@ -1,12 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-source_dir="$OMARCHY_PATH/qvcore/theme/yaqyn"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_dir="$QVOS_PATH/qvcore/theme/yaqyn"
 runtime_dir="$HOME/.local/lib/qvos/theme/yaqyn"
 target="$HOME/.config/omarchy/themes/yaqyn"
 themes_dir="$HOME/.config/omarchy/themes"
 backup_dir="$HOME/.local/state/qvos/theme-backups"
-retired_catalog=$(realpath -m -- "$OMARCHY_PATH/themes")
+retired_catalog=$(realpath -m -- "$QVOS_PATH/themes")
 
 if [[ ! -d $source_dir ]]; then
   echo "Missing Yaqyn theme source: $source_dir" >&2

@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Resolve a theme by name and apply its unlock.png + colors.toml as the
+# Plymouth boot screen via the native qvOS boot owner.
+
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: qv-plymouth-set-by-theme <theme-name>" >&2
+  exit 2
+fi
+
+themes_dir="$HOME/.config/omarchy/themes"
+theme=$("$QVOS_PATH/qvcore/theme/name" --resolve "$themes_dir" "$1")
+theme_dir="$themes_dir/$theme"
+
+if [[ ! -d $theme_dir ]]; then
+  echo "Theme '$theme' does not exist in $HOME/.config/omarchy/themes" >&2
+  exit 1
+fi
+if [[ ! -f $theme_dir/colors.toml || ! -f $theme_dir/unlock.png ]]; then
+  echo "Theme '$theme' does not provide colors.toml and unlock.png." >&2
+  exit 1
+fi
+"$QVOS_PATH/qvcore/theme/validate" "$theme_dir"
+
+validated_colors=$("$QVOS_PATH/qvcore/theme/validate" --colors "$theme_dir/colors.toml")
+bg=$(awk -F '\t' '$1 == "background" { print $2 }' <<<"$validated_colors")
+text=$(awk -F '\t' '$1 == "foreground" { print $2 }' <<<"$validated_colors")
+
+exec qv-plymouth-set "$bg" "$text" "$theme_dir/unlock.png"

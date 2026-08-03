@@ -70,7 +70,7 @@ function GetEntries()
         Preview = preview_path,
         PreviewType = "file",
         Actions = {
-          activate = "omarchy-theme-set " .. shell_escape(theme_name),
+          activate = "qv-theme-set " .. shell_escape(theme_name),
         },
       })
     end

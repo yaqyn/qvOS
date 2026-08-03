@@ -828,13 +828,13 @@ pass "all one-action concepts skip redundant action sheets"
 QVOS_TEST_CONCEPT_CHOICE=Install run_menu concept:theme
 [[ $(<"$concept_options_log") == $'󰄬  Choose\n󰐕  Install\n󰆴  Remove\n󱅾  Update' ]] ||
   fail "Theme concept actions"
-[[ $(<"$presentation_log") == "omarchy-theme-install" ]] ||
+[[ $(<"$presentation_log") == "qv-theme-install" ]] ||
   fail "Theme install owner"
 QVOS_TEST_CONCEPT_CHOICE=Remove run_menu concept:theme
 [[ $(<"$presentation_log") == "qvcore/tui/task/selectable-owner theme-remove" ]] ||
   fail "Theme remove owner"
 QVOS_TEST_CONCEPT_CHOICE=Update run_menu concept:theme
-[[ $(<"$presentation_log") == "omarchy-theme-update" ]] ||
+[[ $(<"$presentation_log") == "qv-theme-update" ]] ||
   fail "Theme update owner"
 
 QVOS_TEST_CONCEPT_CHOICE="Drive Encryption" run_menu concept:password

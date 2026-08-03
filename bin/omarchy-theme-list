@@ -1,20 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=List available themes
-# omarchy:examples=omarchy theme list | omarchy theme set Yaqyn | omarchy theme set my-theme
-
-set -euo pipefail
-
-themes_dir="$HOME/.config/omarchy/themes"
-[[ -d $themes_dir ]] || exit 0
-
-find -L "$themes_dir" \
-  -mindepth 1 \
-  -maxdepth 1 \
-  -type d \
-  ! -name 'yaqyn.bak.*' \
-  -printf '%f\n' 2>/dev/null |
-  sort -u |
-  while read -r name; do
-    printf '%s\n' "$name" | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'
-  done
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/theme/list" "$@"

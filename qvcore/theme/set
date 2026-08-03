@@ -1,0 +1,147 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "Usage: qv-theme-set <theme-name>" >&2
+  exit 2
+fi
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+skip_integrations=${QVOS_THEME_SKIP_INTEGRATIONS:-0}
+[[ $skip_integrations == "0" || $skip_integrations == "1" ]] || {
+  echo "QVOS_THEME_SKIP_INTEGRATIONS must be 0 or 1." >&2
+  exit 2
+}
+CURRENT_THEME_PATH="$HOME/.config/omarchy/current/theme"
+NEXT_THEME_PATH="$HOME/.config/omarchy/current/next-theme"
+PREVIOUS_THEME_PATH="$HOME/.config/omarchy/current/previous-theme"
+THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
+USER_THEMES_PATH="$HOME/.config/omarchy/themes"
+name_candidate=""
+
+THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$USER_THEMES_PATH" "$1")
+THEME_PATH="$USER_THEMES_PATH/$THEME_NAME"
+
+if [[ ! -d $THEME_PATH ]]; then
+  echo "Theme '$THEME_NAME' does not exist in $USER_THEMES_PATH"
+  exit 1
+fi
+"$QVOS_PATH/qvcore/theme/validate" "$THEME_PATH"
+
+cleanup_staging() {
+  rm -rf -- "$NEXT_THEME_PATH"
+  [[ -z $name_candidate ]] || rm -f -- "$name_candidate"
+  if [[ ! -e $CURRENT_THEME_PATH && ! -L $CURRENT_THEME_PATH ]] &&
+    [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+}
+trap cleanup_staging EXIT
+
+# Setup clean next theme directory (for atomic theme config swapping)
+rm -rf -- "$NEXT_THEME_PATH"
+if [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+  if [[ -e $CURRENT_THEME_PATH || -L $CURRENT_THEME_PATH ]]; then
+    rm -rf -- "$PREVIOUS_THEME_PATH"
+  else
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+fi
+mkdir -p "$NEXT_THEME_PATH"
+
+# Copy the bundled Yaqyn theme or one complete compatible user theme.
+cp -a "$THEME_PATH/." "$NEXT_THEME_PATH/"
+rm -rf -- "$NEXT_THEME_PATH/.git"
+
+# Generate colors.toml from alacritty.toml if theme is missing colors.toml
+if [[ ! -f $NEXT_THEME_PATH/colors.toml && -f $NEXT_THEME_PATH/alacritty.toml ]]; then
+  "$QVOS_PATH/qvcore/theme/colors-from-alacritty" "$NEXT_THEME_PATH"
+fi
+[[ -f $NEXT_THEME_PATH/colors.toml ]] || {
+  echo "Theme '$THEME_NAME' could not provide a complete color palette." >&2
+  exit 1
+}
+"$QVOS_PATH/qvcore/theme/validate" "$NEXT_THEME_PATH"
+
+# Generate dynamic configs
+"$QVOS_PATH/qvcore/theme/set-templates"
+
+mkdir -p -- "$(dirname -- "$THEME_NAME_PATH")"
+name_candidate=$(mktemp "$(dirname -- "$THEME_NAME_PATH")/.theme.name.XXXXXX")
+printf '%s\n' "$THEME_NAME" >"$name_candidate"
+chmod 0644 "$name_candidate"
+
+# Swap next theme in as current while retaining rollback until the new tree lands.
+# Defer interactive termination across the two-file commit so the active tree
+# and compatibility name marker cannot diverge between adjacent atomic moves.
+trap '' INT TERM HUP
+if [[ -e $CURRENT_THEME_PATH || -L $CURRENT_THEME_PATH ]]; then
+  mv -- "$CURRENT_THEME_PATH" "$PREVIOUS_THEME_PATH"
+fi
+if ! mv -- "$NEXT_THEME_PATH" "$CURRENT_THEME_PATH"; then
+  if [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+  echo "Could not activate theme '$THEME_NAME'; restored the previous theme." >&2
+  exit 1
+fi
+if ! mv -- "$name_candidate" "$THEME_NAME_PATH"; then
+  rm -f -- "$name_candidate"
+  name_candidate=""
+  rm -rf -- "$CURRENT_THEME_PATH"
+  if [[ -e $PREVIOUS_THEME_PATH || -L $PREVIOUS_THEME_PATH ]]; then
+    mv -- "$PREVIOUS_THEME_PATH" "$CURRENT_THEME_PATH"
+  fi
+  echo "Could not record theme '$THEME_NAME'; restored the previous theme." >&2
+  exit 1
+fi
+name_candidate=""
+trap - INT TERM HUP
+rm -rf -- "$PREVIOUS_THEME_PATH"
+trap - EXIT
+
+if [[ $skip_integrations == "1" ]]; then
+  exit 0
+fi
+
+integration_failed=0
+run_integration() {
+  local label=$1
+  shift
+  if ! "$@"; then
+    printf 'Theme applied, but %s could not be refreshed.\n' "$label" >&2
+    integration_failed=1
+  fi
+}
+
+# Change background with theme
+skip_background=${QVOS_THEME_SKIP_BACKGROUND:-${OMARCHY_THEME_SKIP_BACKGROUND:-0}}
+if [[ $skip_background != "1" ]]; then
+  run_integration "the background" "$QVOS_PATH/qvcore/theme/background-next"
+fi
+
+# Restart components to apply new theme
+if pgrep -x waybar >/dev/null; then
+  run_integration "Waybar" qv-restart-waybar
+fi
+run_integration "SwayOSD" qv-restart-swayosd
+run_integration "terminals" qv-restart-terminal
+run_integration "Hyprland" qv-restart-hyprctl
+run_integration "btop" qv-restart-btop
+run_integration "OpenCode" qv-restart-opencode
+run_integration "Mako" qv-restart-mako
+run_integration "Helix" qv-restart-helix
+
+# Change app-specific themes
+for integration in foot gnome browser vscode obsidian keyboard; do
+  run_integration "$integration integration" \
+    "$QVOS_PATH/qvcore/theme/set-$integration"
+done
+
+# Call hook on theme set
+run_integration "theme hooks" omarchy-hook theme-set "$THEME_NAME"
+
+if ((integration_failed)); then
+  echo "The theme is active; review the integration warnings above." >&2
+fi

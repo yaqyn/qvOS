@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+THEMES_DIR="$HOME/.config/omarchy/themes"
+THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
+[[ -f $THEME_NAME_PATH ]] || {
+  echo "No current qvOS theme is selected." >&2
+  exit 1
+}
+THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$THEMES_DIR" "$(<"$THEME_NAME_PATH")")
+THEME_BACKGROUNDS_PATH="$HOME/.config/omarchy/current/theme/backgrounds/"
+USER_BACKGROUNDS_PATH="$HOME/.config/omarchy/backgrounds/$THEME_NAME/"
+CURRENT_BACKGROUND_LINK="$HOME/.config/omarchy/current/background"
+
+mkdir -p -- "$USER_BACKGROUNDS_PATH" "$(dirname -- "$CURRENT_BACKGROUND_LINK")"
+
+mapfile -d '' -t BACKGROUNDS < <(find -L "$USER_BACKGROUNDS_PATH" "$THEME_BACKGROUNDS_PATH" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
+TOTAL=${#BACKGROUNDS[@]}
+
+if (( TOTAL == 0 )); then
+  notify-send "No background was found for theme" -t 2000
+  pkill -x swaybg >/dev/null 2>&1 || true
+  setsid uwsm-app -- swaybg --color '#000000' >/dev/null 2>&1 &
+else
+  # Get current background from symlink
+  if [[ -L $CURRENT_BACKGROUND_LINK ]]; then
+    CURRENT_BACKGROUND=$(readlink "$CURRENT_BACKGROUND_LINK")
+  else
+    # Default to first background if no symlink exists
+    CURRENT_BACKGROUND=""
+  fi
+
+  # Find current background index
+  INDEX=-1
+  for i in "${!BACKGROUNDS[@]}"; do
+    if [[ ${BACKGROUNDS[$i]} == "$CURRENT_BACKGROUND" ]]; then
+      INDEX=$i
+      break
+    fi
+  done
+
+  # Get next background (wrap around)
+  if (( INDEX == -1 )); then
+    # Use the first background when no match was found
+    NEW_BACKGROUND="${BACKGROUNDS[0]}"
+  else
+    NEXT_INDEX=$(((INDEX + 1) % TOTAL))
+    NEW_BACKGROUND="${BACKGROUNDS[$NEXT_INDEX]}"
+  fi
+
+  # Set new background symlink
+  ln -nsf "$NEW_BACKGROUND" "$CURRENT_BACKGROUND_LINK"
+
+  # Relaunch swaybg
+  pkill -x swaybg >/dev/null 2>&1 || true
+  setsid uwsm-app -- swaybg -i "$CURRENT_BACKGROUND_LINK" -m fill >/dev/null 2>&1 &
+fi

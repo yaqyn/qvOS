@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -euo pipefail
+
+foot_theme="$HOME/.config/omarchy/current/theme/foot.ini"
+
+if [[ ! -f $foot_theme ]] || ! pgrep -x foot >/dev/null; then
+  exit 0
+fi
+
+foot_osc=$(awk -F= '
+  function valid(value) { return value ~ /^[0-9A-Fa-f]{6}$/ }
+  function color(value) { return "#" value }
+  /^foreground=/ && valid($2) { printf "\033]10;%s\007", color($2) }
+  /^background=/ && valid($2) { printf "\033]11;%s\007", color($2) }
+  /^cursor=/ {
+    split($2, parts, " ")
+    if (valid(parts[2])) printf "\033]12;%s\007", color(parts[2])
+  }
+  /^selection-background=/ && valid($2) { printf "\033]17;%s\007", color($2) }
+  /^selection-foreground=/ && valid($2) { printf "\033]19;%s\007", color($2) }
+  /^regular[0-7]=/ && valid($2) {
+    split($1, parts, "regular")
+    printf "\033]4;%d;%s\007", parts[2], color($2)
+  }
+  /^bright[0-7]=/ && valid($2) {
+    split($1, parts, "bright")
+    printf "\033]4;%d;%s\007", parts[2] + 8, color($2)
+  }
+' "$foot_theme")
+
+[[ -n $foot_osc ]] || exit 0
+
+mapfile -t foot_pids < <(pgrep -x foot)
+for foot_pid in "${foot_pids[@]}"; do
+  mapfile -t child_pids < <(pgrep -P "$foot_pid" || true)
+  for child_pid in "${child_pids[@]}"; do
+    tty=$(readlink "/proc/$child_pid/fd/1" 2>/dev/null || true)
+    [[ $tty == /dev/pts/* ]] && printf '%b' "$foot_osc" >"$tty"
+  done
+done

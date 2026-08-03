@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Apply the current theme keyboard color to supported keyboards
-# omarchy:hidden=true
-
-omarchy-theme-set-keyboard-asus-rog
-omarchy-theme-set-keyboard-f16
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/theme/set-keyboard" "$@"

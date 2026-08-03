@@ -54,7 +54,7 @@ This directory contains qvOS source files managed by git. Any changes will be:
 ```
 
 **Reading `~/.local/share/qvos/` is SAFE and useful** - do it freely to:
-- Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
+- Understand how qvOS commands work: `qv theme set --help` or `cat $(which qv-theme-set)`
 - See default configs before customizing: `cat ~/.local/share/qvos/config/waybar/config.jsonc`
 - Inspect native owners before customizing their installed user config
 - Reference default hyprland settings: `cat ~/.local/share/qvos/default/hypr/*`
@@ -103,7 +103,7 @@ omarchy theme set --help
 omarchy commands --json
 
 # Read a command's source to understand it
-cat $(which omarchy-theme-set)
+cat $(which qv-theme-set)
 ```
 
 ### Command Groups

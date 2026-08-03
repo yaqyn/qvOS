@@ -164,7 +164,7 @@ pass "every filename-derived group help represents its bins"
 
 output=$(timeout 5 "$CLI" theme set --help)
 assert_output_contains "command help renders without executing" "$output" "Binary:"
-assert_output_contains "theme set help names binary" "$output" "omarchy-theme-set"
+assert_output_contains "theme set help names binary" "$output" "qv-theme-set"
 
 output=$(timeout 5 "$CLI" update --help)
 assert_output_contains "mutating command help does not execute target" "$output" "omarchy-update"
@@ -200,7 +200,7 @@ pass "safe dispatch works for font current"
 
 for binary in \
   omarchy-update \
-  omarchy-theme-set \
+  qv-theme-set \
   omarchy-capture-screenshot \
   omarchy-system-reboot \
   qv-system-reboot \

@@ -6,8 +6,8 @@ image="${1:-}"
 cmd_present() {
   local command_name="$1"
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$command_name"
+  if command -v qv-cmd-present >/dev/null 2>&1; then
+    qv-cmd-present "$command_name"
   else
     command -v "$command_name" >/dev/null 2>&1
   fi
@@ -36,11 +36,11 @@ case "${image,,}" in
   ;;
 esac
 
-if ! cmd_present omarchy-theme-bg-set; then
-  notify-send -u critical "qvOS Background" "omarchy-theme-bg-set is missing." >/dev/null 2>&1 || true
-  printf 'set-background: omarchy-theme-bg-set is missing\n' >&2
+if ! cmd_present qv-theme-bg-set; then
+  notify-send -u critical "qvOS Background" "qv-theme-bg-set is missing." >/dev/null 2>&1 || true
+  printf 'set-background: qv-theme-bg-set is missing\n' >&2
   exit 1
 fi
 
-omarchy-theme-bg-set "$image"
+qv-theme-bg-set "$image"
 notify-send "qvOS Background" "Background updated." >/dev/null 2>&1 || true

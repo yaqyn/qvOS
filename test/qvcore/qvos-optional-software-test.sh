@@ -56,7 +56,7 @@ install -m 0755 /dev/stdin "$test_bin/qv-pkg-drop" <<'STUB'
 #!/bin/bash
 printf 'pkg-drop:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-theme-set-vscode" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-theme-set-vscode" <<'STUB'
 #!/bin/bash
 printf 'set-vscode-theme\n' >>"$QVOS_TEST_ACTION_LOG"
 STUB

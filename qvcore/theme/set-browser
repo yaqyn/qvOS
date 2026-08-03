@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -euo pipefail
+
+CHROMIUM_THEME="$HOME/.config/omarchy/current/theme/chromium.theme"
+
+if [[ -f $CHROMIUM_THEME ]]; then
+  THEME_RGB_COLOR=$(<"$CHROMIUM_THEME")
+  IFS=, read -r red green blue <<<"$THEME_RGB_COLOR"
+  if [[ ! $red =~ ^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]] ||
+    [[ ! $green =~ ^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]] ||
+    [[ ! $blue =~ ^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]]; then
+    echo "Invalid browser theme color: $CHROMIUM_THEME" >&2
+    exit 1
+  fi
+  THEME_HEX_COLOR=$(printf '#%02x%02x%02x' \
+    "$((10#$red))" "$((10#$green))" "$((10#$blue))")
+else
+  # Use a default, neutral grey if theme doesn't have a color
+  THEME_HEX_COLOR="#1c2027"
+fi
+
+set_browser_policy() {
+  local policy_dir="$1"
+  local candidate
+
+  [[ -d $policy_dir ]] || return
+  candidate=$(mktemp "$policy_dir/.qvos-color.json.XXXXXX")
+  if ! printf '{"BrowserThemeColor":"%s","BrowserColorScheme":"device"}\n' \
+    "$THEME_HEX_COLOR" >"$candidate" ||
+    ! chmod 0644 "$candidate" ||
+    ! mv -- "$candidate" "$policy_dir/color.json"; then
+    rm -f -- "$candidate"
+    return 1
+  fi
+}
+
+refresh_running_browser() {
+  local process="$1"
+  local command="$2"
+  local pgrep_args="${3:--x}"
+
+  if qv-cmd-present "$command" && pgrep "$pgrep_args" "$process" >/dev/null; then
+    "$command" --refresh-platform-policy --no-startup-window &>/dev/null
+  fi
+}
+
+set_browser_policy /etc/chromium/policies/managed
+refresh_running_browser chromium chromium
+
+set_browser_policy /etc/opt/chrome/policies/managed
+refresh_running_browser chrome google-chrome-stable || refresh_running_browser chrome google-chrome
+
+set_browser_policy /etc/opt/edge/policies/managed
+refresh_running_browser msedge microsoft-edge-stable
+
+set_browser_policy /etc/brave/policies/managed
+refresh_running_browser brave brave
+refresh_running_browser brave-origin-beta brave-origin-beta -f

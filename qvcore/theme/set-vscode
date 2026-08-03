@@ -1,0 +1,81 @@
+#!/bin/bash
+
+set -euo pipefail
+
+VS_CODE_THEME="$HOME/.config/omarchy/current/theme/vscode.json"
+
+set_theme() {
+  local editor_cmd="$1"
+  local settings_path="$2"
+  local theme_name
+  local extension
+  local escaped_theme
+  local installed_extensions
+  local resolved_settings
+  local settings_candidate
+
+  qv-cmd-present "$editor_cmd" || return 0
+  [[ -f $VS_CODE_THEME ]] || return 0
+
+  theme_name=$(jq -er '.name | select(type == "string")' "$VS_CODE_THEME")
+  extension=$(jq -er '.extension | select(type == "string")' "$VS_CODE_THEME")
+  [[ $theme_name =~ ^[[:alnum:]][[:alnum:]._+():/\ -]{0,127}$ ]] || {
+    echo "Invalid editor theme name: $VS_CODE_THEME" >&2
+    return 1
+  }
+  [[ $extension =~ ^[[:alnum:]][[:alnum:]-]{0,63}\.[[:alnum:]][[:alnum:]_.-]{0,127}$ ]] || {
+    echo "Invalid editor theme extension: $VS_CODE_THEME" >&2
+    return 1
+  }
+
+  installed_extensions=$("$editor_cmd" --list-extensions 2>/dev/null || true)
+  if ! grep -Fxiq "$extension" <<<"$installed_extensions"; then
+    printf '%s is not installed; qvOS will not install an extension declared by a theme.\n' \
+      "$extension" >&2
+    return 0
+  fi
+
+  mkdir -p "$(dirname -- "$settings_path")"
+  if [[ ! -e $settings_path ]]; then
+    printf '{\n  "workbench.colorTheme": "%s"\n}\n' "$theme_name" >"$settings_path"
+    return
+  fi
+  [[ -f $settings_path ]] || {
+    echo "Editor settings are not a regular file: $settings_path" >&2
+    return 1
+  }
+  resolved_settings=$(realpath -e -- "$settings_path")
+  [[ -f $resolved_settings ]] || {
+    echo "Editor settings cannot be resolved safely: $settings_path" >&2
+    return 1
+  }
+  settings_path=$resolved_settings
+
+  escaped_theme=${theme_name//\\/\\\\}
+  escaped_theme=${escaped_theme//&/\\&}
+  escaped_theme=${escaped_theme//|/\\|}
+  if grep -q '"workbench.colorTheme"[[:space:]]*:' "$settings_path"; then
+    sed -i --follow-symlinks -E \
+      "s|(\"workbench.colorTheme\"[[:space:]]*:[[:space:]]*\")[^\"]*(\")|\\1$escaped_theme\\2|" \
+      "$settings_path"
+    return
+  fi
+
+  settings_candidate=$(mktemp "$(dirname -- "$settings_path")/.qvos-settings.XXXXXX")
+  if ! jq --arg theme "$theme_name" '."workbench.colorTheme" = $theme' \
+    "$settings_path" >"$settings_candidate"; then
+    rm -f -- "$settings_candidate"
+    echo "Editor settings use JSON with comments; add workbench.colorTheme once to allow safe updates: $settings_path" >&2
+    return 0
+  fi
+  if ! chmod --reference="$settings_path" "$settings_candidate" ||
+    ! mv -- "$settings_candidate" "$settings_path"; then
+    rm -f -- "$settings_candidate"
+    return 1
+  fi
+}
+
+! qv-toggle-enabled skip-vscode-theme-changes && set_theme "code" "$HOME/.config/Code/User/settings.json"
+! qv-toggle-enabled skip-vscode-insiders-theme-changes && set_theme "code-insiders" "$HOME/.config/Code - Insiders/User/settings.json"
+! qv-toggle-enabled skip-codium-theme-changes && set_theme "codium" "$HOME/.config/VSCodium/User/settings.json"
+! qv-toggle-enabled skip-cursor-theme-changes && set_theme "cursor" "$HOME/.config/Cursor/User/settings.json"

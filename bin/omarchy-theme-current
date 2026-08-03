@@ -1,12 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Show current theme
-# omarchy:examples=omarchy theme current
-
-THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
-
-if [[ -f $THEME_NAME_PATH ]]; then
-  cat $THEME_NAME_PATH | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'
-else
-  echo "Unknown"
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/theme/current" "$@"

@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+if (($# > 1)); then
+  echo "Usage: qv-theme-remove [theme-name]" >&2
+  exit 2
+fi
+
+THEMES_DIR="$HOME/.config/omarchy/themes"
+
+if [[ -z ${1:-} ]]; then
+  mapfile -t extra_themes < <(
+    find "$THEMES_DIR" \
+      -mindepth 1 \
+      -maxdepth 1 \
+      \( -type d -o -type l \) \
+      ! -iname 'yaqyn' \
+      ! -name 'yaqyn.bak.*' \
+      -printf '%f\n' 2>/dev/null |
+      sort
+  )
+
+  if ((${#extra_themes[@]} > 0)); then
+    THEME_NAME=$(printf '%s\n' "${extra_themes[@]}" | sort | gum choose --header="Remove extra theme")
+  else
+    echo "No extra themes installed."
+    exit 1
+  fi
+else
+  THEME_NAME="$1"
+fi
+
+THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$THEMES_DIR" "$THEME_NAME")
+THEME_PATH="$THEMES_DIR/$THEME_NAME"
+
+if [[ ${THEME_NAME,,} == "yaqyn" ]]; then
+  echo "Yaqyn is the bundled qvOS theme and cannot be removed." >&2
+  exit 1
+fi
+
+if [[ ! -e $THEME_PATH && ! -L $THEME_PATH ]]; then
+  echo "Error: Theme '$THEME_NAME' not found." >&2
+  exit 1
+fi
+
+if [[ -f $HOME/.config/omarchy/current/theme.name ]] &&
+  [[ $(<"$HOME/.config/omarchy/current/theme.name") == "$THEME_NAME" ]]; then
+  QVOS_THEME_SKIP_BACKGROUND=1 qv-theme-set "Yaqyn"
+fi
+
+if [[ -L $THEME_PATH ]]; then
+  rm -f -- "$THEME_PATH"
+else
+  rm -rf -- "$THEME_PATH"
+fi

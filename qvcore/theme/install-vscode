@@ -3,10 +3,17 @@ set -euo pipefail
 
 # qvos:contract=qvcore/theme/yaqyn/vscode/extension
 
-extension_dir="$OMARCHY_PATH/qvcore/theme/yaqyn/vscode/extension"
-extension_version=$(jq -r .version "$extension_dir/package.json" 2>/dev/null)
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+extension_dir="$QVOS_PATH/qvcore/theme/yaqyn/vscode/extension"
+extension_version=$(jq -er '.version | select(type == "string")' "$extension_dir/package.json")
+[[ $extension_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "Invalid bundled qvOS editor theme version." >&2
+  exit 1
+}
 extension="$extension_dir/yaqyn-theme-$extension_version.vsix"
 
-if [[ -f $extension ]]; then
-  code --install-extension "$extension" --force
-fi
+[[ -f $extension && ! -L $extension ]] || {
+  echo "Missing bundled qvOS editor theme: $extension" >&2
+  exit 1
+}
+code --install-extension "$extension" --force

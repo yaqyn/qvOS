@@ -3,7 +3,7 @@
 --
 -- A "Default" entry restores the qvOS Plymouth via
 -- qv-plymouth-reset. After that, every theme that has a preview-unlock.png
--- appears as a customised unlock; picking one runs omarchy-plymouth-set-by-theme
+-- appears as a customised unlock; picking one runs qv-plymouth-set-by-theme
 -- <theme>. Both run in a floating terminal so sudo can prompt.
 --
 Name = "omarchyunlocks"
@@ -53,7 +53,7 @@ function GetEntries()
           PreviewType = "file",
           Actions = {
             activate = "omarchy-launch-floating-terminal-with-presentation "
-              .. shell_escape("omarchy-plymouth-set-by-theme " .. shell_escape(theme_name)),
+              .. shell_escape("qv-plymouth-set-by-theme " .. shell_escape(theme_name)),
           },
         })
       end

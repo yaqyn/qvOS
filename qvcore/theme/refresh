@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
+
+if [[ -f $THEME_NAME_PATH ]]; then
+  QVOS_THEME_SKIP_BACKGROUND=1 qv-theme-set "$(<"$THEME_NAME_PATH")"
+fi
