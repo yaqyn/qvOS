@@ -3,4 +3,6 @@
 # omarchy:summary=Restore the default qvOS Plymouth boot theme and SDDM login screen
 # omarchy:requires-sudo=true
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
 exec "$OMARCHY_PATH/qv/boot/plymouth-reset" "$@"

@@ -3,4 +3,6 @@
 # omarchy:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the qvOS default and rebuild it.
 # omarchy:requires-sudo=true
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
 exec "$OMARCHY_PATH/qv/boot/refresh-plymouth" "$@"

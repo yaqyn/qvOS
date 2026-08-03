@@ -1,10 +1,13 @@
 #!/bin/bash
+set -euo pipefail
 
 # omarchy:summary=Overwrite the user config for the Plymouth drive decryption and boot sequence with the qvOS default and rebuild it.
 # omarchy:requires-sudo=true
 # qvos:contract=qv/boot/plymouth
 
-sudo cp -r "$OMARCHY_PATH/qv/boot/plymouth/"* /usr/share/plymouth/themes/omarchy/
+OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+
+"$OMARCHY_PATH/qv/boot/sync-theme" plymouth
 sudo plymouth-set-default-theme omarchy
 
 if command -v limine-mkinitcpio &>/dev/null; then

@@ -55,6 +55,9 @@ grep -Fqx 'source "$OMARCHY_PATH/qv/install/post-install/run"' \
 # shellcheck disable=SC2016
 grep -Fqx 'source "$OMARCHY_PATH/qv/install/config/run"' \
   "$root/install.sh" || fail "native install configuration owner wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qv/boot/install"' \
+  "$root/install.sh" || fail "native boot install owner wiring"
 [[ -f $root/qv/install/config/run && ! -x $root/qv/install/config/run ]] ||
   fail "native install configuration owner mode"
 [[ ! -e $root/install/config/all.sh ]] ||

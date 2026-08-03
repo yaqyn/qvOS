@@ -1,7 +1,9 @@
 #!/bin/bash
+set -euo pipefail
 
 # omarchy:summary=Refresh the SDDM theme from default
 # omarchy:requires-sudo=true
 
-sudo rm -rf /usr/share/sddm/themes/omarchy
-sudo cp -r "$OMARCHY_PATH/qv/boot/sddm" /usr/share/sddm/themes/omarchy
+OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+
+exec "$OMARCHY_PATH/qv/boot/sync-theme" sddm

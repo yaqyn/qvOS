@@ -1,0 +1,117 @@
+# shellcheck shell=bash
+
+qvos_boot_init() {
+  local canonical_root
+  local mode
+  local requested_root=${QVOS_BOOT_TEST_ROOT:-}
+
+  QVOS_BOOT_SYSTEM_ROOT=
+  if [[ -z $requested_root ]]; then
+    sudo -v
+    return
+  fi
+
+  [[ ${QVOS_BOOT_TESTING:-} == "1" ]] || {
+    echo "Refusing a boot install root outside fixture mode" >&2
+    return 1
+  }
+  [[ $requested_root == /tmp/* && -d $requested_root && ! -L $requested_root ]] || {
+    echo "Boot install fixture root is unsafe" >&2
+    return 1
+  }
+
+  canonical_root=$(realpath -e -- "$requested_root") || return 1
+  [[ $canonical_root == "$requested_root" ]] || {
+    echo "Boot install fixture root must be canonical" >&2
+    return 1
+  }
+  [[ $(stat -c '%u' "$canonical_root") == "$UID" ]] || {
+    echo "Boot install fixture root has the wrong owner" >&2
+    return 1
+  }
+  mode=$(stat -c '%a' "$canonical_root")
+  (( (8#$mode & 0022) == 0 )) || {
+    echo "Boot install fixture root is group or world writable" >&2
+    return 1
+  }
+
+  QVOS_BOOT_SYSTEM_ROOT=$canonical_root
+  sudo -v
+}
+
+qvos_boot_path() {
+  local path=$1
+
+  [[ $path == /* && $path != *$'\n'* && $path != *$'\r'* ]] || {
+    echo "Invalid boot install path: $path" >&2
+    return 1
+  }
+  printf '%s%s\n' "$QVOS_BOOT_SYSTEM_ROOT" "$path"
+}
+
+qvos_boot_root_exists() {
+  local path=$1
+
+  sudo test -e "$path" || sudo test -L "$path"
+}
+
+qvos_boot_require_regular() {
+  local path=$1
+
+  if sudo test -L "$path" || ! sudo test -f "$path"; then
+    echo "Expected a regular root-owned file: $path" >&2
+    return 1
+  fi
+}
+
+qvos_boot_refuse_symlink() {
+  local path=$1
+
+  if sudo test -L "$path"; then
+    echo "Refusing symbolic-link boot target: $path" >&2
+    return 1
+  fi
+}
+
+qvos_boot_install_file() {
+  local mode=$1
+  local source=$2
+  local target=$3
+
+  [[ $mode =~ ^0?[0-7]{3}$ ]] || {
+    echo "Invalid install mode: $mode" >&2
+    return 1
+  }
+  [[ -f $source && ! -L $source ]] || {
+    echo "Expected a regular qvOS boot source: $source" >&2
+    return 1
+  }
+  qvos_boot_refuse_symlink "$target" || return 1
+  sudo install -D -m "$mode" -- "$source" "$target"
+}
+
+qvos_boot_install_text() {
+  local mode=$1
+  local target=$2
+  local content=$3
+  local staging
+
+  staging=$(mktemp) || return 1
+  chmod 0600 "$staging"
+  if ! printf '%s' "$content" >"$staging"; then
+    rm -f -- "$staging"
+    return 1
+  fi
+  if ! qvos_boot_install_file "$mode" "$staging" "$target"; then
+    rm -f -- "$staging"
+    return 1
+  fi
+  rm -f -- "$staging"
+}
+
+qvos_boot_read_file() {
+  local path=$1
+
+  qvos_boot_require_regular "$path" || return 1
+  sudo cat -- "$path"
+}

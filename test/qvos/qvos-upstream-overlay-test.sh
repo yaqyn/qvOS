@@ -22,9 +22,6 @@ fi
 
 inherited_seams=(
   install/helpers/errors.sh
-  install/login/limine-snapper.sh
-  install/login/plymouth.sh
-  install/login/sddm.sh
 )
 
 declare -A inherited_seam_set=()

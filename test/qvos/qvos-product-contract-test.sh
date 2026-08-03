@@ -154,8 +154,8 @@ fi
 pass "Thunar is singular while inherited Nautilus hooks remain safe to sync"
 
 grep -qx 'gnome-keyring' "$base_packages" || fail "desktop keyring package contract"
-grep -Fqx 'run_logged $OMARCHY_INSTALL/login/default-keyring.sh' "$root/install/login/all.sh" || fail "default keyring setup contract"
-grep -Fq "pam_gnome_keyring\\.so/d" "$root/install/login/sddm.sh" || fail "SDDM keyring setup contract"
+grep -Fqx 'run_logged "$OMARCHY_INSTALL/login/default-keyring.sh"' "$root/qv/boot/install" || fail "default keyring setup contract"
+grep -Fq "pam_gnome_keyring\\.so/d" "$root/qv/boot/install-sddm" || fail "SDDM keyring setup contract"
 if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; then
   fail "retired keyring removal migration"
 fi

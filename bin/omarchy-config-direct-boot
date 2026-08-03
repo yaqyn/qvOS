@@ -3,4 +3,6 @@
 # omarchy:summary=Add or remove an EFI boot entry for the qvOS UKI, allowing the system to boot directly
 # omarchy:requires-sudo=true
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
 exec "$OMARCHY_PATH/qv/boot/config-direct-boot" "$@"

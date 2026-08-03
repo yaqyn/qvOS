@@ -5,4 +5,6 @@
 # omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
 # omarchy:requires-sudo=true
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
 exec "$OMARCHY_PATH/qv/boot/plymouth-set" "$@"

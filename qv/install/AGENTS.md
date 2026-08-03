@@ -32,6 +32,10 @@ qvOS-owned leaves on their native paths. When promoting a leaf, replace its
 entry in this owner and retire the inherited implementation in the same change.
 Never restore `install/config/all.sh` or a second configuration-stage overlay.
 
+The login stage is owned by `qv/boot/install`; keep `install.sh` wired directly
+to it and never restore inherited login orchestration. Boot payload, private
+ESP, SDDM, Plymouth, and snapshot rules live in `qv/boot/AGENTS.md`.
+
 `qv/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
 sudoers commands. `qv/install/first-run/run` owns the ordered login lifecycle,

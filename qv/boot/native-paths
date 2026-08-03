@@ -6,3 +6,7 @@ bin/omarchy-plymouth-set
 bin/omarchy-refresh-limine
 bin/omarchy-refresh-plymouth
 bin/omarchy-refresh-sddm
+migrations/1752091783.sh
+migrations/1752292967.sh
+migrations/1777396666.sh
+migrations/1778148645.sh

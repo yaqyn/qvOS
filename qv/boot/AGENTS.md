@@ -17,6 +17,23 @@ own their installed payloads. Do not restore parallel copies under `default/`.
 Public `bin/omarchy-*` boot routes are direct adapters to executable owners in
 this directory; they must not retain inherited fallback implementations.
 
+`qv/boot/install` singularly owns the ordered login stage. Its native leaves
+install Plymouth without an early image rebuild, install the SDDM theme,
+session, Wayland compositor config, autologin compatibility, and PAM policy,
+then configure Limine and Snapper after the inherited keyring and hibernation
+leaves. Keep the internal `omarchy` session, theme, and UKI identifiers as
+upgrade ABI until a separately verified migration can rename installed state;
+they must never leak as visible product branding. Use the shared atomic theme
+sync owner for install and refresh so a failed copy restores the prior theme.
+
+The Limine install owner must read private `/boot` content through explicit
+sudo, render the inherited kernel command line without shell or sed
+substitution, restore disabled mkinitcpio hooks on every exit, and rebuild UKIs
+only when installed entries prove the package hooks did not. Preserve the
+root-only Snapper policy and disabled btrfs quotas. Fixture roots are test-only:
+require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
+non-writable permissions before redirecting any system path.
+
 - Keep the Limine screen center-only on exact black: explicit empty branding,
   hidden interface help, no wallpaper, and no custom font or renderer fork.
 - Preserve an explicit five-second automatic boot of entry 2 with
@@ -34,7 +51,8 @@ this directory; they must not retain inherited fallback implementations.
   change `/boot` through explicit privileged operations; never weaken its mount
   mask to make an unprivileged read convenient.
 
-Run `qv/boot/check`, `bash -n`, and ShellCheck for changed shell, then
+Run `qv/boot/check`, the boot install fixture test, `bash -n`, and ShellCheck
+for changed shell, then
 `test/qvos/qvos-product-contract-test.sh`, the instruction guard, and the full
 qvOS shell suite when shared boot/install contracts change. Apply with
 `omarchy-refresh-limine`, compare the generated live header with the source,
