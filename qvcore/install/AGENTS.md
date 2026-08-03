@@ -118,9 +118,9 @@ ownership changes deliberately; qvOS ships no webapp desktop launchers.
   dependencies, optional-integration ownership, user data, and live installation
   state. Present the exact source and live removal set for approval.
 - Never remove a user-installed, Service-owned, or Development-owned package
-  merely because it is outside the base manifest. Use `omarchy-pkg-drop` only
-  after approval and
-  verify the computed Pacman transaction before mutation.
+  merely because it is outside the base manifest. Use `qv pkg drop` only after
+  approval and verify the computed Pacman transaction before mutation; the
+  inherited package command is a compatibility adapter, not an owner route.
 
 Run `qvcore/install/check`; the resolver for `base`, `other`, and `all`; package,
 first-run, source-lifecycle, product, security, and upstream-boundary tests;
