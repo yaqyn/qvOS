@@ -182,4 +182,38 @@ grep -Fq '"name": "qvOS"' "$vault/.obsidian/themes/qvOS/manifest.json" ||
 [[ -f $vault/.obsidian/themes/Omarchy/marker ]] ||
   fail "legacy Obsidian theme data preservation"
 
+background_fixture="$test_root/background-fixture"
+background_home="$test_root/background-home"
+background_log="$test_root/background-open.log"
+install -D -m 0755 "$root/bin/omarchy-theme-bg-install" \
+  "$background_fixture/bin/omarchy-theme-bg-install"
+install -D -m 0755 "$root/qv/theme/backgrounds" \
+  "$background_fixture/qv/theme/backgrounds"
+install -D -m 0755 "$root/qv/theme/name" \
+  "$background_fixture/qv/theme/name"
+install -D -m 0755 /dev/stdin "$background_fixture/qv/desktop/open" <<'OPEN'
+#!/bin/bash
+printf '%s\n' "$1" >"$QVOS_TEST_BACKGROUND_OPEN_LOG"
+OPEN
+mkdir -p \
+  "$background_home/.config/omarchy/current" \
+  "$background_home/.config/omarchy/themes/yaqyn"
+printf 'yaqyn\n' >"$background_home/.config/omarchy/current/theme.name"
+HOME="$background_home" \
+  OMARCHY_PATH="$background_fixture" \
+  QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
+  "$background_fixture/bin/omarchy-theme-bg-install"
+expected_background="$background_home/.config/omarchy/backgrounds/yaqyn"
+[[ -d $expected_background && $(<"$background_log") == "$expected_background" ]] ||
+  fail "validated current-theme background directory"
+printf '../escape\n' >"$background_home/.config/omarchy/current/theme.name"
+if HOME="$background_home" \
+  OMARCHY_PATH="$background_fixture" \
+  QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
+  "$background_fixture/bin/omarchy-theme-bg-install" >/dev/null 2>&1; then
+  fail "theme background path traversal rejection"
+fi
+[[ ! -e $background_home/.config/omarchy/escape ]] ||
+  fail "invalid theme name created an external background directory"
+
 printf 'ok - bundled Yaqyn and compatible directory, Git, and linked theme lifecycles\n'

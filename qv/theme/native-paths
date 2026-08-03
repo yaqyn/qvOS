@@ -1,5 +1,6 @@
 # Inherited paths promoted to qvOS theme ownership.
 bin/omarchy-plymouth-set-by-theme
+bin/omarchy-theme-bg-install
 bin/omarchy-theme-install
 bin/omarchy-theme-list
 bin/omarchy-theme-remove

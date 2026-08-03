@@ -16,6 +16,9 @@ not restore the inherited source catalog or a second rendering system.
   stage delegates to it; qvOS install code must not repeat its mutations.
 - Theme list, set, install, remove, update, and appearance providers read only
   the user theme directory. `qv/theme/name` is the shared slug validator.
+- `qv/theme/backgrounds` opens only the validated current installed theme's
+  user-background directory. Preserve compatible theme links, but never use
+  unchecked `theme.name` content as a path component.
 - Treat compatible themes as untrusted data. Git installs accept HTTPS or Git
   SSH only, clone shallowly, validate the complete payload before activation,
   reject internal links and special files, and never copy Git metadata into the

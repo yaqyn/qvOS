@@ -26,7 +26,6 @@ inherited_seams=(
   bin/omarchy-install-gaming-retroarch
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
-  bin/omarchy-theme-bg-install
   bin/omarchy-tz-select
   bin/omarchy-update-restart
   bin/omarchy-voxtype-install

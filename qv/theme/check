@@ -23,6 +23,7 @@ mapfile -t native_paths < <(
 
 for required_path in \
   bin/omarchy-plymouth-set-by-theme \
+  bin/omarchy-theme-bg-install \
   bin/omarchy-theme-install \
   bin/omarchy-theme-list \
   bin/omarchy-theme-remove \
@@ -36,6 +37,17 @@ for required_path in \
   grep -Fqx "$required_path" "$native_manifest" ||
     fail "native theme owner is missing: $required_path"
 done
+
+[[ -x $root/qv/theme/backgrounds ]] ||
+  fail "theme background owner is not executable"
+(( $(wc -l <"$root/bin/omarchy-theme-bg-install") <= 10 )) ||
+  fail "theme background compatibility adapter contains implementation"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/theme/backgrounds" "$@"' \
+  "$root/bin/omarchy-theme-bg-install" ||
+  fail "theme background compatibility adapter does not delegate directly"
+grep -Fq 'qv/theme/name' "$root/qv/theme/backgrounds" ||
+  fail "theme background owner bypasses the shared name validator"
 
 if rg -q '\$OMARCHY_PATH/themes' \
   "$root/bin/omarchy-theme-list" \
