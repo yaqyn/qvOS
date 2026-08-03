@@ -32,7 +32,8 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
 - `qvcore/packages/configure` owns an explicit reset to Stable. It backs up the
   current Pacman files, installs the credited provider configuration, invokes
   the existing security owner before synchronizing packages, and restores both
-  files if configuration or hardening fails.
+  files if configuration or hardening fails. `qv refresh pacman` owns public
+  metadata; `omarchy-refresh-pacman` is a metadata-free compatibility adapter.
 - Package signatures from `[omarchy]` are required while its unsigned database
   remains optional. `qvcore/security/install` owns that installed policy; never
   weaken global Arch trust or another repository to make Omarchy work.

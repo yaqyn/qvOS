@@ -15,7 +15,7 @@ mapfile -t packages <<<"$resolved_packages"
 }
 
 # Validate the complete native manifest before changing mirrors or packages.
-omarchy-refresh-pacman
+qv-refresh-pacman
 sudo pacman -Suu --noconfirm
 
 sudo pacman -Syu --noconfirm --needed "${packages[@]}"

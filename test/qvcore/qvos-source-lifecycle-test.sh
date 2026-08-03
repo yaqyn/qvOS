@@ -283,7 +283,7 @@ pass "config reset runs the theme source directly and reconciles native Hyprland
 
 package_source="$test_root/package-source"
 install -d "$package_source/qvcore/install/packaging"
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-pacman" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-refresh-pacman" <<'SCRIPT'
 #!/bin/bash
 printf 'refresh\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT

@@ -9,14 +9,12 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
   echo "not ok - native Stable package configuration owner" >&2
   exit 1
 }
-(( $(wc -l <"$root/bin/omarchy-refresh-pacman") <= 12 )) || {
-  echo "not ok - inherited package refresh route is not a thin adapter" >&2
-  exit 1
-}
-grep -Fq 'qvcore/packages/configure' "$root/bin/omarchy-refresh-pacman" || {
-  echo "not ok - package refresh bypasses the native provider owner" >&2
-  exit 1
-}
+for adapter in qv-refresh-pacman omarchy-refresh-pacman; do
+  grep -Fq 'qvcore/packages/configure' "$root/bin/$adapter" || {
+    echo "not ok - package refresh bypasses the native provider owner: $adapter" >&2
+    exit 1
+  }
+done
 grep -Fq 'qvcore/packages/AGENTS.md' "$root/AGENTS.md" || {
   echo "not ok - package-provider workflow is not routed" >&2
   exit 1

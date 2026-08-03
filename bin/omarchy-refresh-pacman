@@ -1,10 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Restore the signed Stable package configuration and update packages
-# omarchy:args=[stable]
-# omarchy:requires-sudo=true
-
-set -euo pipefail
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/packages/configure" "$@"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/packages/configure" "$@"

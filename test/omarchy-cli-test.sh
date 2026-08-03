@@ -72,7 +72,7 @@ pass "benchmark command is discoverable in all commands"
 "$CLI" commands --json | jq -e '.commands[] | select(.binary == "qv-pkg-add" and .route == "omarchy pkg add" and .filename_route == "omarchy pkg add" and (.routes | index("omarchy pkg add")))' >/dev/null
 pass "JSON exposes native pkg add route through compatibility"
 
-"$CLI" commands --json | jq -e '.commands[] | select(.binary == "omarchy-refresh-pacman" and .requires_sudo == true)' >/dev/null
+"$CLI" commands --json | jq -e '.commands[] | select(.binary == "qv-refresh-pacman" and .requires_sudo == true)' >/dev/null
 pass "sudo metadata marks sudo commands"
 
 output=$("$CLI" theme --help)
