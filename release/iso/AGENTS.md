@@ -21,6 +21,9 @@ a thin adapter to this owner.
 - Validate the embedded qvOS installer at `qvcore/install/` and login leaves at
   `qvcore/boot/login/`; never require or recreate the retired top-level
   `install/` tree for image staging.
+- Route live-media and target progress through `/var/log/qvos-install.log`.
+  Removed `omarchy-install.log` lines may appear only as the upstream side of
+  the reviewed patch, never as added or active qvOS behavior.
 - If an upstream builder change breaks the patch or a relied-on contract, stop
   and update the qvOS owner and tests. Do not weaken the guard or patch cached
   upstream output directly.

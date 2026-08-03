@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2030,SC2031
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -653,7 +653,7 @@ done
 grep -Fq 'install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS installed-system TUI payload"
-grep -Fq 'mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log' \
+grep -Fq 'mount --bind /var/log/qvos-install.log /mnt/var/log/qvos-install.log' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS continuous boot-install log"
 grep -Fq 'stop_qvos_iso_progress' \
@@ -699,7 +699,7 @@ SCRIPT
   export PATH
   export QVOS_TEST_PROGRESS_LOG="$progress_log"
   export OMARCHY_CHROOT_INSTALL=1
-  export OMARCHY_INSTALL_LOG_FILE="$test_root/target-install.log"
+  export QVOS_INSTALL_LOG_FILE="$test_root/target-install.log"
   # shellcheck disable=SC1091
   source "$root/qvcore/install/helpers/logging.sh"
   start_install_log
@@ -718,6 +718,26 @@ grep -Fqx -- "--iso-progress --log $test_root/target-install.log --no-input" \
   "$progress_log" ||
   fail "target install progress arguments"
 pass "target install owns and stops its progress TUI inside the target namespace"
+
+logged_script="$test_root/logged script's owner.sh"
+logged_marker="$test_root/logged-script.marker"
+logged_output="$test_root/logged-script.log"
+install -m 0644 /dev/stdin "$logged_script" <<'SCRIPT'
+printf 'ran\n' >"$QVOS_TEST_LOGGED_MARKER"
+SCRIPT
+(
+  set -euo pipefail
+  export QVOS_INSTALL_LOG_FILE="$logged_output"
+  export QVOS_TEST_LOGGED_MARKER="$logged_marker"
+  # shellcheck disable=SC1091
+  source "$root/qvcore/install/helpers/logging.sh"
+  run_logged "$logged_script"
+)
+grep -Fqx 'ran' "$logged_marker" ||
+  fail "installer logging did not preserve the exact script path"
+grep -Fq "Completed: $logged_script" "$logged_output" ||
+  fail "installer logging omitted successful exact-path completion"
+pass "installer logging safely preserves exact script paths"
 
 source_permissions="$root/release/iso/source-permissions"
 [[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
@@ -1059,10 +1079,10 @@ grep -Fq 'sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.
 if rg -q 'chmod[[:space:]]+666' "$root/qvcore/install/helpers/logging.sh"; then
   fail "world-writable install log"
 fi
-grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
+grep -Fq 'sudo chown "$USER:$install_group" "$QVOS_INSTALL_LOG_FILE"' \
   "$root/qvcore/install/helpers/logging.sh" ||
   fail "desktop-owned install log"
-grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
+grep -Fq 'sudo chmod 0640 "$QVOS_INSTALL_LOG_FILE"' \
   "$root/qvcore/install/helpers/logging.sh" ||
   fail "restricted install log"
 [[ -f $root/qvcore/install/helpers/errors && ! -x $root/qvcore/install/helpers/errors ]] ||

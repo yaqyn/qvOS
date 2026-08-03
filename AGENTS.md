@@ -85,6 +85,9 @@ Install stage files follow this pattern:
 - avoid `exit` in sourced install scripts unless intentionally aborting the install
 - use `$QVOS_INSTALL` and `$QVOS_PATH`; `OMARCHY_INSTALL` and `OMARCHY_PATH`
   exist only where an inherited ABI requires them
+- use qvOS-owned installer state and environment (`QVOS_INSTALL_LOG_FILE`,
+  `QVOS_ONLINE_INSTALL`, `/var/log/qvos-install.log`); preserve
+  `OMARCHY_CHROOT_INSTALL` only as the reviewed ISO-builder input
 - keep hardware-specific install logic under `qvcore/install/config/hardware/`
 - prefer helper commands for package and command checks where available
 

@@ -3,7 +3,7 @@
 set -e
 
 # Set install mode to online since boot.sh is used for curl installations
-export OMARCHY_ONLINE_INSTALL=true
+export QVOS_ONLINE_INSTALL=true
 
 ansi_art='
   ██████  ██    ██  ██████  ███████

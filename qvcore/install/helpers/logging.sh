@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 
+qvos_install_start_time=""
+
 start_log_output() {
   local ANSI_SAVE_CURSOR="\033[s"
   local ANSI_RESTORE_CURSOR="\033[u"
@@ -18,7 +20,7 @@ start_log_output() {
 
     while true; do
       # Read the last N lines into an array
-      mapfile -t current_lines < <(tail -n $log_lines "$OMARCHY_INSTALL_LOG_FILE" 2>/dev/null)
+      mapfile -t current_lines < <(tail -n "$log_lines" "$QVOS_INSTALL_LOG_FILE" 2>/dev/null)
 
       # Build complete output buffer with escape sequences
       output=""
@@ -73,20 +75,19 @@ start_install_log() {
   local qvos_tui
 
   install_group=$(id -gn)
-  sudo touch "$OMARCHY_INSTALL_LOG_FILE"
-  sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"
-  sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"
+  sudo touch "$QVOS_INSTALL_LOG_FILE"
+  sudo chown "$USER:$install_group" "$QVOS_INSTALL_LOG_FILE"
+  sudo chmod 0640 "$QVOS_INSTALL_LOG_FILE"
 
-  OMARCHY_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
-  export OMARCHY_START_TIME
+  qvos_install_start_time=$(date '+%Y-%m-%d %H:%M:%S')
 
-  echo "=== qvOS Installation Started: $OMARCHY_START_TIME ===" \
-    >>"$OMARCHY_INSTALL_LOG_FILE"
+  echo "=== qvOS Installation Started: $qvos_install_start_time ===" \
+    >>"$QVOS_INSTALL_LOG_FILE"
   qvos_tui=$(command -v qvos-tui 2>/dev/null || true)
   if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then
     QVOS_TUI_FULLSCREEN=1 "$qvos_tui" \
       --iso-progress \
-      --log "$OMARCHY_INSTALL_LOG_FILE" \
+      --log "$QVOS_INSTALL_LOG_FILE" \
       --no-input &
     QVOS_ISO_PROGRESS_PID=$!
   elif [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]]; then
@@ -95,73 +96,93 @@ start_install_log() {
 }
 
 stop_install_log() {
+  local arch_duration=""
+  local arch_end_epoch
+  local arch_mins
+  local arch_secs
+  local arch_start_epoch
+  local archinstall_end=""
+  local archinstall_start=""
+  local qvos_duration
+  local qvos_end_epoch
+  local qvos_end_time
+  local qvos_mins
+  local qvos_secs
+  local qvos_start_epoch
+  local total_duration
+  local total_mins
+  local total_secs
+
   stop_log_output
   show_cursor
 
-  if [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} ]]; then
-    OMARCHY_END_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+  if [[ -n ${QVOS_INSTALL_LOG_FILE:-} ]]; then
+    qvos_end_time=$(date '+%Y-%m-%d %H:%M:%S')
     {
-      echo "=== qvOS Installation Completed: $OMARCHY_END_TIME ==="
+      echo "=== qvOS Installation Completed: $qvos_end_time ==="
       echo ""
       echo "=== Installation Time Summary ==="
-    } >>"$OMARCHY_INSTALL_LOG_FILE"
+    } >>"$QVOS_INSTALL_LOG_FILE"
 
     if [[ -f "/var/log/archinstall/install.log" ]]; then
-      ARCHINSTALL_START=$(grep -m1 '^\[' /var/log/archinstall/install.log 2>/dev/null | sed 's/^\[\([^]]*\)\].*/\1/' || true)
-      ARCHINSTALL_END=$(grep 'Installation completed without any errors' /var/log/archinstall/install.log 2>/dev/null | sed 's/^\[\([^]]*\)\].*/\1/' || true)
+      archinstall_start=$(grep -m1 '^\[' /var/log/archinstall/install.log 2>/dev/null | sed 's/^\[\([^]]*\)\].*/\1/' || true)
+      archinstall_end=$(grep 'Installation completed without any errors' /var/log/archinstall/install.log 2>/dev/null | sed 's/^\[\([^]]*\)\].*/\1/' || true)
 
-      if [[ -n $ARCHINSTALL_START ]] && [[ -n $ARCHINSTALL_END ]]; then
-        ARCH_START_EPOCH=$(date -d "$ARCHINSTALL_START" +%s)
-        ARCH_END_EPOCH=$(date -d "$ARCHINSTALL_END" +%s)
-        ARCH_DURATION=$((ARCH_END_EPOCH - ARCH_START_EPOCH))
+      if [[ -n $archinstall_start && -n $archinstall_end ]]; then
+        arch_start_epoch=$(date -d "$archinstall_start" +%s)
+        arch_end_epoch=$(date -d "$archinstall_end" +%s)
+        arch_duration=$((arch_end_epoch - arch_start_epoch))
 
-        ARCH_MINS=$((ARCH_DURATION / 60))
-        ARCH_SECS=$((ARCH_DURATION % 60))
+        arch_mins=$((arch_duration / 60))
+        arch_secs=$((arch_duration % 60))
 
-        echo "Archinstall: ${ARCH_MINS}m ${ARCH_SECS}s" >>"$OMARCHY_INSTALL_LOG_FILE"
+        echo "Archinstall: ${arch_mins}m ${arch_secs}s" >>"$QVOS_INSTALL_LOG_FILE"
       fi
     fi
 
-    if [[ -n $OMARCHY_START_TIME ]]; then
-      OMARCHY_START_EPOCH=$(date -d "$OMARCHY_START_TIME" +%s)
-      OMARCHY_END_EPOCH=$(date -d "$OMARCHY_END_TIME" +%s)
-      OMARCHY_DURATION=$((OMARCHY_END_EPOCH - OMARCHY_START_EPOCH))
+    if [[ -n $qvos_install_start_time ]]; then
+      qvos_start_epoch=$(date -d "$qvos_install_start_time" +%s)
+      qvos_end_epoch=$(date -d "$qvos_end_time" +%s)
+      qvos_duration=$((qvos_end_epoch - qvos_start_epoch))
 
-      OMARCHY_MINS=$((OMARCHY_DURATION / 60))
-      OMARCHY_SECS=$((OMARCHY_DURATION % 60))
+      qvos_mins=$((qvos_duration / 60))
+      qvos_secs=$((qvos_duration % 60))
 
-      echo "qvOS:        ${OMARCHY_MINS}m ${OMARCHY_SECS}s" >>"$OMARCHY_INSTALL_LOG_FILE"
+      echo "qvOS:        ${qvos_mins}m ${qvos_secs}s" >>"$QVOS_INSTALL_LOG_FILE"
 
-      if [[ -n $ARCH_DURATION ]]; then
-        TOTAL_DURATION=$((ARCH_DURATION + OMARCHY_DURATION))
-        TOTAL_MINS=$((TOTAL_DURATION / 60))
-        TOTAL_SECS=$((TOTAL_DURATION % 60))
-        echo "Total:       ${TOTAL_MINS}m ${TOTAL_SECS}s" >>"$OMARCHY_INSTALL_LOG_FILE"
+      if [[ -n $arch_duration ]]; then
+        total_duration=$((arch_duration + qvos_duration))
+        total_mins=$((total_duration / 60))
+        total_secs=$((total_duration % 60))
+        echo "Total:       ${total_mins}m ${total_secs}s" >>"$QVOS_INSTALL_LOG_FILE"
       fi
     fi
-    echo "=================================" >>"$OMARCHY_INSTALL_LOG_FILE"
+    echo "=================================" >>"$QVOS_INSTALL_LOG_FILE"
 
-    echo "Rebooting system..." >>"$OMARCHY_INSTALL_LOG_FILE"
+    echo "Rebooting system..." >>"$QVOS_INSTALL_LOG_FILE"
   fi
 }
 
 run_logged() {
+  local exit_code
   local script="$1"
 
   export CURRENT_SCRIPT="$script"
 
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: $script" >>"$OMARCHY_INSTALL_LOG_FILE"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: $script" >>"$QVOS_INSTALL_LOG_FILE"
 
   # Use bash -c to create a clean subshell
-  bash -c "source '$script'" </dev/null >>"$OMARCHY_INSTALL_LOG_FILE" 2>&1
-
-  local exit_code=$?
+  if bash -c 'source "$1"' _ "$script" </dev/null >>"$QVOS_INSTALL_LOG_FILE" 2>&1; then
+    exit_code=0
+  else
+    exit_code=$?
+  fi
 
   if (( exit_code == 0 )); then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: $script" >>"$OMARCHY_INSTALL_LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: $script" >>"$QVOS_INSTALL_LOG_FILE"
     unset CURRENT_SCRIPT
   else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Failed: $script (exit code: $exit_code)" >>"$OMARCHY_INSTALL_LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Failed: $script (exit code: $exit_code)" >>"$QVOS_INSTALL_LOG_FILE"
   fi
 
   return $exit_code

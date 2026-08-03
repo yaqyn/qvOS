@@ -99,7 +99,7 @@ SCRIPT
 run_finished() {
   HOME="$test_root/home" \
     QVOS_PATH="$test_qvos" \
-    OMARCHY_INSTALL_LOG_FILE="$test_root/install.log" \
+    QVOS_INSTALL_LOG_FILE="$test_root/install.log" \
     QVOS_INSTALL_COMPLETION_MARKER="$completion_marker" \
     QVOS_TEST_EVENT_LOG="$event_log" \
     PATH="$test_bin:/usr/bin" \

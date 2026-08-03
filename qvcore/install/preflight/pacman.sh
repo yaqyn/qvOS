@@ -1,4 +1,4 @@
-if [[ -n ${OMARCHY_ONLINE_INSTALL:-} ]]; then
+if [[ -n ${QVOS_ONLINE_INSTALL:-} ]]; then
   # Install build tools
   omarchy-pkg-add base-devel
 

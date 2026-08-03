@@ -9,7 +9,7 @@ export QVOS_PATH="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"
 export OMARCHY_PATH="$QVOS_PATH"
 export QVOS_INSTALL="$QVOS_PATH/qvcore/install"
 export OMARCHY_INSTALL="$QVOS_INSTALL"
-export OMARCHY_INSTALL_LOG_FILE="/var/log/omarchy-install.log"
+export QVOS_INSTALL_LOG_FILE="${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}"
 export PATH="$QVOS_PATH/bin:$PATH"
 
 # Install

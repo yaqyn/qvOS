@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultISOProgressLogPath = "/var/log/omarchy-install.log"
+	defaultISOProgressLogPath = "/var/log/qvos-install.log"
 	isoProgressPollFrames     = 16
 	isoProgressEstimate       = 4 * 60
 )

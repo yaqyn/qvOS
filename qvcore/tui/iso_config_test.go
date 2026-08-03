@@ -150,6 +150,12 @@ func TestISOProgressLogRetainsTheCompleteTerminalHistory(t *testing.T) {
 	}
 }
 
+func TestISOProgressUsesTheNativeInstallerLogByDefault(t *testing.T) {
+	if defaultISOProgressLogPath != "/var/log/qvos-install.log" {
+		t.Fatalf("default ISO progress log = %q", defaultISOProgressLogPath)
+	}
+}
+
 func TestISOProgressUsesTheLatestRealInstallScript(t *testing.T) {
 	log := strings.Join([]string{
 		"[2026-08-02 01:00:00] Starting: /home/installer/.local/share/qvos/qvcore/install/packaging/base",

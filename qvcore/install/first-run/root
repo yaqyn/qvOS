@@ -42,7 +42,8 @@ fi
 helper="$system_root/usr/lib/qvos/first-run-root"
 sudoers="$system_root/etc/sudoers.d/qvos-first-run"
 legacy_sudoers="$system_root/etc/sudoers.d/first-run"
-reboot_sudoers="$system_root/etc/sudoers.d/99-omarchy-installer-reboot"
+reboot_sudoers="$system_root/etc/sudoers.d/99-qvos-installer-reboot"
+legacy_reboot_sudoers="$system_root/etc/sudoers.d/99-omarchy-installer-reboot"
 resolv_conf="$system_root/etc/resolv.conf"
 state_dir="$system_root/run/qvos-first-run"
 state_file="$state_dir/root-applied"
@@ -120,7 +121,7 @@ apply)
     exit 0
   fi
 
-  /usr/bin/rm -f -- "$reboot_sudoers"
+  /usr/bin/rm -f -- "$reboot_sudoers" "$legacy_reboot_sudoers"
 
   run_fixed_command "$ufw" default deny incoming
   run_fixed_command "$ufw" default allow outgoing

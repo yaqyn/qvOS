@@ -61,6 +61,11 @@ grep -Fqx 'export QVOS_INSTALL="$QVOS_PATH/qvcore/install"' "$root/install.sh" |
 grep -Fqx 'export OMARCHY_INSTALL="$QVOS_INSTALL"' "$root/install.sh" ||
   fail "installer compatibility environment"
 # shellcheck disable=SC2016
+grep -Fqx 'export QVOS_INSTALL_LOG_FILE="${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}"' \
+  "$root/install.sh" || fail "native installer log identity"
+grep -Fqx 'export QVOS_ONLINE_INSTALL=true' "$root/boot.sh" ||
+  fail "native online installer identity"
+# shellcheck disable=SC2016
 for stage in \
   'source "$QVOS_PATH/qvcore/install/helpers/run"' \
   'source "$QVOS_INSTALL/preflight/all.sh"' \
@@ -95,6 +100,17 @@ fi
 grep -Eq '^env \| grep -E ".*QVOS_PATH.*QVOS_INSTALL.*"' \
   "$root/qvcore/install/preflight/show-env.sh" ||
   fail "native install environment reporting"
+if rg -n \
+  'OMARCHY_(INSTALL_LOG_FILE|ONLINE_INSTALL|START_TIME|END_TIME|START_EPOCH|END_EPOCH|DURATION|MINS|SECS)|/var/(log/omarchy-install\.log|tmp/omarchy-install-completed)' \
+  "$root/boot.sh" \
+  "$root/install.sh" \
+  "$root/qvcore/install" \
+  "$root/qvcore/tui/iso_progress.go"; then
+  fail "retired Omarchy installer identity remains active"
+fi
+grep -Fq '/etc/sudoers.d/99-qvos-installer-reboot' \
+  "$root/qvcore/install/post-install/allow-reboot.sh" ||
+  fail "native installer reboot policy identity"
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
   "$root/qvcore/install/config/run" || fail "ASUS B9406 touchpad stage"

@@ -51,6 +51,7 @@ run_root() {
 }
 
 printf 'legacy\n' >"$system_root/etc/sudoers.d/first-run"
+printf 'reboot\n' >"$system_root/etc/sudoers.d/99-qvos-installer-reboot"
 printf 'reboot\n' >"$system_root/etc/sudoers.d/99-omarchy-installer-reboot"
 install -D -m 0600 /dev/null "$legacy_marker"
 run_prepare
@@ -91,6 +92,8 @@ expected_apply=$(printf '%s\n' \
 [[ $(<"$event_log") == "$expected_apply" ]] ||
   fail "fixed first-run root actions"
 [[ ! -e $system_root/etc/sudoers.d/99-omarchy-installer-reboot ]] ||
+  fail "legacy installer reboot privilege survived root apply"
+[[ ! -e $system_root/etc/sudoers.d/99-qvos-installer-reboot ]] ||
   fail "installer reboot privilege survived root apply"
 [[ -L $system_root/etc/resolv.conf ]] || fail "resolver link type"
 [[ $(readlink "$system_root/etc/resolv.conf") == \

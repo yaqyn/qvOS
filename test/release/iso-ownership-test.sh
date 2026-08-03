@@ -37,6 +37,13 @@ grep -Fq 'if [[ ! -d $target/qvcore/boot/login ]]; then' \
 if grep -Fq 'missing install/' "$root/release/iso/build"; then
   fail "release ISO requires the retired install tree"
 fi
+if sed -n '/^[+ ]/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
+  grep -Fq '/var/log/omarchy-install.log'; then
+  fail "release ISO activates the retired installer log identity"
+fi
+grep -Fq '/var/log/qvos-install.log' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO native installer log identity"
 if rg -q 'copy_tree|fresh-cloning ISO builder source local' "$root/release/iso/build"; then
   fail "local ISO source bypass remains"
 fi

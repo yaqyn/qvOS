@@ -216,7 +216,7 @@
  
 +start_qvos_iso_progress() {
 +  if command -v qvos-tui >/dev/null 2>&1; then
-+    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress --log /var/log/omarchy-install.log --no-input &
++    QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress --log /var/log/qvos-install.log --no-input &
 +    QVOS_ISO_PROGRESS_PID=$!
 +  else
 +    start_log_output
@@ -238,7 +238,8 @@
 +    echo
 +  fi
  
-   touch /var/log/omarchy-install.log
+-  touch /var/log/omarchy-install.log
++  touch /var/log/qvos-install.log
  
 -  start_log_output
 +  start_qvos_iso_progress
@@ -247,7 +248,8 @@
 +  local install_status
    CURRENT_SCRIPT="install_base_system"
 +  set +e
-   install_base_system > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >>/var/log/omarchy-install.log) 2>&1
+-  install_base_system > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >>/var/log/omarchy-install.log) 2>&1
++  install_base_system > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >>/var/log/qvos-install.log) 2>&1
 +  install_status=$?
    unset CURRENT_SCRIPT
 -  stop_log_output
@@ -261,8 +263,8 @@
 +  if [[ -x /usr/local/bin/qvos-tui ]]; then
 +    install -Dm755 /usr/local/bin/qvos-tui /mnt/usr/local/bin/qvos-tui
 +  fi
-+  install -Dm0640 /dev/null /mnt/var/log/omarchy-install.log
-+  mount --bind /var/log/omarchy-install.log /mnt/var/log/omarchy-install.log
++  install -Dm0640 /dev/null /mnt/var/log/qvos-install.log
++  mount --bind /var/log/qvos-install.log /mnt/var/log/qvos-install.log
 +  stop_qvos_iso_progress
 +  return 0
  }

@@ -24,9 +24,9 @@ show_log_tail() {
   [[ $terminal_height =~ ^[0-9]+$ ]] || terminal_height=24
   [[ $logo_height =~ ^[0-9]+$ ]] || logo_height=0
   [[ $logo_width =~ ^[0-9]+$ ]] || logo_width=80
-  [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} &&
-    -f $OMARCHY_INSTALL_LOG_FILE &&
-    ! -L $OMARCHY_INSTALL_LOG_FILE ]] || return 0
+  [[ -n ${QVOS_INSTALL_LOG_FILE:-} &&
+    -f $QVOS_INSTALL_LOG_FILE &&
+    ! -L $QVOS_INSTALL_LOG_FILE ]] || return 0
 
   log_lines=$((terminal_height - logo_height - 14))
   (( log_lines >= 3 )) || log_lines=3
@@ -40,7 +40,7 @@ show_log_tail() {
       truncated_line=$line
     fi
     printf '%s\n' "$truncated_line"
-  done < <(tail -n "$log_lines" -- "$OMARCHY_INSTALL_LOG_FILE")
+  done < <(tail -n "$log_lines" -- "$QVOS_INSTALL_LOG_FILE")
   echo
 }
 
@@ -119,12 +119,12 @@ catch_errors() {
 
   while true; do
     options=()
-    if [[ -n ${OMARCHY_ONLINE_INSTALL:-} ]]; then
+    if [[ -n ${QVOS_ONLINE_INSTALL:-} ]]; then
       options+=("Retry installation")
     fi
-    if [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} &&
-      -f $OMARCHY_INSTALL_LOG_FILE &&
-      ! -L $OMARCHY_INSTALL_LOG_FILE ]]; then
+    if [[ -n ${QVOS_INSTALL_LOG_FILE:-} &&
+      -f $QVOS_INSTALL_LOG_FILE &&
+      ! -L $QVOS_INSTALL_LOG_FILE ]]; then
       options+=("View full log")
     fi
     options+=("Exit")
@@ -145,9 +145,9 @@ catch_errors() {
       ;;
     "View full log")
       if command -v less &>/dev/null; then
-        less -- "$OMARCHY_INSTALL_LOG_FILE" || true
+        less -- "$QVOS_INSTALL_LOG_FILE" || true
       else
-        tail -- "$OMARCHY_INSTALL_LOG_FILE" || true
+        tail -- "$QVOS_INSTALL_LOG_FILE" || true
       fi
       ;;
     "Exit" | "")
