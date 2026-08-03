@@ -22,8 +22,8 @@ wrapper.
 
 `qvcore/migrations/run` is the update pipeline's only migration engine. It reads
 only native numeric owners, serializes runs, keeps private atomic qvOS markers,
-and stops the update on failure without allowing a skip. The inherited
-`omarchy-migrate` command is a thin ABI adapter; no update path may read or
+and stops the update on failure without allowing a skip. Update paths call
+`qv-migrate`; `omarchy-migrate` is a metadata-free ABI adapter only. No path may read or
 replay the retired top-level Omarchy migration tree.
 
 `qvcore/update/state` owns only `reboot-required` and validated

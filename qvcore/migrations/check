@@ -34,12 +34,31 @@ for migration in "$root"/qvcore/migrations/[0-9]*.sh; do
   fi
 done
 
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$QVOS_PATH/qvcore/migrations/run" "$@"' \
-  "$root/bin/omarchy-migrate" || fail "migration compatibility adapter"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$QVOS_PATH/qvcore/migrations/add" "$@"' \
-  "$root/bin/omarchy-dev-add-migration" || fail "migration creator adapter"
+declare -A migration_owners=(
+  [dev-add-migration]=add
+  [migrate]=run
+)
+for route in "${!migration_owners[@]}"; do
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  owner=${migration_owners[$route]}
+  [[ -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "migration adapter mode: $route"
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native migration adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
+    fail "migration compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native migration adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "migration compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/migrations/$owner\" \"\$@\"" \
+      "$adapter" || fail "migration adapter owner: $route"
+  done
+done
+grep -Fqx 'qv-migrate' "$root/bin/omarchy-update-perform" ||
+  fail "update pipeline does not call the native migration route"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
   "$root/qvcore/install/preflight/migrations.sh" ||
