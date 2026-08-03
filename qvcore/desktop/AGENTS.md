@@ -3,7 +3,8 @@
 Read this file completely when changing desktop process reloads, user-service
 restarts, radio resets, trackpad recovery, or shared desktop launch helpers.
 
-`qvcore/desktop/restart/` is the singular owner for supported runtime restart
+`qvcore/desktop/hyprland/` owns shared read-only compositor context such as
+focused-monitor detection. `qvcore/desktop/restart/` is the singular owner for supported runtime restart
 operations. Public `qv-restart-*` commands carry metadata; matching
 `omarchy-restart-*` files are metadata-free compatibility adapters only.
 qvOS-owned consumers call the native command or owner, never the compatibility

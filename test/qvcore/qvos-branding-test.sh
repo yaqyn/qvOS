@@ -35,7 +35,7 @@ SCRIPT
 for command in \
   omarchy-launch-about \
   omarchy-launch-editor \
-  omarchy-launch-screensaver; do
+  qv-launch-screensaver; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
 printf '%s' "${0##*/}" >>"$QVOS_TEST_EVENT_LOG"
@@ -82,13 +82,13 @@ cmp -s \
   "$root/qvcore/branding/logo.txt" \
   "$test_home/.config/omarchy/branding/screensaver.txt" ||
   fail "screensaver reset source"
-grep -Fqx $'omarchy-launch-screensaver\tforce' "$event_log" ||
+grep -Fqx $'qv-launch-screensaver\tforce' "$event_log" ||
   fail "screensaver reset refresh"
 
 : >"$event_log"
 QVOS_TEST_IMAGE="$image" run_owner "$root/qvcore/branding/screensaver" image
 [[ $(<"$event_log") == \
-  $'transcode\t'"$image"$'\t'"$test_home/.config/omarchy/branding/screensaver.txt"$'\nomarchy-launch-screensaver\tforce' ]] ||
+  $'transcode\t'"$image"$'\t'"$test_home/.config/omarchy/branding/screensaver.txt"$'\nqv-launch-screensaver\tforce' ]] ||
   fail "screensaver image argument preservation"
 
 if run_owner "$root/qvcore/branding/about" invalid >/dev/null 2>&1; then

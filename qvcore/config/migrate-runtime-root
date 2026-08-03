@@ -107,7 +107,9 @@ rewrite_literals \
 rewrite_literals \
   "$HOME/.config/hypr/hypridle.conf" \
   '.local/share/qvos/bin/omarchy-launch-screensaver' \
+  '.local/lib/qvos/bin/qvos-launch-screensaver' \
   '.local/lib/qvos/bin/omarchy-launch-screensaver' \
+  '.local/lib/qvos/bin/qvos-launch-screensaver' \
   '.local/share/qvos/bin/omarchy-system-suspend-if-safe' \
   '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
   '.local/lib/qvos/bin/omarchy-system-suspend-if-safe' \

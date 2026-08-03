@@ -11,7 +11,6 @@ bin/omarchy-install-zed
 bin/omarchy-launch-audio
 bin/omarchy-launch-bluetooth
 bin/omarchy-launch-floating-terminal-with-presentation
-bin/omarchy-launch-screensaver
 bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu
@@ -26,7 +25,6 @@ bin/omarchy-refresh-tmux
 bin/omarchy-refresh-walker
 bin/omarchy-refresh-waybar
 bin/omarchy-remove-preinstalls
-bin/omarchy-screensaver
 bin/omarchy-show-logo
 bin/omarchy-version
 bin/omarchy-version-branch

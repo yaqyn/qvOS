@@ -27,7 +27,7 @@ if [[ $step == "off" || $step == "on" ]]; then
 fi
 
 controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-if omarchy-hyprland-monitor-focused-apple; then
+if qv-hyprland-monitor-focused-apple; then
   exec "$controls_root/brightness/display-apple" "$step"
 fi
 

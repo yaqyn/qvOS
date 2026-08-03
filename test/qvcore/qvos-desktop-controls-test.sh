@@ -18,11 +18,11 @@ fail() {
 }
 
 install -d "$test_bin"
-install -m 0755 /dev/stdin "$test_bin/omarchy-hyprland-monitor-focused" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hyprland-monitor-focused" <<'SCRIPT'
 #!/bin/bash
 printf 'DP-1\n'
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hyprland-monitor-focused-apple" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hyprland-monitor-focused-apple" <<'SCRIPT'
 #!/bin/bash
 exit "${QVOS_APPLE_MONITOR_STATUS:-1}"
 SCRIPT

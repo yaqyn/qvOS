@@ -98,7 +98,7 @@ if rg -q 'omarchy-(audio|brightness|hyprland-monitor-internal|swayosd|toggle-tou
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
-grep -Fq '.local/lib/qvos/bin/omarchy-launch-screensaver' \
+grep -Fq '.local/lib/qvos/bin/qvos-launch-screensaver' \
   "$test_home/.config/hypr/hypridle.conf" ||
   fail "screensaver runtime migration"
 grep -Fq '.local/lib/qvos/bin/qv-system-suspend-if-safe' \

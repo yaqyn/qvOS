@@ -1,0 +1,69 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/screensaver/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+for owner in qvos-launch-screensaver qvos-screensaver; do
+  [[ -x $root/qvcore/screensaver/$owner ]] ||
+    fail "screensaver owner mode: $owner"
+done
+[[ ! -e $root/qvcore/screensaver/omarchy-launch-screensaver ]] ||
+  fail "duplicate runtime compatibility adapter remains"
+
+declare -A route_owners=(
+  [launch-screensaver]=qvos-launch-screensaver
+  [screensaver]=qvos-screensaver
+)
+for route in "${!route_owners[@]}"; do
+  owner="qvcore/screensaver/${route_owners[$route]}"
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  [[ -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "screensaver adapter mode: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native screensaver adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "screensaver compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "screensaver adapter owner: $route"
+  done
+done
+
+expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver\nconfig/hypr/hypridle.conf'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_manifest" ]] ||
+  fail "screensaver native inventory is incomplete or unordered"
+
+grep -Fq 'qv-cmd-present tte' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
+  fail "screensaver bypasses the native command helper"
+grep -Fq 'qv-hyprland-monitor-focused' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
+  fail "screensaver bypasses the native monitor helper"
+# shellcheck disable=SC2016
+grep -Fqx '    on-timeout = pidof hyprlock || ~/.local/lib/qvos/bin/qvos-launch-screensaver' \
+  "$root/qvcore/config/files/hypr/hypridle.conf" ||
+  fail "installed idle config bypasses the native runtime owner"
+
+for alias_entry in \
+  omarchy-launch-screensaver:qvos-launch-screensaver \
+  omarchy-screensaver:qvos-screensaver \
+  qv-launch-screensaver:qvos-launch-screensaver \
+  qv-screensaver:qvos-screensaver; do
+  grep -Fqx "  $alias_entry" "$root/qvcore/screensaver/install" ||
+    fail "screensaver runtime alias is missing: $alias_entry"
+done
+if rg -n 'omarchy-(launch-)?screensaver([^[:alnum:]_-]|$)' \
+  "$root/qvcore" "$root/config" "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md' --glob '!**/native-paths' \
+  --glob '!**/screensaver/check' --glob '!**/config/migrate-runtime-root' \
+  --glob '!**/screensaver/install' \
+  --glob '!**/owner-contracts.psv'; then
+  fail "native qvOS surface calls a screensaver compatibility route"
+fi
+
+printf 'ok - qvOS screensaver source and runtime have one native owner pair\n'

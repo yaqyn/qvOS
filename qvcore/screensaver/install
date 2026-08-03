@@ -1,16 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
-source_dir="$OMARCHY_PATH/qvcore/screensaver"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_dir="$QVOS_PATH/qvcore/screensaver"
 runtime_root="$HOME/.local/lib/qvos"
 runtime_config="$runtime_root/screensaver"
 qvos_bin="$runtime_root/bin"
 local_bin="$HOME/.local/bin"
 staged_file=""
 commands=(
-  omarchy-launch-screensaver
   qvos-launch-screensaver
   qvos-screensaver
+)
+aliases=(
+  omarchy-launch-screensaver:qvos-launch-screensaver
+  omarchy-screensaver:qvos-screensaver
+  qv-launch-screensaver:qvos-launch-screensaver
+  qv-screensaver:qvos-screensaver
 )
 
 cleanup() {
@@ -52,4 +58,10 @@ for command_name in "${commands[@]}"; do
   mv -f -- "$staged_file" "$qvos_bin/$command_name"
   staged_file=""
   ln -sfn "$qvos_bin/$command_name" "$local_bin/$command_name"
+done
+
+for alias_entry in "${aliases[@]}"; do
+  alias_name=${alias_entry%%:*}
+  owner_name=${alias_entry#*:}
+  ln -sfn "$qvos_bin/$owner_name" "$local_bin/$alias_name"
 done

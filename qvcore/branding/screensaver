@@ -10,16 +10,16 @@ image)
   image=$(omarchy-menu-file "Logo image" "$HOME" "svg png")
   if [[ -n $image ]] &&
     omarchy-transcode-ascii "$image" "$branding_file"; then
-    omarchy-launch-screensaver force >/dev/null 2>&1
+    qv-launch-screensaver force >/dev/null 2>&1
   fi
   ;;
 text)
   omarchy-launch-editor "$branding_file" >/dev/null 2>&1 &&
-    omarchy-launch-screensaver force >/dev/null 2>&1
+    qv-launch-screensaver force >/dev/null 2>&1
   ;;
 reset)
   cp "$OMARCHY_PATH/qvcore/branding/logo.txt" "$branding_file"
-  omarchy-launch-screensaver force >/dev/null 2>&1
+  qv-launch-screensaver force >/dev/null 2>&1
   ;;
 *)
   echo "Usage: omarchy-branding-screensaver <image|text|reset>" >&2

@@ -24,7 +24,27 @@ while IFS= read -r runtime_path; do
     fail "desktop runtime payload is unavailable or unsafe: $runtime_path"
 done <<<"$runtime_paths"
 
-for inherited_path in "${native_paths[@]}"; do
+declare -A helper_owners=(
+  [hyprland-monitor-focused]=hyprland/focused-monitor
+  [hyprland-monitor-focused-apple]=hyprland/focused-monitor-apple
+)
+for helper in "${!helper_owners[@]}"; do
+  native_adapter="$root/bin/qv-$helper"
+  compatibility_adapter="$root/bin/omarchy-$helper"
+  owner="qvcore/desktop/${helper_owners[$helper]}"
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
+    fail "desktop helper owner or adapter is unavailable: $helper"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native desktop helper lacks metadata: $helper"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "desktop helper compatibility adapter duplicates metadata: $helper"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "desktop helper adapter does not delegate directly: $helper"
+  done
+done
+
+while IFS= read -r inherited_path; do
   stem=${inherited_path##*/omarchy-restart-}
   owner="$restart_root/$stem"
   native_adapter="$root/bin/qv-restart-$stem"
@@ -48,7 +68,7 @@ for inherited_path in "${native_paths[@]}"; do
       "$adapter" ||
       fail "restart adapter does not delegate directly: $stem"
   done
-done
+done < <(printf '%s\n' "${native_paths[@]}" | grep '^bin/omarchy-restart-')
 
 [[ -f $restart_root/process-lib && ! -L $restart_root/process-lib &&
   $(stat -c '%a' "$restart_root/process-lib") == "644" ]] ||
@@ -65,6 +85,14 @@ if rg -n 'omarchy-restart-' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/desktop/check'; then
   fail "native qvOS source still calls a restart compatibility command"
+fi
+if rg -n 'omarchy-hyprland-monitor-focused' \
+  "$root/qvcore" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/desktop/check'; then
+  fail "native qvOS source still calls a monitor-helper compatibility command"
 fi
 
 printf 'qvOS desktop restart ownership check passed.\n'

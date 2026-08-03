@@ -1,4 +1,6 @@
-# Inherited restart commands promoted to native qvOS desktop ownership.
+# Inherited desktop helpers and restart commands promoted to native qvOS ownership.
+bin/omarchy-hyprland-monitor-focused
+bin/omarchy-hyprland-monitor-focused-apple
 bin/omarchy-restart-app
 bin/omarchy-restart-bluetooth
 bin/omarchy-restart-btop

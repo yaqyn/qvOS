@@ -7,6 +7,12 @@ or exit behavior, cursor handling, or its Hypridle interaction.
 global compositor state. `qvos-screensaver` owns one terminal animation and
 input detection.
 
+Public `qv-launch-screensaver` and `qv-screensaver` commands carry metadata;
+matching `omarchy-*` commands are metadata-free source compatibility adapters.
+Runtime aliases are direct symlinks to the two installed `qvos-*` owners, not
+copied adapters. Keep `org.omarchy.screensaver` only as the existing Hyprland
+window-class ABI until window rules and live-window matching migrate together.
+
 - Never use `cursor:invisible true`. It is compositor-wide state and can leave
   the desktop cursor hidden when lock, DPMS, or an external process closes the
   screensaver terminal before local cleanup completes.
@@ -25,7 +31,8 @@ input detection.
   privileged desktop owners so a later sudo or system failure cannot leave the
   screensaver config or commands missing.
 
-Run Bash syntax and ShellCheck for changed scripts, then
+List promoted inherited paths in sorted `native-paths` and run
+`qvcore/screensaver/check`, Bash syntax, and ShellCheck for changed scripts, then
 `test/qvcore/qvos-screensaver-test.sh` and the full qvOS shell suite when shared
 idle or install contracts change. Apply through `qvcore/install/desktop`, compare
 installed payloads with source, launch the screensaver, inspect a fullscreen

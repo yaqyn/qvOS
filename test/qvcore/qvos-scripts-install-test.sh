@@ -128,13 +128,23 @@ cmp -s \
   "$downstream_failure_home/.local/lib/qvos/screensaver/alacritty.toml" ||
   fail "downstream failure removed the screensaver config"
 for command_name in \
-  omarchy-launch-screensaver \
   qvos-launch-screensaver \
   qvos-screensaver; do
   cmp -s \
     "$root/qvcore/screensaver/$command_name" \
     "$downstream_failure_home/.local/lib/qvos/bin/$command_name" ||
     fail "downstream failure left an incomplete $command_name"
+done
+for alias_entry in \
+  omarchy-launch-screensaver:qvos-launch-screensaver \
+  omarchy-screensaver:qvos-screensaver \
+  qv-launch-screensaver:qvos-launch-screensaver \
+  qv-screensaver:qvos-screensaver; do
+  alias_name=${alias_entry%%:*}
+  owner_name=${alias_entry#*:}
+  [[ $(readlink "$downstream_failure_home/.local/bin/$alias_name") == \
+    "$downstream_failure_home/.local/lib/qvos/bin/$owner_name" ]] ||
+    fail "downstream failure left an incomplete $alias_name"
 done
 pass "later privileged failures cannot break the screensaver runtime"
 
@@ -373,10 +383,21 @@ screensaver_files="$(find "$test_root/.local/lib/qvos/screensaver" -maxdepth 1 -
 [[ "$(stat -c '%a' "$test_root/.local/lib/qvos/screensaver/alacritty.toml")" == "644" ]] || fail "screensaver config mode"
 pass "screensaver configuration is singular and non-executable"
 
-for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
+for command_name in qvos-launch-screensaver qvos-screensaver; do
   installed_command="$test_root/.local/lib/qvos/bin/$command_name"
   [[ -x $installed_command ]] || fail "$command_name installation"
   [[ "$(readlink "$test_root/.local/bin/$command_name")" == "$installed_command" ]] || fail "$command_name link"
+done
+for alias_entry in \
+  omarchy-launch-screensaver:qvos-launch-screensaver \
+  omarchy-screensaver:qvos-screensaver \
+  qv-launch-screensaver:qvos-launch-screensaver \
+  qv-screensaver:qvos-screensaver; do
+  alias_name=${alias_entry%%:*}
+  owner_name=${alias_entry#*:}
+  [[ $(readlink "$test_root/.local/bin/$alias_name") == \
+    "$test_root/.local/lib/qvos/bin/$owner_name" ]] ||
+    fail "$alias_name runtime owner"
 done
 pass "screensaver commands and user links are installed"
 

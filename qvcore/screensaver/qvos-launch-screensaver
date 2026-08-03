@@ -6,12 +6,12 @@ set -euo pipefail
 case "${1:-}" in
 "" | force) ;;
 *)
-  printf 'Usage: qvos-launch-screensaver [force]\n' >&2
+  printf 'Usage: qv launch screensaver [force]\n' >&2
   exit 2
   ;;
 esac
 if (($# > 1)); then
-  printf 'Usage: qvos-launch-screensaver [force]\n' >&2
+  printf 'Usage: qv launch screensaver [force]\n' >&2
   exit 2
 fi
 
@@ -30,7 +30,7 @@ screensaver_count() {
   hyprctl clients -j 2>/dev/null | jq '[.[] | select((.class // "") == "org.omarchy.screensaver")] | length' 2>/dev/null || printf '0\n'
 }
 
-if ! omarchy-cmd-present tte || [[ ! -x $runner ]]; then
+if ! qv-cmd-present tte || [[ ! -x $runner ]]; then
   notify-send -u critical "qvOS Screensaver" "Screensaver runtime is unavailable" >/dev/null 2>&1 || true
   exit 1
 fi
@@ -90,7 +90,7 @@ case ${terminal,,} in
   ;;
 esac
 
-focused="$(omarchy-hyprland-monitor-focused 2>/dev/null || true)"
+focused="$(qv-hyprland-monitor-focused 2>/dev/null || true)"
 if [[ -z $focused ]]; then
   focused="$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name' | head -n 1)"
 fi

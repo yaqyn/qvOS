@@ -64,7 +64,6 @@
     qvcore/power/suspend-if-safe
     qvcore/screensaver/alacritty.toml
     qvcore/screensaver/install
-    qvcore/screensaver/omarchy-launch-screensaver
     qvcore/screensaver/qvos-launch-screensaver
     qvcore/screensaver/qvos-screensaver
     qvcore/security/60-qvos-security.conf

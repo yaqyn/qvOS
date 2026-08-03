@@ -100,7 +100,7 @@ install -m 0755 /dev/stdin "$test_bin/xdg-terminal-exec" <<'SCRIPT'
 printf '%s\n' "${QVOS_TEST_TERMINAL:-Alacritty}"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
 #!/bin/bash
 
 [[ $1 == "tte" ]]
@@ -112,7 +112,7 @@ install -m 0755 /dev/stdin "$test_bin/qv-toggle-enabled" <<'SCRIPT'
 exit 1
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-hyprland-monitor-focused" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hyprland-monitor-focused" <<'SCRIPT'
 #!/bin/bash
 
 printf 'DP-1\n'
