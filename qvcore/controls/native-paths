@@ -1,0 +1,12 @@
+# Inherited desktop controls promoted to native qvOS ownership.
+bin/omarchy-audio-input-mute
+bin/omarchy-audio-output-switch
+bin/omarchy-brightness-display
+bin/omarchy-brightness-display-apple
+bin/omarchy-brightness-keyboard
+bin/omarchy-brightness-keyboard-mute
+bin/omarchy-notification-dismiss
+bin/omarchy-notification-send
+bin/omarchy-swayosd-brightness
+bin/omarchy-swayosd-client
+bin/omarchy-swayosd-kbd-brightness

@@ -15,7 +15,6 @@ bin/omarchy-launch-screensaver
 bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu
-bin/omarchy-notification-send
 bin/omarchy-refresh-chromium
 bin/omarchy-refresh-config
 bin/omarchy-refresh-fastfetch

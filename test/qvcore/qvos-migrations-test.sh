@@ -96,6 +96,51 @@ grep -Fq 'Preserving modified or unsafe retired Windows runtime:' \
   fail "modified retired Windows runtime warning"
 printf 'ok - obsolete runtime cleanup removes only exact generated artifacts\n'
 
+controls_migration="$root/qvcore/migrations/1785776096.sh"
+controls_home="$test_root/controls-home"
+controls_rule_root="$test_root/controls-rules"
+controls_rule="$controls_rule_root/99-power-profile.rules"
+controls_log="$test_root/controls-systemctl.log"
+controls_bin="$test_root/controls-bin"
+legacy_command="${root%/*}/omarchy/bin/omarchy-powerprofiles-set"
+install -d "$controls_home/.config/hypr" "$controls_rule_root" "$controls_bin"
+install -m 0755 /dev/stdin "$controls_bin/systemctl" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
+SCRIPT
+install -m 0644 /dev/stdin "$controls_home/.config/hypr/bindings.conf" <<'CONFIG'
+bindeld = , XF86AudioMicMute, Mute microphone, exec, omarchy-audio-input-mute
+CONFIG
+printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
+  "$legacy_command" >"$controls_rule"
+printf 'SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
+  "$legacy_command" >>"$controls_rule"
+HOME="$controls_home" \
+PATH="$controls_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_POWER_TESTING=1 \
+QVOS_POWER_PROFILE_RULE="$controls_rule" \
+QVOS_TEST_SYSTEMCTL_LOG="$controls_log" \
+  bash "$controls_migration" >/dev/null
+grep -Fq 'qv-audio-input-mute' "$controls_home/.config/hypr/bindings.conf" ||
+  fail "desktop-control migration integration"
+grep -Fq "$root/bin/qv-powerprofiles-set" "$controls_rule" ||
+  fail "power-profile rule migration integration"
+if rg -q 'omarchy|--unit=' "$controls_rule"; then
+  fail "legacy power-profile rule survived integrated migration"
+fi
+controls_snapshot=$(find "$controls_home" "$controls_rule_root" -type f -printf '%p|%m|%i|%T@\n' | sort)
+HOME="$controls_home" \
+PATH="$controls_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_POWER_TESTING=1 \
+QVOS_POWER_PROFILE_RULE="$controls_rule" \
+QVOS_TEST_SYSTEMCTL_LOG="$controls_log" \
+  bash "$controls_migration" >/dev/null
+[[ $(find "$controls_home" "$controls_rule_root" -type f -printf '%p|%m|%i|%T@\n' | sort) == \
+  "$controls_snapshot" ]] || fail "desktop-control migration integration idempotence"
+printf 'ok - promoted control config and root policy migrate together idempotently\n'
+
 seed_home="$test_root/seed-home"
 seed_log="$test_root/seed.log"
 make_home "$seed_home"

@@ -1,0 +1,70 @@
+#!/bin/bash
+set -euo pipefail
+
+direction=${1:-up}
+(($# <= 1)) || {
+  echo "Usage: qv brightness keyboard <up|down|cycle|off|restore>" >&2
+  exit 2
+}
+case $direction in
+up | down | cycle | off | restore) ;;
+*)
+  echo "Usage: qv brightness keyboard <up|down|cycle|off|restore>" >&2
+  exit 2
+  ;;
+esac
+led_root=${QVOS_LED_ROOT:-/sys/class/leds}
+if [[ $led_root != "/sys/class/leds" && ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
+  echo "A custom LED root is valid only in tests." >&2
+  exit 2
+fi
+device=""
+shopt -s nullglob
+candidates=("$led_root"/*kbd_backlight*)
+shopt -u nullglob
+for candidate in "${candidates[@]}"; do
+  [[ -e $candidate ]] || continue
+  device=$(basename -- "$candidate")
+  break
+done
+[[ -n $device ]] || {
+  echo "No keyboard backlight device was found." >&2
+  exit 1
+}
+case $direction in
+off)
+  brightnessctl -sd "$device" set 0 >/dev/null
+  exit
+  ;;
+restore)
+  brightnessctl -rd "$device" >/dev/null
+  exit
+  ;;
+esac
+max_brightness=$(brightnessctl -d "$device" max)
+current_brightness=$(brightnessctl -d "$device" get)
+if [[ ! $max_brightness =~ ^[1-9][0-9]*$ || ! $current_brightness =~ ^[0-9]+$ ]] ||
+  ((current_brightness > max_brightness)); then
+  echo "Keyboard backlight reported invalid brightness values." >&2
+  exit 1
+fi
+step=$((max_brightness / 10))
+((step > 0)) || step=1
+case $direction in
+cycle)
+  new_brightness=$((current_brightness + step))
+  ((new_brightness <= max_brightness)) || new_brightness=0
+  ;;
+up)
+  new_brightness=$((current_brightness + step))
+  ((new_brightness <= max_brightness)) || new_brightness=$max_brightness
+  ;;
+down)
+  new_brightness=$((current_brightness - step))
+  ((new_brightness >= 0)) || new_brightness=0
+  ;;
+esac
+brightnessctl -d "$device" set "$new_brightness" >/dev/null
+percent=$((new_brightness * 100 / max_brightness))
+controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+exec "$controls_root/osd/keyboard-brightness" "$percent"

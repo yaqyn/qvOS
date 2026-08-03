@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv powerprofiles init" >&2
+  exit 2
+}
+power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$power_root/profiles-set" autodetect

@@ -249,7 +249,7 @@ supplement this workflow and never replace its judgment.
 
 Root-started sessions must read every matching route completely before editing:
 
-- qvOS identity, CLI, desktop runtime, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/desktop/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
+- qvOS identity, CLI, desktop runtime and controls, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/desktop/AGENTS.md`, `qvcore/controls/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
 - qvOS boot presentation and Limine lifecycle: `qvcore/boot/AGENTS.md`
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`

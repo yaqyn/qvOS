@@ -1,0 +1,129 @@
+#!/bin/bash
+set -euo pipefail
+
+mode=install
+case ${1:-} in
+"") ;;
+--existing) mode=existing ;;
+*)
+  echo "Usage: qvcore/power/profile-rule [--existing]" >&2
+  exit 2
+  ;;
+esac
+(($# <= 1)) || {
+  echo "Usage: qvcore/power/profile-rule [--existing]" >&2
+  exit 2
+}
+
+script_path=$(readlink -f -- "${BASH_SOURCE[0]}")
+qvos_root=$(cd -- "$(dirname -- "$script_path")/../.." && pwd)
+profile_rule=${QVOS_POWER_PROFILE_RULE:-/etc/udev/rules.d/99-power-profile.rules}
+testing=${QVOS_POWER_TESTING:-}
+if [[ $profile_rule != "/etc/udev/rules.d/99-power-profile.rules" && $testing != "1" ]]; then
+  echo "A custom power-profile rule path is valid only in tests." >&2
+  exit 2
+fi
+if [[ $mode == "existing" && ! -e $profile_rule && ! -L $profile_rule ]]; then
+  exit
+fi
+if [[ $profile_rule == "/etc/udev/rules.d/99-power-profile.rules" ]] && ((EUID != 0)); then
+  exec sudo -- "$script_path" "$@"
+fi
+if [[ $qvos_root == *[[:space:][:cntrl:]]* ]]; then
+  echo "qvOS source path is unsafe for a udev command: $qvos_root" >&2
+  exit 1
+fi
+
+rule_dir=${profile_rule%/*}
+[[ -d $rule_dir && ! -L $rule_dir ]] || {
+  echo "Refusing unsafe udev rule directory: $rule_dir" >&2
+  exit 1
+}
+if [[ $testing != "1" && $(stat -c %u -- "$rule_dir") != "0" ]]; then
+  echo "Refusing a non-root-owned udev rule directory: $rule_dir" >&2
+  exit 1
+fi
+rule_content() {
+  local command_path=$1
+  local unit_argument=${2:-}
+
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect%s --property=After=power-profiles-daemon.service %s"\n' \
+    "$unit_argument" "$command_path"
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect%s --property=After=power-profiles-daemon.service %s"\n' \
+    "$unit_argument" "$command_path"
+}
+
+desired_command="$qvos_root/bin/qv-powerprofiles-set"
+desired_content=$(rule_content "$desired_command")
+legacy_root="${qvos_root%/*}/omarchy"
+allowed_contents=(
+  "$(rule_content "$qvos_root/bin/omarchy-powerprofiles-set")"
+  "$(rule_content "$legacy_root/bin/omarchy-powerprofiles-set")"
+  "$(rule_content "$qvos_root/bin/omarchy-powerprofiles-set" ' --unit=omarchy-power-profile')"
+  "$(rule_content "$legacy_root/bin/omarchy-powerprofiles-set" ' --unit=omarchy-power-profile')"
+  "$(rule_content "$desired_command" ' --unit=omarchy-power-profile')"
+)
+
+if [[ -e $profile_rule || -L $profile_rule ]]; then
+  expected_uid=$EUID
+  [[ -f $profile_rule && ! -L $profile_rule && $(stat -c %u -- "$profile_rule") == "$expected_uid" ]] || {
+    echo "Refusing unsafe power-profile rule: $profile_rule" >&2
+    exit 1
+  }
+  current_content=$(<"$profile_rule")
+  if [[ $current_content == "$desired_content" ]]; then
+    chmod 0644 -- "$profile_rule"
+    exit
+  fi
+  known_rule=false
+  for allowed_content in "${allowed_contents[@]}"; do
+    if [[ $current_content == "$allowed_content" ]]; then
+      known_rule=true
+      break
+    fi
+  done
+  [[ $known_rule == "true" ]] || {
+    echo "Preserving an unknown power-profile rule: $profile_rule" >&2
+    exit 1
+  }
+fi
+
+temporary=$(mktemp "$rule_dir/.qvos-power-profile.XXXXXX")
+backup=""
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+printf '%s\n' "$desired_content" >"$temporary"
+chmod 0644 -- "$temporary"
+if [[ -e $profile_rule ]]; then
+  backup=$(mktemp "$rule_dir/99-power-profile.rules.qvos-backup.XXXXXX")
+  cp -a -- "$profile_rule" "$backup"
+fi
+mv -f -- "$temporary" "$profile_rule"
+temporary=""
+
+if [[ $testing == "1" ]]; then
+  reload_command=${QVOS_UDEVADM:-}
+else
+  reload_command=/usr/bin/udevadm
+fi
+if [[ -n $reload_command ]] && ! "$reload_command" control --reload-rules; then
+  if [[ -n $backup ]]; then
+    temporary=$(mktemp "$rule_dir/.qvos-power-profile.XXXXXX")
+    cp -a -- "$backup" "$temporary"
+    mv -f -- "$temporary" "$profile_rule"
+    temporary=""
+  else
+    rm -f -- "$profile_rule"
+  fi
+  "$reload_command" control --reload-rules >/dev/null 2>&1 || true
+  echo "Could not reload the native power-profile rule; restored its prior state." >&2
+  exit 1
+fi
+
+if [[ -n $backup ]]; then
+  printf 'Installed native qvOS power-profile rule; backup: %s\n' "$backup"
+else
+  printf 'Installed native qvOS power-profile rule.\n'
+fi

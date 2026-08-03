@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 1)) || {
+  echo "Usage: qv brightness keyboard mute <on|off>" >&2
+  exit 2
+}
+case $1 in
+on) value=1 ;;
+off) value=0 ;;
+*)
+  echo "Usage: qv brightness keyboard mute <on|off>" >&2
+  exit 2
+  ;;
+esac
+led_root=${QVOS_LED_ROOT:-/sys/class/leds}
+if [[ $led_root != "/sys/class/leds" && ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
+  echo "A custom LED root is valid only in tests." >&2
+  exit 2
+fi
+if [[ -e $led_root/platform::micmute/brightness ]]; then
+  brightnessctl --device="platform::micmute" set "$value" >/dev/null 2>&1 || true
+fi

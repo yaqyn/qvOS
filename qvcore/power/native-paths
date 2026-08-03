@@ -1,3 +1,6 @@
-# Inherited system-power routes promoted to native qvOS ownership.
+# Inherited power routes promoted to native qvOS ownership.
+bin/omarchy-powerprofiles-init
+bin/omarchy-powerprofiles-list
+bin/omarchy-powerprofiles-set
 bin/omarchy-system-reboot
 bin/omarchy-system-shutdown

@@ -61,10 +61,11 @@ Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`
 the first-run and desktop-install suites, `systemd-analyze verify` after live
 alignment, and the full qvOS suite.
 
-`migrate-runtime-root` changes only exact retired qvOS path literals in named
-active configs. Back up each changed regular user-owned file, preserve all
-other content, refuse links and foreign ownership, and remain a no-op after
-success. Keep its inherited migration stub thin and its implementation native.
+`migrate-runtime-root` changes only exact retired qvOS path and promoted command
+literals in named active configs. Back up each changed regular user-owned file,
+preserve all other content, refuse links and foreign ownership, and remain a
+no-op after success. Keep its inherited migration stub thin and its
+implementation native.
 
 `qvcore/config/timezone` owns both the direct searchable picker and the TUI-selected
 mutation. Revalidate every selected zone against `timedatectl list-timezones`

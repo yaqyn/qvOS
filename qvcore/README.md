@@ -19,6 +19,7 @@ qvcore/
   browser/     Secure browser policy ownership.
   cli/         Native qv command engine and Omarchy compatibility frontend.
   config/      qvOS config sources and reconciliation after Omarchy defaults.
+  controls/    Audio, brightness, notification, and session OSD controls.
   desktop/     Shared context, web, Hyprland, and runtime restart owners.
   direct/      Verified manifest-driven direct software and updates.
   install/     Complete native qvOS installation lifecycle.

@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+monitor=$(omarchy-hyprland-monitor-focused)
+[[ -n $monitor ]] || {
+  echo "Cannot show the desktop control: no focused monitor was found." >&2
+  exit 1
+}
+exec swayosd-client --monitor "$monitor" "$@"

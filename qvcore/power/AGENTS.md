@@ -12,6 +12,18 @@ because stale state cleanup was refused. Schedule the fixed systemctl action
 before closing windows, preserve the existing two-second application grace,
 and never build a user-controlled shell command.
 
+## Session power profiles
+
+`profiles-set` owns power-profile policy. Accept only `autodetect`, `ac`,
+`battery`, or an exact profile reported by `powerprofilesctl`; use Balanced as
+the safe battery and missing-Performance fallback. Autodetection reads only
+Mains and USB supplies with a validated `online` value. Test fixtures may
+override the power-supply root only with `QVOS_POWER_TESTING=1`. The init and
+list owners delegate to this policy or the system service without duplicating
+selection logic. `profile-rule` is the singular installer and update owner for
+the root udev rule. It accepts only exact known qvOS/Omarchy predecessors,
+writes atomically, keeps a root-owned backup, and restores it when reload fails.
+
 ## Battery protection contract
 
 - Keep Battery Protection in qvCORE. It must remain complete without optional
@@ -63,7 +75,7 @@ without writing until the conflict is gone.
 
 ## Verification and live approval
 
-- Use simulated UPower, D-Bus, sysfs, hwdb, Polkit denial, concurrency, and
+- Use simulated UPower, D-Bus, sysfs, hwdb, power-profile, Polkit denial, concurrency, and
   systemd fixtures for mutation coverage. Run Bash syntax, ShellCheck, focused
   power/menu/install tests, `git diff --check`, and `test/qvcore/run.sh`.
 - After a verified commit, apply the desktop overlay and system helper, reload

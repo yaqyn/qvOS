@@ -16,7 +16,7 @@ device=$(omarchy-hw-touchscreen)
 enable() {
   hyprctl keyword "device[$device]:enabled" true >/dev/null
   qvos_toggle_remove "$state_conf"
-  omarchy-swayosd-client \
+  "$QVOS_PATH/bin/qv-swayosd-client" \
     --custom-icon device-support-touch-symbolic \
     --custom-message "Touchscreen enabled"
 }
@@ -25,7 +25,7 @@ disable() {
   hyprctl keyword "device[$device]:enabled" false >/dev/null
   printf 'device {\n  name = %s\n  enabled = false\n}\n' "$device" |
     qvos_toggle_write "$state_conf"
-  omarchy-swayosd-client \
+  "$QVOS_PATH/bin/qv-swayosd-client" \
     --custom-icon touch-disabled-symbolic \
     --custom-message "Touchscreen disabled"
 }

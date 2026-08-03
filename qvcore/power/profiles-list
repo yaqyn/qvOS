@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv powerprofiles list" >&2
+  exit 2
+}
+powerprofilesctl list |
+  awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
+    gsub(/^[*[:space:]]+|:$/, "")
+    print
+  }' |
+  tac

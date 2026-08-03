@@ -1,0 +1,86 @@
+#!/bin/bash
+set -euo pipefail
+
+step=${1:-+5%}
+(($# <= 1)) || {
+  echo "Usage: qv brightness display <+N%|N%-|N%|off|on>" >&2
+  exit 2
+}
+case $step in
+off | on) ;;
+*)
+  if [[ $step =~ ^\+([0-9]{1,3})%$ || $step =~ ^([0-9]{1,3})%-$ || $step =~ ^([0-9]{1,3})%$ ]]; then
+    ((10#${BASH_REMATCH[1]} <= 100)) || {
+      echo "Display brightness must be between 0 and 100 percent." >&2
+      exit 2
+    }
+  else
+    echo "Usage: qv brightness display <+N%|N%-|N%|off|on>" >&2
+    exit 2
+  fi
+  ;;
+esac
+
+if [[ $step == "off" || $step == "on" ]]; then
+  hyprctl dispatch dpms "$step" >/dev/null 2>&1
+  exit
+fi
+
+controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+if omarchy-hyprland-monitor-focused-apple; then
+  exec "$controls_root/brightness/display-apple" "$step"
+fi
+
+backlight_root=${QVOS_BACKLIGHT_ROOT:-/sys/class/backlight}
+if [[ $backlight_root != "/sys/class/backlight" && ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
+  echo "A custom backlight root is valid only in tests." >&2
+  exit 2
+fi
+device=""
+shopt -s nullglob
+all_devices=("$backlight_root"/*)
+preferred_devices=("$backlight_root"/amdgpu_bl* "$backlight_root"/intel_backlight "$backlight_root"/acpi_video*)
+shopt -u nullglob
+if ((${#all_devices[@]})); then
+  device=$(basename -- "${all_devices[0]}")
+fi
+for candidate in "${preferred_devices[@]}"; do
+  [[ -e $candidate ]] || continue
+  device=$(basename -- "$candidate")
+  break
+done
+[[ -n $device ]] || {
+  echo "No display backlight device was found." >&2
+  exit 1
+}
+
+current=$(brightnessctl -d "$device" -m | awk -F, 'NR == 1 { gsub(/%/, "", $4); print $4 }')
+if [[ ! $current =~ ^[0-9]{1,3}$ ]] || ((10#$current > 100)); then
+  echo "Display backlight reported an invalid brightness value." >&2
+  exit 1
+fi
+if [[ $step == "+5%" ]]; then
+  if ((10#$current < 5)); then
+    target=$((10#$current + 1))
+  else
+    target=$((10#$current + 5))
+  fi
+  ((target <= 100)) || target=100
+  step="${target}%"
+elif [[ $step == "5%-" ]]; then
+  if ((10#$current <= 5)); then
+    target=$((10#$current - 1))
+  else
+    target=$((10#$current - 5))
+  fi
+  ((target >= 1)) || target=1
+  step="${target}%"
+fi
+
+brightnessctl -d "$device" set "$step" >/dev/null
+new_brightness=$(brightnessctl -d "$device" -m | awk -F, 'NR == 1 { gsub(/%/, "", $4); print $4 }')
+if [[ ! $new_brightness =~ ^[0-9]{1,3}$ ]] || ((10#$new_brightness > 100)); then
+  echo "Display backlight reported an invalid brightness value after the change." >&2
+  exit 1
+fi
+exec "$controls_root/osd/brightness" "$new_brightness"

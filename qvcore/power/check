@@ -9,10 +9,45 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
+expected=$'bin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
-  fail "native system-power route inventory"
+  fail "native power route inventory"
+
+declare -A profile_owners=(
+  [init]=profiles-init
+  [list]=profiles-list
+  [set]=profiles-set
+)
+for action in init list set; do
+  native_adapter="$root/bin/qv-powerprofiles-$action"
+  compatibility_adapter="$root/bin/omarchy-powerprofiles-$action"
+  owner="$root/qvcore/power/${profile_owners[$action]}"
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $owner ]] ||
+    fail "power-profile owner or adapter mode: $action"
+  (($(wc -l <"$native_adapter") <= 10)) ||
+    fail "native power-profile adapter contains implementation: $action"
+  (($(wc -l <"$compatibility_adapter") <= 6)) ||
+    fail "power-profile compatibility adapter contains implementation: $action"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native power-profile adapter lacks metadata: $action"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "power-profile compatibility adapter duplicates metadata: $action"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/power/${profile_owners[$action]}\" \"\$@\"" "$adapter" ||
+      fail "power-profile adapter ownership: $action"
+  done
+done
+
 [[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
+[[ -x $root/qvcore/power/profile-rule ]] || fail "power-profile rule owner mode"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/power/profile-rule"' \
+  "$root/qvcore/install/config/powerprofilesctl-rules.sh" ||
+  fail "installer does not use the native power-profile rule owner"
+if rg -q 'cat <<EOF|tee .*99-power-profile' \
+  "$root/qvcore/install/config/powerprofilesctl-rules.sh"; then
+  fail "installer duplicates the native power-profile rule"
+fi
 for action in reboot shutdown; do
   adapter="$root/bin/omarchy-system-$action"
   [[ -x $adapter ]] || fail "system-power adapter mode: $action"
@@ -23,4 +58,11 @@ for action in reboot shutdown; do
   fi
 done
 
-printf 'ok - qvOS owns system power and update-marker cleanup\n'
+if rg -n 'omarchy-powerprofiles-' "$root/qvcore" "$root/config" \
+  --glob '!**/AGENTS.md' --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
+  --glob '!**/power/profile-rule'; then
+  fail "native qvOS source still calls a power-profile compatibility command"
+fi
+
+printf 'ok - qvOS owns power profiles, system power, and update-marker cleanup\n'

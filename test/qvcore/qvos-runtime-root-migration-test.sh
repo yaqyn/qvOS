@@ -34,6 +34,11 @@ exec = ~/.local/share/qvos/desktop/context/tool
 exec = ~/.local/share/qvos/thunar/launch
 exec = ~/.local/share/qvos/tmux/qvos-tmux
 source = ~/.local/share/qvos/default/hypr/input.conf
+bindeld = , XF86AudioMicMute, Mute microphone, exec, omarchy-audio-input-mute
+bindeld = , XF86MonBrightnessUp, Brightness up, exec, omarchy-brightness-display +5%
+bindeld = , XF86KbdBrightnessUp, Keyboard brightness up, exec, omarchy-brightness-keyboard up
+bindeld = , XF86AudioRaiseVolume, Volume up, exec, omarchy-swayosd-client --output-volume raise
+bindld = SUPER, XF86AudioMute, Switch audio output, exec, omarchy-audio-output-switch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
 exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
@@ -64,6 +69,18 @@ grep -Fq '.local/lib/qvos/tmux/' "$test_home/.config/hypr/bindings.conf" ||
   fail "tmux runtime migration"
 grep -Fq '.local/share/qvos/default/' "$test_home/.config/hypr/bindings.conf" ||
   fail "source-root path preservation"
+for command in \
+  qv-audio-input-mute \
+  qv-audio-output-switch \
+  qv-brightness-display \
+  qv-brightness-keyboard \
+  qv-swayosd-client; do
+  grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
+    fail "promoted desktop control was not migrated: $command"
+done
+if rg -q 'omarchy-(audio|brightness|swayosd)-' "$test_home/.config/hypr/bindings.conf"; then
+  fail "desktop control compatibility route remains after migration"
+fi
 grep -Fq '.local/lib/qvos/bin/omarchy-launch-screensaver' \
   "$test_home/.config/hypr/hypridle.conf" ||
   fail "screensaver runtime migration"

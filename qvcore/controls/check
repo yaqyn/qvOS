@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/controls/native-paths"
+
+fail() {
+  printf 'qvOS controls check: %s\n' "$1" >&2
+  exit 1
+}
+
+declare -A owners=(
+  [audio-input-mute]=audio/input-mute
+  [audio-output-switch]=audio/output-switch
+  [brightness-display]=brightness/display
+  [brightness-display-apple]=brightness/display-apple
+  [brightness-keyboard]=brightness/keyboard
+  [brightness-keyboard-mute]=brightness/keyboard-mute
+  [notification-dismiss]=notification/dismiss
+  [notification-send]=notification/send
+  [swayosd-brightness]=osd/brightness
+  [swayosd-client]=osd/client
+  [swayosd-kbd-brightness]=osd/keyboard-brightness
+)
+
+mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
+[[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+  fail "native control paths are not sorted and unique"
+((${#native_paths[@]} == ${#owners[@]})) || fail "native control inventory is incomplete"
+
+for inherited_path in "${native_paths[@]}"; do
+  stem=${inherited_path##*/omarchy-}
+  owner=${owners[$stem]:-}
+  [[ -n $owner ]] || fail "unknown native control route: $stem"
+  native_adapter="$root/bin/qv-$stem"
+  compatibility_adapter="$root/$inherited_path"
+  [[ -x $root/qvcore/controls/$owner && -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "control owner or adapter is unavailable: $stem"
+  (($(wc -l <"$native_adapter") <= 14)) ||
+    fail "native control adapter contains implementation: $stem"
+  (($(wc -l <"$compatibility_adapter") <= 8)) ||
+    fail "control compatibility adapter contains implementation: $stem"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native control adapter lacks metadata: $stem"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "control compatibility adapter duplicates metadata: $stem"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/controls/$owner\" \"\$@\"" "$adapter" ||
+      fail "control adapter does not delegate directly: $stem"
+  done
+done
+
+if rg -n 'omarchy-(audio|brightness|notification|swayosd)-' \
+  "$root/qvcore" "$root/config" \
+  --glob '!**/AGENTS.md' --glob '!**/README.md' \
+  --glob '!**/native-paths' --glob '!**/owner-contracts.psv' \
+  --glob '!**/controls/check' --glob '!**/config/migrate-runtime-root'; then
+  fail "native qvOS source still calls a desktop-control compatibility command"
+fi
+
+printf 'qvOS desktop control ownership check passed.\n'

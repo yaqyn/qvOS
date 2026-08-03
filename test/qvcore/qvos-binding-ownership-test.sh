@@ -16,7 +16,7 @@ for binding in \
   'bindd = SUPER, F, Full screen, fullscreen, 0' \
   'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' \
   'bindd = SUPER, code:10, Switch to workspace 1, workspace, 1' \
-  'bindeld = , XF86AudioRaiseVolume, Volume up, exec, omarchy-swayosd-client --output-volume raise'; do
+  'bindeld = , XF86AudioRaiseVolume, Volume up, exec, qv-swayosd-client --output-volume raise'; do
   grep -Fqx "$binding" "$bindings" || fail "retained native capability: $binding"
 done
 

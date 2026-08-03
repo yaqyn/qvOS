@@ -93,7 +93,12 @@ rewrite_literals \
   "$HOME/.config/hypr/bindings.conf" \
   '.local/share/qvos/desktop/' '.local/lib/qvos/desktop/' \
   '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/' \
-  '.local/share/qvos/tmux/' '.local/lib/qvos/tmux/'
+  '.local/share/qvos/tmux/' '.local/lib/qvos/tmux/' \
+  'omarchy-audio-input-mute' 'qv-audio-input-mute' \
+  'omarchy-audio-output-switch' 'qv-audio-output-switch' \
+  'omarchy-brightness-display' 'qv-brightness-display' \
+  'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
+  'omarchy-swayosd-client' 'qv-swayosd-client'
 rewrite_literals \
   "$HOME/.config/hypr/hypridle.conf" \
   '.local/share/qvos/bin/omarchy-launch-screensaver' \

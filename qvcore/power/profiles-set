@@ -1,0 +1,72 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# <= 1)) || {
+  echo "Usage: qv powerprofiles set [autodetect|ac|battery|profile]" >&2
+  exit 2
+}
+action=${1:-autodetect}
+power_supply_root=${QVOS_POWER_SUPPLY_ROOT:-/sys/class/power_supply}
+if [[ $power_supply_root != "/sys/class/power_supply" && ${QVOS_POWER_TESTING:-} != "1" ]]; then
+  echo "A custom power-supply root is valid only in tests." >&2
+  exit 2
+fi
+
+mapfile -t profiles < <(powerprofilesctl list | awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
+  gsub(/^[*[:space:]]+|:$/, "")
+  print
+}')
+((${#profiles[@]})) || {
+  echo "No power profiles are available." >&2
+  exit 1
+}
+has_profile() {
+  local expected=$1
+  local profile
+  for profile in "${profiles[@]}"; do
+    [[ $profile == "$expected" ]] && return
+  done
+  return 1
+}
+
+if [[ $action == "autodetect" ]]; then
+  action=battery
+  shopt -s nullglob
+  supplies=("$power_supply_root"/*)
+  shopt -u nullglob
+  for supply in "${supplies[@]}"; do
+    [[ -r $supply/type && -r $supply/online ]] || continue
+    type=$(<"$supply/type")
+    online=$(<"$supply/online")
+    [[ $online == "0" || $online == "1" ]] || continue
+    if [[ ($type == "Mains" || $type == "USB") && $online == "1" ]]; then
+      action=ac
+      break
+    fi
+  done
+fi
+
+case $action in
+ac)
+  if has_profile performance; then
+    target=performance
+  else
+    target=balanced
+  fi
+  ;;
+battery)
+  target=balanced
+  ;;
+*)
+  has_profile "$action" || {
+    echo "Unknown power profile: $action" >&2
+    exit 2
+  }
+  target=$action
+  ;;
+esac
+has_profile "$target" || {
+  echo "Required power profile is unavailable: $target" >&2
+  exit 1
+}
+exec powerprofilesctl set "$target"

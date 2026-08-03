@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 1)) || {
+  echo "Usage: qv notification dismiss <summary>" >&2
+  exit 2
+}
+notification_id=$(makoctl list | awk -v summary="$1" '
+  !found && /^Notification [0-9]+:/ && index($0, summary) {
+    line = $0
+    sub(/^Notification /, "", line)
+    sub(/:.*/, "", line)
+    print line
+    found = 1
+  }
+')
+if [[ -n $notification_id ]]; then
+  [[ $notification_id =~ ^[0-9]+$ ]] || {
+    echo "Notification service returned an invalid notification ID." >&2
+    exit 1
+  }
+  exec makoctl dismiss -n "$notification_id"
+fi

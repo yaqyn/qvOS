@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# qv:summary=Toggle microphone mute
+# qv:examples=qv audio input mute
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/controls/audio/input-mute" "$@"

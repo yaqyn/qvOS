@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv audio output switch" >&2
+  exit 2
+}
+
+controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+raw_sinks=$(pactl -f json list sinks)
+jq -e 'type == "array"' <<<"$raw_sinks" >/dev/null || {
+  echo "Audio service returned malformed sink data." >&2
+  exit 1
+}
+sinks=$(jq -c '[.[] | select((.ports | length == 0) or ([.ports[]? | .availability != "not available"] | any))]' <<<"$raw_sinks")
+sinks_count=$(jq -r 'length' <<<"$sinks")
+if ((sinks_count == 0)); then
+  "$controls_root/osd/client" --custom-message "No audio devices found" || true
+  exit 1
+fi
+
+current_sink_name=$(pactl get-default-sink)
+current_sink_index=$(jq -r --arg name "$current_sink_name" 'map(.name) | index($name)' <<<"$sinks")
+if [[ $current_sink_index == "null" ]]; then
+  next_sink_index=0
+elif [[ $current_sink_index =~ ^[0-9]+$ ]] && ((current_sink_index < sinks_count)); then
+  next_sink_index=$(((current_sink_index + 1) % sinks_count))
+else
+  echo "Audio service returned an invalid default sink index." >&2
+  exit 1
+fi
+
+next_sink=$(jq -c --argjson index "$next_sink_index" '.[$index]' <<<"$sinks")
+next_sink_name=$(jq -er '.name | select(type == "string" and length > 0)' <<<"$next_sink") || {
+  echo "Audio service returned a sink without a valid name." >&2
+  exit 1
+}
+next_sink_wpid=$(jq -er '.properties."object.id" | select(type == "string" or type == "number") | tostring | select(test("^[0-9]+$"))' <<<"$next_sink") || {
+  echo "Audio service returned a sink without a valid object ID." >&2
+  exit 1
+}
+
+next_sink_description=$(jq -r '.description // empty | select(type == "string")' <<<"$next_sink")
+if [[ -z $next_sink_description ]]; then
+  device_id=$(jq -r '.properties."device.id" // empty | tostring | select(test("^[0-9]+$"))' <<<"$next_sink")
+  if [[ -n $device_id ]]; then
+    next_sink_description=$(wpctl status | awk -v id="$device_id" '
+      match($0, /[0-9]+\./) {
+        candidate = substr($0, RSTART, RLENGTH - 1)
+        if (candidate == id) {
+          line = substr($0, RSTART + RLENGTH)
+          sub(/[[:space:]]+\[.*$/, "", line)
+          sub(/^[[:space:]]+/, "", line)
+          print line
+          exit
+        }
+      }
+    ')
+  fi
+fi
+[[ -n $next_sink_description ]] || next_sink_description=$next_sink_name
+
+next_sink_volume=$(jq -er '[.volume[]?.value_percent? | strings | sub("%$"; "") | tonumber] | first | select(. >= 0 and . <= 1000)' <<<"$next_sink") || {
+  echo "Audio service returned an invalid sink volume." >&2
+  exit 1
+}
+next_sink_is_muted=$(jq -r '.mute' <<<"$next_sink")
+if [[ $next_sink_is_muted != "true" && $next_sink_is_muted != "false" ]]; then
+  echo "Audio service returned an invalid sink mute state." >&2
+  exit 1
+fi
+if [[ $next_sink_is_muted == "true" ]] || ((next_sink_volume == 0)); then
+  icon_state=muted
+elif ((next_sink_volume <= 33)); then
+  icon_state=low
+elif ((next_sink_volume <= 66)); then
+  icon_state=medium
+else
+  icon_state=high
+fi
+
+if [[ $next_sink_name != "$current_sink_name" ]]; then
+  wpctl set-default "$next_sink_wpid"
+fi
+exec "$controls_root/osd/client" \
+  --custom-message "$next_sink_description" \
+  --custom-icon "sink-volume-${icon_state}-symbolic"

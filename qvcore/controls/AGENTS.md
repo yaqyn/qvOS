@@ -1,0 +1,22 @@
+# qvOS Desktop Controls Workflow
+
+Read this file completely when changing audio switching, display or keyboard
+brightness, desktop notifications, or SwayOSD presentation.
+
+`qvcore/controls/` owns these user-session controls. Public `qv-*` commands
+carry metadata; matching `omarchy-*` files are metadata-free compatibility
+adapters only. qvOS bindings and native owners call the native command or
+owner. Keep the focused-monitor lookup as a reviewed inherited Hyprland ABI
+until that complete domain moves.
+
+Validate bounded values before hardware or session mutation, preserve exact
+arguments, and fail clearly when no compatible device exists. Treat hardware
+LED feedback as best effort only after the real audio mutation succeeds. Use
+one shared OSD client owner and direct owner-to-owner calls; never duplicate
+progress calculations or rebuild command strings.
+
+List every promoted inherited route in `native-paths`, sorted and unique. Run
+`qvcore/controls/check`, the focused controls suite, binding/config checks,
+Bash syntax and ShellCheck, then the full qvOS suite. Hardware fixtures use
+`QVOS_CONTROLS_TESTING=1`; never point a test override at live sysfs or device
+trees.

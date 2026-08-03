@@ -1,9 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Set the correct power profile on boot based on current AC/battery state.
-
-if omarchy-battery-present && ! omarchy-ac-present; then
-  omarchy-powerprofiles-set battery
-else
-  omarchy-powerprofiles-set ac
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/power/profiles-init" "$@"

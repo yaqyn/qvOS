@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv audio input mute" >&2
+  exit 2
+}
+
+wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle >/dev/null
+volume_status=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@)
+if [[ $volume_status == *"[MUTED]"* ]]; then
+  led=on
+  osd_message="Microphone muted"
+  osd_icon=microphone-sensitivity-muted-symbolic
+else
+  led=off
+  osd_message="Microphone on"
+  osd_icon=audio-input-microphone-symbolic
+fi
+
+controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+"$controls_root/brightness/keyboard-mute" "$led"
+exec "$controls_root/osd/client" \
+  --custom-message "$osd_message" \
+  --custom-icon "$osd_icon"

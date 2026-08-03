@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Returns a list of all the available power profiles on the system.
-
-powerprofilesctl list |
-  awk '/^\s*[* ]\s*[a-zA-Z0-9\-]+:$/ { gsub(/^[*[:space:]]+|:$/,""); print }' |
-  tac
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/power/profiles-list" "$@"
