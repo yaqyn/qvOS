@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: omarchy-voxtype-remove" >&2
+  exit 2
+}
+
+if ! omarchy-cmd-present voxtype; then
+  echo "Voxtype is not installed."
+  exit 0
+fi
+
+echo "Removing Voxtype dictation..."
+systemctl --user disable --now voxtype.service 2>/dev/null || true
+omarchy-pkg-drop voxtype-bin
+rm -f -- "$HOME/.config/systemd/user/voxtype.service"
+systemctl --user daemon-reload
+
+echo "Voxtype was removed. Its configuration and downloaded model were preserved."

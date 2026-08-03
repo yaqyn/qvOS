@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: omarchy-install-vscode" >&2
+  exit 2
+}
+
+argv_file="$HOME/.vscode/argv.json"
+settings_file="$HOME/.config/Code/User/settings.json"
+
+echo "Installing VS Code..."
+omarchy-pkg-add visual-studio-code-bin
+
+if [[ ! -e $argv_file && ! -L $argv_file ]]; then
+  install -D -m 0644 /dev/stdin "$argv_file" <<'ARGV'
+// VS Code command-line defaults installed by qvOS.
+{
+  "password-store": "gnome-libsecret"
+}
+ARGV
+else
+  echo "Preserving existing VS Code argv.json."
+fi
+
+if [[ ! -e $settings_file && ! -L $settings_file ]]; then
+  install -D -m 0644 /dev/stdin "$settings_file" <<'SETTINGS'
+{
+  "update.mode": "none"
+}
+SETTINGS
+else
+  echo "Preserving existing VS Code settings.json."
+fi
+
+"$OMARCHY_PATH/qv/theme/install-vscode"
+omarchy-theme-set-vscode
+
+echo "VS Code installed. Open it from the app launcher."

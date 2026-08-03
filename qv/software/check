@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qv/software/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-install-nordvpn\nbin/omarchy-install-vscode\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-remove'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native optional-software inventory"
+
+declare -A owner_by_route=(
+  [bin/omarchy-install-nordvpn]=qv/software/nordvpn-install
+  [bin/omarchy-install-vscode]=qv/software/vscode-install
+  [bin/omarchy-voxtype-install]=qv/software/voxtype-install
+  [bin/omarchy-voxtype-remove]=qv/software/voxtype-remove
+)
+for route in "${!owner_by_route[@]}"; do
+  owner=${owner_by_route[$route]}
+  [[ -x $root/$route && -x $root/$owner ]] ||
+    fail "optional-software adapter or owner mode: $route"
+  (( $(wc -l <"$root/$route") <= 10 )) ||
+    fail "optional-software adapter contains implementation: $route"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
+    fail "optional-software compatibility adapter: $route"
+done
+
+if rg -n 'omarchy-pkg-(add|drop).*wtype|rm[[:space:]]+-rf.*voxtype' \
+  "$root/qv/software"; then
+  fail "Dictation owner claims a base package or deletes user data"
+fi
+if rg -n 'setsid|gtk-launch|>[[:space:]]*.*(argv|settings)\.json' \
+  "$root/qv/software/vscode-install"; then
+  fail "VS Code owner launches the app or overwrites existing settings"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'id -nG "$USER"' "$root/qv/software/nordvpn-install" ||
+  fail "NordVPN owner does not detect active group access"
+
+printf 'ok - optional software preserves base ownership and user data\n'

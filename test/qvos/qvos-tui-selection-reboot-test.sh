@@ -227,7 +227,7 @@ grep -qE '^--oauth2-client-secret=.+$' "$chromium_flags" ||
   fail "Chromium Account semantic result probe"
 
 run_owner "$root/bin/omarchy-voxtype-install" --yes >/dev/null
-grep -Fqx 'pkg-add:wtype voxtype-bin' "$action_log" ||
+grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
   fail "Dictation noninteractive TUI owner"
 
 nord_output=$(run_owner "$root/bin/omarchy-install-nordvpn" --defer-reboot)

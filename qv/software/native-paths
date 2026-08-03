@@ -1,0 +1,5 @@
+# Inherited optional-software paths promoted to native qvOS ownership.
+bin/omarchy-install-nordvpn
+bin/omarchy-install-vscode
+bin/omarchy-voxtype-install
+bin/omarchy-voxtype-remove

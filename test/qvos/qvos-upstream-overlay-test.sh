@@ -21,9 +21,6 @@ else
 fi
 
 inherited_seams=(
-  bin/omarchy-install-nordvpn
-  bin/omarchy-install-vscode
-  bin/omarchy-voxtype-install
   install/helpers/errors.sh
   install/login/limine-snapper.sh
   install/login/plymouth.sh

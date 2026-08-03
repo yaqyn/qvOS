@@ -4,21 +4,5 @@
 # omarchy:args=[--defer-reboot]
 # omarchy:requires-sudo=true
 
-echo "Installing NordVPN..."
-omarchy-pkg-aur-add nordvpn-bin
-
-echo "Enabling NordVPN daemon..."
-sudo systemctl enable --now nordvpnd
-
-echo "Adding user to nordvpn group..."
-sudo usermod -aG nordvpn "$USER"
-
-echo -e "\nNordVPN installed! After reboot, run 'nordvpn login' to authenticate."
-
-# qv/tui owns the reboot choice after successful verification.
-if [[ ${1:-} == "--defer-reboot" ]]; then
-  echo "qvOS action: reboot required: NordVPN group membership changed"
-else
-  echo
-  gum confirm "Reboot now to make NordVPN usable?" && omarchy-system-reboot
-fi
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/software/nordvpn-install" "$@"

@@ -1,0 +1,38 @@
+#!/bin/bash
+set -euo pipefail
+
+defer_reboot=false
+case $# in
+0) ;;
+1)
+  [[ $1 == "--defer-reboot" ]] || {
+    echo "Usage: omarchy-install-nordvpn [--defer-reboot]" >&2
+    exit 2
+  }
+  defer_reboot=true
+  ;;
+*) exit 2 ;;
+esac
+
+echo "Installing NordVPN..."
+omarchy-pkg-aur-add nordvpn-bin
+
+echo "Enabling NordVPN daemon..."
+sudo systemctl enable --now nordvpnd
+
+needs_reboot=false
+if ! id -nG "$USER" | grep -qw nordvpn; then
+  echo "Adding user to the nordvpn group..."
+  sudo usermod -aG nordvpn "$USER"
+  needs_reboot=true
+fi
+
+echo
+echo "NordVPN installed. Run 'nordvpn login' in a terminal to authenticate."
+if [[ $needs_reboot == "true" ]]; then
+  if [[ $defer_reboot == "true" ]]; then
+    echo "qvOS action: reboot required: NordVPN group membership changed"
+  elif gum confirm "Reboot now to activate NordVPN group access?"; then
+    omarchy-system-reboot
+  fi
+fi

@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+noninteractive=false
+case $# in
+0) ;;
+1)
+  [[ $1 == "--yes" ]] || {
+    echo "Usage: omarchy-voxtype-install [--yes]" >&2
+    exit 2
+  }
+  noninteractive=true
+  ;;
+*) exit 2 ;;
+esac
+
+if [[ $noninteractive == "false" ]] &&
+  ! gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
+  exit 130
+fi
+
+config_file="$HOME/.config/voxtype/config.toml"
+[[ ! -L $config_file ]] || {
+  echo "Refusing to configure Voxtype through a symbolic link." >&2
+  exit 1
+}
+
+omarchy-pkg-add voxtype-bin
+if [[ ! -e $config_file ]]; then
+  install -D -m 0644 "$OMARCHY_PATH/default/voxtype/config.toml" "$config_file"
+else
+  echo "Preserving existing Voxtype configuration."
+fi
+
+voxtype setup --download --no-post-install
+if omarchy-hw-vulkan; then
+  voxtype setup gpu --enable || true
+fi
+voxtype setup systemd
+
+omarchy-restart-waybar || true
+notify-send \
+  "    Voxtype Dictation Ready" \
+  "Hold F9 to dictate (or toggle with Super + Ctrl + X)." \
+  -t 10000 || true
