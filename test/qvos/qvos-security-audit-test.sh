@@ -350,30 +350,24 @@ QVOS_SECURITY_TESTING=1 \
   "$boot_mount"
 [[ $(sha256sum "$security_system_root/etc/fstab") == "$fstab_checksum" ]] ||
   fail "EFI mount policy idempotence"
-reload_line=$(grep -nF \
-  'as_root /usr/bin/systemctl daemon-reload || return' \
-  "$boot_mount" | cut -d: -f1)
-# shellcheck disable=SC2016
-remount_line=$(grep -nF \
-  'as_root /usr/bin/mount -o "remount,$options" /boot' \
-  "$boot_mount" | cut -d: -f1)
-[[ $reload_line =~ ^[0-9]+$ && $remount_line =~ ^[0-9]+$ ]] ||
-  fail "EFI remount reload lifecycle"
-((reload_line < remount_line)) ||
-  fail "EFI mount units reload before remount"
-# shellcheck disable=SC2016
-grep -Fq 'reload_and_remount_boot "$desired_options" || remount_status=$?' \
+grep -Fq 'as_root /usr/bin/systemctl daemon-reload' "$boot_mount" ||
+  fail "EFI mount units reload after the policy changes"
+grep -Fq '/usr/bin/systemctl show --property=Options --value boot.mount' \
   "$boot_mount" ||
-  fail "EFI mount apply uses the reload lifecycle"
+  fail "EFI generated mount policy is verified"
 # shellcheck disable=SC2016
-grep -Fq 'reload_and_remount_boot "$prior_options" || true' "$boot_mount" ||
-  fail "EFI mount rollback uses the reload lifecycle"
+grep -Fq '[[ $configured_options != "$desired_options" ]]' "$boot_mount" ||
+  fail "EFI generated mount policy preserves the complete option set"
+if rg -q '/usr/bin/(mount|umount)|\bremount\b' "$boot_mount"; then
+  fail "EFI permission masks are incorrectly treated as live-mutable"
+fi
+grep -Fq 'reboot required to activate fmask=0077,dmask=0077' "$boot_mount" ||
+  fail "EFI live policy mismatch requires reboot"
 # shellcheck disable=SC2016
 grep -Fq 'desired_options=$(awk' "$boot_mount" ||
-  fail "EFI mount applies the validated candidate options"
-# shellcheck disable=SC2016
-grep -Fq 'prior_options=$(awk' "$boot_mount" ||
-  fail "EFI mount rollback preserves the prior options"
+  fail "EFI generated policy uses the validated candidate options"
+grep -Fq 'restore_prior_policy' "$boot_mount" ||
+  fail "EFI policy reload failure restores the prior fstab"
 
 ambiguous_boot_root="$test_root/ambiguous-boot-system"
 install -d "$ambiguous_boot_root/etc"

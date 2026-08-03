@@ -16,7 +16,6 @@ fstab="$system_root/etc/fstab"
 candidate=""
 backup_file=""
 fstab_changed=0
-prior_options=""
 desired_options=""
 
 cleanup() {
@@ -32,11 +31,21 @@ as_root() {
   fi
 }
 
-reload_and_remount_boot() {
+has_private_masks() {
   local options=$1
 
-  as_root /usr/bin/systemctl daemon-reload || return
-  as_root /usr/bin/mount -o "remount,$options" /boot
+  [[ ,$options, == *",fmask=0077,"* ]] &&
+    [[ ,$options, == *",dmask=0077,"* ]]
+}
+
+reload_mount_units() {
+  as_root /usr/bin/systemctl daemon-reload
+}
+
+restore_prior_policy() {
+  ((fstab_changed)) || return 0
+  as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
+  reload_mount_units || true
 }
 
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
@@ -116,39 +125,40 @@ fi
   exit 1
 }
 current_options=$(findmnt -n -o OPTIONS --target /boot)
-prior_options=$(awk '$2 == "/boot" { print $4; exit }' "$fstab")
 desired_options=$(awk '$2 == "/boot" { print $4; exit }' "$candidate")
-[[ -n $prior_options && -n $desired_options ]] || {
-  echo "Could not resolve the prior and desired /boot mount options." >&2
+[[ -n $desired_options ]] || {
+  echo "Could not resolve the desired /boot mount options." >&2
   exit 1
 }
 if ! cmp -s "$candidate" "$fstab"; then
   fstab_changed=1
 fi
-if ((fstab_changed == 0)) &&
-  [[ ,$current_options, == *",fmask=0077,"* ]] &&
-  [[ ,$current_options, == *",dmask=0077,"* ]]; then
-  exit 0
+
+if ((fstab_changed)); then
+  backup_file=$(as_root /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
+  as_root /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
+  as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
 fi
 
-backup_file=$(as_root /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
-as_root /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
-((fstab_changed == 0)) ||
-  as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
-
-remount_status=0
-reload_and_remount_boot "$desired_options" || remount_status=$?
-current_options=$(findmnt -n -o OPTIONS --target /boot 2>/dev/null || true)
-if ((remount_status != 0)) ||
-  [[ ,$current_options, != *",fmask=0077,"* ]] ||
-  [[ ,$current_options, != *",dmask=0077,"* ]]; then
+reload_status=0
+reload_mount_units || reload_status=$?
+configured_options=$(
+  /usr/bin/systemctl show --property=Options --value boot.mount 2>/dev/null || true
+)
+if ((reload_status != 0)) || [[ $configured_options != "$desired_options" ]]; then
   if ((fstab_changed)); then
-    as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
-    reload_and_remount_boot "$prior_options" || true
+    restore_prior_policy
+    echo "Could not load the private /boot policy into systemd; restored the prior fstab policy." >&2
+  else
+    echo "Could not load the existing private /boot policy into systemd; fstab was unchanged." >&2
   fi
-  echo "Could not apply private /boot mount permissions; restored the prior fstab policy." >&2
   exit 1
 fi
 
-printf 'Protected /boot with fmask=0077,dmask=0077; fstab backup: %s\n' \
-  "$backup_file"
+if has_private_masks "$current_options"; then
+  printf 'Protected /boot with fmask=0077,dmask=0077'
+else
+  printf 'Stored private /boot policy; reboot required to activate fmask=0077,dmask=0077'
+fi
+[[ -z $backup_file ]] || printf '; fstab backup: %s' "$backup_file"
+printf '\n'
