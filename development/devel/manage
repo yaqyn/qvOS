@@ -60,6 +60,16 @@ integration_ready() {
     codex_action_matches
 }
 
+reconcile_integration() {
+  [[ -f $state_file ]] || return 0
+
+  install_integration
+  integration_ready || {
+    echo "Devel Codex workbench reconciliation failed." >&2
+    return 1
+  }
+}
+
 install_integration() {
   install -d "$HOME/.local/share/qvos/thunar"
   install -m 0755 "$thunar_codex_source" "$thunar_codex_runtime"
@@ -224,7 +234,7 @@ if (($# < 1 || $# > 2)); then
   exit 2
 fi
 case $1 in
-install | remove) ;;
+install | reconcile | remove) ;;
 *)
   usage
   exit 2
@@ -242,6 +252,8 @@ fi
 
 if [[ $1 == "install" ]]; then
   install_stack
+elif [[ $1 == "reconcile" ]]; then
+  reconcile_integration
 else
   remove_stack
 fi

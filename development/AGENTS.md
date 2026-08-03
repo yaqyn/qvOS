@@ -10,6 +10,9 @@ bundle. qvOS and qvCORE remain complete without it.
 - Devel exposes exactly Install and Uninstall through
   `development/devel/manage`. Install converges every declared package,
   direct tool, and integration before recording enrollment.
+- Base refresh may call the internal `reconcile` action only for an enrolled
+  Devel workstation. It may refresh the qvOS-owned workbench integration, but
+  must never install or remove packages or direct tools.
 - Write enrollment only after verification to
   `~/.local/state/qvos/development/devel`. Migrate the exact former
   `qvos/qvcore/qvdev` marker and managed-tool root atomically; reject links,

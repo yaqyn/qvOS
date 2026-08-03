@@ -113,6 +113,17 @@ done
 [[ -x $test_root/home/.local/share/qvos/thunar/codex ]] ||
   fail "Devel Codex workbench helper"
 
+printf 'stale integration\n' \
+  >"$test_root/home/.local/share/qvos/thunar/codex"
+action_count=$(wc -l <"$log")
+run_devel reconcile >/dev/null
+cmp -s \
+  "$source_root/qvcore/thunar/codex" \
+  "$test_root/home/.local/share/qvos/thunar/codex" ||
+  fail "Devel enrolled integration reconciliation"
+[[ $(wc -l <"$log") == "$action_count" ]] ||
+  fail "Devel reconciliation changed packages or direct tools"
+
 run_devel remove --yes >/dev/null
 [[ -f $installed_tools/codex ]] || fail "Devel removed qvOS Codex"
 [[ ! -e $test_root/home/.local/state/qvos/development/devel ]] ||

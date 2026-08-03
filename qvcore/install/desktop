@@ -154,6 +154,19 @@
   cp -a "$preserved_thunar/." "$thunar_runtime/"
   rm -rf -- "$preserved_thunar"
 
+  for integration_owner in \
+    "$OMARCHY_PATH/services/proton/manage" \
+    "$OMARCHY_PATH/development/devel/manage"; do
+    if [[ ! -e $integration_owner && ! -L $integration_owner ]]; then
+      continue
+    fi
+    [[ -x $integration_owner && ! -L $integration_owner ]] || {
+      echo "Unsafe qvOS integration owner: $integration_owner" >&2
+      exit 1
+    }
+    "$integration_owner" reconcile
+  done
+
   "$OMARCHY_PATH/qvcore/menu/install" --install
 
   install -D -m 0644 \

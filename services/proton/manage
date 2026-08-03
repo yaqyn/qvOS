@@ -126,6 +126,17 @@ install_desktop_integration() {
     directories audio-files image-files other-files text-files video-files
 }
 
+reconcile_integrations() {
+  [[ -f $state_file ]] || return 0
+
+  install_codex_integration
+  install_desktop_integration
+  codex_integration_is_installed && desktop_integration_ready || {
+    echo "Proton integration reconciliation failed." >&2
+    return 1
+  }
+}
+
 remove_desktop_integration() {
   qvos_thunar_remove_action "qvos-proton-drive-upload"
   rm -f "$thunar_upload_runtime"
@@ -839,7 +850,7 @@ if (($# < 1 || $# > 2)); then
   exit 2
 fi
 case $1 in
-install | remove) ;;
+install | reconcile | remove) ;;
 *)
   usage
   exit 2
@@ -858,6 +869,10 @@ fi
 
 if [[ $1 == "remove" ]]; then
   remove_local_proton
+  exit
+fi
+if [[ $1 == "reconcile" ]]; then
+  reconcile_integrations
   exit
 fi
 

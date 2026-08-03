@@ -11,6 +11,10 @@ Proton is currently the only qvOS-owned Service.
 - Proton exposes exactly Install and Uninstall through
   `services/proton/manage`. Keep convergence, authentication checks,
   state detection, and verification internal.
+- Base refresh may call the internal `reconcile` action only for an enrolled
+  Proton Service. It may refresh qvOS-owned desktop and Codex assets, but must
+  never install packages or tools, change services, or inspect or replace
+  authentication.
 - Write enrollment only after complete verification to
   `~/.local/state/qvos/services/proton`. Migrate the exact former
   `qvos/qvcore/proton` marker atomically; reject links, foreign ownership,

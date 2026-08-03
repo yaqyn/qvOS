@@ -7,6 +7,7 @@ export QVOS_POWER_TESTING=1
 export QVOS_POWER_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_SECURITY_TESTING=1
 export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
+export XDG_STATE_HOME="$test_root/.local/state"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
@@ -250,9 +251,16 @@ done
 pass "installed feature payloads match tracked source"
 
 for optional_thunar_feature in codex proton-drive-upload; do
-  cp "$root/qvcore/thunar/$optional_thunar_feature" \
-    "$test_root/.local/share/qvos/thunar/$optional_thunar_feature"
+  printf 'stale optional integration\n' \
+    >"$test_root/.local/share/qvos/thunar/$optional_thunar_feature"
 done
+install -d -m 0700 \
+  "$test_root/.local/state/qvos/services" \
+  "$test_root/.local/state/qvos/development"
+install -m 0600 /dev/null \
+  "$test_root/.local/state/qvos/services/proton"
+install -m 0600 /dev/null \
+  "$test_root/.local/state/qvos/development/devel"
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 for optional_thunar_feature in codex proton-drive-upload; do
@@ -261,7 +269,11 @@ for optional_thunar_feature in codex proton-drive-upload; do
     "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
     fail "enabled Thunar $optional_thunar_feature preservation"
 done
-pass "desktop refresh preserves optional helpers without reinstalling stacks"
+cmp -s \
+  "$root/services/proton/skill/SKILL.md" \
+  "$test_root/.codex/skills/proton-cli/SKILL.md" ||
+  fail "enabled Proton Codex integration reconciliation"
+pass "desktop refresh reconciles enrolled integrations without reinstalling stacks"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||

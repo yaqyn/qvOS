@@ -226,6 +226,26 @@ grep -Fq 'Continuing past the unauthenticated Proton Pass probe cache.' \
   fail "Proton Codex authentication"
 [[ -x $test_root/home/.local/share/qvos/thunar/proton-drive-upload ]] ||
   fail "Proton desktop integration"
+
+printf 'stale integration\n' \
+  >"$test_root/home/.local/share/qvos/thunar/proton-drive-upload"
+printf 'stale skill\n' \
+  >"$test_root/home/.codex/skills/proton-cli/SKILL.md"
+action_count=$(wc -l <"$log")
+auth_hash=$(sha256sum "$auth_root/data/proton-pass-cli/.session/session.json")
+run_proton reconcile >/dev/null
+cmp -s \
+  "$source_root/qvcore/thunar/proton-drive-upload" \
+  "$test_root/home/.local/share/qvos/thunar/proton-drive-upload" ||
+  fail "Proton enrolled desktop reconciliation"
+cmp -s \
+  "$source_root/services/proton/skill/SKILL.md" \
+  "$test_root/home/.codex/skills/proton-cli/SKILL.md" ||
+  fail "Proton enrolled Codex reconciliation"
+[[ $(wc -l <"$log") == "$action_count" ]] ||
+  fail "Proton reconciliation changed packages, tools, or authentication"
+[[ $(sha256sum "$auth_root/data/proton-pass-cli/.session/session.json") == "$auth_hash" ]] ||
+  fail "Proton reconciliation changed authentication state"
 printf 'credential state\n' >"$auth_root/data/preserved"
 
 run_proton remove --yes >/dev/null
