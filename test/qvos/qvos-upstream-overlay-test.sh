@@ -21,8 +21,6 @@ else
 fi
 
 inherited_seams=(
-  bin/omarchy-branding-about
-  bin/omarchy-branding-screensaver
   bin/omarchy-first-run
   bin/omarchy-install-browser
   bin/omarchy-install-gaming-xbox-controllers
@@ -30,7 +28,6 @@ inherited_seams=(
   bin/omarchy-install-nordvpn
   bin/omarchy-install-vscode
   bin/omarchy-refresh-hyprland
-  bin/omarchy-show-logo
   bin/omarchy-theme-bg-install
   bin/omarchy-tz-select
   bin/omarchy-update-restart

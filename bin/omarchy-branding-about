@@ -6,23 +6,5 @@
 # omarchy:args=<image|text|reset>
 # omarchy:examples=omarchy branding about image | omarchy branding about text | omarchy branding about reset
 
-set -euo pipefail
-
-case "${1:-}" in
-image)
-  image=$(omarchy-menu-file "Logo image" "$HOME" "svg png")
-  if [[ -n $image ]] && omarchy-transcode-ascii "$image" ~/.config/omarchy/branding/about.txt --width 54 --height 26 --mode block; then
-    omarchy-launch-about >/dev/null 2>&1
-  fi
-  ;;
-text)
-  omarchy-launch-editor ~/.config/omarchy/branding/about.txt >/dev/null 2>&1 && omarchy-launch-about >/dev/null 2>&1
-  ;;
-reset)
-  cp "$OMARCHY_PATH/qv/branding/icon.txt" ~/.config/omarchy/branding/about.txt && omarchy-launch-about >/dev/null 2>&1
-  ;;
-*)
-  echo "Usage: omarchy-branding-about <image|text|reset>" >&2
-  exit 1
-  ;;
-esac
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/branding/about" "$@"

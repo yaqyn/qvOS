@@ -1,5 +1,7 @@
 # Inherited paths promoted to native qvOS ownership for product branding.
 bin/omarchy
+bin/omarchy-branding-about
+bin/omarchy-branding-screensaver
 bin/omarchy-debug
 bin/omarchy-default-browser
 bin/omarchy-dev-add-migration
@@ -34,6 +36,7 @@ bin/omarchy-restart-hyprctl
 bin/omarchy-restart-mako
 bin/omarchy-restart-opencode
 bin/omarchy-screensaver
+bin/omarchy-show-logo
 bin/omarchy-state
 bin/omarchy-toggle
 bin/omarchy-version

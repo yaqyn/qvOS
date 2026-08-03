@@ -1,12 +1,17 @@
 #!/bin/bash
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+branding_owner="$OMARCHY_PATH/qv/branding/show-logo"
+
 # shellcheck disable=SC2016
 exec setsid uwsm-app -- \
   xdg-terminal-exec \
   --app-id=org.omarchy.terminal \
   --title=qvOS \
   -e bash -c \
-  'omarchy-show-logo
+  'branding_owner=$1
+  shift
+  "$branding_owner"
   "$@"
   status=$?
   if ((status == 0)); then
@@ -15,4 +20,4 @@ exec setsid uwsm-app -- \
     omarchy-show-failed "$status"
   fi
   exit "$status"' \
-  _ "$@"
+  _ "$branding_owner" "$@"

@@ -27,6 +27,28 @@ for path in "${native_paths[@]}"; do
     fail "native branding path no longer differs from upstream: $path"
 done
 
+adapter_routes=(
+  bin/omarchy-branding-about
+  bin/omarchy-branding-screensaver
+  bin/omarchy-show-logo
+)
+adapter_owners=(
+  qv/branding/about
+  qv/branding/screensaver
+  qv/branding/show-logo
+)
+for index in "${!adapter_routes[@]}"; do
+  route=${adapter_routes[$index]}
+  owner=${adapter_owners[$index]}
+
+  [[ -x $root/$route && -x $root/$owner ]] ||
+    fail "branding adapter or owner is not executable: $route"
+  (($(wc -l <"$root/$route") <= 10)) ||
+    fail "branding compatibility adapter contains implementation: $route"
+  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
+    fail "branding compatibility adapter does not delegate directly: $route"
+done
+
 if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qv"; then
   fail "public command help still brands qvOS as Omarchy"
 fi

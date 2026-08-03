@@ -9,6 +9,10 @@ must say qvOS. Use Omarchy only for truthful upstream attribution, an exact
 legacy compatibility match, or historical migration evidence; never expose it
 as the installed product name.
 
+About, screensaver, and terminal-logo behavior lives in this directory. Their
+inherited `omarchy-*` commands are metadata-only compatibility adapters, and
+qvOS-owned consumers call the branding owners directly.
+
 - Do not rename lowercase `omarchy-*` commands, `OMARCHY_*` variables, package
   repositories, state paths, app IDs, or compatibility filenames in a branding
   change. Internal renaming is a later atomic migration.

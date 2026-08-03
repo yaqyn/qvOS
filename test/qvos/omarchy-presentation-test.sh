@@ -6,6 +6,7 @@ launcher="$root/bin/omarchy-launch-floating-terminal-with-presentation"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
+test_omarchy="$test_root/omarchy"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf -- "$test_root"
@@ -21,7 +22,13 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin"
+install -d \
+  "$test_bin" \
+  "$test_omarchy/qv/branding" \
+  "$test_omarchy/qv/presentation"
+install -m 0755 \
+  "$root/qv/presentation/run" \
+  "$test_omarchy/qv/presentation/run"
 
 install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 #!/bin/bash
@@ -43,7 +50,7 @@ shift
 exec "$@"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-show-logo" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_omarchy/qv/branding/show-logo" <<'SCRIPT'
 #!/bin/bash
 printf 'logo\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
@@ -80,7 +87,7 @@ SCRIPT
 
 run_launcher() {
   QVOS_TEST_EVENT_LOG="$event_log" \
-    OMARCHY_PATH="$root" \
+    OMARCHY_PATH="$test_omarchy" \
     PATH="$test_bin:/usr/bin" \
     "$launcher" "$@"
 }
