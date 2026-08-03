@@ -17,6 +17,8 @@ executed. The runner may adopt an exact applied marker from the retired
 Omarchy state, then removes the validated empty historical marker tree only
 after every native migration is current. Reject links, foreign ownership,
 unexpected entries, nonempty markers, and conflicting state before mutation.
+Legacy cleanup accepts only empty timestamp or timestamp-plus-lowercase-slug
+markers from the former Omarchy runner; native migration names stay numeric.
 
 Use `qv dev add migration` to create a numeric `0644` source. Migration files
 are sourced as Bash data: no shebang, first line is a concise `echo`, use

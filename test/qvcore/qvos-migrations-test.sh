@@ -31,6 +31,7 @@ install -d "$home/.local/state/omarchy/migrations/skipped"
 for legacy_marker in \
   "$home/.local/state/omarchy/migrations/100.sh" \
   "$home/.local/state/omarchy/migrations/099.sh" \
+  "$home/.local/state/omarchy/migrations/097_historical_name.sh" \
   "$home/.local/state/omarchy/migrations/skipped/098.sh"; do
   install -m 0644 /dev/null "$legacy_marker"
 done

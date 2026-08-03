@@ -112,7 +112,7 @@ validate_legacy_state() {
       [[ $relative == "skipped" && ! -L $entry && -O $entry ]] ||
         fail "refusing unexpected legacy migration directory: $entry"
     else
-      [[ $relative =~ ^(skipped/)?[0-9]+\.sh$ ]] ||
+      [[ $relative =~ ^(skipped/)?[0-9]+(_[a-z0-9][a-z0-9_-]*)?\.sh$ ]] ||
         fail "refusing unexpected legacy migration state: $entry"
       safe_marker "$entry" ||
         fail "refusing unsafe legacy migration marker: $entry"
