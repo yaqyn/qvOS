@@ -6,5 +6,5 @@
 # omarchy:name=share
 # omarchy:examples=omarchy qvos share clipboard | omarchy qvos share file ~/Downloads/example.txt
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/share/share" "$@"

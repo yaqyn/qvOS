@@ -6,5 +6,5 @@
 # omarchy:args=<image|text|reset>
 # omarchy:examples=omarchy branding screensaver image | omarchy branding screensaver text | omarchy branding screensaver reset
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/branding/screensaver" "$@"

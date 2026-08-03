@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 source "$OMARCHY_PATH/qvcore/windows/lib"
 
 config_dir="$HOME/.config/windows"

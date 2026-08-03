@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 config_source="$OMARCHY_PATH/qvcore/config/files"
 theme_name_path="$HOME/.config/omarchy/current/theme.name"
 current_theme="Yaqyn"

@@ -107,10 +107,10 @@ for path in "${identity_paths[@]}"; do
 done
 
 # shellcheck disable=SC2016
-grep -Fqx 'OMARCHY_REF="${OMARCHY_REF:-OS}"' "$root/boot.sh" ||
+grep -Fqx 'QVOS_REF="${QVOS_REF:-${OMARCHY_REF:-OS}}"' "$root/boot.sh" ||
   fail "online installer does not default to the qvOS product branch"
 # shellcheck disable=SC2016
-grep -Fqx 'OMARCHY_REPO="${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}"' \
+grep -Fqx 'QVOS_REPO="${QVOS_REPO:-${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}}"' \
   "$root/boot.sh" ||
   fail "online installer does not default to the qvOS repository"
 

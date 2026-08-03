@@ -1,3 +1,4 @@
 # Inherited browser paths promoted to native qvOS ownership.
 bin/omarchy-install-browser
 bin/omarchy-remove-browser
+config/chromium-flags.conf

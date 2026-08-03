@@ -4,6 +4,10 @@ set -euo pipefail
 official_https="https://github.com/Yaqyn-qvOS/qvOS.git"
 official_ssh="git@github.com:Yaqyn-qvOS/qvOS.git"
 official_ssh_url="ssh://git@github.com/Yaqyn-qvOS/qvOS.git"
+source_path=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_path=$(readlink -f -- "$source_path" 2>/dev/null || true)
+QVOS_PATH="$source_path"
+OMARCHY_PATH="$source_path"
 
 [[ -d $OMARCHY_PATH && ! -L $OMARCHY_PATH ]] || {
   echo "qvOS source checkout is missing or unsafe: $OMARCHY_PATH" >&2

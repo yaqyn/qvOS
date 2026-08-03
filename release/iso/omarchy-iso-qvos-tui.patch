@@ -200,7 +200,7 @@
  # Fix ownership of output files to match host user
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
-@@ -11,24 +11,60 @@ use_omarchy_helpers() {
+@@ -11,29 +11,65 @@ use_omarchy_helpers() {
  
  run_configurator() {
 -  set_tokyo_night_colors
@@ -268,6 +268,12 @@
  }
  
  install_omarchy() {
+   chroot_bash -lc "sudo pacman -S --noconfirm --needed gum" >/dev/null
+-  chroot_bash -lc "source /home/$OMARCHY_USER/.local/share/omarchy/install.sh || bash"
++  chroot_bash -lc "source /home/$OMARCHY_USER/.local/share/qvos/install.sh || bash"
+ 
+   configure_login_for_unencrypted_install
+ 
 @@ -46,28 +87,28 @@ install_omarchy() {
 -# Set Tokyo Night color scheme for the terminal
 -set_tokyo_night_colors() {
@@ -316,6 +322,24 @@
  }
  
  install_disk() {
+@@ -183,11 +219,12 @@ install_base_system() {
+-  # Copy the local omarchy repo to the user's home directory
++  # Copy qvOS to its canonical source root and retain one compatibility link.
+   mkdir -p /mnt/home/$OMARCHY_USER/.local/share/
+-  cp -r /root/omarchy /mnt/home/$OMARCHY_USER/.local/share/
++  cp -r /root/omarchy /mnt/home/$OMARCHY_USER/.local/share/qvos
++  ln -s qvos /mnt/home/$OMARCHY_USER/.local/share/omarchy
+ 
+   chown -R 1000:1000 /mnt/home/$OMARCHY_USER/.local/
+ 
+   # Ensure all necessary scripts are executable
+-  find /mnt/home/$OMARCHY_USER/.local/share/omarchy -type f -path "*/bin/*" -exec chmod +x {} \;
+-  chmod +x /mnt/home/$OMARCHY_USER/.local/share/omarchy/boot.sh 2>/dev/null || true
+-  find /mnt/home/$OMARCHY_USER/.local/share/omarchy/default/waybar -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
++  find /mnt/home/$OMARCHY_USER/.local/share/qvos -type f -path "*/bin/*" -exec chmod +x {} \;
++  chmod +x /mnt/home/$OMARCHY_USER/.local/share/qvos/boot.sh 2>/dev/null || true
++  find /mnt/home/$OMARCHY_USER/.local/share/qvos/default/waybar -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+ }
 --- configs/profiledef.sh
 +++ configs/profiledef.sh
 @@ -23,4 +23,4 @@ file_permissions=(

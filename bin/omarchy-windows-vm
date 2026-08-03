@@ -3,6 +3,6 @@
 # omarchy:summary=Install, launch, stop, inspect, or remove the Windows VM
 # omarchy:args=<install|remove|launch|stop|status> [options]
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
 exec "$OMARCHY_PATH/qvcore/windows/command" "$@"

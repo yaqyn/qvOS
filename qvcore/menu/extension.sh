@@ -188,7 +188,7 @@ show_install_font_menu() {
 
 show_software_installer_menu() {
   local breadcrumb="$1"
-  local catalog="${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qvcore/menu/software-installers.psv"
+  local catalog="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}/qvcore/menu/software-installers.psv"
   local slug
   local icon
   local name
@@ -372,7 +372,7 @@ show_concept_menu() {
   if awk -F '|' -v wanted="$slug" '
     $1 !~ /^#/ && NF == 9 && $1 == wanted { found = 1 }
     END { exit !found }
-  ' "${OMARCHY_PATH:-$HOME/.local/share/omarchy}/qvcore/menu/software-actions.psv"; then
+  ' "${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}/qvcore/menu/software-actions.psv"; then
     launch_software_action "$slug"
     return
   fi

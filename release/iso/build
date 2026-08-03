@@ -123,8 +123,10 @@ require_command() {
 detect_context_git_root() {
   local candidate
   local candidates=(
+    "${QVOS_PATH:-}"
     "${OMARCHY_PATH:-}"
     "$source_checkout"
+    "$HOME/.local/share/qvos"
     "$HOME/.local/share/omarchy"
   )
 

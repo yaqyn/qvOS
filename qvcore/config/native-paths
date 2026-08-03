@@ -5,3 +5,10 @@ config/hypr/bindings.conf
 config/hypr/hyprland.conf
 config/systemd/user/omarchy-battery-monitor.service
 config/systemd/user/omarchy-battery-monitor.timer
+config/systemd/user/omarchy-recover-internal-monitor.service
+config/uwsm/env
+default/bash/envs
+default/bash/rc
+default/bashrc
+default/hypr/apps.conf
+default/hypr/windows.conf

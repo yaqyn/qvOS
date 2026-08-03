@@ -3,6 +3,6 @@
 # omarchy:summary=Launch a floating terminal with the qvOS presentation wrapper
 # omarchy:args=<command>
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
 exec "$OMARCHY_PATH/qvcore/presentation/run" "$@"

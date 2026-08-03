@@ -4,6 +4,6 @@
 # omarchy:args=<background-hex> <text-hex> <path-to-logo.png> <output-path>
 # omarchy:examples=omarchy plymouth preview '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
 exec "$OMARCHY_PATH/qvcore/boot/plymouth-preview" "$@"

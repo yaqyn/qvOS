@@ -15,6 +15,19 @@ local function route(name)
   return "omarchy-menu " .. shell_escape(name)
 end
 
+local function qvos_source()
+  local source = os.getenv("QVOS_PATH")
+  if not source or source == "" then
+    source = os.getenv("OMARCHY_PATH")
+  end
+  if source and source ~= "" then
+    return source
+  end
+
+  local home = os.getenv("HOME")
+  return home and home .. "/.local/share/qvos" or nil
+end
+
 local function mode_path()
   local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
   return runtime_dir and runtime_dir .. "/qvos-menu-mode" or nil
@@ -95,9 +108,7 @@ local function edit(relative_path)
 end
 
 local function qvos_owner(relative_path, ...)
-  local home = os.getenv("HOME")
-  local source = os.getenv("OMARCHY_PATH")
-    or (home and home .. "/.local/share/omarchy")
+  local source = qvos_source()
 
   if not source then
     return nil
@@ -326,9 +337,7 @@ local function apply_search_intents(entries, query)
 end
 
 local function software_action_states()
-  local home = os.getenv("HOME")
-  local source = os.getenv("OMARCHY_PATH")
-    or (home and home .. "/.local/share/omarchy")
+  local source = qvos_source()
   local owner = source and source .. "/qvcore/menu/software-state"
   local handle = owner and io.popen(shell_escape(owner) .. " --all 2>/dev/null")
   local states = {}

@@ -160,7 +160,7 @@ Every qvOS change must leave one traceable lifecycle.
   tests live under `test/` and mirror their owner boundary.
 - Keep current qvOS config sources separate until their domain is promoted and
   reconcile them after inherited install, refresh, migration, or update paths.
-  Deploy runtime content outside `~/.local/share/omarchy`; keep it clean.
+  Installed source is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` link; keep runtime payloads outside it.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.

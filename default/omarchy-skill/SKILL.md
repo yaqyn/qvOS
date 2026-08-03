@@ -8,7 +8,7 @@ description: >
   monitors, gaps, borders, blur, opacity, waybar, walker, terminal config, themes,
   wallpaper, night light, idle, lock screen, screenshots, reminders, layer rules,
   workspace settings, display config, and user-facing omarchy commands. Excludes qvOS
-  source development in ~/.local/share/omarchy/ and `omarchy dev` workflows.
+  source development in ~/.local/share/qvos/ and `omarchy dev` workflows.
 ---
 
 # qvOS Skill
@@ -34,11 +34,11 @@ It is not for contributing to qvOS source code.
 
 **If you're about to edit a config file in ~/.config/ on this system, STOP and use this skill first.**
 
-**Do NOT use this skill for qvOS development tasks** (editing files in `~/.local/share/omarchy/`, creating migrations, or running `omarchy dev ...` workflows).
+**Do NOT use this skill for qvOS development tasks** (editing files in `~/.local/share/qvos/`, creating migrations, or running `omarchy dev ...` workflows).
 
 ## Critical Safety Rules
 
-**For end-user customization tasks, NEVER modify anything in `~/.local/share/omarchy/`** - but READING is safe and encouraged.
+**For end-user customization tasks, NEVER modify anything in `~/.local/share/qvos/`** - but READING is safe and encouraged.
 
 This directory contains qvOS source files managed by git. Any changes will be:
 - Lost on next `omarchy update`
@@ -46,20 +46,20 @@ This directory contains qvOS source files managed by git. Any changes will be:
 - Break the system's update mechanism
 
 ```
-~/.local/share/omarchy/     # READ-ONLY - NEVER EDIT (reading is OK)
+~/.local/share/qvos/     # READ-ONLY - NEVER EDIT (reading is OK)
 ├── bin/                    # Source scripts (symlinked to PATH)
 ├── config/                 # Default config templates
-├── themes/                 # Stock themes
 ├── default/                # System defaults
+├── qvcore/                 # Native qvOS owners, including Yaqyn
 ├── migrations/             # Update migrations
 └── install/                # Installation scripts
 ```
 
-**Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
+**Reading `~/.local/share/qvos/` is SAFE and useful** - do it freely to:
 - Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
-- See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
-- Check stock theme files to copy for customization
-- Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
+- See default configs before customizing: `cat ~/.local/share/qvos/config/waybar/config.jsonc`
+- Inspect native owners before customizing their installed user config
+- Reference default hyprland settings: `cat ~/.local/share/qvos/default/hypr/*`
 
 **Always use these safe locations instead:**
 - `~/.config/` - User configuration (safe to edit)
@@ -253,7 +253,7 @@ omarchy refresh hyprland
 
 # The refresh command:
 # 1. Backs up current config with timestamp
-# 2. Copies default from ~/.local/share/omarchy/config/
+# 2. Copies default from ~/.local/share/qvos/config/
 # 3. Restarts the component
 ```
 
@@ -264,7 +264,7 @@ omarchy refresh hyprland
 ```bash
 omarchy theme list              # Show available themes
 omarchy theme current           # Show current theme
-omarchy theme set <name>        # Apply theme (use "Tokyo Night" not "tokyo-night")
+omarchy theme set <name>        # Apply Yaqyn or an installed compatible user theme
 omarchy theme bg next           # Cycle wallpaper
 omarchy theme install <url>     # Install from git repo
 ```
@@ -361,7 +361,7 @@ omarchy reinstall
 When user requests system changes:
 
 1. **Is it a stock omarchy command?** Use it directly
-2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/omarchy/`
+2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/qvos/`
 3. **Is it a theme customization?** Create a NEW custom theme directory
 4. **Is it automation?** Use hooks in `~/.config/omarchy/hooks/`
 5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (or `omarchy pkg aur add <pkgs...>` for AUR-only packages)
@@ -381,13 +381,13 @@ omarchy reminder clear
 ## Out of Scope
 
 This skill intentionally does not cover qvOS source development. Do not use this skill for:
-- Editing files in `~/.local/share/omarchy/` (`bin/`, `config/`, `default/`, `themes/`, `migrations/`, etc.)
+- Editing files in `~/.local/share/qvos/` (`bin/`, `config/`, `default/`, `qvcore/`, `migrations/`, etc.)
 - Creating or editing migrations
 - Running `omarchy dev ...` commands
 
 ## Example Requests
 
-- "Change my theme to catppuccin" -> `omarchy theme set catppuccin`
+- "Install this compatible theme" -> `omarchy theme install <git-url>`, then apply its installed slug
 - "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, add `unbind` if needed, then add `bind` in `~/.config/hypr/bindings.conf`
 - "Configure my external monitor" -> Edit `~/.config/hypr/monitors.conf`
 - "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.conf`

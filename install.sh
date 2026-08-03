@@ -1,10 +1,12 @@
 #!/bin/bash
+# shellcheck disable=SC1091
 
 # Exit immediately if a command exits with a non-zero status
 set -eEo pipefail
 
-# Define Omarchy locations
-export OMARCHY_PATH="$HOME/.local/share/omarchy"
+# Define the native source root and inherited compatibility environment.
+export QVOS_PATH="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"
+export OMARCHY_PATH="$QVOS_PATH"
 export OMARCHY_INSTALL="$OMARCHY_PATH/install"
 export OMARCHY_INSTALL_LOG_FILE="/var/log/omarchy-install.log"
 export PATH="$OMARCHY_PATH/bin:$PATH"

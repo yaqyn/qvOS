@@ -3,5 +3,5 @@
 # omarchy:summary=Remove RetroArch and its qvOS libretro package set while preserving all user data.
 # omarchy:requires-sudo=true
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/gaming/retroarch-remove" "$@"

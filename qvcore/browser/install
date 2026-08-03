@@ -73,7 +73,7 @@ brave-origin)
   setup_policy_directory /etc/brave/policies/managed
   install -D -m 0644 /dev/stdin \
     "$HOME/.config/brave-origin-beta-flags.conf" <<'FLAGS'
---load-extension=~/.local/share/omarchy/default/chromium/extensions/copy-url
+--load-extension=~/.local/share/qvos/default/chromium/extensions/copy-url
 FLAGS
   omarchy-theme-set-browser
   announce_browser_installed "Brave Origin"

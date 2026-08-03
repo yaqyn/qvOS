@@ -5,7 +5,7 @@
 # omarchy:hidden=true
 # omarchy:requires-sudo=true
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
 if (($# != 1)); then
   echo "Usage: omarchy-install-qvcore <proton|qvdev|devel>" >&2

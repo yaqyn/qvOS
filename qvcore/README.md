@@ -107,9 +107,9 @@ Services and Development integrations never change qvOS base readiness.
   uses that same TUI flow and verifies its real installed result.
   Installed fonts additionally expose owner-derived Apply and exact Uninstall
   actions; removing the active font restores JetBrains Mono first.
-  ISO Build stages the qvOS source over Omarchy's `main` ISO for its matching
-  `master` installer, adds the qvOS configurator and progress surfaces, and
-  preserves Omarchy's disk-install and post-install orchestration.
+  ISO Build stages the qvOS source over the reviewed source-backed Omarchy ISO
+  builder commit, adds the qvOS configurator and progress surfaces, and
+  preserves its reviewed disk-install and post-install orchestration.
 
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
@@ -125,8 +125,10 @@ aliases merely to hide a compatibility name.
 Migrate a legacy internal name only with its complete domain owner: validate
 the old artifact, move or replace its state atomically, remove the old source
 and generated residue, update every consumer, and guard both the new identity
-and cleanup path in focused tests. Boot, source/config roots, and upstream ABI
-names remain unchanged until their full lifecycle can move safely together.
+and cleanup path in focused tests. The installed source is now canonical at
+`~/.local/share/qvos`; the exact relative `omarchy -> qvos` link is its only
+source-root compatibility seam. Boot, config, and remaining upstream ABI names
+stay unchanged until their complete lifecycles can move safely together.
 
 `qvcore/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
 sysctl baseline, signed-package and localhost-first container defaults, the

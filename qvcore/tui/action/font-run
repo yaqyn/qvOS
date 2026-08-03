@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 tui_root=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
 # shellcheck source=qvcore/tui/owner-resolver
 source "$tui_root/owner-resolver"

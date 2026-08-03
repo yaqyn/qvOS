@@ -2,5 +2,5 @@
 
 # omarchy:summary=Prompt for required reboot or service restarts after updates
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/update/restart" "$@"

@@ -7,7 +7,7 @@ checkout_root=$(cd -- "$script_dir/../../.." && pwd)
 if [[ -x $checkout_root/release/iso/build ]]; then
   source_root="$checkout_root"
 else
-  source_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+  source_root="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"
 fi
 
 exec "$source_root/release/iso/build" "$@"

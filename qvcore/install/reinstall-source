@@ -2,7 +2,8 @@
 set -euo pipefail
 
 official_repo="https://github.com/Yaqyn-qvOS/qvOS.git"
-target="$HOME/.local/share/omarchy"
+target="$HOME/.local/share/qvos"
+compat_target="$HOME/.local/share/omarchy"
 target_parent=${target%/*}
 staging_root=""
 
@@ -15,12 +16,19 @@ if ((EUID == 0)); then
   echo "qvOS source reinstall must run as the desktop user, not root." >&2
   exit 1
 fi
-if [[ ${OMARCHY_PATH:-$target} != "$target" ]]; then
+configured_target=${QVOS_PATH:-${OMARCHY_PATH:-$target}}
+configured_target=$(readlink -f -- "$configured_target" 2>/dev/null || true)
+if [[ $configured_target != "$target" && $configured_target != "$compat_target" ]]; then
   echo "qvOS source reinstall only operates on $target." >&2
   exit 1
 fi
+"$(dirname -- "${BASH_SOURCE[0]}")/migrate-source-root"
 if [[ ! -d $target || -L $target ]]; then
   echo "qvOS source checkout is missing or unsafe: $target" >&2
+  exit 1
+fi
+if [[ ! -L $compat_target || $(readlink -- "$compat_target") != "qvos" ]]; then
+  echo "qvOS source compatibility link is missing or unsafe." >&2
   exit 1
 fi
 if [[ $(git -C "$target" branch --show-current 2>/dev/null || true) != "OS" ]]; then
@@ -56,7 +64,7 @@ git -C "$staged_source" diff --cached --quiet
 git -C "$staged_source" fsck --strict --no-progress >/dev/null
 
 backup_root=$(mktemp -d "$target_parent/.qvos-source-backup.XXXXXX")
-backup_path="$backup_root/omarchy"
+backup_path="$backup_root/qvos"
 if ! mv -- "$target" "$backup_path"; then
   echo "Could not preserve the current qvOS source; nothing was replaced." >&2
   exit 1

@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 waybar_source="$OMARCHY_PATH/config/waybar/config.jsonc"
 qvos_overrides="$OMARCHY_PATH/qvcore/waybar/overrides.jsonc"
 waybar_config="$HOME/.config/waybar/config.jsonc"

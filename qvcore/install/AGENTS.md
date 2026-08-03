@@ -7,6 +7,11 @@ repair, ISO caching, or live package removal.
 Fresh install and source reinstall must never delete an existing checkout.
 Validate repository and ref inputs before privileged work, clone the official
 `OS` branch into same-filesystem staging, verify it, and move it into place.
+The canonical installed checkout is `~/.local/share/qvos`. Preserve exactly one
+relative `~/.local/share/omarchy -> qvos` compatibility link until inherited
+paths are fully retired; reject any other object at either path. Migrate the
+old checkout atomically with `migrate-source-root` and roll back if link
+creation fails.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.

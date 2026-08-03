@@ -2,5 +2,5 @@
 
 # omarchy:summary=Open the current theme's user background folder
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/theme/backgrounds" "$@"

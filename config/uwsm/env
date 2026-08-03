@@ -1,8 +1,9 @@
 # Changes require a restart to take effect.
 
-# Ensure Omarchy bins are in the path
-export OMARCHY_PATH=$HOME/.local/share/omarchy
-export PATH=$OMARCHY_PATH/bin:$PATH:$HOME/.local/bin
+# Ensure qvOS commands are in the path while preserving the inherited ABI.
+export QVOS_PATH=$HOME/.local/share/qvos
+export OMARCHY_PATH=$QVOS_PATH
+export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin
 
 # Set default terminal and editor
 source ~/.config/uwsm/default

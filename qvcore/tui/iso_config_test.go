@@ -152,9 +152,9 @@ func TestISOProgressLogRetainsTheCompleteTerminalHistory(t *testing.T) {
 
 func TestISOProgressUsesTheLatestRealInstallScript(t *testing.T) {
 	log := strings.Join([]string{
-		"[2026-08-02 01:00:00] Starting: /home/installer/.local/share/omarchy/install/packaging/base.sh",
-		"[2026-08-02 01:00:01] Completed: /home/installer/.local/share/omarchy/install/packaging/base.sh",
-		"[2026-08-02 01:00:02] Starting: /home/installer/.local/share/omarchy/install/config/docker.sh",
+		"[2026-08-02 01:00:00] Starting: /home/installer/.local/share/qvos/install/packaging/base.sh",
+		"[2026-08-02 01:00:01] Completed: /home/installer/.local/share/qvos/install/packaging/base.sh",
+		"[2026-08-02 01:00:02] Starting: /home/installer/.local/share/qvos/install/config/docker.sh",
 	}, "\n")
 
 	status, progress := parseISOProgressLog(log)

@@ -435,9 +435,12 @@ grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
   "$root/qvcore/cli/qv" || fail "qvOS toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
-grep -Fq 'dofile(omarchy_path .. "/default/elephant/omarchy_unlocks.lua")' \
+grep -Fq 'local qvos_path = os.getenv("QVOS_PATH")' \
   "$root/qvcore/menu/elephant/omarchy_unlocks.lua" ||
-  fail "qvOS unlock provider inherits Omarchy"
+  fail "qvOS unlock provider native source environment"
+grep -Fq 'dofile(qvos_path .. "/default/elephant/omarchy_unlocks.lua")' \
+  "$root/qvcore/menu/elephant/omarchy_unlocks.lua" ||
+  fail "qvOS unlock provider source ownership"
 grep -Fq -- '--app-id=org.omarchy.terminal' "$root/qvcore/presentation/run" ||
   fail "inherited terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qvcore/presentation/run" ||
@@ -557,6 +560,16 @@ grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \
 grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO progress fullscreen contract"
+git apply --numstat <"$root/release/iso/omarchy-iso-qvos-tui.patch" >/dev/null ||
+  fail "qvOS ISO patch structure"
+for qvos_source_root_contract in \
+  '/home/$OMARCHY_USER/.local/share/qvos/install.sh' \
+  'cp -r /root/omarchy /mnt/home/$OMARCHY_USER/.local/share/qvos' \
+  'ln -s qvos /mnt/home/$OMARCHY_USER/.local/share/omarchy'; do
+  grep -Fq "$qvos_source_root_contract" \
+    "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+    fail "qvOS ISO canonical source root: $qvos_source_root_contract"
+done
 grep -Fq 'root/omarchy/qvcore/boot/plymouth/' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO live Plymouth owner"

@@ -11,6 +11,8 @@ fail() {
 }
 
 [[ -x $root/qvcore/install/reinstall-source ]] || fail "source reinstall owner mode"
+[[ -x $root/qvcore/install/migrate-source-root ]] ||
+  fail "source-root migration owner mode"
 [[ -x $root/qvcore/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
 [[ -x $root/qvcore/install/post-install/finished ]] ||
   fail "post-install presentation owner mode"
@@ -53,6 +55,18 @@ if rg -n 'basecamp/omarchy|branch master|rm -rf .*local/share/omarchy' \
 fi
 grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS.git' \
   "$root/qvcore/install/reinstall-source" || fail "official reinstall source"
+# shellcheck disable=SC2016
+grep -Fq 'target="$HOME/.local/share/qvos"' \
+  "$root/qvcore/install/reinstall-source" || fail "canonical reinstall source root"
+# shellcheck disable=SC2016
+grep -Fq 'QVOS_TARGET="$HOME/.local/share/qvos"' "$root/boot.sh" ||
+  fail "canonical fresh-install source root"
+# shellcheck disable=SC2016
+grep -Fq 'ln -s qvos "$OMARCHY_COMPAT_TARGET"' "$root/boot.sh" ||
+  fail "fresh-install source compatibility link"
+# shellcheck disable=SC2016
+grep -Fq 'export QVOS_PATH="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"' \
+  "$root/install.sh" || fail "native installer source environment"
 grep -Fq 'qvcore/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
   fail "native package resolver"
 grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||

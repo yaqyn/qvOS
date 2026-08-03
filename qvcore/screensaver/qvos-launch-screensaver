@@ -17,7 +17,7 @@ fi
 
 qvos_root="$HOME/.local/share/qvos"
 qvos_bin="$qvos_root/bin"
-omarchy_root="${OMARCHY_PATH:-$HOME/.local/share/omarchy}"
+source_root="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"
 runner="$qvos_bin/qvos-screensaver"
 lock_file="${XDG_RUNTIME_DIR:-/tmp}/qvos-screensaver-$UID.lock"
 
@@ -62,7 +62,7 @@ case ${terminal,,} in
   command=(
     ghostty
     --class=org.omarchy.screensaver
-    --config-file="$omarchy_root/default/ghostty/screensaver"
+    --config-file="$source_root/default/ghostty/screensaver"
     --font-size=14
     -e "$runner"
   )
@@ -71,7 +71,7 @@ case ${terminal,,} in
   command=(
     foot
     --app-id=org.omarchy.screensaver
-    --config="$omarchy_root/default/foot/screensaver.ini"
+    --config="$source_root/default/foot/screensaver.ini"
     -e "$runner"
   )
   ;;

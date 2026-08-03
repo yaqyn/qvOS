@@ -57,8 +57,9 @@ for route in "${expected_native_routes[@]}"; do
   [[ -x $root/$route ]] || fail "boot route mode: $route"
   [[ -x $root/qvcore/boot/$owner ]] || fail "boot owner mode: $owner"
   # shellcheck disable=SC2016
-  grep -Fqx 'OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}' \
-    "$root/$route" || fail "boot route direct-invocation source root: $route"
+  # shellcheck disable=SC2016
+  grep -Fqx 'OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
+    "$root/$route" || fail "boot route source-root translation: $route"
   grep -Fqx "exec \"\$OMARCHY_PATH/qvcore/boot/$owner\" \"\$@\"" \
     "$root/$route" || fail "boot route is not a direct owner adapter: $route"
   if rg -q 'qvos_owner=|default/(limine|plymouth|sddm/omarchy)' "$root/$route"; then

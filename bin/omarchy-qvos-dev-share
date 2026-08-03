@@ -5,5 +5,5 @@
 # omarchy:examples=omarchy qvos dev-share 3000 --supabase
 # omarchy:hidden=true
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/security/dev-share" "$@"

@@ -17,52 +17,43 @@ clear
 echo -e "\n$ansi_art\n"
 
 # Validate the requested source before any privileged package or mirror change.
-OMARCHY_REF="${OMARCHY_REF:-OS}"
-OMARCHY_REPO="${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}"
-OMARCHY_TARGET="$HOME/.local/share/omarchy"
-if [[ ! $OMARCHY_REPO =~ ^[[:alnum:]_.-]+/[[:alnum:]_.-]+$ ]]; then
-  echo "Invalid qvOS GitHub repository: $OMARCHY_REPO" >&2
+QVOS_REF="${QVOS_REF:-${OMARCHY_REF:-OS}}"
+QVOS_REPO="${QVOS_REPO:-${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}}"
+QVOS_TARGET="$HOME/.local/share/qvos"
+OMARCHY_COMPAT_TARGET="$HOME/.local/share/omarchy"
+if [[ $QVOS_REPO != "Yaqyn-qvOS/qvOS" ]]; then
+  echo "qvOS installation requires the official repository." >&2
   exit 2
 fi
-if [[ ! $OMARCHY_REF =~ ^[[:alnum:]][[:alnum:]_./-]*$ ]] ||
-  [[ $OMARCHY_REF == *".."* || $OMARCHY_REF == *"//"* ]]; then
-  echo "Invalid qvOS Git ref: $OMARCHY_REF" >&2
+if [[ $QVOS_REF != "OS" ]]; then
+  echo "qvOS installation requires the official OS branch." >&2
   exit 2
 fi
-if [[ -e $OMARCHY_TARGET || -L $OMARCHY_TARGET ]]; then
-  echo "qvOS source already exists at $OMARCHY_TARGET." >&2
+if [[ -e $QVOS_TARGET || -L $QVOS_TARGET ||
+  -e $OMARCHY_COMPAT_TARGET || -L $OMARCHY_COMPAT_TARGET ]]; then
+  echo "qvOS source already exists under $HOME/.local/share." >&2
   echo "Move it aside explicitly before starting a fresh installation." >&2
   exit 1
 fi
 
-# Set mirror based on branch
-if [[ $OMARCHY_REF == "dev" ]]; then
-  export OMARCHY_MIRROR=edge
-  # shellcheck disable=SC2016
-  echo 'Server = https://mirror.omarchy.org/$repo/os/$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
-elif [[ $OMARCHY_REF == "rc" ]]; then
-  export OMARCHY_MIRROR=rc
-  # shellcheck disable=SC2016
-  echo 'Server = https://rc-mirror.omarchy.org/$repo/os/$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
-else
-  export OMARCHY_MIRROR=stable
-  # shellcheck disable=SC2016
-  echo 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
-fi
+# qvOS has one installed channel and uses its credited upstream Stable mirror.
+export OMARCHY_MIRROR=stable
+# shellcheck disable=SC2016
+echo 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
 
 sudo pacman -Syu --noconfirm --needed git
 
-echo -e "\nCloning qvOS from: https://github.com/${OMARCHY_REPO}.git"
-echo -e "\e[32mUsing branch: $OMARCHY_REF\e[0m"
-install -d "${OMARCHY_TARGET%/*}"
-staging_root=$(mktemp -d "${OMARCHY_TARGET%/*}/.qvos-install-stage.XXXXXX")
+echo -e "\nCloning qvOS from: https://github.com/${QVOS_REPO}.git"
+echo -e "\e[32mUsing branch: $QVOS_REF\e[0m"
+install -d "${QVOS_TARGET%/*}"
+staging_root=$(mktemp -d "${QVOS_TARGET%/*}/.qvos-install-stage.XXXXXX")
 cleanup() {
   rm -rf -- "$staging_root"
 }
 trap cleanup EXIT
-git clone --quiet --single-branch --branch "$OMARCHY_REF" -- \
-  "https://github.com/${OMARCHY_REPO}.git" "$staging_root/source"
-[[ $(git -C "$staging_root/source" branch --show-current) == "$OMARCHY_REF" ]] || {
+git clone --quiet --single-branch --branch "$QVOS_REF" -- \
+  "https://github.com/${QVOS_REPO}.git" "$staging_root/source"
+[[ $(git -C "$staging_root/source" branch --show-current) == "$QVOS_REF" ]] || {
   echo "Cloned qvOS source did not select the requested branch." >&2
   exit 1
 }
@@ -71,10 +62,15 @@ git -C "$staging_root/source" fsck --strict --no-progress >/dev/null
   echo "Cloned qvOS source has no installer." >&2
   exit 1
 }
-mv -- "$staging_root/source" "$OMARCHY_TARGET"
+mv -- "$staging_root/source" "$QVOS_TARGET"
+if ! ln -s qvos "$OMARCHY_COMPAT_TARGET"; then
+  mv -- "$QVOS_TARGET" "$staging_root/source"
+  echo "Could not create the inherited source compatibility link." >&2
+  exit 1
+fi
 trap - EXIT
 cleanup
 
 echo -e "\nInstallation starting..."
 # shellcheck source=/dev/null
-source "$OMARCHY_TARGET/install.sh"
+source "$QVOS_TARGET/install.sh"

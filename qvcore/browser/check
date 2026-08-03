@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $'bin/omarchy-install-browser\nbin/omarchy-remove-browser' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $'bin/omarchy-install-browser\nbin/omarchy-remove-browser\nconfig/chromium-flags.conf' ]] ||
   fail "native browser inventory"
 
 for operation in install remove; do

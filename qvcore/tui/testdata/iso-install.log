@@ -1,6 +1,6 @@
 Cleaning up existing holders
 Installation completed without any errors
-[2026-08-02 01:00:00] Starting: /home/installer/.local/share/omarchy/install/packaging/base.sh
-[2026-08-02 01:01:00] Starting: /home/installer/.local/share/omarchy/install/config/docker.sh
-[2026-08-02 01:02:00] Starting: /home/installer/.local/share/omarchy/qvcore/security/install
+[2026-08-02 01:00:00] Starting: /home/installer/.local/share/qvos/install/packaging/base.sh
+[2026-08-02 01:01:00] Starting: /home/installer/.local/share/qvos/install/config/docker.sh
+[2026-08-02 01:02:00] Starting: /home/installer/.local/share/qvos/qvcore/security/install
 Total: 00:02:31

@@ -24,7 +24,7 @@ fail() {
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
   fail "duplicate battery monitor timer remains"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-refresh-hyprland\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-refresh-hyprland\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf' ]] ||
   fail "retired binding inventory changed"

@@ -4,7 +4,8 @@ Read this file completely when changing qvOS source updates, the public update
 wrapper, update stages, update failure handling, or reboot handoff.
 
 `qvcore/update/update-source` owns source synchronization. The public inherited
-command is a thin compatibility adapter. Require a clean non-symbolic checkout
+command is a thin compatibility adapter. Resolve `QVOS_PATH` first and the
+inherited environment name second. Require a clean non-symbolic checkout
 on branch `OS`, accept only the official qvOS origin, and pull `origin/OS` with
 fast-forward-only semantics and bounded network time. Never autostash, reset,
 merge another branch, or conceal source changes. Always restore Hyprland error

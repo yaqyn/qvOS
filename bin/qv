@@ -5,6 +5,8 @@ adapter_source=$(readlink -f -- "${BASH_SOURCE[0]}")
 qvos_root=$(cd -- "$(dirname -- "$adapter_source")/.." && pwd)
 
 exec env \
+  QVOS_PATH="$qvos_root" \
+  OMARCHY_PATH="$qvos_root" \
   QVOS_CLI_NAME=qv \
   QVOS_CLI_COMMAND_DIR="$invocation_dir" \
   "$qvos_root/qvcore/cli/qv" "$@"

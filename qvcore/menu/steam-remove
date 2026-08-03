@@ -3,7 +3,8 @@ set -euo pipefail
 
 # omarchy:summary=Remove Steam while keeping game libraries, settings, and caches
 # omarchy:requires-sudo=true
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 
 keep_choice="Keep Game Libraries"
 remove_choice="Remove Local Game Libraries"

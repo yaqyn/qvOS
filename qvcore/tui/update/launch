@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
 tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 exec "$tui_root/launch" "qvOS Update" omarchy-qvos-update "$@"

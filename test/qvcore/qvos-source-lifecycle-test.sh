@@ -50,9 +50,10 @@ git_env=(
 )
 
 reinstall_home="$test_root/reinstall-home"
-live_source="$reinstall_home/.local/share/omarchy"
+live_source="$reinstall_home/.local/share/qvos"
 install -d "${live_source%/*}"
 git clone -q --branch OS "$remote" "$live_source"
+ln -s qvos "$reinstall_home/.local/share/omarchy"
 printf 'preserve me\n' >"$live_source/local-change"
 env "${git_env[@]}" \
   HOME="$reinstall_home" \
@@ -62,7 +63,7 @@ env "${git_env[@]}" \
   fail "reinstalled source cleanliness"
 backup_source=$(find "${live_source%/*}" -mindepth 1 -maxdepth 1 \
   -type d -name '.qvos-source-backup.*' -print -quit)
-[[ -n $backup_source && -f $backup_source/omarchy/local-change ]] ||
+[[ -n $backup_source && -f $backup_source/qvos/local-change ]] ||
   fail "complete prior source backup"
 pass "source reinstall verifies the same official commit and preserves the old checkout"
 
@@ -100,9 +101,10 @@ printf 'hyprctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 
 update_home="$test_root/update-home"
-update_source="$update_home/.local/share/omarchy"
+update_source="$update_home/.local/share/qvos"
 install -d "${update_source%/*}"
 git clone -q --branch OS "$remote" "$update_source"
+ln -s qvos "$update_home/.local/share/omarchy"
 git -C "$update_source" remote set-url origin \
   https://github.com/Yaqyn-qvOS/qvOS.git
 printf 'three\n' >"$project/version"
@@ -166,9 +168,12 @@ env "${git_env[@]}" \
   QVOS_TEST_SUDO_LOG="$sudo_log" \
   PATH="$test_bin:/usr/bin" \
   bash "$root/boot.sh" >/dev/null
-boot_source="$boot_home/.local/share/omarchy"
+boot_source="$boot_home/.local/share/qvos"
 [[ $(git -C "$boot_source" branch --show-current) == "OS" ]] ||
   fail "fresh install source branch"
+[[ -L $boot_home/.local/share/omarchy &&
+  $(readlink -- "$boot_home/.local/share/omarchy") == "qvos" ]] ||
+  fail "fresh install compatibility link"
 [[ $(<"$boot_log") == "installed" ]] || fail "fresh installer handoff"
 : >"$sudo_log"
 set +e
@@ -187,6 +192,41 @@ grep -Fq 'source already exists' <<<"$existing_boot_output" ||
   fail "existing fresh-install target result"
 [[ ! -s $sudo_log ]] || fail "existing fresh-install target privileged mutation"
 pass "fresh install validates and stages source without deleting an existing checkout"
+
+migration_home="$test_root/migration-home"
+legacy_source="$migration_home/.local/share/omarchy"
+install -d "${legacy_source%/*}"
+git clone -q --branch OS "$remote" "$legacy_source"
+printf 'preserved dirty source\n' >"$legacy_source/preserved"
+HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
+[[ -d $migration_home/.local/share/qvos &&
+  -f $migration_home/.local/share/qvos/preserved ]] ||
+  fail "legacy source migration preservation"
+[[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
+  fail "legacy source migration compatibility link"
+HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
+[[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
+  fail "legacy source migration idempotence"
+pass "legacy source root migrates atomically to canonical qvOS ownership"
+
+canonical_home="$test_root/canonical-home"
+canonical_source="$canonical_home/.local/share/qvos"
+install -d "${canonical_source%/*}"
+git clone -q --branch OS "$remote" "$canonical_source"
+HOME="$canonical_home" "$root/qvcore/install/migrate-source-root" >/dev/null
+[[ -L $canonical_home/.local/share/omarchy &&
+  $(readlink -- "$canonical_home/.local/share/omarchy") == "qvos" ]] ||
+  fail "canonical source compatibility repair"
+
+unsafe_home="$test_root/unsafe-home"
+install -d "$unsafe_home/.local/share/qvos"
+if HOME="$unsafe_home" "$root/qvcore/install/migrate-source-root" >/dev/null 2>&1; then
+  fail "unsafe canonical source acceptance"
+fi
+[[ ! -e $unsafe_home/.local/share/omarchy &&
+  ! -L $unsafe_home/.local/share/omarchy ]] ||
+  fail "unsafe canonical source compatibility mutation"
+pass "source migration repairs only a verified canonical checkout"
 
 config_source="$test_root/config-source"
 config_home="$test_root/config-home"

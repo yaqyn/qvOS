@@ -2,5 +2,5 @@
 
 # omarchy:summary=Display the qvOS logo in the terminal using green color.
 
-OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$OMARCHY_PATH/qvcore/branding/show-logo" "$@"

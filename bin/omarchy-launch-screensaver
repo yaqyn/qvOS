@@ -27,13 +27,13 @@ while IFS= read -r m; do
   *Alacritty*)
     hyprctl dispatch exec -- \
       alacritty --class=org.omarchy.screensaver \
-      --config-file ~/.local/share/omarchy/default/alacritty/screensaver.toml \
+      --config-file ~/.local/share/qvos/default/alacritty/screensaver.toml \
       -e omarchy-screensaver
     ;;
   *ghostty*)
     hyprctl dispatch exec -- \
       ghostty --class=org.omarchy.screensaver \
-      --config-file=~/.local/share/omarchy/default/ghostty/screensaver \
+      --config-file=~/.local/share/qvos/default/ghostty/screensaver \
       --font-size=18 \
       -e omarchy-screensaver
     ;;
