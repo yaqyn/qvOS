@@ -30,7 +30,6 @@ inherited_seams=(
   bin/omarchy-tz-select
   bin/omarchy-update-restart
   bin/omarchy-voxtype-install
-  install/config/all.sh
   install/helpers/errors.sh
   install/login/limine-snapper.sh
   install/login/plymouth.sh
@@ -279,11 +278,34 @@ pass "package entrypoints use singular native owners"
 
 [[ ! -e $root/install/config/qvos-scripts.sh ]] ||
   fail "qvOS desktop implementation remains under inherited install config"
+[[ ! -e $root/install/config/all.sh ]] ||
+  fail "inherited install configuration orchestration remains"
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qv/install/config/run"' \
+  "$root/install.sh" ||
+  fail "fresh install does not use the native qvOS configuration stage"
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$OMARCHY_PATH/qv/install/configure"' \
-  "$root/install/config/all.sh" ||
-  fail "fresh install qvOS overlay seam"
-pass "Omarchy installation runs one separate qvOS stage afterward"
+  "$root/qv/install/config/run" ||
+  fail "native configuration stage omits qvOS configuration"
+# shellcheck disable=SC2016
+upstream_config_steps=$(
+  git -C "$root" show "$upstream_ref:install/config/all.sh" |
+    sed -n 's/^run_logged \(\$OMARCHY_INSTALL[^[:space:]]*\)$/\1/p' |
+    grep -Fvx '$OMARCHY_INSTALL/config/nautilus-python.sh'
+)
+# shellcheck disable=SC2016
+native_config_steps=$(
+  sed -n 's/^run_logged "\(\$OMARCHY_INSTALL[^"]*\)"$/\1/p' \
+    "$root/qv/install/config/run"
+)
+[[ $native_config_steps == "$upstream_config_steps" ]] ||
+  fail "native configuration stage changed inherited leaf order or coverage"
+# shellcheck disable=SC2016
+[[ $(grep -Fc 'run_logged "$OMARCHY_PATH/qv/' \
+  "$root/qv/install/config/run") == 2 ]] ||
+  fail "native configuration stage qvOS leaf inventory"
+pass "fresh installation uses one native qvOS configuration stage"
 
 public_adapters=(
   bin/omarchy-install-qvcore

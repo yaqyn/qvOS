@@ -1,4 +1,5 @@
 # Inherited install paths intentionally absent from qvOS.
+install/config/all.sh
 install/first-run/cleanup-reboot-sudoers.sh
 install/first-run/dns-resolver.sh
 install/first-run/firewall.sh

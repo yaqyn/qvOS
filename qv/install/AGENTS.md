@@ -25,6 +25,13 @@ keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
 owner. Never restore inherited post-install orchestration or presentation as a
 fallback.
 
+`qv/install/config/run` singularly owns the ordered fresh-install configuration
+stage. Keep inherited configuration and hardware leaf scripts byte-for-byte
+until their capability is promoted, call each through `run_logged`, and keep
+qvOS-owned leaves on their native paths. When promoting a leaf, replace its
+entry in this owner and retire the inherited implementation in the same change.
+Never restore `install/config/all.sh` or a second configuration-stage overlay.
+
 `qv/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
 sudoers commands. `qv/install/first-run/run` owns the ordered login lifecycle,

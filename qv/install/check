@@ -52,6 +52,17 @@ grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
 # shellcheck disable=SC2016
 grep -Fqx 'source "$OMARCHY_PATH/qv/install/post-install/run"' \
   "$root/install.sh" || fail "native post-install owner wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qv/install/config/run"' \
+  "$root/install.sh" || fail "native install configuration owner wiring"
+[[ -f $root/qv/install/config/run && ! -x $root/qv/install/config/run ]] ||
+  fail "native install configuration owner mode"
+[[ ! -e $root/install/config/all.sh ]] ||
+  fail "inherited install configuration orchestration remains"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qv/install/configure"' \
+  "$root/qv/install/config/run" ||
+  fail "native install configuration stage omits qvOS configuration"
 [[ ! -e $root/install/post-install/all.sh ]] ||
   fail "inherited post-install orchestration remains"
 [[ ! -e $root/install/post-install/finished.sh ]] ||
