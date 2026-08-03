@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+
+for adapter in "$QVOS_PATH/bin/qv" "$QVOS_PATH/bin/omarchy"; do
+  [[ -x $adapter ]] || {
+    echo "Missing executable CLI adapter: $adapter" >&2
+    exit 1
+  }
+done
+
+[[ -x $QVOS_PATH/qvcore/cli/qv ]] || {
+  echo "Missing executable native CLI engine." >&2
+  exit 1
+}
+
+"$QVOS_PATH/bin/qv" commands --check
+"$QVOS_PATH/bin/omarchy" commands --check
+
+qv_update_help=$("$QVOS_PATH/bin/qv" update --help)
+[[ $qv_update_help == *"omarchy-qvos-update"* ]] || {
+  echo "qv update does not resolve to the guarded qvOS update owner." >&2
+  exit 1
+}
+[[ $qv_update_help != *"omarchy-update-perform"* ]] || {
+  echo "qv update exposes an inherited updater implementation route." >&2
+  exit 1
+}
+
+echo "qvOS CLI ownership check passed."

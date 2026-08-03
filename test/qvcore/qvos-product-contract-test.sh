@@ -423,12 +423,16 @@ grep -Fq '# omarchy:summary=Safely update qvOS through its native update engine'
   "$root/bin/omarchy-qvos-update" || fail "qvOS update help"
 grep -Fq 'powers the qvOS Menu' "$root/bin/omarchy-refresh-walker" ||
   fail "qvOS menu help"
-grep -Fq 'qvOS command center' "$root/bin/omarchy" ||
+grep -Fq 'QVOS_CLI_NAME=qv' "$root/bin/qv" ||
+  fail "native qv CLI adapter"
+grep -Fq 'QVOS_CLI_NAME=omarchy' "$root/bin/omarchy" ||
+  fail "Omarchy CLI compatibility adapter"
+grep -Fq 'qvOS command center' "$root/qvcore/cli/qv" ||
   fail "qvOS CLI heading"
 grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart qvOS components"' \
-  "$root/bin/omarchy" || fail "qvOS restart help"
+  "$root/qvcore/cli/qv" || fail "qvOS restart help"
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
-  "$root/bin/omarchy" || fail "qvOS toggle help"
+  "$root/qvcore/cli/qv" || fail "qvOS toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
 grep -Fq 'dofile(omarchy_path .. "/default/elephant/omarchy_unlocks.lua")' \

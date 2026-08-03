@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# qvOS compatibility entry point for inherited command routes.
-
 invocation_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 adapter_source=$(readlink -f -- "${BASH_SOURCE[0]}")
 qvos_root=$(cd -- "$(dirname -- "$adapter_source")/.." && pwd)
 
 exec env \
-  QVOS_CLI_NAME=omarchy \
+  QVOS_CLI_NAME=qv \
   QVOS_CLI_COMMAND_DIR="$invocation_dir" \
   "$qvos_root/qvcore/cli/qv" "$@"

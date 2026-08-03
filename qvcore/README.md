@@ -17,6 +17,7 @@ qvcore/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
   branding/    qvOS terminal and desktop branding.
   browser/     Secure browser policy ownership.
+  cli/         Native qv command engine and Omarchy compatibility frontend.
   config/      qvOS config sources and reconciliation after Omarchy defaults.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
@@ -59,7 +60,7 @@ to the qvOS package set.
 Steam remains optional and uses its standard gaming installer and remover.
 Services and Development integrations never change qvOS base readiness.
 
-- `omarchy qvos update` confirms the operation and verifies a clean branch
+- `qv update` confirms the operation and verifies a clean branch
   `OS`, then delegates once to the qvOS update pipeline. qvOS owns a bounded,
   official-origin, fast-forward-only source update; the preserved pipeline owns
   snapshots, complete package updates from Omarchy Stable, migrations, orphan
@@ -68,6 +69,9 @@ Services and Development integrations never change qvOS base readiness.
   already-installed manifest entries belonging to Devel and Proton. It never
   restores missing tools, enrolls integrations, authenticates
   accounts, changes integrations, or changes networking.
+- `qv` is the primary user-facing command. `omarchy` remains a compatibility
+  frontend for inherited scripts and upstream tooling; both use the one native
+  qvOS command engine.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records
