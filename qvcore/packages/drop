@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+"$QVOS_PATH/qvcore/packages/validate-targets" "$@"
+
+installed=()
+for package in "$@"; do
+  if pacman -Q -- "$package" &>/dev/null; then
+    installed+=("$package")
+  fi
+done
+
+if (( ${#installed[@]} > 0 )); then
+  sudo pacman -Rns --noconfirm -- "${installed[@]}"
+fi

@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+for target in "$@"; do
+  if [[ ! $target =~ ^[a-zA-Z0-9@][a-zA-Z0-9@._+-]*$ ]]; then
+    printf 'qvOS packages: invalid package target: %s\n' "$target" >&2
+    exit 2
+  fi
+done

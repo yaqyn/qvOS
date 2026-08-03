@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+fzf_args=(
+  --multi
+  --preview 'yay -Qi -- {1}'
+  --preview-label='alt-p: toggle description, alt-j/k: scroll, tab: multi-select'
+  --preview-label-pos='bottom'
+  --preview-window 'down:65%:wrap'
+  --bind 'alt-p:toggle-preview'
+  --bind 'alt-d:preview-half-page-down,alt-u:preview-half-page-up'
+  --bind 'alt-k:preview-up,alt-j:preview-down'
+  --color 'pointer:red,marker:red'
+)
+
+set +e
+selection=$(yay -Qqe | fzf "${fzf_args[@]}")
+selection_status=$?
+set -e
+case $selection_status in
+0) ;;
+1 | 130) exit 0 ;;
+*) exit "$selection_status" ;;
+esac
+[[ -n $selection ]] || exit 0
+
+mapfile -t packages <<<"$selection"
+"$QVOS_PATH/qvcore/packages/validate-targets" "${packages[@]}"
+sudo pacman -Rns --noconfirm -- "${packages[@]}"
+omarchy-show-done

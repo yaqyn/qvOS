@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+"$QVOS_PATH/qvcore/packages/validate-targets" "$@"
+
+for package in "$@"; do
+  if ! pacman -Q -- "$package" &>/dev/null; then
+    exit 0
+  fi
+done
+
+exit 1

@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# > 0 )) || {
+  echo "Usage: qv pkg add <packages...>" >&2
+  exit 2
+}
+"$QVOS_PATH/qvcore/packages/validate-targets" "$@"
+
+if "$QVOS_PATH/qvcore/packages/missing" "$@"; then
+  sudo pacman -S --noconfirm --needed -- "$@"
+fi
+
+for package in "$@"; do
+  if ! pacman -Q -- "$package" &>/dev/null; then
+    printf 'qvOS packages: package did not install: %s\n' "$package" >&2
+    exit 1
+  fi
+done

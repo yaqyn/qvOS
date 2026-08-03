@@ -16,6 +16,19 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
 - `qvcore/install/packaging/` owns the singular qvOS package manifests and
   resolver. Package presence never implies qvOS, Service, or Development
   ownership.
+- `qvcore/packages/{add,drop,missing,present}` owns package mutation and
+  readback through configured repositories. AUR operations are separate,
+  explicit owners. Validate package names before Pacman or Yay, terminate
+  option parsing with `--`, preserve exact argument boundaries, and verify
+  every requested installation from the local package database.
+- Native package commands use `bin/qv-pkg-*` and `# qv:*` metadata. The command
+  engine prefers each native route; matching `bin/omarchy-pkg-*` files are
+  metadata-free compatibility adapters to the same owner, never a second
+  implementation.
+- Interactive package selection treats ordinary FZF cancellation as a clean
+  no-op, uses arrays rather than `xargs`, and refreshes the locate database only
+  when its owner is installed. Do not hide repository-listing or package-manager
+  failures as cancellation.
 - `qvcore/packages/configure` owns an explicit reset to Stable. It backs up the
   current Pacman files, installs the credited provider configuration, invokes
   the existing security owner before synchronizing packages, and restores both

@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
+curl -fsS --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 \
+  -A "qvOS-update" \
+  "https://aur.archlinux.org/rpc/?v=5&type=info&arg=base" >/dev/null

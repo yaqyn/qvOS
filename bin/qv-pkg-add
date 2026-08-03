@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Install missing packages from qvOS configured repositories
+# qv:args=<packages...>
+# qv:examples=qv pkg add jq ripgrep
+# qv:requires-sudo=true
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/packages/add" "$@"

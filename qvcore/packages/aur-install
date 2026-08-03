@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+fzf_args=(
+  --multi
+  --preview 'yay -Siia -- {1}'
+  --preview-label='alt-p: toggle description, alt-b/B: toggle PKGBUILD, alt-j/k: scroll, tab: multi-select'
+  --preview-label-pos='bottom'
+  --preview-window 'down:65%:wrap'
+  --bind 'alt-p:toggle-preview'
+  --bind 'alt-d:preview-half-page-down,alt-u:preview-half-page-up'
+  --bind 'alt-k:preview-up,alt-j:preview-down'
+  --bind 'alt-b:change-preview:yay -Gpa -- {1} | tail -n +5'
+  --bind 'alt-B:change-preview:yay -Siia -- {1}'
+  --color 'pointer:green,marker:green'
+)
+
+set +e
+selection=$(yay -Slqa | fzf "${fzf_args[@]}")
+selection_status=$?
+set -e
+case $selection_status in
+0) ;;
+1 | 130) exit 0 ;;
+*) exit "$selection_status" ;;
+esac
+[[ -n $selection ]] || exit 0
+
+mapfile -t packages <<<"$selection"
+"$QVOS_PATH/qvcore/packages/validate-targets" "${packages[@]}"
+targets=()
+for package in "${packages[@]}"; do
+  targets+=("aur/$package")
+done
+source "$QVOS_PATH/bin/omarchy-sudo-keepalive"
+yay -S --noconfirm --needed -- "${targets[@]}"
+command -v updatedb >/dev/null 2>&1 && sudo updatedb
+omarchy-show-done

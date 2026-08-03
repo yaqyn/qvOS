@@ -17,6 +17,27 @@ done
 
 "$QVOS_PATH/bin/qv" commands --check
 "$QVOS_PATH/bin/omarchy" commands --check
+native_catalog_binaries=$(
+  "$QVOS_PATH/bin/qv" commands --all --json | jq -r '.commands[].binary'
+)
+
+for native_adapter in "$QVOS_PATH"/bin/qv-*; do
+  [[ -f $native_adapter && -x $native_adapter ]] || continue
+  stem=${native_adapter##*/qv-}
+  compatibility_adapter="$QVOS_PATH/bin/omarchy-$stem"
+  [[ -f $compatibility_adapter && -x $compatibility_adapter ]] || {
+    echo "Missing compatibility adapter for native command: $stem" >&2
+    exit 1
+  }
+  if rg -q '^# (qv|omarchy):' "$compatibility_adapter"; then
+    echo "Compatibility adapter duplicates native metadata: $stem" >&2
+    exit 1
+  fi
+  [[ $(grep -Fxc "qv-$stem" <<<"$native_catalog_binaries") == 1 ]] || {
+    echo "Native command is absent or duplicated in the catalog: $stem" >&2
+    exit 1
+  }
+done
 
 qv_update_help=$("$QVOS_PATH/bin/qv" update --help)
 [[ $qv_update_help == *"omarchy-qvos-update"* ]] || {

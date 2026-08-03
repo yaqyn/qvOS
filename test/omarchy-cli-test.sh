@@ -69,8 +69,8 @@ pass "fallback commands are inferred and documented"
 "$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy dev benchmark")' >/dev/null
 pass "benchmark command is discoverable in all commands"
 
-"$CLI" commands --json | jq -e '.commands[] | select(.binary == "omarchy-pkg-add" and .route == "omarchy pkg add" and .filename_route == "omarchy pkg add" and (.routes | index("omarchy pkg add")))' >/dev/null
-pass "JSON exposes direct pkg add route"
+"$CLI" commands --json | jq -e '.commands[] | select(.binary == "qv-pkg-add" and .route == "omarchy pkg add" and .filename_route == "omarchy pkg add" and (.routes | index("omarchy pkg add")))' >/dev/null
+pass "JSON exposes native pkg add route through compatibility"
 
 "$CLI" commands --json | jq -e '.commands[] | select(.binary == "omarchy-refresh-pacman" and .requires_sudo == true)' >/dev/null
 pass "sudo metadata marks sudo commands"
@@ -136,7 +136,10 @@ commands = json.loads(subprocess.check_output([cli, 'commands', '--json'], text=
 by_group = {}
 for command in commands:
   binary = command['binary']
-  stem = binary.removeprefix('omarchy-')
+  if binary.startswith('qv-'):
+    stem = binary.removeprefix('qv-')
+  else:
+    stem = binary.removeprefix('omarchy-')
   group = stem.split('-', 1)[0]
   filename_route = 'omarchy ' + stem.replace('-', ' ')
   by_group.setdefault(group, []).append((binary, filename_route, command['route']))
@@ -174,7 +177,7 @@ assert_output_contains "root alias resolves to command help" "$output" "omarchy-
 pass "aliases are included in JSON metadata"
 
 output=$("$CLI" pkg add --help)
-assert_output_contains "pkg add help resolves" "$output" "omarchy-pkg-add"
+assert_output_contains "pkg add help resolves" "$output" "qv-pkg-add"
 assert_output_contains "pkg add help shows direct route" "$output" "omarchy pkg add <packages...>"
 
 output=$("$CLI" system reboot --help)
@@ -200,12 +203,15 @@ for binary in \
   omarchy-theme-set \
   omarchy-capture-screenshot \
   omarchy-system-reboot \
-  omarchy-pkg-add; do
+  omarchy-pkg-add \
+  qv-pkg-add; do
   [[ -x $ROOT/bin/$binary ]] || fail "binary is executable: $binary"
   pass "binary is executable: $binary"
 done
 
 while IFS= read -r binary_path; do
+  stem=${binary_path##*/omarchy-}
+  native_path="$ROOT/bin/qv-$stem"
   header=$(awk '
     NR == 1 && /^#!/ { next }
     /^[[:space:]]*$/ { if (seen) print; next }
@@ -213,13 +219,19 @@ while IFS= read -r binary_path; do
     { exit }
   ' "$binary_path")
 
+  if [[ -x $native_path ]]; then
+    [[ -z $header ]] || fail "compatibility adapter has no metadata: $binary_path"
+    grep -q '^# qv:summary=' "$native_path" ||
+      fail "native metadata summary is present: $native_path"
+    continue
+  fi
   grep -q '^# omarchy:summary=' <<<"$header" || fail "metadata summary is present: $binary_path"
   ! grep -q '^# omarchy:binary=' <<<"$header" || fail "metadata does not repeat inferred binary: $binary_path"
   ! grep -q '^# omarchy:args=$' <<<"$header" || fail "metadata does not include empty args: $binary_path"
   ! grep -Eq '^# omarchy:(legacy|usage|visibility|mutates|interactive)=' <<<"$header" || fail "metadata avoids removed fields: $binary_path"
   ! grep -Eq '^# omarchy:requires-sudo=false$' <<<"$header" || fail "metadata omits false booleans: $binary_path"
 done < <(find "$ROOT/bin" -maxdepth 1 -type f -executable -name 'omarchy-*' | sort)
-pass "all executable bins have slim self-documenting metadata"
+pass "every command has one slim metadata owner"
 
 TMPDIR=$(mktemp -d)
 ln -s "$CLI" "$TMPDIR/omarchy"

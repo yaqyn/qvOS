@@ -203,12 +203,13 @@ collect_source_contracts() {
     done
   done
 
+  # These expressions intentionally match literal repository-root variables.
+  # shellcheck disable=SC2016
   mapfile -t dependencies < <(
-    # shellcheck disable=SC2016
     grep -oE \
-      '\$OMARCHY_PATH/(qvcore|services|development|release|compat|bin)/[[:alnum:]_./-]+' \
+      '\$(QVOS_PATH|OMARCHY_PATH)/(qvcore|services|development|release|compat|bin)/[[:alnum:]_./-]+' \
       "$contract_root/$source" |
-      sed 's|^\$OMARCHY_PATH/||' |
+      sed -E 's#^\$(QVOS_PATH|OMARCHY_PATH)/##' |
       sort -u
   )
   for dependency in "${dependencies[@]}"; do

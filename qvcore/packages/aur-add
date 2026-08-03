@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# > 0 )) || {
+  echo "Usage: qv pkg aur add <packages...>" >&2
+  exit 2
+}
+"$QVOS_PATH/qvcore/packages/validate-targets" "$@"
+
+if "$QVOS_PATH/qvcore/packages/missing" "$@"; then
+  command -v yay >/dev/null 2>&1 || {
+    echo "qvOS packages: yay is required for AUR packages." >&2
+    exit 1
+  }
+  yay -S --noconfirm --needed -- "$@"
+fi
+
+for package in "$@"; do
+  if ! pacman -Q -- "$package" &>/dev/null; then
+    printf 'qvOS packages: AUR package did not install: %s\n' "$package" >&2
+    exit 1
+  fi
+done

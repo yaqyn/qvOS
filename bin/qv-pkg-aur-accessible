@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Check whether the Arch User Repository is reachable
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/packages/aur-accessible" "$@"

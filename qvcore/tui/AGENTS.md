@@ -54,6 +54,10 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   runtime adapters may resolve delegated owners from `OMARCHY_PATH`, but never
   mix a current binary with presentation or cancellation adapters from the
   live Omarchy checkout.
+- Owner contracts recursively hash exact repository dependencies referenced
+  through either the native `QVOS_PATH` or compatibility `OMARCHY_PATH` root.
+  A namespace migration must never make a real mutation owner invisible to the
+  contract generator.
 - `qvcore/tui/source-hash` is the single owner for binary source provenance.
   Every local, live, and ISO build embeds its output in `buildSourceHash`, and
   verification rejects `unmanaged` or any value that differs from that owner.

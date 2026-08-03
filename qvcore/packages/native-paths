@@ -1,2 +1,11 @@
-# Inherited package route promoted to the qvOS provider boundary.
+# Inherited package routes promoted to the qvOS provider boundary.
+bin/omarchy-pkg-add
+bin/omarchy-pkg-aur-accessible
+bin/omarchy-pkg-aur-add
+bin/omarchy-pkg-aur-install
+bin/omarchy-pkg-drop
+bin/omarchy-pkg-install
+bin/omarchy-pkg-missing
+bin/omarchy-pkg-present
+bin/omarchy-pkg-remove
 bin/omarchy-refresh-pacman

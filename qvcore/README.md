@@ -53,6 +53,8 @@ qvOS has one supported base: a solid, gaming-ready Arch system whose package
 selection and compatibility policy are curated by qvOS. Omarchy supplies the
 credited Stable Arch mirror, curated package repository, and signing keyring;
 qvOS does not rebuild, resign, relabel, or mirror that package infrastructure.
+Native `qv-pkg-*` commands own validated Pacman and explicit AUR operations;
+matching `omarchy-pkg-*` names are direct compatibility adapters only.
 The base keeps Omarchy's on-demand OpenAI Codex wrapper plus software with an
 independent qvOS, Omarchy, gaming, hardware, or desktop purpose. The package
 resolver validates singular qvOS base and conditional-hardware manifests;

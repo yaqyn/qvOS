@@ -28,7 +28,8 @@ compat_help=$("$compat_cli" --help)
   .ok == true and
   (all(.commands[]; .route | startswith("qv "))) and
   ([.commands[].binary | select(. == "omarchy-update" or startswith("omarchy-update-"))] | length == 0) and
-  ([.commands[] | select(.route == "qv update" and .binary == "omarchy-qvos-update")] | length == 1)
+  ([.commands[] | select(.route == "qv update" and .binary == "omarchy-qvos-update")] | length == 1) and
+  ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1)
 ' >/dev/null || fail "native command catalog"
 
 update_help=$("$qv_cli" update --help)
@@ -47,13 +48,25 @@ set -e
 
 test_root=$(mktemp -d)
 ln -s "$qv_cli" "$test_root/qv"
+ln -s "$compat_cli" "$test_root/omarchy"
+cat >"$test_root/qv-probe-safe" <<'SCRIPT'
+#!/bin/bash
+# qv:summary=Run the native discovery probe
+echo qv-native-probe-ok
+SCRIPT
 cat >"$test_root/omarchy-probe-safe" <<'SCRIPT'
 #!/bin/bash
-echo qv-probe-ok
+echo inherited-probe-must-not-run
 SCRIPT
-chmod 0755 "$test_root/omarchy-probe-safe"
+chmod 0755 "$test_root/qv-probe-safe" "$test_root/omarchy-probe-safe"
 
-[[ $("$test_root/qv" probe safe) == "qv-probe-ok" ]] ||
-  fail "native adapter dispatch boundary"
+[[ $("$test_root/qv" probe safe) == "qv-native-probe-ok" ]] ||
+  fail "native adapter dispatch preference"
+[[ $("$test_root/omarchy" probe safe) == "qv-native-probe-ok" ]] ||
+  fail "compatibility frontend shares the native owner"
+"$test_root/qv" commands --json | jq -e '
+  [.commands[] | select(.route == "qv probe safe" and .binary == "qv-probe-safe")] |
+  length == 1
+' >/dev/null || fail "native discovery is singular"
 
 echo "qvOS native CLI tests passed."

@@ -12,10 +12,12 @@
 # Command Architecture
 
 `qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
-only a compatibility frontend. During the command-tree transition,
-`bin/omarchy-*` is a stable inherited ABI and metadata catalog; a promoted
-entry must be a thin adapter to one implementation under `qvcore/`. Never add
-new mutation logic, state ownership, or product branding to `bin/`.
+only a compatibility frontend. During the command-tree transition, a promoted
+command has one `qvcore/` owner, one metadata-bearing `bin/qv-*` adapter, and an
+metadata-free matching `bin/omarchy-*` compatibility adapter. The engine prefers
+the native route. Unpromoted inherited `bin/omarchy-*` files remain intact until
+their complete domain moves. Never add mutation logic, state ownership, or
+product branding to `bin/`.
 
 The authoritative command group list lives in `qvcore/cli/qv` in
 `GROUP_DESCRIPTIONS`. Keep it updated when adding a command prefix. User-facing
@@ -43,32 +45,35 @@ Other current prefixes include:
 
 # Command Metadata
 
-The native CLI currently reads the inherited `# omarchy:*` metadata schema from
-the first 80 lines of compatibility routes. The schema name is ABI, not product
-identity. Keep it only until the native command catalog is promoted, and never
-show `Omarchy` in qvOS help output.
+The CLI reads `# qv:*` metadata from promoted native adapters and temporary
+`# omarchy:*` metadata from unpromoted inherited routes. Never keep both records
+for the same command. Metadata is scanned only from the first 80 lines, and qvOS
+help never exposes Omarchy product identity.
 
 Supported metadata keys:
 
-- `# omarchy:summary=...` - short help text
-- `# omarchy:group=...` - command group when it differs from the filename-derived prefix
-- `# omarchy:name=...` - command name within the group
-- `# omarchy:args=...` - usage arguments
-- `# omarchy:examples=...` - examples separated with ` | `
-- `# omarchy:alias=...` / `# omarchy:aliases=...` - alternate routes
-- `# omarchy:hidden=true` - hide from default command listings
-- `# omarchy:requires-sudo=true` - mark commands that require sudo
+- `# qv:summary=...` - short help text
+- `# qv:group=...` - command group when it differs from the filename-derived prefix
+- `# qv:name=...` - command name within the group
+- `# qv:args=...` - usage arguments
+- `# qv:examples=...` - examples separated with ` | `
+- `# qv:alias=...` / `# qv:aliases=...` - alternate routes
+- `# qv:hidden=true` - hide from default command listings
+- `# qv:requires-sudo=true` - mark commands that require sudo
+
+The inherited schema supports the same keys with the `omarchy:` prefix only
+until that route is promoted.
 
 Prefer explicit metadata for user-facing commands. Keep routes consistent with the filename unless there is a deliberate alias or compatibility route.
 
 Example:
 
 ```bash
-# omarchy:summary=Take a screenshot
-# omarchy:group=capture
-# omarchy:args=[smart|region|windows|fullscreen] [slurp|copy]
-# omarchy:examples=omarchy screenshot | omarchy capture screenshot region
-# omarchy:aliases=omarchy screenshot
+# qv:summary=Take a screenshot
+# qv:group=capture
+# qv:args=[smart|region|windows|fullscreen] [slurp|copy]
+# qv:examples=qv screenshot | qv capture screenshot region
+# qv:aliases=qv screenshot
 ```
 
 # Install Scripts
@@ -95,12 +100,13 @@ Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflig
 
 # Helper Commands
 
-These inherited helper names remain the current command ABI. Reuse them until
-their command owner is promoted; do not create parallel qvOS implementations:
+Use native helpers when their domain is promoted. Unpromoted inherited code may
+keep its exact compatibility ABI until that complete domain moves:
 
 - `omarchy-cmd-missing` / `omarchy-cmd-present` - check for commands
-- `omarchy-pkg-missing` / `omarchy-pkg-present` - check for packages
-- `omarchy-pkg-add` - install packages (handles both pacman and AUR)
+- `qv-pkg-missing` / `qv-pkg-present` - check for packages
+- `qv-pkg-add` - install from qvOS configured repositories
+- `qv-pkg-aur-add` - explicitly install a user-selected AUR package
 - `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
 
 Exceptions are allowed for bootstrap, preflight, migration, and package-helper scripts where the helper may not be available yet, where the helper itself is being implemented, or where direct package-manager behavior is required.

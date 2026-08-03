@@ -5,13 +5,17 @@ route metadata, compatibility dispatch, or user-facing command help.
 
 `qvcore/cli/qv` is the single command-discovery and dispatch engine. `bin/qv`
 is the primary qvOS entry point; `bin/omarchy` is a thin compatibility adapter
-for inherited commands and upstream tooling. Both adapters must invoke the same
+for inherited commands and upstream tooling. Both adapters invoke the same
 engine and command directory without duplicating route behavior.
 
-The inherited `omarchy-*` binary namespace and `# omarchy:*` metadata are a
-temporary upstream ABI, not qvOS product identity. Native `qv` output, routes,
-examples, errors, and suggestions must use `qv`. Keep compatibility output on
-the `omarchy` entry point so existing scripts remain truthful.
+Promoted commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
+that native route for both frontends and ignores its matching `omarchy-*` file
+during discovery; the latter is a metadata-free direct-command compatibility
+adapter only. Unpromoted `omarchy-*` implementations and metadata remain an
+upstream ABI until their complete domain moves. Never keep two implementations
+or two active metadata records for the same route. Native `qv` output, routes,
+examples, errors, and suggestions use `qv`; the compatibility frontend rewrites
+the same catalog to `omarchy` without changing its owner.
 
 `qv update` must resolve only to `omarchy-qvos-update`, which delegates to the
 guarded qvOS update owner. Never expose the inherited raw updater or its
