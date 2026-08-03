@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+legacy="$HOME/.config/environment.d/omarchy-firefox-wayland.conf"
+native="$HOME/.config/environment.d/qvos-firefox-wayland.conf"
+expected='MOZ_ENABLE_WAYLAND=1'
+mode=migrate
+
+case ${1:-} in
+"") ;;
+--remove) mode=remove ;;
+*)
+  echo "Usage: migrate-runtime-root [--remove]" >&2
+  exit 2
+  ;;
+esac
+(($# <= 1)) || {
+  echo "Usage: migrate-runtime-root [--remove]" >&2
+  exit 2
+}
+
+remove_exact() {
+  local path=$1
+
+  [[ -e $path || -L $path ]] || return 0
+  if [[ ! -L $path && -f $path && -O $path ]] &&
+    [[ $(<"$path") == "$expected" ]]; then
+    rm -f -- "$path"
+  else
+    echo "Preserving modified Firefox Wayland environment: $path" >&2
+  fi
+}
+
+if [[ $mode == "remove" ]]; then
+  remove_exact "$native"
+  remove_exact "$legacy"
+  exit 0
+fi
+
+[[ -e $legacy || -L $legacy ]] || exit 0
+
+if [[ -L $legacy || ! -f $legacy || ! -O $legacy ]] ||
+  [[ $(<"$legacy") != "$expected" ]]; then
+  echo "Preserving modified Firefox Wayland environment: $legacy" >&2
+  exit 0
+fi
+
+if [[ -e $native || -L $native ]]; then
+  if [[ ! -L $native && -f $native && -O $native ]] &&
+    [[ $(<"$native") == "$expected" ]]; then
+    rm -f -- "$legacy"
+  else
+    echo "Preserving Firefox Wayland environment conflict: $legacy" >&2
+  fi
+  exit 0
+fi
+
+mv -n -- "$legacy" "$native"
+if [[ -e $legacy || -L $legacy ]]; then
+  echo "Preserving Firefox Wayland environment after a concurrent change: $legacy" >&2
+  exit 0
+fi
+chmod 0644 "$native"

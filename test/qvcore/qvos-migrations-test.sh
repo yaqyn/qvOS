@@ -141,6 +141,39 @@ QVOS_TEST_SYSTEMCTL_LOG="$controls_log" \
   "$controls_snapshot" ]] || fail "desktop-control migration integration idempotence"
 printf 'ok - promoted control config and root policy migrate together idempotently\n'
 
+browser_migration="$root/qvcore/migrations/1785779159.sh"
+browser_home="$test_root/browser-home"
+browser_environment="$browser_home/.config/environment.d"
+install -d "$browser_environment"
+printf '%s\n' 'MOZ_ENABLE_WAYLAND=1' \
+  >"$browser_environment/omarchy-firefox-wayland.conf"
+HOME="$browser_home" QVOS_PATH="$root" bash "$browser_migration" >/dev/null
+grep -Fqx 'MOZ_ENABLE_WAYLAND=1' \
+  "$browser_environment/qvos-firefox-wayland.conf" ||
+  fail "Firefox Wayland environment migration"
+[[ ! -e $browser_environment/omarchy-firefox-wayland.conf ]] ||
+  fail "retired Firefox Wayland environment remains"
+browser_snapshot=$(find "$browser_environment" -type f -printf '%p|%m|%i|%T@\n' | sort)
+HOME="$browser_home" QVOS_PATH="$root" bash "$browser_migration" >/dev/null
+[[ $(find "$browser_environment" -type f -printf '%p|%m|%i|%T@\n' | sort) == \
+  "$browser_snapshot" ]] || fail "Firefox Wayland migration idempotence"
+
+modified_browser_home="$test_root/modified-browser-home"
+modified_browser_environment="$modified_browser_home/.config/environment.d"
+install -d "$modified_browser_environment"
+printf '%s\n' 'CUSTOM_FIREFOX_SETTING=1' \
+  >"$modified_browser_environment/omarchy-firefox-wayland.conf"
+browser_warning=$(
+  HOME="$modified_browser_home" QVOS_PATH="$root" \
+    bash "$browser_migration" 2>&1 >/dev/null
+)
+grep -Fqx 'CUSTOM_FIREFOX_SETTING=1' \
+  "$modified_browser_environment/omarchy-firefox-wayland.conf" ||
+  fail "modified Firefox Wayland environment preservation"
+grep -Fq 'Preserving modified Firefox Wayland environment:' \
+  <<<"$browser_warning" || fail "modified Firefox Wayland migration warning"
+printf 'ok - browser runtime naming migrates exactly and preserves modifications\n'
+
 seed_home="$test_root/seed-home"
 seed_log="$test_root/seed.log"
 make_home "$seed_home"

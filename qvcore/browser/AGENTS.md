@@ -3,8 +3,9 @@
 Read this file completely when changing supported browsers, their install or
 removal owners, browser policy, defaults, flags, or menu lifecycle.
 
-`qvcore/browser/install` and `qvcore/browser/remove` are the singular mutation owners;
-the public inherited command names are metadata-only compatibility adapters.
+`qvcore/browser/install` and `qvcore/browser/remove` are the singular mutation
+owners. Native routes are `qv install browser` and `qv remove browser`; the
+inherited command names are metadata-free compatibility adapters only.
 Keep browser availability and lifecycle in `qvcore/menu/software-actions.psv` and
 delegate each selected operation once through the shared TUI.
 
@@ -17,9 +18,14 @@ delegate each selected operation once through the shared TUI.
   recursively delete a shared policy tree or user browser profile.
 - Preserve the Firefox/Zen Wayland environment while either browser remains.
   Restore Chromium as the default before removing the active optional browser.
+- Store qvOS-owned Wayland environment under the `qvos-` filename. Migrate the
+  exact retired Omarchy filename without touching other environment files.
 - Installation remains noninteractive and stream-safe. Validate the browser
   slug before package or filesystem mutation, and do not launch the installed
   browser from the captured TUI flow.
+- Use native qvOS package and command helpers. The inherited theme command is
+  the only temporary browser dependency until the theme domain is promoted;
+  declare it in the owner's TUI source contract so drift cannot go unnoticed.
 
 Run `qvcore/browser/check`, Bash syntax, ShellCheck, the focused browser and
 software/TUI tests, `qvcore/tui/owner-contracts --check`, and the full qvOS suite.

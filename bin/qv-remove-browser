@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Remove a supported browser and clean up qvOS browser defaults
+# qv:args=<chrome|brave|brave-origin|edge|firefox|zen>
+# qv:examples=qv remove browser firefox | qv remove browser brave
+# qv:requires-sudo=true
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/browser/remove" "$@"

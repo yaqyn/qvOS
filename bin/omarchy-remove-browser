@@ -1,9 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Remove a supported browser and clean up qvOS browser defaults
-# omarchy:args=<chrome|brave|brave-origin|edge|firefox|zen>
-# omarchy:examples=omarchy remove browser firefox | omarchy remove browser brave
-# omarchy:requires-sudo=true
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/browser/remove" "$@"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/browser/remove" "$@"
