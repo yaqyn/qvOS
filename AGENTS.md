@@ -6,13 +6,21 @@
 - Prefer `(( ))` over numeric operators inside `[[ ]]` (e.g., `(( count < 50 ))`, not `[[ $count -lt 50 ]]`)
 - For strings/paths with spaces, quote them instead of escaping spaces with `\ ` (e.g., `"$APP_DIR/Disk Usage.desktop"`, not `$APP_DIR/Disk\ Usage.desktop`)
 - Shebangs must use `#!/bin/bash` consistently (never `#!/usr/bin/env bash`)
-- Scripts under `install/` and `migrations/` may be sourced and intentionally omit shebangs
+- Scripts under `qvcore/install/`, `qvcore/boot/login/`, and `migrations/` may
+  be sourced and intentionally omit shebangs
 
-# Command Naming
+# Command Architecture
 
-All commands start with `omarchy-`. Prefixes indicate purpose.
+`qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
+only a compatibility frontend. During the command-tree transition,
+`bin/omarchy-*` is a stable inherited ABI and metadata catalog; a promoted
+entry must be a thin adapter to one implementation under `qvcore/`. Never add
+new mutation logic, state ownership, or product branding to `bin/`.
 
-The authoritative command group list lives in `bin/omarchy` in `GROUP_DESCRIPTIONS`. Keep `GROUP_DESCRIPTIONS` updated when adding a new command prefix.
+The authoritative command group list lives in `qvcore/cli/qv` in
+`GROUP_DESCRIPTIONS`. Keep it updated when adding a command prefix. User-facing
+help, examples, errors, and suggestions use `qv`, even while an inherited
+binary name remains as compatibility ABI.
 
 Common prefixes include:
 
@@ -35,7 +43,10 @@ Other current prefixes include:
 
 # Command Metadata
 
-Commands in `bin/` can declare CLI metadata in comments near the top of the file. `bin/omarchy` scans the first 80 lines, and tests expect command metadata to remain valid.
+The native CLI currently reads the inherited `# omarchy:*` metadata schema from
+the first 80 lines of compatibility routes. The schema name is ABI, not product
+identity. Keep it only until the native command catalog is promoted, and never
+show `Omarchy` in qvOS help output.
 
 Supported metadata keys:
 
@@ -62,22 +73,27 @@ Example:
 
 # Install Scripts
 
-Install entry points (`install.sh`, `boot.sh`) use `#!/bin/bash`. Many scripts under `install/` are sourced via `run_logged` and intentionally do not have shebangs.
+Install entry points (`install.sh`, `boot.sh`) use `#!/bin/bash`. The complete
+installer lives under `qvcore/install/`, with login leaves under
+`qvcore/boot/login/`. The inherited top-level `install/` tree is retired and
+must remain absent.
 
 Install stage files follow this pattern:
 
-- `install/*/all.sh` lists scripts in execution order
-- leaf scripts are sourced by `run_logged $OMARCHY_INSTALL/path/to/script.sh`
+- `qvcore/install/{preflight,packaging,config,post-install}/` owns ordered stages
+- leaf scripts are sourced by `run_logged` from `$QVOS_INSTALL`
 - avoid `exit` in sourced install scripts unless intentionally aborting the install
-- use `$OMARCHY_INSTALL` and `$OMARCHY_PATH` instead of hard-coded Omarchy paths
-- keep hardware-specific logic under `install/config/hardware/`
+- use `$QVOS_INSTALL` and `$QVOS_PATH`; `OMARCHY_INSTALL` and `OMARCHY_PATH`
+  exist only where an inherited ABI requires them
+- keep hardware-specific install logic under `qvcore/install/config/hardware/`
 - prefer helper commands for package and command checks where available
 
 Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflight/package-helper contexts where the helper commands may not be available yet or where direct package-manager behavior is the point of the script.
 
 # Helper Commands
 
-Use these instead of raw shell commands:
+These inherited helper names remain the current command ABI. Reuse them until
+their command owner is promoted; do not create parallel qvOS implementations:
 
 - `omarchy-cmd-missing` / `omarchy-cmd-present` - check for commands
 - `omarchy-pkg-missing` / `omarchy-pkg-present` - check for packages
@@ -88,36 +104,47 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 # Config Structure
 
-- `config/` - default configs copied to `~/.config/`
-- `default/themed/*.tpl` - templates with `{{ variable }}` placeholders for theme colors
-- `themes/*/colors.toml` - theme color definitions (accent, background, foreground, color0-15)
+- `config/` and `default/` remain reviewed sources only for domains not yet
+  promoted
+- `qvcore/config/files/` owns specialized native installed sources
+- `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
+- `default/themed/*.tpl` remains the compatible custom-theme template format
 
 # Visual Changes
 
-When making visual changes, such as Waybar styles or desktop appearance, always take and analyze a screenshot after applying the change to verify the result. Use `omarchy capture screenshot fullscreen save` for fullscreen screenshots.
+When making visual changes, such as Waybar styles or desktop appearance, take
+and analyze a screenshot after applying the change. Use
+`qv capture screenshot fullscreen save` for fullscreen screenshots.
 
 # Refresh Pattern
 
 To copy a default config to user config with automatic backup:
 
 ```bash
-omarchy-refresh-config hypr/hyprlock.conf
+qv refresh config hypr/hyprlock.conf
 ```
 
-This copies `~/.local/share/omarchy/config/hypr/hyprlock.conf` to `~/.config/hypr/hyprlock.conf`.
+This copies the selected source from
+`~/.local/share/qvos/config/hypr/hyprlock.conf` to
+`~/.config/hypr/hyprlock.conf` with a backup.
 
 # Migrations
 
-To create a new migration, run `omarchy-dev-add-migration --no-edit`. This creates a migration file named after the unix timestamp of the last commit.
+New qvOS migrations have one implementation under `qvcore/migrations/` and a
+two-line compatibility stub under `migrations/`. Do not add new implementation
+to the inherited migration tree. Existing historical scripts remain frozen
+until their baseline is retired or their complete capability is promoted.
 
 New migration format:
 - File permissions must be `0644` (`-rw-r--r--`); migrations are sourced, not executed directly
-- No shebang line
-- Start with an `echo` describing what the migration does
-- Use `$OMARCHY_PATH` to reference the omarchy directory
+- the root stub has no shebang, starts with an `echo`, and sources its exact
+  `qvcore/migrations/<timestamp>.sh` owner
+- the native owner uses `$QVOS_PATH`; retain `$OMARCHY_PATH` only in a thin
+  compatibility stub while that ABI exists
 - Prefer helper commands such as `omarchy-cmd-present`, `omarchy-cmd-missing`, `omarchy-pkg-present`, and `omarchy-pkg-missing`
 
-Some older migrations predate these rules. Do not copy older migrations that start with shebangs, omit the leading `echo`, or hard-code `~/.local/share/omarchy`.
+Some historical migrations predate these rules. Do not copy their structure or
+restore references to the retired top-level installer.
 
 Migrations may use raw `pacman`, `command -v`, or direct config edits when needed for historical compatibility or one-off repair work.
 
@@ -129,15 +156,13 @@ if omarchy-cmd-missing fprintd-list || ! fprintd-list "$USER" 2>/dev/null | grep
   sed -i 's/fingerprint:enabled = .*/fingerprint:enabled = false/' ~/.config/hypr/hyprlock.conf
 fi
 ```
----
+# Repository Contract
 
-<!-- qvOS ADDITIONS START -->
-
-# qvOS Additions
-
-The opening policy block is the verbatim upstream Omarchy `AGENTS.md`. Never
-edit it for qvOS-only work; update it only from upstream during `qvsync` and
-keep all qvOS policy below this separator.
+This entire file is qvOS-owned and must describe the current repository, not a
+copied upstream layout. Update root and owner-local instructions in the same
+change whenever paths, ownership, compatibility, verification, or lifecycle
+behavior changes. qvsync reviews upstream policy as capability input but never
+overwrites this contract.
 
 ## Core Contract
 
@@ -151,16 +176,20 @@ Every qvOS change must leave one traceable lifecycle.
   from the development repository. Do not run the interactive updater or
   package upgrades unless the task requires them.
 - Treat qvOS as an independent downstream distribution and Omarchy as a
-  read-only code upstream, never product authority. qvOS owns product and package
-  selection; Omarchy provides the credited stable mirror, repository, and keyring.
+  read-only code upstream, never product authority. qvOS owns product and
+  package selection; Omarchy provides only the credited Stable mirror,
+  repository, and signing keyring boundary described in `qvcore/packages/`.
 - During the native transition, keep each inherited implementation byte-for-byte
   until its domain is promoted. Then port selected capability into one owner
   under `qvcore/<domain>/` or `qvcore/<feature>/` and remove the inherited
   implementation, overlay, adapter, fallback, and stale state together. qvOS
   tests live under `test/` and mirror their owner boundary.
-- Keep current qvOS config sources separate until their domain is promoted and
-  reconcile them after inherited install, refresh, migration, or update paths.
-  Installed source is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` link; keep runtime payloads outside it.
+- The complete installer is native under `qvcore/install/` and
+  `qvcore/boot/login/`; the top-level `install/` tree is retired. Keep remaining
+  config sources separate until their domain is promoted and reconcile them
+  after native install, refresh, migration, or update paths. Installed source
+  is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` compatibility
+  link, and keep runtime payloads under `~/.local/lib/qvos`.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.
@@ -201,9 +230,10 @@ moves product branches, or publishes refs.
 7. Record every commit in `upstream/qvsync/upstream-reviews/<target-sha>.psv`, then use
    `--record-reviewed-upstream <full-sha>` only for that exact fetched target.
    Commit the ledger, baseline, and verified adaptation together.
-8. Require the opening upstream policy block here to match the reviewed target
-   byte-for-byte. qvsync never publishes; use normal Git publication only when
-   explicitly requested and report the ledger, checks, baseline, and status.
+8. Review upstream instruction changes for useful engineering guidance, but
+   keep this qvOS-owned contract current and independent. qvsync never
+   publishes; use normal Git publication only when explicitly requested and
+   report the ledger, checks, baseline, and status.
 
 Command mechanics and publication checks live in `upstream/qvsync/AGENTS.md`; they
 supplement this workflow and never replace its judgment.

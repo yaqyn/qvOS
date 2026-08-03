@@ -264,14 +264,14 @@ grep -Fq \
   <<<"$output" ||
   fail "symbolic-link restore preflight diagnostic"
 
-grep -Fqx "\"\$OMARCHY_PATH/qvcore/config/monitor-autodetect\"" \
+grep -Fqx "\"\$QVOS_PATH/qvcore/config/monitor-autodetect\"" \
   "$root/qvcore/install/first-run/run" ||
   fail "fresh first login display detection"
 grep -Fqx "\"\$OMARCHY_PATH/qvcore/config/monitor-autodetect\"" \
   "$root/qvcore/config/refresh-hyprland" ||
   fail "Hyprland restore display detection"
 grep -Fq \
-  "monitor_owner=\"\$OMARCHY_PATH/qvcore/config/monitor-autodetect\"" \
+  "monitor_owner=\"\$QVOS_PATH/qvcore/config/monitor-autodetect\"" \
   "$root/qvcore/install/configure" ||
   fail "fresh install display owner preflight"
 

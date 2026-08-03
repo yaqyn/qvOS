@@ -64,9 +64,9 @@ replace its judgment.
   verified logical unit without agent attribution.
 - After verification, run
   `git qvsync --record-reviewed-upstream <target-sha>` and commit the validated
-  ledger, reviewed baseline, and qvOS adaptation together. The upstream block
-  above the qvOS separator in root `AGENTS.md` must match the reviewed target
-  byte-for-byte.
+  ledger, reviewed baseline, and qvOS adaptation together. Review upstream
+  instruction changes as capability input, but keep root `AGENTS.md` precise to
+  qvOS's current paths, owners, and verification model.
 - qvsync never publishes. Use the normal reviewed Git workflow only when the
   user asks to push, then report the commit, upstream baseline, checks, and
   final branch status.

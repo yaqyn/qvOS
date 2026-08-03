@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-resolved_packages=$("$OMARCHY_PATH/qvcore/install/packaging/resolve" base) ||
+resolved_packages=$("$QVOS_PATH/qvcore/install/packaging/resolve" base) ||
   return 1
 mapfile -t packages <<<"$resolved_packages"
 omarchy-pkg-add "${packages[@]}"

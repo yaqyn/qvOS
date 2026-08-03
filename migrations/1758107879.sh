@@ -43,7 +43,7 @@ if $NEEDS_MIGRATION; then
 
   omarchy-pkg-add "${PACKAGES[@]}"
 
-  source $OMARCHY_PATH/install/config/walker-elephant.sh
+  source "$OMARCHY_PATH/qvcore/install/config/walker-elephant.sh"
 
   rm -rf ~/.config/walker/themes
 

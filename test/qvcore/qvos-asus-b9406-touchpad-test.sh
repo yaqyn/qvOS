@@ -74,11 +74,11 @@ QVOS_TEST_ASUS_B9406=1 run_owner
 grep -Fqx 'AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;' "$quirk_file" ||
   fail "native quirk convergence"
 
-[[ ! -e $root/install/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh ]] ||
-  fail "broken inherited touchpad owner remains"
-grep -Fqx 'install/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh' \
+[[ ! -e $root/install && ! -L $root/install ]] ||
+  fail "inherited install tree remains"
+grep -Fqx 'install/' \
   "$root/qvcore/install/retired-paths" ||
-  fail "broken inherited touchpad owner is not retired"
+  fail "inherited install tree is not retired"
 # shellcheck disable=SC2016
 grep -Fqx 'source "$OMARCHY_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
   "$root/qvcore/migrations/1785755403.sh" ||

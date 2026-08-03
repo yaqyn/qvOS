@@ -58,7 +58,7 @@ install -d \
   "$partial_home/.local/lib/qvos/desktop"
 touch "$partial_home/.local/lib/qvos/desktop/keep-existing"
 
-if HOME="$partial_home" OMARCHY_PATH="$partial_root" \
+if HOME="$partial_home" QVOS_PATH="$partial_root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop" \
   >"$test_root/preflight.log" 2>&1; then
   fail "incomplete source preflight"
@@ -79,7 +79,7 @@ install -d "$partial_file_home/.local/lib/qvos/desktop"
 touch "$partial_file_home/.local/lib/qvos/desktop/keep-existing"
 unlink "$partial_file_root/qvcore/thunar/transcode"
 
-if HOME="$partial_file_home" OMARCHY_PATH="$partial_file_root" \
+if HOME="$partial_file_home" QVOS_PATH="$partial_file_root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop" \
   >"$test_root/preflight-file.log" 2>&1; then
   fail "incomplete source-file preflight"
@@ -117,7 +117,7 @@ printf 'stale config\n' \
 install -m 0644 /dev/null "$power_blocker"
 
 if HOME="$downstream_failure_home" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   QVOS_POWER_SYSTEM_ROOT="$power_blocker" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop" \
   >"$test_root/downstream-failure.log" 2>&1; then
@@ -201,7 +201,7 @@ Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-servi
 # user customization
 EOF
 
-HOME="$test_root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 
 cmp -s \
@@ -327,7 +327,7 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/services/proton"
 install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
-HOME="$test_root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 [[ $(stat -c '%u:%g:%a|%i|%y' \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb") == \

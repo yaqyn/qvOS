@@ -160,30 +160,6 @@ read_reviewed_state() {
   printf "%s\n" "$state"
 }
 
-require_upstream_policy_parity() {
-  local upstream_lines
-
-  if ! git cat-file -e "$upstream_ref:AGENTS.md" 2>/dev/null; then
-    [[ ! -e $repo_root/AGENTS.md ]] || {
-      printf "Refusing: upstream has no AGENTS.md but qvOS does. Review the policy boundary.\n" >&2
-      exit 1
-    }
-    return
-  fi
-
-  [[ -f $repo_root/AGENTS.md ]] || {
-    printf "Refusing: qvOS AGENTS.md is missing.\n" >&2
-    exit 1
-  }
-  upstream_lines=$(git show "$upstream_ref:AGENTS.md" | wc -l)
-  cmp -s \
-    <(git show "$upstream_ref:AGENTS.md") \
-    <(head -n "$upstream_lines" "$repo_root/AGENTS.md") || {
-    printf "Refusing: the inherited AGENTS.md policy block does not match the reviewed upstream target.\n" >&2
-    exit 1
-  }
-}
-
 validate_review_ledger() {
   local base_sha=$1
   local target_sha=$2
@@ -317,7 +293,6 @@ if [[ $base_sha == "$target_sha" ]]; then
 fi
 
 validate_review_ledger "$base_sha" "$target_sha"
-require_upstream_policy_parity
 
 state_tmp=$(mktemp "$reviewed_state.tmp.XXXXXX")
 printf "%s\n" "$target_sha" >"$state_tmp"

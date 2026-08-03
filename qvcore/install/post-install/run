@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 
-run_logged "$OMARCHY_INSTALL/post-install/pacman.sh"
-run_logged "$OMARCHY_PATH/qvcore/security/install"
+run_logged "$QVOS_INSTALL/post-install/pacman.sh"
+run_logged "$QVOS_PATH/qvcore/security/install"
 # shellcheck disable=SC1091
-source "$OMARCHY_INSTALL/post-install/allow-reboot.sh"
+source "$QVOS_INSTALL/post-install/allow-reboot.sh"
 stop_install_log
-"$OMARCHY_PATH/qvcore/install/post-install/finished"
+"$QVOS_PATH/qvcore/install/post-install/finished"

@@ -20,7 +20,7 @@ grep -Fqx 'Server = https://pkgs.omarchy.org/stable/$arch' "$stable_config" || {
   exit 1
 }
 if rg -n '^\[qvos\]$|pkgs\.qvos|mirror\.qvos' \
-  "$root/default/pacman" "$root/install" "$root/qvcore"; then
+  "$root/default/pacman" "$root/qvcore"; then
   echo "qvOS must not claim package infrastructure it does not operate." >&2
   exit 1
 fi

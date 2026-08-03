@@ -4,7 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 test_home="$test_root/home"
-test_omarchy="$test_root/omarchy"
+test_qvos="$test_root/qvos"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 marker="$test_home/.local/state/qvos/install/first-run.mode"
@@ -26,12 +26,11 @@ install -d \
   "$test_bin" \
   "$test_home/.local/state/omarchy" \
   "$test_home/.local/state/qvos/install" \
-  "$test_omarchy/install/first-run" \
-  "$test_omarchy/qvcore/config" \
-  "$test_omarchy/qvcore/install/first-run" \
-  "$test_omarchy/qvcore/menu"
+  "$test_qvos/qvcore/config" \
+  "$test_qvos/qvcore/install/first-run" \
+  "$test_qvos/qvcore/menu"
 install -m 0755 "$root/qvcore/install/first-run/run" \
-  "$test_omarchy/qvcore/install/first-run/run"
+  "$test_qvos/qvcore/install/first-run/run"
 : >"$event_log"
 : >"$test_helper"
 chmod 0755 "$test_helper"
@@ -46,40 +45,40 @@ printf 'hook:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
 first_run_paths=(
-  install/first-run/battery-monitor.sh
-  install/first-run/recover-internal-monitor.sh
-  install/first-run/swayosd.sh
-  install/first-run/gtk-primary-paste.sh
-  install/first-run/text-scaling.sh
-  install/first-run/elephant.sh
+  qvcore/install/first-run/battery-monitor.sh
+  qvcore/install/first-run/recover-internal-monitor.sh
+  qvcore/install/first-run/swayosd.sh
+  qvcore/install/first-run/gtk-primary-paste.sh
+  qvcore/install/first-run/text-scaling.sh
+  qvcore/install/first-run/elephant.sh
   qvcore/install/first-run/gnome-theme
   qvcore/install/first-run/icons
   qvcore/config/monitor-autodetect
   qvcore/menu/install
-  install/first-run/welcome.sh
-  install/first-run/wifi.sh
+  qvcore/install/first-run/welcome.sh
+  qvcore/install/first-run/wifi.sh
 )
 for path in "${first_run_paths[@]}"; do
-  install -D -m 0755 /dev/stdin "$test_omarchy/$path" <<'SCRIPT'
+  install -D -m 0755 /dev/stdin "$test_qvos/$path" <<'SCRIPT'
 #!/bin/bash
-path=${0#"$QVOS_TEST_OMARCHY/"}
+path=${0#"$QVOS_TEST_SOURCE/"}
 printf 'owner:%s:%s\n' "$path" "$*" >>"$QVOS_TEST_EVENT_LOG"
 [[ ${QVOS_TEST_FAIL_PATH:-} != "$path" ]]
 SCRIPT
 done
 install -m 0644 /dev/null \
-  "$test_omarchy/install/first-run/install-voxtype.hook"
+  "$test_qvos/qvcore/install/first-run/install-voxtype.hook"
 
 run_first_run() {
   HOME="$test_home" \
-    OMARCHY_PATH="$test_omarchy" \
+    QVOS_PATH="$test_qvos" \
     QVOS_FIRST_RUN_TESTING=1 \
     QVOS_FIRST_RUN_ROOT_HELPER="$test_helper" \
     QVOS_FIRST_RUN_SUDO="$test_sudo" \
-    QVOS_TEST_OMARCHY="$test_omarchy" \
+    QVOS_TEST_SOURCE="$test_qvos" \
     QVOS_TEST_EVENT_LOG="$event_log" \
     PATH="$test_bin:/usr/bin" \
-    "$test_omarchy/qvcore/install/first-run/run"
+    "$test_qvos/qvcore/install/first-run/run"
 }
 
 run_first_run
@@ -96,7 +95,7 @@ QVOS_TEST_FAIL_PATH=qvcore/install/first-run/icons \
 if grep -Fq "sudo:$test_helper cleanup" "$event_log"; then
   fail "failed first run removed its privilege retry path"
 fi
-if grep -Fq 'owner:install/first-run/welcome.sh:' "$event_log"; then
+if grep -Fq 'owner:qvcore/install/first-run/welcome.sh:' "$event_log"; then
   fail "failed first run showed completion notifications"
 fi
 
@@ -104,20 +103,20 @@ fi
 run_first_run
 expected_run=$(printf '%s\n' \
   "sudo:$test_helper apply" \
-  'owner:install/first-run/battery-monitor.sh:' \
-  'owner:install/first-run/recover-internal-monitor.sh:' \
-  'owner:install/first-run/swayosd.sh:' \
-  'owner:install/first-run/gtk-primary-paste.sh:' \
-  'owner:install/first-run/text-scaling.sh:' \
-  'owner:install/first-run/elephant.sh:' \
+  'owner:qvcore/install/first-run/battery-monitor.sh:' \
+  'owner:qvcore/install/first-run/recover-internal-monitor.sh:' \
+  'owner:qvcore/install/first-run/swayosd.sh:' \
+  'owner:qvcore/install/first-run/gtk-primary-paste.sh:' \
+  'owner:qvcore/install/first-run/text-scaling.sh:' \
+  'owner:qvcore/install/first-run/elephant.sh:' \
   'owner:qvcore/install/first-run/gnome-theme:' \
   'owner:qvcore/install/first-run/icons:' \
   'owner:qvcore/config/monitor-autodetect:' \
   'owner:qvcore/menu/install:--install' \
-  "hook:post-update $test_omarchy/install/first-run/install-voxtype.hook" \
+  "hook:post-update $test_qvos/qvcore/install/first-run/install-voxtype.hook" \
   "sudo:$test_helper cleanup" \
-  'owner:install/first-run/welcome.sh:' \
-  'owner:install/first-run/wifi.sh:')
+  'owner:qvcore/install/first-run/welcome.sh:' \
+  'owner:qvcore/install/first-run/wifi.sh:')
 [[ $(<"$event_log") == "$expected_run" ]] ||
   fail "ordered first-run lifecycle"
 [[ ! -e $marker ]] || fail "successful first run kept its marker"
@@ -125,10 +124,10 @@ expected_run=$(printf '%s\n' \
 : >"$marker"
 chmod 0600 "$marker"
 : >"$event_log"
-QVOS_TEST_FAIL_PATH=install/first-run/welcome.sh \
+QVOS_TEST_FAIL_PATH=qvcore/install/first-run/welcome.sh \
   run_first_run >/dev/null 2>&1
 [[ ! -e $marker ]] || fail "notification failure changed readiness"
-grep -Fq 'owner:install/first-run/wifi.sh:' "$event_log" ||
+grep -Fq 'owner:qvcore/install/first-run/wifi.sh:' "$event_log" ||
   fail "one notification failure suppressed the other"
 
 : >"$marker"

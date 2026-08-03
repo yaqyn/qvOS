@@ -10,5 +10,5 @@ if omarchy-hw-dell-xps-haptic-touchpad; then
   sudo systemctl daemon-reload
   sudo udevadm control --reload-rules
 
-  source "$OMARCHY_PATH/install/packaging/dell-xps-touchpad-haptics.sh"
+  source "$OMARCHY_PATH/qvcore/install/packaging/dell-xps-touchpad-haptics.sh"
 fi

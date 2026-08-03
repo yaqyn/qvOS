@@ -152,14 +152,36 @@ func TestISOProgressLogRetainsTheCompleteTerminalHistory(t *testing.T) {
 
 func TestISOProgressUsesTheLatestRealInstallScript(t *testing.T) {
 	log := strings.Join([]string{
-		"[2026-08-02 01:00:00] Starting: /home/installer/.local/share/qvos/install/packaging/base.sh",
-		"[2026-08-02 01:00:01] Completed: /home/installer/.local/share/qvos/install/packaging/base.sh",
-		"[2026-08-02 01:00:02] Starting: /home/installer/.local/share/qvos/install/config/docker.sh",
+		"[2026-08-02 01:00:00] Starting: /home/installer/.local/share/qvos/qvcore/install/packaging/base",
+		"[2026-08-02 01:00:01] Completed: /home/installer/.local/share/qvos/qvcore/install/packaging/base",
+		"[2026-08-02 01:00:02] Starting: /home/installer/.local/share/qvos/qvcore/install/config/docker.sh",
 	}, "\n")
 
 	status, progress := parseISOProgressLog(log)
 	if status != "configuring docker" || progress != 0.72 {
 		t.Fatalf("install script progress = %q %.2f, want configuring docker 0.72", status, progress)
+	}
+}
+
+func TestISOProgressClassifiesNativeInstallStages(t *testing.T) {
+	tests := []struct {
+		path     string
+		status   string
+		progress float64
+	}{
+		{"/home/installer/.local/share/qvos/qvcore/install/preflight/pacman.sh", "checking pacman", 0.58},
+		{"/home/installer/.local/share/qvos/qvcore/install/packaging/fonts.sh", "installing fonts", 0.62},
+		{"/home/installer/.local/share/qvos/qvcore/install/config/docker.sh", "configuring docker", 0.72},
+		{"/home/installer/.local/share/qvos/qvcore/boot/login/hibernation.sh", "configuring hibernation", 0.92},
+		{"/home/installer/.local/share/qvos/qvcore/security/install", "applying security defaults", 0.96},
+	}
+
+	for _, test := range tests {
+		status := isoInstallScriptStatus(test.path)
+		progress := isoInstallScriptMilestone(test.path)
+		if status != test.status || progress != test.progress {
+			t.Fatalf("native stage %q = %q %.2f, want %q %.2f", test.path, status, progress, test.status, test.progress)
+		}
 	}
 }
 

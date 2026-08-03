@@ -82,7 +82,7 @@ grep -qx 'omarchy-nvim' "$base_packages" || fail "qvOS Neovim package contract"
 grep -qx 'wtype' "$base_packages" || fail "Codex Wayland input contract"
 grep -qx 'xdg-user-dirs' "$base_packages" ||
   fail "fresh-install user directory command package contract"
-grep -Fq 'xdg-user-dirs-update --set' "$root/install/config/user-dirs.sh" ||
+grep -Fq 'xdg-user-dirs-update --set' "$root/qvcore/install/config/user-dirs.sh" ||
   fail "fresh-install user directory command usage contract"
 for independent_base_package in \
   bubblewrap \
@@ -168,24 +168,29 @@ for retired_file_manager_package in nautilus nautilus-python sushi; do
     fail "$retired_file_manager_package remains in the qvOS base"
   fi
 done
-grep -Fq 'omarchy-cmd-missing nautilus && return 0' \
-  "$root/qvcore/install/config/nautilus-python" ||
-  fail "Nautilus configuration guard"
+[[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
+  fail "retired Nautilus configuration owner"
 if grep -Eq '^[[:space:]]*nautilus([[:space:]]|$)' \
   "$root/bin/omarchy-theme-bg-install" \
   "$root/bin/omarchy-install-gaming-retroarch"; then
   fail "direct Nautilus launcher remains"
 fi
-pass "Thunar is singular while inherited Nautilus hooks remain safe to sync"
+if rg -n 'Nautilus action icons|nautilus-python/extensions' \
+  "$root/qvcore/install/config" \
+  "$root/qvcore/install/first-run" \
+  "$root/qvcore/install/post-install"; then
+  fail "Nautilus install integration remains"
+fi
+pass "Thunar is singular and Nautilus install integration is retired"
 
 grep -qx 'gnome-keyring' "$base_packages" || fail "desktop keyring package contract"
-grep -Fqx 'run_logged "$OMARCHY_INSTALL/login/default-keyring.sh"' "$root/qvcore/boot/install" || fail "default keyring setup contract"
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/boot/login/default-keyring.sh"' "$root/qvcore/boot/install" || fail "default keyring setup contract"
 grep -Fq "pam_gnome_keyring\\.so/d" "$root/qvcore/boot/install-sddm" || fail "SDDM keyring setup contract"
 if grep -RqsE 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/migrations"; then
   fail "retired keyring removal migration"
 fi
 
-[[ ! -e $root/install/packaging/warp.sh ]] || fail "WARP fresh-install stage"
+[[ ! -e $root/qvcore/install/packaging/warp.sh ]] || fail "WARP fresh-install stage"
 grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qvcore/network/setup-dns" || fail "on-demand WARP package contract"
 if rg -q -i 'qvcore' "$root/qvcore/network/setup-dns"; then
@@ -274,7 +279,6 @@ done
 if rg -q 'qvcore/codex|qvos/codex|qv codex doctor' \
   "$root/qvcore" \
   "$root/bin" \
-  "$root/install" \
   "$root/migrations"; then
   fail "retired qvOS Codex inspection reference remains"
 fi
@@ -286,7 +290,7 @@ grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package cont
 pass "conditional hardware packages remain available offline"
 
 keyring_home="$test_root/keyring-home"
-HOME="$keyring_home" bash "$root/install/login/default-keyring.sh"
+HOME="$keyring_home" bash "$root/qvcore/boot/login/default-keyring.sh"
 keyring_dir="$keyring_home/.local/share/keyrings"
 keyring_file="$keyring_dir/Default_keyring.keyring"
 default_file="$keyring_dir/default"
@@ -431,13 +435,13 @@ grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
 grep -Fqx 'exec "$OMARCHY_PATH/qvcore/install/first-run/run" "$@"' \
   "$root/bin/omarchy-first-run" ||
   fail "qvOS first-run owner adapter"
-elephant_line=$(grep -nF 'bash "$OMARCHY_PATH/install/first-run/elephant.sh"' \
+elephant_line=$(grep -nF 'bash "$QVOS_PATH/qvcore/install/first-run/elephant.sh"' \
   "$root/qvcore/install/first-run/run" | cut -d: -f1)
-qvos_first_run_line=$(grep -nF '"$OMARCHY_PATH/qvcore/install/first-run/gnome-theme"' \
+qvos_first_run_line=$(grep -nF '"$QVOS_PATH/qvcore/install/first-run/gnome-theme"' \
   "$root/qvcore/install/first-run/run" | cut -d: -f1)
 ((qvos_first_run_line > elephant_line)) ||
-  fail "qvOS first-run theme runs before inherited session setup is complete"
-grep -Fqx '"$OMARCHY_PATH/qvcore/menu/install" --install' \
+  fail "qvOS first-run theme runs before session setup is complete"
+grep -Fqx '"$QVOS_PATH/qvcore/menu/install" --install' \
   "$root/qvcore/install/first-run/run" ||
   fail "qvOS first-run menu reconciliation"
 grep -Fq 'output="qvOS ${output#Omarchy }"' \
@@ -665,13 +669,13 @@ grep -Fq 'release/iso/source-permissions' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO tracked executable-mode integration"
 grep -Fq 'if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then' \
-  "$root/install/helpers/logging.sh" ||
+  "$root/qvcore/install/helpers/logging.sh" ||
   fail "qvOS target install progress ownership"
 grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
-  "$root/install/helpers/logging.sh" ||
+  "$root/qvcore/install/helpers/logging.sh" ||
   fail "qvOS target install progress process tracking"
 grep -Fq 'kill -KILL "$QVOS_ISO_PROGRESS_PID"' \
-  "$root/install/helpers/logging.sh" ||
+  "$root/qvcore/install/helpers/logging.sh" ||
   fail "qvOS shared progress forced stop fallback"
 
 progress_bin="$test_root/progress-bin"
@@ -697,7 +701,7 @@ SCRIPT
   export OMARCHY_CHROOT_INSTALL=1
   export OMARCHY_INSTALL_LOG_FILE="$test_root/target-install.log"
   # shellcheck disable=SC1091
-  source "$root/install/helpers/logging.sh"
+  source "$root/qvcore/install/helpers/logging.sh"
   start_install_log
   [[ -n ${QVOS_ISO_PROGRESS_PID:-} ]] ||
     fail "target install did not track its progress process"
@@ -874,7 +878,7 @@ done
 pass "debug, capture notifications, and inherited launcher providers stay Omarchy-owned"
 [[ ! -e $root/qvcore/launcher ]] ||
   fail "redundant qvOS launcher domain"
-if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin" "$root/install" "$root/migrations"; then
+if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin" "$root/migrations"; then
   fail "qvOS launcher ownership reference"
 fi
 
@@ -1052,14 +1056,14 @@ grep -Fq 'sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed
 grep -Fq 'sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json' \
   "$root/qvcore/theme/configure" ||
   fail "user-owned Chromium theme policy"
-if rg -q 'chmod[[:space:]]+666' "$root/install/helpers/logging.sh"; then
+if rg -q 'chmod[[:space:]]+666' "$root/qvcore/install/helpers/logging.sh"; then
   fail "world-writable install log"
 fi
 grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
-  "$root/install/helpers/logging.sh" ||
+  "$root/qvcore/install/helpers/logging.sh" ||
   fail "desktop-owned install log"
 grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
-  "$root/install/helpers/logging.sh" ||
+  "$root/qvcore/install/helpers/logging.sh" ||
   fail "restricted install log"
 [[ -f $root/qvcore/install/helpers/errors && ! -x $root/qvcore/install/helpers/errors ]] ||
   fail "qvOS installer error owner mode"

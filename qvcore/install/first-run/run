@@ -70,26 +70,26 @@ chmod 0600 -- "$marker"
 
 "$sudo" "$root_helper" apply
 
-bash "$OMARCHY_PATH/install/first-run/battery-monitor.sh"
-bash "$OMARCHY_PATH/install/first-run/recover-internal-monitor.sh"
-bash "$OMARCHY_PATH/install/first-run/swayosd.sh"
-bash "$OMARCHY_PATH/install/first-run/gtk-primary-paste.sh"
-bash "$OMARCHY_PATH/install/first-run/text-scaling.sh"
-bash "$OMARCHY_PATH/install/first-run/elephant.sh"
-"$OMARCHY_PATH/qvcore/install/first-run/gnome-theme"
-"$OMARCHY_PATH/qvcore/install/first-run/icons"
-"$OMARCHY_PATH/qvcore/config/monitor-autodetect"
-"$OMARCHY_PATH/qvcore/menu/install" --install
+bash "$QVOS_PATH/qvcore/install/first-run/battery-monitor.sh"
+bash "$QVOS_PATH/qvcore/install/first-run/recover-internal-monitor.sh"
+bash "$QVOS_PATH/qvcore/install/first-run/swayosd.sh"
+bash "$QVOS_PATH/qvcore/install/first-run/gtk-primary-paste.sh"
+bash "$QVOS_PATH/qvcore/install/first-run/text-scaling.sh"
+bash "$QVOS_PATH/qvcore/install/first-run/elephant.sh"
+"$QVOS_PATH/qvcore/install/first-run/gnome-theme"
+"$QVOS_PATH/qvcore/install/first-run/icons"
+"$QVOS_PATH/qvcore/config/monitor-autodetect"
+"$QVOS_PATH/qvcore/menu/install" --install
 omarchy-hook-install \
   post-update \
-  "$OMARCHY_PATH/install/first-run/install-voxtype.hook"
+  "$QVOS_PATH/qvcore/install/first-run/install-voxtype.hook"
 
 "$sudo" "$root_helper" cleanup
 rm -f -- "$marker"
 
-if ! bash "$OMARCHY_PATH/install/first-run/welcome.sh"; then
+if ! bash "$QVOS_PATH/qvcore/install/first-run/welcome.sh"; then
   echo "qvOS first-run: the welcome notification could not be shown." >&2
 fi
-if ! bash "$OMARCHY_PATH/install/first-run/wifi.sh"; then
+if ! bash "$QVOS_PATH/qvcore/install/first-run/wifi.sh"; then
   echo "qvOS first-run: the network notification could not be shown." >&2
 fi

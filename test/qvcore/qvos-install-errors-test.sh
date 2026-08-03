@@ -102,7 +102,7 @@ run_case() {
       QVOS_TEST_EVENT_LOG="$event_log" \
       OMARCHY_INSTALL_LOG_FILE="$install_log" \
       OMARCHY_ONLINE_INSTALL="$online" \
-      OMARCHY_PATH="$source_root" \
+      QVOS_PATH="$source_root" \
       PATH="$test_bin:/usr/bin" \
       "$runner" "$owner" "$mode" 2>&1
   )

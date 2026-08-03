@@ -26,6 +26,13 @@ Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and o
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
 
+The complete installer implementation lives under `qvcore/install/`, with
+login leaves under `qvcore/boot/login/`. The top-level `install.sh` is the only
+entry point. `QVOS_INSTALL` names the native stage root; `OMARCHY_INSTALL` may
+mirror it only as an upstream helper compatibility environment. Never restore
+the retired top-level `install/` tree or route an install lifecycle through the
+source-root compatibility link.
+
 `qvcore/install/post-install/run` singularly owns the ordered post-install stage.
 Stop the install log before handing control to the finished presentation, and
 keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
@@ -33,18 +40,22 @@ owner. Never restore inherited post-install orchestration or presentation as a
 fallback.
 
 `qvcore/install/config/run` singularly owns the ordered fresh-install configuration
-stage. Keep inherited configuration and hardware leaf scripts byte-for-byte
-until their capability is promoted, call each through `run_logged`, and keep
-qvOS-owned leaves on their native paths. When promoting a leaf, replace its
-entry in this owner and retire the inherited implementation in the same change.
-Never restore `install/config/all.sh` or a second configuration-stage overlay.
+stage. Every selected reviewed configuration and hardware leaf is now native;
+keep its order explicit and call it through `run_logged`. The specialized qvOS
+MIME and corrected ASUS B9406 owners replace their superseded upstream leaves.
+Thunar is the singular file manager; omit the inherited Nautilus package,
+extension, context-menu, and Yaru action-icon setup instead of preserving a
+guarded dead installer path. Keep `yaru-icon-theme` only for compatible
+external themes.
+Never restore `install/config/`, a second stage overlay, or an inherited
+fallback.
 
 The login stage is owned by `qvcore/boot/install`; keep `install.sh` wired directly
 to it and never restore inherited login orchestration. Boot payload, private
 ESP, SDDM, Plymouth, and snapshot rules live in `qvcore/boot/AGENTS.md`.
 
-qvcore/install/helpers/run singularly owns helper order while retaining untouched
-inherited chroot, presentation, and logging leaves. The native error handler
+qvcore/install/helpers/run singularly owns the native chroot, presentation,
+error, and logging helper order. The error handler
 must preserve the original failure status, bound output on small terminals,
 hide command arguments, never upload private logs, and point only to qvOS
 support. Online retry replaces the failed installer process from the validated
@@ -61,13 +72,13 @@ The active marker lives under `.local/state/qvos/install`; migrate the former
 `.local/state/omarchy/first-run.mode` only after validating its type, owner, and
 parents, and never leave both markers active.
 The native GNOME and icon owners replace the inherited GNOME theme rather than
-running after it; retain `yaru-icon-theme` only for compatible external themes.
+running after it.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths. `qvcore/install/packaging/resolve` validates and emits
 them; never restore an inherited manifest plus additions/exclusions model.
-`install/packaging/all.sh` calls the native qvOS npx and empty-webapp owners
+`qvcore/install/packaging/all.sh` calls the native qvOS npx and empty-webapp owners
 directly, and `omarchy-refresh-applications` uses those same owners. Never
 restore inherited npx/webapp implementations, fallbacks, or source/execute
 adapters. Keep Codex, Pi, and GHUI in the singular npx owner until their product

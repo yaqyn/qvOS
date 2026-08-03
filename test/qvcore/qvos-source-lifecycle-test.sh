@@ -251,11 +251,11 @@ config_home="$test_root/config-home"
 install -d \
   "$config_source/config/example" \
   "$config_source/default" \
-  "$config_source/install/config" \
+  "$config_source/qvcore/install/config" \
   "$config_home"
 printf 'configured\n' >"$config_source/config/example/value"
 printf 'bashrc\n' >"$config_source/default/bashrc"
-install -m 0644 /dev/stdin "$config_source/install/config/theme.sh" <<'SCRIPT'
+install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 for command in \
@@ -270,6 +270,7 @@ SCRIPT
 done
 : >"$action_log"
 HOME="$config_home" \
+  QVOS_PATH="$config_source" \
   OMARCHY_PATH="$config_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \

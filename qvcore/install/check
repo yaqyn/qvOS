@@ -10,42 +10,104 @@ fail() {
   exit 1
 }
 
-[[ -x $root/qvcore/install/reinstall-source ]] || fail "source reinstall owner mode"
-[[ -x $root/qvcore/install/migrate-source-root ]] ||
-  fail "source-root migration owner mode"
-[[ -x $root/qvcore/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
+for owner in \
+  cleanup-obsolete \
+  migrate-source-root \
+  migrate-structure \
+  reinstall-source; do
+  [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
+done
+for owner in prepare root run gnome-theme icons; do
+  [[ -x $root/qvcore/install/first-run/$owner ]] ||
+    fail "first-run owner mode: $owner"
+done
+for owner in npx resolve webapps; do
+  [[ -x $root/qvcore/install/packaging/$owner ]] ||
+    fail "packaging owner mode: $owner"
+done
+[[ -f $root/qvcore/install/packaging/base &&
+  ! -x $root/qvcore/install/packaging/base ]] ||
+  fail "base packaging owner mode"
 [[ -x $root/qvcore/install/post-install/finished ]] ||
   fail "post-install presentation owner mode"
-for first_run_owner in prepare root run gnome-theme icons; do
-  [[ -x $root/qvcore/install/first-run/$first_run_owner ]] ||
-    fail "first-run owner mode: $first_run_owner"
+
+[[ ! -e $root/install && ! -L $root/install ]] ||
+  fail "inherited install tree remains"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "install/" ]] ||
+  fail "retired install tree inventory"
+for inventory in "$manifest" "$retired_manifest"; do
+  [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u
+  ) ]] || fail "install path inventory is not sorted and unique: $inventory"
 done
-for packaging_owner in npx webapps; do
-  [[ -x $root/qvcore/install/packaging/$packaging_owner ]] ||
-    fail "packaging owner mode: $packaging_owner"
+
+if find "$root/qvcore/install" -type f -name '*.sh' -perm /111 -print -quit |
+  grep -q .; then
+  fail "sourced native install leaf is executable"
+fi
+for owner in run errors chroot.sh logging.sh presentation.sh; do
+  [[ -f $root/qvcore/install/helpers/$owner &&
+    ! -x $root/qvcore/install/helpers/$owner ]] ||
+    fail "native helper owner mode: $owner"
 done
-[[ ! -e $root/qvcore/install/first-run/apply ]] ||
-  fail "first-run overlay remains"
-[[ ! -e $root/qvcore/install/helpers/logging ]] || fail "duplicate install logger remains"
-[[ ! -e $root/qvcore/install/helpers/presentation ]] ||
-  fail "duplicate install presentation remains"
-[[ -f $root/qvcore/install/helpers/run && ! -x $root/qvcore/install/helpers/run ]] ||
-  fail "native install helper stage mode"
-[[ -f $root/qvcore/install/helpers/errors && ! -x $root/qvcore/install/helpers/errors ]] ||
-  fail "native installer error owner mode"
-[[ ! -e $root/qvcore/install/helpers/error-title ]] ||
-  fail "duplicate installer error title remains"
-[[ ! -e $root/install/helpers/all.sh && ! -e $root/install/helpers/errors.sh ]] ||
-  fail "inherited install helper orchestration remains"
-expected_helper_stage=$'# shellcheck shell=bash\n# shellcheck disable=SC1091\n\nsource "$OMARCHY_INSTALL/helpers/chroot.sh"\nsource "$OMARCHY_INSTALL/helpers/presentation.sh"\nsource "$OMARCHY_PATH/qvcore/install/helpers/errors"\nsource "$OMARCHY_INSTALL/helpers/logging.sh"'
+expected_helper_stage=$'# shellcheck shell=bash\n# shellcheck disable=SC1091\n\nsource "$QVOS_INSTALL/helpers/chroot.sh"\nsource "$QVOS_INSTALL/helpers/presentation.sh"\nsource "$QVOS_PATH/qvcore/install/helpers/errors"\nsource "$QVOS_INSTALL/helpers/logging.sh"'
 [[ $(<"$root/qvcore/install/helpers/run") == "$expected_helper_stage" ]] ||
   fail "native install helper stage order"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
-) ]] || fail "native install paths are not sorted and unique"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
-) ]] || fail "retired install paths are not sorted and unique"
+
+# shellcheck disable=SC2016
+grep -Fqx 'export QVOS_INSTALL="$QVOS_PATH/qvcore/install"' "$root/install.sh" ||
+  fail "native installer stage root"
+# shellcheck disable=SC2016
+grep -Fqx 'export OMARCHY_INSTALL="$QVOS_INSTALL"' "$root/install.sh" ||
+  fail "installer compatibility environment"
+# shellcheck disable=SC2016
+for stage in \
+  'source "$QVOS_PATH/qvcore/install/helpers/run"' \
+  'source "$QVOS_INSTALL/preflight/all.sh"' \
+  'source "$QVOS_INSTALL/packaging/all.sh"' \
+  'source "$QVOS_PATH/qvcore/install/config/run"' \
+  'source "$QVOS_PATH/qvcore/boot/install"' \
+  'source "$QVOS_PATH/qvcore/install/post-install/run"'; do
+  grep -Fqx "$stage" "$root/install.sh" || fail "native install stage: $stage"
+done
+
+for stage in helpers/run config/run preflight/all.sh packaging/all.sh post-install/run; do
+  [[ -f $root/qvcore/install/$stage && ! -x $root/qvcore/install/$stage ]] ||
+    fail "native sourced stage mode: $stage"
+done
+if rg -n '\$OMARCHY_PATH/install/|\$OMARCHY_INSTALL/' \
+  "$root/qvcore/install/config/run" \
+  "$root/qvcore/install/preflight/all.sh" \
+  "$root/qvcore/install/packaging/all.sh"; then
+  fail "native install orchestration reads the inherited tree"
+fi
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
+  "$root/qvcore/install/config/run" || fail "qvOS configuration stage"
+[[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
+  fail "retired Nautilus configuration owner"
+if rg -n 'Nautilus action icons|nautilus-python/extensions' \
+  "$root/qvcore/install/config" \
+  "$root/qvcore/install/first-run" \
+  "$root/qvcore/install/post-install"; then
+  fail "Nautilus install integration remains"
+fi
+grep -Eq '^env \| grep -E ".*QVOS_PATH.*QVOS_INSTALL.*"' \
+  "$root/qvcore/install/preflight/show-env.sh" ||
+  fail "native install environment reporting"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
+  "$root/qvcore/install/config/run" || fail "ASUS B9406 touchpad stage"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/first-run/prepare"' \
+  "$root/qvcore/install/preflight/all.sh" || fail "native first-run preparation"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/webapps"' \
+  "$root/qvcore/install/packaging/all.sh" || fail "native webapps stage"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/npx"' \
+  "$root/qvcore/install/packaging/all.sh" || fail "native npx stage"
+
 # shellcheck disable=SC2016
 grep -Fqx 'exec "$OMARCHY_PATH/qvcore/install/reinstall-source" "$@"' \
   "$root/bin/omarchy-reinstall-git" || fail "source reinstall adapter"
@@ -64,72 +126,19 @@ grep -Fq 'QVOS_TARGET="$HOME/.local/share/qvos"' "$root/boot.sh" ||
 # shellcheck disable=SC2016
 grep -Fq 'ln -s qvos "$OMARCHY_COMPAT_TARGET"' "$root/boot.sh" ||
   fail "fresh-install source compatibility link"
-# shellcheck disable=SC2016
-grep -Fq 'export QVOS_PATH="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"' \
-  "$root/install.sh" || fail "native installer source environment"
 grep -Fq 'qvcore/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
   fail "native package resolver"
 grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
   fail "config reset reconciliation"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$OMARCHY_PATH/qvcore/install/post-install/run"' \
-  "$root/install.sh" || fail "native post-install owner wiring"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$OMARCHY_PATH/qvcore/install/helpers/run"' \
-  "$root/install.sh" || fail "native install helper owner wiring"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$OMARCHY_PATH/qvcore/install/config/run"' \
-  "$root/install.sh" || fail "native install configuration owner wiring"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$OMARCHY_PATH/qvcore/boot/install"' \
-  "$root/install.sh" || fail "native boot install owner wiring"
-[[ -f $root/qvcore/install/config/run && ! -x $root/qvcore/install/config/run ]] ||
-  fail "native install configuration owner mode"
-[[ -f $root/qvcore/install/hardware/asus/b9406-touchpad &&
-  ! -x $root/qvcore/install/hardware/asus/b9406-touchpad ]] ||
-  fail "native ASUS B9406 touchpad owner mode"
-[[ ! -e $root/install/config/all.sh ]] ||
-  fail "inherited install configuration orchestration remains"
-# shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/configure"' \
-  "$root/qvcore/install/config/run" ||
-  fail "native install configuration stage omits qvOS configuration"
-# shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
-  "$root/qvcore/install/config/run" ||
-  fail "native install configuration stage omits the ASUS B9406 touchpad fix"
-grep -Fqx 'install/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh' \
-  "$retired_manifest" ||
-  fail "broken inherited ASUS B9406 touchpad fix is not retired"
-[[ ! -e $root/install/post-install/all.sh ]] ||
-  fail "inherited post-install orchestration remains"
-[[ ! -e $root/install/post-install/finished.sh ]] ||
-  fail "inherited post-install presentation remains"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/install/first-run/run" "$@"' \
-  "$root/bin/omarchy-first-run" || fail "native first-run adapter"
-# shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/first-run/prepare"' \
-  "$root/install/preflight/all.sh" || fail "native first-run preparation"
 if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|rm)' \
-  "$root/qvcore/install" "$root/install/preflight"; then
+  "$root/qvcore/install"; then
   fail "broad passwordless first-run command remains"
 fi
 # shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/packaging/webapps"' \
-  "$root/install/packaging/all.sh" || fail "native webapps stage wiring"
-# shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/packaging/npx"' \
-  "$root/install/packaging/all.sh" || fail "native npx stage wiring"
-# shellcheck disable=SC2016
 grep -Fqx '"$OMARCHY_PATH/qvcore/install/packaging/webapps"' \
-  "$root/bin/omarchy-refresh-applications" ||
-  fail "native webapps refresh wiring"
+  "$root/bin/omarchy-refresh-applications" || fail "native webapps refresh wiring"
 # shellcheck disable=SC2016
 grep -Fqx '"$OMARCHY_PATH/qvcore/install/packaging/npx"' \
   "$root/bin/omarchy-refresh-applications" || fail "native npx refresh wiring"
-[[ ! -e $root/install/packaging/npx.sh &&
-  ! -e $root/install/packaging/webapps.sh ]] ||
-  fail "inherited npx or webapps packaging remains"
 
-printf 'ok - qvOS install and reinstall lifecycles preserve source safely\n'
+printf 'ok - qvOS owns the complete install and reinstall lifecycle\n'

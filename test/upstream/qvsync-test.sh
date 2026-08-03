@@ -68,6 +68,10 @@ if rg -q 'git merge( |$)|git push( |$)|git_push|push_origin_ref|push_os' \
   "$root/upstream/qvsync/qvsync"; then
   fail "qvsync retains merge or publication machinery"
 fi
+if rg -q 'require_upstream_policy_parity|inherited AGENTS.md policy block' \
+  "$root/upstream/qvsync/qvsync"; then
+  fail "qvsync still treats upstream instructions as qvOS authority"
+fi
 grep -Fq 'qvsync never publishes' "$root/upstream/qvsync/AGENTS.md" ||
   fail "read-only upstream publication instruction"
 pass "qvsync contains no merge or publication path"

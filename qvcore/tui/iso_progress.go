@@ -399,16 +399,16 @@ func isoInstallScriptStatus(path string) string {
 	switch {
 	case strings.Contains(path, "/qvcore/security/"):
 		return "applying security defaults"
+	case strings.Contains(path, "/qvcore/install/preflight/"):
+		return "checking " + name
+	case strings.Contains(path, "/qvcore/install/packaging/"):
+		return "installing " + name
+	case strings.Contains(path, "/qvcore/install/config/"):
+		return "configuring " + name
+	case strings.Contains(path, "/qvcore/boot/login/"):
+		return "configuring " + name
 	case strings.Contains(path, "/qvcore/install/"):
 		return "applying qvOS configuration"
-	case strings.Contains(path, "/install/preflight/"):
-		return "checking " + name
-	case strings.Contains(path, "/install/packaging/"):
-		return "installing " + name
-	case strings.Contains(path, "/install/config/"):
-		return "configuring " + name
-	case strings.Contains(path, "/install/login/"):
-		return "configuring " + name
 	default:
 		return "running " + name
 	}
@@ -418,16 +418,16 @@ func isoInstallScriptMilestone(path string) float64 {
 	switch {
 	case strings.Contains(path, "/qvcore/security/"):
 		return 0.96
-	case strings.Contains(path, "/install/login/"):
+	case strings.Contains(path, "/qvcore/boot/login/"):
 		return 0.92
+	case strings.Contains(path, "/qvcore/install/config/"):
+		return 0.72
+	case strings.Contains(path, "/qvcore/install/packaging/"):
+		return 0.62
+	case strings.Contains(path, "/qvcore/install/preflight/"):
+		return 0.58
 	case strings.Contains(path, "/qvcore/install/"):
 		return 0.88
-	case strings.Contains(path, "/install/config/"):
-		return 0.72
-	case strings.Contains(path, "/install/packaging/"):
-		return 0.62
-	case strings.Contains(path, "/install/preflight/"):
-		return 0.58
 	default:
 		return 0.36
 	}

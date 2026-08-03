@@ -137,11 +137,11 @@ catch_errors() {
 
     case $choice in
     "Retry installation")
-      if [[ ! -f $OMARCHY_PATH/install.sh || -L $OMARCHY_PATH/install.sh ]]; then
+      if [[ ! -f $QVOS_PATH/install.sh || -L $QVOS_PATH/install.sh ]]; then
         gum style "The qvOS installer source is unavailable."
         continue
       fi
-      exec bash -- "$OMARCHY_PATH/install.sh"
+      exec bash -- "$QVOS_PATH/install.sh"
       ;;
     "View full log")
       if command -v less &>/dev/null; then

@@ -7,7 +7,7 @@
   mkdir -p "$HOME/.local/lib/qvos"
 
   for feature in desktop direct power screensaver security shell thunar tmux tui waybar windows; do
-    feature_source="$OMARCHY_PATH/qvcore/$feature"
+    feature_source="$QVOS_PATH/qvcore/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
       exit 1
@@ -115,25 +115,25 @@
     qvcore/waybar/refresh
   )
   for source_path in "${required_sources[@]}"; do
-    if [[ ! -f $OMARCHY_PATH/$source_path ]]; then
-      echo "Missing qvOS desktop feature file: $OMARCHY_PATH/$source_path" >&2
+    if [[ ! -f $QVOS_PATH/$source_path ]]; then
+      echo "Missing qvOS desktop feature file: $QVOS_PATH/$source_path" >&2
       exit 1
     fi
   done
 
-  "$OMARCHY_PATH/qvcore/install/migrate-structure" --all
+  "$QVOS_PATH/qvcore/install/migrate-structure" --all
 
-  "$OMARCHY_PATH/qvcore/install/cleanup-obsolete"
+  "$QVOS_PATH/qvcore/install/cleanup-obsolete"
 
   for feature in desktop direct tmux waybar windows; do
-    feature_source="$OMARCHY_PATH/qvcore/$feature"
+    feature_source="$QVOS_PATH/qvcore/$feature"
     feature_runtime="$HOME/.local/lib/qvos/$feature"
 
     rm -rf -- "$feature_runtime"
     cp -a "$feature_source" "$feature_runtime"
   done
 
-  thunar_source="$OMARCHY_PATH/qvcore/thunar"
+  thunar_source="$QVOS_PATH/qvcore/thunar"
   thunar_runtime="$HOME/.local/lib/qvos/thunar"
   preserved_thunar=$(mktemp -d)
   for feature in codex proton-drive-upload; do
@@ -159,8 +159,8 @@
   "$thunar_runtime/install"
 
   for integration_owner in \
-    "$OMARCHY_PATH/services/proton/manage" \
-    "$OMARCHY_PATH/development/devel/manage"; do
+    "$QVOS_PATH/services/proton/manage" \
+    "$QVOS_PATH/development/devel/manage"; do
     if [[ ! -e $integration_owner && ! -L $integration_owner ]]; then
       continue
     fi
@@ -171,27 +171,27 @@
     "$integration_owner" reconcile
   done
 
-  "$OMARCHY_PATH/qvcore/menu/install" --install
+  "$QVOS_PATH/qvcore/menu/install" --install
 
   install -D -m 0644 \
-    "$OMARCHY_PATH/qvcore/install/post-update-hook" \
+    "$QVOS_PATH/qvcore/install/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-base"
   install -D -m 0644 \
-    "$OMARCHY_PATH/qvcore/direct/post-update-hook" \
+    "$QVOS_PATH/qvcore/direct/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-direct-tools"
   install -D -m 0644 \
-    "$OMARCHY_PATH/qvcore/waybar/post-update-hook" \
+    "$QVOS_PATH/qvcore/waybar/post-update-hook" \
     "$HOME/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides"
   QVOS_WAYBAR_SKIP_RESTART=1 \
-    "$OMARCHY_PATH/qvcore/waybar/refresh" --reset
+    "$QVOS_PATH/qvcore/waybar/refresh" --reset
 
   if ! "$HOME/.local/lib/qvos/thunar/reconcile-default-actions"; then
     echo "qvOS preserved the current Thunar actions because they could not be reconciled." >&2
   fi
 
-  "$OMARCHY_PATH/qvcore/tui/install" --build-if-available
-  "$OMARCHY_PATH/qvcore/shell/install"
-  "$OMARCHY_PATH/qvcore/screensaver/install"
-  "$OMARCHY_PATH/qvcore/power/install"
-  "$OMARCHY_PATH/qvcore/security/install"
+  "$QVOS_PATH/qvcore/tui/install" --build-if-available
+  "$QVOS_PATH/qvcore/shell/install"
+  "$QVOS_PATH/qvcore/screensaver/install"
+  "$QVOS_PATH/qvcore/power/install"
+  "$QVOS_PATH/qvcore/security/install"
 )

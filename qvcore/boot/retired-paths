@@ -4,7 +4,3 @@ default/plymouth/
 default/sddm/hyprland.conf
 default/sddm/omarchy/
 default/wayland-sessions/omarchy.desktop
-install/login/all.sh
-install/login/limine-snapper.sh
-install/login/plymouth.sh
-install/login/sddm.sh

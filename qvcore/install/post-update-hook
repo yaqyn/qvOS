@@ -3,12 +3,12 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
-config_source="$OMARCHY_PATH/qvcore/config/files"
+config_source="$QVOS_PATH/qvcore/config/files"
 theme_name_path="$HOME/.config/omarchy/current/theme.name"
 current_theme="Yaqyn"
 
 # shellcheck source=qvcore/install/desktop
-source "$OMARCHY_PATH/qvcore/install/desktop"
+source "$QVOS_PATH/qvcore/install/desktop"
 
 while IFS= read -r -d '' source_file; do
   config_path=${source_file#"$config_source/"}
@@ -20,8 +20,8 @@ while IFS= read -r -d '' source_file; do
 done < <(find "$config_source" -type f -print0 | sort -z)
 
 declare -A branding_sources=(
-  ["$HOME/.config/omarchy/branding/about.txt"]="$OMARCHY_PATH/qvcore/branding/icon.txt"
-  ["$HOME/.config/omarchy/branding/screensaver.txt"]="$OMARCHY_PATH/qvcore/branding/logo.txt"
+  ["$HOME/.config/omarchy/branding/about.txt"]="$QVOS_PATH/qvcore/branding/icon.txt"
+  ["$HOME/.config/omarchy/branding/screensaver.txt"]="$QVOS_PATH/qvcore/branding/logo.txt"
 )
 for target_file in "${!branding_sources[@]}"; do
   if [[ ! -e $target_file ]]; then
@@ -32,7 +32,7 @@ done
 if [[ -f $theme_name_path ]]; then
   current_theme=$(<"$theme_name_path")
 fi
-"$OMARCHY_PATH/qvcore/theme/install"
+"$QVOS_PATH/qvcore/theme/install"
 if ! OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy-theme-set "$current_theme"; then
   echo "The selected theme is no longer available; returning to Yaqyn." >&2
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy-theme-set "Yaqyn"

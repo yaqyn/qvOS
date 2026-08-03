@@ -38,4 +38,4 @@ done
 
 "$OMARCHY_PATH/qvcore/config/monitor-autodetect"
 
-bash "$OMARCHY_PATH/install/config/detect-keyboard-layout.sh"
+bash "$OMARCHY_PATH/qvcore/install/config/detect-keyboard-layout.sh"

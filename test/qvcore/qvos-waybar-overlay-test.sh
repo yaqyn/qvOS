@@ -189,7 +189,7 @@ fresh_home="$test_root/fresh-home"
 install -d "$fresh_home/.local/share"
 ln -s "$root" "$fresh_home/.local/share/omarchy"
 PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
-  bash "$root/install/config/config.sh"
+  QVOS_PATH="$root" bash "$root/qvcore/install/config/config.sh"
 PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
   QVOS_WAYBAR_SKIP_RESTART=1 bash "$root/qvcore/waybar/refresh"
 

@@ -44,8 +44,4 @@ config/fastfetch/config.jsonc
 config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json
 default/omarchy-skill/SKILL.md
-install/config/hardware/apple/fix-suspend-nvme.sh
-install/first-run/install-voxtype.hook
-install/first-run/welcome.sh
-install/preflight/guard.sh
 test/omarchy-cli-test.sh

@@ -3,13 +3,13 @@
 (
   set -euo pipefail
 
-  config_source="$OMARCHY_PATH/qvcore/config/files"
-  monitor_owner="$OMARCHY_PATH/qvcore/config/monitor-autodetect"
+  config_source="$QVOS_PATH/qvcore/config/files"
+  monitor_owner="$QVOS_PATH/qvcore/config/monitor-autodetect"
 
   for source_path in \
     "$config_source" \
     "$monitor_owner" \
-    "$OMARCHY_PATH/qvcore/shell/install"; do
+    "$QVOS_PATH/qvcore/shell/install"; do
     if [[ ! -e $source_path ]]; then
       echo "Missing qvOS configuration source: $source_path" >&2
       exit 1
@@ -19,14 +19,14 @@
   mkdir -p "$HOME/.config"
   cp -a "$config_source/." "$HOME/.config/"
   install -D -m 0644 \
-    "$OMARCHY_PATH/qvcore/branding/icon.txt" \
+    "$QVOS_PATH/qvcore/branding/icon.txt" \
     "$HOME/.config/omarchy/branding/about.txt"
   install -D -m 0644 \
-    "$OMARCHY_PATH/qvcore/branding/logo.txt" \
+    "$QVOS_PATH/qvcore/branding/logo.txt" \
     "$HOME/.config/omarchy/branding/screensaver.txt"
 
-  # shellcheck source=qvcore/install/config/mimetypes
-  source "$OMARCHY_PATH/qvcore/install/config/mimetypes"
+  # shellcheck disable=SC1091
+  source "$QVOS_PATH/qvcore/install/config/mimetypes"
   # shellcheck source=qvcore/install/desktop
-  source "$OMARCHY_PATH/qvcore/install/desktop"
+  source "$QVOS_PATH/qvcore/install/desktop"
 )

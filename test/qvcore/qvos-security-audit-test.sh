@@ -167,7 +167,7 @@ grep -Fq 'NOPASSWD: /usr/lib/qvos/first-run-root cleanup' \
 grep -Fq '/usr/bin/env -i' "$first_run_root" ||
   fail "first-run privileged command environment sanitation"
 if rg -q 'NOPASSWD:.*(systemctl|ufw|ufw-docker|gtk-update-icon-cache|/bin/rm)' \
-  "$first_run_prepare" "$root/install/preflight"; then
+  "$first_run_prepare" "$root/qvcore/install/preflight"; then
   fail "fresh install grants a broad passwordless command"
 fi
 # shellcheck disable=SC2016
@@ -181,13 +181,13 @@ grep -Fqx '  run_fixed_command "$ufw" default allow outgoing' \
 
 post_install_all="$root/qvcore/install/post-install/run"
 # shellcheck disable=SC2016
-pacman_post_line=$(grep -nF 'run_logged "$OMARCHY_INSTALL/post-install/pacman.sh"' \
+pacman_post_line=$(grep -nF 'run_logged "$QVOS_INSTALL/post-install/pacman.sh"' \
   "$post_install_all" | cut -d: -f1)
 # shellcheck disable=SC2016
-security_post_line=$(grep -nF 'run_logged "$OMARCHY_PATH/qvcore/security/install"' \
+security_post_line=$(grep -nF 'run_logged "$QVOS_PATH/qvcore/security/install"' \
   "$post_install_all" | cut -d: -f1)
 # shellcheck disable=SC2016
-allow_reboot_line=$(grep -nF 'source "$OMARCHY_INSTALL/post-install/allow-reboot.sh"' \
+allow_reboot_line=$(grep -nF 'source "$QVOS_INSTALL/post-install/allow-reboot.sh"' \
   "$post_install_all" | cut -d: -f1)
 [[ $pacman_post_line =~ ^[0-9]+$ && $security_post_line =~ ^[0-9]+$ &&
   $allow_reboot_line =~ ^[0-9]+$ ]] ||

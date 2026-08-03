@@ -18,7 +18,7 @@ cp -a "$OMARCHY_PATH/config/." "$HOME/.config/"
 cp "$OMARCHY_PATH/default/bashrc" "$HOME/.bashrc"
 printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
 
-bash "$OMARCHY_PATH/install/config/theme.sh"
+bash "$OMARCHY_PATH/qvcore/install/config/theme.sh"
 
 omarchy-refresh-hyprland
 omarchy-refresh-limine

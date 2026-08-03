@@ -32,8 +32,7 @@ for required_path in \
   bin/omarchy-theme-update \
   default/elephant/omarchy_themes.lua \
   default/elephant/omarchy_unlocks.lua \
-  default/themed/obsidian.css.tpl \
-  install/config/theme.sh; do
+  default/themed/obsidian.css.tpl; do
   grep -Fqx "$required_path" "$native_manifest" ||
     fail "native theme owner is missing: $required_path"
 done
@@ -73,11 +72,15 @@ grep -Fq 'cannot be replaced by a theme repository' "$root/bin/omarchy-theme-ins
 grep -Fq 'cannot be removed' "$root/bin/omarchy-theme-remove" ||
   fail "Yaqyn removal protection"
 # shellcheck disable=SC2016
-grep -Fqx '"$OMARCHY_PATH/qvcore/theme/configure"' "$root/install/config/theme.sh" ||
+[[ -f $root/qvcore/install/config/theme.sh &&
+  ! -x $root/qvcore/install/config/theme.sh ]] ||
+  fail "fresh install theme owner mode"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/theme/configure"' "$root/qvcore/install/config/theme.sh" ||
   fail "fresh install does not delegate to the qvOS theme owner"
 # shellcheck disable=SC2016
 grep -Fqx 'rm -f -- "$HOME/.config/chromium/SingletonLock" # otherwise archiso will own the chromium singleton' \
-  "$root/install/config/theme.sh" ||
+  "$root/qvcore/install/config/theme.sh" ||
   fail "fresh install does not remove only the Chromium singleton lock"
 if rg -q 'qvcore/theme/install|qvcore/install/config/theme' "$root/qvcore/install/configure"; then
   fail "qvOS install duplicates the theme owner"

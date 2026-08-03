@@ -9,4 +9,4 @@ fi
 
 pkill -x swayosd-server || true
 
-bash "$OMARCHY_PATH/install/first-run/swayosd.sh"
+bash "$OMARCHY_PATH/qvcore/install/first-run/swayosd.sh"

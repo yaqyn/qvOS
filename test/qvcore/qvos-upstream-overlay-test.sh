@@ -126,15 +126,12 @@ done < <(git -C "$root" ls-tree -r "$upstream_ref")
 ((upstream_file_count > 1000)) ||
   fail "upstream parity scan covered an implausibly small tree"
 
-upstream_agents_lines=$(
-  git -C "$root" show "$upstream_ref:AGENTS.md" | wc -l
-)
-cmp -s \
-  <(git -C "$root" show "$upstream_ref:AGENTS.md") \
-  <(head -n "$upstream_agents_lines" "$root/AGENTS.md") ||
-  fail "AGENTS.md upstream policy block drift"
-grep -Fqx '<!-- qvOS ADDITIONS START -->' "$root/AGENTS.md" ||
-  fail "AGENTS.md qvOS policy separator"
+grep -Fq 'This entire file is qvOS-owned' "$root/AGENTS.md" ||
+  fail "root qvOS instruction ownership"
+if rg -q 'verbatim upstream Omarchy|must match the reviewed target byte-for-byte' \
+  "$root/AGENTS.md" "$root/upstream/qvsync"; then
+  fail "retired upstream instruction-copy contract remains"
+fi
 pass "the complete inherited tree matches upstream outside audited seams"
 
 for path in "${inherited_seams[@]}"; do
@@ -210,13 +207,14 @@ omarchy-pkg-add() {
 }
 export -f omarchy-npx-install omarchy-webapp-install omarchy-pkg-add
 
-npx_output=$(OMARCHY_PATH="$root" "$root/qvcore/install/packaging/npx") ||
+npx_output=$(QVOS_PATH="$root" OMARCHY_PATH="$root" "$root/qvcore/install/packaging/npx") ||
   fail "native npx owner failed"
-webapps_output=$(OMARCHY_PATH="$root" "$root/qvcore/install/packaging/webapps") ||
+webapps_output=$(QVOS_PATH="$root" OMARCHY_PATH="$root" "$root/qvcore/install/packaging/webapps") ||
   fail "native webapps owner failed"
 base_output=$(
-  OMARCHY_PATH="$root" OMARCHY_INSTALL="$root/install" \
-    bash -c 'source "$1"' _ "$root/install/packaging/base.sh"
+  QVOS_PATH="$root" OMARCHY_PATH="$root" \
+    QVOS_INSTALL="$root/qvcore/install" OMARCHY_INSTALL="$root/qvcore/install" \
+    bash -c 'source "$1"' _ "$root/qvcore/install/packaging/base"
 ) || fail "base qvOS owner failed"
 
 [[ $npx_output == $'npx:@openai/codex|codex\nnpx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
@@ -229,42 +227,64 @@ if grep -Fqx 'pkg:1password-beta' <<<"$base_output"; then
 fi
 pass "package entrypoints use singular native owners"
 
-[[ ! -e $root/install/config/qvos-scripts.sh ]] ||
-  fail "qvOS desktop implementation remains under inherited install config"
-[[ ! -e $root/install/config/all.sh ]] ||
-  fail "inherited install configuration orchestration remains"
+[[ ! -e $root/install && ! -L $root/install ]] ||
+  fail "inherited install tree remains"
 # shellcheck disable=SC2016
-grep -Fqx 'source "$OMARCHY_PATH/qvcore/install/config/run"' \
+grep -Fqx 'source "$QVOS_PATH/qvcore/install/config/run"' \
   "$root/install.sh" ||
   fail "fresh install does not use the native qvOS configuration stage"
 # shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/configure"' \
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
   "$root/qvcore/install/config/run" ||
   fail "native configuration stage omits qvOS configuration"
 # shellcheck disable=SC2016
 upstream_config_steps=$(
   git -C "$root" show "$upstream_ref:install/config/all.sh" |
     sed -n 's/^run_logged \(\$OMARCHY_INSTALL[^[:space:]]*\)$/\1/p' |
-    grep -Fvx \
-      -e '$OMARCHY_INSTALL/config/nautilus-python.sh' \
-      -e '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh'
+    while IFS= read -r step; do
+      case $step in
+      '$OMARCHY_INSTALL/config/mimetypes.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/nautilus-python.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
+        ;;
+      *)
+        printf '$QVOS_INSTALL/%s\n' "${step#\$OMARCHY_INSTALL/}"
+        ;;
+      esac
+    done
+  printf '%s\n' '$QVOS_PATH/qvcore/install/configure'
 )
 # shellcheck disable=SC2016
 native_config_steps=$(
-  sed -n 's/^run_logged "\(\$OMARCHY_INSTALL[^"]*\)"$/\1/p' \
+  sed -n 's/^run_logged "\([^"]*\)"$/\1/p' \
     "$root/qvcore/install/config/run"
 )
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
-  fail "native configuration stage changed inherited leaf order or coverage"
+  fail "native configuration stage changed reviewed capability order or coverage"
+while IFS= read -r step; do
+  # shellcheck disable=SC2016
+  case $step in
+  '$QVOS_INSTALL/'*)
+    owner="$root/qvcore/install/${step#\$QVOS_INSTALL/}"
+    ;;
+  '$QVOS_PATH/'*)
+    owner="$root/${step#\$QVOS_PATH/}"
+    ;;
+  *)
+    fail "unknown native install owner root: $step"
+    ;;
+  esac
+  [[ -f $owner && ! -L $owner ]] ||
+    fail "native install capability owner is missing: $owner"
+done <<<"$native_config_steps"
 # shellcheck disable=SC2016
-[[ $(grep -Fc 'run_logged "$OMARCHY_PATH/qvcore/' \
-  "$root/qvcore/install/config/run") == 3 ]] ||
-  fail "native configuration stage qvOS leaf inventory"
-# shellcheck disable=SC2016
-grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
   "$root/qvcore/install/config/run" ||
   fail "native configuration stage omits the corrected ASUS B9406 touchpad owner"
-pass "fresh installation uses one native qvOS configuration stage"
+pass "fresh installation owns every reviewed configuration capability natively"
 
 public_adapters=(
   bin/omarchy-install-qvcore

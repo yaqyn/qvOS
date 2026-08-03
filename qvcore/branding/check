@@ -81,12 +81,12 @@ identity_paths=(
   default/elephant/omarchy_themes.lua
   default/elephant/omarchy_unlocks.lua
   default/omarchy-skill/SKILL.md
-  install/first-run/install-voxtype.hook
-  install/first-run/welcome.sh
-  install/config/hardware/apple/fix-suspend-nvme.sh
-  install/helpers/logging.sh
-  install/helpers/presentation.sh
-  install/preflight/guard.sh
+  qvcore/install/first-run/install-voxtype.hook
+  qvcore/install/first-run/welcome.sh
+  qvcore/install/config/hardware/apple/fix-suspend-nvme.sh
+  qvcore/install/helpers/logging.sh
+  qvcore/install/helpers/presentation.sh
+  qvcore/install/preflight/guard.sh
   qvcore/boot/limine/default.conf
   qvcore/boot/limine/limine.conf
   qvcore/boot/plymouth/omarchy.plymouth

@@ -23,9 +23,9 @@ if omarchy-cmd-present foot; then
 fi
 
 # Refresh icons, TUIs, and qvOS-owned npx wrappers.
-bash "$OMARCHY_PATH/install/packaging/icons.sh"
+bash "$OMARCHY_PATH/qvcore/install/packaging/icons.sh"
 "$OMARCHY_PATH/qvcore/install/packaging/webapps"
-bash "$OMARCHY_PATH/install/packaging/tuis.sh"
+bash "$OMARCHY_PATH/qvcore/install/packaging/tuis.sh"
 "$OMARCHY_PATH/qvcore/install/packaging/npx"
 
 update-desktop-database "$HOME/.local/share/applications"

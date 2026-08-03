@@ -3,8 +3,8 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
-test_omarchy="$test_root/omarchy"
-test_install="$test_omarchy/install"
+test_qvos="$test_root/qvos"
+test_install="$test_qvos/qvcore/install"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 completion_marker="$test_root/install-completed"
@@ -22,15 +22,15 @@ fail() {
 install -d \
   "$test_bin" \
   "$test_install/post-install" \
-  "$test_omarchy/qvcore/branding" \
-  "$test_omarchy/qvcore/install/post-install" \
-  "$test_omarchy/qvcore/security"
+  "$test_qvos/qvcore/branding" \
+  "$test_qvos/qvcore/install/post-install" \
+  "$test_qvos/qvcore/security"
 install -m 0755 \
   "$root/qvcore/install/post-install/finished" \
-  "$test_omarchy/qvcore/install/post-install/finished"
+  "$test_qvos/qvcore/install/post-install/finished"
 install -m 0644 \
   "$root/qvcore/branding/logo.txt" \
-  "$test_omarchy/qvcore/branding/logo.txt"
+  "$test_qvos/qvcore/branding/logo.txt"
 : >"$event_log"
 
 install -m 0644 /dev/stdin \
@@ -47,19 +47,19 @@ stop_install_log() {
 export -f run_logged stop_install_log
 
 install -m 0755 /dev/stdin \
-  "$test_omarchy/qvcore/install/post-install/finished" <<'SCRIPT'
+  "$test_qvos/qvcore/install/post-install/finished" <<'SCRIPT'
 #!/bin/bash
 printf 'finished\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
 QVOS_TEST_EVENT_LOG="$event_log" \
-OMARCHY_PATH="$test_omarchy" \
-OMARCHY_INSTALL="$test_install" \
+QVOS_PATH="$test_qvos" \
+QVOS_INSTALL="$test_install" \
   bash -c 'source "$1"' _ "$root/qvcore/install/post-install/run"
 
 expected_run=$(
   printf 'run:%s\n' "$test_install/post-install/pacman.sh"
-  printf 'run:%s\n' "$test_omarchy/qvcore/security/install"
+  printf 'run:%s\n' "$test_qvos/qvcore/security/install"
   printf '%s\n' allow-reboot stop-log finished
 )
 [[ $(<"$event_log") == "$expected_run" ]] ||
@@ -67,7 +67,7 @@ expected_run=$(
 
 install -m 0755 \
   "$root/qvcore/install/post-install/finished" \
-  "$test_omarchy/qvcore/install/post-install/finished"
+  "$test_qvos/qvcore/install/post-install/finished"
 
 install -m 0755 /dev/stdin "$test_bin/qvos-tui" <<'SCRIPT'
 #!/bin/bash
@@ -98,12 +98,12 @@ SCRIPT
 
 run_finished() {
   HOME="$test_root/home" \
-    OMARCHY_PATH="$test_omarchy" \
+    QVOS_PATH="$test_qvos" \
     OMARCHY_INSTALL_LOG_FILE="$test_root/install.log" \
     QVOS_INSTALL_COMPLETION_MARKER="$completion_marker" \
     QVOS_TEST_EVENT_LOG="$event_log" \
     PATH="$test_bin:/usr/bin" \
-    "$test_omarchy/qvcore/install/post-install/finished"
+    "$test_qvos/qvcore/install/post-install/finished"
 }
 
 : >"$event_log"
@@ -124,7 +124,7 @@ run_finished >/dev/null
 [[ ! -e $completion_marker ]] ||
   fail "declined non-ISO reboot created a completion marker"
 grep -Fqx \
-  "tte:-i $test_omarchy/qvcore/branding/logo.txt --canvas-width 0 --anchor-text c --frame-rate 920 laseretch:" \
+  "tte:-i $test_qvos/qvcore/branding/logo.txt --canvas-width 0 --anchor-text c --frame-rate 920 laseretch:" \
   "$event_log" || fail "qvOS finished logo owner"
 grep -Fqx \
   'tte:--canvas-width 0 --anchor-text c --frame-rate 640 print:Installed in 3m 12s' \

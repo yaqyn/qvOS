@@ -20,8 +20,8 @@ this directory; they must not retain inherited fallback implementations.
 `qvcore/boot/install` singularly owns the ordered login stage. Its native leaves
 install Plymouth without an early image rebuild, install the SDDM theme,
 session, Wayland compositor config, autologin compatibility, and PAM policy,
-then configure Limine and Snapper after the inherited keyring and hibernation
-leaves. Keep the internal `omarchy` session, theme, and UKI identifiers as
+then configure Limine and Snapper after the native keyring and hibernation
+leaves in `qvcore/boot/login/`. Keep the internal `omarchy` session, theme, and UKI identifiers as
 upgrade ABI until a separately verified migration can rename installed state;
 they must never leak as visible product branding. Use the shared atomic theme
 sync owner for install and refresh so a failed copy restores the prior theme.

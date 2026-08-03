@@ -1,3 +1,4 @@
 echo "Update npx wrappers to run through mise node@latest"
 
-source "$OMARCHY_PATH/install/packaging/npx.sh"
+# shellcheck disable=SC1091
+source "$OMARCHY_PATH/qvcore/install/packaging/npx"

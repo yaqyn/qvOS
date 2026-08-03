@@ -7,7 +7,7 @@ if omarchy-hw-asus-expertbook-b9406 || omarchy-hw-asus-zenbook-ux5406aa; then
     sudo sed -i '/xe\.enable_dpcd_backlight/d' "$EXPERTBOOK_DROP_IN"
   fi
 
-  source "$OMARCHY_PATH/install/config/hardware/asus/fix-asus-ptl-display-backlight.sh"
+  source "$OMARCHY_PATH/qvcore/install/config/hardware/asus/fix-asus-ptl-display-backlight.sh"
 
   if omarchy-cmd-present limine-update; then
     sudo limine-update

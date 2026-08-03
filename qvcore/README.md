@@ -21,7 +21,7 @@ qvcore/
   config/      qvOS config sources and reconciliation after Omarchy defaults.
   desktop/     Shared context, web, and Hyprland desktop helpers.
   direct/      Verified manifest-driven direct software and updates.
-  install/     qvOS stages applied after Omarchy installation.
+  install/     Complete native qvOS installation lifecycle.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   network/     qvOS DNS policy and optional WARP routing.
   packages/    Omarchy package-provider boundary and Stable configuration.
@@ -155,8 +155,10 @@ exposes, installs, or refreshes the native owner:
   `qvcore/config/files/` owns only specialized sources that still need a separate
   installed path. Unpromoted inherited `config/` and `default/` paths remain
   upstream-owned.
-- `install/` owns fresh-install payloads. Future existing-system transitions
-  belong in `qvcore/migrations/` behind thin Omarchy migration stubs.
+- `qvcore/install/` owns the complete fresh-install implementation and
+  `qvcore/boot/login/` owns its login leaves. The retired top-level `install/`
+  tree must not return. Future existing-system transitions belong in
+  `qvcore/migrations/` behind thin Omarchy migration stubs.
 - `test/qvcore/run.sh` recursively runs the qvCORE, Services, Development,
   Release, Upstream, Compatibility, and inherited root shell suites.
 - `qvcore/theme/yaqyn/` is qvOS's only bundled theme. The renderer reads Yaqyn and
