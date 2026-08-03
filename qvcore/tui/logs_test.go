@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -147,5 +148,88 @@ func TestTerminalFramesReplaceDockerComposeRepaints(t *testing.T) {
 	if joined := strings.Join(lines, "\n"); strings.Contains(joined, "0.1s") ||
 		strings.Contains(joined, "8.4MB") {
 		t.Fatalf("Docker Compose repaint history leaked: %q", joined)
+	}
+}
+
+func TestTerminalFramesApplyScreenClears(t *testing.T) {
+	tests := []struct {
+		name  string
+		clear string
+	}{
+		{name: "CSI erase display", clear: "\x1b[2J"},
+		{name: "CSI erase display and scrollback", clear: "\x1b[3J"},
+		{name: "terminal reset", clear: "\x1bc"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lines := make([]string, 0)
+			cursor := 0
+			raw := "obsolete\npartial" + test.clear + "current\n"
+			if err := readTerminalFrames(strings.NewReader(raw), func(frame terminalFrame) error {
+				lines, cursor, _ = applyTerminalFrame(lines, cursor, frame)
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if len(lines) != 1 || lines[0] != "current" {
+				t.Fatalf("cleared terminal frame = %#v", lines)
+			}
+		})
+	}
+}
+
+func TestTerminalFramesApplyCursorAddressingAndErase(t *testing.T) {
+	raw := "alpha\nbravo\ncharlie\x1b[1;1Homega\x1b[2;3H\x1b[1KX"
+	lines := make([]string, 0)
+	cursor := 0
+	if err := readTerminalFrames(strings.NewReader(raw), func(frame terminalFrame) error {
+		lines, cursor, _ = applyTerminalFrame(lines, cursor, frame)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"omega", "  Xvo", "charlie"}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("addressed terminal frame = %#v, want %#v", lines, want)
+	}
+}
+
+func TestTerminalFramesRestoreSavedCursor(t *testing.T) {
+	tests := []struct {
+		name    string
+		save    string
+		restore string
+	}{
+		{name: "escape", save: "\x1b7", restore: "\x1b8"},
+		{name: "CSI", save: "\x1b[s", restore: "\x1b[u"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lines := make([]string, 0)
+			cursor := 0
+			raw := "first\nsecond" + test.save + "\x1b[1A\x1b[1Gtop" + test.restore + "!"
+			if err := readTerminalFrames(strings.NewReader(raw), func(frame terminalFrame) error {
+				lines, cursor, _ = applyTerminalFrame(lines, cursor, frame)
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{"topst", "second!"}
+			if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+				t.Fatalf("restored terminal frame = %#v, want %#v", lines, want)
+			}
+		})
+	}
+}
+
+func TestTerminalReaderReturnsConsumerError(t *testing.T) {
+	want := errors.New("stop consuming terminal output")
+	err := readTerminalFrames(strings.NewReader("output\n"), func(terminalFrame) error {
+		return want
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("terminal reader error = %v, want %v", err, want)
 	}
 }

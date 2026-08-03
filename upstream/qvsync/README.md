@@ -2,7 +2,9 @@
 
 Tracked qvOS git helper source lives here.
 
-Run `upstream/qvsync/install-qvsync` from this repository to install the local `git qvsync` alias and point `.git/qvsync` at the tracked `upstream/qvsync/qvsync` implementation.
+Run `upstream/qvsync/install-qvsync` from this repository to install the local
+`git qvsync` alias and a `.git/qvsync` dispatcher that delegates to the tracked
+`upstream/qvsync/qvsync` implementation.
 
 `git qvsync` and `git qvsync --audit` fetch upstream and print every commit
 after the tracked `reviewed-upstream` baseline, every changed path, and

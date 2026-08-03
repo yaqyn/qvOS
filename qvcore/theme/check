@@ -75,6 +75,10 @@ grep -Fq 'cannot be removed' "$root/bin/omarchy-theme-remove" ||
 # shellcheck disable=SC2016
 grep -Fqx '"$OMARCHY_PATH/qvcore/theme/configure"' "$root/install/config/theme.sh" ||
   fail "fresh install does not delegate to the qvOS theme owner"
+# shellcheck disable=SC2016
+grep -Fqx 'rm -f -- "$HOME/.config/chromium/SingletonLock" # otherwise archiso will own the chromium singleton' \
+  "$root/install/config/theme.sh" ||
+  fail "fresh install does not remove only the Chromium singleton lock"
 if rg -q 'qvcore/theme/install|qvcore/install/config/theme' "$root/qvcore/install/configure"; then
   fail "qvOS install duplicates the theme owner"
 fi

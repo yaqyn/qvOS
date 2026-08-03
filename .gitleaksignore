@@ -10,4 +10,5 @@ d5314cecb7f39ca92968a494f02aa7cde3904b9a:config/chromium-flags.conf:generic-api-
 e5290b0a12c556cf2bbecb01e3441605dce4d602:default/chromium/extensions/yt-dlp/manifest.json:generic-api-key:6
 
 # Deliberate non-secret token fixture retained in qvOS test history.
+acbdb85ca9e4a746e2be9305afdb33f27f5c2925:test/qvos/qvos-dev-share-test.sh:generic-api-key:146
 acbdb85ca9e4a746e2be9305afdb33f27f5c2925:test/qvcore/qvos-dev-share-test.sh:generic-api-key:146

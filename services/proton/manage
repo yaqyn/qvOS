@@ -131,10 +131,10 @@ reconcile_integrations() {
 
   install_codex_integration
   install_desktop_integration
-  codex_integration_is_installed && desktop_integration_ready || {
+  if ! codex_integration_is_installed || ! desktop_integration_ready; then
     echo "Proton integration reconciliation failed." >&2
     return 1
-  }
+  fi
 }
 
 remove_desktop_integration() {

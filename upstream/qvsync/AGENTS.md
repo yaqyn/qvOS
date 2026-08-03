@@ -51,7 +51,7 @@ replace its judgment.
 - Before runtime checks, back up and apply changed user config, then install
   desktop payloads with
   `OMARCHY_PATH=$PWD bash -c 'source qvcore/install/desktop'`. Preserve optional
-  optional Services and Development integrations without reinstalling them,
+  Services and Development integrations without reinstalling them,
   verify the direct-tool
   runtime and hook, confirm the live checkout is clean, and run the relevant
   reload or smoke test.

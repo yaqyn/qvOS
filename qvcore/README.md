@@ -40,7 +40,7 @@ qvcore/
 
 Top-level `services/proton/` owns the optional Proton Service and
 `development/devel/` owns the optional workstation formerly named qvDEV. Each
-exposes only Install and Uninstall and owns its
+exposes only user-facing Install and Uninstall actions and owns its
 complete lifecycle independently. There is no qvCORE Software menu or qvCORE
 enrollment state; qvCORE is the operating-system implementation itself.
 
