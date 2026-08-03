@@ -284,8 +284,12 @@ validate_qvos_source() {
     echo "qvos-build staged qvOS source is missing qvcore/tui" >&2
     missing=true
   fi
-  if [[ ! -d $target/install ]]; then
-    echo "qvos-build staged qvOS source is missing install/" >&2
+  if [[ ! -d $target/qvcore/install ]]; then
+    echo "qvos-build staged qvOS source is missing qvcore/install/" >&2
+    missing=true
+  fi
+  if [[ ! -d $target/qvcore/boot/login ]]; then
+    echo "qvos-build staged qvOS source is missing qvcore/boot/login/" >&2
     missing=true
   fi
   if [[ ! -f $target/release/iso/omarchy-iso-qvos-tui.patch ]]; then

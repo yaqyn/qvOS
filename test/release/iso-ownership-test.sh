@@ -25,8 +25,18 @@ grep -Fq 'release/iso/source-permissions' \
 # shellcheck disable=SC2016
 grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-$reviewed_iso_ref}"' \
   "$root/release/iso/build" || fail "release ISO defaults to reviewed ref"
+# shellcheck disable=SC2016
 grep -Fq 'clone_git_source "$omarchy_iso_repo" "$omarchy_iso_ref" "$target"' \
   "$root/release/iso/build" || fail "local ISO source bypasses reviewed ref"
+# shellcheck disable=SC2016
+grep -Fq 'if [[ ! -d $target/qvcore/install ]]; then' \
+  "$root/release/iso/build" || fail "release ISO native install validation"
+# shellcheck disable=SC2016
+grep -Fq 'if [[ ! -d $target/qvcore/boot/login ]]; then' \
+  "$root/release/iso/build" || fail "release ISO native login validation"
+if grep -Fq 'missing install/' "$root/release/iso/build"; then
+  fail "release ISO requires the retired install tree"
+fi
 if rg -q 'copy_tree|fresh-cloning ISO builder source local' "$root/release/iso/build"; then
   fail "local ISO source bypass remains"
 fi

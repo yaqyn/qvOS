@@ -18,6 +18,9 @@ a thin adapter to this owner.
 - Stage the selected qvOS Git ref separately and apply
   `release/iso/omarchy-iso-qvos-tui.patch` only to the temporary builder. Keep ISO
   integration under `release/iso/` and never persist qvOS edits in upstream source.
+- Validate the embedded qvOS installer at `qvcore/install/` and login leaves at
+  `qvcore/boot/login/`; never require or recreate the retired top-level
+  `install/` tree for image staging.
 - If an upstream builder change breaks the patch or a relied-on contract, stop
   and update the qvOS owner and tests. Do not weaken the guard or patch cached
   upstream output directly.
