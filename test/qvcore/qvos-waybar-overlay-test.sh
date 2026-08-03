@@ -59,8 +59,8 @@ jq -e --slurpfile source "$source_config" '
   (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
-  (."custom/prayerbar".exec == "~/.local/share/qvos/waybar/prayerbar.sh") and
-  (."custom/qv-clock".exec == "~/.local/share/qvos/waybar/clock.sh") and
+  (."custom/prayerbar".exec == "~/.local/lib/qvos/waybar/prayerbar.sh") and
+  (."custom/qv-clock".exec == "~/.local/lib/qvos/waybar/clock.sh") and
   (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone")
 ' "$live_config" >/dev/null || fail "prayer clock overlay"
 

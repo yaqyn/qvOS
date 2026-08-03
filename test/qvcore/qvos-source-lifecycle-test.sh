@@ -195,8 +195,11 @@ pass "fresh install validates and stages source without deleting an existing che
 
 migration_home="$test_root/migration-home"
 legacy_source="$migration_home/.local/share/omarchy"
+legacy_runtime="$migration_home/.local/share/qvos"
 install -d "${legacy_source%/*}"
 git clone -q --branch OS "$remote" "$legacy_source"
+install -d "$legacy_runtime/menu"
+printf 'preserved runtime\n' >"$legacy_runtime/menu/marker"
 printf 'preserved dirty source\n' >"$legacy_source/preserved"
 HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
 [[ -d $migration_home/.local/share/qvos &&
@@ -204,10 +207,14 @@ HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
   fail "legacy source migration preservation"
 [[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
   fail "legacy source migration compatibility link"
+[[ -f $migration_home/.local/lib/qvos/menu/marker ]] ||
+  fail "legacy runtime migration preservation"
+[[ ! -e $migration_home/.local/share/qvos/menu/marker ]] ||
+  fail "legacy runtime remained inside the canonical source"
 HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
 [[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
   fail "legacy source migration idempotence"
-pass "legacy source root migrates atomically to canonical qvOS ownership"
+pass "legacy source and runtime roots migrate atomically to singular ownership"
 
 canonical_home="$test_root/canonical-home"
 canonical_source="$canonical_home/.local/share/qvos"
@@ -226,7 +233,18 @@ fi
 [[ ! -e $unsafe_home/.local/share/omarchy &&
   ! -L $unsafe_home/.local/share/omarchy ]] ||
   fail "unsafe canonical source compatibility mutation"
-pass "source migration repairs only a verified canonical checkout"
+
+conflict_home="$test_root/runtime-conflict-home"
+conflict_source="$conflict_home/.local/share/omarchy"
+install -d "$conflict_home/.local/share/qvos" "$conflict_home/.local/lib/qvos"
+git clone -q --branch OS "$remote" "$conflict_source"
+if HOME="$conflict_home" "$root/qvcore/install/migrate-source-root" >/dev/null 2>&1; then
+  fail "conflicting runtime roots acceptance"
+fi
+[[ -d $conflict_source/.git && -d $conflict_home/.local/share/qvos &&
+  -d $conflict_home/.local/lib/qvos ]] ||
+  fail "conflicting runtime refusal changed installed state"
+pass "source migration repairs only verified and conflict-free roots"
 
 config_source="$test_root/config-source"
 config_home="$test_root/config-home"

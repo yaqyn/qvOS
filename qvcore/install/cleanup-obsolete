@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-legacy_thunar_helper="$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
+legacy_thunar_helper="$HOME/.local/lib/qvos/defaults/qvos-launch-thunar"
 [[ ! -e $legacy_thunar_helper && ! -L $legacy_thunar_helper ]] || exit 0
 
 legacy_service_dir="$HOME/.local/share/dbus-1/services"
@@ -22,4 +22,4 @@ for legacy_service in "${legacy_service_names[@]}"; do
     rm -f -- "$service_path"
   fi
 done
-rmdir -- "$HOME/.local/share/qvos/defaults" 2>/dev/null || true
+rmdir -- "$HOME/.local/lib/qvos/defaults" 2>/dev/null || true

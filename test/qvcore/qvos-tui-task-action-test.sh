@@ -23,7 +23,7 @@ install -d \
   "$source_root/bin" \
   "$source_root/qvcore/tui/task/presenters" \
   "$source_root/qvcore/tui" \
-  "$test_home/.local/share/qvos/tui/task" \
+  "$test_home/.local/lib/qvos/tui/task" \
   "$test_bin"
 install -m 0755 "$root/qvcore/tui/task/launch" "$source_root/qvcore/tui/task/launch"
 install -m 0755 "$root/qvcore/tui/task/run" "$source_root/qvcore/tui/task/run"
@@ -100,7 +100,7 @@ case ${1:-} in
   ;;
 esac
 OWNER
-install -m 0755 /dev/stdin "$test_home/.local/share/qvos/tui/task/fixture-selection-owner" <<'OWNER'
+install -m 0755 /dev/stdin "$test_home/.local/lib/qvos/tui/task/fixture-selection-owner" <<'OWNER'
 #!/bin/bash
 echo "stale installed qvOS owner was used" >&2
 exit 77

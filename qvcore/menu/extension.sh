@@ -6,14 +6,14 @@ INSTALL_EASY_LIST_ACTIVE=false
 STYLE_BACK_MENU=show_main_menu
 
 launch_tui_task() {
-  local launcher=${QVOS_TUI_TASK_LAUNCH:-$HOME/.local/share/qvos/tui/task/launch}
+  local launcher=${QVOS_TUI_TASK_LAUNCH:-$HOME/.local/lib/qvos/tui/task/launch}
 
   "$launcher" "$1"
 }
 
 tui_task_for_owner() {
   local owner_command="$1"
-  local catalog="$HOME/.local/share/qvos/tui/task/actions.psv"
+  local catalog="$HOME/.local/lib/qvos/tui/task/actions.psv"
 
   [[ -f $catalog ]] || return 1
   awk -F '|' -v wanted="$owner_command" '
@@ -89,7 +89,7 @@ show_settings_menu() {
 
 show_settings_area_menu() {
   local area="$1"
-  local catalog="$HOME/.local/share/qvos/menu/concepts.psv"
+  local catalog="$HOME/.local/lib/qvos/menu/concepts.psv"
   local line
   local choice
   local index
@@ -147,7 +147,7 @@ show_software_menu() {
 }
 
 launch_software_action() {
-  local launcher=${QVOS_SOFTWARE_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/launch}
+  local launcher=${QVOS_SOFTWARE_ACTION_LAUNCH:-$HOME/.local/lib/qvos/tui/action/launch}
 
   "$launcher" "$1"
 }
@@ -158,18 +158,18 @@ launch_software_installer() {
 
   case $slug in
   alacritty | foot | ghostty | kitty)
-    launcher=${QVOS_TERMINAL_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/terminal-launch}
+    launcher=${QVOS_TERMINAL_ACTION_LAUNCH:-$HOME/.local/lib/qvos/tui/action/terminal-launch}
     "$launcher" "$slug"
     ;;
   *)
-    launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-$HOME/.local/share/qvos/tui/action/launch}
+    launcher=${QVOS_SOFTWARE_INSTALLER_LAUNCH:-$HOME/.local/lib/qvos/tui/action/launch}
     "$launcher" --installer "$slug"
     ;;
   esac
 }
 
 launch_font() {
-  local launcher=${QVOS_FONT_ACTION_LAUNCH:-$HOME/.local/share/qvos/tui/action/font-launch}
+  local launcher=${QVOS_FONT_ACTION_LAUNCH:-$HOME/.local/lib/qvos/tui/action/font-launch}
 
   "$launcher" "$1"
 }
@@ -358,7 +358,7 @@ concept_action_icon() {
 show_concept_menu() {
   local slug="$1"
   local back_area="${2:-}"
-  local catalog="$HOME/.local/share/qvos/menu/concepts.psv"
+  local catalog="$HOME/.local/lib/qvos/menu/concepts.psv"
   local line
   local -a fields=()
   local -a labels=()

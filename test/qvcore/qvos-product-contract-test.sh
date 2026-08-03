@@ -31,6 +31,21 @@ if rg -q '/home/qv(/|$)' "$root/release/iso" "$root/qvcore/tui"; then
 fi
 pass "ISO-owned source excludes development-machine home paths"
 
+if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
+  "$root/bin" \
+  "$root/config" \
+  "$root/development" \
+  "$root/qvcore" \
+  "$root/services"; then
+  fail "generated runtime payload still occupies the canonical source root"
+fi
+grep -Fq 'mkdir -p "$HOME/.local/lib/qvos"' "$root/qvcore/install/desktop" ||
+  fail "native qvOS runtime root"
+grep -Fq 'runtime_root="$lib_root/qvos"' \
+  "$root/qvcore/install/migrate-source-root" ||
+  fail "legacy runtime relocation owner"
+pass "source and generated runtime roots are singular and separate"
+
 [[ -f $root/qvcore/install/packaging/base.packages &&
   -f $root/qvcore/install/packaging/other.packages ]] ||
   fail "native qvOS package manifest is missing"

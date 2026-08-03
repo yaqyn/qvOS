@@ -17,7 +17,7 @@
     "tooltip": true,
     "interval": 60,
     "signal": 11,
-    "exec": "~/.local/share/qvos/waybar/prayerbar.sh",
+    "exec": "~/.local/lib/qvos/waybar/prayerbar.sh",
     "return-type": "json"
   },
   "custom/qv-clock": {
@@ -25,7 +25,7 @@
     "tooltip": true,
     "interval": 60,
     "signal": 12,
-    "exec": "~/.local/share/qvos/waybar/clock.sh",
+    "exec": "~/.local/lib/qvos/waybar/clock.sh",
     "on-click-right": "omarchy-launch-qvos-task timezone",
     "return-type": "json"
   },

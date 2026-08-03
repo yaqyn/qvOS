@@ -22,13 +22,13 @@ install -d \
   "$test_bin" \
   "$test_home/.config" \
   "$test_home/.local/share/applications" \
-  "$test_home/.local/share/qvos/menu" \
+  "$test_home/.local/lib/qvos/menu" \
   "$test_omarchy/bin" \
   "$test_omarchy/qvcore/menu" \
   "$package_dir"
 install -m 0755 \
   "$root/qvcore/menu/terminal-action" \
-  "$test_home/.local/share/qvos/menu/terminal-action"
+  "$test_home/.local/lib/qvos/menu/terminal-action"
 install -m 0755 \
   "$root/qvcore/menu/software-installer-state" \
   "$test_omarchy/qvcore/menu/software-installer-state"
@@ -101,15 +101,15 @@ export QVOS_TEST_PACKAGE_DIR="$package_dir"
 
 touch "$package_dir/alacritty" "$package_dir/foot" "$package_dir/ghostty"
 "$test_omarchy/bin/omarchy-default-terminal" ghostty
-[[ $("$test_home/.local/share/qvos/menu/terminal-action" alacritty --state) == "installed" ]] ||
+[[ $("$test_home/.local/lib/qvos/menu/terminal-action" alacritty --state) == "installed" ]] ||
   fail "installed non-default terminal state"
-[[ $("$test_home/.local/share/qvos/menu/terminal-action" ghostty --state) == "active" ]] ||
+[[ $("$test_home/.local/lib/qvos/menu/terminal-action" ghostty --state) == "active" ]] ||
   fail "active default terminal state"
-[[ $("$test_home/.local/share/qvos/menu/terminal-action" kitty --state) == "available" ]] ||
+[[ $("$test_home/.local/lib/qvos/menu/terminal-action" kitty --state) == "available" ]] ||
   fail "available terminal state"
 printf 'ok - terminal owner distinguishes available, installed, and active states\n'
 
-"$test_home/.local/share/qvos/menu/terminal-action" alacritty --apply
+"$test_home/.local/lib/qvos/menu/terminal-action" alacritty --apply
 [[ $("$test_omarchy/bin/omarchy-default-terminal") == "alacritty" ]] ||
   fail "Make Default did not apply the installed terminal"
 export QVOS_ACTION_SLUG=alacritty
@@ -171,10 +171,10 @@ export QVOS_ACTION_OPERATION=install
 export QVOS_ACTION_ROLLBACK=owner-state-v1
 export QVOS_ACTION_ROLLBACK_STATE="$test_root/rollback"
 "$root/qvcore/tui/action/run-installer" --check
-"$test_home/.local/share/qvos/menu/terminal-action" \
+"$test_home/.local/lib/qvos/menu/terminal-action" \
   foot --qvos-rollback-snapshot "$QVOS_ACTION_ROLLBACK_STATE"
 touch "$package_dir/foot"
-"$test_home/.local/share/qvos/menu/terminal-action" \
+"$test_home/.local/lib/qvos/menu/terminal-action" \
   foot --qvos-rollback-restore "$QVOS_ACTION_ROLLBACK_STATE"
 rm -rf -- "$QVOS_ACTION_ROLLBACK_STATE"
 rm -f -- "$package_dir/foot"

@@ -12,7 +12,7 @@ directory=$1
   exit 1
 }
 
-launcher="$HOME/.local/share/qvos/desktop/context/qvos-launch-terminal-here"
+launcher="$HOME/.local/lib/qvos/desktop/context/qvos-launch-terminal-here"
 [[ -x $launcher ]] || {
   notify-send -u critical "qvOS Codex" "The qvOS context launcher is unavailable." >/dev/null 2>&1 || true
   exit 1

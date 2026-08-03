@@ -2,8 +2,8 @@
 set -euo pipefail
 
 source_dir="$OMARCHY_PATH/qvcore/power"
-runtime_dir="$HOME/.local/share/qvos/power"
-qvos_bin="$HOME/.local/share/qvos/bin"
+runtime_dir="$HOME/.local/lib/qvos/power"
+qvos_bin="$HOME/.local/lib/qvos/bin"
 local_bin="$HOME/.local/bin"
 user_unit_dir="$HOME/.config/systemd/user"
 system_root=${QVOS_POWER_SYSTEM_ROOT:-}

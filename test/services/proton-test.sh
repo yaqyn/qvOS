@@ -224,11 +224,11 @@ grep -Fq 'Continuing past the unauthenticated Proton Pass probe cache.' \
   fail "Proton Codex skill"
 [[ -f $auth_root/data/proton-pass-cli/.session/session.json ]] ||
   fail "Proton Codex authentication"
-[[ -x $test_root/home/.local/share/qvos/thunar/proton-drive-upload ]] ||
+[[ -x $test_root/home/.local/lib/qvos/thunar/proton-drive-upload ]] ||
   fail "Proton desktop integration"
 
 printf 'stale integration\n' \
-  >"$test_root/home/.local/share/qvos/thunar/proton-drive-upload"
+  >"$test_root/home/.local/lib/qvos/thunar/proton-drive-upload"
 printf 'stale skill\n' \
   >"$test_root/home/.codex/skills/proton-cli/SKILL.md"
 action_count=$(wc -l <"$log")
@@ -236,7 +236,7 @@ auth_hash=$(sha256sum "$auth_root/data/proton-pass-cli/.session/session.json")
 run_proton reconcile >/dev/null
 cmp -s \
   "$source_root/qvcore/thunar/proton-drive-upload" \
-  "$test_root/home/.local/share/qvos/thunar/proton-drive-upload" ||
+  "$test_root/home/.local/lib/qvos/thunar/proton-drive-upload" ||
   fail "Proton enrolled desktop reconciliation"
 cmp -s \
   "$source_root/services/proton/skill/SKILL.md" \
@@ -256,7 +256,7 @@ run_proton remove --yes >/dev/null
   fail "Proton package removal"
 [[ ! -e $test_root/home/.codex/skills/proton-cli ]] ||
   fail "Proton skill removal"
-[[ ! -e $test_root/home/.local/share/qvos/thunar/proton-drive-upload ]] ||
+[[ ! -e $test_root/home/.local/lib/qvos/thunar/proton-drive-upload ]] ||
   fail "Proton desktop integration removal"
 [[ $(<"$auth_root/data/preserved") == "credential state" ]] ||
   fail "Proton authentication preservation"

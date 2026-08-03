@@ -15,7 +15,7 @@ if (($# > 1)); then
   exit 2
 fi
 
-qvos_root="$HOME/.local/share/qvos"
+qvos_root="$HOME/.local/lib/qvos"
 qvos_bin="$qvos_root/bin"
 source_root="${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}"
 runner="$qvos_bin/qvos-screensaver"

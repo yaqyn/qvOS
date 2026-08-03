@@ -277,10 +277,10 @@ if rg -i '\b(super|ctrl|alt|shift|f[0-9]+)\b' "$root/qvcore/tui/success-guidance
 fi
 printf 'ok - every Windows lifecycle stage stays inside shared TUI contracts\n'
 
-install -d "$test_home/.local/share/qvos/tui/action"
+install -d "$test_home/.local/lib/qvos/tui/action"
 install -m 0755 "$root/qvcore/windows/command" "$test_source/qvcore/windows/command"
 install -m 0755 "$root/qvcore/windows/launch" "$test_source/qvcore/windows/launch"
-install -m 0755 /dev/stdin "$test_home/.local/share/qvos/tui/action/launch" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_home/.local/lib/qvos/tui/action/launch" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TEST_WINDOWS_LAUNCH_LOG"
 SCRIPT

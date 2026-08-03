@@ -21,13 +21,13 @@ run_migration() {
 }
 
 state_root="$test_root/home/.local/state/qvos"
-share_root="$test_root/home/.local/share/qvos"
+runtime_root="$test_root/home/.local/lib/qvos"
 install -d \
   "$state_root/qvcore" \
-  "$share_root/qvdev-tools/bin"
+  "$runtime_root/qvdev-tools/bin"
 install -m 0644 /dev/null "$state_root/qvcore/proton"
 install -m 0644 /dev/null "$state_root/qvcore/qvdev"
-printf 'managed tool\n' >"$share_root/qvdev-tools/bin/example"
+printf 'managed tool\n' >"$runtime_root/qvdev-tools/bin/example"
 
 run_migration --all
 
@@ -38,10 +38,10 @@ for marker in services/proton development/devel; do
     fail "private enrollment mode: $marker"
 done
 [[ ! -e $state_root/qvcore ]] || fail "legacy enrollment root cleanup"
-[[ -f $share_root/devel-tools/bin/example ]] || fail "Devel tool-root migration"
-[[ $(stat -c '%a' "$share_root/devel-tools") == "700" ]] ||
+[[ -f $runtime_root/devel-tools/bin/example ]] || fail "Devel tool-root migration"
+[[ $(stat -c '%a' "$runtime_root/devel-tools") == "700" ]] ||
   fail "private Devel tool-root mode"
-[[ ! -e $share_root/qvdev-tools ]] || fail "legacy Devel tool-root cleanup"
+[[ ! -e $runtime_root/qvdev-tools ]] || fail "legacy Devel tool-root cleanup"
 
 run_migration --all
 

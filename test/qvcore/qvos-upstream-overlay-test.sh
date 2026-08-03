@@ -285,7 +285,7 @@ for path in "${public_adapters[@]}"; do
   [[ -x $root/$path ]] || fail "$path public adapter mode"
   (($(wc -l <"$root/$path") <= 15)) ||
     fail "$path contains implementation outside qvcore/"
-  rg -q 'qvcore/|share/qvos/|compat/omarchy/' "$root/$path" ||
+  rg -q 'qvcore/|share/qvos/|lib/qvos/|compat/omarchy/' "$root/$path" ||
     fail "$path does not delegate to a qvOS source or runtime owner"
 done
 pass "qvOS public commands are thin source or checked-runtime adapters"

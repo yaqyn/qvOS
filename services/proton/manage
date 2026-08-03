@@ -23,8 +23,8 @@ pass_cli="$HOME/.local/bin/pass-cli"
 drive_cli="$HOME/.local/bin/proton-drive"
 thunar_actions_source="$qvcore_dir/thunar/actions.sh"
 thunar_upload_source="$qvcore_dir/thunar/proton-drive-upload"
-thunar_upload_runtime="$HOME/.local/share/qvos/thunar/proton-drive-upload"
-thunar_upload_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/proton-drive-upload\" \"\$@\"' qvos-thunar %F"
+thunar_upload_runtime="$HOME/.local/lib/qvos/thunar/proton-drive-upload"
+thunar_upload_command="/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/proton-drive-upload\" \"\$@\"' qvos-thunar %F"
 pass_admin_root=""
 created_pat_id=""
 codex_pat=""
@@ -114,7 +114,7 @@ desktop_integration_ready() {
 }
 
 install_desktop_integration() {
-  install -d "$HOME/.local/share/qvos/thunar"
+  install -d "$HOME/.local/lib/qvos/thunar"
   install -m 0755 "$thunar_upload_source" "$thunar_upload_runtime"
   qvos_thunar_ensure_action \
     "qvos-proton-drive-upload" \

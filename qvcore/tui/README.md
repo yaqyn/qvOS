@@ -34,7 +34,7 @@ The TUI root owns reusable presentation and capability configuration:
 
 `install` deploys `qvos-tui` together with its launchers, action/task/update
 adapters, task catalogs, presenters, and success guidance under
-`~/.local/share/qvos/tui`. Desktop routes execute that checked runtime payload,
+`~/.local/lib/qvos/tui`. Desktop routes execute that checked runtime payload,
 while adapters resolve only their delegated mutation owners from the active
 `OMARCHY_PATH`. This prevents a current binary from calling stale cancellation
 or presentation adapters in the live Omarchy checkout.

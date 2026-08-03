@@ -4,7 +4,7 @@
   <icon>utilities-terminal</icon>
   <name>Open Terminal Here</name>
   <unique-id>qvos-terminal-here</unique-id>
-  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/open-here" terminal "$1"' qvos-thunar %f</command>
+  <command>/bin/bash -c '"$HOME/.local/lib/qvos/thunar/open-here" terminal "$1"' qvos-thunar %f</command>
   <description>Open a terminal in this folder.</description>
   <range></range>
   <patterns>*</patterns>
@@ -15,7 +15,7 @@
   <icon>accessories-text-editor</icon>
   <name>Open Editor Here</name>
   <unique-id>qvos-editor-here</unique-id>
-  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/open-here" editor "$1"' qvos-thunar %f</command>
+  <command>/bin/bash -c '"$HOME/.local/lib/qvos/thunar/open-here" editor "$1"' qvos-thunar %f</command>
   <description>Open the default editor in this folder.</description>
   <range></range>
   <patterns>*</patterns>
@@ -26,7 +26,7 @@
   <icon>preferences-desktop-wallpaper</icon>
   <name>Set as Background</name>
   <unique-id>qvos-set-background</unique-id>
-  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/set-background" "$1"' qvos-thunar %f</command>
+  <command>/bin/bash -c '"$HOME/.local/lib/qvos/thunar/set-background" "$1"' qvos-thunar %f</command>
   <description>Set this image as the current qvOS background.</description>
   <range></range>
   <patterns>*.avif;*.bmp;*.gif;*.jpeg;*.jpg;*.png;*.webp</patterns>
@@ -37,7 +37,7 @@
   <icon>media-playback-start</icon>
   <name>Transcode</name>
   <unique-id>qvos-transcode</unique-id>
-  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/transcode" "$1"' qvos-thunar %f</command>
+  <command>/bin/bash -c '"$HOME/.local/lib/qvos/thunar/transcode" "$1"' qvos-thunar %f</command>
   <description>Convert this image or video for sharing.</description>
   <range></range>
   <patterns>*.avif;*.avi;*.gif;*.heic;*.jpeg;*.jpg;*.m4v;*.mkv;*.mov;*.mp4;*.png;*.webm;*.webp</patterns>
@@ -49,7 +49,7 @@
   <icon>localsend</icon>
   <name>Send via LocalSend</name>
   <unique-id>qvos-localsend-share</unique-id>
-  <command>/bin/bash -c '"$HOME/.local/share/qvos/thunar/share" "$@"' qvos-thunar %F</command>
+  <command>/bin/bash -c '"$HOME/.local/lib/qvos/thunar/share" "$@"' qvos-thunar %F</command>
   <description>Send the selected files and folders to nearby devices.</description>
   <range></range>
   <patterns>*</patterns>

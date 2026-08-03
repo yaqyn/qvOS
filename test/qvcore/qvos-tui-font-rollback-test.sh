@@ -31,10 +31,10 @@ config_paths=(
 install -d \
   "$test_bin" \
   "$test_root/runtime" \
-  "$test_home/.local/share/qvos/menu"
+  "$test_home/.local/lib/qvos/menu"
 install -m 0755 \
   "$root/qvcore/menu/font-install" \
-  "$test_home/.local/share/qvos/menu/font-install"
+  "$test_home/.local/lib/qvos/menu/font-install"
 for path in "${config_paths[@]}"; do
   install -d "$(dirname -- "$path")"
   printf 'font=JetBrainsMono Nerd Font\n' >"$path"

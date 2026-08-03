@@ -91,6 +91,6 @@ grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, omarchy-menu 
   fail "native background picker"
 grep -Fqx 'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' "$bindings" ||
   fail "native special workspace toggle"
-grep -Fqx 'bindd = SUPER CTRL, S, Move window in or out of special workspace, exec, ~/.local/share/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
+grep -Fqx 'bindd = SUPER CTRL, S, Move window in or out of special workspace, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
   fail "special window transfer binding"
 pass "the native qvOS map owns background and special workspace controls"

@@ -6,7 +6,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 Environment=QVOS_POWER_SERVICE=1
-ExecStart=%h/.local/share/qvos/power/battery-protection override-watch
+ExecStart=%h/.local/lib/qvos/power/battery-protection override-watch
 Restart=on-failure
 RestartSec=60
 UMask=0077

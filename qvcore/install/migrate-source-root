@@ -3,9 +3,13 @@ set -euo pipefail
 
 local_root="$HOME/.local"
 share_root="$local_root/share"
+lib_root="$local_root/lib"
 canonical_source="$share_root/qvos"
 compat_source="$share_root/omarchy"
+runtime_root="$lib_root/qvos"
 lock_dir="$share_root/.qvos-source-migration.lock"
+runtime_moved=false
+source_validated=false
 
 fail() {
   echo "$1" >&2
@@ -21,6 +25,21 @@ validate_checkout() {
     fail "The installed qvOS source has no safe Git metadata."
   [[ $(git -C "$source" branch --show-current 2>/dev/null || true) == "OS" ]] ||
     fail "The installed qvOS source is not on branch OS."
+}
+
+validate_runtime() {
+  local runtime="$1"
+
+  [[ -d $runtime && ! -L $runtime && $(stat -c %u -- "$runtime") == "$EUID" ]] ||
+    fail "The installed qvOS runtime is missing, linked, or has unexpected ownership."
+  [[ ! -e $runtime/.git && ! -L $runtime/.git ]] ||
+    fail "The installed qvOS runtime conflicts with source metadata."
+}
+
+rollback_runtime() {
+  [[ $runtime_moved == "true" ]] || return 0
+  mv -- "$runtime_root" "$canonical_source"
+  runtime_moved=false
 }
 
 if (( EUID == 0 )); then
@@ -42,24 +61,54 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -d $canonical_source && ! -L $canonical_source ]]; then
-  validate_checkout "$canonical_source"
-  if [[ -L $compat_source && $(readlink -- "$compat_source") == "qvos" ]]; then
+  if [[ -d $canonical_source/.git && ! -L $canonical_source/.git ]]; then
+    validate_checkout "$canonical_source"
+    if [[ -L $compat_source && $(readlink -- "$compat_source") == "qvos" ]]; then
+      exit 0
+    fi
+    [[ ! -e $compat_source && ! -L $compat_source ]] ||
+      fail "The inherited source path conflicts with the canonical qvOS source."
+    ln -s qvos "$compat_source"
     exit 0
   fi
-  [[ ! -e $compat_source && ! -L $compat_source ]] ||
-    fail "The inherited source path conflicts with the canonical qvOS source."
-  ln -s qvos "$compat_source"
-  exit 0
+
+  validate_runtime "$canonical_source"
+  validate_checkout "$compat_source"
+  source_validated=true
+  if [[ -e $runtime_root || -L $runtime_root ]]; then
+    fail "The native qvOS runtime conflicts with the legacy runtime."
+  fi
+  if [[ -e $lib_root || -L $lib_root ]]; then
+    [[ -d $lib_root && ! -L $lib_root && $(stat -c %u -- "$lib_root") == "$EUID" ]] ||
+      fail "qvOS source migration requires a safe user library directory."
+  else
+    install -d "$lib_root"
+  fi
+  [[ $(stat -c %d -- "$canonical_source") == $(stat -c %d -- "$lib_root") ]] ||
+    fail "qvOS runtime migration requires one filesystem for atomic relocation."
+  mv -- "$canonical_source" "$runtime_root"
+  runtime_moved=true
 fi
 
 [[ ! -e $canonical_source && ! -L $canonical_source ]] ||
   fail "The canonical qvOS source path is unsafe."
-validate_checkout "$compat_source"
+if [[ $source_validated == "false" ]]; then
+  validate_checkout "$compat_source"
+fi
 
-mv -- "$compat_source" "$canonical_source"
+if ! mv -- "$compat_source" "$canonical_source"; then
+  rollback_runtime ||
+    echo "Could not restore the prior qvOS runtime at $canonical_source." >&2
+  fail "Could not move qvOS source to its canonical root."
+fi
 if ! ln -s qvos "$compat_source"; then
   mv -- "$canonical_source" "$compat_source"
+  rollback_runtime ||
+    echo "Could not restore the prior qvOS runtime at $canonical_source." >&2
   fail "Could not create the inherited source compatibility link; restored the prior source."
 fi
 
 echo "Migrated qvOS source to $canonical_source."
+if [[ $runtime_moved == "true" ]]; then
+  echo "Migrated qvOS runtime to $runtime_root."
+fi

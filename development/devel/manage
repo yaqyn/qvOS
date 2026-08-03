@@ -15,8 +15,8 @@ direct_tool="$qvcore_dir/direct/tool"
 state_file="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/development/devel"
 thunar_actions_source="$qvcore_dir/thunar/actions.sh"
 thunar_codex_source="$qvcore_dir/thunar/codex"
-thunar_codex_runtime="$HOME/.local/share/qvos/thunar/codex"
-thunar_codex_command="/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/codex\" \"\$1\"' qvos-thunar %f"
+thunar_codex_runtime="$HOME/.local/lib/qvos/thunar/codex"
+thunar_codex_command="/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/codex\" \"\$1\"' qvos-thunar %f"
 assume_yes=0
 
 # shellcheck source=/dev/null
@@ -71,7 +71,7 @@ reconcile_integration() {
 }
 
 install_integration() {
-  install -d "$HOME/.local/share/qvos/thunar"
+  install -d "$HOME/.local/lib/qvos/thunar"
   install -m 0755 "$thunar_codex_source" "$thunar_codex_runtime"
   qvos_thunar_ensure_action \
     "qvos-codex-here" \

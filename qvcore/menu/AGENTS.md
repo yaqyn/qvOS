@@ -84,7 +84,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   remove only their exact owned block, link, and theme while preserving foreign
   files and user-selected themes.
 - Launch every TUI-backed menu action through the checked
-  `~/.local/share/qvos/tui` payload. Menu state may come from the active
+  `~/.local/lib/qvos/tui` payload. Menu state may come from the active
   Omarchy owner, but no route may pair that owner with launch, task, or
   cancellation adapters from the live checkout.
 

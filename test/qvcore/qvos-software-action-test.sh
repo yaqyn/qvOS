@@ -21,7 +21,7 @@ install -d \
   "$source_root/bin" \
   "$source_root/qvcore/menu" \
   "$source_root/qvcore/tui/action" \
-  "$test_root/home/.local/share/qvos/menu" \
+  "$test_root/home/.local/lib/qvos/menu" \
   "$test_bin"
 install -m 0755 "$root/qvcore/menu/software-state" "$source_root/qvcore/menu/software-state"
 install -m 0755 "$root/qvcore/menu/software-installer-state" "$source_root/qvcore/menu/software-installer-state"
@@ -60,7 +60,7 @@ install -m 0644 /dev/stdin "$source_root/qvcore/tui/success-guidance.psv" <<'GUI
 demo|install|Open the Demo fixture to continue.
 demo-installer|install|Open Demo Installer to continue.
 GUIDANCE
-install -m 0644 /dev/stdin "$test_root/home/.local/share/qvos/menu/concepts.psv" <<'CONCEPTS'
+install -m 0644 /dev/stdin "$test_root/home/.local/lib/qvos/menu/concepts.psv" <<'CONCEPTS'
 demo|󰏖|Demo|Settings · Software · Test|fixture
 CONCEPTS
 

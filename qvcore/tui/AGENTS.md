@@ -50,7 +50,7 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   Omarchy checkout, and stop active children when a TUI window exits.
 - Install the binary, launchers, action/task/update adapters, task catalogs,
   presenters, and success guidance as one checked payload under
-  `~/.local/share/qvos/tui`. Every desktop launch route uses that payload;
+  `~/.local/lib/qvos/tui`. Every desktop launch route uses that payload;
   runtime adapters may resolve delegated owners from `OMARCHY_PATH`, but never
   mix a current binary with presentation or cancellation adapters from the
   live Omarchy checkout.

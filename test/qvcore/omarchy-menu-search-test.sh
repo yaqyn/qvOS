@@ -105,7 +105,7 @@ assert any(
 PY
 pass "Walker binds Tab to a query-preserving mode reload"
 
-legacy_runtime="$test_root/.local/share/qvos/menu/elephant/qvos_omarchy_menu.lua"
+legacy_runtime="$test_root/.local/lib/qvos/menu/elephant/qvos_omarchy_menu.lua"
 legacy_link="$test_root/.config/elephant/menus/qvos_omarchy_menu.lua"
 install -m 0644 "$root/qvcore/menu/elephant/qvos_menu.lua" "$legacy_runtime"
 ln -s "$legacy_runtime" "$legacy_link"
@@ -171,7 +171,7 @@ local services_matches = 0
 local password_matches = 0
 local old_breadcrumbs = 0
 
-for line in io.lines(os.getenv("HOME") .. "/.local/share/qvos/menu/concepts.psv") do
+for line in io.lines(os.getenv("HOME") .. "/.local/lib/qvos/menu/concepts.psv") do
   if line ~= "" and line:sub(1, 1) ~= "#" then
     local slug, _, name, breadcrumb = line:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|")
     concept_counts[name] = {
@@ -268,7 +268,7 @@ for _, entry in ipairs(GetEntries("sublime")) do
   if entry.Text:match("^.-  (.*)$") == "Sublime Text" then
     assert(entry.Subtext == "Settings · Software · Editor")
     assert(entry.Actions.activate:find(
-      "/.local/share/qvos/tui/action/launch' '--installer' 'sublime-text'",
+      "/.local/lib/qvos/tui/action/launch' '--installer' 'sublime-text'",
       1,
       true
     ))
@@ -327,8 +327,8 @@ local proton = assert(by_name(entries, "Proton"))
 assert(go.Subtext == "")
 assert(rust.Subtext == "")
 assert(proton.Subtext == "")
-assert(go.Actions.activate:find("/.local/share/qvos/tui/action/launch' 'go'", 1, true))
-assert(rust.Actions.activate:find("/.local/share/qvos/tui/action/launch' 'rust'", 1, true))
+assert(go.Actions.activate:find("/.local/lib/qvos/tui/action/launch' 'go'", 1, true))
+assert(rust.Actions.activate:find("/.local/lib/qvos/tui/action/launch' 'rust'", 1, true))
 
 local view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
 view_file:write("software\n")
@@ -375,7 +375,7 @@ local function entry_name(entry)
   return entry.Text:match("^.-  (.*)$") or entry.Text
 end
 
-local intent_path = os.getenv("HOME") .. "/.local/share/qvos/menu/search-intents.psv"
+local intent_path = os.getenv("HOME") .. "/.local/lib/qvos/menu/search-intents.psv"
 local seen_intents = {}
 local target_counts = {}
 local intent_count = 0
@@ -619,7 +619,7 @@ pass "qvOS theme keeps breadcrumbs and hides transient provider noise"
 
 cmp -s \
   "$root/qvcore/menu/wait-for-elephant" \
-  "$test_root/.local/share/qvos/menu/wait-for-elephant" ||
+  "$test_root/.local/lib/qvos/menu/wait-for-elephant" ||
   fail "Elephant readiness helper"
 cmp -s \
   "$root/qvcore/menu/walker-elephant-ready.conf" \
@@ -638,7 +638,7 @@ printf '%s\n' "$*" >"$QVOS_TEST_ELEPHANT_LOG"
 SCRIPT
 QVOS_TEST_ELEPHANT_LOG="$elephant_log" \
   PATH="$test_bin:/usr/bin" \
-  "$test_root/.local/share/qvos/menu/wait-for-elephant"
+  "$test_root/.local/lib/qvos/menu/wait-for-elephant"
 [[ $(<"$elephant_log") == "query providerlist;;1" ]] ||
   fail "Elephant provider readiness query"
 pass "Walker startup waits for ready Elephant providers"
@@ -801,7 +801,7 @@ while IFS= read -r line || [[ -n $line ]]; do
     active_slug=${fields[0]}
     show_concept_menu "$active_slug"
   fi
-done <"$HOME/.local/share/qvos/menu/concepts.psv"
+done <"$HOME/.local/lib/qvos/menu/concepts.psv"
 SCRIPT
 )
 expected_single_action_routes=$(

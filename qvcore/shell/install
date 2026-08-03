@@ -2,12 +2,12 @@
 set -euo pipefail
 
 source_file="$OMARCHY_PATH/qvcore/shell/aliases"
-runtime_file="$HOME/.local/share/qvos/shell/aliases"
+runtime_file="$HOME/.local/lib/qvos/shell/aliases"
 bashrc="$HOME/.bashrc"
 bashrc_existed=0
 backup_done=0
 # shellcheck disable=SC2016
-runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
+runtime_source='source "$HOME/.local/lib/qvos/shell/aliases"'
 
 backup_bashrc() {
   local backup_file

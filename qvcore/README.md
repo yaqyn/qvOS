@@ -127,8 +127,10 @@ the old artifact, move or replace its state atomically, remove the old source
 and generated residue, update every consumer, and guard both the new identity
 and cleanup path in focused tests. The installed source is now canonical at
 `~/.local/share/qvos`; the exact relative `omarchy -> qvos` link is its only
-source-root compatibility seam. Boot, config, and remaining upstream ABI names
-stay unchanged until their complete lifecycles can move safely together.
+source-root compatibility seam. Generated runtime payloads live under
+`~/.local/lib/qvos`, never inside the checkout. Boot, config, and remaining
+upstream ABI names stay unchanged until their complete lifecycles can move
+safely together.
 
 `qvcore/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
 sysctl baseline, signed-package and localhost-first container defaults, the

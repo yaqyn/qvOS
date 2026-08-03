@@ -29,6 +29,7 @@ test/         Tests split along the same ownership boundaries.
 
 The installed source checkout is `~/.local/share/qvos`. During the native
 transition, `~/.local/share/omarchy` is only an exact relative compatibility
-link to that canonical checkout.
+link to that canonical checkout. Generated and checked runtime payloads live
+separately under `~/.local/lib/qvos` so the Git source stays clean.
 
 See [`qvcore/README.md`](qvcore/README.md) for the ownership map and lifecycle.

@@ -12,6 +12,8 @@ relative `~/.local/share/omarchy -> qvos` compatibility link until inherited
 paths are fully retired; reject any other object at either path. Migrate the
 old checkout atomically with `migrate-source-root` and roll back if link
 creation fails.
+Relocate the prior copied runtime tree atomically to `~/.local/lib/qvos` before
+claiming the source root; never merge runtime payloads into the Git checkout.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.

@@ -55,8 +55,8 @@ install -d \
   "$partial_root/qvcore/screensaver" \
   "$partial_root/qvcore/thunar" \
   "$partial_root/qvcore/waybar" \
-  "$partial_home/.local/share/qvos/desktop"
-touch "$partial_home/.local/share/qvos/desktop/keep-existing"
+  "$partial_home/.local/lib/qvos/desktop"
+touch "$partial_home/.local/lib/qvos/desktop/keep-existing"
 
 if HOME="$partial_home" OMARCHY_PATH="$partial_root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop" \
@@ -65,7 +65,7 @@ if HOME="$partial_home" OMARCHY_PATH="$partial_root" \
 fi
 grep -Fq 'Missing qvOS desktop feature source:' "$test_root/preflight.log" ||
   fail "incomplete source error"
-[[ -e $partial_home/.local/share/qvos/desktop/keep-existing ]] ||
+[[ -e $partial_home/.local/lib/qvos/desktop/keep-existing ]] ||
   fail "incomplete source preserved payload"
 pass "incomplete source cannot erase the installed desktop payload"
 
@@ -75,8 +75,8 @@ install -d "$partial_file_root/qvcore"
 for feature in desktop direct power screensaver security shell thunar tmux tui waybar windows; do
   cp -a "$root/qvcore/$feature" "$partial_file_root/qvcore/$feature"
 done
-install -d "$partial_file_home/.local/share/qvos/desktop"
-touch "$partial_file_home/.local/share/qvos/desktop/keep-existing"
+install -d "$partial_file_home/.local/lib/qvos/desktop"
+touch "$partial_file_home/.local/lib/qvos/desktop/keep-existing"
 unlink "$partial_file_root/qvcore/thunar/transcode"
 
 if HOME="$partial_file_home" OMARCHY_PATH="$partial_file_root" \
@@ -87,19 +87,19 @@ fi
 grep -Fq 'Missing qvOS desktop feature file:' \
   "$test_root/preflight-file.log" ||
   fail "incomplete source-file error"
-[[ -e $partial_file_home/.local/share/qvos/desktop/keep-existing ]] ||
+[[ -e $partial_file_home/.local/lib/qvos/desktop/keep-existing ]] ||
   fail "incomplete source-file preserved payload"
 pass "missing feature files cannot erase the installed desktop payload"
 
 unsafe_screensaver_home="$test_root/unsafe-screensaver-home"
 external_screensaver="$test_root/external-screensaver"
 install -d \
-  "$unsafe_screensaver_home/.local/share/qvos" \
+  "$unsafe_screensaver_home/.local/lib/qvos" \
   "$external_screensaver"
 touch "$external_screensaver/preserve"
 ln -s \
   "$external_screensaver" \
-  "$unsafe_screensaver_home/.local/share/qvos/screensaver"
+  "$unsafe_screensaver_home/.local/lib/qvos/screensaver"
 if HOME="$unsafe_screensaver_home" OMARCHY_PATH="$root" \
   "$root/qvcore/screensaver/install" >/dev/null 2>&1; then
   fail "symbolic-link screensaver runtime"
@@ -111,9 +111,9 @@ pass "screensaver installation refuses external runtime targets"
 
 downstream_failure_home="$test_root/downstream-failure-home"
 power_blocker="$test_root/power-blocker"
-install -d "$downstream_failure_home/.local/share/qvos/screensaver"
+install -d "$downstream_failure_home/.local/lib/qvos/screensaver"
 printf 'stale config\n' \
-  >"$downstream_failure_home/.local/share/qvos/screensaver/alacritty.toml"
+  >"$downstream_failure_home/.local/lib/qvos/screensaver/alacritty.toml"
 install -m 0644 /dev/null "$power_blocker"
 
 if HOME="$downstream_failure_home" \
@@ -125,7 +125,7 @@ if HOME="$downstream_failure_home" \
 fi
 cmp -s \
   "$root/qvcore/screensaver/alacritty.toml" \
-  "$downstream_failure_home/.local/share/qvos/screensaver/alacritty.toml" ||
+  "$downstream_failure_home/.local/lib/qvos/screensaver/alacritty.toml" ||
   fail "downstream failure removed the screensaver config"
 for command_name in \
   omarchy-launch-screensaver \
@@ -133,7 +133,7 @@ for command_name in \
   qvos-screensaver; do
   cmp -s \
     "$root/qvcore/screensaver/$command_name" \
-    "$downstream_failure_home/.local/share/qvos/bin/$command_name" ||
+    "$downstream_failure_home/.local/lib/qvos/bin/$command_name" ||
     fail "downstream failure left an incomplete $command_name"
 done
 pass "later privileged failures cannot break the screensaver runtime"
@@ -141,19 +141,19 @@ pass "later privileged failures cannot break the screensaver runtime"
 install -d \
   "$test_root/.config/omarchy/hooks/post-update.d" \
   "$test_root/.local/share/dbus-1/services" \
-  "$test_root/.local/share/qvos/bin" \
-  "$test_root/.local/share/qvos/desktop/context" \
-  "$test_root/.local/share/qvos/screensaver" \
-  "$test_root/.local/share/qvos/thunar" \
-  "$test_root/.local/share/qvos/tmux" \
-  "$test_root/.local/share/qvos/waybar"
+  "$test_root/.local/lib/qvos/bin" \
+  "$test_root/.local/lib/qvos/desktop/context" \
+  "$test_root/.local/lib/qvos/screensaver" \
+  "$test_root/.local/lib/qvos/thunar" \
+  "$test_root/.local/lib/qvos/tmux" \
+  "$test_root/.local/lib/qvos/waybar"
 touch \
-  "$test_root/.local/share/qvos/desktop/context/removed-helper" \
-  "$test_root/.local/share/qvos/screensaver/removed-launcher" \
-  "$test_root/.local/share/qvos/thunar/removed-feature" \
-  "$test_root/.local/share/qvos/tmux/removed-feature" \
-  "$test_root/.local/share/qvos/waybar/removed-feature"
-install -m 0755 /dev/null "$test_root/.local/share/qvos/waybar/prayer-data.sh"
+  "$test_root/.local/lib/qvos/desktop/context/removed-helper" \
+  "$test_root/.local/lib/qvos/screensaver/removed-launcher" \
+  "$test_root/.local/lib/qvos/thunar/removed-feature" \
+  "$test_root/.local/lib/qvos/tmux/removed-feature" \
+  "$test_root/.local/lib/qvos/waybar/removed-feature"
+install -m 0755 /dev/null "$test_root/.local/lib/qvos/waybar/prayer-data.sh"
 install -m 0644 /dev/null "$test_root/.bashrc"
 for service_name in \
   org.freedesktop.FileManager1 \
@@ -162,14 +162,14 @@ for service_name in \
     "$test_root/.local/share/dbus-1/services/$service_name.service" <<EOF
 [D-BUS Service]
 Name=$service_name
-Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --gapplication-service
+Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-service
 EOF
 done
 install -m 0644 /dev/stdin \
   "$test_root/.local/share/dbus-1/services/org.xfce.Thunar.service" <<EOF
 [D-BUS Service]
 Name=org.xfce.Thunar
-Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --gapplication-service
+Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-service
 # user customization
 EOF
 
@@ -187,7 +187,7 @@ grep -Fqx \
   fail "Omarchy user menu extension seam"
 pass "qvOS menu installs through the Omarchy user extension seam"
 
-runtime_provider="$test_root/.local/share/qvos/menu/elephant/omarchy_unlocks.lua"
+runtime_provider="$test_root/.local/lib/qvos/menu/elephant/omarchy_unlocks.lua"
 cmp -s "$root/qvcore/menu/elephant/omarchy_unlocks.lua" "$runtime_provider" ||
   fail "qvOS unlock provider runtime"
 [[ $(readlink "$test_root/.config/elephant/menus/omarchy_unlocks.lua") == "$runtime_provider" ]] ||
@@ -196,7 +196,7 @@ for provider in omarchy_background_selector.lua omarchy_themes.lua; do
   [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$root/default/elephant/$provider" ]] ||
     fail "$provider inherited provider link"
 done
-[[ $(find "$test_root/.local/share/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_menu.lua' ]] ||
+[[ $(find "$test_root/.local/lib/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_menu.lua' ]] ||
   fail "qvOS menu provider runtime inventory"
 pass "menu uses original Omarchy providers plus qvOS deltas"
 
@@ -210,12 +210,12 @@ cmp -s \
   fail "qvOS Waybar post-update hook install"
 pass "qvOS post-update hooks install from their feature owners"
 
-[[ ! -e $test_root/.local/share/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
-[[ ! -e $test_root/.local/share/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"
-[[ ! -e $test_root/.local/share/qvos/thunar/removed-feature ]] ||
+[[ ! -e $test_root/.local/lib/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
+[[ ! -e $test_root/.local/lib/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"
+[[ ! -e $test_root/.local/lib/qvos/thunar/removed-feature ]] ||
   fail "stale Thunar feature cleanup"
-[[ ! -e $test_root/.local/share/qvos/tmux/removed-feature ]] || fail "stale tmux feature cleanup"
-[[ ! -e $test_root/.local/share/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
+[[ ! -e $test_root/.local/lib/qvos/tmux/removed-feature ]] || fail "stale tmux feature cleanup"
+[[ ! -e $test_root/.local/lib/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
 pass "stale helper payloads are removed"
 
 for service_name in \
@@ -233,16 +233,16 @@ pass "every private helper has a feature owner"
 
 for feature in desktop direct tmux waybar windows; do
   expected_feature="$(find "$root/qvcore/$feature" -type f -printf '%P\n' | sort)"
-  installed_feature="$(find "$test_root/.local/share/qvos/$feature" -type f -printf '%P\n' | sort)"
+  installed_feature="$(find "$test_root/.local/lib/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
 done
 installed_thunar_inventory="$(
-  find "$test_root/.local/share/qvos/thunar" -type f -printf '%P\n' | sort
+  find "$test_root/.local/lib/qvos/thunar" -type f -printf '%P\n' | sort
 )"
 [[ $installed_thunar_inventory == $'actions.sh\nlaunch\nopen-here\nreconcile-default-actions\nset-background\nshare\ntranscode' ]] ||
   fail "default Thunar feature inventory"
 for optional_thunar_feature in codex proton-drive-upload; do
-  [[ ! -e $test_root/.local/share/qvos/thunar/$optional_thunar_feature ]] ||
+  [[ ! -e $test_root/.local/lib/qvos/thunar/$optional_thunar_feature ]] ||
     fail "optional Thunar $optional_thunar_feature base payload"
 done
 [[ $(xmlstarlet sel -t -v "count(/actions/action[unique-id='qvos-localsend-share'])" \
@@ -252,7 +252,7 @@ pass "installed feature payloads match tracked source"
 
 for optional_thunar_feature in codex proton-drive-upload; do
   printf 'stale optional integration\n' \
-    >"$test_root/.local/share/qvos/thunar/$optional_thunar_feature"
+    >"$test_root/.local/lib/qvos/thunar/$optional_thunar_feature"
 done
 install -d -m 0700 \
   "$test_root/.local/state/qvos/services" \
@@ -266,7 +266,7 @@ HOME="$test_root" OMARCHY_PATH="$root" \
 for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qvcore/thunar/$optional_thunar_feature" \
-    "$test_root/.local/share/qvos/thunar/$optional_thunar_feature" ||
+    "$test_root/.local/lib/qvos/thunar/$optional_thunar_feature" ||
     fail "enabled Thunar $optional_thunar_feature preservation"
 done
 cmp -s \
@@ -280,20 +280,20 @@ waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -print
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
-screensaver_files="$(find "$test_root/.local/share/qvos/screensaver" -maxdepth 1 -type f -printf '%f\n')"
+screensaver_files="$(find "$test_root/.local/lib/qvos/screensaver" -maxdepth 1 -type f -printf '%f\n')"
 [[ $screensaver_files == "alacritty.toml" ]] || fail "screensaver config inventory"
-[[ "$(stat -c '%a' "$test_root/.local/share/qvos/screensaver/alacritty.toml")" == "644" ]] || fail "screensaver config mode"
+[[ "$(stat -c '%a' "$test_root/.local/lib/qvos/screensaver/alacritty.toml")" == "644" ]] || fail "screensaver config mode"
 pass "screensaver configuration is singular and non-executable"
 
 for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-screensaver; do
-  installed_command="$test_root/.local/share/qvos/bin/$command_name"
+  installed_command="$test_root/.local/lib/qvos/bin/$command_name"
   [[ -x $installed_command ]] || fail "$command_name installation"
   [[ "$(readlink "$test_root/.local/bin/$command_name")" == "$installed_command" ]] || fail "$command_name link"
 done
 pass "screensaver commands and user links are installed"
 
 for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
-  [[ -x $test_root/.local/share/qvos/bin/$command_name ]] ||
+  [[ -x $test_root/.local/lib/qvos/bin/$command_name ]] ||
     fail "$command_name runtime installation"
 done
 pass "power guards are installed with the desktop runtime"
@@ -301,7 +301,7 @@ pass "power guards are installed with the desktop runtime"
 for runtime_file in battery-protection battery-protection-backend battery-protection-lib; do
   cmp -s \
     "$root/qvcore/power/$runtime_file" \
-    "$test_root/.local/share/qvos/power/$runtime_file" ||
+    "$test_root/.local/lib/qvos/power/$runtime_file" ||
     fail "Battery Protection $runtime_file runtime"
 done
 cmp -s \
@@ -338,7 +338,7 @@ jq -e '
   fail "Docker loopback publishing policy"
 pass "security baseline protects package trust without restricting desktop capabilities"
 
-tui_binary="$test_root/.local/share/qvos/tui/qvos-tui"
+tui_binary="$test_root/.local/lib/qvos/tui/qvos-tui"
 [[ -x $tui_binary && ! -L $tui_binary ]] ||
   fail "qvOS TUI managed binary"
 [[ $(readlink "$test_root/.local/bin/qvos-tui") == "$tui_binary" ]] ||
@@ -367,14 +367,14 @@ for runtime_file in \
   update/run; do
   cmp -s \
     "$root/qvcore/tui/$runtime_file" \
-    "$test_root/.local/share/qvos/tui/$runtime_file" ||
+    "$test_root/.local/lib/qvos/tui/$runtime_file" ||
     fail "qvOS TUI $runtime_file runtime"
 done
 while IFS= read -r presenter; do
   relative_presenter=${presenter#"$root/qvcore/tui/"}
   cmp -s \
     "$presenter" \
-    "$test_root/.local/share/qvos/tui/$relative_presenter" ||
+    "$test_root/.local/lib/qvos/tui/$relative_presenter" ||
     fail "qvOS TUI $relative_presenter runtime"
 done < <(find "$root/qvcore/tui/task/presenters" -type f | sort)
 HOME="$test_root" OMARCHY_PATH="$root" \
@@ -392,7 +392,7 @@ cancel_status=$(
     PATH="$cancel_test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=emacs \
     QVOS_ACTION_OPERATION=install \
-    "$test_root/.local/share/qvos/tui/action/run-installer" \
+    "$test_root/.local/lib/qvos/tui/action/run-installer" \
     --cancel-status
 )
 [[ $cancel_status == "target-not-detected" ]] ||
@@ -401,30 +401,30 @@ pass "qvOS TUI binary and cancellation adapters install as one runtime"
 
 cmp -s \
   "$root/qvcore/shell/aliases" \
-  "$test_root/.local/share/qvos/shell/aliases" ||
+  "$test_root/.local/lib/qvos/shell/aliases" ||
   fail "runtime shell overlay"
 # shellcheck disable=SC2016
 grep -Fqx \
-  'source "$HOME/.local/share/qvos/shell/aliases"' \
+  'source "$HOME/.local/lib/qvos/shell/aliases"' \
   "$test_root/.bashrc" ||
   fail "runtime shell source line"
 compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
   fail "Bash configuration backup"
 pass "Bash loads the source-independent qvOS shell overlay"
 
-[[ "$(stat -c '%a' "$test_root/.local/share/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
-[[ -x $test_root/.local/share/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
-[[ -x $test_root/.local/share/qvos/waybar/refresh ]] ||
+[[ "$(stat -c '%a' "$test_root/.local/lib/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
+[[ -x $test_root/.local/lib/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
+[[ -x $test_root/.local/lib/qvos/waybar/refresh ]] ||
   fail "Waybar refresh mode"
-[[ ! -x $test_root/.local/share/qvos/waybar/overrides.jsonc ]] ||
+[[ ! -x $test_root/.local/lib/qvos/waybar/overrides.jsonc ]] ||
   fail "Waybar override data mode"
-[[ ! -x $test_root/.local/share/qvos/waybar/post-update-hook ]] ||
+[[ ! -x $test_root/.local/lib/qvos/waybar/post-update-hook ]] ||
   fail "Waybar hook source mode"
-[[ -x $test_root/.local/share/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"
+[[ -x $test_root/.local/lib/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"
 while IFS= read -r helper; do
   [[ -x $helper ]] || fail "desktop helper mode"
-done < <(find "$test_root/.local/share/qvos/desktop" -type f)
-[[ ! -x $test_root/.local/share/qvos/thunar/actions.sh ]] ||
+done < <(find "$test_root/.local/lib/qvos/desktop" -type f)
+[[ ! -x $test_root/.local/lib/qvos/thunar/actions.sh ]] ||
   fail "Thunar action library mode"
 for feature in \
   launch \
@@ -433,7 +433,7 @@ for feature in \
   set-background \
   share \
   transcode; do
-  [[ -x $test_root/.local/share/qvos/thunar/$feature ]] ||
+  [[ -x $test_root/.local/lib/qvos/thunar/$feature ]] ||
     fail "Thunar $feature mode"
 done
 pass "tracked script and data modes are preserved"

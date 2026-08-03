@@ -19,7 +19,7 @@ qvos_resolve_owner() {
   owner_route=${owner_arguments[0]}
   if [[ $owner_route == qvcore/* ]]; then
     source_owner="$OMARCHY_PATH/$owner_route"
-    runtime_owner="$HOME/.local/share/qvos/${owner_route#qvcore/}"
+    runtime_owner="$HOME/.local/lib/qvos/${owner_route#qvcore/}"
     if [[ -x $source_owner ]]; then
       owner_arguments[0]=$source_owner
     elif [[ -x $runtime_owner ]]; then

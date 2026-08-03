@@ -4,7 +4,7 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
 source_dir="$OMARCHY_PATH/qvcore/tui"
-runtime_dir="$HOME/.local/share/qvos/tui"
+runtime_dir="$HOME/.local/lib/qvos/tui"
 target="$runtime_dir/qvos-tui"
 command_link="$HOME/.local/bin/qvos-tui"
 mode=${1:---build-if-available}

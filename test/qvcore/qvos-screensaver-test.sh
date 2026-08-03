@@ -27,10 +27,10 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin" "$test_root/.local/share/qvos/bin" "$test_root/.config/omarchy/branding" "$test_root/runtime"
+install -d "$test_bin" "$test_root/.local/lib/qvos/bin" "$test_root/.config/omarchy/branding" "$test_root/runtime"
 printf 'qvOS\n' >"$test_root/.config/omarchy/branding/screensaver.txt"
 
-install -m 0755 /dev/stdin "$test_root/.local/share/qvos/bin/qvos-screensaver" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_root/.local/lib/qvos/bin/qvos-screensaver" <<'SCRIPT'
 #!/bin/bash
 
 exit 0

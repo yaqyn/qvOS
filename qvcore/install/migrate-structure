@@ -3,7 +3,7 @@ set -euo pipefail
 
 mode=${1:---all}
 state_root="${XDG_STATE_HOME:-$HOME/.local/state}/qvos"
-share_root="$HOME/.local/share/qvos"
+runtime_root="$HOME/.local/lib/qvos"
 legacy_enrollment_root="$state_root/qvcore"
 
 usage() {
@@ -70,16 +70,16 @@ migrate_marker() {
 }
 
 migrate_devel_tools() {
-  local legacy="$share_root/qvdev-tools"
-  local target="$share_root/devel-tools"
+  local legacy="$runtime_root/qvdev-tools"
+  local target="$runtime_root/devel-tools"
 
   [[ ! -e $legacy && ! -L $legacy ]] && return 0
   [[ -d $legacy && ! -L $legacy && -O $legacy ]] || {
     echo "Refusing unsafe legacy Devel tool root: $legacy" >&2
     return 1
   }
-  [[ -d $share_root && ! -L $share_root && -O $share_root ]] || {
-    echo "Refusing unsafe qvOS share root: $share_root" >&2
+  [[ -d $runtime_root && ! -L $runtime_root && -O $runtime_root ]] || {
+    echo "Refusing unsafe qvOS runtime root: $runtime_root" >&2
     return 1
   }
   if [[ -e $target || -L $target ]]; then

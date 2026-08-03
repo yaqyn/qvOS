@@ -41,23 +41,23 @@ pass "tracked Thunar actions XML is valid and intentionally scoped"
 assert_action \
   qvos-terminal-here \
   "Open Terminal Here" \
-  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/open-here\" terminal \"\$1\"' qvos-thunar %f"
+  "/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/open-here\" terminal \"\$1\"' qvos-thunar %f"
 assert_action \
   qvos-editor-here \
   "Open Editor Here" \
-  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/open-here\" editor \"\$1\"' qvos-thunar %f"
+  "/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/open-here\" editor \"\$1\"' qvos-thunar %f"
 assert_action \
   qvos-set-background \
   "Set as Background" \
-  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/set-background\" \"\$1\"' qvos-thunar %f"
+  "/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/set-background\" \"\$1\"' qvos-thunar %f"
 assert_action \
   qvos-transcode \
   "Transcode" \
-  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/transcode\" \"\$1\"' qvos-thunar %f"
+  "/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/transcode\" \"\$1\"' qvos-thunar %f"
 assert_action \
   qvos-localsend-share \
   "Send via LocalSend" \
-  "/bin/bash -c '\"\$HOME/.local/share/qvos/thunar/share\" \"\$@\"' qvos-thunar %F"
+  "/bin/bash -c '\"\$HOME/.local/lib/qvos/thunar/share\" \"\$@\"' qvos-thunar %F"
 pass "every default qvOS action is direct in Thunar's custom-action section"
 
 grep -Fqx 'menu separator {' "$gtk_css" ||
@@ -97,9 +97,9 @@ if find "$root/qvcore" \
 fi
 pass "Thunar-owned scripts stay in one source domain"
 
-grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$HOME\"" "$bindings" ||
+grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$HOME\"" "$bindings" ||
   fail "home Thunar binding"
-grep -Fqx "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/share/qvos/thunar/launch \"\$(~/.local/share/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
+grep -Fqx "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$(~/.local/lib/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"
 

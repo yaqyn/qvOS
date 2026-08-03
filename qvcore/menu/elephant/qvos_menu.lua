@@ -128,7 +128,7 @@ local function qvos_tui_owner(relative_path, ...)
     return nil
   end
 
-  local command = shell_escape(home .. "/.local/share/qvos/tui/" .. relative_path)
+  local command = shell_escape(home .. "/.local/lib/qvos/tui/" .. relative_path)
   for _, argument in ipairs({ ... }) do
     command = command .. " " .. shell_escape(argument)
   end
@@ -285,7 +285,7 @@ local function load_search_intents()
 
   local home = os.getenv("HOME")
   local intents = home
-    and io.open(home .. "/.local/share/qvos/menu/search-intents.psv", "r")
+    and io.open(home .. "/.local/lib/qvos/menu/search-intents.psv", "r")
 
   if not intents then
     return search_intents_cache
@@ -357,7 +357,7 @@ end
 
 local function software_action(slug)
   local home = os.getenv("HOME")
-  local launch = home and home .. "/.local/share/qvos/tui/action/launch"
+  local launch = home and home .. "/.local/lib/qvos/tui/action/launch"
 
   return launch and shell_escape(launch) .. " " .. shell_escape(slug)
     or route("concept:" .. slug)
@@ -377,7 +377,7 @@ local function software_installer(slug)
     arguments = { slug }
   end
 
-  local launch = home and home .. "/.local/share/qvos/tui/" .. action
+  local launch = home and home .. "/.local/lib/qvos/tui/" .. action
 
   return launch and shell_escape(launch)
       .. " "
@@ -389,7 +389,7 @@ end
 local function add_software_installers(entries, breadcrumb)
   local home = os.getenv("HOME")
   local path = home
-    and home .. "/.local/share/qvos/menu/software-installers.psv"
+    and home .. "/.local/lib/qvos/menu/software-installers.psv"
   local catalog = path and io.open(path, "r")
 
   if not catalog then
@@ -445,7 +445,7 @@ local software_selectors = {
 
 local function add_concepts(entries, software_view)
   local home = os.getenv("HOME")
-  local catalog = home and io.open(home .. "/.local/share/qvos/menu/concepts.psv", "r")
+  local catalog = home and io.open(home .. "/.local/lib/qvos/menu/concepts.psv", "r")
   local action_states = software_action_states()
 
   if not catalog then

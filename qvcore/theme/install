@@ -2,7 +2,7 @@
 set -euo pipefail
 
 source_dir="$OMARCHY_PATH/qvcore/theme/yaqyn"
-runtime_dir="$HOME/.local/share/qvos/theme/yaqyn"
+runtime_dir="$HOME/.local/lib/qvos/theme/yaqyn"
 target="$HOME/.config/omarchy/themes/yaqyn"
 themes_dir="$HOME/.config/omarchy/themes"
 backup_dir="$HOME/.local/state/qvos/theme-backups"

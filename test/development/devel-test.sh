@@ -110,16 +110,16 @@ run_devel install >/dev/null
 for tool_id in node uv semgrep devcontainer playwright-cli; do
   [[ -f $installed_tools/$tool_id ]] || fail "Devel direct tool: $tool_id"
 done
-[[ -x $test_root/home/.local/share/qvos/thunar/codex ]] ||
+[[ -x $test_root/home/.local/lib/qvos/thunar/codex ]] ||
   fail "Devel Codex workbench helper"
 
 printf 'stale integration\n' \
-  >"$test_root/home/.local/share/qvos/thunar/codex"
+  >"$test_root/home/.local/lib/qvos/thunar/codex"
 action_count=$(wc -l <"$log")
 run_devel reconcile >/dev/null
 cmp -s \
   "$source_root/qvcore/thunar/codex" \
-  "$test_root/home/.local/share/qvos/thunar/codex" ||
+  "$test_root/home/.local/lib/qvos/thunar/codex" ||
   fail "Devel enrolled integration reconciliation"
 [[ $(wc -l <"$log") == "$action_count" ]] ||
   fail "Devel reconciliation changed packages or direct tools"
@@ -128,7 +128,7 @@ run_devel remove --yes >/dev/null
 [[ -f $installed_tools/codex ]] || fail "Devel removed qvOS Codex"
 [[ ! -e $test_root/home/.local/state/qvos/development/devel ]] ||
   fail "Devel enrollment removal"
-[[ ! -e $test_root/home/.local/share/qvos/thunar/codex ]] ||
+[[ ! -e $test_root/home/.local/lib/qvos/thunar/codex ]] ||
   fail "Devel workbench integration removal"
 [[ $(grep $'^tool-remove' "$log" | tail -n 5) == \
   $'tool-remove\tplaywright-cli\ntool-remove\tdevcontainer\ntool-remove\tsemgrep\ntool-remove\tuv\ntool-remove\tnode' ]] ||
