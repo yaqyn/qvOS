@@ -18,9 +18,10 @@ hotspots, removable storage, compilers, and developer tooling available unless
 a concrete qvOS threat and explicit user approval justify a narrower system.
 `qv/security/boot-mount` protects the vfat EFI system partition with root-only
 file and directory masks. Change only one unambiguous `/boot` fstab entry,
-preserve a private backup, remount and verify immediately, and roll the fstab
-policy back if the live mount cannot accept it. Boot owners must use privileged
-reads for EFI payloads after this boundary is active.
+preserve a private backup, reload systemd's mount definitions before each
+remount, verify immediately, and restore and reload the prior policy if the
+live mount cannot accept it. Boot owners must use privileged reads for EFI
+payloads after this boundary is active.
 `qv/security/install` also removes group and other write access from root-owned
 regular files under `/usr/install`. System package code must not remain
 writable by unprivileged users, and the reconciliation must run after package

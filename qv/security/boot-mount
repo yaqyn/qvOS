@@ -22,6 +22,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
+as_root() {
+  if ((EUID == 0)); then
+    "$@"
+  else
+    /usr/bin/sudo "$@"
+  fi
+}
+
+reload_and_remount_boot() {
+  as_root /usr/bin/systemctl daemon-reload || return
+  as_root /usr/bin/mount -o remount /boot
+}
+
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
   echo "A custom qvOS security system root is only valid in tests." >&2
   exit 2
@@ -108,37 +121,20 @@ if ((fstab_changed == 0)) &&
   exit 0
 fi
 
-if ((EUID == 0)); then
-  backup_file=$(mktemp /etc/fstab.qvos-backup.XXXXXX)
-  install -o root -g root -m 0600 "$fstab" "$backup_file"
-  ((fstab_changed == 0)) || install -o root -g root -m 0644 "$candidate" "$fstab"
-else
-  backup_file=$(/usr/bin/sudo /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
-  /usr/bin/sudo /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
-  if ((fstab_changed)); then
-    /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
-  fi
-fi
+backup_file=$(as_root /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
+as_root /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
+((fstab_changed == 0)) ||
+  as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
 
 remount_status=0
-if ((EUID == 0)); then
-  mount -o remount /boot || remount_status=$?
-else
-  /usr/bin/sudo /usr/bin/mount -o remount /boot || remount_status=$?
-fi
+reload_and_remount_boot || remount_status=$?
 current_options=$(findmnt -n -o OPTIONS --target /boot 2>/dev/null || true)
 if ((remount_status != 0)) ||
   [[ ,$current_options, != *",fmask=0077,"* ]] ||
   [[ ,$current_options, != *",dmask=0077,"* ]]; then
   if ((fstab_changed)); then
-    if ((EUID == 0)); then
-      install -o root -g root -m 0644 "$backup_file" "$fstab"
-      mount -o remount /boot || true
-    else
-      /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
-        "$backup_file" "$fstab"
-      /usr/bin/sudo /usr/bin/mount -o remount /boot || true
-    fi
+    as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
+    reload_and_remount_boot || true
   fi
   echo "Could not apply private /boot mount permissions; restored the prior fstab policy." >&2
   exit 1

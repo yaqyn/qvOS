@@ -350,6 +350,20 @@ QVOS_SECURITY_TESTING=1 \
   "$boot_mount"
 [[ $(sha256sum "$security_system_root/etc/fstab") == "$fstab_checksum" ]] ||
   fail "EFI mount policy idempotence"
+reload_line=$(grep -nF \
+  'as_root /usr/bin/systemctl daemon-reload || return' \
+  "$boot_mount" | cut -d: -f1)
+remount_line=$(grep -nF \
+  'as_root /usr/bin/mount -o remount /boot' \
+  "$boot_mount" | cut -d: -f1)
+[[ $reload_line =~ ^[0-9]+$ && $remount_line =~ ^[0-9]+$ ]] ||
+  fail "EFI remount reload lifecycle"
+((reload_line < remount_line)) ||
+  fail "EFI mount units reload before remount"
+grep -Fq 'reload_and_remount_boot || remount_status=$?' "$boot_mount" ||
+  fail "EFI mount apply uses the reload lifecycle"
+grep -Fq 'reload_and_remount_boot || true' "$boot_mount" ||
+  fail "EFI mount rollback uses the reload lifecycle"
 
 ambiguous_boot_root="$test_root/ambiguous-boot-system"
 install -d "$ambiguous_boot_root/etc"
