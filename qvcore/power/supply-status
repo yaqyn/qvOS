@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 1)) || {
+  echo "Usage: qvcore/power/supply-status <ac|battery>" >&2
+  exit 2
+}
+power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/power/supply-lib
+source "$power_root/supply-lib"
+case $1 in
+ac) qvos_ac_present ;;
+battery) qvos_battery_present ;;
+*)
+  echo "Usage: qvcore/power/supply-status <ac|battery>" >&2
+  exit 2
+  ;;
+esac

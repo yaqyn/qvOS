@@ -846,9 +846,9 @@ QVOS_TEST_CONCEPT_CHOICE="Drive Encryption" run_menu concept:password
 QVOS_TEST_CONCEPT_CHOICE=Report run_menu concept:battery-protection
 [[ $(<"$concept_options_log") == $'󰋼  Status\n󰐕  Enable\n󰆴  Disable\n󰂄  Full Charge Once\n󰈙  Report' ]] ||
   fail "Battery Protection concept actions"
-[[ $(<"$presentation_log") == "omarchy battery protection report" ]] ||
+[[ $(<"$presentation_log") == "qv battery protection report" ]] ||
   fail "Battery Protection native report owner"
-[[ $(<"$presentation_argv_log") == $'omarchy\nbattery\nprotection\nreport' ]] ||
+[[ $(<"$presentation_argv_log") == $'qv\nbattery\nprotection\nreport' ]] ||
   fail "Battery Protection native report argument boundaries"
 pass "concept sheets delegate their named actions correctly"
 
@@ -883,6 +883,6 @@ QVOS_TEST_SETTINGS_CHOICE=System \
   run_menu settings
 grep -Fqx '󰁹  Battery Protection' "$area_options_log" ||
   fail "Battery Protection System concept"
-[[ $(<"$presentation_log") == "omarchy battery protection status" ]] ||
+[[ $(<"$presentation_log") == "qv battery protection status" ]] ||
   fail "Battery Protection native status route"
 pass "Settings browse is shallow, noun-based, and catalog-derived"

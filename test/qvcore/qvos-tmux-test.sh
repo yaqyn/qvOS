@@ -149,7 +149,7 @@ pass "npm Codex process paths save as the canonical command"
 
 codex_command="node /tmp/node_modules/.bin/codex --yolo"
 protected_command="$(protect_startup_command "$codex_command")"
-[[ $protected_command == *".local/lib/qvos/bin/omarchy-system-inhibit-sleep"* &&
+[[ $protected_command == *".local/lib/qvos/bin/qv-system-inhibit-sleep"* &&
   $protected_command == *"Codex"* &&
   $protected_command != *"node /tmp/node_modules"* ]] ||
   fail "Codex startup sleep protection"
@@ -158,7 +158,7 @@ protected_command="$(protect_startup_command "$codex_command")"
 
 protected_log="$test_root/protected-command"
 install -d "$HOME/.local/bin" "$HOME/.local/lib/qvos/bin" "$test_root/test-bin"
-install -m 0755 /dev/stdin "$HOME/.local/lib/qvos/bin/omarchy-system-inhibit-sleep" <<'SCRIPT'
+install -m 0755 /dev/stdin "$HOME/.local/lib/qvos/bin/qv-system-inhibit-sleep" <<'SCRIPT'
 #!/bin/bash
 printf 'reason=%s\n' "$QVOS_SLEEP_INHIBIT_REASON" >>"$QVOS_TEST_PROTECTED_LOG"
 exec "$@"

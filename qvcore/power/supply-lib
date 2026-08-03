@@ -1,0 +1,38 @@
+# shellcheck shell=bash
+
+qvos_power_supply_root=${QVOS_POWER_SUPPLY_ROOT:-/sys/class/power_supply}
+if [[ $qvos_power_supply_root != "/sys/class/power_supply" && ${QVOS_POWER_TESTING:-} != "1" ]]; then
+  echo "A custom power-supply root is valid only in tests." >&2
+  return 2
+fi
+
+qvos_battery_present() {
+  local present
+  local supply
+  local type
+
+  for supply in "$qvos_power_supply_root"/*; do
+    [[ -r $supply/type ]] || continue
+    type=$(<"$supply/type")
+    [[ $type == "Battery" ]] || continue
+    present=1
+    [[ ! -r $supply/present ]] || present=$(<"$supply/present")
+    [[ $present == "1" ]] && return 0
+  done
+  return 1
+}
+
+qvos_ac_present() {
+  local online
+  local supply
+  local type
+
+  for supply in "$qvos_power_supply_root"/*; do
+    [[ -r $supply/type && -r $supply/online ]] || continue
+    type=$(<"$supply/type")
+    [[ $type == "Mains" || $type == "USB" ]] || continue
+    online=$(<"$supply/online")
+    [[ $online == "1" ]] && return 0
+  done
+  return 1
+}

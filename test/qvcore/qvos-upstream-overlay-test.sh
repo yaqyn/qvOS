@@ -290,6 +290,7 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' 
 pass "fresh installation owns every reviewed configuration capability natively"
 
 public_adapters=(
+  bin/omarchy-battery-protection
   bin/omarchy-install-qvcore
   bin/omarchy-launch-qvos-task
   bin/omarchy-launch-qvos-update

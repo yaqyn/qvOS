@@ -201,7 +201,7 @@ Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-servi
 # user customization
 EOF
 
-HOME="$test_root" QVOS_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 
 cmp -s \
@@ -335,7 +335,7 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/services/proton"
 install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
-HOME="$test_root" QVOS_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 [[ $(stat -c '%u:%g:%a|%i|%y' \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb") == \
@@ -380,17 +380,35 @@ for command_name in omarchy-launch-screensaver qvos-launch-screensaver qvos-scre
 done
 pass "screensaver commands and user links are installed"
 
-for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
-  [[ -x $test_root/.local/lib/qvos/bin/$command_name ]] ||
-    fail "$command_name runtime installation"
+for command_name in \
+  omarchy-system-inhibit-sleep \
+  omarchy-system-suspend-if-safe \
+  qv-system-inhibit-sleep \
+  qv-system-suspend-if-safe; do
+  command_path="$test_root/.local/lib/qvos/bin/$command_name"
+  [[ -L $command_path && -x $command_path ]] ||
+    fail "$command_name runtime link installation"
+  owner=${command_name#omarchy-system-}
+  owner=${owner#qv-system-}
+  [[ $(readlink -- "$command_path") == "../power/$owner" ]] ||
+    fail "$command_name runtime owner"
 done
-pass "power guards are installed with the desktop runtime"
+pass "native power guards and exact compatibility links share runtime owners"
 
-for runtime_file in battery-protection battery-protection-backend battery-protection-lib; do
-  cmp -s \
+for runtime_file in \
+  battery-protection \
+  battery-protection-backend \
+  battery-protection-lib \
+  inhibit-sleep \
+  suspend-if-safe; do
+  if ! cmp -s \
     "$root/qvcore/power/$runtime_file" \
-    "$test_root/.local/lib/qvos/power/$runtime_file" ||
+    "$test_root/.local/lib/qvos/power/$runtime_file"; then
+    diff -u \
+      "$root/qvcore/power/$runtime_file" \
+      "$test_root/.local/lib/qvos/power/$runtime_file" >&2 || true
     fail "Battery Protection $runtime_file runtime"
+  fi
 done
 cmp -s \
   "$root/qvcore/power/qvos-battery-full-charge-once.service" \

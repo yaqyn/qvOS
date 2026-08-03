@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-guard="$root/bin/omarchy-system-suspend-if-safe"
-inhibitor="$root/bin/omarchy-system-inhibit-sleep"
+guard="$root/bin/qv-system-suspend-if-safe"
+inhibitor="$root/bin/qv-system-inhibit-sleep"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 command_log="$test_root/commands"

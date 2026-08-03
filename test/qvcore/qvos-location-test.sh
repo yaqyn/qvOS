@@ -85,10 +85,10 @@ run_with_mocks "$context_dir/qvos-launch-terminal-here" root "$project_dir"
 [[ "$(<"$launch_log")" == "-- xdg-terminal-exec --dir=$canonical_project sudo -s" ]] || fail "root terminal route"
 
 run_with_mocks "$context_dir/qvos-launch-terminal-here" codex "$project_dir"
-[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex --dir=$canonical_project env QVOS_SLEEP_INHIBIT_REASON=Codex session is active $test_root/.local/lib/qvos/bin/omarchy-system-inhibit-sleep $test_root/.local/bin/codex" ]] || fail "Codex route"
+[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex --dir=$canonical_project env QVOS_SLEEP_INHIBIT_REASON=Codex session is active $test_root/.local/lib/qvos/bin/qv-system-inhibit-sleep $test_root/.local/bin/codex" ]] || fail "Codex route"
 
 run_with_mocks "$context_dir/qvos-launch-terminal-here" codex-yolo "$project_dir"
-[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex YOLO --dir=$canonical_project env QVOS_SLEEP_INHIBIT_REASON=Codex session is active $test_root/.local/lib/qvos/bin/omarchy-system-inhibit-sleep $test_root/.local/bin/codex --yolo" ]] || fail "Codex YOLO route"
+[[ "$(<"$launch_log")" == "-- xdg-terminal-exec --app-id=org.qvos.codex --title=Codex YOLO --dir=$canonical_project env QVOS_SLEEP_INHIBIT_REASON=Codex session is active $test_root/.local/lib/qvos/bin/qv-system-inhibit-sleep $test_root/.local/bin/codex --yolo" ]] || fail "Codex YOLO route"
 
 run_with_mocks "$context_dir/qvos-launch-editor-here" "$project_dir"
 [[ "$(<"$launch_log")" == "editor $canonical_project" ]] || fail "editor route"

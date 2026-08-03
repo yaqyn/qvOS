@@ -7,11 +7,11 @@ webapp-remove|Web App|Choose and remove Web App launchers|2|mutation|tui|false|R
 tui-install|TUI Shortcut|Create a terminal app launcher from interactive details|2|mutation|native|false|Install|Installing|Installed|omarchy-tui-install
 tui-remove|TUI Shortcut|Choose and remove terminal app launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner tui-remove
 dns-configure|DNS|Choose and configure qvOS DNS or Cloudflare WARP|3|mutation|native|true|Configure|Configuring|Configured|omarchy-qvos-setup-dns
-battery-status|Battery Protection|Inspect the current charging-protection state|1|information|tui|false||||omarchy battery protection status
-battery-enable|Battery Protection|Choose and confirm a safe charging-protection preset|3|mutation|native|false|Enable|Enabling|Enabled|omarchy battery protection enable
-battery-disable|Battery Protection|Confirm and disable qvOS charging protection|3|mutation|native|false|Disable|Disabling|Disabled|omarchy battery protection disable
-battery-full-charge|Full Charge Once|Temporarily restore full charging with guarded recovery|3|mutation|native|false|Start|Starting|Started|omarchy battery protection full-charge-once
-battery-report|Battery Protection|Inspect the privacy-safe hardware and protection report|1|information|tui|false||||omarchy battery protection report
+battery-status|Battery Protection|Inspect the current charging-protection state|1|information|tui|false||||qv battery protection status
+battery-enable|Battery Protection|Choose and confirm a safe charging-protection preset|3|mutation|native|false|Enable|Enabling|Enabled|qv battery protection enable
+battery-disable|Battery Protection|Confirm and disable qvOS charging protection|3|mutation|native|false|Disable|Disabling|Disabled|qv battery protection disable
+battery-full-charge|Full Charge Once|Temporarily restore full charging with guarded recovery|3|mutation|native|false|Start|Starting|Started|qv battery protection full-charge-once
+battery-report|Battery Protection|Inspect the privacy-safe hardware and protection report|1|information|tui|false||||qv battery protection report
 timezone|Timezone|Choose and apply the system timezone|1|mutation|tui|true|Set|Setting|Set|qvcore/tui/task/selectable-owner timezone
 time-sync|System Time|Restart system time synchronization|1|mutation|tui|true|Sync|Syncing|Synced|omarchy-update-time
 firmware-update|Firmware|Review device safety prompts and install firmware updates|3|mutation|native|true|Update|Updating|Updated|omarchy-update-firmware

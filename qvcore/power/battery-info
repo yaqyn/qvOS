@@ -1,0 +1,139 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 1)) || {
+  echo "Usage: qvcore/power/battery-info <capacity|remaining|remaining-time|sample|status>" >&2
+  exit 2
+}
+case $1 in
+capacity | remaining | remaining-time | sample | status) action=$1 ;;
+*)
+  echo "Usage: qvcore/power/battery-info <capacity|remaining|remaining-time|sample|status>" >&2
+  exit 2
+  ;;
+esac
+
+mapfile -t devices < <(LC_ALL=C upower -e)
+device=""
+for candidate in "${devices[@]}"; do
+  [[ $candidate =~ ^/org/freedesktop/UPower/devices/[A-Za-z0-9_]+$ ]] || continue
+  if [[ $candidate == "/org/freedesktop/UPower/devices/DisplayDevice" ]]; then
+    device=$candidate
+    break
+  fi
+  if [[ -z $device && ${candidate##*/} == battery_* ]]; then
+    device=$candidate
+  fi
+done
+[[ -n $device ]] || {
+  echo "No UPower battery device was found." >&2
+  exit 1
+}
+battery_info=$(LC_ALL=C upower -i "$device")
+[[ -n $battery_info ]] || {
+  echo "UPower returned no battery information." >&2
+  exit 1
+}
+
+percentage=$(awk '/^[[:space:]]*percentage:/ {
+  value = $2
+  sub(/%$/, "", value)
+  if (value ~ /^[0-9]+([.][0-9]+)?$/) {
+    numeric = value + 0
+    if (numeric >= 0 && numeric <= 100) print int(numeric)
+    exit
+  }
+}' <<<"$battery_info")
+state=$(awk '/^[[:space:]]*state:/ {
+  if ($2 ~ /^[a-z-]+$/) print $2
+  exit
+}' <<<"$battery_info")
+capacity=$(awk '/^[[:space:]]*energy-full:/ {
+  if ($2 ~ /^[0-9]+([.][0-9]+)?$/ && $2 >= 0) printf "%.0f", $2
+  exit
+}' <<<"$battery_info")
+power_rate=$(awk '/^[[:space:]]*energy-rate:/ {
+  if ($2 ~ /^[0-9]+([.][0-9]+)?$/ && $2 >= 0) {
+    rounded = sprintf("%.1f", $2)
+    sub(/[.]0$/, "", rounded)
+    print rounded
+  }
+  exit
+}' <<<"$battery_info")
+time_remaining=$(awk '/^[[:space:]]*time to (empty|full):/ {
+  value = $4
+  unit = $5
+  if (value !~ /^[0-9]+([.][0-9]+)?$/) exit
+  if (unit ~ /^minute/) {
+    printf "%dm", int(value)
+  } else if (unit ~ /^hour/) {
+    hours = int(value)
+    minutes = int((value - hours) * 60)
+    if (minutes > 0) printf "%dh %dm", hours, minutes
+    else printf "%dh", hours
+  }
+  exit
+}' <<<"$battery_info")
+
+case $action in
+capacity)
+  [[ -n $capacity ]] || {
+    echo "UPower did not report valid full battery capacity." >&2
+    exit 1
+  }
+  printf '%s\n' "$capacity"
+  ;;
+remaining)
+  [[ -n $percentage ]] || {
+    echo "UPower did not report a valid battery percentage." >&2
+    exit 1
+  }
+  printf '%s\n' "$percentage"
+  ;;
+remaining-time)
+  [[ -n $time_remaining ]] || {
+    echo "UPower did not report battery time remaining." >&2
+    exit 1
+  }
+  printf '%s\n' "$time_remaining"
+  ;;
+sample)
+  [[ -n $percentage && -n $state ]] || {
+    echo "UPower did not report a valid battery sample." >&2
+    exit 1
+  }
+  printf '%s\t%s\n' "$percentage" "$state"
+  ;;
+status)
+  [[ -n $percentage && -n $state ]] || {
+    echo "UPower did not report a valid battery state." >&2
+    exit 1
+  }
+  parts=("Battery ${percentage}%")
+  if [[ -n $time_remaining ]]; then
+    if [[ $state == "charging" || $state == "pending-charge" ]]; then
+      parts+=("${time_remaining} to full")
+    elif [[ $state == "discharging" || $state == "pending-discharge" ]]; then
+      parts+=("${time_remaining} left")
+    fi
+  fi
+  if [[ -n $power_rate ]]; then
+    if [[ $state == "charging" || $state == "pending-charge" ]]; then
+      rate=" ${power_rate}W"
+    elif [[ $state == "discharging" || $state == "pending-discharge" ]]; then
+      rate=" ${power_rate}W"
+    else
+      rate="${power_rate}W"
+    fi
+    [[ -z $capacity ]] || rate+=" / ${capacity}Wh"
+    parts+=("$rate")
+  elif [[ -n $capacity ]]; then
+    parts+=("${capacity}Wh full capacity")
+  fi
+  output="󰁹    ${parts[0]}"
+  for part in "${parts[@]:1}"; do
+    output+="  ·  $part"
+  done
+  printf '%s\n' "$output"
+  ;;
+esac

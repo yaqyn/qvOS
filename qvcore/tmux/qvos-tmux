@@ -303,7 +303,7 @@ protect_startup_command() {
   fi
 
   printf -v escaped '%q' "$command"
-  printf "env -u CODEX_MANAGED_PACKAGE_ROOT -u CODEX_MANAGED_BY_NPM PATH=%q:\$PATH QVOS_SLEEP_INHIBIT_REASON=%q ~/.local/lib/qvos/bin/omarchy-system-inhibit-sleep /bin/bash -c %s\n" \
+  printf "env -u CODEX_MANAGED_PACKAGE_ROOT -u CODEX_MANAGED_BY_NPM PATH=%q:\$PATH QVOS_SLEEP_INHIBIT_REASON=%q ~/.local/lib/qvos/bin/qv-system-inhibit-sleep /bin/bash -c %s\n" \
     "$HOME/.local/bin" "Codex session is active" "$escaped"
 }
 

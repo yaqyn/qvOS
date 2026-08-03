@@ -9,32 +9,55 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
+expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native power route inventory"
 
-declare -A profile_owners=(
-  [init]=profiles-init
-  [list]=profiles-list
-  [set]=profiles-set
+declare -A route_owners=(
+  [ac-present]=supply-status
+  [battery-capacity]=battery-info
+  [battery-present]=supply-status
+  [battery-protection]=battery-protection
+  [battery-remaining]=battery-info
+  [battery-remaining-time]=battery-info
+  [battery-status]=battery-info
+  [powerprofiles-init]=profiles-init
+  [powerprofiles-list]=profiles-list
+  [powerprofiles-set]=profiles-set
+  [system-inhibit-sleep]=inhibit-sleep
+  [system-suspend-if-safe]=suspend-if-safe
 )
-for action in init list set; do
-  native_adapter="$root/bin/qv-powerprofiles-$action"
-  compatibility_adapter="$root/bin/omarchy-powerprofiles-$action"
-  owner="$root/qvcore/power/${profile_owners[$action]}"
+declare -A route_actions=(
+  [ac-present]=ac
+  [battery-capacity]=capacity
+  [battery-present]=battery
+  [battery-remaining]=remaining
+  [battery-remaining-time]=remaining-time
+  [battery-status]=status
+)
+for route in "${!route_owners[@]}"; do
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  owner="$root/qvcore/power/${route_owners[$route]}"
   [[ -x $native_adapter && -x $compatibility_adapter && -x $owner ]] ||
-    fail "power-profile owner or adapter mode: $action"
-  (($(wc -l <"$native_adapter") <= 10)) ||
-    fail "native power-profile adapter contains implementation: $action"
+    fail "power owner or adapter mode: $route"
+  (($(wc -l <"$native_adapter") <= 12)) ||
+    fail "native power adapter contains implementation: $route"
   (($(wc -l <"$compatibility_adapter") <= 6)) ||
-    fail "power-profile compatibility adapter contains implementation: $action"
+    fail "power compatibility adapter contains implementation: $route"
   rg -q '^# qv:summary=' "$native_adapter" ||
-    fail "native power-profile adapter lacks metadata: $action"
+    fail "native power adapter lacks metadata: $route"
   ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
-    fail "power-profile compatibility adapter duplicates metadata: $action"
+    fail "power compatibility adapter duplicates metadata: $route"
+  fixed_action=${route_actions[$route]:-}
+  if [[ -n $fixed_action ]]; then
+    expected_exec="exec \"\$QVOS_PATH/qvcore/power/${route_owners[$route]}\" $fixed_action \"\$@\""
+  else
+    expected_exec="exec \"\$QVOS_PATH/qvcore/power/${route_owners[$route]}\" \"\$@\""
+  fi
   for adapter in "$native_adapter" "$compatibility_adapter"; do
-    grep -Fqx "exec \"\$QVOS_PATH/qvcore/power/${profile_owners[$action]}\" \"\$@\"" "$adapter" ||
-      fail "power-profile adapter ownership: $action"
+    grep -Fqx "$expected_exec" "$adapter" ||
+      fail "power adapter ownership: $route"
   done
 done
 
@@ -58,11 +81,13 @@ for action in reboot shutdown; do
   fi
 done
 
-if rg -n 'omarchy-powerprofiles-' "$root/qvcore" "$root/config" \
+if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe))' \
+  "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
-  --glob '!**/power/profile-rule'; then
-  fail "native qvOS source still calls a power-profile compatibility command"
+  --glob '!**/power/profile-rule' --glob '!**/power/install' \
+  --glob '!**/config/migrate-runtime-root'; then
+  fail "native qvOS source still calls a power compatibility command"
 fi
 
-printf 'ok - qvOS owns power profiles, system power, and update-marker cleanup\n'
+printf 'ok - qvOS owns power telemetry, profiles, sleep guards, and system power\n'

@@ -2,10 +2,16 @@
 set -euo pipefail
 
 battery_threshold=10
-notification_flag="/run/user/$UID/qvos-battery-notified"
-legacy_notification_flag="/run/user/$UID/omarchy_battery_notified"
-battery_level=$(omarchy-battery-remaining)
-battery_device=$(upower -e | awk '/BAT/ && !found { print; found = 1 }')
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
+[[ $runtime_dir == /* && -d $runtime_dir && ! -L $runtime_dir && -O $runtime_dir ]] || {
+  echo "Refusing unsafe qvOS battery notification runtime: $runtime_dir" >&2
+  exit 1
+}
+notification_flag="$runtime_dir/qvos-battery-notified"
+legacy_notification_flag="$runtime_dir/omarchy_battery_notified"
+power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../power" && pwd)
+battery_sample=$("$power_root/battery-info" sample)
+IFS=$'\t' read -r battery_level battery_state <<<"$battery_sample"
 
 [[ ! -L $notification_flag && ! -L $legacy_notification_flag ]] || {
   echo "Refusing unsafe qvOS battery notification state." >&2
@@ -25,9 +31,6 @@ if [[ -f $legacy_notification_flag ]]; then
   fi
 fi
 [[ ! -e $notification_flag ]] || chmod 0600 -- "$notification_flag"
-
-[[ -n $battery_device ]] || exit 0
-battery_state=$(upower -i "$battery_device" | awk '$1 == "state:" && !found { print $2; found = 1 }')
 
 send_notification() {
   local level=$1

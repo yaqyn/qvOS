@@ -31,6 +31,8 @@ runtime_files=(
   battery-protection
   battery-protection-backend
   battery-protection-lib
+  inhibit-sleep
+  suspend-if-safe
 )
 
 rm -rf "$runtime_dir"
@@ -41,9 +43,40 @@ for runtime_file in "${runtime_files[@]}"; do
   install -m "$mode" "$source_dir/$runtime_file" "$runtime_dir/$runtime_file"
 done
 
-for command_name in omarchy-system-inhibit-sleep omarchy-system-suspend-if-safe; do
-  power_owner=${command_name#omarchy-system-}
-  install -m 0755 "$source_dir/$power_owner" "$qvos_bin/$command_name"
+declare -A runtime_commands=(
+  [omarchy-system-inhibit-sleep]=inhibit-sleep
+  [omarchy-system-suspend-if-safe]=suspend-if-safe
+  [qv-system-inhibit-sleep]=inhibit-sleep
+  [qv-system-suspend-if-safe]=suspend-if-safe
+)
+declare -A legacy_runtime_hashes=(
+  [inhibit-sleep]=3a6afde2549cd64888507c5d5ad534e368b29711a9cde1d916199d3c137715b5
+  [suspend-if-safe]=2e11eb00125215d89cfd545af7d3974e45b6e70bc9e27d9806e145bf26b16e88
+)
+for command_name in "${!runtime_commands[@]}"; do
+  command_path="$qvos_bin/$command_name"
+  power_owner=${runtime_commands[$command_name]}
+  expected_target="../power/$power_owner"
+  if [[ -e $command_path || -L $command_path ]]; then
+    if [[ -L $command_path && $(readlink -- "$command_path") == "$expected_target" ]]; then
+      continue
+    fi
+    if [[ -f $command_path && ! -L $command_path ]]; then
+      runtime_hash=$(sha256sum -- "$command_path")
+      runtime_hash=${runtime_hash%% *}
+      if cmp -s "$source_dir/$power_owner" "$command_path" ||
+        [[ $runtime_hash == "${legacy_runtime_hashes[$power_owner]}" ]]; then
+        rm -f -- "$command_path"
+      else
+        echo "Refusing modified qvOS sleep-guard runtime command: $command_path" >&2
+        exit 1
+      fi
+    else
+      echo "Refusing unsafe qvOS sleep-guard runtime command: $command_path" >&2
+      exit 1
+    fi
+  fi
+  ln -s "$expected_target" "$command_path"
 done
 
 install -m 0644 \

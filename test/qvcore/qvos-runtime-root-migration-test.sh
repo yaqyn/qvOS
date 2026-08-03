@@ -23,7 +23,8 @@ install -d \
   "$test_bin" \
   "$test_home/.config/Thunar" \
   "$test_home/.config/hypr" \
-  "$test_home/.config/uwsm"
+  "$test_home/.config/uwsm" \
+  "$test_home/.config/waybar"
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
@@ -39,10 +40,14 @@ bindeld = , XF86MonBrightnessUp, Brightness up, exec, omarchy-brightness-display
 bindeld = , XF86KbdBrightnessUp, Keyboard brightness up, exec, omarchy-brightness-keyboard up
 bindeld = , XF86AudioRaiseVolume, Volume up, exec, omarchy-swayosd-client --output-volume raise
 bindld = SUPER, XF86AudioMute, Switch audio output, exec, omarchy-audio-output-switch
+bindd = SUPER CTRL ALT, B, Show battery remaining, exec, notify-send "$(omarchy-battery-status)"
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
 exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
+{"on-click-right":"notify-send \"$(omarchy-battery-status)\""}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -72,6 +77,7 @@ grep -Fq '.local/share/qvos/default/' "$test_home/.config/hypr/bindings.conf" ||
 for command in \
   qv-audio-input-mute \
   qv-audio-output-switch \
+  qv-battery-status \
   qv-brightness-display \
   qv-brightness-keyboard \
   qv-swayosd-client; do
@@ -84,9 +90,11 @@ fi
 grep -Fq '.local/lib/qvos/bin/omarchy-launch-screensaver' \
   "$test_home/.config/hypr/hypridle.conf" ||
   fail "screensaver runtime migration"
-grep -Fq '.local/lib/qvos/bin/omarchy-system-suspend-if-safe' \
+grep -Fq '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
   "$test_home/.config/hypr/hypridle.conf" ||
   fail "suspend runtime migration"
+grep -Fq 'qv-battery-status' "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar battery telemetry migration"
 grep -Fq '.local/lib/qvos/thunar/open-here' \
   "$test_home/.config/Thunar/uca.xml" ||
   fail "Thunar action runtime migration"
@@ -101,7 +109,7 @@ grep -Fqx 'export USER_SETTING=preserved' "$test_home/.config/uwsm/env" ||
 if grep -Fq '# qvOS PATH begin' "$test_home/.config/uwsm/env"; then
   fail "duplicate source path block cleanup"
 fi
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "4" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "5" ]] ||
   fail "changed config backup count"
 [[ $(<"$systemctl_log") == "--user daemon-reload" ]] ||
   fail "user service reload"

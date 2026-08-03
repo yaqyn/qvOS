@@ -1,4 +1,8 @@
 #!/bin/bash
 
+# qv:summary=Suspend a locked session when protected work is idle
+# qv:args=[--check|--watch]
+# qv:hidden=true
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/power/suspend-if-safe" "$@"

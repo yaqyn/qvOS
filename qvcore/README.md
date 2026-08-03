@@ -27,7 +27,7 @@ qvcore/
   migrations/  Native ordered migrations and private applied-state ownership.
   network/     qvOS DNS policy and optional WARP routing.
   packages/    Omarchy package-provider boundary and Stable configuration.
-  power/       Sleep inhibition, guarded suspend, and opt-in battery protection.
+  power/       Telemetry, profiles, sleep guards, and opt-in battery protection.
   presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
   security/    Codex-operated security auditing and hardening workflow.

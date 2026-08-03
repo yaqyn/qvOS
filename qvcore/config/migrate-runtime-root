@@ -96,6 +96,7 @@ rewrite_literals \
   '.local/share/qvos/tmux/' '.local/lib/qvos/tmux/' \
   'omarchy-audio-input-mute' 'qv-audio-input-mute' \
   'omarchy-audio-output-switch' 'qv-audio-output-switch' \
+  'omarchy-battery-status' 'qv-battery-status' \
   'omarchy-brightness-display' 'qv-brightness-display' \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
   'omarchy-swayosd-client' 'qv-swayosd-client'
@@ -104,7 +105,12 @@ rewrite_literals \
   '.local/share/qvos/bin/omarchy-launch-screensaver' \
   '.local/lib/qvos/bin/omarchy-launch-screensaver' \
   '.local/share/qvos/bin/omarchy-system-suspend-if-safe' \
-  '.local/lib/qvos/bin/omarchy-system-suspend-if-safe'
+  '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
+  '.local/lib/qvos/bin/omarchy-system-suspend-if-safe' \
+  '.local/lib/qvos/bin/qv-system-suspend-if-safe'
+rewrite_literals \
+  "$HOME/.config/waybar/config.jsonc" \
+  'omarchy-battery-status' 'qv-battery-status'
 rewrite_literals \
   "$HOME/.config/Thunar/uca.xml" \
   '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/'

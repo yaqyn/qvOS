@@ -24,6 +24,18 @@ selection logic. `profile-rule` is the singular installer and update owner for
 the root udev rule. It accepts only exact known qvOS/Omarchy predecessors,
 writes atomically, keeps a root-owned backup, and restores it when reload fails.
 
+## Power telemetry and sleep guards
+
+`supply-lib` is the one sysfs owner for battery and AC presence, including
+USB-C power. `battery-info` selects the aggregate UPower DisplayDevice when
+available, validates every reported value, and formats capacity, percentage,
+remaining time, monitoring samples, and status without repeating device
+queries. Low-battery notification state lives only in the validated user
+runtime directory. Test roots require
+`QVOS_POWER_TESTING=1`. Native qvOS consumers use `qv-*` routes. Sleep-inhibit
+and automatic-suspend runtime links resolve to one copied power owner; retain
+exact `omarchy-*` links only for external and saved-session compatibility.
+
 ## Battery protection contract
 
 - Keep Battery Protection in qvCORE. It must remain complete without optional

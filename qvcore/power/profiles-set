@@ -6,11 +6,9 @@ set -euo pipefail
   exit 2
 }
 action=${1:-autodetect}
-power_supply_root=${QVOS_POWER_SUPPLY_ROOT:-/sys/class/power_supply}
-if [[ $power_supply_root != "/sys/class/power_supply" && ${QVOS_POWER_TESTING:-} != "1" ]]; then
-  echo "A custom power-supply root is valid only in tests." >&2
-  exit 2
-fi
+power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/power/supply-lib
+source "$power_root/supply-lib"
 
 mapfile -t profiles < <(powerprofilesctl list | awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
   gsub(/^[*[:space:]]+|:$/, "")
@@ -30,20 +28,11 @@ has_profile() {
 }
 
 if [[ $action == "autodetect" ]]; then
-  action=battery
-  shopt -s nullglob
-  supplies=("$power_supply_root"/*)
-  shopt -u nullglob
-  for supply in "${supplies[@]}"; do
-    [[ -r $supply/type && -r $supply/online ]] || continue
-    type=$(<"$supply/type")
-    online=$(<"$supply/online")
-    [[ $online == "0" || $online == "1" ]] || continue
-    if [[ ($type == "Mains" || $type == "USB") && $online == "1" ]]; then
-      action=ac
-      break
-    fi
-  done
+  if qvos_ac_present; then
+    action=ac
+  else
+    action=battery
+  fi
 fi
 
 case $action in

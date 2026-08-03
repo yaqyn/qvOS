@@ -140,13 +140,13 @@ resolve_entrypoint() {
     return
   fi
 
-  if [[ ${words[0]} == "omarchy" ]]; then
+  if [[ ${words[0]} == "omarchy" || ${words[0]} == "qv" ]]; then
     for ((prefix_count = ${#words[@]} - 1; prefix_count >= 1; prefix_count--)); do
       suffix=${words[1]}
       for ((word_index = 2; word_index <= prefix_count; word_index++)); do
         suffix+="-${words[$word_index]}"
       done
-      candidate="bin/omarchy-$suffix"
+      candidate="bin/${words[0]}-$suffix"
       [[ -f $contract_root/$candidate ]] && break
       candidate=""
     done

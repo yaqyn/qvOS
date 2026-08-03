@@ -4,6 +4,10 @@
 (
   set -euo pipefail
 
+  QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+  OMARCHY_PATH=$QVOS_PATH
+  export QVOS_PATH OMARCHY_PATH
+
   mkdir -p "$HOME/.local/lib/qvos"
 
   for feature in desktop direct power screensaver security shell thunar tmux tui waybar windows; do

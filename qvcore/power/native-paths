@@ -1,4 +1,10 @@
 # Inherited power routes promoted to native qvOS ownership.
+bin/omarchy-ac-present
+bin/omarchy-battery-capacity
+bin/omarchy-battery-present
+bin/omarchy-battery-remaining
+bin/omarchy-battery-remaining-time
+bin/omarchy-battery-status
 bin/omarchy-powerprofiles-init
 bin/omarchy-powerprofiles-list
 bin/omarchy-powerprofiles-set

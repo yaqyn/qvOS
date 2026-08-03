@@ -6,7 +6,7 @@ owner_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$owner_dir/battery-protection-lib"
 
 usage() {
-  echo "Usage: omarchy battery protection [status|enable [balanced|plugged-in]|disable|full-charge-once|report]" >&2
+  echo "Usage: qv battery protection [status|enable [balanced|plugged-in]|disable|full-charge-once|report]" >&2
 }
 
 preset_label() {
