@@ -14,8 +14,9 @@ exact promoted assets together. The installer TUI remains an independent
 exact-black renderer and must clear Plymouth before painting its first frame.
 `qvcore/boot/limine/`, `qvcore/boot/sddm/`, and `qvcore/boot/wayland-sessions/` likewise
 own their installed payloads. Do not restore parallel copies under `default/`.
-Public `bin/omarchy-*` boot routes are direct adapters to executable owners in
-this directory; they must not retain inherited fallback implementations.
+Public `bin/qv-*` boot routes own command metadata and delegate directly to
+executable owners in this directory. `bin/omarchy-*` routes are metadata-free
+compatibility adapters only; neither adapter family may retain implementation.
 Historical boot migrations are retired because native fresh-install and boot
 owners already converge the selected state; future transitions use only the
 native migration domain.
@@ -58,6 +59,6 @@ Run `qvcore/boot/check`, the boot install fixture test, `bash -n`, and ShellChec
 for changed shell, then
 `test/qvcore/qvos-product-contract-test.sh`, the instruction guard, and the full
 qvOS shell suite when shared boot/install contracts change. Apply with
-`omarchy-refresh-limine`, compare the generated live header with the source,
+`qv refresh limine`, compare the generated live header with the source,
 and capture the Limine menu from a safe UEFI VM or approved reboot. The final
 image must show only the centered generated menu on exact black.

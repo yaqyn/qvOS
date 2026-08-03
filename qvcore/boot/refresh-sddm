@@ -1,9 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# omarchy:summary=Refresh the SDDM theme from default
-# omarchy:requires-sudo=true
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+(( $# == 0 )) || {
+  echo "Usage: qv refresh sddm" >&2
+  exit 2
+}
 
-exec "$OMARCHY_PATH/qvcore/boot/sync-theme" sddm
+exec "$QVOS_PATH/qvcore/boot/sync-theme" sddm

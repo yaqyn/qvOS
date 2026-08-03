@@ -22,7 +22,7 @@ fingerprint-remove|Fingerprint Authentication|Remove fingerprint authentication 
 fido2-setup|FIDO2 Authentication|Register and verify a hardware security key|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fido2
 fido2-remove|FIDO2 Authentication|Remove FIDO2 authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fido2
 passwordless-sudo|Passwordless Sudo|Confirm a temporary high-risk passwordless sudo window|3|mutation|native|true|Configure|Configuring|Configured|omarchy-sudo-passwordless
-direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|mutation|native|true|Configure|Configuring|Configured|omarchy-config-direct-boot
+direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|mutation|native|true|Configure|Configuring|Configured|qv-config-direct-boot
 hybrid-gpu|Hybrid GPU|Confirm a GPU mode change and system reboot|3|mutation|native|true|Configure|Configuring|Configured|omarchy-toggle-hybrid-gpu
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|mutation|native|true|Enable|Enabling|Enabled|omarchy-hibernation-setup
 hibernation-disable|Hibernation|Confirm and remove hibernation configuration|3|mutation|native|true|Disable|Disabling|Disabled|omarchy-hibernation-remove
@@ -30,7 +30,7 @@ refresh-hyprland|Hyprland Config|Restore qvOS Hyprland defaults with display det
 refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
 refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
 refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset
-refresh-plymouth|Plymouth|Restore the qvOS boot theme and rebuild boot images|3|mutation|tui|true|Restore|Restoring|Restored|omarchy-refresh-plymouth
+refresh-plymouth|Plymouth|Restore the qvOS boot theme and rebuild boot images|3|mutation|tui|true|Restore|Restoring|Restored|qv-refresh-plymouth
 refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-swayosd
 refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
 refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker

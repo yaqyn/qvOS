@@ -592,7 +592,7 @@ show_update_config_menu() {
   *Hypridle*) present_terminal omarchy-refresh-hypridle ;;
   *Hyprlock*) present_terminal omarchy-refresh-hyprlock ;;
   *Hyprsunset*) present_terminal omarchy-refresh-hyprsunset ;;
-  *Plymouth*) present_terminal omarchy-refresh-plymouth ;;
+  *Plymouth*) present_terminal qv-refresh-plymouth ;;
   *Swayosd*) present_terminal omarchy-refresh-swayosd ;;
   *Tmux*) present_terminal omarchy-refresh-tmux ;;
   *Walker*) present_terminal omarchy-refresh-walker ;;

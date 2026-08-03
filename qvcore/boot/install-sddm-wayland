@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
-source "$OMARCHY_PATH/qvcore/boot/install-lib"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 hyprland_config=$(qvos_boot_path /usr/share/sddm/hyprland.conf)
@@ -11,6 +11,6 @@ wayland_content=$'[General]\nDisplayServer=wayland\n\n[Wayland]\nCompositorComma
 
 qvos_boot_install_file \
   0644 \
-  "$OMARCHY_PATH/qvcore/boot/sddm-hyprland.conf" \
+  "$QVOS_PATH/qvcore/boot/sddm-hyprland.conf" \
   "$hyprland_config"
 qvos_boot_install_text 0644 "$wayland_config" "$wayland_content"

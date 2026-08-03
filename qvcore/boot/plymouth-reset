@@ -1,17 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
-# omarchy:summary=Restore the default qvOS Plymouth boot theme and SDDM login screen
-# omarchy:requires-sudo=true
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
 
-theme_dir="/usr/share/plymouth/themes/omarchy"
+(( $# == 0 )) || {
+  echo "Usage: qv plymouth reset" >&2
+  exit 2
+}
 
-sudo find "$OMARCHY_PATH/qvcore/boot/plymouth" -maxdepth 1 -type f -exec cp -t "$theme_dir/" {} +
-sudo plymouth-set-default-theme omarchy
-
-if omarchy-cmd-present limine-mkinitcpio; then
-  sudo limine-mkinitcpio
-else
-  sudo mkinitcpio -P
-fi
-
-omarchy-refresh-sddm
+"$QVOS_PATH/qvcore/boot/refresh-plymouth"
+"$QVOS_PATH/qvcore/boot/refresh-sddm"

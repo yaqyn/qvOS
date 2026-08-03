@@ -39,18 +39,27 @@ mapfile -t retired_paths < <(
   fail "retired inherited boot payload inventory"
 
 for route in "${expected_native_routes[@]}"; do
-  owner=${route#bin/omarchy-}
-  [[ -x $root/$route ]] || fail "boot route mode: $route"
-  [[ -x $root/qvcore/boot/$owner ]] || fail "boot owner mode: $owner"
-  # shellcheck disable=SC2016
-  # shellcheck disable=SC2016
-  grep -Fqx 'OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
-    "$root/$route" || fail "boot route source-root translation: $route"
-  grep -Fqx "exec \"\$OMARCHY_PATH/qvcore/boot/$owner\" \"\$@\"" \
-    "$root/$route" || fail "boot route is not a direct owner adapter: $route"
-  if rg -q 'qvos_owner=|default/(limine|plymouth|sddm/omarchy)' "$root/$route"; then
-    fail "boot route retains inherited fallback implementation: $route"
-  fi
+  suffix=${route#bin/omarchy-}
+  owner=$root/qvcore/boot/$suffix
+  native_adapter=$root/bin/qv-$suffix
+  compatibility_adapter=$root/$route
+  [[ -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "boot adapter mode: $suffix"
+  [[ -x $owner ]] || fail "boot owner mode: $suffix"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native boot adapter contains implementation: $suffix"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
+    fail "boot compatibility adapter contains implementation: $suffix"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native boot adapter lacks metadata: $suffix"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "boot compatibility adapter duplicates metadata: $suffix"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/boot/$suffix\" \"\$@\"" "$adapter" ||
+      fail "boot adapter owner: $suffix"
+  done
+  ! rg -q '^# (qv|omarchy):' "$owner" ||
+    fail "boot owner duplicates CLI metadata: $suffix"
 done
 
 for retired in "${expected_retired[@]}"; do
@@ -94,13 +103,13 @@ grep -Fq 'qvcore/boot/limine/default.conf' \
 grep -Fq 'qvcore/boot/limine/limine.conf' \
   "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine config owner"
 # shellcheck disable=SC2016
-grep -Fqx '"$OMARCHY_PATH/qvcore/boot/sync-theme" plymouth' \
+grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" plymouth' \
   "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"
 if rg -q 'mkinitcpio' "$root/qvcore/boot/install-plymouth"; then
   fail "fresh Plymouth stage performs a redundant image rebuild"
 fi
 # shellcheck disable=SC2016
-grep -Fqx '"$OMARCHY_PATH/qvcore/boot/sync-theme" sddm' \
+grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" sddm' \
   "$root/qvcore/boot/install-sddm" || fail "fresh SDDM theme owner"
 grep -Fq 'qvcore/boot/wayland-sessions/omarchy.desktop' \
   "$root/qvcore/boot/install-sddm-session" || fail "fresh Wayland session owner"
@@ -108,5 +117,30 @@ grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
 grep -Fq "pam_gnome_keyring\\.so/d" \
   "$root/qvcore/boot/install-sddm" || fail "SDDM keyring compatibility"
+
+compatibility_path_refs=$(
+  # This intentionally matches the literal compatibility fallback expression.
+  # shellcheck disable=SC2016
+  rg -n 'OMARCHY_PATH' \
+    "$root/qvcore/boot" \
+    --glob '!AGENTS.md' \
+    --glob '!check' \
+    --glob '!native-paths' |
+    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-' || true
+)
+if [[ -n $compatibility_path_refs ]]; then
+  printf '%s\n' "$compatibility_path_refs" >&2
+  fail "native boot owner dereferences the compatibility source root"
+fi
+if rg -n \
+  'omarchy-(config-direct-boot|plymouth-(preview|reset)|refresh-(limine|plymouth|sddm))|exec omarchy-plymouth-set([[:space:]]|$)' \
+  "$root/qvcore/menu" \
+  "$root/qvcore/tui" \
+  "$root/default/elephant/omarchy_unlocks.lua" \
+  "$root/bin/omarchy-plymouth-set-by-theme" \
+  "$root/bin/omarchy-reinstall-configs" \
+  --glob '!owner-contracts.psv'; then
+  fail "native qvOS surface calls a boot compatibility route"
+fi
 
 printf 'ok - qvOS boot commands and payloads have one native owner\n'

@@ -1,12 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
-# omarchy:summary=Preview a Plymouth boot screen with custom colors and logo
-# omarchy:args=<background-hex> <text-hex> <path-to-logo.png> <output-path>
-# omarchy:examples=omarchy plymouth preview '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
 
 if [[ $# -ne 4 ]]; then
-  echo "Usage: omarchy-plymouth-preview <background-hex> <text-hex> <path-to-logo.png> <output-path>" >&2
-  exit 1
+  echo "Usage: qv plymouth preview <background-hex> <text-hex> <path-to-logo.png> <output-path>" >&2
+  exit 2
 fi
 
 bg_hex="${1#\#}"
@@ -32,7 +31,7 @@ fi
 staging_dir=$(mktemp -d)
 trap 'rm -rf -- "$staging_dir"' EXIT
 
-find "$OMARCHY_PATH/qvcore/boot/plymouth" -maxdepth 1 -type f \
+find "$QVOS_PATH/qvcore/boot/plymouth" -maxdepth 1 -type f \
   -exec cp -t "$staging_dir/" {} +
 cp "$logo_path" "$staging_dir/logo.png"
 

@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Preview a Plymouth boot screen with custom colors and logo
-# omarchy:args=<background-hex> <text-hex> <path-to-logo.png> <output-path>
-# omarchy:examples=omarchy plymouth preview '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-
-exec "$OMARCHY_PATH/qvcore/boot/plymouth-preview" "$@"
+exec "$QVOS_PATH/qvcore/boot/plymouth-preview" "$@"

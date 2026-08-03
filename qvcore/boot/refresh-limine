@@ -1,7 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
-# omarchy:summary=Overwrite the user config for the Limine bootloader and rebuild it.
-# omarchy:requires-sudo=true
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv refresh limine" >&2
+  exit 2
+}
 
 machine_id=$(</etc/machine-id)
 extra_uki="/boot/EFI/Linux/${machine_id}_linux.efi"
@@ -17,7 +22,7 @@ if sudo test -f /boot/limine.conf; then
     "/boot/limine.conf.bak.$(date +%s)"
 fi
 sudo install -m 0644 \
-  "$OMARCHY_PATH/qvcore/boot/limine/limine.conf" \
+  "$QVOS_PATH/qvcore/boot/limine/limine.conf" \
   /boot/limine.conf
 
 sudo limine-update

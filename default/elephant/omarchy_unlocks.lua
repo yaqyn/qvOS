@@ -2,7 +2,7 @@
 -- Dynamic qvOS Unlocks Menu for Elephant/Walker
 --
 -- A "Default" entry restores the qvOS Plymouth via
--- omarchy-plymouth-reset. After that, every theme that has a preview-unlock.png
+-- qv-plymouth-reset. After that, every theme that has a preview-unlock.png
 -- appears as a customised unlock; picking one runs omarchy-plymouth-set-by-theme
 -- <theme>. Both run in a floating terminal so sudo can prompt.
 --
@@ -28,8 +28,8 @@ function GetEntries()
   local entries = {}
   local home = os.getenv("HOME")
   local user_themes_dir = home .. "/.config/omarchy/themes"
-  local omarchy_path = os.getenv("OMARCHY_PATH") or ""
-  local default_preview = omarchy_path .. "/qvcore/boot/plymouth/preview-unlock.png"
+  local qvos_path = os.getenv("QVOS_PATH") or os.getenv("OMARCHY_PATH") or ""
+  local default_preview = qvos_path .. "/qvcore/boot/plymouth/preview-unlock.png"
 
   local handle = io.popen(
     "find -L " .. shell_escape(user_themes_dir)
@@ -67,7 +67,7 @@ function GetEntries()
     Text = "Default  ",
     Actions = {
       activate = "omarchy-launch-floating-terminal-with-presentation "
-        .. shell_escape("omarchy-plymouth-reset"),
+        .. shell_escape("qv-plymouth-reset"),
     },
   }
   if file_exists(default_preview) then

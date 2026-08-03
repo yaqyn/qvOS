@@ -260,8 +260,8 @@ printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 for command in \
   qv-refresh-hyprland \
-  omarchy-refresh-limine \
-  omarchy-refresh-plymouth \
+  qv-refresh-limine \
+  qv-refresh-plymouth \
   omarchy-nvim-setup; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
@@ -277,7 +277,7 @@ HOME="$config_home" \
   "$root/bin/omarchy-reinstall-configs" >/dev/null
 [[ $(<"$config_home/.config/example/value") == "configured" ]] ||
   fail "config reset source"
-[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nomarchy-refresh-limine\nomarchy-refresh-plymouth\nomarchy-nvim-setup' ]] ||
+[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth\nomarchy-nvim-setup' ]] ||
   fail "config reset owner order"
 pass "config reset runs the theme source directly and reconciles native Hyprland config"
 

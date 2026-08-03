@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
-source "$OMARCHY_PATH/qvcore/boot/install-lib"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 defaults_staging=
@@ -50,7 +50,7 @@ render_limine_defaults() {
   local line
   local prefix
   local replacements=0
-  local source="$OMARCHY_PATH/qvcore/boot/limine/default.conf"
+  local source="$QVOS_PATH/qvcore/boot/limine/default.conf"
 
   [[ -f $source && ! -L $source ]] || {
     echo "qvOS Limine defaults are unavailable" >&2
@@ -170,7 +170,7 @@ install_limine() {
   boot_config=$(qvos_boot_path /boot/limine.conf)
   qvos_boot_install_file \
     0644 \
-    "$OMARCHY_PATH/qvcore/boot/limine/limine.conf" \
+    "$QVOS_PATH/qvcore/boot/limine/limine.conf" \
     "$boot_config"
   if [[ $limine_config != "$boot_config" ]]; then
     sudo rm -f -- "$limine_config"
@@ -188,7 +188,7 @@ install_limine() {
   snapper_config=$(qvos_boot_path /etc/snapper/configs/root)
   qvos_boot_install_file \
     0644 \
-    "$OMARCHY_PATH/default/snapper/root" \
+    "$QVOS_PATH/default/snapper/root" \
     "$snapper_config"
 
   # Full qgroup accounting makes snapshot deletion and package updates slower.

@@ -1,9 +1,7 @@
 #!/bin/bash
+set -euo pipefail
 
-# omarchy:summary=Set the Plymouth boot theme colors and logo
-# omarchy:args=<background-hex> <text-hex> <path-to-logo.png>
-# omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
-# omarchy:requires-sudo=true
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
 
 # Configure the Plymouth boot theme with a custom background color, text color, and logo.
 # Stages the change in a temp dir, then commits the staged files to /usr/share and
@@ -11,8 +9,8 @@
 # screen) with the same colors and logo so boot/login stay visually unified.
 
 if [[ $# -ne 3 ]]; then
-  echo "Usage: omarchy-plymouth-set <background-hex> <text-hex> <path-to-logo.png>" >&2
-  exit 1
+  echo "Usage: qv plymouth set <background-hex> <text-hex> <path-to-logo.png>" >&2
+  exit 2
 fi
 
 bg_hex="${1#\#}"
@@ -42,7 +40,7 @@ theme_dir="/usr/share/plymouth/themes/omarchy"
 staging_dir=$(mktemp -d)
 trap 'rm -rf "$staging_dir"' EXIT
 
-find "$OMARCHY_PATH/qvcore/boot/plymouth" -maxdepth 1 -type f -exec cp -t "$staging_dir/" {} +
+find "$QVOS_PATH/qvcore/boot/plymouth" -maxdepth 1 -type f -exec cp -t "$staging_dir/" {} +
 cp "$logo_path" "$staging_dir/logo.png"
 
 sed -i \
@@ -57,7 +55,7 @@ done
 sudo cp -a "$staging_dir/." "$theme_dir/"
 sudo plymouth-set-default-theme omarchy
 
-if omarchy-cmd-present limine-mkinitcpio; then
+if qv-cmd-present limine-mkinitcpio; then
   sudo limine-mkinitcpio
 else
   sudo mkinitcpio -P
@@ -65,7 +63,7 @@ fi
 
 # Sync the SDDM login screen with the same colors and logo.
 sddm_dir="/usr/share/sddm/themes/omarchy"
-sddm_template="$OMARCHY_PATH/qvcore/boot/sddm/Main.qml"
+sddm_template="$QVOS_PATH/qvcore/boot/sddm/Main.qml"
 
 sed \
   -e "s/#1a1b26/#$bg_hex/g" \

@@ -24,7 +24,8 @@ run_boot() {
     QVOS_BOOT_TEST_ROOT="$system_root" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     QVOS_TEST_SWAP_FAILURE_MARKER="$swap_failure_marker" \
-    OMARCHY_PATH="$root" \
+    QVOS_PATH="$root" \
+    OMARCHY_PATH="$test_root/stale-source" \
     USER="$test_user" \
     PATH="$test_bin:/usr/bin" \
     "$@"
@@ -121,6 +122,18 @@ fi
 run_boot "$root/qvcore/boot/refresh-plymouth"
 [[ $(grep -c '^limine-mkinitcpio$' "$action_log") == "1" ]] ||
   fail "Plymouth refresh image rebuild"
+
+printf 'stale\n' >"$system_root/usr/share/plymouth/themes/omarchy/stale"
+install -d "$system_root/usr/share/sddm/themes/omarchy"
+printf 'stale\n' >"$system_root/usr/share/sddm/themes/omarchy/stale"
+: >"$action_log"
+run_boot "$root/qvcore/boot/plymouth-reset"
+[[ ! -e $system_root/usr/share/plymouth/themes/omarchy/stale ]] ||
+  fail "Plymouth reset bypassed the shared refresh owner"
+[[ ! -e $system_root/usr/share/sddm/themes/omarchy/stale ]] ||
+  fail "Plymouth reset bypassed the shared SDDM owner"
+[[ $(grep -c '^limine-mkinitcpio$' "$action_log") == "1" ]] ||
+  fail "Plymouth reset duplicated the image rebuild"
 
 printf 'prior\n' >"$system_root/usr/share/plymouth/themes/omarchy/prior"
 export QVOS_TEST_FAIL_THEME_SWAP=1

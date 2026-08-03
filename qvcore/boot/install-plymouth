@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
 
-"$OMARCHY_PATH/qvcore/boot/sync-theme" plymouth
+"$QVOS_PATH/qvcore/boot/sync-theme" plymouth
 sudo plymouth-set-default-theme omarchy

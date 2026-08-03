@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
-source "$OMARCHY_PATH/qvcore/boot/install-lib"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 [[ -n ${USER:-} && $USER =~ ^[[:alnum:]_.@-]+$ ]] || {
@@ -14,10 +14,10 @@ id -u "$USER" >/dev/null 2>&1 || {
   exit 1
 }
 
-"$OMARCHY_PATH/qvcore/boot/sync-theme" sddm
+"$QVOS_PATH/qvcore/boot/sync-theme" sddm
 
-"$OMARCHY_PATH/qvcore/boot/install-sddm-session"
-"$OMARCHY_PATH/qvcore/boot/install-sddm-wayland"
+"$QVOS_PATH/qvcore/boot/install-sddm-session"
+"$QVOS_PATH/qvcore/boot/install-sddm-wayland"
 
 autologin_config=$(qvos_boot_path /etc/sddm.conf.d/autologin.conf)
 if ! qvos_boot_root_exists "$autologin_config"; then

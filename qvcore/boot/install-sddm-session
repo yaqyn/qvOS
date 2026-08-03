@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
-source "$OMARCHY_PATH/qvcore/boot/install-lib"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 session_target=$(qvos_boot_path /usr/local/share/wayland-sessions/omarchy.desktop)
 qvos_boot_install_file \
   0644 \
-  "$OMARCHY_PATH/qvcore/boot/wayland-sessions/omarchy.desktop" \
+  "$QVOS_PATH/qvcore/boot/wayland-sessions/omarchy.desktop" \
   "$session_target"
 
 autologin_config=$(qvos_boot_path /etc/sddm.conf.d/autologin.conf)

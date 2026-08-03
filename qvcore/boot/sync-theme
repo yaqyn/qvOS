@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-OMARCHY_PATH=${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
-source "$OMARCHY_PATH/qvcore/boot/install-lib"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 staging=
@@ -35,11 +35,11 @@ usage() {
 (( $# == 1 )) || usage
 case $1 in
 plymouth)
-  source_dir="$OMARCHY_PATH/qvcore/boot/plymouth"
+  source_dir="$QVOS_PATH/qvcore/boot/plymouth"
   target=$(qvos_boot_path /usr/share/plymouth/themes/omarchy)
   ;;
 sddm)
-  source_dir="$OMARCHY_PATH/qvcore/boot/sddm"
+  source_dir="$QVOS_PATH/qvcore/boot/sddm"
   target=$(qvos_boot_path /usr/share/sddm/themes/omarchy)
   ;;
 *) usage ;;

@@ -5,7 +5,7 @@
 # omarchy:requires-sudo=true
 
 # Resolve a theme by name and apply its unlock.png + colors.toml as the
-# Plymouth boot screen via omarchy-plymouth-set.
+# Plymouth boot screen via the native qvOS boot owner.
 
 set -euo pipefail
 
@@ -30,4 +30,4 @@ fi
 bg=$(awk -F'"' '/^background/{print $2}' "$theme_dir/colors.toml")
 text=$(awk -F'"' '/^foreground/{print $2}' "$theme_dir/colors.toml")
 
-exec omarchy-plymouth-set "$bg" "$text" "$theme_dir/unlock.png"
+exec qv-plymouth-set "$bg" "$text" "$theme_dir/unlock.png"

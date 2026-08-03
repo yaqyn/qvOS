@@ -1057,7 +1057,7 @@ assert(yaqyn_unlock)
 assert(yaqyn_unlock.Preview == root .. "/qvcore/boot/plymouth/preview-unlock.png")
 assert(
   yaqyn_unlock.Actions.activate
-    == "omarchy-launch-floating-terminal-with-presentation 'omarchy-plymouth-reset'"
+    == "omarchy-launch-floating-terminal-with-presentation 'qv-plymouth-reset'"
 )
 assert(custom_unlock)
 assert(custom_unlock.Preview:match("/%.config/omarchy/themes/custom/preview%-unlock%.png$"))

@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# omarchy:summary=Set the Plymouth boot theme colors and logo
-# omarchy:args=<background-hex> <text-hex> <path-to-logo.png>
-# omarchy:examples=omarchy plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
-# omarchy:requires-sudo=true
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-
-exec "$OMARCHY_PATH/qvcore/boot/plymouth-set" "$@"
+exec "$QVOS_PATH/qvcore/boot/plymouth-set" "$@"
