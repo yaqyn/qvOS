@@ -25,16 +25,21 @@ migrate_marker() {
   local legacy=$1
   local target=$2
   local target_parent
+  local legacy_present=false
 
-  [[ ! -e $legacy && ! -L $legacy ]] && return 0
-  [[ -f $legacy && ! -L $legacy && -O $legacy && ! -s $legacy ]] || {
-    echo "Refusing unsafe legacy qvOS enrollment marker: $legacy" >&2
-    return 1
-  }
-  safe_parent "$(dirname -- "$legacy")" "$state_root" || {
-    echo "Refusing unsafe legacy qvOS enrollment parent: $legacy" >&2
-    return 1
-  }
+  if [[ -e $legacy || -L $legacy ]]; then
+    legacy_present=true
+    [[ -f $legacy && ! -L $legacy && -O $legacy && ! -s $legacy ]] || {
+      echo "Refusing unsafe legacy qvOS enrollment marker: $legacy" >&2
+      return 1
+    }
+    safe_parent "$(dirname -- "$legacy")" "$state_root" || {
+      echo "Refusing unsafe legacy qvOS enrollment parent: $legacy" >&2
+      return 1
+    }
+  elif [[ ! -e $target && ! -L $target ]]; then
+    return 0
+  fi
 
   target_parent=$(dirname -- "$target")
   [[ $(dirname -- "$target_parent") == "$state_root" ]] || {
@@ -55,7 +60,9 @@ migrate_marker() {
       echo "Refusing conflicting qvOS enrollment marker: $target" >&2
       return 1
     }
-    rm -f -- "$legacy"
+    if [[ $legacy_present == "true" ]]; then
+      rm -f -- "$legacy"
+    fi
   else
     mv -- "$legacy" "$target"
   fi

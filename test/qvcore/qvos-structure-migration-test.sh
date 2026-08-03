@@ -45,6 +45,16 @@ done
 
 run_migration --all
 
+chmod 0755 "$state_root/services" "$state_root/development"
+chmod 0644 "$state_root/services/proton" "$state_root/development/devel"
+run_migration --all
+for marker in services/proton development/devel; do
+  [[ $(stat -c '%a' "$state_root/$marker") == "600" ]] ||
+    fail "existing enrollment mode convergence: $marker"
+  [[ $(stat -c '%a' "$(dirname -- "$state_root/$marker")") == "700" ]] ||
+    fail "existing enrollment parent convergence: $marker"
+done
+
 conflict_root="$test_root/conflict"
 install -d \
   "$conflict_root/home/.local/state/qvos/qvcore" \
@@ -85,5 +95,19 @@ fi
   fail "target-parent refusal removed legacy marker"
 [[ -z $(find "$target_link_root/external" -mindepth 1 -print -quit) ]] ||
   fail "linked enrollment target escaped the state root"
+
+existing_link_root="$test_root/existing-link"
+existing_state="$existing_link_root/home/.local/state/qvos"
+install -d "$existing_state/services" "$existing_link_root/external"
+ln -s "$existing_link_root/external/marker" "$existing_state/services/proton"
+if HOME="$existing_link_root/home" \
+  XDG_STATE_HOME="$existing_link_root/home/.local/state" \
+  "$root/qvcore/install/migrate-structure" --proton >/dev/null 2>&1; then
+  fail "existing linked enrollment target accepted"
+fi
+[[ -L $existing_state/services/proton ]] ||
+  fail "existing target refusal changed enrollment state"
+[[ ! -e $existing_link_root/external/marker ]] ||
+  fail "existing enrollment link escaped the state root"
 
 printf 'ok - qvOS structure migration is private, atomic, idempotent, and link-safe\n'
