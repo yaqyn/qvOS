@@ -107,6 +107,7 @@ keep its exact compatibility ABI until that complete domain moves:
 - `qv-pkg-missing` / `qv-pkg-present` - check for packages
 - `qv-pkg-add` - install from qvOS configured repositories
 - `qv-pkg-aur-add` - explicitly install a user-selected AUR package
+- `qv-restart-*` - restart supported desktop processes, services, and devices
 - `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
 
 Exceptions are allowed for bootstrap, preflight, migration, and package-helper scripts where the helper may not be available yet, where the helper itself is being implemented, or where direct package-manager behavior is required.
@@ -248,11 +249,11 @@ supplement this workflow and never replace its judgment.
 
 Root-started sessions must read every matching route completely before editing:
 
-- qvOS identity, CLI, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
+- qvOS identity, CLI, desktop runtime, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/desktop/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
 - qvOS boot presentation and Limine lifecycle: `qvcore/boot/AGENTS.md`
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`
-- Gaming, install, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
+- Gaming, install, migration, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/migrations/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
 - Menu, search, Walker, Elephant, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/software/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`

@@ -98,7 +98,7 @@ install -m 0755 /dev/stdin "$test_bin/sleep" <<'SCRIPT'
 exit 0
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-restart-hypridle" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-restart-hypridle" <<'SCRIPT'
 #!/bin/bash
 printf 'restart-hypridle\n' >>"$QVOS_TEST_COMMAND_LOG"
 SCRIPT

@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+
+pkill -SIGUSR2 -x -- btop 2>/dev/null || true

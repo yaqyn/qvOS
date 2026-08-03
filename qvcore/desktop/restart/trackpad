@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+driver_root=${QVOS_I2C_HID_DRIVER_ROOT:-/sys/bus/i2c/drivers/i2c_hid_acpi}
+module_root=${QVOS_MODULE_ROOT:-/sys/module}
+modprobe_command=${QVOS_MODPROBE_COMMAND:-modprobe}
+current_device=""
+found=false
+
+write_control() {
+  local value=$1
+  local target=$2
+  if ((EUID == 0)); then
+    printf '%s\n' "$value" >"$target"
+  else
+    command -v sudo >/dev/null || {
+      echo "Trackpad recovery requires sudo." >&2
+      return 1
+    }
+    printf '%s\n' "$value" | sudo tee "$target" >/dev/null
+  fi
+}
+
+restore_device() {
+  [[ -n $current_device ]] || return 0
+  printf 'Restoring %s after an interrupted reset...\n' "$current_device" >&2
+  write_control "$current_device" "$driver_root/bind" || true
+  current_device=""
+}
+trap restore_device EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+shopt -s nullglob
+devices=("$driver_root"/i2c-*)
+shopt -u nullglob
+for device_path in "${devices[@]}"; do
+  [[ -e $device_path ]] || continue
+  found=true
+  device=$(basename -- "$device_path")
+  printf 'Resetting %s through i2c_hid_acpi...\n' "$device"
+  write_control "$device" "$driver_root/unbind"
+  current_device=$device
+  sleep 1
+  write_control "$device" "$driver_root/bind"
+  current_device=""
+done
+
+if [[ -d $module_root/intel_quicki2c ]]; then
+  found=true
+  printf 'Reloading intel_quicki2c...\n'
+  if ((EUID == 0)); then
+    "$modprobe_command" -r intel_quicki2c
+    "$modprobe_command" intel_quicki2c
+  else
+    sudo "$modprobe_command" -r intel_quicki2c
+    sudo "$modprobe_command" intel_quicki2c
+  fi
+fi
+
+[[ $found == "true" ]] || {
+  echo "No supported trackpad driver was found." >&2
+  exit 1
+}
+printf 'Trackpad reset completed.\n'

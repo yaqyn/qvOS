@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
+printf 'Unblocking Bluetooth...\n\n'
+rfkill unblock bluetooth
+rfkill list bluetooth

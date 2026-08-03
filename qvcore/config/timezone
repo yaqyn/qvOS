@@ -34,4 +34,4 @@ fi
 
 sudo timedatectl set-timezone "$timezone"
 echo "Timezone is now set to $timezone"
-omarchy-restart-waybar
+qv-restart-waybar

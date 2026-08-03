@@ -61,7 +61,7 @@ for marker in "${restart_markers[@]}"; do
     continue
   fi
 
-  restart_command="omarchy-restart-$service"
+  restart_command="qv-restart-$service"
   if ! command -v "$restart_command" >/dev/null; then
     echo "Keeping restart marker without an owner: $filename" >&2
     continue

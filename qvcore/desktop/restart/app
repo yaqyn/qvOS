@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# > 0)) || {
+  echo "Usage: qv restart app <application-name> [application-args...]" >&2
+  exit 2
+}
+command -v uwsm-app >/dev/null || {
+  echo "Cannot restart $1: uwsm-app is unavailable." >&2
+  exit 1
+}
+
+pkill -x -- "$1" 2>/dev/null || true
+setsid uwsm-app -- "$@" >/dev/null 2>&1 &

@@ -72,6 +72,30 @@ HOME="$home" \
   fail "current migration reconciliation changed state"
 printf 'ok - native migration markers adopt exact state and converge privately\n'
 
+retired_windows_migration="$root/qvcore/migrations/1785774136.sh"
+retired_windows_home="$test_root/retired-windows-home"
+retired_windows_runtime="$retired_windows_home/.local/lib/qvos/windows"
+install -d "$(dirname -- "$retired_windows_runtime")"
+cp -a "$root/qvcore/windows" "$retired_windows_runtime"
+HOME="$retired_windows_home" bash "$retired_windows_migration" >/dev/null
+[[ ! -e $retired_windows_runtime ]] ||
+  fail "exact retired Windows runtime was preserved"
+
+modified_windows_home="$test_root/modified-windows-home"
+modified_windows_runtime="$modified_windows_home/.local/lib/qvos/windows"
+install -d "$(dirname -- "$modified_windows_runtime")"
+cp -a "$root/qvcore/windows" "$modified_windows_runtime"
+printf '\nuser modification\n' >>"$modified_windows_runtime/command"
+migration_warning=$(
+  HOME="$modified_windows_home" bash "$retired_windows_migration" 2>&1 >/dev/null
+)
+[[ -d $modified_windows_runtime ]] ||
+  fail "modified retired Windows runtime was removed"
+grep -Fq 'Preserving modified or unsafe retired Windows runtime:' \
+  <<<"$migration_warning" ||
+  fail "modified retired Windows runtime warning"
+printf 'ok - obsolete runtime cleanup removes only exact generated artifacts\n'
+
 seed_home="$test_root/seed-home"
 seed_log="$test_root/seed.log"
 make_home "$seed_home"

@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+if pgrep -x waybar >/dev/null; then
+  pkill -TERM -x -- waybar
+  for _ in {1..20}; do
+    pgrep -x waybar >/dev/null || break
+    sleep 0.05
+  done
+  if pgrep -x waybar >/dev/null; then
+    pkill -KILL -x -- waybar
+  fi
+fi
+command -v uwsm-app >/dev/null || {
+  echo "Cannot restart Waybar: uwsm-app is unavailable." >&2
+  exit 1
+}
+setsid uwsm-app -- waybar >/dev/null 2>&1 &

@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Restart tmux if running with the latest configuration
-
-if pgrep -x tmux; then
-  tmux source-file ~/.config/tmux/tmux.conf
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/tmux" "$@"

@@ -53,10 +53,11 @@ set-timezone)
   ;;
 esac
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-restart-walker" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-restart-walker" <<'SCRIPT'
 #!/bin/bash
 printf 'restart-walker\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+ln -s qv-restart-walker "$test_bin/omarchy-restart-walker"
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
@@ -75,7 +76,7 @@ exit 1
 SCRIPT
 for command_name in \
   notify-send \
-  omarchy-restart-waybar \
+  qv-restart-waybar \
   systemctl \
   usermod \
   modprobe; do
@@ -189,7 +190,11 @@ touch \
 
 [[ $(run_owner "$root/qvcore/tui/task/selectable-owner" webapp-remove --list) == "My Web" ]] ||
   fail "Web App searchable selection inventory"
-run_owner "$root/qvcore/tui/task/selectable-owner" webapp-remove -- "My Web" >/dev/null
+selection_error="$test_root/selection-error.log"
+run_owner "$root/qvcore/tui/task/selectable-owner" webapp-remove -- "My Web" \
+  >/dev/null 2>"$selection_error"
+[[ ! -s $selection_error ]] || fail "web app removal emitted warnings"
+grep -Fqx 'restart-walker' "$action_log" || fail "web app removal restarted Walker"
 [[ ! -e "$test_home/.local/share/applications/My Web.desktop" ]] ||
   fail "Web App multi-selection delegation"
 

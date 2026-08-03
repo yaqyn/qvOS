@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+
+if [[ -f $HOME/.config/alacritty/alacritty.toml ]]; then
+  touch "$HOME/.config/alacritty/alacritty.toml"
+fi
+pkill -SIGUSR1 -x -- kitty 2>/dev/null || true
+pkill -SIGUSR2 -x -- ghostty 2>/dev/null || true

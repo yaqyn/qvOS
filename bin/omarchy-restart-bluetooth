@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Unblock and restart the bluetooth service.
-
-echo -e "Unblocking bluetooth...\n"
-rfkill unblock bluetooth
-rfkill list bluetooth
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/bluetooth" "$@"

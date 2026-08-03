@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Restart the hyprsunset service (used for blue light filtering/night light).
-
-omarchy-restart-app hyprsunset
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/hyprsunset" "$@"

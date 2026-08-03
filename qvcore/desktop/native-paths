@@ -1,0 +1,19 @@
+# Inherited restart commands promoted to native qvOS desktop ownership.
+bin/omarchy-restart-app
+bin/omarchy-restart-bluetooth
+bin/omarchy-restart-btop
+bin/omarchy-restart-helix
+bin/omarchy-restart-hyprctl
+bin/omarchy-restart-hypridle
+bin/omarchy-restart-hyprsunset
+bin/omarchy-restart-mako
+bin/omarchy-restart-opencode
+bin/omarchy-restart-pipewire
+bin/omarchy-restart-swayosd
+bin/omarchy-restart-terminal
+bin/omarchy-restart-tmux
+bin/omarchy-restart-trackpad
+bin/omarchy-restart-walker
+bin/omarchy-restart-waybar
+bin/omarchy-restart-wifi
+bin/omarchy-restart-xcompose

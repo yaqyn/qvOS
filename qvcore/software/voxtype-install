@@ -38,7 +38,7 @@ if omarchy-hw-vulkan; then
 fi
 voxtype setup systemd
 
-omarchy-restart-waybar || true
+qv-restart-waybar || true
 notify-send \
   "    Voxtype Dictation Ready" \
   "Hold F9 to dictate (or toggle with Super + Ctrl + X)." \

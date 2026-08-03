@@ -1,9 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Restart the SwayOSD server
-
-systemctl --user daemon-reload
-systemctl --user stop swayosd-server.service || true
-pkill -x swayosd-server || true
-systemctl --user reset-failed swayosd-server.service || true
-systemctl --user enable --now swayosd-server.service
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/swayosd" "$@"

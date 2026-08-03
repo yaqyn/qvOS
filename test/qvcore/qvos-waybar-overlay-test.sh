@@ -17,12 +17,12 @@ fail() {
 
 install -d "$test_bin"
 
-cat >"$test_bin/omarchy-restart-waybar" <<'STUB'
+cat >"$test_bin/qv-restart-waybar" <<'STUB'
 #!/bin/bash
 touch "$HOME/waybar-restarted"
 STUB
 
-chmod 0755 "$test_bin/omarchy-restart-waybar"
+chmod 0755 "$test_bin/qv-restart-waybar"
 
 PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
   bash "$root/qvcore/waybar/refresh"

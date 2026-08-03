@@ -21,7 +21,7 @@ Target = elephant*
 [Action]
 Description = Restarting Walker services after system update
 When = PostTransaction
-Exec = $QVOS_PATH/bin/omarchy-restart-walker
+Exec = $QVOS_PATH/bin/qv-restart-walker
 EOF
 
 # Link the visual theme menu config

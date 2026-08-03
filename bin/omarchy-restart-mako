@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Reload mako configuration (used by the qvOS theme switching).
-
-makoctl reload
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/mako" "$@"

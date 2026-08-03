@@ -14,6 +14,9 @@ old checkout atomically with `migrate-source-root` and roll back if link
 creation fails.
 Relocate the prior copied runtime tree atomically to `~/.local/lib/qvos` before
 claiming the source root; never merge runtime payloads into the Git checkout.
+Deploy desktop helpers only from `qvcore/desktop/runtime-paths`; source policy,
+checks, inventories, and source-only owners must never leak into the runtime.
+Windows owners run from the installed source and have no duplicate runtime tree.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.

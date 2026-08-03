@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
+if pgrep -x tmux >/dev/null; then
+  tmux source-file "$HOME/.config/tmux/tmux.conf"
+fi

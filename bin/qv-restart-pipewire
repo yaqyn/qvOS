@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# qv:summary=Restart PipeWire and WirePlumber user services
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/pipewire" "$@"

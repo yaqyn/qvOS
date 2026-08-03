@@ -88,5 +88,5 @@ fi
 
 if ((config_changed || style_changed)) &&
   [[ ${QVOS_WAYBAR_SKIP_RESTART:-0} != "1" ]]; then
-  omarchy-restart-waybar
+  qv-restart-waybar
 fi

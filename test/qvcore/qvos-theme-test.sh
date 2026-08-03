@@ -61,6 +61,14 @@ printf '#!/bin/bash\nexit 1\n' >"$test_bin/pgrep"
 chmod 0755 "$test_bin/theme-command-stub" "$test_bin/pgrep"
 for command in \
   omarchy-hook \
+  qv-restart-btop \
+  qv-restart-helix \
+  qv-restart-hyprctl \
+  qv-restart-mako \
+  qv-restart-opencode \
+  qv-restart-swayosd \
+  qv-restart-terminal \
+  qv-restart-waybar \
   omarchy-restart-btop \
   omarchy-restart-helix \
   omarchy-restart-hyprctl \
@@ -82,21 +90,27 @@ for command in \
 done
 ln -s "$root/bin/omarchy-theme-set" "$test_bin/omarchy-theme-set"
 
-HOME="$test_root" \
-  OMARCHY_PATH="$root" \
-  OMARCHY_THEME_SKIP_BACKGROUND=1 \
-  PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-theme-set" "Personal"
+theme_set_output=$(
+  HOME="$test_root" \
+    OMARCHY_PATH="$root" \
+    OMARCHY_THEME_SKIP_BACKGROUND=1 \
+    PATH="$test_bin:/usr/bin" \
+    "$root/bin/omarchy-theme-set" "Personal" 2>&1
+) || fail "custom theme selection command"
+[[ -z $theme_set_output ]] || fail "custom theme selection emitted warnings"
 [[ $(<"$test_root/.config/omarchy/current/theme.name") == "personal" ]] ||
   fail "custom theme selection"
 [[ $(<"$test_root/.config/omarchy/current/theme/marker") == "personal" ]] ||
   fail "custom theme rendering"
 
-HOME="$test_root" \
-  OMARCHY_PATH="$root" \
-  OMARCHY_THEME_SKIP_BACKGROUND=1 \
-  PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-theme-set" "Linked"
+theme_set_output=$(
+  HOME="$test_root" \
+    OMARCHY_PATH="$root" \
+    OMARCHY_THEME_SKIP_BACKGROUND=1 \
+    PATH="$test_bin:/usr/bin" \
+    "$root/bin/omarchy-theme-set" "Linked" 2>&1
+) || fail "linked theme selection command"
+[[ -z $theme_set_output ]] || fail "linked theme selection emitted warnings"
 [[ $(<"$test_root/.config/omarchy/current/theme/marker") == "linked" ]] ||
   fail "linked compatible theme rendering"
 

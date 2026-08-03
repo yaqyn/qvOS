@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Reload btop configuration (used by the qvOS theme switching).
-
-pkill -SIGUSR2 btop
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/btop" "$@"

@@ -6,10 +6,10 @@ screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:om
 unlock-screen|󰟵|Unlock Screen|Settings · Appearance|plymouth,boot,style|Open|run:omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400
 look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|Edit|edit:.config/hypr/looknfeel.conf
 about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:omarchy-branding-about text|Set Image|run:omarchy-branding-about image|Restore|run:omarchy-branding-about reset
-wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:omarchy-launch-wifi|Restart|present:omarchy-restart-wifi
-bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:omarchy-launch-bluetooth|Restart|present:omarchy-restart-bluetooth
+wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:omarchy-launch-wifi|Restart|present:qv-restart-wifi
+bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:omarchy-launch-bluetooth|Restart|present:qv-restart-bluetooth
 dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:omarchy-qvos-setup-dns
-audio||Audio|Settings · Devices|sound,volume,wiremix|Open|run:omarchy-launch-audio|Restart|present:omarchy-restart-pipewire
+audio||Audio|Settings · Devices|sound,volume,wiremix|Open|run:omarchy-launch-audio|Restart|present:qv-restart-pipewire
 monitors|󰍹|Monitors|Settings · Devices|display,screen,config|Edit|edit:.config/hypr/monitors.conf
 input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.config/hypr/input.conf
 keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:omarchy-menu-keybindings|Edit|edit:.config/hypr/bindings.conf

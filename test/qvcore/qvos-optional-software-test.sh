@@ -86,7 +86,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-hw-vulkan" <<'STUB'
 #!/bin/bash
 exit 1
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-restart-waybar" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-restart-waybar" <<'STUB'
 #!/bin/bash
 printf 'restart-waybar\n' >>"$QVOS_TEST_ACTION_LOG"
 STUB

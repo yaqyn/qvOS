@@ -7,6 +7,9 @@ configuration, or installed runtime payloads.
   owns launch, stop, status, and help; `bin/omarchy-windows-vm` is only its
   stable public compatibility adapter. Install and Remove enter the same
   checked TUI through `qvcore/windows/launch`.
+- Windows owners run from the installed qvOS source. Do not duplicate the
+  source tree under `~/.local/lib/qvos/windows`; only generated user state and
+  the shared TUI runtime belong outside the source checkout.
 - Collect resources and credentials through the shared owner-form contract
   before sudo. Pass values only through the TUI's private `0600` form file,
   write the Compose file as `0600`, and never print credentials.

@@ -182,8 +182,8 @@ restore_font_configs() {
 
   font_configs_match_snapshot before || return 1
   [[ $(omarchy-font-current) == "$previous_font" ]] || return 1
-  omarchy-restart-waybar
-  omarchy-restart-swayosd
+  qv-restart-waybar
+  qv-restart-swayosd
   pkill -USR1 kitty 2>/dev/null || true
   pkill -SIGUSR2 ghostty 2>/dev/null || true
 }

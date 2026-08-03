@@ -35,13 +35,13 @@ refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|3|mutatio
 refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
 refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker
 refresh-waybar|Waybar Config|Restore Waybar defaults with qvOS overrides|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-qvos-refresh-waybar
-restart-hypridle|Hypridle|Restart the Hypridle user service|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-hypridle
-restart-hyprsunset|Hyprsunset|Restart the Hyprsunset user service|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-hyprsunset
-restart-mako|Notifications|Restart the Mako notification service|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-mako
-restart-swayosd|SwayOSD|Restart the SwayOSD user service|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-swayosd
-restart-walker|Walker|Restart the Walker application launcher|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-walker
-restart-waybar|Waybar|Restart the Waybar user service|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-waybar
-restart-audio|Audio|Restart PipeWire and WirePlumber audio services|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-pipewire
-restart-wifi|Wi-Fi|Unblock Wi-Fi and inspect its radio state|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-wifi
-restart-bluetooth|Bluetooth|Unblock Bluetooth and inspect its radio state|1|mutation|tui|false|Restart|Restarting|Restarted|omarchy-restart-bluetooth
-restart-trackpad|Trackpad|Reset supported trackpad kernel drivers|1|mutation|tui|true|Restart|Restarting|Restarted|omarchy-restart-trackpad
+restart-hypridle|Hypridle|Restart the Hypridle user service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-hypridle
+restart-hyprsunset|Hyprsunset|Restart the Hyprsunset user service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-hyprsunset
+restart-mako|Notifications|Restart the Mako notification service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-mako
+restart-swayosd|SwayOSD|Restart the SwayOSD user service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-swayosd
+restart-walker|Walker|Restart the Walker application launcher|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-walker
+restart-waybar|Waybar|Restart the Waybar user service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-waybar
+restart-audio|Audio|Restart PipeWire and WirePlumber audio services|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-pipewire
+restart-wifi|Wi-Fi|Unblock Wi-Fi and inspect its radio state|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-wifi
+restart-bluetooth|Bluetooth|Unblock Bluetooth and inspect its radio state|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-bluetooth
+restart-trackpad|Trackpad|Reset supported trackpad kernel drivers|1|mutation|tui|true|Restart|Restarting|Restarted|qv-restart-trackpad

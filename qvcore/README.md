@@ -19,7 +19,7 @@ qvcore/
   browser/     Secure browser policy ownership.
   cli/         Native qv command engine and Omarchy compatibility frontend.
   config/      qvOS config sources and reconciliation after Omarchy defaults.
-  desktop/     Shared context, web, and Hyprland desktop helpers.
+  desktop/     Shared context, web, Hyprland, and runtime restart owners.
   direct/      Verified manifest-driven direct software and updates.
   install/     Complete native qvOS installation lifecycle.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
@@ -77,6 +77,9 @@ Services and Development integrations never change qvOS base readiness.
   qvOS command engine.
 - Promoted commands expose `qv-*` metadata and one native owner; exact
   `omarchy-*` names remain metadata-free compatibility only while required.
+- Desktop restart commands are native under `qvcore/desktop/restart/`. Native
+  qvOS consumers use `qv-restart-*`; exact `omarchy-restart-*` names remain
+  direct compatibility adapters for inherited consumers and external callers.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records

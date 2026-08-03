@@ -338,7 +338,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-system-reboot" <<'SCRIPT'
 #!/bin/bash
 printf 'reboot\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-restart-waybar" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-restart-waybar" <<'SCRIPT'
 #!/bin/bash
 printf 'restart-waybar\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
 exit "${QVOS_TEST_RESTART_STATUS:-0}"

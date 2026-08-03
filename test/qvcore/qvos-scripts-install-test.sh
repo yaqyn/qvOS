@@ -274,11 +274,19 @@ pass "retired Thunar launch state converges on its native runtime owner"
 [[ ! -e $root/qvcore/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
 
-for feature in desktop direct tmux waybar windows; do
+for feature in direct tmux waybar; do
   expected_feature="$(find "$root/qvcore/$feature" -type f -printf '%P\n' | sort)"
   installed_feature="$(find "$test_root/.local/lib/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
 done
+expected_desktop=$(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$root/qvcore/desktop/runtime-paths"
+)
+installed_desktop=$(
+  find "$test_root/.local/lib/qvos/desktop" -type f -printf '%P\n' | sort
+)
+[[ $installed_desktop == "$expected_desktop" ]] || fail "desktop feature inventory"
+[[ ! -e $test_root/.local/lib/qvos/windows ]] || fail "unused Windows runtime inventory"
 installed_thunar_inventory="$(
   find "$test_root/.local/lib/qvos/thunar" -type f -printf '%P\n' | sort
 )"
@@ -513,6 +521,18 @@ pass "Bash loads the source-independent qvOS shell overlay"
 while IFS= read -r helper; do
   [[ -x $helper ]] || fail "desktop helper mode"
 done < <(find "$test_root/.local/lib/qvos/desktop" -type f)
+while IFS= read -r runtime_path; do
+  [[ $runtime_path == \#* || -z $runtime_path ]] && continue
+  [[ -x $test_root/.local/lib/qvos/desktop/$runtime_path ]] ||
+    fail "desktop runtime inventory"
+done <"$root/qvcore/desktop/runtime-paths"
+for source_only_path in AGENTS.md check native-paths runtime-paths restart; do
+  [[ ! -e $test_root/.local/lib/qvos/desktop/$source_only_path ]] ||
+    fail "source-only desktop payload leaked into runtime"
+done
+[[ ! -e $test_root/.local/lib/qvos/windows ]] ||
+  fail "unused Windows source tree leaked into runtime"
+pass "runtime payload excludes policy, checks, inventories, and source-only owners"
 [[ ! -x $test_root/.local/lib/qvos/thunar/actions.sh ]] ||
   fail "Thunar action library mode"
 for feature in \

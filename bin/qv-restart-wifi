@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# qv:summary=Unblock Wi-Fi and show its radio state
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/wifi" "$@"

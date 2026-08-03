@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Restart the XCompose input method service (fcitx5) to apply new compose key settings.
-
-omarchy-restart-app fcitx5 --disable notificationitem
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/xcompose" "$@"

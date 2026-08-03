@@ -1,0 +1,8 @@
+# Source-relative qvOS desktop files installed into ~/.local/lib/qvos/desktop.
+context/qvos-active-location
+context/qvos-launch-editor-here
+context/qvos-launch-terminal-here
+hyprland/qvos-toggle-special-window
+open
+web/qvos-localhost-open
+web/qvos-website-open

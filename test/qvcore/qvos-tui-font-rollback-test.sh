@@ -60,7 +60,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
 #!/bin/bash
 touch "$QVOS_TEST_PACKAGE_MARKER"
 SCRIPT
-for command in omarchy-restart-waybar omarchy-restart-swayosd; do
+for command in qv-restart-waybar qv-restart-swayosd; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
 exit 0

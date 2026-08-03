@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Reload Helix configuration
-
-if pgrep -x helix >/dev/null; then
-  pkill -USR1 helix
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/helix" "$@"

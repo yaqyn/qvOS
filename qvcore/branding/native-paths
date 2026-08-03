@@ -27,10 +27,6 @@ bin/omarchy-refresh-tmux
 bin/omarchy-refresh-walker
 bin/omarchy-refresh-waybar
 bin/omarchy-remove-preinstalls
-bin/omarchy-restart-btop
-bin/omarchy-restart-hyprctl
-bin/omarchy-restart-mako
-bin/omarchy-restart-opencode
 bin/omarchy-screensaver
 bin/omarchy-show-logo
 bin/omarchy-version

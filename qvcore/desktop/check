@@ -1,0 +1,63 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/desktop/native-paths"
+runtime_manifest="$root/qvcore/desktop/runtime-paths"
+restart_root="$root/qvcore/desktop/restart"
+
+fail() {
+  printf 'qvOS desktop check: %s\n' "$1" >&2
+  exit 1
+}
+
+mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
+[[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+  fail "native desktop paths are not sorted and unique"
+
+expected_runtime_paths=$'context/qvos-active-location\ncontext/qvos-launch-editor-here\ncontext/qvos-launch-terminal-here\nhyprland/qvos-toggle-special-window\nopen\nweb/qvos-localhost-open\nweb/qvos-website-open'
+runtime_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest")
+[[ $runtime_paths == "$expected_runtime_paths" ]] ||
+  fail "desktop runtime payload inventory is incomplete or unordered"
+while IFS= read -r runtime_path; do
+  [[ -x $root/qvcore/desktop/$runtime_path && ! -L $root/qvcore/desktop/$runtime_path ]] ||
+    fail "desktop runtime payload is unavailable or unsafe: $runtime_path"
+done <<<"$runtime_paths"
+
+for inherited_path in "${native_paths[@]}"; do
+  stem=${inherited_path##*/omarchy-restart-}
+  owner="$restart_root/$stem"
+  native_adapter="$root/bin/qv-restart-$stem"
+  compatibility_adapter="$root/$inherited_path"
+  [[ -x $owner && -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "restart owner or adapter is unavailable: $stem"
+  (($(wc -l <"$native_adapter") <= 14)) ||
+    fail "native restart adapter contains implementation: $stem"
+  (($(wc -l <"$compatibility_adapter") <= 8)) ||
+    fail "restart compatibility adapter contains implementation: $stem"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native restart adapter lacks metadata: $stem"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "restart compatibility adapter duplicates metadata: $stem"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    # shellcheck disable=SC2016
+    grep -Fqx 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
+      "$adapter" ||
+      fail "restart adapter lacks the source-root compatibility boundary: $stem"
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/desktop/restart/$stem\" \"\$@\"" \
+      "$adapter" ||
+      fail "restart adapter does not delegate directly: $stem"
+  done
+done
+
+if rg -n 'omarchy-restart-' \
+  "$root/qvcore" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/README.md' \
+  --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/desktop/check'; then
+  fail "native qvOS source still calls a restart compatibility command"
+fi
+
+printf 'qvOS desktop restart ownership check passed.\n'

@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Reload opencode configuration (used by the qvOS theme switching).
-
-if pgrep -x opencode >/dev/null; then
-  killall -SIGUSR2 opencode
-fi
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/restart/opencode" "$@"
