@@ -103,7 +103,7 @@ Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflig
 Use native helpers when their domain is promoted. Unpromoted inherited code may
 keep its exact compatibility ABI until that complete domain moves:
 
-- `omarchy-cmd-missing` / `omarchy-cmd-present` - check for commands
+- `qv-cmd-missing` / `qv-cmd-present` - check for commands
 - `qv-pkg-missing` / `qv-pkg-present` - check for packages
 - `qv-pkg-add` - install from qvOS configured repositories
 - `qv-pkg-aur-add` - explicitly install a user-selected AUR package

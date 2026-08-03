@@ -75,6 +75,8 @@ Services and Development integrations never change qvOS base readiness.
 - `qv` is the primary user-facing command. `omarchy` remains a compatibility
   frontend for inherited scripts and upstream tooling; both use the one native
   qvOS command engine.
+- Promoted commands expose `qv-*` metadata and one native owner; exact
+  `omarchy-*` names remain metadata-free compatibility only while required.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records

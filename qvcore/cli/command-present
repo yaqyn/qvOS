@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+
+for command_name in "$@"; do
+  command -v -- "$command_name" &>/dev/null || exit 1
+done

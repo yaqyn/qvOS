@@ -17,6 +17,12 @@ or two active metadata records for the same route. Native `qv` output, routes,
 examples, errors, and suggestions use `qv`; the compatibility frontend rewrites
 the same catalog to `omarchy` without changing its owner.
 
+`qvcore/cli/command-{missing,present}` owns command availability checks. Always
+terminate `command -v` option parsing with `--` and preserve empty-set semantics:
+every command is present and no command is missing. The old hidden terminal-CWD
+helper is retired; `qvcore/desktop/context/qvos-active-location` is the singular
+tested desktop-context resolver.
+
 `qv update` must resolve only to `omarchy-qvos-update`, which delegates to the
 guarded qvOS update owner. Never expose the inherited raw updater or its
 implementation subcommands as native `qv update` routes. Do not run an update

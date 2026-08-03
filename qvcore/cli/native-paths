@@ -1,2 +1,4 @@
 # Inherited paths promoted to native qvOS CLI ownership.
 bin/omarchy
+bin/omarchy-cmd-missing
+bin/omarchy-cmd-present

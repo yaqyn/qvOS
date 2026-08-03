@@ -2,6 +2,22 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+native_manifest="$QVOS_PATH/qvcore/cli/native-paths"
+retired_manifest="$QVOS_PATH/qvcore/cli/retired-paths"
+
+expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == "$expected_native" ]] || {
+  echo "Native CLI path inventory is incomplete or unordered." >&2
+  exit 1
+}
+grep -Fqx 'bin/omarchy-cmd-terminal-cwd' "$retired_manifest" || {
+  echo "Retired terminal-cwd command is not inventoried." >&2
+  exit 1
+}
+[[ ! -e $QVOS_PATH/bin/omarchy-cmd-terminal-cwd && ! -L $QVOS_PATH/bin/omarchy-cmd-terminal-cwd ]] || {
+  echo "Retired terminal-cwd implementation remains." >&2
+  exit 1
+}
 
 for adapter in "$QVOS_PATH/bin/qv" "$QVOS_PATH/bin/omarchy"; do
   [[ -x $adapter ]] || {
@@ -12,6 +28,10 @@ done
 
 [[ -x $QVOS_PATH/qvcore/cli/qv ]] || {
   echo "Missing executable native CLI engine." >&2
+  exit 1
+}
+[[ -x $QVOS_PATH/qvcore/cli/command-missing && -x $QVOS_PATH/qvcore/cli/command-present ]] || {
+  echo "Native command-presence owners are unavailable." >&2
   exit 1
 }
 

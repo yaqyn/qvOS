@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+for command_name in "$@"; do
+  if ! command -v -- "$command_name" &>/dev/null; then
+    exit 0
+  fi
+done
+
+exit 1
