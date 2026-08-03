@@ -158,6 +158,27 @@ if rg -q 'modules_disabled|kernel\\.sysrq|\\.forwarding|usb|firewire|compiler' \
   fail "security baseline restricts normal desktop capabilities"
 fi
 
+first_run_prepare="$root/qv/install/first-run/prepare"
+first_run_root="$root/qv/install/first-run/root"
+grep -Fq 'NOPASSWD: /usr/lib/qvos/first-run-root apply' \
+  "$first_run_prepare" || fail "exact first-run apply privilege"
+grep -Fq 'NOPASSWD: /usr/lib/qvos/first-run-root cleanup' \
+  "$first_run_prepare" || fail "exact first-run cleanup privilege"
+grep -Fq '/usr/bin/env -i' "$first_run_root" ||
+  fail "first-run privileged command environment sanitation"
+if rg -q 'NOPASSWD:.*(systemctl|ufw|ufw-docker|gtk-update-icon-cache|/bin/rm)' \
+  "$first_run_prepare" "$root/install/preflight"; then
+  fail "fresh install grants a broad passwordless command"
+fi
+# shellcheck disable=SC2016
+grep -Fqx '  run_fixed_command "$ufw" default deny incoming' \
+  "$first_run_root" ||
+  fail "first-run firewall remains deny-incoming"
+# shellcheck disable=SC2016
+grep -Fqx '  run_fixed_command "$ufw" default allow outgoing' \
+  "$first_run_root" ||
+  fail "first-run firewall remains allow-outgoing"
+
 post_install_all="$root/qv/install/post-install/run"
 # shellcheck disable=SC2016
 pacman_post_line=$(grep -nF 'run_logged "$OMARCHY_INSTALL/post-install/pacman.sh"' \

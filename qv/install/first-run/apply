@@ -1,7 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-bash "$OMARCHY_PATH/qv/install/first-run/gnome-theme"
-bash "$OMARCHY_PATH/qv/install/first-run/icons"
-"$OMARCHY_PATH/qv/config/monitor-autodetect"
-"$OMARCHY_PATH/qv/menu/install" --install

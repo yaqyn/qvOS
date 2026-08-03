@@ -1,22 +1,32 @@
-# shellcheck shell=bash
+#!/bin/bash
+set -euo pipefail
 
 theme_name="qv-Papirus-Dark"
 theme_dir="$HOME/.local/share/icons/$theme_name"
+theme_parent=${theme_dir%/*}
 source_theme="/usr/share/icons/Papirus"
 sizes=(16 22 24 32 48 64)
+staging_dir=""
+backup_dir=""
+
+cleanup() {
+  [[ -z $staging_dir ]] || rm -rf -- "$staging_dir"
+  [[ -z $backup_dir ]] || rm -rf -- "$backup_dir"
+}
+trap cleanup EXIT
 
 if [[ ! -d $source_theme ]]; then
   echo "Papirus icon theme not found; skipping qv icon overlay"
   exit 0
 fi
 
-rm -rf "$theme_dir"
-mkdir -p "$theme_dir"
+install -d "$theme_parent"
+staging_dir=$(mktemp -d "$theme_parent/.qv-papirus.XXXXXX")
 
 directories=""
 for size in "${sizes[@]}"; do
   directory="${size}x${size}/places"
-  mkdir -p "$theme_dir/$directory"
+  mkdir -p "$staging_dir/$directory"
 
   if [[ -n $directories ]]; then
     directories="$directories,$directory"
@@ -42,11 +52,11 @@ done
     echo "Type=Fixed"
     echo
   done
-} >"$theme_dir/index.theme"
+} >"$staging_dir/index.theme"
 
 for size in "${sizes[@]}"; do
   source_dir="$source_theme/${size}x${size}/places"
-  target_dir="$theme_dir/${size}x${size}/places"
+  target_dir="$staging_dir/${size}x${size}/places"
 
   [[ -d $source_dir ]] || continue
 
@@ -58,5 +68,19 @@ for size in "${sizes[@]}"; do
   done < <(find "$source_dir" -maxdepth 1 -type f -name "folder-black*.svg" -print0)
 done
 
-gtk-update-icon-cache "$theme_dir" >/dev/null 2>&1 || true
+gtk-update-icon-cache "$staging_dir" >/dev/null 2>&1 || true
+
+if [[ -e $theme_dir || -L $theme_dir ]]; then
+  backup_dir=$(mktemp -d "$theme_parent/.qv-papirus-backup.XXXXXX")
+  rmdir "$backup_dir"
+  mv -- "$theme_dir" "$backup_dir"
+fi
+if ! mv -- "$staging_dir" "$theme_dir"; then
+  [[ -z $backup_dir ]] || mv -- "$backup_dir" "$theme_dir"
+  exit 1
+fi
+staging_dir=""
+[[ -z $backup_dir ]] || rm -rf -- "$backup_dir"
+backup_dir=""
+
 gsettings set org.gnome.desktop.interface icon-theme "$theme_name"

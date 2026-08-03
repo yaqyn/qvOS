@@ -209,10 +209,12 @@ done
 [[ ! -e $root/qv/core/steam.sh ]] || fail "retired qvCORE Steam owner"
 grep -Fqx 'localsend' "$base_packages" ||
   fail "qvOS base LocalSend package"
-grep -Fqx 'sudo ufw allow 53317/udp' "$root/install/first-run/firewall.sh" ||
-  fail "Omarchy LocalSend UDP firewall ownership"
-grep -Fqx 'sudo ufw allow 53317/tcp' "$root/install/first-run/firewall.sh" ||
-  fail "Omarchy LocalSend TCP firewall ownership"
+grep -Fqx '  run_fixed_command "$ufw" allow 53317/udp' \
+  "$root/qv/install/first-run/root" ||
+  fail "qvOS LocalSend UDP firewall ownership"
+grep -Fqx '  run_fixed_command "$ufw" allow 53317/tcp' \
+  "$root/qv/install/first-run/root" ||
+  fail "qvOS LocalSend TCP firewall ownership"
 grep -Fqx 'share||Share|More · Share|localsend,send|Send|menu:share' \
   "$root/qv/menu/concepts.psv" ||
   fail "LocalSend concept stays independent from qvCORE"
@@ -412,17 +414,17 @@ grep -Fqx 'windowrule = size 1024 509, match:class ^org\.qvos\.tui$' \
 grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
   "$root/qv/config/files/hypr/qv/windows.conf" ||
   fail "qvOS TUI centered window contract"
-grep -Fq 'bash "$OMARCHY_PATH/qv/install/first-run/apply"' \
+grep -Fqx 'exec "$OMARCHY_PATH/qv/install/first-run/run" "$@"' \
   "$root/bin/omarchy-first-run" ||
-  fail "qvOS first-run integration seam"
+  fail "qvOS first-run owner adapter"
 elephant_line=$(grep -nF 'bash "$OMARCHY_PATH/install/first-run/elephant.sh"' \
-  "$root/bin/omarchy-first-run" | cut -d: -f1)
-qvos_first_run_line=$(grep -nF 'bash "$OMARCHY_PATH/qv/install/first-run/apply"' \
-  "$root/bin/omarchy-first-run" | cut -d: -f1)
+  "$root/qv/install/first-run/run" | cut -d: -f1)
+qvos_first_run_line=$(grep -nF '"$OMARCHY_PATH/qv/install/first-run/gnome-theme"' \
+  "$root/qv/install/first-run/run" | cut -d: -f1)
 ((qvos_first_run_line > elephant_line)) ||
-  fail "qvOS first-run overlay runs before inherited configuration is complete"
+  fail "qvOS first-run theme runs before inherited session setup is complete"
 grep -Fqx '"$OMARCHY_PATH/qv/menu/install" --install' \
-  "$root/qv/install/first-run/apply" ||
+  "$root/qv/install/first-run/run" ||
   fail "qvOS first-run menu reconciliation"
 grep -Fq 'output="qvOS ${output#Omarchy }"' \
   "$root/qv/update/update-available" || fail "qvOS update status"

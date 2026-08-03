@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qv/install/native-paths"
+retired_manifest="$root/qv/install/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -13,6 +14,12 @@ fail() {
 [[ -x $root/qv/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
 [[ -x $root/qv/install/post-install/finished ]] ||
   fail "post-install presentation owner mode"
+for first_run_owner in prepare root run gnome-theme icons; do
+  [[ -x $root/qv/install/first-run/$first_run_owner ]] ||
+    fail "first-run owner mode: $first_run_owner"
+done
+[[ ! -e $root/qv/install/first-run/apply ]] ||
+  fail "first-run overlay remains"
 [[ ! -e $root/qv/install/helpers/logging ]] || fail "duplicate install logger remains"
 [[ ! -e $root/qv/install/helpers/presentation ]] ||
   fail "duplicate install presentation remains"
@@ -22,6 +29,9 @@ grep -Fqx 'source $OMARCHY_INSTALL/helpers/logging.sh' \
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
 ) ]] || fail "native install paths are not sorted and unique"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
+) ]] || fail "retired install paths are not sorted and unique"
 # shellcheck disable=SC2016
 grep -Fqx 'exec "$OMARCHY_PATH/qv/install/reinstall-source" "$@"' \
   "$root/bin/omarchy-reinstall-git" || fail "source reinstall adapter"
@@ -42,5 +52,15 @@ grep -Fqx 'source "$OMARCHY_PATH/qv/install/post-install/run"' \
   fail "inherited post-install orchestration remains"
 [[ ! -e $root/install/post-install/finished.sh ]] ||
   fail "inherited post-install presentation remains"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/install/first-run/run" "$@"' \
+  "$root/bin/omarchy-first-run" || fail "native first-run adapter"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qv/install/first-run/prepare"' \
+  "$root/install/preflight/all.sh" || fail "native first-run preparation"
+if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|rm)' \
+  "$root/qv/install" "$root/install/preflight"; then
+  fail "broad passwordless first-run command remains"
+fi
 
 printf 'ok - qvOS install and reinstall lifecycles preserve source safely\n'

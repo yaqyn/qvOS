@@ -25,6 +25,16 @@ keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
 owner. Never restore inherited post-install orchestration or presentation as a
 fallback.
 
+`qv/install/first-run/prepare` creates the compatibility marker only after it
+installs and validates the root-owned helper and exact `apply`/`cleanup`
+sudoers commands. `qv/install/first-run/run` owns the ordered login lifecycle,
+keeps the marker on failure, serializes concurrent starts, and removes the
+narrow privilege policy only after all required user-session work succeeds.
+Never grant passwordless access to general system, firewall, package, or file
+commands for first run. Keep notifications non-fatal after successful cleanup.
+The native GNOME and icon owners replace the inherited GNOME theme rather than
+running after it; retain `yaru-icon-theme` only for compatible external themes.
+
 `qv/install/packaging/base.packages` is the singular installed base manifest.
 `qv/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths. `qv/install/packaging/resolve` validates and emits
@@ -44,7 +54,7 @@ them; never restore an inherited manifest plus additions/exclusions model.
   verify the computed Pacman transaction before mutation.
 
 Run `qv/install/check`; the resolver for `base`, `other`, and `all`; package,
-source-lifecycle, product, security, and upstream-boundary tests; Bash syntax
-and ShellCheck; and the full qvOS suite. Package-manifest changes also require
-ISO prepare-only verification. Do not run package upgrades during source or
-live parity work.
+first-run, source-lifecycle, product, security, and upstream-boundary tests;
+Bash syntax and ShellCheck; and the full qvOS suite. Package-manifest changes
+also require ISO prepare-only verification. Do not run package upgrades during
+source or live parity work.

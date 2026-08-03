@@ -1,0 +1,174 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+system_root=""
+ufw=/usr/bin/ufw
+ufw_docker=/usr/bin/ufw-docker
+systemctl=/usr/bin/systemctl
+
+if ((EUID != 0)); then
+  test_root=${QVOS_FIRST_RUN_TEST_ROOT:-}
+  test_bin=${QVOS_FIRST_RUN_TEST_BIN:-}
+  [[ ${QVOS_FIRST_RUN_TESTING:-} == "1" ]] || {
+    echo "qvOS first-run root helper must run as root." >&2
+    exit 1
+  }
+  [[ $test_root == /tmp/* && -d $test_root && ! -L $test_root ]] || {
+    echo "Invalid qvOS first-run test root." >&2
+    exit 1
+  }
+  [[ $(/usr/bin/stat -c '%u' "$test_root") == "$UID" ]] || {
+    echo "qvOS first-run test root has the wrong owner." >&2
+    exit 1
+  }
+  [[ $test_bin == /tmp/* && -d $test_bin && ! -L $test_bin ]] || {
+    echo "Invalid qvOS first-run test command directory." >&2
+    exit 1
+  }
+  for test_command in ufw ufw-docker systemctl; do
+    [[ -x $test_bin/$test_command ]] || {
+      echo "Missing qvOS first-run test command: $test_command" >&2
+      exit 1
+    }
+  done
+
+  system_root=$test_root
+  ufw="$test_bin/ufw"
+  ufw_docker="$test_bin/ufw-docker"
+  systemctl="$test_bin/systemctl"
+fi
+
+helper="$system_root/usr/lib/qvos/first-run-root"
+sudoers="$system_root/etc/sudoers.d/qvos-first-run"
+legacy_sudoers="$system_root/etc/sudoers.d/first-run"
+reboot_sudoers="$system_root/etc/sudoers.d/99-omarchy-installer-reboot"
+resolv_conf="$system_root/etc/resolv.conf"
+state_dir="$system_root/run/qvos-first-run"
+state_file="$state_dir/root-applied"
+lock_file="$system_root/run/qvos-first-run-root.lock"
+
+expected_identity="0:0"
+if ((EUID != 0)); then
+  expected_identity="$UID:$(/usr/bin/id -g)"
+fi
+
+validate_owned_file() {
+  local path=$1
+  local mode=$2
+
+  [[ -f $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g:%a' "$path") == "$expected_identity:$mode" ]]
+}
+
+validate_applied_state() {
+  validate_owned_file "$state_file" 600 &&
+    [[ $(<"$state_file") == "qvOS first-run root applied" ]]
+}
+
+run_fixed_command() {
+  if ((EUID == 0)); then
+    /usr/bin/env -i \
+      LC_ALL=C \
+      PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+      "$@"
+  else
+    "$@"
+  fi
+}
+
+write_applied_state() {
+  local temporary
+
+  [[ ! -L $state_dir && ! -L $state_file ]] || {
+    echo "Refusing unsafe qvOS first-run root state." >&2
+    return 1
+  }
+  /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m 0700 \
+    "$state_dir"
+  temporary=$(/usr/bin/mktemp "$state_dir/.root-applied.XXXXXX")
+  printf 'qvOS first-run root applied\n' >"$temporary"
+  /usr/bin/chmod 0600 "$temporary"
+  if ((EUID == 0)); then
+    /usr/bin/chown root:root "$temporary"
+  fi
+  /usr/bin/mv -f -- "$temporary" "$state_file"
+}
+
+read -r expected_uid expected_gid <<<"${expected_identity/:/ }"
+[[ ! -L $system_root/run && ! -L $state_dir ]] || {
+  echo "Refusing unsafe qvOS first-run runtime state." >&2
+  exit 1
+}
+/usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m 0755 \
+  "$system_root/run"
+[[ ! -L $lock_file ]] || {
+  echo "Refusing a symbolic-link qvOS first-run root lock." >&2
+  exit 1
+}
+exec 9>"$lock_file"
+/usr/bin/flock 9
+
+case ${1:-} in
+apply)
+  (($# == 1)) || exit 2
+  if [[ -e $state_file || -L $state_file ]]; then
+    validate_applied_state || {
+      echo "Refusing invalid qvOS first-run root state." >&2
+      exit 1
+    }
+    exit 0
+  fi
+
+  /usr/bin/rm -f -- "$reboot_sudoers"
+
+  run_fixed_command "$ufw" default deny incoming
+  run_fixed_command "$ufw" default allow outgoing
+  run_fixed_command "$ufw" allow 53317/udp
+  run_fixed_command "$ufw" allow 53317/tcp
+  run_fixed_command "$ufw" allow in proto udp from 172.16.0.0/12 to 172.17.0.1 \
+    port 53 comment allow-docker-dns
+  run_fixed_command "$ufw" allow in proto udp from 192.168.0.0/16 to 172.17.0.1 \
+    port 53 comment allow-docker-dns
+  run_fixed_command "$ufw" --force enable
+  run_fixed_command "$systemctl" enable ufw
+  run_fixed_command "$ufw_docker" install
+  run_fixed_command "$ufw" reload
+
+  [[ ! -e $resolv_conf || -f $resolv_conf || -L $resolv_conf ]] || {
+    echo "Refusing a non-file resolver path." >&2
+    exit 1
+  }
+  [[ ! -L $resolv_conf ]] || /usr/bin/rm -f -- "$resolv_conf"
+  /usr/bin/ln -sfn \
+    /run/systemd/resolve/stub-resolv.conf \
+    "$resolv_conf"
+
+  write_applied_state
+  ;;
+cleanup)
+  (($# == 1)) || exit 2
+  validate_applied_state || {
+    echo "qvOS first-run root setup is not complete." >&2
+    exit 1
+  }
+  validate_owned_file "$helper" 755 || {
+    echo "Refusing to remove an unexpected qvOS first-run helper." >&2
+    exit 1
+  }
+  validate_owned_file "$sudoers" 440 || {
+    echo "Refusing to remove an unexpected qvOS first-run sudoers policy." >&2
+    exit 1
+  }
+
+  /usr/bin/rm -f -- "$legacy_sudoers"
+  /usr/bin/rm -f -- "$state_file"
+  /usr/bin/rmdir "$state_dir"
+  /usr/bin/rm -f -- "$helper"
+  /usr/bin/rm -f -- "$sudoers"
+  ;;
+*)
+  echo "Usage: first-run-root <apply|cleanup>" >&2
+  exit 2
+  ;;
+esac

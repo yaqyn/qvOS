@@ -1,0 +1,79 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+marker="$HOME/.local/state/omarchy/first-run.mode"
+state_dir="$HOME/.local/state/qvos/install"
+lock_file="$state_dir/first-run.lock"
+root_helper=/usr/lib/qvos/first-run-root
+sudo=/usr/bin/sudo
+
+if [[ ${QVOS_FIRST_RUN_TESTING:-} == "1" ]]; then
+  test_helper=${QVOS_FIRST_RUN_ROOT_HELPER:-}
+  test_sudo=${QVOS_FIRST_RUN_SUDO:-}
+  [[ $test_helper == /tmp/* && -f $test_helper && -x $test_helper &&
+    ! -L $test_helper ]] || {
+    echo "Invalid qvOS first-run test helper." >&2
+    exit 1
+  }
+  [[ $test_sudo == /tmp/* && -f $test_sudo && -x $test_sudo &&
+    ! -L $test_sudo ]] || {
+    echo "Invalid qvOS first-run test sudo command." >&2
+    exit 1
+  }
+  root_helper=$test_helper
+  sudo=$test_sudo
+fi
+
+[[ ! -L $marker ]] || {
+  echo "Refusing symbolic-link qvOS first-run state." >&2
+  exit 1
+}
+[[ -e $marker ]] || exit 0
+[[ -f $marker && $(stat -c '%u' "$marker") == "$UID" ]] || {
+  echo "Refusing invalid qvOS first-run state." >&2
+  exit 1
+}
+
+[[ ! -L $state_dir ]] || {
+  echo "Refusing symbolic-link qvOS install state." >&2
+  exit 1
+}
+install -d -m 0700 "$state_dir"
+[[ ! -L $lock_file ]] || {
+  echo "Refusing symbolic-link qvOS first-run lock." >&2
+  exit 1
+}
+exec 9>"$lock_file"
+flock -n 9 || exit 0
+
+[[ -f $root_helper && -x $root_helper && ! -L $root_helper ]] || {
+  echo "The qvOS first-run root helper is unavailable." >&2
+  exit 1
+}
+
+"$sudo" "$root_helper" apply
+
+bash "$OMARCHY_PATH/install/first-run/battery-monitor.sh"
+bash "$OMARCHY_PATH/install/first-run/recover-internal-monitor.sh"
+bash "$OMARCHY_PATH/install/first-run/swayosd.sh"
+bash "$OMARCHY_PATH/install/first-run/gtk-primary-paste.sh"
+bash "$OMARCHY_PATH/install/first-run/text-scaling.sh"
+bash "$OMARCHY_PATH/install/first-run/elephant.sh"
+"$OMARCHY_PATH/qv/install/first-run/gnome-theme"
+"$OMARCHY_PATH/qv/install/first-run/icons"
+"$OMARCHY_PATH/qv/config/monitor-autodetect"
+"$OMARCHY_PATH/qv/menu/install" --install
+omarchy-hook-install \
+  post-update \
+  "$OMARCHY_PATH/install/first-run/install-voxtype.hook"
+
+"$sudo" "$root_helper" cleanup
+rm -f -- "$marker"
+
+if ! bash "$OMARCHY_PATH/install/first-run/welcome.sh"; then
+  echo "qvOS first-run: the welcome notification could not be shown." >&2
+fi
+if ! bash "$OMARCHY_PATH/install/first-run/wifi.sh"; then
+  echo "qvOS first-run: the network notification could not be shown." >&2
+fi

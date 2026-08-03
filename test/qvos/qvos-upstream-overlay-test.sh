@@ -21,7 +21,6 @@ else
 fi
 
 inherited_seams=(
-  bin/omarchy-first-run
   bin/omarchy-install-browser
   bin/omarchy-install-gaming-xbox-controllers
   bin/omarchy-install-gaming-retroarch

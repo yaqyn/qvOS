@@ -265,7 +265,7 @@ grep -Fq \
   fail "symbolic-link restore preflight diagnostic"
 
 grep -Fqx "\"\$OMARCHY_PATH/qv/config/monitor-autodetect\"" \
-  "$root/qv/install/first-run/apply" ||
+  "$root/qv/install/first-run/run" ||
   fail "fresh first login display detection"
 grep -Fqx "\"\$OMARCHY_PATH/qv/config/monitor-autodetect\"" \
   "$root/qv/config/refresh-hyprland" ||

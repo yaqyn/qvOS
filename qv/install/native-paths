@@ -1,4 +1,5 @@
 # Inherited installer paths promoted to qvOS ownership.
+bin/omarchy-first-run
 bin/omarchy-reinstall
 bin/omarchy-reinstall-configs
 bin/omarchy-reinstall-git
@@ -8,3 +9,4 @@ install.sh
 install/helpers/logging.sh
 install/helpers/presentation.sh
 install/packaging/base.sh
+install/preflight/all.sh

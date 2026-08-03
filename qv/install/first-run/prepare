@@ -1,0 +1,126 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+system_root=${QVOS_FIRST_RUN_SYSTEM_ROOT:-}
+helper_source="$OMARCHY_PATH/qv/install/first-run/root"
+helper_target="$system_root/usr/lib/qvos/first-run-root"
+sudoers_target="$system_root/etc/sudoers.d/qvos-first-run"
+legacy_sudoers="$system_root/etc/sudoers.d/first-run"
+marker="$HOME/.local/state/omarchy/first-run.mode"
+candidate=""
+marker_candidate=""
+
+cleanup() {
+  [[ -z $candidate ]] || rm -f -- "$candidate"
+  [[ -z $marker_candidate ]] || rm -f -- "$marker_candidate"
+}
+trap cleanup EXIT
+
+if [[ -n $system_root ]]; then
+  [[ ${QVOS_FIRST_RUN_TESTING:-} == "1" ]] || {
+    echo "A custom qvOS first-run system root is only valid in tests." >&2
+    exit 2
+  }
+  [[ $system_root == /tmp/* && -d $system_root && ! -L $system_root ]] || {
+    echo "Invalid qvOS first-run test system root." >&2
+    exit 1
+  }
+  [[ $(stat -c '%u' "$system_root") == "$UID" ]] || {
+    echo "qvOS first-run test system root has the wrong owner." >&2
+    exit 1
+  }
+fi
+
+[[ -f $helper_source && -x $helper_source && ! -L $helper_source ]] || {
+  echo "Missing qvOS first-run root helper." >&2
+  exit 1
+}
+
+marker_dir=${marker%/*}
+[[ ! -L $marker_dir && ! -L $marker ]] || {
+  echo "Refusing unsafe qvOS first-run state." >&2
+  exit 1
+}
+mkdir -p "$marker_dir"
+[[ ! -e $marker || -f $marker ]] || {
+  echo "Refusing non-file qvOS first-run state." >&2
+  exit 1
+}
+marker_candidate=$(mktemp "$marker_dir/.first-run.XXXXXX")
+chmod 0600 "$marker_candidate"
+
+install_as_root() {
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    /usr/bin/install "$@"
+  else
+    /usr/bin/sudo /usr/bin/install "$@"
+  fi
+}
+
+remove_as_root() {
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    /usr/bin/rm "$@"
+  else
+    /usr/bin/sudo /usr/bin/rm "$@"
+  fi
+}
+
+validate_sudoers_as_root() {
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    /usr/bin/visudo -cf "$1" >/dev/null
+  else
+    /usr/bin/sudo /usr/bin/visudo -cf "$1" >/dev/null
+  fi
+}
+
+desktop_user=$(/usr/bin/id -un)
+[[ $desktop_user =~ ^[a-z_][a-z0-9_-]*[$]?$ ]] || {
+  echo "Unsupported desktop account name for qvOS first run." >&2
+  exit 1
+}
+
+candidate=$(mktemp)
+{
+  printf '%s ALL=(root) NOPASSWD: /usr/lib/qvos/first-run-root apply\n' \
+    "$desktop_user"
+  printf '%s ALL=(root) NOPASSWD: /usr/lib/qvos/first-run-root cleanup\n' \
+    "$desktop_user"
+} >"$candidate"
+chmod 0440 "$candidate"
+/usr/bin/visudo -cf "$candidate" >/dev/null
+
+if [[ -n $system_root ]]; then
+  target_uid=$UID
+  target_gid=$(id -g)
+else
+  target_uid=root
+  target_gid=root
+fi
+install_as_root -D -o "$target_uid" -g "$target_gid" -m 0755 \
+  "$helper_source" "$helper_target"
+if ! install_as_root -D -o "$target_uid" -g "$target_gid" -m 0440 \
+  "$candidate" "$sudoers_target"; then
+  remove_as_root -f -- "$sudoers_target" "$helper_target"
+  echo "Could not install the qvOS first-run privilege policy." >&2
+  exit 1
+fi
+
+if ! validate_sudoers_as_root "$sudoers_target"; then
+  remove_as_root -f -- "$sudoers_target" "$helper_target"
+  echo "Could not install a valid qvOS first-run sudoers policy." >&2
+  exit 1
+fi
+if ! remove_as_root -f -- "$legacy_sudoers"; then
+  remove_as_root -f -- "$sudoers_target" "$helper_target"
+  echo "Could not remove the inherited first-run privilege policy." >&2
+  exit 1
+fi
+
+if ! mv -f -- "$marker_candidate" "$marker"; then
+  remove_as_root -f -- "$sudoers_target" "$helper_target"
+  echo "Could not store qvOS first-run state." >&2
+  exit 1
+fi
+marker_candidate=""
