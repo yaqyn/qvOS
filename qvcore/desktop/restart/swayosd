@@ -1,8 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qvcore/desktop/restart/process-lib
+restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$restart_root/process-lib"
+
 systemctl --user daemon-reload
 systemctl --user stop swayosd-server.service || true
-pkill -x -- swayosd-server 2>/dev/null || true
+qvos_process_signal_exact swayosd-server TERM
 systemctl --user reset-failed swayosd-server.service || true
 systemctl --user enable --now swayosd-server.service

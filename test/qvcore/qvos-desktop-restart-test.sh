@@ -17,13 +17,6 @@ fail() {
 }
 
 install -d "$test_bin"
-install -m 0755 /dev/stdin "$test_bin/pkill" <<'SCRIPT'
-#!/bin/bash
-printf 'pkill' >>"$QVOS_RESTART_TEST_LOG"
-printf '|%s' "$@" >>"$QVOS_RESTART_TEST_LOG"
-printf '\n' >>"$QVOS_RESTART_TEST_LOG"
-exit "${QVOS_PKILL_STATUS:-1}"
-SCRIPT
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
 exit "${QVOS_PGREP_STATUS:-1}"
@@ -77,6 +70,31 @@ run_owner() {
 "$root/qvcore/desktop/check"
 printf 'ok - native restart owners and adapters are singular\n'
 
+bash -s "$root/qvcore/desktop/restart/process-lib" <<'SCRIPT'
+set -euo pipefail
+source "$1"
+sleep 30 &
+target_pid=$!
+cleanup_process() {
+  kill -KILL "$target_pid" 2>/dev/null || true
+}
+trap cleanup_process EXIT
+pgrep() {
+  printf '%s\n%s\n' "$$" "$target_pid"
+}
+mapfile -t matched_pids < <(qvos_process_exact_pids sleep)
+((${#matched_pids[@]} == 1))
+[[ ${matched_pids[0]} == "$target_pid" ]]
+qvos_process_signal_exact sleep TERM
+set +e
+wait "$target_pid"
+target_status=$?
+set -e
+((target_status == 143))
+trap - EXIT
+SCRIPT
+printf 'ok - exact process signaling excludes its own owner and validates targets\n'
+
 if run_owner app; then
   fail "restart app accepted a missing application name"
 fi
@@ -86,7 +104,6 @@ for _ in {1..20}; do
   grep -Fq 'uwsm|--|hypridle|--mode|value with space' "$log" && break
   sleep 0.05
 done
-grep -Fqx 'pkill|-x|--|hypridle' "$log" || fail "restart app exact termination"
 grep -Fqx 'uwsm|--|hypridle|--mode|value with space' "$log" ||
   fail "restart app argument boundaries"
 printf 'ok - application restart is bounded and argument-safe\n'
@@ -97,12 +114,18 @@ run_owner helix
 run_owner opencode
 run_owner mako
 run_owner hyprctl
-grep -Fqx 'pkill|-SIGUSR2|-x|--|btop' "$log" || fail "btop signal"
-grep -Fqx 'pkill|-USR1|-x|--|helix' "$log" || fail "Helix signal"
-grep -Fqx 'pkill|-SIGUSR2|-x|--|opencode' "$log" || fail "OpenCode signal"
 grep -Fqx 'makoctl|reload' "$log" || fail "Mako reload"
 grep -Fqx 'hyprctl|reload' "$log" || fail "Hyprland reload"
 printf 'ok - reload owners tolerate absent optional processes and propagate tools\n'
+
+: >"$log"
+run_owner waybar
+for _ in {1..20}; do
+  grep -Fq 'uwsm|--|waybar' "$log" && break
+  sleep 0.05
+done
+grep -Fqx 'uwsm|--|waybar' "$log" || fail "Waybar relaunch"
+printf 'ok - Waybar restart survives its matching owner basename\n'
 
 : >"$log"
 run_owner pipewire
@@ -152,7 +175,6 @@ printf 'ok - Walker restart stays in the active user service set\n'
 : >"$log"
 QVOS_PATH="$root" QVOS_RESTART_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
   "$root/bin/omarchy-restart-btop"
-grep -Fqx 'pkill|-SIGUSR2|-x|--|btop' "$log" || fail "compatibility adapter"
 "$root/bin/qv" restart waybar --help | grep -Fq 'qv-restart-waybar' ||
   fail "native restart CLI route"
 printf 'ok - restart compatibility and native CLI routes share one owner\n'

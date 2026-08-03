@@ -50,6 +50,13 @@ for inherited_path in "${native_paths[@]}"; do
   done
 done
 
+[[ -f $restart_root/process-lib && ! -L $restart_root/process-lib &&
+  $(stat -c '%a' "$restart_root/process-lib") == "644" ]] ||
+  fail "shared restart process library is unavailable or unsafe"
+if rg -n '\b(pkill|killall)\b' "$restart_root" --glob '!process-lib'; then
+  fail "restart owner bypasses the self-safe process helper"
+fi
+
 if rg -n 'omarchy-restart-' \
   "$root/qvcore" \
   --glob '!**/AGENTS.md' \

@@ -1,15 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-if pgrep -x waybar >/dev/null; then
-  pkill -TERM -x -- waybar
+# qvos:contract=qvcore/desktop/restart/process-lib
+restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$restart_root/process-lib"
+
+mapfile -t waybar_pids < <(qvos_process_exact_pids waybar)
+if ((${#waybar_pids[@]} > 0)); then
+  for waybar_pid in "${waybar_pids[@]}"; do
+    qvos_process_signal_pid waybar TERM "$waybar_pid"
+  done
   for _ in {1..20}; do
-    pgrep -x waybar >/dev/null || break
+    waybar_running=false
+    for waybar_pid in "${waybar_pids[@]}"; do
+      if qvos_process_pid_matches waybar "$waybar_pid"; then
+        waybar_running=true
+        break
+      fi
+    done
+    [[ $waybar_running == "true" ]] || break
     sleep 0.05
   done
-  if pgrep -x waybar >/dev/null; then
-    pkill -KILL -x -- waybar
-  fi
+  for waybar_pid in "${waybar_pids[@]}"; do
+    qvos_process_signal_pid waybar KILL "$waybar_pid"
+  done
 fi
 command -v uwsm-app >/dev/null || {
   echo "Cannot restart Waybar: uwsm-app is unavailable." >&2

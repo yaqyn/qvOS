@@ -18,6 +18,12 @@ failure, and report when no supported device was found instead of claiming a
 restart. Never exercise radio, audio, trackpad, or session mutations on the
 live installation merely to test an adapter.
 
+All exact-name process signaling uses `restart/process-lib`. It scopes matches
+to the effective user, excludes the calling owner, revalidates `/proc` before
+each signal, and treats a vanished or reused PID as success. Never use raw
+`pkill` or `killall` in a restart owner: a Bash script whose basename matches
+the target can otherwise signal itself.
+
 List every promoted inherited restart path in `native-paths`, sorted and
 unique. `runtime-paths` is the exact source-independent desktop payload; never
 copy policy, checks, inventories, or source-only restart owners into the user

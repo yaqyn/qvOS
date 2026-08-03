@@ -1,0 +1,46 @@
+# shellcheck shell=bash
+
+qvos_process_pid_matches() {
+  local name=$1
+  local pid=$2
+  local process_name
+
+  [[ $pid =~ ^[1-9][0-9]*$ && $pid != "$$" ]] || return 1
+  [[ -r /proc/$pid/comm ]] || return 1
+  IFS= read -r process_name <"/proc/$pid/comm" || return 1
+  [[ $process_name == "$name" ]]
+}
+
+qvos_process_exact_pids() {
+  local name=$1
+  local pid
+
+  while IFS= read -r pid; do
+    qvos_process_pid_matches "$name" "$pid" && printf '%s\n' "$pid"
+  done < <(pgrep -A -u "$EUID" -x -- "$name" 2>/dev/null || true)
+}
+
+qvos_process_signal_pid() {
+  local name=$1
+  local signal=$2
+  local pid=$3
+
+  qvos_process_pid_matches "$name" "$pid" || return 0
+  if kill -s "$signal" -- "$pid" 2>/dev/null; then
+    return 0
+  fi
+  qvos_process_pid_matches "$name" "$pid" || return 0
+  return 1
+}
+
+qvos_process_signal_exact() {
+  local name=$1
+  local signal=$2
+  local pid
+  local status=0
+
+  while IFS= read -r pid; do
+    qvos_process_signal_pid "$name" "$signal" "$pid" || status=1
+  done < <(qvos_process_exact_pids "$name")
+  return "$status"
+}

@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qvcore/desktop/restart/process-lib
+restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$restart_root/process-lib"
+
 (($# > 0)) || {
   echo "Usage: qv restart app <application-name> [application-args...]" >&2
   exit 2
@@ -10,5 +15,5 @@ command -v uwsm-app >/dev/null || {
   exit 1
 }
 
-pkill -x -- "$1" 2>/dev/null || true
+qvos_process_signal_exact "$1" TERM
 setsid uwsm-app -- "$@" >/dev/null 2>&1 &
