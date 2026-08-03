@@ -16,6 +16,8 @@ fstab="$system_root/etc/fstab"
 candidate=""
 backup_file=""
 fstab_changed=0
+prior_options=""
+desired_options=""
 
 cleanup() {
   [[ -z $candidate ]] || rm -f -- "$candidate"
@@ -31,8 +33,10 @@ as_root() {
 }
 
 reload_and_remount_boot() {
+  local options=$1
+
   as_root /usr/bin/systemctl daemon-reload || return
-  as_root /usr/bin/mount -o remount /boot
+  as_root /usr/bin/mount -o "remount,$options" /boot
 }
 
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
@@ -112,6 +116,12 @@ fi
   exit 1
 }
 current_options=$(findmnt -n -o OPTIONS --target /boot)
+prior_options=$(awk '$2 == "/boot" { print $4; exit }' "$fstab")
+desired_options=$(awk '$2 == "/boot" { print $4; exit }' "$candidate")
+[[ -n $prior_options && -n $desired_options ]] || {
+  echo "Could not resolve the prior and desired /boot mount options." >&2
+  exit 1
+}
 if ! cmp -s "$candidate" "$fstab"; then
   fstab_changed=1
 fi
@@ -127,14 +137,14 @@ as_root /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
   as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
 
 remount_status=0
-reload_and_remount_boot || remount_status=$?
+reload_and_remount_boot "$desired_options" || remount_status=$?
 current_options=$(findmnt -n -o OPTIONS --target /boot 2>/dev/null || true)
 if ((remount_status != 0)) ||
   [[ ,$current_options, != *",fmask=0077,"* ]] ||
   [[ ,$current_options, != *",dmask=0077,"* ]]; then
   if ((fstab_changed)); then
     as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
-    reload_and_remount_boot || true
+    reload_and_remount_boot "$prior_options" || true
   fi
   echo "Could not apply private /boot mount permissions; restored the prior fstab policy." >&2
   exit 1

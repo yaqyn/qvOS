@@ -353,17 +353,27 @@ QVOS_SECURITY_TESTING=1 \
 reload_line=$(grep -nF \
   'as_root /usr/bin/systemctl daemon-reload || return' \
   "$boot_mount" | cut -d: -f1)
+# shellcheck disable=SC2016
 remount_line=$(grep -nF \
-  'as_root /usr/bin/mount -o remount /boot' \
+  'as_root /usr/bin/mount -o "remount,$options" /boot' \
   "$boot_mount" | cut -d: -f1)
 [[ $reload_line =~ ^[0-9]+$ && $remount_line =~ ^[0-9]+$ ]] ||
   fail "EFI remount reload lifecycle"
 ((reload_line < remount_line)) ||
   fail "EFI mount units reload before remount"
-grep -Fq 'reload_and_remount_boot || remount_status=$?' "$boot_mount" ||
+# shellcheck disable=SC2016
+grep -Fq 'reload_and_remount_boot "$desired_options" || remount_status=$?' \
+  "$boot_mount" ||
   fail "EFI mount apply uses the reload lifecycle"
-grep -Fq 'reload_and_remount_boot || true' "$boot_mount" ||
+# shellcheck disable=SC2016
+grep -Fq 'reload_and_remount_boot "$prior_options" || true' "$boot_mount" ||
   fail "EFI mount rollback uses the reload lifecycle"
+# shellcheck disable=SC2016
+grep -Fq 'desired_options=$(awk' "$boot_mount" ||
+  fail "EFI mount applies the validated candidate options"
+# shellcheck disable=SC2016
+grep -Fq 'prior_options=$(awk' "$boot_mount" ||
+  fail "EFI mount rollback preserves the prior options"
 
 ambiguous_boot_root="$test_root/ambiguous-boot-system"
 install -d "$ambiguous_boot_root/etc"
