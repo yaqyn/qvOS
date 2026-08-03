@@ -122,7 +122,7 @@ if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-
   "$root/qvcore/tui" \
   "$root/config/hypr/bindings.conf" \
   "$root/config/waybar/config.jsonc" \
-  "$root/bin/omarchy-reinstall-configs" \
+  "$root/qvcore/install/reinstall-configs" \
   --glob '!**/AGENTS.md' \
   --glob '!**/check' \
   --glob '!**/migrate-runtime-root' \

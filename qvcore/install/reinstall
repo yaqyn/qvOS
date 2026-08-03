@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv reinstall" >&2
+  exit 2
+}
+(( EUID != 0 )) || {
+  echo "qvOS reinstall must run as the desktop user, not root." >&2
+  exit 1
+}
+
+printf '%s\n' \
+  "This will reinstall all default qvOS packages and reset all default configs." \
+  "Warning: all user changes to managed configs will be lost." \
+  "The current source checkout will be preserved as a backup."
+echo
+
+if ! gum confirm "Reinstall qvOS packages and reset managed configs?"; then
+  echo "qvOS reinstall cancelled."
+  exit 130
+fi
+
+"$QVOS_PATH/qvcore/install/reinstall-source"
+"$QVOS_PATH/qvcore/install/reinstall-packages" --yes
+"$QVOS_PATH/qvcore/install/reinstall-configs" --yes
+
+if gum confirm "System reinstalled. Reboot now?"; then
+  qv-system-reboot
+fi

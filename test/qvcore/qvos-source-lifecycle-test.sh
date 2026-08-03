@@ -258,6 +258,10 @@ printf 'bashrc\n' >"$config_source/default/bashrc"
 install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
 for command in \
   qv-refresh-hyprland \
   qv-refresh-limine \
@@ -269,12 +273,33 @@ printf '%s\n' "${0##*/}" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 done
 : >"$action_log"
+set +e
+HOME="$config_home" \
+  QVOS_PATH="$root" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/install/reinstall" >/dev/null
+cancelled_reinstall_status=$?
+set -e
+(( cancelled_reinstall_status == 130 )) || fail "full reinstall cancellation status"
+[[ ! -s $action_log ]] || fail "full reinstall cancellation mutation"
+set +e
+HOME="$config_home" \
+  QVOS_PATH="$config_source" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/install/reinstall-configs" >/dev/null
+cancelled_config_status=$?
+set -e
+(( cancelled_config_status == 130 )) || fail "config reset cancellation status"
+[[ ! -e $config_home/.config && ! -s $action_log ]] ||
+  fail "config reset cancellation mutation"
 HOME="$config_home" \
   QVOS_PATH="$config_source" \
   OMARCHY_PATH="$config_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-reinstall-configs" >/dev/null
+  "$root/qvcore/install/reinstall-configs" --yes >/dev/null
 [[ $(<"$config_home/.config/example/value") == "configured" ]] ||
   fail "config reset source"
 [[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth\nomarchy-nvim-setup' ]] ||
@@ -300,7 +325,7 @@ set +e
 OMARCHY_PATH="$package_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-reinstall-pkgs" >/dev/null 2>&1
+  "$root/qvcore/install/reinstall-packages" --yes >/dev/null 2>&1
 invalid_packages_status=$?
 set -e
 ((invalid_packages_status == 9)) || fail "invalid package manifest status"
@@ -310,10 +335,19 @@ install -m 0755 /dev/stdin "$package_source/qvcore/install/packaging/resolve" <<
 printf '%s\n' alpha beta
 SCRIPT
 : >"$action_log"
+set +e
 OMARCHY_PATH="$package_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-reinstall-pkgs" >/dev/null
+  "$root/qvcore/install/reinstall-packages" >/dev/null
+cancelled_packages_status=$?
+set -e
+(( cancelled_packages_status == 130 )) || fail "package reinstall cancellation status"
+[[ ! -s $action_log ]] || fail "package reinstall cancellation mutation"
+OMARCHY_PATH="$package_source" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/install/reinstall-packages" --yes >/dev/null
 [[ $(<"$action_log") == $'refresh\nsudo:pacman -Suu --noconfirm\nsudo:pacman -Syu --noconfirm --needed alpha beta' ]] ||
   fail "validated package reinstall order"
 pass "package reinstall validates the native manifest before any mutation"

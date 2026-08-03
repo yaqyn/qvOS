@@ -26,7 +26,7 @@ complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.
 
 Resolve and validate the complete native package manifest before changing
-mirrors or invoking Pacman. A config reset copies from `$OMARCHY_PATH`, runs
+mirrors or invoking Pacman. A config reset copies from `$QVOS_PATH`, runs
 the native theme configuration directly, and finishes through the shared
 Hyprland reconciliation owner.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
@@ -86,6 +86,8 @@ keeps the marker on failure, serializes concurrent starts, and removes the
 narrow privilege policy only after all required user-session work succeeds.
 Never grant passwordless access to general system, firewall, package, or file
 commands for first run. Keep notifications non-fatal after successful cleanup.
+The tracked Hyprland autostart source invokes only the native `qv-first-run`
+route; the Omarchy route is a metadata-free compatibility adapter.
 The active marker lives under `.local/state/qvos/install`; migrate the former
 `.local/state/omarchy/first-run.mode` only after validating its type, owner, and
 parents, and never leave both markers active.
@@ -101,7 +103,7 @@ existing-system migration inputs, never fresh state.
 conditional hardware paths. `qvcore/install/packaging/resolve` validates and emits
 them; never restore an inherited manifest plus additions/exclusions model.
 `qvcore/install/packaging/all.sh` calls the native qvOS npx and empty-webapp owners
-directly, and `omarchy-refresh-applications` uses those same owners. Never
+directly, and `qv refresh applications` uses those same owners. Never
 restore inherited npx/webapp implementations, fallbacks, or source/execute
 adapters. Keep Codex, Pi, and GHUI in the singular npx owner until their product
 ownership changes deliberately; qvOS ships no webapp desktop launchers.

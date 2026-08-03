@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+usage() {
+  echo "Usage: qv reinstall configs [--yes]" >&2
+  exit 2
+}
+
+case ${1:-} in
+"") (( $# == 0 )) || usage ;;
+--yes) (( $# == 1 )) || usage ;;
+*) usage ;;
+esac
+(( EUID != 0 )) || {
+  echo "qvOS config reset must run as the desktop user, not root." >&2
+  exit 1
+}
+if [[ ${1:-} != "--yes" ]] &&
+  ! gum confirm "Reset every qvOS-managed config to its default?"; then
+  echo "qvOS config reset cancelled."
+  exit 130
+fi
+
+echo "Resetting qvOS-managed configs"
+install -d -- "$HOME/.config"
+cp -a "$QVOS_PATH/config/." "$HOME/.config/"
+cp "$QVOS_PATH/default/bashrc" "$HOME/.bashrc"
+printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
+
+bash "$QVOS_PATH/qvcore/install/config/theme.sh"
+
+qv-refresh-hyprland
+qv-refresh-limine
+qv-refresh-plymouth
+omarchy-nvim-setup

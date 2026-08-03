@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+usage() {
+  echo "Usage: qv reinstall pkgs [--yes]" >&2
+  exit 2
+}
+
+case ${1:-} in
+"") (( $# == 0 )) || usage ;;
+--yes) (( $# == 1 )) || usage ;;
+*) usage ;;
+esac
+(( EUID != 0 )) || {
+  echo "qvOS package reinstall must run as the desktop user, not root." >&2
+  exit 1
+}
+
+resolved_packages=$("$QVOS_PATH/qvcore/install/packaging/resolve" base)
+mapfile -t packages <<<"$resolved_packages"
+(( ${#packages[@]} > 0 )) || {
+  echo "qvOS base package manifest resolved to an empty set." >&2
+  exit 1
+}
+
+if [[ ${1:-} != "--yes" ]] &&
+  ! gum confirm "Reinstall the complete qvOS base package set?"; then
+  echo "qvOS package reinstall cancelled."
+  exit 130
+fi
+
+qv-refresh-pacman
+sudo pacman -Suu --noconfirm
+sudo pacman -Syu --noconfirm --needed "${packages[@]}"

@@ -432,7 +432,7 @@ grep -Fqx 'windowrule = size 1024 509, match:class ^org\.qvos\.tui$' \
 grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
   "$root/qvcore/config/files/hypr/qv/windows.conf" ||
   fail "qvOS TUI centered window contract"
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/install/first-run/run" "$@"' \
+grep -Fqx 'exec "$QVOS_PATH/qvcore/install/first-run/run" "$@"' \
   "$root/bin/omarchy-first-run" ||
   fail "qvOS first-run owner adapter"
 elephant_line=$(grep -nF 'bash "$QVOS_PATH/qvcore/install/first-run/elephant.sh"' \

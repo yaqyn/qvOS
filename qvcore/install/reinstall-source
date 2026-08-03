@@ -7,6 +7,11 @@ compat_target="$HOME/.local/share/omarchy"
 target_parent=${target%/*}
 staging_root=""
 
+(( $# == 0 )) || {
+  echo "Usage: qv reinstall git" >&2
+  exit 2
+}
+
 cleanup() {
   [[ -z $staging_root ]] || rm -rf -- "$staging_root"
 }

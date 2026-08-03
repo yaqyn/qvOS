@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv refresh applications" >&2
+  exit 2
+}
+
+icon_dir="$HOME/.local/share/icons/hicolor/48x48/apps"
+application_dir="$HOME/.local/share/applications"
+install -d -- "$icon_dir" "$application_dir"
+
+cp "$QVOS_PATH"/applications/icons/*.png "$icon_dir/"
+gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null
+
+cp "$QVOS_PATH"/applications/*.desktop "$application_dir/"
+cp "$QVOS_PATH"/applications/hidden/*.desktop "$application_dir/"
+
+if qv-cmd-present foot; then
+  cp "$QVOS_PATH/default/foot/foot.desktop" "$application_dir/"
+fi
+
+bash "$QVOS_PATH/qvcore/install/packaging/icons.sh"
+"$QVOS_PATH/qvcore/install/packaging/webapps"
+bash "$QVOS_PATH/qvcore/install/packaging/tuis.sh"
+"$QVOS_PATH/qvcore/install/packaging/npx"
+
+update-desktop-database "$application_dir"

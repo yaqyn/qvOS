@@ -14,8 +14,40 @@ for owner in \
   cleanup-obsolete \
   migrate-source-root \
   migrate-structure \
+  refresh-applications \
+  reinstall \
+  reinstall-configs \
+  reinstall-packages \
   reinstall-source; do
   [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
+done
+
+declare -A route_owners=(
+  [first-run]=qvcore/install/first-run/run
+  [refresh-applications]=qvcore/install/refresh-applications
+  [reinstall]=qvcore/install/reinstall
+  [reinstall-configs]=qvcore/install/reinstall-configs
+  [reinstall-git]=qvcore/install/reinstall-source
+  [reinstall-pkgs]=qvcore/install/reinstall-packages
+)
+for route in "${!route_owners[@]}"; do
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  owner="$root/${route_owners[$route]}"
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $owner ]] ||
+    fail "install owner or adapter mode: $route"
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native install adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "install compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native install adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "install compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/${route_owners[$route]}\" \"\$@\"" "$adapter" ||
+      fail "install adapter owner: $route"
+  done
 done
 for owner in prepare root run gnome-theme icons; do
   [[ -x $root/qvcore/install/first-run/$owner ]] ||
@@ -129,9 +161,6 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/webapps"' \
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/npx"' \
   "$root/qvcore/install/packaging/all.sh" || fail "native npx stage"
 
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/install/reinstall-source" "$@"' \
-  "$root/bin/omarchy-reinstall-git" || fail "source reinstall adapter"
 if rg -n 'basecamp/omarchy|branch master|rm -rf .*local/share/omarchy' \
   "$root/bin/omarchy-reinstall-git" "$root/qvcore/install/reinstall-source" "$root/boot.sh"; then
   fail "destructive or inherited qvOS source installation remains"
@@ -147,19 +176,26 @@ grep -Fq 'QVOS_TARGET="$HOME/.local/share/qvos"' "$root/boot.sh" ||
 # shellcheck disable=SC2016
 grep -Fq 'ln -s qvos "$OMARCHY_COMPAT_TARGET"' "$root/boot.sh" ||
   fail "fresh-install source compatibility link"
-grep -Fq 'qvcore/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
+grep -Fq 'qvcore/install/packaging/resolve' "$root/qvcore/install/reinstall-packages" ||
   fail "native package resolver"
-grep -Fq 'qv-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
+grep -Fq 'qv-refresh-hyprland' "$root/qvcore/install/reinstall-configs" ||
   fail "config reset reconciliation"
 if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|rm)' \
   "$root/qvcore/install"; then
   fail "broad passwordless first-run command remains"
 fi
 # shellcheck disable=SC2016
-grep -Fqx '"$OMARCHY_PATH/qvcore/install/packaging/webapps"' \
-  "$root/bin/omarchy-refresh-applications" || fail "native webapps refresh wiring"
+grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/webapps"' \
+  "$root/qvcore/install/refresh-applications" || fail "native webapps refresh wiring"
 # shellcheck disable=SC2016
-grep -Fqx '"$OMARCHY_PATH/qvcore/install/packaging/npx"' \
-  "$root/bin/omarchy-refresh-applications" || fail "native npx refresh wiring"
+grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/npx"' \
+  "$root/qvcore/install/refresh-applications" || fail "native npx refresh wiring"
+
+if rg -n \
+  'omarchy-(first-run|refresh-applications|reinstall(-configs|-git|-pkgs)?)([^[:alnum:]_-]|$)' \
+  "$root/qvcore/install" "$root/default/hypr/autostart.conf" \
+  --glob '!AGENTS.md' --glob '!check' --glob '!native-paths'; then
+  fail "native install lifecycle calls a compatibility route"
+fi
 
 printf 'ok - qvOS owns the complete install and reinstall lifecycle\n'

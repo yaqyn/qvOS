@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-omarchy-refresh-applications
+qv-refresh-applications
 update-desktop-database ~/.local/share/applications
 
 xdg-mime default thunar.desktop inode/directory

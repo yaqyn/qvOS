@@ -76,7 +76,7 @@ if [[ -n $compatibility_path_refs ]]; then
   fail "native package owner dereferences the compatibility source root"
 fi
 if rg -n 'omarchy-refresh-pacman' \
-  "$root/qvcore" "$root/bin/omarchy-reinstall-pkgs" \
+  "$root/qvcore" \
   --glob '!**/AGENTS.md' --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls the package refresh compatibility route"

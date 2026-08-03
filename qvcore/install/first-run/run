@@ -3,6 +3,12 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
+
+(( $# == 0 )) || {
+  echo "Usage: qv first run" >&2
+  exit 2
+}
+
 state_dir="$HOME/.local/state/qvos/install"
 marker="$state_dir/first-run.mode"
 legacy_marker="$HOME/.local/state/omarchy/first-run.mode"

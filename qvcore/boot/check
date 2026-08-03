@@ -138,7 +138,7 @@ if rg -n \
   "$root/qvcore/tui" \
   "$root/default/elephant/omarchy_unlocks.lua" \
   "$root/bin/omarchy-plymouth-set-by-theme" \
-  "$root/bin/omarchy-reinstall-configs" \
+  "$root/qvcore/install/reinstall-configs" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surface calls a boot compatibility route"
 fi
