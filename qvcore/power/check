@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/power/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native system-power route inventory"
+[[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
+for action in reboot shutdown; do
+  adapter="$root/bin/omarchy-system-$action"
+  [[ -x $adapter ]] || fail "system-power adapter mode: $action"
+  grep -Fq 'qvcore/power/system-power' "$adapter" ||
+    fail "system-power adapter ownership: $action"
+  if rg -q 'nohup|window-close-all|omarchy-state' "$adapter"; then
+    fail "system-power adapter retains implementation: $action"
+  fi
+done
+
+printf 'ok - qvOS owns system power and update-marker cleanup\n'

@@ -33,7 +33,6 @@ bin/omarchy-restart-mako
 bin/omarchy-restart-opencode
 bin/omarchy-screensaver
 bin/omarchy-show-logo
-bin/omarchy-state
 bin/omarchy-version
 bin/omarchy-version-branch
 bin/omarchy-version-channel

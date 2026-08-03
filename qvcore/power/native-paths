@@ -1,0 +1,3 @@
+# Inherited system-power routes promoted to native qvOS ownership.
+bin/omarchy-system-reboot
+bin/omarchy-system-shutdown

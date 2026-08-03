@@ -10,6 +10,7 @@ fail() {
 }
 
 [[ -x $root/qvcore/update/update-source ]] || fail "native source updater mode"
+[[ -x $root/qvcore/update/state ]] || fail "native update-state owner mode"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
 ) ]] || fail "native update paths are not sorted and unique"
@@ -27,6 +28,14 @@ grep -Fq 'source_path=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
   "$root/qvcore/update/update-source" || fail "native source-root precedence"
 grep -Fq 'status --porcelain=v1 --untracked-files=all' \
   "$root/qvcore/update/qvos-update" || fail "live source cleanliness preflight"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/update/state" "$@"' \
+  "$root/bin/omarchy-state" || fail "update-state compatibility adapter"
+grep -Fq '.local/state/qvos/update' "$root/qvcore/update/restart" ||
+  fail "native restart marker state"
+if rg -q '\.local/state/omarchy|omarchy-state clear' "$root/qvcore/update/restart"; then
+  fail "restart owner retains active Omarchy state"
+fi
 [[ -x $root/qvcore/update/restart ]] || fail "native update restart owner mode"
 (( $(wc -l <"$root/bin/omarchy-update-restart") <= 10 )) ||
   fail "update restart compatibility adapter contains implementation"

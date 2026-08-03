@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+case ${1:-} in
+reboot | poweroff) action=$1 ;;
+*)
+  echo "Usage: qvcore/power/system-power <reboot|poweroff>" >&2
+  exit 2
+  ;;
+esac
+(($# == 1)) || {
+  echo "Usage: qvcore/power/system-power <reboot|poweroff>" >&2
+  exit 2
+}
+
+if ! "$QVOS_PATH/qvcore/update/state" clear-all; then
+  echo "qvOS could not clear update markers; continuing with $action." >&2
+fi
+
+# The fixed script reads the validated action from positional argument 1.
+# shellcheck disable=SC2016
+nohup bash -c 'sleep 2; systemctl "$1" --no-wall' qvos-power "$action" \
+  >/dev/null 2>&1 &
+
+omarchy-hyprland-window-close-all || true
+sleep 1

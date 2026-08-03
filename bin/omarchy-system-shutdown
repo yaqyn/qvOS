@@ -4,11 +4,5 @@
 # omarchy:examples=omarchy shutdown | omarchy system shutdown
 # omarchy:aliases=omarchy shutdown
 
-omarchy-state clear re*-required
-
-# Schedule the shutdown to happen after closing windows (detached from terminal)
-nohup bash -c "sleep 2 && systemctl poweroff --no-wall" >/dev/null 2>&1 &
-
-# Now close all windows
-omarchy-hyprland-window-close-all
-sleep 1 # Allow apps like Chrome to shutdown correctly
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/power/system-power" poweroff

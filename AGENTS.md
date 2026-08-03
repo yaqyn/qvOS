@@ -114,6 +114,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   privately under `~/.local/state/qvos/toggles`
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
+- update and restart markers live privately under
+  `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
 - `default/themed/*.tpl` remains the compatible custom-theme template format
 
@@ -184,6 +186,10 @@ Every qvOS change must leave one traceable lifecycle.
   after native install, refresh, migration, or update paths. Installed source
   is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` compatibility
   link, and keep runtime payloads under `~/.local/lib/qvos`.
+- New persistent state is feature-owned and private under
+  `~/.local/state/qvos`. The generic state compatibility route accepts only
+  reviewed reboot and service-restart markers; it never recreates an active
+  Omarchy state root.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.

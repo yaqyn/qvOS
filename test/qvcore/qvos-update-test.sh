@@ -317,7 +317,9 @@ if kill -0 -- "-$cancel_pid" 2>/dev/null; then
 fi
 pass "qvOS TUI owns cancellable logging and preserves wrapper results"
 
-install -d "$test_root/restart-home/.local/state/omarchy"
+install -d \
+  "$test_root/restart-home/.local/state/omarchy" \
+  "$test_root/restart-home/run"
 install -m 0755 /dev/stdin "$test_bin/uname" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "-r" ]] || exit 2
@@ -341,16 +343,11 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-restart-waybar" <<'SCRIPT'
 printf 'restart-waybar\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
 exit "${QVOS_TEST_RESTART_STATUS:-0}"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-state" <<'SCRIPT'
-#!/bin/bash
-[[ $1 == "clear" && $# == 2 ]] || exit 2
-printf 'clear:%s\n' "$2" >>"$QVOS_TEST_REBOOT_ACTION_LOG"
-rm -- "$HOME/.local/state/omarchy/$2"
-SCRIPT
 restart_action_log="$test_root/restart-actions.log"
 restart_output=$(
   HOME="$test_root/restart-home" \
-    OMARCHY_PATH="$root" \
+    XDG_RUNTIME_DIR="$test_root/restart-home/run" \
+    QVOS_PATH="$root" \
     PATH="$test_bin:/usr/bin" \
     OMARCHY_UPDATE_DEFER_REBOOT=1 \
     QVOS_TEST_ACTION_LOG="$restart_action_log" \
@@ -361,10 +358,13 @@ grep -Fqx 'qvOS action: reboot required: Linux kernel updated' <<<"$restart_outp
   fail "deferred Update kernel reboot signal"
 [[ ! -s $restart_action_log ]] ||
   fail "deferred Update prompted or rebooted inside the captured process"
-restart_marker="$test_root/restart-home/.local/state/omarchy/restart-waybar-required"
-touch "$restart_marker"
+legacy_restart_root="$test_root/restart-home/.local/state/omarchy"
+restart_marker="$test_root/restart-home/.local/state/qvos/update/restart-waybar-required"
+install -d "$legacy_restart_root"
+install -m 0644 /dev/null "$legacy_restart_root/restart-waybar-required"
 HOME="$test_root/restart-home" \
-  OMARCHY_PATH="$root" \
+  XDG_RUNTIME_DIR="$test_root/restart-home/run" \
+  QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   OMARCHY_UPDATE_DEFER_REBOOT=1 \
   QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \
@@ -373,12 +373,16 @@ HOME="$test_root/restart-home" \
   fail "successful service restart retained its marker"
 grep -Fqx 'restart-waybar' "$restart_action_log" ||
   fail "service restart owner delegation"
-grep -Fqx 'clear:restart-waybar-required' "$restart_action_log" ||
-  fail "successful service restart marker cleanup"
-touch "$restart_marker"
+[[ ! -e $legacy_restart_root ]] ||
+  fail "legacy restart state root remained after exact migration"
+HOME="$test_root/restart-home" \
+  XDG_RUNTIME_DIR="$test_root/restart-home/run" \
+  QVOS_PATH="$root" \
+  "$root/qvcore/update/state" set restart-waybar-required
 set +e
 HOME="$test_root/restart-home" \
-  OMARCHY_PATH="$root" \
+  XDG_RUNTIME_DIR="$test_root/restart-home/run" \
+  QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   OMARCHY_UPDATE_DEFER_REBOOT=1 \
   QVOS_TEST_REBOOT_ACTION_LOG="$restart_action_log" \

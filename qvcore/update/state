@@ -1,0 +1,181 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+local_root="$HOME/.local"
+state_parent="$local_root/state"
+qvos_root="$state_parent/qvos"
+state_root="$qvos_root/update"
+legacy_root="$state_parent/omarchy"
+runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
+lock_file="$runtime_root/qvos-update-state.lock"
+temporary=""
+legacy_markers=()
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+
+fail() {
+  printf 'qvOS update state: %s\n' "$1" >&2
+  exit 1
+}
+
+safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+safe_marker() {
+  [[ -f $1 && ! -L $1 && -O $1 && ! -s $1 ]]
+}
+
+valid_marker_name() {
+  [[ $1 == "reboot-required" ||
+    $1 =~ ^restart-[a-z0-9][a-z0-9-]*-required$ ]]
+}
+
+validate_existing_directory() {
+  local path=$1
+
+  [[ ! -e $path && ! -L $path ]] || safe_directory "$path" ||
+    fail "refusing unsafe directory: $path"
+}
+
+ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || fail "refusing unsafe directory: $path"
+  else
+    install -d -m "$mode" "$path"
+  fi
+}
+
+validate_qvos_state() {
+  local entry
+  local name
+
+  while IFS= read -r -d '' entry; do
+    name=${entry##*/}
+    if valid_marker_name "$name"; then
+      safe_marker "$entry" || fail "refusing unsafe update marker: $entry"
+    elif [[ $name == .qvos-update-state.?????? ]] && safe_marker "$entry"; then
+      rm -f -- "$entry"
+    else
+      fail "refusing unexpected qvOS update state: $entry"
+    fi
+  done < <(find -P "$state_root" -mindepth 1 -maxdepth 1 -print0)
+}
+
+collect_legacy_markers() {
+  local marker
+  local name
+
+  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
+  safe_directory "$legacy_root" || fail "refusing unsafe legacy state: $legacy_root"
+  legacy_markers=()
+  if [[ -e $legacy_root/reboot-required || -L $legacy_root/reboot-required ]]; then
+    legacy_markers+=("$legacy_root/reboot-required")
+  fi
+  shopt -s nullglob
+  legacy_markers+=("$legacy_root"/restart-*-required)
+  shopt -u nullglob
+  for marker in "${legacy_markers[@]}"; do
+    name=${marker##*/}
+    valid_marker_name "$name" || fail "refusing unexpected legacy marker: $marker"
+    safe_marker "$marker" || fail "refusing unsafe legacy marker: $marker"
+    [[ ! -e $state_root/$name && ! -L $state_root/$name ]] ||
+      safe_marker "$state_root/$name" ||
+      fail "refusing conflicting qvOS update marker: $state_root/$name"
+  done
+}
+
+record_marker() {
+  local target=$1
+
+  if [[ -e $target || -L $target ]]; then
+    safe_marker "$target" || fail "refusing unsafe update marker: $target"
+    chmod 0600 -- "$target"
+    return 0
+  fi
+  temporary=$(mktemp "$state_root/.qvos-update-state.XXXXXX")
+  chmod 0600 -- "$temporary"
+  mv -- "$temporary" "$target"
+  temporary=""
+}
+
+migrate_legacy_markers() {
+  local marker
+  local name
+  local target
+
+  for marker in "${legacy_markers[@]}"; do
+    name=${marker##*/}
+    target="$state_root/$name"
+    if [[ -e $target ]]; then
+      rm -f -- "$marker"
+    else
+      mv -- "$marker" "$target"
+      chmod 0600 -- "$target"
+    fi
+  done
+  [[ ! -d $legacy_root ]] || rmdir -- "$legacy_root" 2>/dev/null || true
+}
+
+usage() {
+  echo "Usage: qv state <set|clear> <marker> | qv state <clear-all|migrate>" >&2
+  exit 2
+}
+
+operation=${1:-}
+marker_name=${2:-}
+case $operation in
+set | clear)
+  (($# == 2)) || usage
+  if [[ $operation == "clear" && $marker_name == "re*-required" ]]; then
+    operation=clear-all
+    marker_name=""
+  else
+    valid_marker_name "$marker_name" || usage
+  fi
+  ;;
+clear-all | migrate)
+  (($# == 1)) || usage
+  ;;
+*) usage ;;
+esac
+
+validate_existing_directory "$HOME"
+validate_existing_directory "$local_root"
+validate_existing_directory "$state_parent"
+validate_existing_directory "$legacy_root"
+ensure_directory 0755 "$local_root"
+ensure_directory 0700 "$state_parent"
+ensure_directory 0700 "$qvos_root"
+ensure_directory 0700 "$state_root"
+chmod 0700 -- "$qvos_root" "$state_root"
+safe_directory "$runtime_root" || fail "refusing unsafe runtime directory: $runtime_root"
+if [[ -e $lock_file || -L $lock_file ]]; then
+  [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] ||
+    fail "refusing unsafe update-state lock: $lock_file"
+fi
+exec 9>>"$lock_file"
+chmod 0600 -- "$lock_file"
+flock -n 9 || fail "another update-state change is active"
+
+validate_qvos_state
+collect_legacy_markers
+migrate_legacy_markers
+
+case $operation in
+set) record_marker "$state_root/$marker_name" ;;
+clear) rm -f -- "$state_root/$marker_name" ;;
+clear-all)
+  while IFS= read -r -d '' marker; do
+    rm -f -- "$marker"
+  done < <(find -P "$state_root" -maxdepth 1 -type f -name 're*-required' -print0)
+  ;;
+migrate) ;;
+esac

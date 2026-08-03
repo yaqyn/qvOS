@@ -133,6 +133,11 @@ source-root compatibility seam. Generated runtime payloads live under
 upstream ABI names stay unchanged until their complete lifecycles can move
 safely together.
 
+Update and restart intent lives privately under `~/.local/state/qvos/update`.
+The native state owner accepts only reboot and validated service-restart
+markers, migrates exact legacy markers, and removes an empty Omarchy state root.
+It is not a general-purpose settings store.
+
 `qvcore/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
 sysctl baseline, signed-package and localhost-first container defaults, the
 temporary private-LAN development preview, and the balanced-hardening

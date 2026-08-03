@@ -26,6 +26,14 @@ and stops the update on failure without allowing a skip. The inherited
 `omarchy-migrate` command is a thin ABI adapter; no update path may read or
 replay the retired top-level Omarchy migration tree.
 
+`qvcore/update/state` owns only `reboot-required` and validated
+`restart-<service>-required` markers under the private qvOS update-state
+directory. It atomically records markers, serializes changes, migrates exact
+safe legacy files, and removes the old state root only when empty. Reject
+arbitrary names, contents, links, and foreign ownership. `restart` invokes this
+owner before inspection and clears a service marker only after its exact
+restart command succeeds.
+
 `qvcore/update/restart` singularly detects post-update reboot and service-restart
 requirements. Use only package-owned kernel images, inspect one running
 Hyprland process safely, accept only exact restart-marker service slugs, and
