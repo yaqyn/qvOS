@@ -10,7 +10,7 @@ export OMARCHY_INSTALL_LOG_FILE="/var/log/omarchy-install.log"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 
 # Install
-source "$OMARCHY_INSTALL/helpers/all.sh"
+source "$OMARCHY_PATH/qv/install/helpers/run"
 source "$OMARCHY_INSTALL/preflight/all.sh"
 source "$OMARCHY_INSTALL/packaging/all.sh"
 source "$OMARCHY_PATH/qv/install/config/run"

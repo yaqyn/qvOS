@@ -36,6 +36,13 @@ The login stage is owned by `qv/boot/install`; keep `install.sh` wired directly
 to it and never restore inherited login orchestration. Boot payload, private
 ESP, SDDM, Plymouth, and snapshot rules live in `qv/boot/AGENTS.md`.
 
+qv/install/helpers/run singularly owns helper order while retaining untouched
+inherited chroot, presentation, and logging leaves. The native error handler
+must preserve the original failure status, bound output on small terminals,
+hide command arguments, never upload private logs, and point only to qvOS
+support. Online retry replaces the failed installer process from the validated
+OMARCHY_PATH; signals stop promptly with conventional exit codes.
+
 `qv/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
 sudoers commands. `qv/install/first-run/run` owns the ordered login lifecycle,

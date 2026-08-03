@@ -39,12 +39,12 @@ grep -Fq 'never authorize automatic hardening' "$root/qv/README.md" \
 if rg -q 'logs\.omarchy\.org|omarchy upload log' \
   "$root/bin/omarchy-debug" \
   "$root/default/omarchy-skill/SKILL.md" \
-  "$root/install/helpers/errors.sh" \
+  "$root/qv/install/helpers/errors" \
   "$root/qv/iso/omarchy-iso-qvos-tui.patch"; then
   fail "qvOS diagnostics still export private machine inventory"
 fi
 if rg -q 'omarchy-upload-log|Upload log for support' \
-  "$root/install/helpers/errors.sh" ||
+  "$root/qv/install/helpers/errors" ||
   sed -n '/^[ +]/p' "$root/qv/iso/omarchy-iso-qvos-tui.patch" |
     rg -q 'omarchy-upload-log|Upload log for support'; then
   fail "retired diagnostic upload remains in install or ISO lifecycle"

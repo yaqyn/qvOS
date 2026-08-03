@@ -80,7 +80,6 @@ identity_paths=(
   install/first-run/install-voxtype.hook
   install/first-run/welcome.sh
   install/config/hardware/apple/fix-suspend-nvme.sh
-  install/helpers/errors.sh
   install/helpers/logging.sh
   install/helpers/presentation.sh
   install/preflight/guard.sh
@@ -90,6 +89,7 @@ identity_paths=(
   qv/boot/plymouth/omarchy.script
   qv/boot/sddm/metadata.desktop
   qv/boot/wayland-sessions/omarchy.desktop
+  qv/install/helpers/errors
   qv/update/qvos-update
 )
 

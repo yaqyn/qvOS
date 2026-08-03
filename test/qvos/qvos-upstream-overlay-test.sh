@@ -20,9 +20,7 @@ else
   fail "no tracked upstream master ref is available for overlay verification"
 fi
 
-inherited_seams=(
-  install/helpers/errors.sh
-)
+inherited_seams=()
 
 declare -A inherited_seam_set=()
 for path in "${inherited_seams[@]}"; do
@@ -229,10 +227,6 @@ for path in "${fallback_seams[@]}"; do
   fi
 done
 pass "inherited qvOS delegations preserve Omarchy fallbacks"
-
-grep -Fq '"qvOS installation stopped!"' "$root/install/helpers/errors.sh" ||
-  fail "installer error branding does not expose qvOS"
-pass "installer error fallback exposes qvOS identity"
 
 omarchy-npx-install() {
   printf 'npx:%s|%s\n' "$1" "$2"

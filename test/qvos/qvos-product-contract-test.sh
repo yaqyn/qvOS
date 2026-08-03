@@ -1000,13 +1000,14 @@ grep -Fq 'sudo chown "$USER:$install_group" "$OMARCHY_INSTALL_LOG_FILE"' \
 grep -Fq 'sudo chmod 0640 "$OMARCHY_INSTALL_LOG_FILE"' \
   "$root/install/helpers/logging.sh" ||
   fail "restricted install log"
-[[ -x $root/qv/install/helpers/error-title ]] ||
-  fail "qvOS installer error-title owner mode"
-[[ $("$root/qv/install/helpers/error-title") == "qvOS installation stopped!" ]] ||
-  fail "qvOS installer error title"
-grep -Fq 'qvos_owner="$OMARCHY_PATH/qv/install/helpers/error-title"' \
-  "$root/install/helpers/errors.sh" ||
-  fail "inherited installer error branding delegation"
+[[ -f $root/qv/install/helpers/errors && ! -x $root/qv/install/helpers/errors ]] ||
+  fail "qvOS installer error owner mode"
+grep -Fq '"qvOS installation stopped!"' \
+  "$root/qv/install/helpers/errors" || fail "qvOS installer error title"
+grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/issues' \
+  "$root/qv/install/helpers/errors" || fail "qvOS installer support route"
+[[ ! -e $root/qv/install/helpers/error-title ]] ||
+  fail "duplicate installer error title"
 grep -qx 'Name=Yaqyn' "$root/qv/boot/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
 grep -qx 'ConsoleLogBackgroundColor=0x1a1b26' \
   "$root/qv/boot/plymouth/omarchy.plymouth" ||

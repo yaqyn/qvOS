@@ -1,0 +1,190 @@
+# shellcheck shell=bash
+
+ERROR_HANDLING=false
+
+show_cursor() {
+  printf '\033[?25h'
+}
+
+stop_install_output() {
+  if declare -F stop_log_output >/dev/null; then
+    stop_log_output || true
+  fi
+}
+
+show_log_tail() {
+  local line
+  local log_lines
+  local max_line_width
+  local terminal_height=${TERM_HEIGHT:-24}
+  local logo_height=${LOGO_HEIGHT:-0}
+  local logo_width=${LOGO_WIDTH:-80}
+  local truncated_line
+
+  [[ $terminal_height =~ ^[0-9]+$ ]] || terminal_height=24
+  [[ $logo_height =~ ^[0-9]+$ ]] || logo_height=0
+  [[ $logo_width =~ ^[0-9]+$ ]] || logo_width=80
+  [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} &&
+    -f $OMARCHY_INSTALL_LOG_FILE &&
+    ! -L $OMARCHY_INSTALL_LOG_FILE ]] || return 0
+
+  log_lines=$((terminal_height - logo_height - 14))
+  (( log_lines >= 3 )) || log_lines=3
+  max_line_width=$((logo_width - 4))
+  (( max_line_width >= 20 )) || max_line_width=20
+
+  while IFS= read -r line; do
+    if (( ${#line} > max_line_width )); then
+      truncated_line="${line:0:$max_line_width}..."
+    else
+      truncated_line=$line
+    fi
+    printf '%s\n' "$truncated_line"
+  done < <(tail -n "$log_lines" -- "$OMARCHY_INSTALL_LOG_FILE")
+  echo
+}
+
+show_failed_script_or_command() {
+  local failed_command=${1:-unknown}
+  local label
+  local max_width=$((${LOGO_WIDTH:-80} - 4))
+  local prefix
+
+  (( max_width >= 20 )) || max_width=20
+  if [[ -n ${CURRENT_SCRIPT:-} ]]; then
+    label=$CURRENT_SCRIPT
+    prefix="Failed script: "
+  else
+    label=${failed_command%%[[:space:]]*}
+    [[ -n $label ]] || label=unknown
+    prefix="Failed command: "
+  fi
+  label=${label//$'\n'/ }
+  label=${label//$'\r'/ }
+  label=${label//$'\t'/ }
+  if (( ${#label} > max_width )); then
+    label="${label:0:$max_width}..."
+  fi
+  gum style "$prefix$label"
+}
+
+save_original_outputs() {
+  exec 3>&1 4>&2
+}
+
+restore_outputs() {
+  if [[ -e /proc/self/fd/3 && -e /proc/self/fd/4 ]]; then
+    exec 1>&3 2>&4
+  fi
+}
+
+show_error_screen() {
+  local exit_code=$1
+  local failed_command=$2
+
+  stop_install_output
+  restore_outputs
+  if declare -F clear_logo >/dev/null; then
+    clear_logo || true
+  else
+    printf '\033[H\033[2J'
+  fi
+  show_cursor
+
+  gum style \
+    --foreground 1 \
+    --padding "1 0 1 ${PADDING_LEFT:-0}" \
+    "qvOS installation stopped!"
+  show_log_tail
+  gum style "This command halted with exit code $exit_code:"
+  show_failed_script_or_command "$failed_command"
+  echo
+  gum style "Report qvOS issues at https://github.com/Yaqyn-qvOS/qvOS/issues"
+}
+
+catch_errors() {
+  local exit_code=${1:-1}
+  local failed_command=${2:-unknown}
+  local choice
+  local -a options
+
+  (( exit_code > 0 && exit_code <= 255 )) || exit_code=1
+  if [[ $ERROR_HANDLING == "true" ]]; then
+    return "$exit_code"
+  fi
+  ERROR_HANDLING=true
+  trap - ERR INT TERM
+
+  show_error_screen "$exit_code" "$failed_command"
+
+  while true; do
+    options=()
+    if [[ -n ${OMARCHY_ONLINE_INSTALL:-} ]]; then
+      options+=("Retry installation")
+    fi
+    if [[ -n ${OMARCHY_INSTALL_LOG_FILE:-} &&
+      -f $OMARCHY_INSTALL_LOG_FILE &&
+      ! -L $OMARCHY_INSTALL_LOG_FILE ]]; then
+      options+=("View full log")
+    fi
+    options+=("Exit")
+
+    choice=$(gum choose \
+      "${options[@]}" \
+      --header "What would you like to do?" \
+      --height 5 \
+      --padding "1 ${PADDING_LEFT:-0}") || choice="Exit"
+
+    case $choice in
+    "Retry installation")
+      if [[ ! -f $OMARCHY_PATH/install.sh || -L $OMARCHY_PATH/install.sh ]]; then
+        gum style "The qvOS installer source is unavailable."
+        continue
+      fi
+      exec bash -- "$OMARCHY_PATH/install.sh"
+      ;;
+    "View full log")
+      if command -v less &>/dev/null; then
+        less -- "$OMARCHY_INSTALL_LOG_FILE" || true
+      else
+        tail -- "$OMARCHY_INSTALL_LOG_FILE" || true
+      fi
+      ;;
+    "Exit" | "")
+      exit "$exit_code"
+      ;;
+    esac
+  done
+}
+
+interrupt_install() {
+  local exit_code=$1
+
+  ERROR_HANDLING=true
+  trap - ERR INT TERM
+  stop_install_output
+  restore_outputs
+  show_cursor
+  printf '\nqvOS installation interrupted.\n' >&2
+  exit "$exit_code"
+}
+
+exit_handler() {
+  local exit_code=$?
+
+  trap - EXIT
+  if (( exit_code != 0 )) && [[ $ERROR_HANDLING != "true" ]]; then
+    catch_errors "$exit_code" "${BASH_COMMAND:-unknown}"
+  else
+    stop_install_output
+    show_cursor
+  fi
+  exit "$exit_code"
+}
+
+trap 'catch_errors "$?" "$BASH_COMMAND"' ERR
+trap 'interrupt_install 130' INT
+trap 'interrupt_install 143' TERM
+trap exit_handler EXIT
+
+save_original_outputs

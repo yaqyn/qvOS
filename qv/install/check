@@ -27,9 +27,17 @@ done
 [[ ! -e $root/qv/install/helpers/logging ]] || fail "duplicate install logger remains"
 [[ ! -e $root/qv/install/helpers/presentation ]] ||
   fail "duplicate install presentation remains"
-# shellcheck disable=SC2016
-grep -Fqx 'source $OMARCHY_INSTALL/helpers/logging.sh' \
-  "$root/install/helpers/all.sh" || fail "singular install logger wiring"
+[[ -f $root/qv/install/helpers/run && ! -x $root/qv/install/helpers/run ]] ||
+  fail "native install helper stage mode"
+[[ -f $root/qv/install/helpers/errors && ! -x $root/qv/install/helpers/errors ]] ||
+  fail "native installer error owner mode"
+[[ ! -e $root/qv/install/helpers/error-title ]] ||
+  fail "duplicate installer error title remains"
+[[ ! -e $root/install/helpers/all.sh && ! -e $root/install/helpers/errors.sh ]] ||
+  fail "inherited install helper orchestration remains"
+expected_helper_stage=$'# shellcheck shell=bash\n# shellcheck disable=SC1091\n\nsource "$OMARCHY_INSTALL/helpers/chroot.sh"\nsource "$OMARCHY_INSTALL/helpers/presentation.sh"\nsource "$OMARCHY_PATH/qv/install/helpers/errors"\nsource "$OMARCHY_INSTALL/helpers/logging.sh"'
+[[ $(<"$root/qv/install/helpers/run") == "$expected_helper_stage" ]] ||
+  fail "native install helper stage order"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest" | sort -u
 ) ]] || fail "native install paths are not sorted and unique"
@@ -52,6 +60,9 @@ grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
 # shellcheck disable=SC2016
 grep -Fqx 'source "$OMARCHY_PATH/qv/install/post-install/run"' \
   "$root/install.sh" || fail "native post-install owner wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qv/install/helpers/run"' \
+  "$root/install.sh" || fail "native install helper owner wiring"
 # shellcheck disable=SC2016
 grep -Fqx 'source "$OMARCHY_PATH/qv/install/config/run"' \
   "$root/install.sh" || fail "native install configuration owner wiring"

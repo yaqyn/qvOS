@@ -4,6 +4,8 @@ install/first-run/cleanup-reboot-sudoers.sh
 install/first-run/dns-resolver.sh
 install/first-run/firewall.sh
 install/first-run/gnome-theme.sh
+install/helpers/all.sh
+install/helpers/errors.sh
 install/omarchy-base.packages
 install/omarchy-other.packages
 install/packaging/npx.sh
