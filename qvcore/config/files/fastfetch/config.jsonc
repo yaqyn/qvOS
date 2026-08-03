@@ -44,7 +44,7 @@
       "type": "command",
       "key": "os",
       "keyColor": "bright_black",
-      "text": "version=$(omarchy-version 2>/dev/null || true); printf 'qvOS %s\\n' \"${version:-rolling}\""
+      "text": "version=$(qv-version 2>/dev/null || true); printf 'qvOS %s\\n' \"${version:-rolling}\""
     },
     {
       "type": "kernel",
@@ -142,7 +142,7 @@
       "type": "command",
       "key": "updates",
       "keyColor": "bright_black",
-      "text": "omarchy-version-pkgs 2>/dev/null || printf 'unknown\\n'"
+      "text": "qv-version-pkgs 2>/dev/null || printf 'unknown\\n'"
     }
   ]
 }

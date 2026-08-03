@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+
+mirrorlist=${QVOS_VERSION_MIRRORLIST:-/etc/pacman.d/mirrorlist}
+pacman_config=${QVOS_VERSION_PACMAN_CONF:-/etc/pacman.conf}
+
+(( $# == 0 )) || {
+  echo "Usage: qv version channel" >&2
+  exit 2
+}
+
+active_channel() {
+  local config=$1
+  shift
+  local channel url
+
+  [[ -f $config && ! -L $config ]] || {
+    printf 'unknown\n'
+    return
+  }
+
+  while (( $# >= 2 )); do
+    channel=$1
+    url=$2
+    shift 2
+    if awk -v url="$url" '
+      /^[[:space:]]*#/ { next }
+      index($0, url) { found = 1 }
+      END { exit !found }
+    ' "$config"; then
+      printf '%s\n' "$channel"
+      return
+    fi
+  done
+
+  printf 'unknown\n'
+}
+
+mirror=$(active_channel "$mirrorlist" \
+  stable 'https://stable-mirror.omarchy.org/' \
+  rc 'https://rc-mirror.omarchy.org/' \
+  edge 'https://mirror.omarchy.org/')
+packages=$(active_channel "$pacman_config" \
+  stable 'https://pkgs.omarchy.org/stable/' \
+  rc 'https://pkgs.omarchy.org/rc/' \
+  edge 'https://pkgs.omarchy.org/edge/')
+
+if [[ $mirror == "$packages" ]]; then
+  printf '%s\n' "$mirror"
+else
+  printf '%s / %s\n' "$mirror" "$packages"
+fi

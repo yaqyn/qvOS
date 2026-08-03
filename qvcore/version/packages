@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+pacman_log=${QVOS_VERSION_PACMAN_LOG:-/var/log/pacman.log}
+
+(( $# == 0 )) || {
+  echo "Usage: qv version pkgs" >&2
+  exit 2
+}
+
+[[ -f $pacman_log && ! -L $pacman_log ]] || {
+  printf 'unknown\n'
+  exit 0
+}
+
+timestamp=$(awk '
+  /^\[[^]]+\] \[ALPM\] upgraded / {
+    value = $0
+    sub(/^\[/, "", value)
+    sub(/\].*$/, "", value)
+    timestamp = value
+  }
+  END { print timestamp }
+' "$pacman_log")
+
+if [[ -z $timestamp ]]; then
+  printf 'unknown\n'
+  exit 0
+fi
+
+LC_ALL=C date --date="$timestamp" '+%A, %B %d %Y at %H:%M' 2>/dev/null ||
+  printf 'unknown\n'

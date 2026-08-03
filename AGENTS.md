@@ -13,7 +13,7 @@
 
 `qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
 only a compatibility frontend. During the command-tree transition, a promoted
-command has one `qvcore/` owner, one metadata-bearing `bin/qv-*` adapter, and an
+command has one `qvcore/` owner, one metadata-bearing `bin/qv-*` adapter, and a
 metadata-free matching `bin/omarchy-*` compatibility adapter. The engine prefers
 the native route. Unpromoted inherited `bin/omarchy-*` files remain intact until
 their complete domain moves. Never add mutation logic, state ownership, or
@@ -249,7 +249,7 @@ supplement this workflow and never replace its judgment.
 
 Root-started sessions must read every matching route completely before editing:
 
-- qvOS identity, CLI, desktop runtime and controls, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/desktop/AGENTS.md`, `qvcore/controls/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
+- qvOS identity, version reporting, CLI, desktop runtime and controls, theme, and browser lifecycle: `qvcore/branding/AGENTS.md`, `qvcore/version/AGENTS.md`, `qvcore/cli/AGENTS.md`, `qvcore/desktop/AGENTS.md`, `qvcore/controls/AGENTS.md`, `qvcore/theme/AGENTS.md`, `qvcore/browser/AGENTS.md`
 - qvOS boot presentation and Limine lifecycle: `qvcore/boot/AGENTS.md`
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`

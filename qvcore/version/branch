@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+source_root=${QVOS_VERSION_SOURCE_ROOT:-${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv version branch" >&2
+  exit 2
+}
+
+git -C "$source_root" rev-parse --is-inside-work-tree 2>/dev/null | grep -Fqx true || {
+  echo "qvOS version: installed source is not a Git checkout." >&2
+  exit 1
+}
+
+git -C "$source_root" rev-parse --abbrev-ref HEAD

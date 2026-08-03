@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/version/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected_paths=$'bin/omarchy-version\nbin/omarchy-version-branch\nbin/omarchy-version-channel\nbin/omarchy-version-pkgs'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_paths" ]] ||
+  fail "native version inventory"
+
+commands=(version version-branch version-channel version-pkgs)
+owners=(current branch channel packages)
+for index in "${!commands[@]}"; do
+  command=${commands[$index]}
+  owner=${owners[$index]}
+  native_adapter="$root/bin/qv-$command"
+  compatibility_adapter="$root/bin/omarchy-$command"
+  owner_path="$root/qvcore/version/$owner"
+
+  [[ -x $owner_path && -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "version $command owner or adapter mode"
+  (( $(wc -l <"$native_adapter") <= 10 )) ||
+    fail "native version adapter contains implementation: $command"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "version compatibility adapter contains implementation: $command"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native version metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "version compatibility adapter duplicates metadata: $command"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/version/$owner\" \"\$@\"" "$adapter" ||
+      fail "version adapter ownership: $command"
+  done
+done
+
+for frontend in qv omarchy; do
+  "$root/bin/$frontend" commands --json | jq -e --arg route "$frontend version" '
+    [.commands[] | select(.route == $route and .binary == "qv-version")] |
+    length == 1
+  ' >/dev/null || fail "$frontend version route does not prefer the native catalog"
+done
+
+for config in \
+  "$root/config/fastfetch/config.jsonc" \
+  "$root/qvcore/config/files/fastfetch/config.jsonc"; do
+  rg -q 'qv-version' "$config" || fail "Fastfetch omits native version reporting"
+  if rg -n 'omarchy-version' "$config"; then
+    fail "Fastfetch calls a version compatibility route"
+  fi
+done
+
+if rg -n 'omarchy-version(-branch|-channel|-pkgs)?' "$root/qvcore" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/native-paths'; then
+  fail "native qvOS source calls a version compatibility route"
+fi
+
+printf 'ok - qvOS version reporting has one read-only native owner\n'

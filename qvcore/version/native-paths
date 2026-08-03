@@ -1,0 +1,5 @@
+# Inherited version commands promoted to native qvOS ownership.
+bin/omarchy-version
+bin/omarchy-version-branch
+bin/omarchy-version-channel
+bin/omarchy-version-pkgs

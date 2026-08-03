@@ -66,19 +66,19 @@
       "type": "command",
       "key": "\ue900 OS",
       "keyColor": "blue",
-      "text": "version=$(omarchy-version); echo \"qvOS $version\""
+      "text": "version=$(qv-version); echo \"qvOS $version\""
     },
     {
       "type": "command",
       "key": "│ ├󰘬",
       "keyColor": "blue",
-      "text": "branch=$(omarchy-version-branch); echo \"$branch\""
+      "text": "branch=$(qv-version-branch); echo \"$branch\""
     },
     {
       "type": "command",
       "key": "│ ├󰔫",
       "keyColor": "blue",
-      "text": "channel=$(omarchy-version-channel); echo \"$channel\""
+      "text": "channel=$(qv-version-channel); echo \"$channel\""
     },
     {
       "type": "kernel",
@@ -145,7 +145,7 @@
       "type": "command",
       "key": " Update",
       "keyColor": "magenta",
-      "text": "updated=$(omarchy-version-pkgs); echo \"$updated\""
+      "text": "updated=$(qv-version-pkgs); echo \"$updated\""
     },
     {
       "type": "custom",

@@ -26,9 +26,6 @@ bin/omarchy-refresh-walker
 bin/omarchy-refresh-waybar
 bin/omarchy-remove-preinstalls
 bin/omarchy-show-logo
-bin/omarchy-version
-bin/omarchy-version-branch
-bin/omarchy-version-channel
 bin/omarchy-windows-vm
 config/fastfetch/config.jsonc
 config/waybar/config.jsonc

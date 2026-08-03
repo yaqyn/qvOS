@@ -38,6 +38,7 @@ qvcore/
   tmux/        Persistent tmux session manager.
   tui/         Shared actions plus installer and progress presentation.
   update/      qvOS update preflight and presentation wrapper.
+  version/     Installed source, branch, channel, and package-age reporting.
   waybar/      qvOS prayer clock modules.
   windows/     Windows VM configuration, safe removal, and rollback.
 ```

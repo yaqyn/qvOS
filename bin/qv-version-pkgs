@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Print when system packages were last upgraded
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/version/packages" "$@"

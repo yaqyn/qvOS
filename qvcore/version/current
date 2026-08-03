@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+source_root=${QVOS_VERSION_SOURCE_ROOT:-${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}}
+version_file="$source_root/version"
+
+(( $# == 0 )) || {
+  echo "Usage: qv version" >&2
+  exit 2
+}
+
+[[ -f $version_file && ! -L $version_file ]] || {
+  echo "qvOS version: installed version is unavailable." >&2
+  exit 1
+}
+
+version=$(<"$version_file")
+[[ $version =~ ^[[:alnum:]][[:alnum:]._-]{0,63}$ ]] || {
+  echo "qvOS version: installed version is malformed." >&2
+  exit 1
+}
+
+printf '%s\n' "$version"
