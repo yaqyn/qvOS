@@ -352,12 +352,18 @@ QVOS_SECURITY_TESTING=1 \
   fail "EFI mount policy idempotence"
 grep -Fq 'as_root /usr/bin/systemctl daemon-reload' "$boot_mount" ||
   fail "EFI mount units reload after the policy changes"
-grep -Fq '/usr/bin/systemctl show --property=Options --value boot.mount' \
+grep -Fq '/usr/bin/systemctl show --property=FragmentPath --value boot.mount' \
   "$boot_mount" ||
-  fail "EFI generated mount policy is verified"
+  fail "EFI generated mount unit path is resolved"
 # shellcheck disable=SC2016
-grep -Fq '[[ $configured_options != "$desired_options" ]]' "$boot_mount" ||
+grep -Fq '[[ $source_path == "/etc/fstab" ]]' "$boot_mount" ||
+  fail "EFI generated mount unit is sourced from fstab"
+# shellcheck disable=SC2016
+grep -Fq '[[ $generated_options != "$desired_options" ]]' "$boot_mount" ||
   fail "EFI generated mount policy preserves the complete option set"
+if rg -q -- '--property=Options' "$boot_mount"; then
+  fail "EFI policy validation incorrectly reads the active systemd property"
+fi
 if rg -q '/usr/bin/(mount|umount)|\bremount\b' "$boot_mount"; then
   fail "EFI permission masks are incorrectly treated as live-mutable"
 fi

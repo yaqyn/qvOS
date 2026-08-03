@@ -42,6 +42,32 @@ reload_mount_units() {
   as_root /usr/bin/systemctl daemon-reload
 }
 
+read_generated_boot_options() {
+  local fragment_path source_path
+
+  fragment_path=$(
+    /usr/bin/systemctl show --property=FragmentPath --value boot.mount
+  )
+  source_path=$(
+    /usr/bin/systemctl show --property=SourcePath --value boot.mount
+  )
+  [[ $fragment_path == "/run/systemd/generator/boot.mount" ]] || return 1
+  [[ $source_path == "/etc/fstab" ]] || return 1
+  [[ -f $fragment_path && ! -L $fragment_path ]] || return 1
+  awk -F= '
+    $1 == "Options" {
+      options = substr($0, index($0, "=") + 1)
+      count++
+    }
+    END {
+      if (count != 1) {
+        exit 1
+      }
+      print options
+    }
+  ' "$fragment_path"
+}
+
 restore_prior_policy() {
   ((fstab_changed)) || return 0
   as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
@@ -142,10 +168,10 @@ fi
 
 reload_status=0
 reload_mount_units || reload_status=$?
-configured_options=$(
-  /usr/bin/systemctl show --property=Options --value boot.mount 2>/dev/null || true
-)
-if ((reload_status != 0)) || [[ $configured_options != "$desired_options" ]]; then
+generated_status=0
+generated_options=$(read_generated_boot_options) || generated_status=$?
+if ((reload_status != 0 || generated_status != 0)) ||
+  [[ $generated_options != "$desired_options" ]]; then
   if ((fstab_changed)); then
     restore_prior_policy
     echo "Could not load the private /boot policy into systemd; restored the prior fstab policy." >&2
