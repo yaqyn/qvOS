@@ -77,7 +77,7 @@ func (m *model) addRebootReason(reason string) {
 
 func rebootSystemCmd() tea.Cmd {
 	return func() tea.Msg {
-		output, err := exec.Command("omarchy-system-reboot").CombinedOutput()
+		output, err := exec.Command("qv-system-reboot").CombinedOutput()
 		if err != nil {
 			message := strings.Join(strings.Fields(string(output)), " ")
 			if message == "" {

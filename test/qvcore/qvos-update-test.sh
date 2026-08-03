@@ -334,7 +334,7 @@ install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
 exit 1
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-system-reboot" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-system-reboot" <<'SCRIPT'
 #!/bin/bash
 printf 'reboot\n' >>"$QVOS_TEST_REBOOT_ACTION_LOG"
 SCRIPT

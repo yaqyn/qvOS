@@ -16,6 +16,6 @@ if [[ ${OMARCHY_UPDATE_DEFER_REBOOT:-0} == "1" ]]; then
   printf 'qvOS action: reboot required: %s\n' "$reason"
 else
   if gum confirm "$prompt"; then
-    omarchy-system-reboot
+    qv-system-reboot
   fi
 fi

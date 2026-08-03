@@ -635,8 +635,8 @@ function GetEntries(query)
   add(entries, "󰒲", "Suspend", "More · Power", { "sleep", "power" }, "systemctl suspend")
   add(entries, "󰤁", "Hibernate", "More · Power", { "sleep", "power" }, "systemctl hibernate")
   add(entries, "󰍃", "Logout", "More · Power", { "session", "exit" }, "omarchy-system-logout")
-  add(entries, "󰜉", "Restart", "More · Power", { "reboot", "power" }, "omarchy-system-reboot")
-  add(entries, "󰐥", "Shutdown", "More · Power", { "power", "off" }, "omarchy-system-shutdown")
+  add(entries, "󰜉", "Restart", "More · Power", { "reboot", "power" }, "qv-system-reboot")
+  add(entries, "󰐥", "Shutdown", "More · Power", { "power", "off" }, "qv-system-shutdown")
 
   return apply_search_intents(entries, query)
 end

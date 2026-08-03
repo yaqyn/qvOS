@@ -24,6 +24,8 @@ declare -A route_owners=(
   [powerprofiles-init]=profiles-init
   [powerprofiles-list]=profiles-list
   [powerprofiles-set]=profiles-set
+  [system-reboot]=system-power
+  [system-shutdown]=system-power
   [system-inhibit-sleep]=inhibit-sleep
   [system-suspend-if-safe]=suspend-if-safe
 )
@@ -34,6 +36,8 @@ declare -A route_actions=(
   [battery-remaining]=remaining
   [battery-remaining-time]=remaining-time
   [battery-status]=status
+  [system-reboot]=reboot
+  [system-shutdown]=poweroff
 )
 for route in "${!route_owners[@]}"; do
   native_adapter="$root/bin/qv-$route"
@@ -71,20 +75,11 @@ if rg -q 'cat <<EOF|tee .*99-power-profile' \
   "$root/qvcore/install/config/powerprofilesctl-rules.sh"; then
   fail "installer duplicates the native power-profile rule"
 fi
-for action in reboot shutdown; do
-  adapter="$root/bin/omarchy-system-$action"
-  [[ -x $adapter ]] || fail "system-power adapter mode: $action"
-  grep -Fq 'qvcore/power/system-power' "$adapter" ||
-    fail "system-power adapter ownership: $action"
-  if rg -q 'nohup|window-close-all|omarchy-state' "$adapter"; then
-    fail "system-power adapter retains implementation: $action"
-  fi
-done
-
-if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe))' \
+if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown))' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
+  --glob '!**/check' --glob '!**/omarchy/extensions/menu.sh' \
   --glob '!**/power/profile-rule' --glob '!**/power/install' \
   --glob '!**/config/migrate-runtime-root'; then
   fail "native qvOS source still calls a power compatibility command"

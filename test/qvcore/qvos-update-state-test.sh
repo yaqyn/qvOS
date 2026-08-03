@@ -116,7 +116,7 @@ HOME="$home" \
   QVOS_PATH="$root" \
   QVOS_TEST_POWER_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
-  "$root/bin/omarchy-system-shutdown"
+  "$root/bin/qv-system-shutdown"
 for ((attempt = 0; attempt < 100; attempt++)); do
   grep -q '^schedule:' "$action_log" 2>/dev/null && break
   sleep 0.01

@@ -1,4 +1,8 @@
 #!/bin/bash
 
+# qv:summary=Reboot after closing application windows
+# qv:examples=qv reboot | qv system reboot
+# qv:aliases=qv reboot
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/power/system-power" reboot "$@"

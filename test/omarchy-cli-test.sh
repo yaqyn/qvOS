@@ -181,7 +181,7 @@ assert_output_contains "pkg add help resolves" "$output" "qv-pkg-add"
 assert_output_contains "pkg add help shows direct route" "$output" "omarchy pkg add <packages...>"
 
 output=$("$CLI" system reboot --help)
-assert_output_contains "system command help is safe" "$output" "omarchy-system-reboot"
+assert_output_contains "system command help is safe" "$output" "qv-system-reboot"
 
 output=$("$CLI" dev benchmark --repeat=1)
 assert_output_contains "benchmark command runs" "$output" "qvOS CLI benchmark"
@@ -203,6 +203,8 @@ for binary in \
   omarchy-theme-set \
   omarchy-capture-screenshot \
   omarchy-system-reboot \
+  qv-system-reboot \
+  qv-system-shutdown \
   omarchy-pkg-add \
   qv-pkg-add; do
   [[ -x $ROOT/bin/$binary ]] || fail "binary is executable: $binary"

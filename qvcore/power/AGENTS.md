@@ -5,8 +5,9 @@ the full-charge override, or another mutation under `qvcore/power/`.
 
 ## System power
 
-`qvcore/power/system-power` is the one reboot and shutdown owner. Compatibility
-commands pass a fixed `reboot` or `poweroff` verb only. Clear safe qvOS update
+`qvcore/power/system-power` is the one reboot and shutdown owner. Native `qv`
+commands own metadata; metadata-free compatibility commands pass the same fixed
+`reboot` or `poweroff` verb. Clear safe qvOS update
 markers through their state owner, but never block an intentional power action
 because stale state cleanup was refused. Schedule the fixed systemctl action
 before closing windows, preserve the existing two-second application grace,
