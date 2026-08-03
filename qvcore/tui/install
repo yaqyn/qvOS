@@ -119,6 +119,19 @@ ensure_link() {
   ln -sfn "$target" "$command_link"
 }
 
+cleanup_stale_builds() {
+  [[ -f $target && ! -L $target ]] || return 0
+  find "$runtime_dir" \
+    -mindepth 1 \
+    -maxdepth 1 \
+    -type f \
+    -uid "$EUID" \
+    -name '.qvos-tui.??????' \
+    -mmin +60 \
+    ! -newer "$target" \
+    -delete
+}
+
 status() {
   payload_ready || return 1
 
@@ -160,6 +173,7 @@ build() {
   deploy_payload
   mv -f -- "$temporary" "$target"
   ensure_link
+  cleanup_stale_builds
   trap - RETURN
 }
 
@@ -171,6 +185,7 @@ case $mode in
   if managed_binary_ready; then
     deploy_payload
     ensure_link
+    cleanup_stale_builds
     exit 0
   fi
   if command -v go >/dev/null 2>&1; then

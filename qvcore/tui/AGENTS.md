@@ -57,6 +57,9 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
 - `qvcore/tui/source-hash` is the single owner for binary source provenance.
   Every local, live, and ISO build embeds its output in `buildSourceHash`, and
   verification rejects `unmanaged` or any value that differs from that owner.
+- `qvcore/tui/install` removes only owner-matching build temporaries older than
+  one hour and older than the managed target. Preserve recent files that may
+  belong to a concurrent build.
 
 ## Durable UX Contract
 

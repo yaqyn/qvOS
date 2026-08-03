@@ -297,6 +297,9 @@ for optional_thunar_feature in codex proton-drive-upload; do
   printf 'stale optional integration\n' \
     >"$test_root/.local/lib/qvos/thunar/$optional_thunar_feature"
 done
+install -m 0755 /dev/null "$test_root/.local/lib/qvos/tui/.qvos-tui.STALE1"
+touch -d '2 hours ago' "$test_root/.local/lib/qvos/tui/.qvos-tui.STALE1"
+install -m 0755 /dev/null "$test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE"
 install -m 0644 /dev/stdin \
   "$test_root/.local/share/applications/thunar.desktop" <<EOF
 [Desktop Entry]
@@ -336,6 +339,10 @@ grep -Fq 'Exec=/usr/bin/custom-file-manager' \
 grep -Fq 'Environment=USER_CUSTOM=1' \
   "$test_root/.config/systemd/user/thunar.service" ||
   fail "custom Thunar service preservation"
+[[ ! -e $test_root/.local/lib/qvos/tui/.qvos-tui.STALE1 ]] ||
+  fail "stale TUI build cleanup"
+[[ -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||
+  fail "recent TUI build preservation"
 for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qvcore/thunar/$optional_thunar_feature" \
