@@ -25,6 +25,48 @@ cleanup() {
 }
 trap cleanup EXIT
 
+system_file_ready() {
+  local source=$1
+  local target=$2
+  local mode=$3
+
+  [[ -f $target && ! -L $target ]] &&
+    [[ $(stat -c '%u:%g:%a' -- "$target") == \
+      "$system_owner_uid:$system_owner_gid:${mode#0}" ]] &&
+    cmp -s "$source" "$target"
+}
+
+install_system_file() {
+  local source=$1
+  local target=$2
+  local mode=$3
+
+  system_file_ready "$source" "$target" "$mode" && return 0
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    install -D -o "$system_owner_uid" -g "$system_owner_gid" -m "$mode" \
+      "$source" "$target"
+  else
+    /usr/bin/sudo /usr/bin/install -D -o root -g root -m "$mode" \
+      "$source" "$target"
+  fi
+}
+
+sysctl_baseline_ready() {
+  local count=0
+  local key
+  local assignment
+  local value
+  local extra
+
+  while read -r key assignment value extra; do
+    [[ -n $key && $key != \#* ]] || continue
+    [[ $assignment == "=" && -n $value && -z $extra ]] || return 1
+    [[ $(/usr/bin/sysctl -n "$key" 2>/dev/null) == "$value" ]] || return 1
+    ((count += 1))
+  done <"$source_file"
+  ((count > 0))
+}
+
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
   echo "A custom qvOS security system root is only valid in tests." >&2
   exit 2
@@ -147,39 +189,28 @@ if [[ -f $docker_config ]]; then
   fi
 fi
 
-if [[ -n $system_root ]] || ((EUID == 0)); then
-  install -D -m 0644 "$source_file" "$target_file"
-  install -m 0644 "$pacman_candidate" "$pacman_config"
-  install -D -m 0755 "$dev_share_helper_source" "$dev_share_helper"
-  if [[ -n $docker_candidate ]]; then
-    install -m 0644 "$docker_candidate" "$docker_config"
-  fi
-  if ((EUID == 0)); then
-    chown root:root "$target_file" "$pacman_config" "$dev_share_helper"
-    [[ -z $docker_candidate ]] || chown root:root "$docker_config"
-  fi
-else
-  /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0644 \
-    "$source_file" "$target_file"
-  /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
-    "$pacman_candidate" "$pacman_config"
-  /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0755 \
-    "$dev_share_helper_source" "$dev_share_helper"
-  if [[ -n $docker_candidate ]]; then
-    /usr/bin/sudo /usr/bin/install -o root -g root -m 0644 \
-      "$docker_candidate" "$docker_config"
-  fi
-fi
+install_system_file "$source_file" "$target_file" 0644
+install_system_file "$pacman_candidate" "$pacman_config" 0644
+install_system_file "$dev_share_helper_source" "$dev_share_helper" 0755
+[[ -z $docker_candidate ]] ||
+  install_system_file "$docker_candidate" "$docker_config" 0644
 
 if [[ -d $system_install_tree ]]; then
-  if [[ -n $system_root ]] || ((EUID == 0)); then
+  insecure_system_file=$(
     find -P "$system_install_tree" -xdev -type f \
       -uid "$system_owner_uid" -gid "$system_owner_gid" -perm /0022 \
-      -exec chmod go-w -- {} +
-  else
-    /usr/bin/sudo /usr/bin/find -P "$system_install_tree" -xdev -type f \
-      -uid 0 -gid 0 -perm /0022 \
-      -exec /usr/bin/chmod go-w -- {} +
+      -print -quit
+  )
+  if [[ -n $insecure_system_file ]]; then
+    if [[ -n $system_root ]] || ((EUID == 0)); then
+      find -P "$system_install_tree" -xdev -type f \
+        -uid "$system_owner_uid" -gid "$system_owner_gid" -perm /0022 \
+        -exec chmod go-w -- {} +
+    else
+      /usr/bin/sudo /usr/bin/find -P "$system_install_tree" -xdev -type f \
+        -uid 0 -gid 0 -perm /0022 \
+        -exec /usr/bin/chmod go-w -- {} +
+    fi
   fi
 fi
 
@@ -205,7 +236,9 @@ if [[ -z $system_root ]]; then
     fi
   fi
 
-  if ((EUID == 0)); then
+  if sysctl_baseline_ready; then
+    :
+  elif ((EUID == 0)); then
     /usr/bin/sysctl -q -p "$target_file"
   else
     /usr/bin/sudo /usr/bin/sysctl -q -p "$target_file"

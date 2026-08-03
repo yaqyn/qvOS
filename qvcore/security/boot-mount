@@ -38,6 +38,16 @@ has_private_masks() {
     [[ ,$options, == *",dmask=0077,"* ]]
 }
 
+report_policy() {
+  if has_private_masks "$current_options"; then
+    printf 'Protected /boot with fmask=0077,dmask=0077'
+  else
+    printf 'Stored private /boot policy; reboot required to activate fmask=0077,dmask=0077'
+  fi
+  [[ -z $backup_file ]] || printf '; fstab backup: %s' "$backup_file"
+  printf '\n'
+}
+
 reload_mount_units() {
   as_root /usr/bin/systemctl daemon-reload
 }
@@ -142,7 +152,7 @@ awk '
 [[ $mode == "apply" ]] || exit 0
 
 if [[ -n $system_root ]]; then
-  install -m 0644 "$candidate" "$fstab"
+  cmp -s "$candidate" "$fstab" || install -m 0644 "$candidate" "$fstab"
   exit 0
 fi
 
@@ -164,6 +174,14 @@ if ((fstab_changed)); then
   backup_file=$(as_root /usr/bin/mktemp /etc/fstab.qvos-backup.XXXXXX)
   as_root /usr/bin/install -o root -g root -m 0600 "$fstab" "$backup_file"
   as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
+else
+  generated_status=0
+  generated_options=$(read_generated_boot_options) || generated_status=$?
+  if ((generated_status == 0)) &&
+    [[ $generated_options == "$desired_options" ]]; then
+    report_policy
+    exit 0
+  fi
 fi
 
 reload_status=0
@@ -181,10 +199,4 @@ if ((reload_status != 0 || generated_status != 0)) ||
   exit 1
 fi
 
-if has_private_masks "$current_options"; then
-  printf 'Protected /boot with fmask=0077,dmask=0077'
-else
-  printf 'Stored private /boot policy; reboot required to activate fmask=0077,dmask=0077'
-fi
-[[ -z $backup_file ]] || printf '; fstab backup: %s' "$backup_file"
-printf '\n'
+report_policy

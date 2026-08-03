@@ -254,6 +254,8 @@ for optional_thunar_feature in codex proton-drive-upload; do
   printf 'stale optional integration\n' \
     >"$test_root/.local/lib/qvos/thunar/$optional_thunar_feature"
 done
+power_helper_state_before=$(stat -c '%u:%g:%a|%i|%y' \
+  "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb")
 install -d -m 0700 \
   "$test_root/.local/state/qvos/services" \
   "$test_root/.local/state/qvos/development"
@@ -263,6 +265,10 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
 HOME="$test_root" OMARCHY_PATH="$root" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
+[[ $(stat -c '%u:%g:%a|%i|%y' \
+  "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb") == \
+  "$power_helper_state_before" ]] ||
+  fail "desktop refresh rewrote an exact privileged power helper"
 for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qvcore/thunar/$optional_thunar_feature" \

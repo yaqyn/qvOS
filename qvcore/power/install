@@ -9,6 +9,19 @@ user_unit_dir="$HOME/.config/systemd/user"
 system_root=${QVOS_POWER_SYSTEM_ROOT:-}
 system_helper="${system_root}/usr/lib/qvos/battery-protection-hwdb"
 
+system_helper_ready() {
+  local expected_uid=0
+  local expected_gid=0
+
+  if [[ -n $system_root ]]; then
+    expected_uid=$(id -u)
+    expected_gid=$(id -g)
+  fi
+  [[ -f $system_helper && ! -L $system_helper ]] &&
+    [[ $(stat -c '%u:%g:%a' -- "$system_helper") == "$expected_uid:$expected_gid:755" ]] &&
+    cmp -s "$source_dir/battery-protection-hwdb" "$system_helper"
+}
+
 if [[ -n $system_root && ${QVOS_POWER_TESTING:-} != "1" ]]; then
   echo "A custom Battery Protection system root is only valid in tests." >&2
   exit 2
@@ -37,7 +50,9 @@ install -m 0644 \
   "$source_dir/qvos-battery-full-charge-once.service" \
   "$user_unit_dir/qvos-battery-full-charge-once.service"
 
-if [[ -n $system_root ]] || ((EUID == 0)); then
+if system_helper_ready; then
+  :
+elif [[ -n $system_root ]] || ((EUID == 0)); then
   install -D -o "$(id -u)" -g "$(id -g)" -m 0755 \
     "$source_dir/battery-protection-hwdb" "$system_helper"
   if ((EUID == 0)); then

@@ -327,6 +327,24 @@ QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
   OMARCHY_PATH="$root" \
   "$installer"
+managed_security_files=(
+  "$security_system_root/etc/docker/daemon.json"
+  "$security_system_root/etc/fstab"
+  "$security_system_root/etc/pacman.conf"
+  "$security_system_root/etc/sysctl.d/60-qvos-security.conf"
+  "$security_system_root/usr/lib/qvos/dev-share-firewall"
+  "$system_install_tree/cache/test-package/dist/program.js"
+  "$system_install_tree/global/node_modules/test-package/private.js"
+  "$system_install_tree/global/node_modules/test-package/program.js"
+)
+security_state_before=$(stat -c '%n|%u:%g:%a|%i|%y' "${managed_security_files[@]}")
+QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer"
+[[ $(stat -c '%n|%u:%g:%a|%i|%y' "${managed_security_files[@]}") == \
+  "$security_state_before" ]] ||
+  fail "idempotent security reconciliation rewrote protected state"
 installed_baseline="$security_system_root/etc/sysctl.d/60-qvos-security.conf"
 cmp -s "$baseline" "$installed_baseline" \
   || fail "security baseline system install"
@@ -373,6 +391,9 @@ QVOS_SECURITY_TESTING=1 \
   fail "EFI mount policy idempotence"
 grep -Fq 'as_root /usr/bin/systemctl daemon-reload' "$boot_mount" ||
   fail "EFI mount units reload after the policy changes"
+# shellcheck disable=SC2016
+grep -Fq '[[ $generated_options == "$desired_options" ]]' "$boot_mount" ||
+  fail "unchanged EFI policy avoids a redundant privileged reload"
 grep -Fq '/usr/bin/systemctl show --property=FragmentPath --value boot.mount' \
   "$boot_mount" ||
   fail "EFI generated mount unit path is resolved"
