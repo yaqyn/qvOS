@@ -50,6 +50,9 @@ keeps the marker on failure, serializes concurrent starts, and removes the
 narrow privilege policy only after all required user-session work succeeds.
 Never grant passwordless access to general system, firewall, package, or file
 commands for first run. Keep notifications non-fatal after successful cleanup.
+The active marker lives under `.local/state/qvos/install`; migrate the former
+`.local/state/omarchy/first-run.mode` only after validating its type, owner, and
+parents, and never leave both markers active.
 The native GNOME and icon owners replace the inherited GNOME theme rather than
 running after it; retain `yaru-icon-theme` only for compatible external themes.
 

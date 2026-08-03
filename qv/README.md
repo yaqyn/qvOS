@@ -105,6 +105,20 @@ identity or base readiness.
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.
 
+## Internal namespace boundary
+
+New qvOS-owned state, providers, services, and runtime identifiers use `qvos`
+or `qvOS`. Preserve an `omarchy` identifier only when it is a stable public
+command, upstream environment or path contract, installed-state compatibility
+key, package name, or truthful upstream integration. Do not add parallel qvOS
+aliases merely to hide a compatibility name.
+
+Migrate a legacy internal name only with its complete domain owner: validate
+the old artifact, move or replace its state atomically, remove the old source
+and generated residue, update every consumer, and guard both the new identity
+and cleanup path in focused tests. Boot, source/config roots, and upstream ABI
+names remain unchanged until their full lifecycle can move safely together.
+
 `qv/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
 sysctl baseline, signed-package and localhost-first container defaults, the
 temporary private-LAN development preview, and the balanced-hardening

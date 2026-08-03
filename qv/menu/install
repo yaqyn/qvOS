@@ -39,20 +39,26 @@ elephant_ready_runtime="$menu_runtime_dir/wait-for-elephant"
 walker_ready_source="$menu_source_dir/walker-elephant-ready.conf"
 walker_ready_target="$HOME/.config/systemd/user/app-walker@autostart.service.d/qvos-elephant-ready.conf"
 provider_set_source="$menu_source_dir/walker-provider-set.toml"
-provider_set_start="# qvOS Omarchy menu provider set start"
-provider_set_end="# qvOS Omarchy menu provider set end"
-provider_set_header="[providers.sets.qvos-omarchy-menu]"
+provider_set_start="# qvOS menu provider set start"
+provider_set_end="# qvOS menu provider set end"
+provider_set_header="[providers.sets.qvos-menu]"
+legacy_provider_set_start="# qvOS Omarchy menu provider set start"
+legacy_provider_set_end="# qvOS Omarchy menu provider set end"
+legacy_provider_set_header="[providers.sets.qvos-omarchy-menu]"
 walker_config="$HOME/.config/walker/config.toml"
 walker_config_source="$OMARCHY_PATH/config/walker/config.toml"
-walker_theme_name="qvos-omarchy-menu"
+walker_theme_name="qvos-menu"
+legacy_walker_theme_name="qvos-omarchy-menu"
 walker_theme_source="$OMARCHY_PATH/default/walker/themes/omarchy-default"
-walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
+walker_theme_target="$HOME/.config/walker/themes/qvos-menu"
+legacy_walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
 walker_theme_import='@import "../../../omarchy/current/theme/walker.css";'
 walker_subtext_source="$menu_source_dir/walker-subtext.css"
 providers=(
   omarchy_unlocks.lua
-  qvos_omarchy_menu.lua
+  qvos_menu.lua
 )
+legacy_qvos_provider=qvos_omarchy_menu.lua
 omarchy_providers=(
   omarchy_background_selector.lua
   omarchy_themes.lua
@@ -171,6 +177,18 @@ install_qvos_menu() {
 install_menu_providers() {
   local provider
   local runtime_provider
+  local legacy_provider_link="$provider_menu_dir/$legacy_qvos_provider"
+  local legacy_provider_target="$provider_runtime_dir/$legacy_qvos_provider"
+
+  if [[ -L $legacy_provider_link ]]; then
+    [[ $(readlink "$legacy_provider_link") == "$legacy_provider_target" ]] || {
+      echo "Refusing a foreign legacy qvOS menu provider link: $legacy_provider_link" >&2
+      return 1
+    }
+  elif [[ -e $legacy_provider_link ]]; then
+    echo "Refusing a foreign legacy qvOS menu provider: $legacy_provider_link" >&2
+    return 1
+  fi
 
   rm -rf -- "$provider_runtime_dir"
   install -d "$provider_runtime_dir" "$provider_menu_dir"
@@ -185,6 +203,7 @@ install_menu_providers() {
       "$omarchy_provider_source_dir/$provider" \
       "$provider_menu_dir/$provider"
   done
+  [[ ! -L $legacy_provider_link ]] || unlink -- "$legacy_provider_link"
 }
 
 install_menu_runtime() {
@@ -244,10 +263,13 @@ install_provider_set() {
   if awk \
     -v start="$provider_set_start" \
     -v finish="$provider_set_end" \
-    -v header="$provider_set_header" '
-      $0 == start { managed = 1; next }
-      $0 == finish && managed { managed = 0; next }
-      !managed && $0 == header { found = 1 }
+    -v legacy_start="$legacy_provider_set_start" \
+    -v legacy_finish="$legacy_provider_set_end" \
+    -v header="$provider_set_header" \
+    -v legacy_header="$legacy_provider_set_header" '
+      $0 == start || $0 == legacy_start { managed = 1; next }
+      ($0 == finish || $0 == legacy_finish) && managed { managed = 0; next }
+      !managed && ($0 == header || $0 == legacy_header) { found = 1 }
       END { exit found ? 0 : 1 }
     ' "$walker_config"; then
     echo "Walker provider set already exists outside the qvOS-managed block: $provider_set_header" >&2
@@ -259,9 +281,22 @@ install_provider_set() {
   temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
   if ! awk \
     -v start="$provider_set_start" \
-    -v finish="$provider_set_end" '
-      $0 == start { skipping = 1; next }
-      $0 == finish && skipping { skipping = 0; next }
+    -v finish="$provider_set_end" \
+    -v legacy_start="$legacy_provider_set_start" \
+    -v legacy_finish="$legacy_provider_set_end" '
+      $0 == start {
+        if (skipping) exit 3
+        skipping = 1
+        expected = finish
+        next
+      }
+      $0 == legacy_start {
+        if (skipping) exit 3
+        skipping = 1
+        expected = legacy_finish
+        next
+      }
+      skipping && $0 == expected { skipping = 0; next }
       !skipping { print }
       END { if (skipping) exit 2 }
     ' "$walker_config" >"$temporary_path"; then
@@ -289,7 +324,7 @@ install_default_walker_theme() {
   current_theme=$(walker_config_theme)
   case $current_theme in
   "$walker_theme_name") return ;;
-  "omarchy-default") ;;
+  "$legacy_walker_theme_name" | "omarchy-default") ;;
   *)
     return
     ;;
@@ -298,9 +333,11 @@ install_default_walker_theme() {
   backup_walker_config
   temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
   awk \
-    -v old='theme = "omarchy-default"' \
+    -v legacy="theme = \"$legacy_walker_theme_name\"" \
+    -v upstream='theme = "omarchy-default"' \
     -v new="theme = \"$walker_theme_name\"" '
-      index($0, old) == 1 { sub(old, new) }
+      index($0, legacy) == 1 { sub(legacy, new) }
+      index($0, upstream) == 1 { sub(upstream, new) }
       { print }
     ' "$walker_config" >"$temporary_path"
   chmod --reference="$walker_config" "$temporary_path"
@@ -310,7 +347,7 @@ install_default_walker_theme() {
 generated_theme_style() {
   printf '%s\n' "$walker_theme_import"
   tail -n +2 "$walker_theme_source/style.css"
-  printf '\n\n/* qvOS Omarchy menu breadcrumbs */\n'
+  printf '\n\n/* qvOS menu breadcrumbs */\n'
   cat "$walker_subtext_source"
 }
 
@@ -318,13 +355,21 @@ install_menu_theme() {
   local temporary_theme
 
   install -d "$(dirname -- "$walker_theme_target")"
-  temporary_theme=$(mktemp -d "$(dirname -- "$walker_theme_target")/.qvos-omarchy-menu.XXXXXX")
+  temporary_theme=$(mktemp -d "$(dirname -- "$walker_theme_target")/.qvos-menu.XXXXXX")
   cp -a "$walker_theme_source/." "$temporary_theme/"
   generated_theme_style >"$temporary_theme/style.css"
   chmod --reference="$walker_theme_source/style.css" "$temporary_theme/style.css"
 
   rm -rf -- "$walker_theme_target"
   mv "$temporary_theme" "$walker_theme_target"
+}
+
+cleanup_legacy_menu_theme() {
+  [[ $(walker_config_theme) != "$legacy_walker_theme_name" ]] || {
+    echo "Refusing to remove the active legacy qvOS menu theme." >&2
+    return 1
+  }
+  rm -rf -- "$legacy_walker_theme_target"
 }
 
 reload_active_menu_services() {
@@ -353,6 +398,9 @@ menu_extension_ready() {
 menu_providers_ready() {
   local provider
   local runtime_provider
+
+  [[ ! -e $provider_menu_dir/$legacy_qvos_provider &&
+    ! -L $provider_menu_dir/$legacy_qvos_provider ]] || return 1
 
   for provider in "${providers[@]}"; do
     runtime_provider="$provider_runtime_dir/$provider"
@@ -393,6 +441,7 @@ menu_theme_ready() {
   local relative_path
 
   [[ -d $walker_theme_target && ! -L $walker_theme_target ]] || return 1
+  [[ ! -e $legacy_walker_theme_target && ! -L $legacy_walker_theme_target ]] || return 1
 
   source_inventory=$(
     find "$walker_theme_source" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
@@ -419,7 +468,8 @@ case $mode in
     menu_providers_ready &&
     menu_runtime_ready &&
     cmp -s <(provider_set_block) "$provider_set_source" &&
-    [[ $(walker_config_theme) != "omarchy-default" ]] &&
+    [[ $(walker_config_theme) != "omarchy-default" &&
+      $(walker_config_theme) != "$legacy_walker_theme_name" ]] &&
     menu_theme_ready
   ;;
 --install)
@@ -432,6 +482,7 @@ case $mode in
   install_provider_set
   install_menu_theme
   install_default_walker_theme
+  cleanup_legacy_menu_theme
   reload_active_menu_services
   ;;
 *)

@@ -68,14 +68,14 @@ import sys
 import tomllib
 
 config = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
-provider_set = config["providers"]["sets"]["qvos-omarchy-menu"]
-assert config["theme"] == "qvos-omarchy-menu"
+provider_set = config["providers"]["sets"]["qvos-menu"]
+assert config["theme"] == "qvos-menu"
 assert provider_set == {
-    "default": ["menus:qvosOmarchyMenu"],
-    "empty": ["menus:qvosOmarchyMenu"],
+    "default": ["menus:qvosMenu"],
+    "empty": ["menus:qvosMenu"],
 }
 
-menu_actions = config["providers"]["actions"]["menus:qvosOmarchyMenu"]
+menu_actions = config["providers"]["actions"]["menus:qvosMenu"]
 assert any(
     action["action"] == "activate"
     and action["bind"] == "Return"
@@ -106,12 +106,44 @@ assert any(
 PY
 pass "Walker binds Tab to a query-preserving mode reload"
 
-menu_provider="$root/qv/menu/elephant/qvos_omarchy_menu.lua"
+legacy_runtime="$test_root/.local/share/qvos/menu/elephant/qvos_omarchy_menu.lua"
+legacy_link="$test_root/.config/elephant/menus/qvos_omarchy_menu.lua"
+install -m 0644 "$root/qv/menu/elephant/qvos_menu.lua" "$legacy_runtime"
+ln -s "$legacy_runtime" "$legacy_link"
+sed -i \
+  -e 's/qvos-menu/qvos-omarchy-menu/g' \
+  -e 's/qvosMenu/qvosOmarchyMenu/g' \
+  -e 's/# qvOS menu provider set/# qvOS Omarchy menu provider set/g' \
+  "$test_root/.config/walker/config.toml"
+mv \
+  "$test_root/.config/walker/themes/qvos-menu" \
+  "$test_root/.config/walker/themes/qvos-omarchy-menu"
+HOME="$test_root" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  "$root/qv/menu/install" --install
+HOME="$test_root" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qv/menu/install" --status ||
+  fail "migrated menu status"
+if [[ -e $legacy_runtime || -e $legacy_link || -L $legacy_link ||
+  -e $test_root/.config/walker/themes/qvos-omarchy-menu ]]; then
+  fail "legacy native qvOS menu namespace cleanup"
+fi
+if rg -q 'qvos-omarchy-menu|qvosOmarchyMenu|qvOS Omarchy menu provider' \
+  "$test_root/.config/walker/config.toml"; then
+  fail "legacy native qvOS menu configuration cleanup"
+fi
+pass "native qvOS menu identifiers migrate without duplicate runtime residue"
+
+menu_provider="$root/qv/menu/elephant/qvos_menu.lua"
 home_entries=$(
   OMARCHY_PATH="$test_root/missing" XDG_RUNTIME_DIR="$test_root" \
     lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
-assert(Name == "qvosOmarchyMenu")
+assert(Name == "qvosMenu")
 assert(Cache == false)
 assert(FixedOrder == true)
 assert(Actions.toggle == "lua:ToggleMode")
@@ -567,15 +599,15 @@ pass "the same query returns installed apps or menu concepts by mode"
 
 cmp -s \
   "$root/default/walker/themes/omarchy-default/layout.xml" \
-  "$test_root/.config/walker/themes/qvos-omarchy-menu/layout.xml" ||
+  "$test_root/.config/walker/themes/qvos-menu/layout.xml" ||
   fail "menu theme inherits Walker layout"
-[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css") == '@import "../../../omarchy/current/theme/walker.css";' ]] ||
+[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-menu/style.css") == '@import "../../../omarchy/current/theme/walker.css";' ]] ||
   fail "menu theme import path"
 grep -Fq 'font-size: 12px;' \
-  "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css" ||
+  "$test_root/.config/walker/themes/qvos-menu/style.css" ||
   fail "menu breadcrumb typography"
 grep -Fq '.elephant-hint {' \
-  "$test_root/.config/walker/themes/qvos-omarchy-menu/style.css" ||
+  "$test_root/.config/walker/themes/qvos-menu/style.css" ||
   fail "transient Elephant hint styling"
 grep -Fq 'opacity: 0;' \
   "$root/qv/menu/walker-subtext.css" ||
@@ -620,7 +652,7 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
 #!/bin/bash
 case $* in
-*"--set qvos-omarchy-menu"*)
+*"--set qvos-menu"*)
   if [[ $(<"$XDG_RUNTIME_DIR/qvos-menu-mode") == "apps" ]]; then
     printf '%s\n' "$*" >"$QVOS_TEST_APPS_ARGS_LOG"
   else
@@ -709,22 +741,22 @@ run_menu() {
 }
 
 run_menu
-grep -Fq -- '--theme qvos-omarchy-menu' "$main_args_log" ||
+grep -Fq -- '--theme qvos-menu' "$main_args_log" ||
   fail "dedicated menu theme"
-grep -Fq -- '--set qvos-omarchy-menu' "$main_args_log" ||
+grep -Fq -- '--set qvos-menu' "$main_args_log" ||
   fail "global search provider set"
 grep -Fq -- 'Tab: Apps ↔ Menu' "$main_args_log" ||
   fail "menu switch affordance"
 run_menu apps
-grep -Fq -- '--theme qvos-omarchy-menu' "$apps_args_log" ||
+grep -Fq -- '--theme qvos-menu' "$apps_args_log" ||
   fail "All Apps transient hint suppression"
-grep -Fq -- '--set qvos-omarchy-menu' "$apps_args_log" ||
+grep -Fq -- '--set qvos-menu' "$apps_args_log" ||
   fail "shared query provider"
 grep -Fq -- 'Tab: Apps ↔ Menu' "$apps_args_log" ||
   fail "apps switch affordance"
 [[ $(<"$test_root/qvos-menu-mode") == "apps" ]] ||
   fail "Apps launch mode"
-pass "Omarchy and Apps share one query-preserving Walker surface"
+pass "qvOS Menu and Apps share one query-preserving Walker surface"
 
 run_menu concept:go
 [[ $(<"$presentation_log") == "go" ]] ||

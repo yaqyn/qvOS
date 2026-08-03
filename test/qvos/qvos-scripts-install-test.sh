@@ -195,7 +195,7 @@ for provider in omarchy_background_selector.lua omarchy_themes.lua; do
   [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$root/default/elephant/$provider" ]] ||
     fail "$provider inherited provider link"
 done
-[[ $(find "$test_root/.local/share/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_omarchy_menu.lua' ]] ||
+[[ $(find "$test_root/.local/share/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_menu.lua' ]] ||
   fail "qvOS menu provider runtime inventory"
 pass "menu uses original Omarchy providers plus qvOS deltas"
 

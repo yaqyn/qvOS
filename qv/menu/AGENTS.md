@@ -79,6 +79,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   qvOS feature submenu.
 - Keep qvOS Elephant provider deltas under `qv/menu/elephant/`. Install them
   through `qv/menu/install` and link inherited providers from Omarchy source.
+- Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
+  Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
+  remove only their exact owned block, link, and theme while preserving foreign
+  files and user-selected themes.
 - Launch every TUI-backed menu action through the checked
   `~/.local/share/qvos/tui` payload. Menu state may come from the active
   Omarchy owner, but no route may pair that owner with launch, task, or

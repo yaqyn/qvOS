@@ -289,10 +289,10 @@ grep -Fqx 'Default_keyring' "$default_file" || fail "default keyring selection"
 pass "desktop keyring support stays complete"
 
 grep -Fq 'Text = "󱅾  Update qvOS"' \
-  "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
+  "$root/qv/menu/elephant/qvos_menu.lua" ||
   fail "qvOS update menu icon"
 grep -Fq 'Actions = { activate = "omarchy-launch-qvos-update" }' \
-  "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
+  "$root/qv/menu/elephant/qvos_menu.lua" ||
   fail "qvOS update menu route"
 update_override=$(
   sed -n '/^show_update_menu()/,/^}/p' "$root/qv/menu/extension.sh"

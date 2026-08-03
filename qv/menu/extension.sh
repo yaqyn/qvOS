@@ -67,8 +67,8 @@ show_main_menu() {
   set_qvos_menu_mode menu
   set_qvos_menu_view home
   omarchy-launch-walker \
-    --theme qvos-omarchy-menu \
-    --set qvos-omarchy-menu \
+    --theme qvos-menu \
+    --set qvos-menu \
     --width 560 \
     --minheight 1 \
     --maxheight 630 \
@@ -138,8 +138,8 @@ show_software_menu() {
   set_qvos_menu_mode menu
   set_qvos_menu_view "$view"
   omarchy-launch-walker \
-    --theme qvos-omarchy-menu \
-    --set qvos-omarchy-menu \
+    --theme qvos-menu \
+    --set qvos-menu \
     --width 560 \
     --minheight 1 \
     --maxheight 630 \
@@ -650,8 +650,8 @@ go_to_menu() {
   *apps*)
     set_qvos_menu_mode apps
     omarchy-launch-walker \
-      --theme qvos-omarchy-menu \
-      --set qvos-omarchy-menu \
+      --theme qvos-menu \
+      --set qvos-menu \
       --width 560 \
       --minheight 1 \
       --maxheight 630 \

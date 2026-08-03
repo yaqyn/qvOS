@@ -30,7 +30,7 @@
     qv/install/post-update-hook
     qv/menu/concepts.psv
     qv/menu/elephant/omarchy_unlocks.lua
-    qv/menu/elephant/qvos_omarchy_menu.lua
+    qv/menu/elephant/qvos_menu.lua
     qv/menu/extension.sh
     qv/menu/font-install
     qv/menu/install

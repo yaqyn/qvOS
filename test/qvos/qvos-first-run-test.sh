@@ -7,7 +7,8 @@ test_home="$test_root/home"
 test_omarchy="$test_root/omarchy"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
-marker="$test_home/.local/state/omarchy/first-run.mode"
+marker="$test_home/.local/state/qvos/install/first-run.mode"
+legacy_marker="$test_home/.local/state/omarchy/first-run.mode"
 test_helper="$test_root/first-run-root"
 test_sudo="$test_root/sudo"
 
@@ -24,6 +25,7 @@ fail() {
 install -d \
   "$test_bin" \
   "$test_home/.local/state/omarchy" \
+  "$test_home/.local/state/qvos/install" \
   "$test_omarchy/install/first-run" \
   "$test_omarchy/qv/config" \
   "$test_omarchy/qv/install/first-run" \
@@ -83,11 +85,14 @@ run_first_run() {
 run_first_run
 [[ ! -s $event_log ]] || fail "first run mutated without its marker"
 
-: >"$marker"
-chmod 0600 "$marker"
+: >"$legacy_marker"
+chmod 0644 "$legacy_marker"
 QVOS_TEST_FAIL_PATH=qv/install/first-run/icons \
   run_first_run >/dev/null 2>&1 && fail "first-run owner ignored a required failure"
 [[ -f $marker ]] || fail "failed first run removed its retry marker"
+[[ $(stat -c '%a' "$marker") == "600" ]] ||
+  fail "first run did not privatize its migrated marker"
+[[ ! -e $legacy_marker ]] || fail "first run retained its legacy marker"
 if grep -Fq "sudo:$test_helper cleanup" "$event_log"; then
   fail "failed first run removed its privilege retry path"
 fi
@@ -145,10 +150,11 @@ ln -s "$state_target" "${lock_file%/*}"
 if run_first_run >/dev/null 2>&1; then
   fail "first run accepted a symbolic-link state directory"
 fi
-[[ ! -e $state_target && ! -s $event_log && -f $marker ]] ||
+[[ ! -e $state_target && ! -s $event_log ]] ||
   fail "first run followed a symbolic-link state directory"
 rm -f -- "${lock_file%/*}"
 
+install -d "${marker%/*}"
 rm -f -- "$marker"
 marker_target="$test_root/marker-target"
 ln -s "$marker_target" "$marker"

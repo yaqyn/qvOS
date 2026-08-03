@@ -515,7 +515,7 @@ if awk -F '|' '
   fail "state-aware and install-only software catalogs overlap"
 fi
 if rg -Fq '"Sublime Text", "Settings · Software' \
-  "$root/qv/menu/elephant/qvos_omarchy_menu.lua"; then
+  "$root/qv/menu/elephant/qvos_menu.lua"; then
   fail "Sublime Text bypasses the audited software installer registry"
 fi
 printf 'ok - every remaining Software installer has an explicit TUI or native contract\n'

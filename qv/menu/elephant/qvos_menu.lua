@@ -1,4 +1,4 @@
-Name = "qvosOmarchyMenu"
+Name = "qvosMenu"
 NamePretty = "qvOS"
 Cache = false
 FixedOrder = true

@@ -115,9 +115,9 @@ grep -Fqx 'OMARCHY_REPO="${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}"' \
   fail "online installer does not default to the qvOS repository"
 
 grep -Fqx 'NamePretty = "qvOS"' \
-  "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
+  "$root/qv/menu/elephant/qvos_menu.lua" ||
   fail "qvOS menu provider label"
-grep -Fq '"qvOS Source"' "$root/qv/menu/elephant/qvos_omarchy_menu.lua" ||
+grep -Fq '"qvOS Source"' "$root/qv/menu/elephant/qvos_menu.lua" ||
   fail "qvOS learning destination"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' \
   "$root/qv/boot/wayland-sessions/omarchy.desktop" ||

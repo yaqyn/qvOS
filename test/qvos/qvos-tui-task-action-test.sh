@@ -382,7 +382,7 @@ while IFS= read -r slug; do
     fail "Elephant task route is not classified: $slug"
 done < <(
   sed -n 's/.*task_action("\([^"]*\)").*/\1/p' \
-    "$root/qv/menu/elephant/qvos_omarchy_menu.lua" |
+    "$root/qv/menu/elephant/qvos_menu.lua" |
     sort -u
 )
 

@@ -9,7 +9,8 @@ test_bin="$test_root/bin"
 event_log="$test_root/events"
 helper="$system_root/usr/lib/qvos/first-run-root"
 sudoers="$system_root/etc/sudoers.d/qvos-first-run"
-marker="$test_home/.local/state/omarchy/first-run.mode"
+marker="$test_home/.local/state/qvos/install/first-run.mode"
+legacy_marker="$test_home/.local/state/omarchy/first-run.mode"
 
 cleanup() {
   rm -rf -- "$test_root"
@@ -51,6 +52,7 @@ run_root() {
 
 printf 'legacy\n' >"$system_root/etc/sudoers.d/first-run"
 printf 'reboot\n' >"$system_root/etc/sudoers.d/99-omarchy-installer-reboot"
+install -D -m 0600 /dev/null "$legacy_marker"
 run_prepare
 
 [[ -x $helper && $(stat -c '%a' "$helper") == "755" ]] ||
@@ -59,6 +61,7 @@ run_prepare
   fail "prepared sudoers identity"
 [[ -f $marker && $(stat -c '%a' "$marker") == "600" ]] ||
   fail "prepared first-run marker identity"
+[[ ! -e $legacy_marker ]] || fail "prepared first-run legacy marker cleanup"
 [[ ! -e $system_root/etc/sudoers.d/first-run ]] ||
   fail "inherited broad first-run sudoers survived preparation"
 
@@ -130,10 +133,10 @@ run_root cleanup
 
 unsafe_system_root="$test_root/unsafe-system"
 unsafe_home="$test_root/unsafe-home"
-install -d "$unsafe_system_root" "$unsafe_home/.local/state/omarchy"
+install -d "$unsafe_system_root" "$unsafe_home/.local/state/qvos/install"
 unsafe_target="$test_root/unsafe-marker-target"
 ln -s "$unsafe_target" \
-  "$unsafe_home/.local/state/omarchy/first-run.mode"
+  "$unsafe_home/.local/state/qvos/install/first-run.mode"
 if HOME="$unsafe_home" \
   OMARCHY_PATH="$root" \
   QVOS_FIRST_RUN_TESTING=1 \
