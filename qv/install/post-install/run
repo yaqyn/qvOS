@@ -1,0 +1,8 @@
+# shellcheck shell=bash
+
+run_logged "$OMARCHY_INSTALL/post-install/pacman.sh"
+run_logged "$OMARCHY_PATH/qv/security/install"
+# shellcheck disable=SC1091
+source "$OMARCHY_INSTALL/post-install/allow-reboot.sh"
+stop_install_log
+"$OMARCHY_PATH/qv/install/post-install/finished"

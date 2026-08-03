@@ -4,6 +4,7 @@ bin/omarchy-reinstall-configs
 bin/omarchy-reinstall-git
 bin/omarchy-reinstall-pkgs
 boot.sh
+install.sh
 install/helpers/logging.sh
 install/helpers/presentation.sh
 install/packaging/base.sh

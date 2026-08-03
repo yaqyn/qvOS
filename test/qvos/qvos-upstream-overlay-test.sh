@@ -39,8 +39,6 @@ inherited_seams=(
   install/login/sddm.sh
   install/packaging/npx.sh
   install/packaging/webapps.sh
-  install/post-install/all.sh
-  install/post-install/finished.sh
 )
 
 declare -A inherited_seam_set=()

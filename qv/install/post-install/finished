@@ -1,17 +1,83 @@
 #!/bin/bash
 set -euo pipefail
 
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+install_log=${OMARCHY_INSTALL_LOG_FILE:-/var/log/omarchy-install.log}
+completion_marker=${QVOS_INSTALL_COMPLETION_MARKER:-/var/tmp/omarchy-install-completed}
 tui="${QVOS_TUI_BIN:-}"
 if [[ -z $tui ]]; then
   tui=$(command -v qvos-tui || true)
 fi
 
-if [[ -z ${OMARCHY_CHROOT_INSTALL:-} || -z $tui || ! -x $tui ]]; then
-  exit 1
+remove_installer_sudoers() {
+  if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
+    sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
+  fi
+}
+
+echo_in_style() {
+  printf '%s\n' "$1" |
+    tte --canvas-width 0 --anchor-text c --frame-rate 640 print
+}
+
+mark_install_complete() {
+  if [[ -L $completion_marker ]] ||
+    [[ -e $completion_marker && ! -f $completion_marker ]]; then
+    printf 'qvOS install: unsafe completion marker: %s\n' \
+      "$completion_marker" >&2
+    return 1
+  fi
+  : >"$completion_marker"
+}
+
+if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $tui && -x $tui ]]; then
+  QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
+  remove_installer_sudoers
+  mark_install_complete
+  exit 0
 fi
 
-QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
-if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
-  sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
+clear
+printf '\n'
+tte \
+  -i "$OMARCHY_PATH/qv/branding/logo.txt" \
+  --canvas-width 0 \
+  --anchor-text c \
+  --frame-rate 920 \
+  laseretch
+printf '\n'
+
+total_time=""
+if [[ -f $install_log ]]; then
+  total_time=$(
+    tail -n 20 "$install_log" |
+      sed -n 's/^Total:[[:space:]]*//p' |
+      tail -n 1
+  )
 fi
-touch /var/tmp/omarchy-install-completed
+
+if [[ -n $total_time ]]; then
+  printf '\n'
+  echo_in_style "Installed in $total_time"
+else
+  echo_in_style "Finished installing"
+fi
+
+remove_installer_sudoers
+
+if ! gum confirm \
+  --padding "0 0 0 $((${PADDING_LEFT:-0} + 32))" \
+  --show-help=false \
+  --default \
+  --affirmative "Reboot Now" \
+  --negative "" \
+  ""; then
+  exit 0
+fi
+
+clear
+if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+  mark_install_complete
+else
+  sudo reboot 2>/dev/null
+fi

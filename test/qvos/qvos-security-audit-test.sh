@@ -158,15 +158,15 @@ if rg -q 'modules_disabled|kernel\\.sysrq|\\.forwarding|usb|firewire|compiler' \
   fail "security baseline restricts normal desktop capabilities"
 fi
 
-post_install_all="$root/install/post-install/all.sh"
+post_install_all="$root/qv/install/post-install/run"
 # shellcheck disable=SC2016
-pacman_post_line=$(grep -nF 'run_logged $OMARCHY_INSTALL/post-install/pacman.sh' \
+pacman_post_line=$(grep -nF 'run_logged "$OMARCHY_INSTALL/post-install/pacman.sh"' \
   "$post_install_all" | cut -d: -f1)
 # shellcheck disable=SC2016
 security_post_line=$(grep -nF 'run_logged "$OMARCHY_PATH/qv/security/install"' \
   "$post_install_all" | cut -d: -f1)
 # shellcheck disable=SC2016
-allow_reboot_line=$(grep -nF 'source $OMARCHY_INSTALL/post-install/allow-reboot.sh' \
+allow_reboot_line=$(grep -nF 'source "$OMARCHY_INSTALL/post-install/allow-reboot.sh"' \
   "$post_install_all" | cut -d: -f1)
 [[ $pacman_post_line =~ ^[0-9]+$ && $security_post_line =~ ^[0-9]+$ &&
   $allow_reboot_line =~ ^[0-9]+$ ]] ||

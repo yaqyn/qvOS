@@ -19,6 +19,12 @@ Remove obsolete qvOS state only through `qv/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
 
+`qv/install/post-install/run` singularly owns the ordered post-install stage.
+Stop the install log before handing control to the finished presentation, and
+keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
+owner. Never restore inherited post-install orchestration or presentation as a
+fallback.
+
 `qv/install/packaging/base.packages` is the singular installed base manifest.
 `qv/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths. `qv/install/packaging/resolve` validates and emits

@@ -11,6 +11,8 @@ fail() {
 
 [[ -x $root/qv/install/reinstall-source ]] || fail "source reinstall owner mode"
 [[ -x $root/qv/install/cleanup-obsolete ]] || fail "obsolete-state cleanup owner mode"
+[[ -x $root/qv/install/post-install/finished ]] ||
+  fail "post-install presentation owner mode"
 [[ ! -e $root/qv/install/helpers/logging ]] || fail "duplicate install logger remains"
 [[ ! -e $root/qv/install/helpers/presentation ]] ||
   fail "duplicate install presentation remains"
@@ -33,5 +35,12 @@ grep -Fq 'qv/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
   fail "native package resolver"
 grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
   fail "config reset reconciliation"
+# shellcheck disable=SC2016
+grep -Fqx 'source "$OMARCHY_PATH/qv/install/post-install/run"' \
+  "$root/install.sh" || fail "native post-install owner wiring"
+[[ ! -e $root/install/post-install/all.sh ]] ||
+  fail "inherited post-install orchestration remains"
+[[ ! -e $root/install/post-install/finished.sh ]] ||
+  fail "inherited post-install presentation remains"
 
 printf 'ok - qvOS install and reinstall lifecycles preserve source safely\n'
