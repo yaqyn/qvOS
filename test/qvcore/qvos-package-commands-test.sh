@@ -191,8 +191,8 @@ HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
   QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \
   "$root/bin/omarchy-pkg-present" beta ||
   fail "package compatibility route does not share the native owner"
-"$root/bin/qv" pkg add --help | grep -Fq 'Binary:' ||
+"$root/bin/qv" pkg add --help | grep -F 'Binary:' >/dev/null ||
   fail "native package help"
-"$root/bin/qv" pkg add --help | grep -Fq 'qv-pkg-add' ||
+"$root/bin/qv" pkg add --help | grep -F 'qv-pkg-add' >/dev/null ||
   fail "native package catalog binary"
 printf 'ok - native and compatibility package routes share one owner\n'

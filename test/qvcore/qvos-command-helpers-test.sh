@@ -45,7 +45,7 @@ printf 'ok - native command checks are exact and preserve set semantics\n'
 PATH="$test_bin:/usr/bin" QVOS_PATH="$root" \
   "$root/bin/omarchy-cmd-present" available-command ||
   fail "command compatibility adapter"
-"$root/bin/qv" cmd present --help | grep -Fq 'qv-cmd-present' ||
+"$root/bin/qv" cmd present --help | grep -F 'qv-cmd-present' >/dev/null ||
   fail "native command catalog route"
 [[ ! -e $root/bin/omarchy-cmd-terminal-cwd && ! -L $root/bin/omarchy-cmd-terminal-cwd ]] ||
   fail "unused terminal CWD helper remains"

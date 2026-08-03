@@ -293,6 +293,6 @@ printf 'ok - power-profile rule installation is atomic, preservation-safe, and r
 : >"$log"
 QVOS_PATH="$root" run_control "$root/bin/omarchy-swayosd-brightness" 50
 grep -Fq 'custom-progress|0.50' "$log" || fail "control compatibility adapter"
-"$root/bin/qv" brightness display --help | grep -Fq 'qv-brightness-display' ||
+"$root/bin/qv" brightness display --help | grep -F 'qv-brightness-display' >/dev/null ||
   fail "native control CLI discovery"
 printf 'ok - compatibility and native CLI routes share native owners\n'

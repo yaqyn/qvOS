@@ -120,7 +120,7 @@ run_guard() {
     "$guard" "$@"
 }
 
-run_guard --check | grep -Fq 'Automatic suspend is ready.' ||
+run_guard --check | grep -F 'Automatic suspend is ready.' >/dev/null ||
   fail "safe suspend check"
 pass "a locked idle session is eligible for suspend"
 

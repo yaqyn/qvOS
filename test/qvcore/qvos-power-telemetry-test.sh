@@ -166,8 +166,8 @@ printf 'ok - aggregate UPower telemetry is bounded, compact, and query-efficient
 "$root/qvcore/power/check"
 QVOS_PATH="$root" QVOS_POWER_TESTING=1 QVOS_POWER_SUPPLY_ROOT="$power_root" \
   "$root/bin/omarchy-battery-present" || fail "battery compatibility adapter"
-"$root/bin/qv" battery status --help | grep -Fq 'qv-battery-status' ||
+"$root/bin/qv" battery status --help | grep -F 'qv-battery-status' >/dev/null ||
   fail "native battery CLI route"
-"$root/bin/qv" system inhibit sleep --help | grep -Fq 'qv-system-inhibit-sleep' ||
+"$root/bin/qv" system inhibit sleep --help | grep -F 'qv-system-inhibit-sleep' >/dev/null ||
   fail "native sleep-inhibit CLI route"
 printf 'ok - native power CLI and exact compatibility routes share one owner\n'

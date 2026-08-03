@@ -175,6 +175,6 @@ printf 'ok - Walker restart stays in the active user service set\n'
 : >"$log"
 QVOS_PATH="$root" QVOS_RESTART_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
   "$root/bin/omarchy-restart-btop"
-"$root/bin/qv" restart waybar --help | grep -Fq 'qv-restart-waybar' ||
+"$root/bin/qv" restart waybar --help | grep -F 'qv-restart-waybar' >/dev/null ||
   fail "native restart CLI route"
 printf 'ok - restart compatibility and native CLI routes share one owner\n'
