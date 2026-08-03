@@ -12,6 +12,7 @@ cd "$repo_root" || exit 1
 
 audit_command="$repo_root/upstream/qvsync/qvsync-audit"
 reviewed_state="$repo_root/upstream/qvsync/reviewed-upstream"
+provider_paths="$repo_root/upstream/qvsync/package-provider-paths"
 lock_dir=$(git rev-parse --git-path qvsync.lock)
 lock_acquired=0
 state_tmp=""
@@ -46,7 +47,7 @@ case $# in
   *) usage ;;
 esac
 
-for required_path in "$audit_command" "$reviewed_state"; do
+for required_path in "$audit_command" "$reviewed_state" "$provider_paths"; do
   if [[ ! -f $required_path ]]; then
     printf "Refusing: required qvsync source is missing: %s\n" "$required_path" >&2
     exit 1

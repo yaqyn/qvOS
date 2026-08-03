@@ -27,6 +27,7 @@ cp \
   "$root/upstream/qvsync/qvsync" \
   "$root/upstream/qvsync/qvsync-audit" \
   "$root/upstream/qvsync/install-qvsync" \
+  "$root/upstream/qvsync/package-provider-paths" \
   "$repo/upstream/qvsync/"
 chmod 0755 \
   "$repo/upstream/qvsync/qvsync" \
@@ -107,11 +108,14 @@ git -C "$repo" push -q "$upstream_bare" "$base_sha:refs/heads/master"
 git clone -q "$upstream_bare" "$upstream_work"
 git -C "$upstream_work" config user.name "Upstream Test"
 git -C "$upstream_work" config user.email "upstream@qvos.invalid"
-mkdir -p "$upstream_work/bin"
+mkdir -p "$upstream_work/bin" "$upstream_work/default/pacman"
 printf '%s\n' '#!/bin/bash' 'printf "upstream menu\n"' \
   >"$upstream_work/bin/omarchy-menu"
 chmod 0755 "$upstream_work/bin/omarchy-menu"
-git -C "$upstream_work" add bin/omarchy-menu
+# shellcheck disable=SC2016
+printf '%s\n' 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' \
+  >"$upstream_work/default/pacman/mirrorlist-stable"
+git -C "$upstream_work" add bin/omarchy-menu default/pacman/mirrorlist-stable
 git -C "$upstream_work" commit -qm "Replace the menu architecture"
 git -C "$upstream_work" push -q origin master
 upstream_sha=$(git -C "$upstream_work" rev-parse HEAD)
@@ -130,6 +134,11 @@ grep -Fq \
   'bin/omarchy-menu — contracted TUI owner changed upstream; review qvcore/tui/owner-contracts.psv before refreshing it' \
   <<<"$output" ||
   fail "capability audit TUI owner contract hint"
+grep -Fq 'Omarchy package-provider signals' <<<"$output" ||
+  fail "capability audit provider heading"
+grep -Fq \
+  'default/pacman/mirrorlist-stable — verify Omarchy provider compatibility and qvOS package selection' \
+  <<<"$output" || fail "capability audit provider compatibility signal"
 grep -Fq 'Upstream roadmap signals (advisory only; never merged by qvsync)' \
   <<<"$output" ||
   fail "capability audit roadmap boundary"

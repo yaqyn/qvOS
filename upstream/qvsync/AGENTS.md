@@ -33,6 +33,10 @@ replace its judgment.
 6. When upstream changes optional software, its menu leaves, or lifecycle
    owners, read `qvcore/menu/AGENTS.md` and complete its software reconciliation
    ledger before approving the reviewed upstream SHA.
+7. Treat every match from `package-provider-paths` as a required provider audit.
+   Verify Stable URLs, repository identity, signatures, keyring, package
+   availability, and qvOS manifest compatibility without taking ownership of
+   Omarchy's builds or infrastructure.
 
 ## Verification And Publication
 

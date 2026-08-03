@@ -24,7 +24,6 @@ bin/omarchy-refresh-fastfetch
 bin/omarchy-refresh-hypridle
 bin/omarchy-refresh-hyprlock
 bin/omarchy-refresh-hyprsunset
-bin/omarchy-refresh-pacman
 bin/omarchy-refresh-swayosd
 bin/omarchy-refresh-tmux
 bin/omarchy-refresh-walker

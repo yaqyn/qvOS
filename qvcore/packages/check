@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+stable_config="$root/default/pacman/pacman-stable.conf"
+stable_mirror="$root/default/pacman/mirrorlist-stable"
+
+# shellcheck disable=SC2016
+[[ $(<"$stable_mirror") == 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' ]] || {
+  echo "Omarchy Stable Arch mirror contract drifted." >&2
+  exit 1
+}
+[[ $(grep -Fxc '[omarchy]' "$stable_config") == 1 ]] || {
+  echo "Expected exactly one credited Omarchy repository." >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+grep -Fqx 'Server = https://pkgs.omarchy.org/stable/$arch' "$stable_config" || {
+  echo "Omarchy Stable package repository contract drifted." >&2
+  exit 1
+}
+if rg -n '^\[qvos\]$|pkgs\.qvos|mirror\.qvos' \
+  "$root/default/pacman" "$root/install" "$root/qvcore"; then
+  echo "qvOS must not claim package infrastructure it does not operate." >&2
+  exit 1
+fi
+grep -Fq 'omarchy-keyring' "$root/bin/omarchy-update-keyring" || {
+  echo "Omarchy keyring package contract is missing." >&2
+  exit 1
+}
+grep -Fq '40DFB630FF42BCFFB047046CF0134EE680CAC571' \
+  "$root/bin/omarchy-update-keyring" || {
+  echo "Omarchy signing fingerprint contract is missing." >&2
+  exit 1
+}
+grep -Fq 'SigLevel = Required DatabaseOptional' \
+  "$root/qvcore/security/install" || {
+  echo "Omarchy package signatures are not required by qvOS." >&2
+  exit 1
+}
+grep -Fq 'qvOS supports only the Omarchy Stable package channel.' \
+  "$root/qvcore/packages/configure" || {
+  echo "Installed package channel is not constrained to Stable." >&2
+  exit 1
+}
+if git -C "$root" ls-files | grep -Eq '(^|/)(PKGBUILD|\.SRCINFO)$'; then
+  echo "qvOS unexpectedly owns package build recipes." >&2
+  exit 1
+fi
+
+echo "qvOS uses credited, signed Omarchy Stable infrastructure without owning a package repository."

@@ -151,8 +151,8 @@ Every qvOS change must leave one traceable lifecycle.
   from the development repository. Do not run the interactive updater or
   package upgrades unless the task requires them.
 - Treat qvOS as an independent downstream distribution and Omarchy as a
-  read-only upstream, never product authority. qvOS owns branding, composition,
-  defaults, exposed capability, installation, update policy, and releases.
+  read-only code upstream, never product authority. qvOS owns product and package
+  selection; Omarchy provides the credited stable mirror, repository, and keyring.
 - During the native transition, keep each inherited implementation byte-for-byte
   until its domain is promoted. Then port selected capability into one owner
   under `qvcore/<domain>/` or `qvcore/<feature>/` and remove the inherited
@@ -216,7 +216,7 @@ Root-started sessions must read every matching route completely before editing:
 - qvOS boot presentation and Limine lifecycle: `qvcore/boot/AGENTS.md`
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`
-- Gaming, install, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/update/AGENTS.md`
+- Gaming, install, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
 - Menu, search, Walker, Elephant, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/software/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`

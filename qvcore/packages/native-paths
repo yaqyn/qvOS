@@ -1,0 +1,2 @@
+# Inherited package route promoted to the qvOS provider boundary.
+bin/omarchy-refresh-pacman

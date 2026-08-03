@@ -5,6 +5,7 @@ repo_root=$(git rev-parse --show-toplevel)
 base_ref=${1:-HEAD}
 target_ref=${2:-upstream/master}
 qvos_ref=${3:-HEAD}
+provider_contract="$repo_root/upstream/qvsync/package-provider-paths"
 
 cd "$repo_root"
 
@@ -92,6 +93,33 @@ collect_overlap_hints() {
   for path in "${!hints[@]}"; do
     printf "  %s — %s\n" "$path" "${hints[$path]}"
   done | sort
+}
+
+print_package_provider_signals() {
+  local contract_path
+  local changed_path
+  local matched=0
+
+  [[ -f $provider_contract && ! -L $provider_contract ]] || {
+    printf "  (provider contract missing; review cannot be completed)\n"
+    return 1
+  }
+
+  while IFS= read -r contract_path || [[ -n $contract_path ]]; do
+    [[ -n $contract_path && $contract_path != \#* ]] || continue
+    for changed_path in "${changed_paths[@]}"; do
+      if [[ $contract_path == */ ]]; then
+        [[ $changed_path == "$contract_path"* ]] || continue
+      else
+        [[ $changed_path == "$contract_path" ]] || continue
+      fi
+      printf "  %s — verify Omarchy provider compatibility and qvOS package selection\n" \
+        "$changed_path"
+      matched=1
+    done
+  done <"$provider_contract"
+
+  ((matched == 1)) || printf "  (none)\n"
 }
 
 github_upstream_repo() {
@@ -207,6 +235,9 @@ fi
 
 printf "\nMechanical qvOS overlap hints:\n"
 collect_overlap_hints
+
+printf "\nOmarchy package-provider signals:\n"
+print_package_provider_signals
 
 printf "\nUpstream roadmap signals (advisory only; never merged by qvsync):\n"
 print_roadmap_signals

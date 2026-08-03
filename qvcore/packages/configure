@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
+case $# in
+0) ;;
+1)
+  [[ $1 == "stable" ]] || {
+    echo "qvOS supports only the Omarchy Stable package channel." >&2
+    exit 2
+  }
+  ;;
+*)
+  echo "Usage: omarchy-refresh-pacman [stable]" >&2
+  exit 2
+  ;;
+esac
+
+pacman_source="$OMARCHY_PATH/default/pacman/pacman-stable.conf"
+mirror_source="$OMARCHY_PATH/default/pacman/mirrorlist-stable"
+pacman_target="/etc/pacman.conf"
+mirror_target="/etc/pacman.d/mirrorlist"
+pacman_backup=""
+mirror_backup=""
+pacman_replaced=0
+mirror_replaced=0
+committed=0
+
+for source_file in "$pacman_source" "$mirror_source"; do
+  [[ -f $source_file && ! -L $source_file ]] || {
+    echo "Missing safe Omarchy Stable package configuration: $source_file" >&2
+    exit 1
+  }
+done
+
+restore_previous_config() {
+  ((committed == 0)) || return
+  if ((pacman_replaced)) && [[ -n $pacman_backup ]]; then
+    sudo install -o root -g root -m 0644 -- \
+      "$pacman_backup" "$pacman_target" || true
+  fi
+  if ((mirror_replaced)) && [[ -n $mirror_backup ]]; then
+    sudo install -o root -g root -m 0644 -- \
+      "$mirror_backup" "$mirror_target" || true
+  fi
+}
+trap restore_previous_config EXIT
+
+pacman_backup=$(sudo mktemp /etc/pacman.conf.qvos-backup.XXXXXX)
+mirror_backup=$(sudo mktemp /etc/pacman.d/mirrorlist.qvos-backup.XXXXXX)
+sudo install -o root -g root -m 0600 -- "$pacman_target" "$pacman_backup"
+sudo install -o root -g root -m 0600 -- "$mirror_target" "$mirror_backup"
+sudo install -o root -g root -m 0644 -- "$pacman_source" "$pacman_target"
+pacman_replaced=1
+sudo install -o root -g root -m 0644 -- "$mirror_source" "$mirror_target"
+mirror_replaced=1
+
+"$OMARCHY_PATH/qvcore/security/install"
+committed=1
+trap - EXIT
+
+printf 'Pacman configuration backup: %s\n' "$pacman_backup"
+printf 'Mirror configuration backup: %s\n' "$mirror_backup"
+sudo pacman -Syyuu --noconfirm

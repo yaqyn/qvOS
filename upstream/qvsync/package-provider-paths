@@ -1,0 +1,14 @@
+# Upstream paths whose changes require explicit Omarchy package-provider review.
+bin/omarchy-pkg-add
+bin/omarchy-pkg-drop
+bin/omarchy-refresh-pacman
+bin/omarchy-update-aur-pkgs
+bin/omarchy-update-keyring
+bin/omarchy-update-system-pkgs
+bin/omarchy-version-channel
+default/pacman/
+install/omarchy-base.packages
+install/omarchy-other.packages
+install/packaging/
+install/post-install/pacman.sh
+install/preflight/pacman.sh

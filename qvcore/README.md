@@ -23,6 +23,7 @@ qvcore/
   install/     qvOS stages applied after Omarchy installation.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   network/     qvOS DNS policy and optional WARP routing.
+  packages/    Omarchy package-provider boundary and Stable configuration.
   power/       Sleep inhibition, guarded suspend, and opt-in battery protection.
   presentation/ qvOS terminal presentation and failure handling.
   screensaver/ Screensaver launchers and terminal profile.
@@ -46,21 +47,24 @@ enrollment state; qvCORE is the operating-system implementation itself.
 
 ## Product lifecycle
 
-qvOS has one supported base: a solid, gaming-ready Arch system curated by
-qvOS with reviewed capability from Omarchy. The base currently keeps Omarchy's
-on-demand OpenAI Codex wrapper plus software
-with an independent qvOS, Omarchy, gaming, hardware, or desktop purpose.
-The package resolver validates singular qvOS base and conditional-hardware
-manifests; upstream package changes are capability-review input, never an
-automatic change to the qvOS package set.
+qvOS has one supported base: a solid, gaming-ready Arch system whose package
+selection and compatibility policy are curated by qvOS. Omarchy supplies the
+credited Stable Arch mirror, curated package repository, and signing keyring;
+qvOS does not rebuild, resign, relabel, or mirror that package infrastructure.
+The base keeps Omarchy's on-demand OpenAI Codex wrapper plus software with an
+independent qvOS, Omarchy, gaming, hardware, or desktop purpose. The package
+resolver validates singular qvOS base and conditional-hardware manifests;
+upstream package changes are capability-review input, never an automatic change
+to the qvOS package set.
 Steam remains optional and uses its standard gaming installer and remover.
 Services and Development integrations never change qvOS base readiness.
 
 - `omarchy qvos update` confirms the operation and verifies a clean branch
   `OS`, then delegates once to the qvOS update pipeline. qvOS owns a bounded,
   official-origin, fast-forward-only source update; the preserved pipeline owns
-  snapshots, package updates, migrations, orphan cleanup, log analysis, and
-  restarts. After Pacman/AUR, one direct-tool hook updates only
+  snapshots, complete package updates from Omarchy Stable, migrations, orphan
+  cleanup, log analysis, and restarts. After Pacman/AUR, one direct-tool hook
+  updates only
   already-installed manifest entries belonging to Devel and Proton. It never
   restores missing tools, enrolls integrations, authenticates
   accounts, changes integrations, or changes networking.
