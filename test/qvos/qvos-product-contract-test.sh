@@ -343,14 +343,15 @@ grep -Fq '`config/hypr/bindings.conf` is the single authoritative qvOS binding s
 grep -Fq 'There is no inherited binding layer and no qvOS binding overlay.' \
   "$root/qv/config/AGENTS.md" ||
   fail "qvOS singular binding ownership instruction"
-grep -Fq '`qv/config/refresh-hyprland` is the authoritative inventory of the remaining' \
+grep -Fq '`qv/config/refresh-hyprland` is the single restore owner.' \
   "$root/qv/config/AGENTS.md" ||
-  fail "qvOS specialized Hyprland source instruction"
+  fail "qvOS singular Hyprland restore instruction"
 [[ -x $root/qv/config/refresh-hyprland ]] ||
-  fail "qvOS Hyprland config reconciler"
-grep -Fqx '"$OMARCHY_PATH/qv/config/refresh-hyprland"' \
+  fail "qvOS Hyprland restore owner"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$OMARCHY_PATH/qv/config/refresh-hyprland" "$@"' \
   "$root/bin/omarchy-refresh-hyprland" ||
-  fail "Omarchy Hyprland refresh does not delegate to the config owner"
+  fail "Hyprland compatibility route does not delegate to the config owner"
 [[ ! -e $root/qv/hyprland ]] ||
   fail "redundant qvOS Hyprland domain remains"
 grep -Fq 'three rings are system-critical or high-impact operations' \

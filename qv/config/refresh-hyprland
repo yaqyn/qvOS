@@ -8,6 +8,15 @@ set -euo pipefail
 # qvos:contract=qv/config/files/hypr/qv/looknfeel.conf
 # qvos:contract=qv/config/files/hypr/qv/windows.conf
 
+"$OMARCHY_PATH/qv/config/monitor-autodetect" --restore-preflight
+
+omarchy-refresh-config hypr/autostart.conf
+omarchy-refresh-config hypr/bindings.conf
+omarchy-refresh-config hypr/input.conf
+omarchy-refresh-config hypr/looknfeel.conf
+omarchy-refresh-config hypr/hyprland.conf
+omarchy-refresh-config hypr/monitors.conf
+
 config_owner="$OMARCHY_PATH/qv/config/refresh"
 config_paths=(
   hypr/input.conf
@@ -28,3 +37,5 @@ for config_path in "${config_paths[@]}"; do
 done
 
 "$OMARCHY_PATH/qv/config/monitor-autodetect"
+
+bash "$OMARCHY_PATH/install/config/detect-keyboard-layout.sh"

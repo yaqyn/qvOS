@@ -27,12 +27,14 @@ There is no inherited binding layer and no qvOS binding overlay.
   and compare the live file, reload Hyprland, require no config errors, and show
   the updated qvOS-only inventory.
 
-`qv/config/refresh-hyprland` is the authoritative inventory of the remaining
-specialized qvOS Hyprland sources under `qv/config/files/hypr/`. The inherited
-refresh command installs native `config/hypr/bindings.conf` and
-`config/hypr/hyprland.conf` before this owner reconciles the specialized
-sources. Put only look, window, input, and future specialized config in the
-`qv/` sublayer. Reconcile after refresh and verify tracked and installed config.
+`qv/config/refresh-hyprland` is the single restore owner. The public inherited
+command name is a metadata-only compatibility adapter. The owner preflights
+the monitor destination, installs the native `config/hypr/` defaults through
+the inherited generic file copier, reconciles the specialized qvOS sources
+under `qv/config/files/hypr/`, detects the current display scale, then detects
+the keyboard layout. Put only look, window, input, and future specialized
+config in the `qv/` sublayer. Reconcile after refresh and verify tracked and
+installed config.
 
 Promoted defaults under `config/` are native qvOS sources and must not be
 duplicated under `qv/config/files/`. This includes the qvOS battery-monitor
