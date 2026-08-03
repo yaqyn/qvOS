@@ -4,13 +4,5 @@
 # omarchy:args=[-- timezone]
 # omarchy:requires-sudo=true
 
-# qv/tui passes one owner-validated timezone after --.
-if [[ ${1:-} == "--" ]]; then
-  (($# == 2)) || exit 2
-  timezone=$2
-else
-  timezone=$(timedatectl list-timezones | gum filter --height 20 --header "Set timezone") || exit 1
-fi
-sudo timedatectl set-timezone "$timezone"
-echo "Timezone is now set to $timezone"
-omarchy-restart-waybar
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+exec "$OMARCHY_PATH/qv/config/timezone" "$@"

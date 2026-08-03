@@ -203,6 +203,14 @@ run_owner "$root/qv/tui/task/selectable-owner" tui-remove -- "My TUI"
 run_owner "$root/qv/tui/task/selectable-owner" timezone -- Africa/Cairo >/dev/null
 grep -Fqx 'timezone:Africa/Cairo' "$action_log" ||
   fail "Timezone selected delegation"
+grep -Fqx 'sudo:timedatectl set-timezone Africa/Cairo' "$action_log" ||
+  fail "Timezone selected privilege boundary"
+if run_owner "$root/qv/config/timezone" -- Etc/Unknown >/dev/null 2>&1; then
+  fail "Timezone owner accepted a selection outside its current inventory"
+fi
+if grep -Fq 'set-timezone Etc/Unknown' "$action_log"; then
+  fail "Invalid timezone reached the privileged mutation"
+fi
 
 chromium_flags="$test_home/.config/chromium-flags.conf"
 printf '%s\n' '--oauth2-client-id=' '--oauth2-client-secret=' >"$chromium_flags"

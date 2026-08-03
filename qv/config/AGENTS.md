@@ -41,6 +41,11 @@ duplicated under `qv/config/files/`. This includes the qvOS battery-monitor
 service and timer under `config/systemd/user/`; the ordinary config installer
 deploys them before the qvOS specialized reconciliation stage.
 
+`qv/config/timezone` owns both the direct searchable picker and the TUI-selected
+mutation. Revalidate every selected zone against `timedatectl list-timezones`
+immediately before sudo, return cancellation distinctly, and restart Waybar
+only after the system change succeeds.
+
 `qv/config/monitor-autodetect` owns display-scale reconciliation on fresh first
 login and explicit Hyprland restore. Let Hyprland choose preferred modes,
 automatic placement, and PPI-based per-monitor scale. Synchronize the global

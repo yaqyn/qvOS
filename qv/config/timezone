@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: omarchy-tz-select [-- timezone]" >&2
+}
+
+list_timezones() {
+  timedatectl list-timezones
+}
+
+case $# in
+0)
+  timezone=$(list_timezones | gum filter --height 20 --header "Set timezone") ||
+    exit 130
+  ;;
+2)
+  [[ $1 == "--" ]] || {
+    usage
+    exit 2
+  }
+  timezone=$2
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+if ! list_timezones | grep -Fqx -- "$timezone"; then
+  echo "Unknown timezone: $timezone" >&2
+  exit 2
+fi
+
+sudo timedatectl set-timezone "$timezone"
+echo "Timezone is now set to $timezone"
+omarchy-restart-waybar
