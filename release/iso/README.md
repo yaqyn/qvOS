@@ -9,8 +9,9 @@ artifact outside Git; it can contain machine and installation details.
 - Select one full qvOS commit and freeze feature work for that candidate.
 - Complete `git qvsync --audit`, resolve every upstream capability decision,
   and verify clean development, tracking, remote, and live source parity.
-- Pin `QVOS_SOURCE_REF` to that qvOS commit and `QVOS_OMARCHY_ISO_REF` to the
-  reviewed full commit from official `omacom-io/omarchy-iso` `main`.
+- Pin `QVOS_SOURCE_REF` to that qvOS commit. Use the reviewed full builder
+  commit in `release/iso/upstream-ref`; if `QVOS_OMARCHY_ISO_REF` overrides it,
+  record and audit that exact official `omacom-io/omarchy-iso` commit first.
 - Keep optional Services and Development integrations out of the image. Their
   lifecycle never gates base readiness; qvCORE itself is the image's mandatory
   qvOS implementation.

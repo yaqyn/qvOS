@@ -454,9 +454,11 @@ fi
 iso_build="$root/release/iso/build"
 grep -Fq 'release/iso/build' "$root/qvcore/tui/bin/qvos-build" ||
   fail "TUI qvos-build adapter bypasses the release owner"
-grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"' "$iso_build" ||
-  fail "qvOS ISO branch matching Omarchy master"
-grep -Fq 'default-branch change is not permission to follow it' \
+grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-$reviewed_iso_ref}"' "$iso_build" ||
+  fail "qvOS ISO reviewed builder ref"
+[[ $(<"$root/release/iso/upstream-ref") =~ ^[0-9a-f]{40}$ ]] ||
+  fail "qvOS ISO reviewed ref format"
+grep -Fq 'Never default to a floating branch' \
   "$root/release/iso/AGENTS.md" ||
   fail "qvOS ISO compatibility pin instruction"
 grep -Fq 'freeze feature work until its' "$root/release/iso/AGENTS.md" ||

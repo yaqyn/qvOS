@@ -20,8 +20,16 @@ grep -Fq 'release/iso/omarchy-iso-qvos-tui.patch' "$root/release/iso/build" ||
 grep -Fq 'release/iso/source-permissions' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "ISO patch bypasses release source-permission policy"
+[[ $(<"$root/release/iso/upstream-ref") =~ ^[0-9a-f]{40}$ ]] ||
+  fail "release ISO reviewed upstream ref"
+# shellcheck disable=SC2016
+grep -Fq 'omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-$reviewed_iso_ref}"' \
+  "$root/release/iso/build" || fail "release ISO defaults to reviewed ref"
+if grep -Fq 'QVOS_OMARCHY_ISO_REF:-main' "$root/release/iso/build"; then
+  fail "release ISO follows a floating upstream branch"
+fi
 
-expected=$'.gitattributes\nAGENTS.md\nREADME.md\nbuild\nomarchy-iso-qvos-tui.patch\nsource-permissions\nsyslinux-splash.png'
+expected=$'.gitattributes\nAGENTS.md\nREADME.md\nbuild\nomarchy-iso-qvos-tui.patch\nsource-permissions\nsyslinux-splash.png\nupstream-ref'
 actual=$(find "$root/release/iso" -maxdepth 1 -type f -printf '%f\n' | sort)
 [[ $actual == "$expected" ]] || fail "release/iso source inventory"
 

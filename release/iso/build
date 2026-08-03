@@ -78,13 +78,18 @@ fi
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_checkout=$(cd -- "$script_dir/../.." && pwd)
+reviewed_iso_ref=$(<"$script_dir/upstream-ref")
+if [[ ! $reviewed_iso_ref =~ ^[0-9a-f]{40}$ ]]; then
+  echo "qvos-build has an invalid reviewed ISO builder ref." >&2
+  exit 1
+fi
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/qvos/iso"
 mkdir -p "$cache_root"
 stage_root=$(mktemp -d "$cache_root/stage.XXXXXX")
 release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
 preserve_stage=false
 omarchy_iso_repo="${QVOS_OMARCHY_ISO_REPO:-https://github.com/omacom-io/omarchy-iso.git}"
-omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-main}"
+omarchy_iso_ref="${QVOS_OMARCHY_ISO_REF:-$reviewed_iso_ref}"
 docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
 docker_network="${QVOS_DOCKER_NETWORK:-}"
 arch_mirror="${QVOS_ARCH_MIRROR:-}"

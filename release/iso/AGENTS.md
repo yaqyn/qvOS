@@ -7,12 +7,14 @@ embedded source, installer integration, or release-image verification.
 a thin adapter to this owner.
 `release/iso/README.md` owns the release-candidate gate and required evidence.
 
-- Pin official `omacom-io/omarchy-iso` `main` because the current qvOS source
-  tracks Omarchy `master` and the patch contracts are verified against that
-  pairing. An upstream default-branch change is not permission to follow it;
-  changing the pin requires an explicit compatibility audit and adaptation.
-  Stage the builder fresh for normal builds. `git qvsync` does not sync this
-  separate repository.
+- `release/iso/upstream-ref` is the reviewed full commit of the official
+  `omacom-io/omarchy-iso` source-backed builder. The qvOS patch is verified
+  against that exact input. Never default to a floating branch. The newer
+  package-backed builder would make qvOS depend on operating a custom runtime
+  package, which is outside the product boundary; learn from its changes and
+  port selected fixes into this release owner instead. Changing the pin
+  requires an explicit compatibility audit and adaptation. Stage the builder
+  fresh for normal builds. `git qvsync` does not sync this separate repository.
 - Stage the selected qvOS Git ref separately and apply
   `release/iso/omarchy-iso-qvos-tui.patch` only to the temporary builder. Keep ISO
   integration under `release/iso/` and never persist qvOS edits in upstream source.
