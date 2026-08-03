@@ -245,7 +245,9 @@ grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/configure"' \
 upstream_config_steps=$(
   git -C "$root" show "$upstream_ref:install/config/all.sh" |
     sed -n 's/^run_logged \(\$OMARCHY_INSTALL[^[:space:]]*\)$/\1/p' |
-    grep -Fvx '$OMARCHY_INSTALL/config/nautilus-python.sh'
+    grep -Fvx \
+      -e '$OMARCHY_INSTALL/config/nautilus-python.sh' \
+      -e '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh'
 )
 # shellcheck disable=SC2016
 native_config_steps=$(
@@ -256,8 +258,12 @@ native_config_steps=$(
   fail "native configuration stage changed inherited leaf order or coverage"
 # shellcheck disable=SC2016
 [[ $(grep -Fc 'run_logged "$OMARCHY_PATH/qvcore/' \
-  "$root/qvcore/install/config/run") == 2 ]] ||
+  "$root/qvcore/install/config/run") == 3 ]] ||
   fail "native configuration stage qvOS leaf inventory"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
+  "$root/qvcore/install/config/run" ||
+  fail "native configuration stage omits the corrected ASUS B9406 touchpad owner"
 pass "fresh installation uses one native qvOS configuration stage"
 
 public_adapters=(

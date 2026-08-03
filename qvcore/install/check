@@ -71,12 +71,22 @@ grep -Fqx 'source "$OMARCHY_PATH/qvcore/boot/install"' \
   "$root/install.sh" || fail "native boot install owner wiring"
 [[ -f $root/qvcore/install/config/run && ! -x $root/qvcore/install/config/run ]] ||
   fail "native install configuration owner mode"
+[[ -f $root/qvcore/install/hardware/asus/b9406-touchpad &&
+  ! -x $root/qvcore/install/hardware/asus/b9406-touchpad ]] ||
+  fail "native ASUS B9406 touchpad owner mode"
 [[ ! -e $root/install/config/all.sh ]] ||
   fail "inherited install configuration orchestration remains"
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/configure"' \
   "$root/qvcore/install/config/run" ||
   fail "native install configuration stage omits qvOS configuration"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$OMARCHY_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
+  "$root/qvcore/install/config/run" ||
+  fail "native install configuration stage omits the ASUS B9406 touchpad fix"
+grep -Fqx 'install/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh' \
+  "$retired_manifest" ||
+  fail "broken inherited ASUS B9406 touchpad fix is not retired"
 [[ ! -e $root/install/post-install/all.sh ]] ||
   fail "inherited post-install orchestration remains"
 [[ ! -e $root/install/post-install/finished.sh ]] ||

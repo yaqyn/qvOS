@@ -1,5 +1,6 @@
 # Inherited install paths intentionally absent from qvOS.
 install/config/all.sh
+install/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh
 install/first-run/cleanup-reboot-sudoers.sh
 install/first-run/dns-resolver.sh
 install/first-run/firewall.sh
