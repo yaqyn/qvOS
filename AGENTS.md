@@ -214,7 +214,7 @@ Root-started Codex sessions do not discover nested instructions automatically.
 Read every matching route completely before editing:
 
 - qvOS architecture and lifecycle boundaries: `qv/README.md`
-- qvOS identity and theme lifecycle: `qv/branding/AGENTS.md`, `qv/theme/AGENTS.md`
+- qvOS identity, theme, and browser lifecycle: `qv/branding/AGENTS.md`, `qv/theme/AGENTS.md`, `qv/browser/AGENTS.md`
 - qvOS boot presentation and Limine lifecycle: `qv/boot/AGENTS.md`
 - qvCORE, install, package, and update ownership: `qv/core/AGENTS.md`, `qv/install/AGENTS.md`, `qv/update/AGENTS.md`
 - Menu, search, Walker, and Elephant: `qv/menu/AGENTS.md`

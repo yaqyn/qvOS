@@ -29,7 +29,6 @@ bin/omarchy-refresh-swayosd
 bin/omarchy-refresh-tmux
 bin/omarchy-refresh-walker
 bin/omarchy-refresh-waybar
-bin/omarchy-remove-browser
 bin/omarchy-remove-preinstalls
 bin/omarchy-restart-btop
 bin/omarchy-restart-hyprctl

@@ -982,7 +982,7 @@ pass "dynamic Style catalogs expose Yaqyn and compatible user themes only"
 grep -qx 'omarchy-theme-set "Yaqyn"' "$root/qv/theme/configure" || fail "fresh install theme"
 if rg -q 'chmod[[:space:]]+a\\+rw' \
   "$root/qv/theme/configure" \
-  "$root/bin/omarchy-install-browser"; then
+  "$root/qv/browser/install"; then
   fail "world-writable browser policy setup"
 fi
 grep -Fq 'sudo install -d -o root -g root -m 0755 /etc/chromium/policies/managed' \

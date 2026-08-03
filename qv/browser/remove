@@ -1,0 +1,96 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: omarchy-remove-browser <chrome|brave|brave-origin|edge|firefox|zen>" >&2
+}
+
+(( $# == 1 )) || {
+  usage
+  exit 2
+}
+browser=$1
+
+set_fallback_default_browser() {
+  local removed_desktop=$1
+  local current_browser
+  current_browser=$(xdg-settings get default-web-browser)
+
+  [[ $current_browser == "$removed_desktop" ]] || return 0
+  omarchy-cmd-present chromium || {
+    echo "Chromium is unavailable; refusing to remove the active default browser." >&2
+    return 1
+  }
+
+  xdg-settings set default-web-browser chromium.desktop
+  xdg-mime default chromium.desktop x-scheme-handler/http
+  xdg-mime default chromium.desktop x-scheme-handler/https
+  xdg-mime default chromium.desktop text/html
+}
+
+remove_policy_files() {
+  sudo rm -f -- "$@"
+}
+
+remove_firefox_wayland_if_unused() {
+  if omarchy-pkg-missing firefox && omarchy-pkg-missing zen-browser-bin; then
+    rm -f -- "$HOME/.config/environment.d/omarchy-firefox-wayland.conf"
+  fi
+}
+
+case $browser in
+chrome)
+  echo "Removing Chrome..."
+  set_fallback_default_browser google-chrome.desktop
+  omarchy-pkg-drop google-chrome
+  rm -f -- "$HOME/.config/chrome-flags.conf"
+  remove_policy_files /etc/opt/chrome/policies/managed/color.json
+  ;;
+edge)
+  echo "Removing Edge..."
+  set_fallback_default_browser microsoft-edge.desktop
+  omarchy-pkg-drop microsoft-edge-stable-bin
+  rm -f -- "$HOME/.config/microsoft-edge-stable-flags.conf"
+  remove_policy_files /etc/opt/edge/policies/managed/color.json
+  ;;
+brave)
+  echo "Removing Brave..."
+  set_fallback_default_browser brave-browser.desktop
+  omarchy-pkg-drop brave-bin
+  rm -f -- "$HOME/.config/brave-flags.conf"
+  if omarchy-pkg-missing brave-origin-beta-bin; then
+    remove_policy_files /etc/brave/policies/managed/color.json
+  fi
+  ;;
+brave-origin)
+  echo "Removing Brave Origin..."
+  set_fallback_default_browser brave-origin-beta.desktop
+  omarchy-pkg-drop brave-origin-beta-bin
+  rm -f -- "$HOME/.config/brave-origin-beta-flags.conf"
+  if omarchy-pkg-missing brave-bin; then
+    remove_policy_files /etc/brave/policies/managed/color.json
+  fi
+  ;;
+firefox)
+  echo "Removing Firefox..."
+  set_fallback_default_browser firefox.desktop
+  omarchy-pkg-drop firefox
+  remove_policy_files \
+    /usr/lib/firefox/distribution/color.json \
+    /usr/lib/firefox/distribution/policies.json
+  remove_firefox_wayland_if_unused
+  ;;
+zen)
+  echo "Removing Zen..."
+  set_fallback_default_browser zen.desktop
+  omarchy-pkg-drop zen-browser-bin
+  remove_policy_files \
+    /opt/zen-browser/distribution/color.json \
+    /opt/zen-browser/distribution/policies.json
+  remove_firefox_wayland_if_unused
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
