@@ -204,8 +204,8 @@ expected_systemctl=$(printf '%s\n' \
   '--user enable qvos-battery-monitor.timer' \
   '--user start qvos-battery-monitor.timer' \
   '--user enable qvos-recover-internal-monitor.service' \
-  '--user disable --now omarchy-battery-monitor.service' \
   '--user disable --now omarchy-battery-monitor.timer' \
+  '--user stop omarchy-battery-monitor.service' \
   '--user disable --now omarchy-recover-internal-monitor.service' \
   '--user daemon-reload')
 [[ $(<"$systemctl_log") == "$expected_systemctl" ]] ||

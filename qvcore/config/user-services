@@ -20,8 +20,8 @@ native_units=(
   qvos-recover-internal-monitor.service
 )
 legacy_units=(
-  omarchy-battery-monitor.service
   omarchy-battery-monitor.timer
+  omarchy-battery-monitor.service
   omarchy-recover-internal-monitor.service
 )
 legacy_backups=()
@@ -247,10 +247,20 @@ fi
 
 if [[ $manage_systemd == "true" ]]; then
   for unit in "${legacy_units[@]}"; do
-    if [[ -e $unit_root/$unit || -L $unit_root/$unit ]] ||
-      unit_is_enabled "$unit" || unit_is_active "$unit"; then
-      systemctl --user disable --now "$unit"
-    fi
+    case $unit in
+    omarchy-battery-monitor.service)
+      if [[ -e $unit_root/$unit || -L $unit_root/$unit ]] ||
+        unit_is_active "$unit"; then
+        systemctl --user stop "$unit"
+      fi
+      ;;
+    *)
+      if [[ -e $unit_root/$unit || -L $unit_root/$unit ]] ||
+        unit_is_enabled "$unit" || unit_is_active "$unit"; then
+        systemctl --user disable --now "$unit"
+      fi
+      ;;
+    esac
   done
 fi
 

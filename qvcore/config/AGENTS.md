@@ -43,6 +43,8 @@ filenames under `config/systemd/user/` and execute one native owner under
 enabled and active state of exact inherited units, disables their old names,
 and archives safe old files privately. First run and every post-update desktop
 reconciliation invoke it; never restore an active `omarchy-*` unit.
+Disable inherited timer and installable unit names before archiving them, but
+stop static helper services directly; static units are not enablement targets.
 Only manage the user systemd instance when `HOME` is the active account home.
 Cross-home fixtures may deploy files but must never contact the real manager;
 the test override accepts only an executable temporary `systemctl` fixture.
