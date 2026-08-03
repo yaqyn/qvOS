@@ -74,32 +74,65 @@ grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/recover-internal-monitor'
   "$root/config/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "native monitor recovery owner"
 
-toggle_adapters=(
-  omarchy-battery-monitor:battery-monitor
-  omarchy-hw-recover-internal-monitor:recover-internal-monitor
-  omarchy-hyprland-monitor-internal:monitor-internal
-  omarchy-hyprland-monitor-internal-mirror:monitor-internal-mirror
-  omarchy-hyprland-toggle:hyprland-toggle
-  omarchy-hyprland-toggle-disabled:hyprland-toggle-disabled
-  omarchy-hyprland-toggle-enabled:hyprland-toggle-enabled
-  omarchy-toggle:toggle
-  omarchy-toggle-enabled:toggle-enabled
-  omarchy-toggle-touchpad:toggle-touchpad
-  omarchy-toggle-touchscreen:toggle-touchscreen
+config_routes=(
+  battery-monitor:battery-monitor
+  hw-recover-internal-monitor:recover-internal-monitor
+  hyprland-monitor-internal:monitor-internal
+  hyprland-monitor-internal-mirror:monitor-internal-mirror
+  hyprland-toggle:hyprland-toggle
+  hyprland-toggle-disabled:hyprland-toggle-disabled
+  hyprland-toggle-enabled:hyprland-toggle-enabled
+  refresh-hyprland:refresh-hyprland
+  toggle:toggle
+  toggle-enabled:toggle-enabled
+  toggle-touchpad:toggle-touchpad
+  toggle-touchscreen:toggle-touchscreen
+  tz-select:timezone
 )
-for adapter in "${toggle_adapters[@]}"; do
-  route=${adapter%%:*}
-  owner=${adapter#*:}
-  [[ -x $root/bin/$route && -x $root/qvcore/config/$owner ]] ||
-    fail "toggle adapter or owner mode: $route"
-  (( $(wc -l <"$root/bin/$route") <= 10 )) ||
-    fail "toggle compatibility adapter contains implementation: $route"
-  grep -Fqx "exec \"\$QVOS_PATH/qvcore/config/$owner\" \"\$@\"" \
-    "$root/bin/$route" || fail "toggle compatibility adapter owner: $route"
+for mapping in "${config_routes[@]}"; do
+  route=${mapping%%:*}
+  owner=${mapping#*:}
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  [[ -x $native_adapter && -x $compatibility_adapter &&
+    -x $root/qvcore/config/$owner ]] ||
+    fail "config adapter or owner mode: $route"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native config adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
+    fail "config compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native config adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "config compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/config/$owner\" \"\$@\"" \
+      "$adapter" || fail "config adapter owner: $route"
+  done
 done
 for owner in toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+
+if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-internal(-mirror)?|hyprland-toggle(-disabled|-enabled)?|refresh-hyprland|toggle-enabled|toggle-touchpad|toggle-touchscreen|tz-select)' \
+  "$root/qvcore/config" \
+  "$root/qvcore/menu" \
+  "$root/qvcore/power" \
+  "$root/qvcore/screensaver" \
+  "$root/qvcore/tui" \
+  "$root/config/hypr/bindings.conf" \
+  "$root/config/waybar/config.jsonc" \
+  "$root/bin/omarchy-reinstall-configs" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/migrate-runtime-root' \
+  --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/retired-paths' \
+  --glob '!**/user-services'; then
+  fail "native qvOS source still calls a config compatibility command"
+fi
+
 if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy-(battery-monitor|recover-internal-monitor)\.(service|timer)' \
   "$root/bin" \
   "$root/config" \
@@ -119,24 +152,7 @@ if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy-(battery-mo
   fail "retired toggle or user-service identity remains active"
 fi
 
-[[ -x $root/bin/omarchy-refresh-hyprland && -x $root/qvcore/config/refresh-hyprland ]] ||
-  fail "Hyprland restore adapter or owner is not executable"
-(( $(wc -l <"$root/bin/omarchy-refresh-hyprland") <= 10 )) ||
-  fail "Hyprland restore compatibility adapter contains implementation"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/config/refresh-hyprland" "$@"' \
-  "$root/bin/omarchy-refresh-hyprland" ||
-  fail "Hyprland restore compatibility adapter does not delegate directly"
-
-[[ -x $root/bin/omarchy-tz-select && -x $root/qvcore/config/timezone ]] ||
-  fail "timezone adapter or owner is not executable"
-(( $(wc -l <"$root/bin/omarchy-tz-select") <= 10 )) ||
-  fail "timezone compatibility adapter contains implementation"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/config/timezone" "$@"' \
-  "$root/bin/omarchy-tz-select" ||
-  fail "timezone compatibility adapter does not delegate directly"
 grep -Fq 'timedatectl list-timezones' "$root/qvcore/config/timezone" ||
   fail "timezone owner does not validate the selected inventory"
 
-printf 'ok - qvOS config has singular native bindings and user services\n'
+printf 'ok - qvOS config has singular native bindings, commands, and user services\n'

@@ -41,13 +41,17 @@ bindeld = , XF86KbdBrightnessUp, Keyboard brightness up, exec, omarchy-brightnes
 bindeld = , XF86AudioRaiseVolume, Volume up, exec, omarchy-swayosd-client --output-volume raise
 bindld = SUPER, XF86AudioMute, Switch audio output, exec, omarchy-audio-output-switch
 bindd = SUPER CTRL ALT, B, Show battery remaining, exec, notify-send "$(omarchy-battery-status)"
+bindd = SUPER CTRL, Delete, Toggle laptop display, exec, omarchy-hyprland-monitor-internal toggle
+bindd = SUPER CTRL ALT, Delete, Mirror laptop display, exec, omarchy-hyprland-monitor-internal-mirror toggle
+bindld = , XF86TouchpadToggle, Toggle touchpad, exec, omarchy-toggle-touchpad
+bindld = , XF86TouchscreenToggle, Toggle touchscreen, exec, omarchy-toggle-touchscreen
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
 exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"on-click-right":"notify-send \"$(omarchy-battery-status)\""}
+{"battery":"$(omarchy-battery-status)","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -80,12 +84,19 @@ for command in \
   qv-battery-status \
   qv-brightness-display \
   qv-brightness-keyboard \
+  qv-hyprland-monitor-internal \
+  qv-hyprland-monitor-internal-mirror \
   qv-swayosd-client; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted desktop control was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|swayosd)-' "$test_home/.config/hypr/bindings.conf"; then
-  fail "desktop control compatibility route remains after migration"
+for command in qv-toggle-touchpad qv-toggle-touchscreen; do
+  grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
+    fail "promoted session config was not migrated: $command"
+done
+if rg -q 'omarchy-(audio|brightness|hyprland-monitor-internal|swayosd|toggle-touchpad|toggle-touchscreen)' \
+  "$test_home/.config/hypr/bindings.conf"; then
+  fail "desktop compatibility route remains after migration"
 fi
 grep -Fq '.local/lib/qvos/bin/omarchy-launch-screensaver' \
   "$test_home/.config/hypr/hypridle.conf" ||
@@ -95,6 +106,8 @@ grep -Fq '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
   fail "suspend runtime migration"
 grep -Fq 'qv-battery-status' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar battery telemetry migration"
+grep -Fq 'qv-tz-select' "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar timezone route migration"
 grep -Fq '.local/lib/qvos/thunar/open-here' \
   "$test_home/.config/Thunar/uca.xml" ||
   fail "Thunar action runtime migration"

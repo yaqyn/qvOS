@@ -106,7 +106,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
 [[ $1 == "tte" ]]
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-toggle-enabled" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-toggle-enabled" <<'SCRIPT'
 #!/bin/bash
 
 exit 1

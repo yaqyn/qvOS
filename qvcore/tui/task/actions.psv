@@ -26,7 +26,7 @@ direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|mutation|na
 hybrid-gpu|Hybrid GPU|Confirm a GPU mode change and system reboot|3|mutation|native|true|Configure|Configuring|Configured|omarchy-toggle-hybrid-gpu
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|mutation|native|true|Enable|Enabling|Enabled|omarchy-hibernation-setup
 hibernation-disable|Hibernation|Confirm and remove hibernation configuration|3|mutation|native|true|Disable|Disabling|Disabled|omarchy-hibernation-remove
-refresh-hyprland|Hyprland Config|Restore qvOS Hyprland defaults with display detection and backups|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprland
+refresh-hyprland|Hyprland Config|Restore qvOS Hyprland defaults with display detection and backups|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-hyprland
 refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
 refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
 refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset

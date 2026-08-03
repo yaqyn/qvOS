@@ -109,7 +109,7 @@ theme-remove)
   "$OMARCHY_PATH/bin/omarchy-theme-remove" "$1"
   ;;
 timezone)
-  "$OMARCHY_PATH/bin/omarchy-tz-select" -- "$1"
+  "$QVOS_PATH/bin/qv-tz-select" -- "$1"
   ;;
 tui-remove)
   "$OMARCHY_PATH/bin/omarchy-tui-remove" "$@"

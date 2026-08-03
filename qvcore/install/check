@@ -149,7 +149,7 @@ grep -Fq 'ln -s qvos "$OMARCHY_COMPAT_TARGET"' "$root/boot.sh" ||
   fail "fresh-install source compatibility link"
 grep -Fq 'qvcore/install/packaging/resolve' "$root/bin/omarchy-reinstall-pkgs" ||
   fail "native package resolver"
-grep -Fq 'omarchy-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
+grep -Fq 'qv-refresh-hyprland' "$root/bin/omarchy-reinstall-configs" ||
   fail "config reset reconciliation"
 if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|rm)' \
   "$root/qvcore/install"; then

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: omarchy-tz-select [-- timezone]" >&2
+  echo "Usage: qv tz select [-- timezone]" >&2
 }
 
 list_timezones() {

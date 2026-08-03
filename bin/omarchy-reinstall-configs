@@ -20,7 +20,7 @@ printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
 
 bash "$OMARCHY_PATH/qvcore/install/config/theme.sh"
 
-omarchy-refresh-hyprland
+qv-refresh-hyprland
 omarchy-refresh-limine
 omarchy-refresh-plymouth
 omarchy-nvim-setup

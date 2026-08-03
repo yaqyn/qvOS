@@ -40,7 +40,7 @@ if ((current_count > 0)); then
   exit 0
 fi
 
-if omarchy-toggle-enabled screensaver-off && [[ ${1:-} != "force" ]]; then
+if qv-toggle-enabled screensaver-off && [[ ${1:-} != "force" ]]; then
   exit 1
 fi
 

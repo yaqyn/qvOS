@@ -99,7 +99,11 @@ rewrite_literals \
   'omarchy-battery-status' 'qv-battery-status' \
   'omarchy-brightness-display' 'qv-brightness-display' \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
-  'omarchy-swayosd-client' 'qv-swayosd-client'
+  'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
+  'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
+  'omarchy-swayosd-client' 'qv-swayosd-client' \
+  'omarchy-toggle-touchpad' 'qv-toggle-touchpad' \
+  'omarchy-toggle-touchscreen' 'qv-toggle-touchscreen'
 rewrite_literals \
   "$HOME/.config/hypr/hypridle.conf" \
   '.local/share/qvos/bin/omarchy-launch-screensaver' \
@@ -110,7 +114,8 @@ rewrite_literals \
   '.local/lib/qvos/bin/qv-system-suspend-if-safe'
 rewrite_literals \
   "$HOME/.config/waybar/config.jsonc" \
-  'omarchy-battery-status' 'qv-battery-status'
+  'omarchy-battery-status' 'qv-battery-status' \
+  'omarchy-tz-select' 'qv-tz-select'
 rewrite_literals \
   "$HOME/.config/Thunar/uca.xml" \
   '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/'

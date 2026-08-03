@@ -67,6 +67,11 @@ preserve all other content, refuse links and foreign ownership, and remain a
 no-op after success. Keep its inherited migration stub thin and its
 implementation native.
 
+Config and session commands use metadata-bearing `qv-*` adapters and one
+owner here. Retain matching metadata-free `omarchy-*` files only as external
+and saved-config compatibility routes. Native bindings, menus, sleep guards,
+screensavers, reinstall flows, and TUI tasks must call the qv route.
+
 `qvcore/config/timezone` owns both the direct searchable picker and the TUI-selected
 mutation. Revalidate every selected zone against `timedatectl list-timezones`
 immediately before sudo, return cancellation distinctly, and restart Waybar

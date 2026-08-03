@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
+export QVOS_PATH OMARCHY_PATH
+
 # qvos:contract=config/hypr/bindings.conf
 # qvos:contract=config/hypr/hyprland.conf
 # qvos:contract=qvcore/config/files/hypr/input.conf
@@ -8,7 +12,7 @@ set -euo pipefail
 # qvos:contract=qvcore/config/files/hypr/qv/looknfeel.conf
 # qvos:contract=qvcore/config/files/hypr/qv/windows.conf
 
-"$OMARCHY_PATH/qvcore/config/monitor-autodetect" --restore-preflight
+"$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 
 omarchy-refresh-config hypr/autostart.conf
 omarchy-refresh-config hypr/bindings.conf
@@ -17,7 +21,7 @@ omarchy-refresh-config hypr/looknfeel.conf
 omarchy-refresh-config hypr/hyprland.conf
 omarchy-refresh-config hypr/monitors.conf
 
-config_owner="$OMARCHY_PATH/qvcore/config/refresh"
+config_owner="$QVOS_PATH/qvcore/config/refresh"
 config_paths=(
   hypr/input.conf
   hypr/qv.conf
@@ -26,7 +30,7 @@ config_paths=(
 )
 
 for config_path in "${config_paths[@]}"; do
-  [[ -f $OMARCHY_PATH/qvcore/config/files/$config_path ]] || {
+  [[ -f $QVOS_PATH/qvcore/config/files/$config_path ]] || {
     printf 'Missing qvOS Hyprland config source: %s\n' "$config_path" >&2
     exit 1
   }
@@ -36,6 +40,6 @@ for config_path in "${config_paths[@]}"; do
   "$config_owner" "$config_path"
 done
 
-"$OMARCHY_PATH/qvcore/config/monitor-autodetect"
+"$QVOS_PATH/qvcore/config/monitor-autodetect"
 
-bash "$OMARCHY_PATH/qvcore/install/config/detect-keyboard-layout.sh"
+bash "$QVOS_PATH/qvcore/install/config/detect-keyboard-layout.sh"

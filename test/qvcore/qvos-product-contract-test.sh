@@ -364,10 +364,11 @@ grep -Fq '`qvcore/config/refresh-hyprland` is the single restore owner.' \
   fail "qvOS singular Hyprland restore instruction"
 [[ -x $root/qvcore/config/refresh-hyprland ]] ||
   fail "qvOS Hyprland restore owner"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/config/refresh-hyprland" "$@"' \
-  "$root/bin/omarchy-refresh-hyprland" ||
-  fail "Hyprland compatibility route does not delegate to the config owner"
+for adapter in qv-refresh-hyprland omarchy-refresh-hyprland; do
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/config/refresh-hyprland" "$@"' \
+    "$root/bin/$adapter" ||
+    fail "Hyprland route does not delegate to the config owner: $adapter"
+done
 [[ ! -e $root/qvcore/hyprland ]] ||
   fail "redundant qvOS Hyprland domain remains"
 grep -Fq 'three rings are system-critical or high-impact operations' \

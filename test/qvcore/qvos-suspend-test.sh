@@ -45,7 +45,7 @@ install -m 0755 /dev/stdin "$test_bin/ps" <<'SCRIPT'
 printf '%s\n' "${QVOS_TEST_LOCK_AGE:-1800}"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-toggle-enabled" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-toggle-enabled" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "suspend-off" && ${QVOS_TEST_SUSPEND_OFF:-0} == "1" ]]
 SCRIPT

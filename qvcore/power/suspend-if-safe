@@ -92,8 +92,8 @@ suspend_blocker() {
   local expected_lock_pid="${1:-}"
   local current_lock_pid lock_age inhibitor
 
-  if command -v omarchy-toggle-enabled >/dev/null 2>&1 &&
-    omarchy-toggle-enabled suspend-off; then
+  if command -v qv-toggle-enabled >/dev/null 2>&1 &&
+    qv-toggle-enabled suspend-off; then
     printf 'suspend is disabled\n'
   elif ! current_lock_pid="$(locked_session_pid)"; then
     printf 'the session is not locked\n'

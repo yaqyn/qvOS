@@ -80,7 +80,9 @@ install -d "$legacy_bin"
 sed 's/Usage: qv system/Usage: omarchy system/g' \
   "$root/qvcore/power/inhibit-sleep" \
   >"$legacy_bin/omarchy-system-inhibit-sleep"
-sed 's/Usage: qv system/Usage: omarchy system/g' \
+sed \
+  -e 's/Usage: qv system/Usage: omarchy system/g' \
+  -e 's/qv-toggle-enabled/omarchy-toggle-enabled/g' \
   "$root/qvcore/power/suspend-if-safe" \
   >"$legacy_bin/omarchy-system-suspend-if-safe"
 chmod 0755 "$legacy_bin"/omarchy-system-*
