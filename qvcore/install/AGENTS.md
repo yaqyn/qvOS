@@ -32,6 +32,9 @@ Hyprland reconciliation owner.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
+Retired Nautilus extensions are removed only when their source hash matches the
+known inherited payload; remove their matching bytecode only in that same
+verified cleanup and leave every modified or unrelated extension intact.
 Fresh install seeds only numeric owners from `qvcore/migrations/` through
 `qvcore/migrations/run --mark-current`; it never executes existing-system
 migrations or records the retired Omarchy marker tree.

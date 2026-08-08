@@ -48,6 +48,29 @@ fail() {
   exit 1
 }
 
+if git -C "$root" show-ref --verify --quiet refs/remotes/upstream/master; then
+  retired_source_ref=upstream/master
+elif git -C "$root" show-ref --verify --quiet refs/remotes/origin/master; then
+  retired_source_ref=origin/master
+else
+  fail "retired Nautilus fixture source"
+fi
+
+unsafe_cleanup_home="$test_root/unsafe-cleanup-home"
+unsafe_nautilus_target="$test_root/foreign-nautilus"
+install -d \
+  "$unsafe_cleanup_home/.local/share" \
+  "$unsafe_nautilus_target/extensions"
+git -C "$root" show \
+  "$retired_source_ref:default/nautilus-python/extensions/localsend.py" |
+  install -m 0644 /dev/stdin "$unsafe_nautilus_target/extensions/localsend.py"
+ln -s "$unsafe_nautilus_target" \
+  "$unsafe_cleanup_home/.local/share/nautilus-python"
+HOME="$unsafe_cleanup_home" "$root/qvcore/install/cleanup-obsolete"
+[[ -f $unsafe_nautilus_target/extensions/localsend.py ]] ||
+  fail "linked Nautilus root preservation"
+pass "retired extension cleanup refuses a linked Nautilus root"
+
 partial_root="$test_root/partial-source"
 partial_home="$test_root/partial-home"
 install -d \
@@ -154,6 +177,7 @@ install -d \
   "$test_root/.config/systemd/user" \
   "$test_root/.local/share/dbus-1/services" \
   "$test_root/.local/share/applications" \
+  "$test_root/.local/share/nautilus-python/extensions/__pycache__" \
   "$test_root/.local/lib/qvos/bin" \
   "$test_root/.local/lib/qvos/defaults/thunarx-3" \
   "$test_root/.local/lib/qvos/desktop/context" \
@@ -168,6 +192,14 @@ touch \
   "$test_root/.local/lib/qvos/tmux/removed-feature" \
   "$test_root/.local/lib/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/waybar/prayer-data.sh"
+for retired_extension in localsend transcode; do
+  git -C "$root" show \
+    "$retired_source_ref:default/nautilus-python/extensions/$retired_extension.py" |
+    install -m 0644 /dev/stdin \
+      "$test_root/.local/share/nautilus-python/extensions/$retired_extension.py"
+  printf 'retired bytecode fixture\n' \
+    >"$test_root/.local/share/nautilus-python/extensions/__pycache__/$retired_extension.cpython-314.pyc"
+done
 install -m 0644 /dev/stdin "$test_root/.bashrc" <<'BASHRC'
 source "$HOME/.local/share/qvos/shell/aliases"
 BASHRC
@@ -257,6 +289,10 @@ pass "custom hooks contain samples without duplicate qvOS system jobs"
 [[ ! -e $test_root/.local/lib/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
 pass "stale helper payloads are removed"
 
+[[ ! -e $test_root/.local/share/nautilus-python ]] ||
+  fail "exact retired Nautilus extension cleanup"
+pass "exact retired Nautilus extensions and bytecode are removed"
+
 for service_name in \
   org.freedesktop.FileManager1.service \
   org.xfce.FileManager.service; do
@@ -319,6 +355,11 @@ done
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/tui/.qvos-tui.STALE1"
 touch -d '2 hours ago' "$test_root/.local/lib/qvos/tui/.qvos-tui.STALE1"
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE"
+install -d "$test_root/.local/share/nautilus-python/extensions/__pycache__"
+printf 'personal LocalSend extension\n' \
+  >"$test_root/.local/share/nautilus-python/extensions/localsend.py"
+printf 'personal bytecode\n' \
+  >"$test_root/.local/share/nautilus-python/extensions/__pycache__/localsend.cpython-314.pyc"
 install -m 0644 /dev/stdin \
   "$test_root/.local/share/applications/thunar.desktop" <<EOF
 [Desktop Entry]
@@ -362,6 +403,12 @@ grep -Fq 'Environment=USER_CUSTOM=1' \
   fail "stale TUI build cleanup"
 [[ -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||
   fail "recent TUI build preservation"
+grep -Fqx 'personal LocalSend extension' \
+  "$test_root/.local/share/nautilus-python/extensions/localsend.py" ||
+  fail "modified Nautilus extension preservation"
+grep -Fqx 'personal bytecode' \
+  "$test_root/.local/share/nautilus-python/extensions/__pycache__/localsend.cpython-314.pyc" ||
+  fail "modified Nautilus bytecode preservation"
 for optional_thunar_feature in codex proton-drive-upload; do
   cmp -s \
     "$root/qvcore/thunar/$optional_thunar_feature" \
@@ -373,6 +420,7 @@ cmp -s \
   "$test_root/.codex/skills/proton-cli/SKILL.md" ||
   fail "enabled Proton Codex integration reconciliation"
 pass "desktop refresh reconciles enrolled integrations without reinstalling stacks"
+pass "modified Nautilus extensions and bytecode remain untouched"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
 [[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||

@@ -1,6 +1,48 @@
 #!/bin/bash
 set -euo pipefail
 
+cleanup_retired_nautilus_extension() {
+  local expected_hash=$1
+  local extension_name=$2
+  local cache
+  local cache_dir="$HOME/.local/share/nautilus-python/extensions/__pycache__"
+  local extension_dir="$HOME/.local/share/nautilus-python/extensions"
+  local extension_path="$extension_dir/$extension_name.py"
+  local installed_hash
+  local nautilus_root="${extension_dir%/extensions}"
+
+  [[ -d $nautilus_root && ! -L $nautilus_root && -O $nautilus_root ]] ||
+    return 0
+  [[ -d $extension_dir && ! -L $extension_dir && -O $extension_dir ]] ||
+    return 0
+  [[ -f $extension_path && ! -L $extension_path && -O $extension_path ]] ||
+    return 0
+  installed_hash=$(sha256sum -- "$extension_path")
+  installed_hash=${installed_hash%% *}
+  [[ $installed_hash == "$expected_hash" ]] || return 0
+
+  rm -f -- "$extension_path"
+  if [[ -d $cache_dir && ! -L $cache_dir && -O $cache_dir ]]; then
+    while IFS= read -r -d '' cache; do
+      [[ -f $cache && ! -L $cache && -O $cache ]] || continue
+      rm -f -- "$cache"
+    done < <(
+      find -P "$cache_dir" -maxdepth 1 -type f \
+        -name "$extension_name.cpython-*.pyc" -print0
+    )
+    rmdir -- "$cache_dir" 2>/dev/null || true
+  fi
+  rmdir -- "$extension_dir" 2>/dev/null || true
+  rmdir -- "$nautilus_root" 2>/dev/null || true
+}
+
+cleanup_retired_nautilus_extension \
+  c5b2ddaf1bb5ae6fa3b21da8ae13215877db504effe6d088db3b1618bb47205a \
+  localsend
+cleanup_retired_nautilus_extension \
+  4f4428a741325d9c776f3c28884c8a21e96bcd52c65949b16dca21ea1d5ae819 \
+  transcode
+
 legacy_thunar_helper="$HOME/.local/lib/qvos/defaults/qvos-launch-thunar"
 [[ ! -e $legacy_thunar_helper && ! -L $legacy_thunar_helper ]] || exit 0
 legacy_share_helper="$HOME/.local/share/qvos/defaults/qvos-launch-thunar"
