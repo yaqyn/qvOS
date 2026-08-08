@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the fastfetch TUI that gives information about the current system.
-
-exec omarchy-launch-or-focus-tui "bash -c 'fastfetch; read -n 1 -s'"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/launch/about" "$@"

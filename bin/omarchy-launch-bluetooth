@@ -1,6 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the qvOS bluetooth controls TUI (provided by bluetui).
-
-rfkill unblock bluetooth
-exec omarchy-launch-or-focus-tui bluetui
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/launch/bluetooth" "$@"

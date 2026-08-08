@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+(($# > 0)) || {
+  echo "Usage: qv launch webapp <url> [browser-args...]" >&2
+  exit 2
+}
+qvos_launch_prepare_webapp "$@"
+qvos_launch_require setsid
+exec setsid -- "${qvos_launch_command[@]}"

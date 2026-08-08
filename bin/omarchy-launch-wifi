@@ -1,6 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the qvOS wifi controls (provided by the Impala TUI).
-
-rfkill unblock wifi
-omarchy-launch-or-focus-tui impala
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/launch/wifi" "$@"

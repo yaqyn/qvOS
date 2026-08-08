@@ -38,7 +38,7 @@ install -m 0755 /dev/stdin "$test_bin/qv-menu-input" <<'SCRIPT'
 printf '%s\n' "${QVOS_TEST_URL_INPUT:-}"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-webapp" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-webapp" <<'SCRIPT'
 #!/bin/bash
 
 printf '%s\n' "$*" >"$QVOS_TEST_LAUNCH_LOG"
@@ -63,7 +63,7 @@ assert_launch() {
   local expected="$2"
   local description="$3"
 
-  QVOS_TEST_COMMANDS="omarchy-launch-webapp" run_launcher "$input"
+  QVOS_TEST_COMMANDS="qv-launch-webapp" run_launcher "$input"
   [[ "$(<"$launch_log")" == "$expected" ]] || fail "$description"
   pass "$description"
 }
@@ -73,7 +73,7 @@ assert_rejected() {
   local description="$2"
 
   rm -f "$launch_log"
-  if QVOS_TEST_COMMANDS="omarchy-launch-webapp" run_launcher "$input" >/dev/null 2>&1; then
+  if QVOS_TEST_COMMANDS="qv-launch-webapp" run_launcher "$input" >/dev/null 2>&1; then
     fail "$description"
   fi
   [[ ! -e $launch_log ]] || fail "$description"
@@ -101,9 +101,9 @@ assert_launch "example.com/callback?utm_source=test#access_token=abc" "https://w
 assert_launch "example.com/authorize?client_id=abc&utm_source=test" "https://www.example.com/authorize?client_id=abc&utm_source=test" "authorization links bypass cleaning"
 pass "tracking cleanup preserves functional and sensitive links"
 
-QVOS_TEST_COMMANDS="qv-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="  www.youtube.com  " run_launcher
+QVOS_TEST_COMMANDS="qv-menu-input,qv-launch-webapp" QVOS_TEST_URL_INPUT="  www.youtube.com  " run_launcher
 [[ "$(<"$launch_log")" == "https://www.youtube.com" ]] || fail "prompted URL launch"
-pass "the keybinding prompt launches the selected website as an Omarchy web app"
+pass "the keybinding prompt launches the selected website as a qvOS web app"
 
 assert_rejected "ftp://example.com" "unsupported schemes are rejected"
 assert_rejected "https://user:pass@example.com" "embedded credentials are rejected"
@@ -125,7 +125,7 @@ assert_rejected "$oversized_label.com" "oversized hostname labels are rejected"
 pass "strict input and URL validation rejects unsafe forms"
 
 rm -f "$launch_log"
-QVOS_TEST_COMMANDS="qv-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="" run_launcher
+QVOS_TEST_COMMANDS="qv-menu-input,qv-launch-webapp" QVOS_TEST_URL_INPUT="" run_launcher
 [[ ! -e $launch_log ]] || fail "empty prompt launch"
 pass "an empty prompt exits without launching"
 
@@ -135,7 +135,7 @@ fi
 pass "a missing web-app launcher fails clearly"
 
 set +e
-QVOS_TEST_COMMANDS="omarchy-launch-webapp" run_launcher youtube.com extra >/dev/null 2>&1
+QVOS_TEST_COMMANDS="qv-launch-webapp" run_launcher youtube.com extra >/dev/null 2>&1
 usage_status=$?
 set -e
 ((usage_status == 2)) || fail "unexpected argument status"

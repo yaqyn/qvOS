@@ -309,7 +309,7 @@ run_concept_action() {
   menu:*) go_to_menu "${action#menu:}" ;;
   run:*) bash -lc "${action#run:}" ;;
   terminal:*) terminal bash -lc "${action#terminal:}" ;;
-  web:*) omarchy-launch-webapp "${action#web:}" ;;
+  web:*) qv-launch-webapp "${action#web:}" ;;
   edit:*) open_in_editor "$HOME/${action#edit:}" ;;
   *)
     notify-send "This menu action is unavailable"
@@ -480,9 +480,9 @@ show_setup_menu() {
   options="$options\n  Defaults\n󰐕  DNS\n  Security\n  Config"
 
   case $(menu "Setup" "$options") in
-  *Audio*) omarchy-launch-audio ;;
-  *Wi-Fi*) omarchy-launch-wifi ;;
-  *Bluetooth*) omarchy-launch-bluetooth ;;
+  *Audio*) qv-launch-audio ;;
+  *Wi-Fi*) qv-launch-wifi ;;
+  *Bluetooth*) qv-launch-bluetooth ;;
   *Power*) show_setup_power_menu ;;
   *System*) show_setup_system_menu ;;
   *Monitors*) open_in_editor ~/.config/hypr/monitors.conf ;;

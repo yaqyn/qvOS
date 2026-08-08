@@ -1,11 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Launch a TUI command in the default terminal with qvOS styling
-# omarchy:args=<command> [args...]
-
-(($# > 0)) || {
-  echo "Usage: omarchy-launch-tui <command> [args...]" >&2
-  exit 2
-}
-app_id="org.omarchy.$(basename -- "$1")"
-exec setsid uwsm-app -- xdg-terminal-exec --app-id="$app_id" -e "$1" "${@:2}"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/launch/tui" "$@"

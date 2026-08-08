@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+editor=${EDITOR:-}
+if [[ -z $editor ]] || ! command -v -- "$editor" >/dev/null 2>&1; then
+  editor=nvim
+fi
+qvos_launch_require "$editor"
+
+case $editor in
+nvim | vim | nano | micro | hx | helix | fresh)
+  exec "$script_dir/tui" "$editor" "$@"
+  ;;
+*)
+  qvos_launch_require setsid uwsm-app
+  exec setsid -- uwsm-app -- "$editor" "$@"
+  ;;
+esac

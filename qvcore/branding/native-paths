@@ -4,10 +4,6 @@ bin/omarchy-branding-screensaver
 bin/omarchy-install-helix
 bin/omarchy-install-terminal
 bin/omarchy-install-zed
-bin/omarchy-launch-audio
-bin/omarchy-launch-bluetooth
-bin/omarchy-launch-tui
-bin/omarchy-launch-wifi
 bin/omarchy-menu
 bin/omarchy-refresh-fastfetch
 bin/omarchy-remove-preinstalls

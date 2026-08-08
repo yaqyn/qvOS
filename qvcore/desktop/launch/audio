@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+(($# == 0)) || {
+  echo "Usage: qv launch audio" >&2
+  exit 2
+}
+qvos_launch_require wiremix
+exec "$script_dir/or-focus-tui" wiremix

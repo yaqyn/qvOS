@@ -31,6 +31,18 @@
     qvcore/desktop/hyprland/window-single-square-aspect-toggle
     qvcore/desktop/hyprland/window-transparency-toggle
     qvcore/desktop/hyprland/workspace-layout-toggle
+    qvcore/desktop/launch/about
+    qvcore/desktop/launch/audio
+    qvcore/desktop/launch/bluetooth
+    qvcore/desktop/launch/browser
+    qvcore/desktop/launch/editor
+    qvcore/desktop/launch/lib
+    qvcore/desktop/launch/or-focus
+    qvcore/desktop/launch/or-focus-tui
+    qvcore/desktop/launch/or-focus-webapp
+    qvcore/desktop/launch/tui
+    qvcore/desktop/launch/webapp
+    qvcore/desktop/launch/wifi
     qvcore/desktop/open
     qvcore/desktop/runtime-paths
     qvcore/desktop/session/lock
@@ -38,6 +50,7 @@
     qvcore/desktop/session/logout-worker
     qvcore/desktop/session/wake
     qvcore/desktop/web/qvos-localhost-open
+    qvcore/desktop/web/url-lib
     qvcore/desktop/web/qvos-website-open
     qvcore/direct/manifest.tsv
     qvcore/direct/post-update-hook

@@ -1,0 +1,138 @@
+#!/bin/bash
+
+launch_lib_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/web/url-lib
+source "$launch_lib_dir/../web/url-lib"
+
+qvos_launch_require() {
+  local command
+
+  for command in "$@"; do
+    command -v -- "$command" >/dev/null 2>&1 || {
+      echo "qvOS launch requires $command." >&2
+      return 1
+    }
+  done
+}
+
+qvos_launch_app_id() {
+  local LC_ALL=C
+  local executable=${1##*/}
+  local slug=${executable,,}
+
+  slug=${slug//[^a-z0-9._-]/-}
+  slug=${slug:0:48}
+  [[ -n $slug ]] || slug=terminal
+  printf 'org.qvos.%s\n' "$slug"
+}
+
+qvos_launch_default_browser() {
+  local desktop_id
+
+  qvos_launch_require xdg-settings || return
+  desktop_id=$(xdg-settings get default-web-browser) || {
+    echo "qvOS launch could not read the default browser." >&2
+    return 1
+  }
+  [[ $desktop_id =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}\.desktop$ ]] || {
+    echo "qvOS launch received an invalid default browser entry." >&2
+    return 1
+  }
+  printf '%s\n' "$desktop_id"
+}
+
+qvos_launch_browser_executable() {
+  case $1 in
+  chromium.desktop) printf 'chromium\n' ;;
+  google-chrome.desktop) printf 'google-chrome-stable\n' ;;
+  brave-browser.desktop) printf 'brave\n' ;;
+  brave-origin-beta.desktop) printf 'brave-origin-beta\n' ;;
+  microsoft-edge.desktop) printf 'microsoft-edge-stable\n' ;;
+  firefox.desktop) printf 'firefox\n' ;;
+  zen.desktop) printf 'zen-browser\n' ;;
+  *) return 1 ;;
+  esac
+}
+
+qvos_launch_focus_or_run() {
+  local pattern=$1
+  shift
+  local address
+  local clients
+
+  [[ -n $pattern && ${#pattern} -le 128 && ! $pattern =~ [[:cntrl:]] ]] || {
+    echo "qvOS launch requires a bounded printable window pattern." >&2
+    return 2
+  }
+  (($# > 0)) || {
+    echo "qvOS launch requires an exact command." >&2
+    return 2
+  }
+  qvos_launch_require hyprctl jq setsid || return
+  clients=$(hyprctl clients -j) || {
+    echo "qvOS launch could not inspect Hyprland clients." >&2
+    return 1
+  }
+  jq -e '
+    type == "array" and all(.[];
+      type == "object" and
+      (.address | type == "string" and test("^0x[0-9A-Fa-f]+$")) and
+      (.class == null or (.class | type == "string")) and
+      (.title == null or (.title | type == "string"))
+    )
+  ' >/dev/null <<<"$clients" || {
+    echo "qvOS launch received invalid Hyprland client data." >&2
+    return 1
+  }
+  address=$(jq -r --arg pattern "$pattern" '
+    ($pattern | ascii_downcase) as $needle |
+    first(.[] |
+      select(
+        ((.class // "") | ascii_downcase | contains($needle)) or
+        ((.title // "") | ascii_downcase | contains($needle))
+      ) |
+      .address
+    ) // ""
+  ' <<<"$clients") || {
+    echo "qvOS launch could not select a Hyprland client." >&2
+    return 1
+  }
+
+  if [[ -n $address ]]; then
+    hyprctl dispatch focuswindow "address:$address"
+  else
+    exec setsid -- "$@"
+  fi
+}
+
+qvos_launch_validate_web_url() {
+  local url=$1
+
+  qvos_web_validate_url "$url" 8192 false || {
+    echo "qvOS launch: $qvos_web_validation_error." >&2
+    return 2
+  }
+}
+
+qvos_launch_prepare_webapp() {
+  local url=$1
+  shift
+  local browser
+  local desktop_id
+
+  qvos_launch_validate_web_url "$url" || return
+  desktop_id=$(qvos_launch_default_browser) || return
+  case $desktop_id in
+  chromium.desktop | google-chrome.desktop | brave-browser.desktop | brave-origin-beta.desktop | microsoft-edge.desktop | opera.desktop | vivaldi-stable.desktop | helium.desktop) ;;
+  *) desktop_id=chromium.desktop ;;
+  esac
+  case $desktop_id in
+  opera.desktop) browser=opera ;;
+  vivaldi-stable.desktop) browser=vivaldi-stable ;;
+  helium.desktop) browser=helium ;;
+  *) browser=$(qvos_launch_browser_executable "$desktop_id") || return ;;
+  esac
+  qvos_launch_require "$browser" uwsm-app || return
+  # shellcheck disable=SC2034 # returned to the sourcing launch owner
+  qvos_launch_command=(uwsm-app -- "$browser" "--app=$url" "$@")
+}

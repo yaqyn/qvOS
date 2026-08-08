@@ -54,7 +54,7 @@ list_options() {
     list_desktop_apps '^Exec=.*(\$TERMINAL|xdg-terminal-exec).*-e' | sort
     ;;
   webapp-remove)
-    list_desktop_apps '^Exec=.*(omarchy-launch-webapp|omarchy-webapp-handler).*' | sort
+    list_desktop_apps '^Exec=.*(qv-launch-webapp|omarchy-launch-webapp|omarchy-webapp-handler).*' | sort
     ;;
   *)
     usage

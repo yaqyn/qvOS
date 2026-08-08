@@ -11,4 +11,4 @@ fi
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 location="$("$script_dir/qvos-active-location" "$@")"
 
-exec omarchy-launch-editor "$location"
+exec qv-launch-editor "$location"

@@ -35,6 +35,17 @@ declare -A helper_owners=(
   [hyprland-window-single-square-aspect-toggle]=hyprland/window-single-square-aspect-toggle
   [hyprland-window-transparency-toggle]=hyprland/window-transparency-toggle
   [hyprland-workspace-layout-toggle]=hyprland/workspace-layout-toggle
+  [launch-about]=launch/about
+  [launch-audio]=launch/audio
+  [launch-bluetooth]=launch/bluetooth
+  [launch-browser]=launch/browser
+  [launch-editor]=launch/editor
+  [launch-or-focus]=launch/or-focus
+  [launch-or-focus-tui]=launch/or-focus-tui
+  [launch-or-focus-webapp]=launch/or-focus-webapp
+  [launch-tui]=launch/tui
+  [launch-webapp]=launch/webapp
+  [launch-wifi]=launch/wifi
   [system-lock]=session/lock
   [system-logout]=session/logout
   [system-wake]=session/wake
@@ -60,6 +71,16 @@ for helper in "${!helper_owners[@]}"; do
 done
 [[ -x $root/qvcore/desktop/session/logout-worker ]] ||
   fail "desktop logout worker is unavailable"
+[[ -f $root/qvcore/desktop/launch/lib && ! -L $root/qvcore/desktop/launch/lib &&
+  $(stat -c '%a' "$root/qvcore/desktop/launch/lib") == "644" ]] ||
+  fail "desktop launch library is unavailable or unsafe"
+[[ -f $root/qvcore/desktop/web/url-lib && ! -L $root/qvcore/desktop/web/url-lib &&
+  $(stat -c '%a' "$root/qvcore/desktop/web/url-lib") == "644" ]] ||
+  fail "desktop URL library is unavailable or unsafe"
+if rg -n '\beval\b|bash[[:space:]]+-c[[:space:]]+.*\$' \
+  "$root/qvcore/desktop/launch" --glob '!AGENTS.md'; then
+  fail "desktop launch owner shell-parses caller input"
+fi
 
 while IFS= read -r inherited_path; do
   stem=${inherited_path##*/omarchy-restart-}
@@ -126,6 +147,19 @@ if rg -n 'omarchy-hyprland-(monitor-scaling-cycle|window-gaps-toggle|window-pop|
   "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a Hyprland-control compatibility command"
+fi
+if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus-tui|or-focus-webapp|tui|webapp|wifi)' \
+  "$root/qvcore" \
+  "$root/config/hypr" \
+  "$root/config/waybar" \
+  "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/desktop/check' \
+  --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/config/migrate-runtime-root' \
+  --glob '!**/tui/task/selectable-owner'; then
+  fail "native qvOS source still calls a launch compatibility command"
 fi
 grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
   "$root/default/hypr/autostart.conf" ||

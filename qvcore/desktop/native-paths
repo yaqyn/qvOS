@@ -9,6 +9,17 @@ bin/omarchy-hyprland-window-pop
 bin/omarchy-hyprland-window-single-square-aspect-toggle
 bin/omarchy-hyprland-window-transparency-toggle
 bin/omarchy-hyprland-workspace-layout-toggle
+bin/omarchy-launch-about
+bin/omarchy-launch-audio
+bin/omarchy-launch-bluetooth
+bin/omarchy-launch-browser
+bin/omarchy-launch-editor
+bin/omarchy-launch-or-focus
+bin/omarchy-launch-or-focus-tui
+bin/omarchy-launch-or-focus-webapp
+bin/omarchy-launch-tui
+bin/omarchy-launch-webapp
+bin/omarchy-launch-wifi
 bin/omarchy-restart-app
 bin/omarchy-restart-bluetooth
 bin/omarchy-restart-btop

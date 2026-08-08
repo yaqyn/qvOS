@@ -20,7 +20,7 @@ image)
   fi
   ;;
 text)
-  omarchy-launch-editor "$branding_file" >/dev/null 2>&1 &&
+  qv-launch-editor "$branding_file" >/dev/null 2>&1 &&
     qvos_branding_valid_text "$branding_file" &&
     qv-launch-screensaver force >/dev/null 2>&1
   ;;

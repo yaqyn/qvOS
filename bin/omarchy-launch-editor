@@ -1,15 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Launch the default editor as determined by $EDITOR (set via ~/.config/uwsm/default) (or nvim if missing).
-# omarchy:args=<path>
-
-omarchy-cmd-present "$EDITOR" || EDITOR=nvim
-
-case "$EDITOR" in
-nvim | vim | nano | micro | hx | helix | fresh)
-  exec omarchy-launch-tui "$EDITOR" "$@"
-  ;;
-*)
-  exec setsid uwsm-app -- "$EDITOR" "$@"
-  ;;
-esac
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/desktop/launch/editor" "$@"

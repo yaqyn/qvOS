@@ -1,7 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Normalize and open a website through the Omarchy web-app launcher.
+# Normalize and open a website through the qvOS web-app launcher.
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/web/url-lib
+source "$script_dir/url-lib"
 
 LC_ALL=C
 MAX_URL_LENGTH=2048
@@ -23,42 +27,6 @@ cmd_present() {
   fi
 }
 
-is_valid_ipv4() {
-  local hostname="$1"
-  local octet
-  local -a octets
-
-  [[ $hostname =~ ^[0-9]+(\.[0-9]+){3}$ ]] || return 1
-  IFS="." read -r -a octets <<<"$hostname"
-  ((${#octets[@]} == 4)) || return 1
-
-  for octet in "${octets[@]}"; do
-    ((${#octet} <= 3 && 10#$octet <= 255)) || return 1
-  done
-}
-
-is_valid_hostname() {
-  local hostname="${1,,}"
-  local label
-  local -a labels
-
-  ((0 < ${#hostname} && ${#hostname} <= 253)) || return 1
-
-  if [[ $hostname =~ ^[0-9.]+$ && $hostname == *.* ]]; then
-    is_valid_ipv4 "$hostname"
-    return
-  fi
-
-  [[ $hostname =~ ^[a-z0-9.-]+$ ]] || return 1
-  [[ $hostname != .* && $hostname != *. && $hostname != *..* ]] || return 1
-
-  IFS="." read -r -a labels <<<"$hostname"
-  for label in "${labels[@]}"; do
-    ((0 < ${#label} && ${#label} <= 63)) || return 1
-    [[ $label =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || return 1
-  done
-}
-
 has_explicit_tld() {
   local hostname="$1"
   local tld="${hostname##*.}"
@@ -74,65 +42,6 @@ has_explicit_tld() {
     return 1
     ;;
   esac
-}
-
-validate_url() {
-  local candidate="$1"
-  local remainder authority hostname port
-
-  validation_error=""
-
-  if ((${#candidate} > MAX_URL_LENGTH)); then
-    validation_error="Website must be $MAX_URL_LENGTH characters or fewer"
-    return 1
-  fi
-
-  if [[ $candidate == *[![:print:]]* ]]; then
-    validation_error="Use printable ASCII characters and Punycode hostnames"
-    return 1
-  fi
-
-  if [[ $candidate == *[[:space:]]* ]]; then
-    validation_error="Website cannot contain spaces"
-    return 1
-  fi
-
-  if [[ $candidate != "https://"* ]]; then
-    validation_error="Website must use HTTPS"
-    return 1
-  fi
-
-  remainder="${candidate#https://}"
-  authority="${remainder%%[/?#]*}"
-  if [[ -z $authority ]]; then
-    validation_error="Website hostname is missing"
-    return 1
-  fi
-
-  if [[ $authority == *"@"* ]]; then
-    validation_error="URLs with embedded credentials are not supported"
-    return 1
-  fi
-
-  hostname="$authority"
-  if [[ $authority == *":"* ]]; then
-    if [[ $authority == *":"*":"* ]]; then
-      validation_error="IPv6 website addresses are not supported"
-      return 1
-    fi
-
-    hostname="${authority%%:*}"
-    port="${authority#*:}"
-    if [[ ! $port =~ ^[0-9]{1,5}$ ]] || ((10#$port < 1 || 10#$port > 65535)); then
-      validation_error="Website port must be between 1 and 65535"
-      return 1
-    fi
-  fi
-
-  if ! is_valid_hostname "$hostname"; then
-    validation_error="Enter a valid ASCII hostname"
-    return 1
-  fi
 }
 
 is_sensitive_parameter() {
@@ -264,12 +173,12 @@ else
   suffix="${url#"$hostname"}"
   hostname="${hostname,,}"
 
-  if ! is_valid_hostname "$hostname"; then
+  if ! qvos_web_is_valid_hostname "$hostname"; then
     notify_error "Enter a valid ASCII website name without spaces"
     exit 1
   fi
 
-  if is_valid_ipv4 "$hostname"; then
+  if qvos_web_is_valid_ipv4 "$hostname"; then
     :
   elif ! has_explicit_tld "$hostname"; then
     if [[ $hostname == *.* ]]; then
@@ -284,22 +193,22 @@ else
   url="https://$hostname$suffix"
 fi
 
-if ! validate_url "$url"; then
-  notify_error "$validation_error"
+if ! qvos_web_validate_url "$url" "$MAX_URL_LENGTH" true; then
+  notify_error "$qvos_web_validation_error"
   exit 1
 fi
 
 clean_tracking_parameters "$url"
 url="$cleaned_url"
 
-if ! validate_url "$url"; then
-  notify_error "$validation_error"
+if ! qvos_web_validate_url "$url" "$MAX_URL_LENGTH" true; then
+  notify_error "$qvos_web_validation_error"
   exit 1
 fi
 
-if ! cmd_present omarchy-launch-webapp; then
+if ! cmd_present qv-launch-webapp; then
   notify_error "Web-app launcher is unavailable"
   exit 1
 fi
 
-exec omarchy-launch-webapp "$url"
+exec qv-launch-webapp "$url"

@@ -17,14 +17,14 @@ assert_binding() {
   grep -Fqx "$1" "$bindings" || fail "$2"
 }
 
-assert_binding 'bindd = SUPER, B, Default browser, exec, omarchy-launch-browser' "default browser binding"
-assert_binding 'bindd = SUPER CTRL, B, Private default browser, exec, omarchy-launch-browser --private' "private default browser binding"
-assert_binding 'bindd = SUPER, Z, Default browser, exec, omarchy-launch-browser' "Z default browser binding"
+assert_binding 'bindd = SUPER, B, Default browser, exec, qv-launch-browser' "default browser binding"
+assert_binding 'bindd = SUPER CTRL, B, Private default browser, exec, qv-launch-browser --private' "private default browser binding"
+assert_binding 'bindd = SUPER, Z, Default browser, exec, qv-launch-browser' "Z default browser binding"
 assert_binding 'bindd = SUPER SHIFT, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "Chromium dev browser binding"
-assert_binding 'bindd = SUPER CTRL, Z, Private default browser, exec, omarchy-launch-browser --private' "Z private default browser binding"
+assert_binding 'bindd = SUPER CTRL, Z, Private default browser, exec, qv-launch-browser --private' "Z private default browser binding"
 pass "the default and private B/Z routes follow the qvOS default"
 
-assert_binding 'bindd = SUPER SHIFT, E, Default editor, exec, omarchy-launch-editor' "default editor binding"
+assert_binding 'bindd = SUPER SHIFT, E, Default editor, exec, qv-launch-editor' "default editor binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, E, Default editor here, exec, ~/.local/lib/qvos/desktop/context/qvos-launch-editor-here' "contextual default editor binding"
 pass "the E family follows the qvOS editor default"
 

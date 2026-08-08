@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+(($# == 0)) || {
+  echo "Usage: qv launch bluetooth" >&2
+  exit 2
+}
+qvos_launch_require bluetui rfkill
+if ! rfkill unblock bluetooth; then
+  echo "qvOS launch could not unblock Bluetooth; opening its controls anyway." >&2
+fi
+exec "$script_dir/or-focus-tui" bluetui

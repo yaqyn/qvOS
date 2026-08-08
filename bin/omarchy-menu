@@ -53,7 +53,7 @@ present_terminal() {
 
 open_in_editor() {
   notify-send -u low "Editing config file" "$1"
-  omarchy-launch-editor "$1"
+  qv-launch-editor "$1"
 }
 
 install() {
@@ -79,11 +79,11 @@ aur_install_and_launch() {
 show_learn_menu() {
   case $(menu "Learn" "  Keybindings\n  qvOS Source\n  Hyprland\n󰣇  Arch\n  Neovim\n󱆃  Bash") in
   *Keybindings*) qv-menu-keybindings ;;
-  *"qvOS Source"*) omarchy-launch-webapp "https://github.com/Yaqyn-qvOS/qvOS" ;;
-  *Hyprland*) omarchy-launch-webapp "https://wiki.hypr.land/" ;;
-  *Arch*) omarchy-launch-webapp "https://wiki.archlinux.org/title/Main_page" ;;
-  *Bash*) omarchy-launch-webapp "https://devhints.io/bash" ;;
-  *Neovim*) omarchy-launch-webapp "https://www.lazyvim.org/keymaps" ;;
+  *"qvOS Source"*) qv-launch-webapp "https://github.com/Yaqyn-qvOS/qvOS" ;;
+  *Hyprland*) qv-launch-webapp "https://wiki.hypr.land/" ;;
+  *Arch*) qv-launch-webapp "https://wiki.archlinux.org/title/Main_page" ;;
+  *Bash*) qv-launch-webapp "https://devhints.io/bash" ;;
+  *Neovim*) qv-launch-webapp "https://www.lazyvim.org/keymaps" ;;
   *) show_main_menu ;;
   esac
 }
@@ -319,9 +319,9 @@ show_setup_menu() {
   options="$options\n  Defaults\n󰱔  DNS\n  Security\n  Config"
 
   case $(menu "Setup" "$options") in
-  *Audio*) omarchy-launch-audio ;;
-  *Wifi*) omarchy-launch-wifi ;;
-  *Bluetooth*) omarchy-launch-bluetooth ;;
+  *Audio*) qv-launch-audio ;;
+  *Wifi*) qv-launch-wifi ;;
+  *Bluetooth*) qv-launch-bluetooth ;;
   *Power*) show_setup_power_menu ;;
   *System*) show_setup_system_menu ;;
   *Monitors*) open_in_editor ~/.config/hypr/monitors.conf ;;
@@ -804,7 +804,7 @@ show_update_password_menu() {
 }
 
 show_about() {
-  omarchy-launch-about
+  qv-launch-about
 }
 
 show_system_menu() {

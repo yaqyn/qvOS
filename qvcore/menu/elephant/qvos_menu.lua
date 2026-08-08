@@ -102,7 +102,7 @@ local function edit(relative_path)
     .. shell_escape("Editing config file")
     .. " "
     .. shell_escape(relative_path)
-    .. "; omarchy-launch-editor \"$HOME/"
+    .. "; qv-launch-editor \"$HOME/"
     .. relative_path
     .. "\""
 end
@@ -530,17 +530,17 @@ function GetEntries(query)
   add(entries, "", "Settings", "Home", { "setup", "configure", "software", "appearance" }, route("settings"))
   add(entries, "󰍜", "More", "Home", { "learn", "capture", "share", "about", "power" }, route("more"))
   add(entries, "󰧑", "Learn", "More", { "docs", "help", "manual" }, route("learn"))
-  add(entries, "", "About", "More", { "omarchy", "version", "credits" }, "omarchy-launch-about")
+  add(entries, "", "About", "More", { "omarchy", "version", "credits" }, "qv-launch-about")
 
   -- Concepts appear once; opening one reveals its available actions.
   add_concepts(entries)
 
   -- Learn.
-  add(entries, "", "qvOS Source", "More · Learn", { "docs", "help", "github" }, "omarchy-launch-webapp https://github.com/Yaqyn-qvOS/qvOS")
-  add(entries, "", "Hyprland Wiki", "More · Learn", { "docs", "help" }, "omarchy-launch-webapp https://wiki.hypr.land/")
-  add(entries, "󰣇", "Arch Wiki", "More · Learn", { "docs", "help" }, "omarchy-launch-webapp https://wiki.archlinux.org/title/Main_page")
-  add(entries, "", "Neovim Keymaps", "More · Learn", { "lazyvim", "vim", "docs" }, "omarchy-launch-webapp https://www.lazyvim.org/keymaps")
-  add(entries, "󱆃", "Bash Reference", "More · Learn", { "shell", "docs" }, "omarchy-launch-webapp https://devhints.io/bash")
+  add(entries, "", "qvOS Source", "More · Learn", { "docs", "help", "github" }, "qv-launch-webapp https://github.com/Yaqyn-qvOS/qvOS")
+  add(entries, "", "Hyprland Wiki", "More · Learn", { "docs", "help" }, "qv-launch-webapp https://wiki.hypr.land/")
+  add(entries, "󰣇", "Arch Wiki", "More · Learn", { "docs", "help" }, "qv-launch-webapp https://wiki.archlinux.org/title/Main_page")
+  add(entries, "", "Neovim Keymaps", "More · Learn", { "lazyvim", "vim", "docs" }, "qv-launch-webapp https://www.lazyvim.org/keymaps")
+  add(entries, "󱆃", "Bash Reference", "More · Learn", { "shell", "docs" }, "qv-launch-webapp https://devhints.io/bash")
 
   -- More.
   add(entries, "󰔛", "Reminder", "More", { "timer", "notify" }, route("reminder"))

@@ -141,6 +141,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   the exact monitor-watch compatibility seam until that source is promoted
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
+- desktop application, browser, web-app, and terminal launching belongs to
+  `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - local debug inventory belongs to `qvcore/security/debug`; it remains private,

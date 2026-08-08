@@ -7,6 +7,15 @@ resets, trackpad recovery, or shared desktop launch helpers.
 `qvcore/desktop/hyprland/` owns shared compositor context, validated window and
 workspace mutations, focused-monitor detection, display scaling, monitor-event
 recovery, and all-window closure.
+`qvcore/desktop/launch/` owns default application, web-app, terminal-app, and
+focus-or-launch behavior. Native launchers preserve argv boundaries, use fixed
+substring window matching against fully validated Hyprland JSON, generate
+`org.qvos.*` application IDs, and never parse a caller command with `eval` or a
+shell. Normal custom browser desktop entries remain launchable; private mode
+and app-window mode require an explicitly supported browser executable. Treat
+radio unblock failure as a warning and still open its accessible controls.
+`qvcore/desktop/web/url-lib` singularly owns strict HTTP and HTTPS authority
+validation for both direct web-app launches and the website normalizer.
 `qvcore/desktop/session/` owns lock, logout, wake, and the delayed logout
 worker. `qvcore/desktop/restart/` is the singular owner for supported runtime restart
 operations. Public `qv-restart-*` commands carry metadata; matching
@@ -60,8 +69,9 @@ List every promoted inherited restart path in `native-paths`, sorted and
 unique. `runtime-paths` is the exact source-independent desktop payload; never
 copy policy, checks, inventories, or source-only restart owners into the user
 runtime. Runtime deployment stages only that inventory and restores the prior
-payload if replacement fails. Run `qvcore/desktop/check`, the focused restart
-and session suites, CLI and TUI
+payload if replacement fails. Run `qvcore/desktop/check`, the focused launch,
+restart, and session suites, CLI and TUI
 owner-contract checks, Bash syntax and ShellCheck for changed shell, then the
 full qvOS suite. Live verification is read-only: inspect CLI help and adapter
-resolution unless the user explicitly requests the actual session mutation.
+resolution unless the user explicitly requests an actual application, window,
+radio, or session mutation.

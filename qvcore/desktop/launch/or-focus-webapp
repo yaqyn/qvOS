@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+(($# >= 2)) || {
+  echo "Usage: qv launch or focus webapp <window-pattern> <url> [browser-args...]" >&2
+  exit 2
+}
+pattern=$1
+shift
+qvos_launch_prepare_webapp "$@"
+qvos_launch_focus_or_run "$pattern" "${qvos_launch_command[@]}"

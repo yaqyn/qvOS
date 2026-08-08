@@ -689,7 +689,7 @@ printf '%s\n' "$*" >"$QVOS_TEST_PRESENTATION_LOG"
 printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-webapp" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-webapp" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$*" >"$QVOS_TEST_WEB_LOG"
 SCRIPT
@@ -712,9 +712,9 @@ awk -F '|' -v wanted="$1" '
 SCRIPT
 
 for command_name in \
-  omarchy-launch-audio \
-  omarchy-launch-wifi \
-  omarchy-launch-bluetooth; do
+  qv-launch-audio \
+  qv-launch-wifi \
+  qv-launch-bluetooth; do
   install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
 #!/bin/bash
 basename -- "$0" >"$QVOS_TEST_ROUTE_LOG"
@@ -883,7 +883,7 @@ QVOS_TEST_SETTINGS_CHOICE=Connections \
   QVOS_TEST_AREA_CHOICE=Wi-Fi \
   QVOS_TEST_CONCEPT_CHOICE=Open \
   run_menu settings
-[[ $(<"$route_log") == "omarchy-launch-wifi" ]] ||
+[[ $(<"$route_log") == "qv-launch-wifi" ]] ||
   fail "Wi-Fi concept owner"
 [[ $(<"$area_options_log") == $'  Wi-Fi\n󰂯  Bluetooth\n󰐕  DNS' ]] ||
   fail "catalog-derived Connections menu"

@@ -50,6 +50,11 @@ bindld = , XF86TouchscreenToggle, Toggle touchscreen, exec, omarchy-toggle-touch
 bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear
 bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show
 bindd = SUPER CTRL, V, Clipboard manager, exec, omarchy-launch-walker -m clipboard
+bindd = SUPER, B, Browser, exec, omarchy-launch-browser
+bindd = SUPER SHIFT, E, Editor, exec, omarchy-launch-editor
+bindd = SUPER, Q, Web app, exec, omarchy-launch-webapp https://example.com
+bindd = SUPER CTRL, T, Terminal app, exec, omarchy-launch-tui btop
+bindd = SUPER CTRL, W, Wi-Fi, exec, omarchy-launch-wifi
 bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
 bindd = CTRL ALT, DELETE, Close all windows, exec, omarchy-hyprland-window-close-all
 bindd = SUPER SHIFT CTRL, F, Pop window, exec, omarchy-hyprland-window-pop
@@ -71,7 +76,7 @@ exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"battery":"$(omarchy-battery-status)","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
+{"audio":"omarchy-launch-audio","battery":"$(omarchy-battery-status)","bluetooth":"omarchy-launch-bluetooth","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","tui":"omarchy-launch-or-focus-tui btop","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","wifi":"omarchy-launch-wifi","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/fastfetch/config.jsonc" <<'CONFIG'
 {"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"},"modules":[{"text":"$(omarchy-version)"},{"text":"$(omarchy-theme-current)"},{"text":"$(omarchy-version-pkgs)"}]}
@@ -130,6 +135,11 @@ done
 for command in \
   qv-capture-screenshot \
   qv-capture-text-extraction \
+  qv-launch-browser \
+  qv-launch-editor \
+  qv-launch-tui \
+  qv-launch-webapp \
+  qv-launch-wifi \
   qv-launch-walker \
   qv-menu-keybindings \
   qv-transcode; do
@@ -148,7 +158,7 @@ for command in \
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted desktop session route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|monitor-scaling-cycle|window-(close-all|gaps-toggle|pop|single-square-aspect-toggle|transparency-toggle)|workspace-layout-toggle)|launch-walker|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|monitor-scaling-cycle|window-(close-all|gaps-toggle|pop|single-square-aspect-toggle|transparency-toggle)|workspace-layout-toggle)|launch-(browser|editor|tui|webapp|wifi|walker)|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
@@ -174,6 +184,14 @@ grep -Fq 'qv-tz-select' "$test_home/.config/waybar/config.jsonc" ||
 grep -Fq 'qv-launch-floating-terminal-with-presentation' \
   "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar presentation route migration"
+for command in \
+  qv-launch-audio \
+  qv-launch-bluetooth \
+  qv-launch-or-focus-tui \
+  qv-launch-wifi; do
+  grep -Fq "$command" "$test_home/.config/waybar/config.jsonc" ||
+    fail "Waybar launch route migration: $command"
+done
 grep -Fq 'qv-weather-icon' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar weather icon migration"
 grep -Fq 'qv-weather-status' "$test_home/.config/waybar/config.jsonc" ||
@@ -183,7 +201,7 @@ grep -Fq 'qv-capture-screenrecording' "$test_home/.config/waybar/config.jsonc" |
 grep -Fq '$QVOS_PATH/qvcore/capture/status' \
   "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar Capture indicator migration"
-if rg -q 'omarchy-(capture-screenrecording|launch-floating-terminal-with-presentation|weather-(icon|status))' \
+if rg -q 'omarchy-(capture-screenrecording|launch-(audio|bluetooth|floating-terminal-with-presentation|or-focus-tui|wifi)|weather-(icon|status))' \
   "$test_home/.config/waybar/config.jsonc"; then
   fail "Waybar weather compatibility route remains"
 fi

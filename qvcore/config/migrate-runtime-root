@@ -110,6 +110,17 @@ rewrite_literals \
   'omarchy-hyprland-window-single-square-aspect-toggle' 'qv-hyprland-window-single-square-aspect-toggle' \
   'omarchy-hyprland-window-transparency-toggle' 'qv-hyprland-window-transparency-toggle' \
   'omarchy-hyprland-workspace-layout-toggle' 'qv-hyprland-workspace-layout-toggle' \
+  'omarchy-launch-about' 'qv-launch-about' \
+  'omarchy-launch-audio' 'qv-launch-audio' \
+  'omarchy-launch-bluetooth' 'qv-launch-bluetooth' \
+  'omarchy-launch-browser' 'qv-launch-browser' \
+  'omarchy-launch-editor' 'qv-launch-editor' \
+  'omarchy-launch-or-focus-tui' 'qv-launch-or-focus-tui' \
+  'omarchy-launch-or-focus-webapp' 'qv-launch-or-focus-webapp' \
+  'omarchy-launch-or-focus' 'qv-launch-or-focus' \
+  'omarchy-launch-tui' 'qv-launch-tui' \
+  'omarchy-launch-webapp' 'qv-launch-webapp' \
+  'omarchy-launch-wifi' 'qv-launch-wifi' \
   'omarchy-launch-walker' 'qv-launch-walker' \
   'omarchy-hyprland-window-close-all' 'qv-hyprland-window-close-all' \
   'omarchy-menu-keybindings' 'qv-menu-keybindings' \
@@ -142,6 +153,11 @@ rewrite_literals \
   '$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh' \
   '$QVOS_PATH/qvcore/capture/status' \
   'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation' \
+  'omarchy-launch-audio' 'qv-launch-audio' \
+  'omarchy-launch-bluetooth' 'qv-launch-bluetooth' \
+  'omarchy-launch-or-focus-tui' 'qv-launch-or-focus-tui' \
+  'omarchy-launch-tui' 'qv-launch-tui' \
+  'omarchy-launch-wifi' 'qv-launch-wifi' \
   'omarchy-weather-icon' 'qv-weather-icon' \
   'omarchy-weather-status' 'qv-weather-status' \
   'omarchy-tz-select' 'qv-tz-select'

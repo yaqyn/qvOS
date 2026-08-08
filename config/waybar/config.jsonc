@@ -57,7 +57,7 @@
   "cpu": {
     "interval": 5,
     "format": "󰍛",
-    "on-click": "omarchy-launch-or-focus-tui btop",
+    "on-click": "qv-launch-or-focus-tui btop",
     "on-click-right": "alacritty"
   },
   "clock": {
@@ -84,7 +84,7 @@
     "tooltip-format-disconnected": "Disconnected",
     "interval": 3,
     "spacing": 1,
-    "on-click": "omarchy-launch-wifi"
+    "on-click": "qv-launch-wifi"
   },
   "battery": {
     "format": "{capacity}% {icon}",
@@ -113,11 +113,11 @@
     "format-connected": "󰂱",
     "format-no-controller": "",
     "tooltip-format": "Devices connected: {num_connections}",
-    "on-click": "omarchy-launch-bluetooth"
+    "on-click": "qv-launch-bluetooth"
   },
   "pulseaudio": {
     "format": "{icon}",
-    "on-click": "omarchy-launch-audio",
+    "on-click": "qv-launch-audio",
     "on-click-right": "pamixer -t",
     "tooltip-format": "Playing at {volume}%",
     "scroll-step": 5,

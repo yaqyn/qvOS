@@ -21,17 +21,17 @@ image)
       --width 54 \
       --height 26 \
       --mode block; then
-    omarchy-launch-about >/dev/null 2>&1
+    qv-launch-about >/dev/null 2>&1
   fi
   ;;
 text)
-  omarchy-launch-editor "$branding_file" >/dev/null 2>&1 &&
+  qv-launch-editor "$branding_file" >/dev/null 2>&1 &&
     qvos_branding_valid_text "$branding_file" &&
-    omarchy-launch-about >/dev/null 2>&1
+    qv-launch-about >/dev/null 2>&1
   ;;
 reset)
   qvos_branding_atomic_install "$default_art" "$branding_file"
-  omarchy-launch-about >/dev/null 2>&1
+  qv-launch-about >/dev/null 2>&1
   ;;
 *)
   echo "Usage: qv branding about <image|text|reset>" >&2

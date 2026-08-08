@@ -95,6 +95,11 @@ Services and Development integrations never change qvOS base readiness.
 - Hyprland window, workspace, scaling, and monitor-recovery controls are native
   under `qvcore/desktop/hyprland/`. They validate compositor state before
   mutation; matching Omarchy names remain direct compatibility only.
+- Desktop application, browser, web-app, terminal-app, and focus-or-launch
+  behavior is native under `qvcore/desktop/launch/`. It preserves exact
+  arguments, validates compositor and browser state, and contains no
+  caller-controlled shell evaluation; matching Omarchy names are compatibility
+  adapters only.
 - Font discovery, current-state reporting, and configuration mutation are
   native under `qvcore/font/`. One serialized transaction validates and stages
   every supported config, preserves optional terminal settings and Arabic

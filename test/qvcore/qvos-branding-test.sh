@@ -92,8 +92,8 @@ printf '\t%s' "$@" >>"$QVOS_TEST_EVENT_LOG"
 printf '\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 for command in \
-  omarchy-launch-about \
-  omarchy-launch-editor \
+  qv-launch-about \
+  qv-launch-editor \
   qv-launch-screensaver; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
@@ -109,13 +109,13 @@ done
 run_owner "$root/qvcore/branding/about" reset
 cmp -s "$default_art" "$test_home/.config/qvos/branding/about.txt" ||
   fail "About reset source"
-grep -Fqx 'omarchy-launch-about' "$event_log" ||
+grep -Fqx 'qv-launch-about' "$event_log" ||
   fail "About reset refresh"
 
 : >"$event_log"
 run_owner "$root/qvcore/branding/about" text
 [[ $(<"$event_log") == \
-  $'omarchy-launch-editor\t'"$test_home/.config/qvos/branding/about.txt"$'\nomarchy-launch-about' ]] ||
+  $'qv-launch-editor\t'"$test_home/.config/qvos/branding/about.txt"$'\nqv-launch-about' ]] ||
   fail "About text lifecycle"
 
 : >"$event_log"
@@ -123,7 +123,7 @@ image="$test_home/logo image.png"
 : >"$image"
 QVOS_TEST_IMAGE="$image" run_owner "$root/qvcore/branding/about" image
 [[ $(<"$event_log") == \
-  $'transcode\t'"$image"$'\t'"$test_home/.config/qvos/branding/about.txt"$'\t--width\t54\t--height\t26\t--mode\tblock\nomarchy-launch-about' ]] ||
+  $'transcode\t'"$image"$'\t'"$test_home/.config/qvos/branding/about.txt"$'\t--width\t54\t--height\t26\t--mode\tblock\nqv-launch-about' ]] ||
   fail "About image argument preservation"
 
 : >"$event_log"

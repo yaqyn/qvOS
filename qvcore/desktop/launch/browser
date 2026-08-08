@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/launch/lib
+source "$script_dir/lib"
+
+private=false
+if [[ ${1:-} == "--private" ]]; then
+  private=true
+  shift
+fi
+desktop_id=$(qvos_launch_default_browser)
+qvos_launch_require setsid uwsm-app
+
+if [[ $private == "true" ]]; then
+  browser=$(qvos_launch_browser_executable "$desktop_id") || {
+    echo "qvOS launch does not know the private-mode flag for $desktop_id." >&2
+    exit 1
+  }
+  qvos_launch_require "$browser"
+  case $desktop_id in
+  firefox.desktop | zen.desktop) private_flag=--private-window ;;
+  microsoft-edge.desktop) private_flag=--inprivate ;;
+  *) private_flag=--incognito ;;
+  esac
+  exec setsid -- uwsm-app -- "$browser" "$private_flag" "$@"
+fi
+
+exec setsid -- uwsm-app -- "$desktop_id" "$@"

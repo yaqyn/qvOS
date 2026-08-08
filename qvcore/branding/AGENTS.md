@@ -36,9 +36,8 @@ ANSI overlay, top-level `icon.txt`/`logo.txt`, or qvcore copies of those assets.
 Public `qv-branding-*`, `qv-show-logo`, and `qv-refresh-fastfetch` adapters carry
 metadata; exact `omarchy-*` names are metadata-free compatibility only. The
 Fastfetch owner delegates to the singular config transaction and never embeds
-another copier. Native menus call qv routes. Until the complete Launch domain
-moves, About editing and preview may use its inherited compatibility commands;
-Branding owns no launch fallback. Image imports delegate once to
+another copier. Native menus and Branding call qv routes; Launch behavior
+belongs only to `qvcore/desktop/launch/`. Image imports delegate once to
 `qv-transcode-ascii` and never add another image renderer.
 
 List implementation-sized inherited departures in `native-paths`, even when

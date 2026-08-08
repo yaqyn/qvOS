@@ -44,7 +44,7 @@ install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
 printf '%s\n' "$*" >"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-editor" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-editor" <<'SCRIPT'
 #!/bin/bash
 
 printf 'editor %s\n' "$*" >"$QVOS_TEST_LAUNCH_LOG"
