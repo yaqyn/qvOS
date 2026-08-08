@@ -6,7 +6,7 @@ webapp-install|Web App|Create a desktop launcher from interactive app details|2|
 webapp-remove|Web App|Choose and remove Web App launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner webapp-remove
 tui-install|TUI Shortcut|Create a terminal app launcher from interactive details|2|mutation|native|false|Install|Installing|Installed|omarchy-tui-install
 tui-remove|TUI Shortcut|Choose and remove terminal app launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner tui-remove
-dns-configure|DNS|Choose and configure qvOS DNS or Cloudflare WARP|3|mutation|native|true|Configure|Configuring|Configured|omarchy-qvos-setup-dns
+dns-configure|DNS|Choose and configure qvOS DNS or Cloudflare WARP|3|mutation|native|true|Configure|Configuring|Configured|qv-setup-dns
 battery-status|Battery Protection|Inspect the current charging-protection state|1|information|tui|false||||qv battery protection status
 battery-enable|Battery Protection|Choose and confirm a safe charging-protection preset|3|mutation|native|false|Enable|Enabling|Enabled|qv battery protection enable
 battery-disable|Battery Protection|Confirm and disable qvOS charging protection|3|mutation|native|false|Disable|Disabling|Disabled|qv battery protection disable

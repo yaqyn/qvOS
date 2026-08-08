@@ -180,6 +180,53 @@ grep -Fq 'Preserving modified Firefox Wayland environment:' \
   <<<"$browser_warning" || fail "modified Firefox Wayland migration warning"
 printf 'ok - browser runtime naming migrates exactly and preserves modifications\n'
 
+dns_migration="$root/qvcore/migrations/1786210567.sh"
+dns_system_root="$test_root/dns-system"
+dns_network_root="$dns_system_root/etc/systemd/network"
+install -d \
+  "$dns_system_root/etc/systemd" \
+  "$dns_system_root/run" \
+  "$dns_network_root"
+install -m 0644 /dev/stdin "$dns_system_root/etc/systemd/resolved.conf" <<'RESOLVED'
+[Resolve]
+FallbackDNS=
+RESOLVED
+install -m 0644 /dev/stdin "$dns_network_root/20-test.network" <<'NETWORK'
+[Match]
+Name=en*
+
+[Network]
+DHCP=yes
+
+[DHCPv4]
+UseDNS=no
+RouteMetric=100
+
+[IPv6AcceptRA]
+UseDNS=no
+RouteMetric=100
+NETWORK
+QVOS_PATH="$root" \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$dns_system_root" \
+  bash "$dns_migration" >/dev/null
+cmp -s \
+  "$root/qvcore/network/dns-policy" \
+  "$dns_system_root/usr/lib/qvos/network/dns-policy" ||
+  fail "DNS migration root-helper installation"
+! grep -Fqx 'FallbackDNS=' "$dns_system_root/etc/systemd/resolved.conf" ||
+  fail "DNS migration legacy resolver policy"
+! grep -Fqx 'UseDNS=no' "$dns_network_root/20-test.network" ||
+  fail "DNS migration inline network policy"
+dns_snapshot=$(find "$dns_system_root" -type f -printf '%p|%m|%i|%T@\n' | sort)
+QVOS_PATH="$root" \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$dns_system_root" \
+  bash "$dns_migration" >/dev/null
+[[ $(find "$dns_system_root" -type f -printf '%p|%m|%i|%T@\n' | sort) == \
+  "$dns_snapshot" ]] || fail "DNS migration idempotence"
+printf 'ok - DNS policy migrates once to a root-owned native helper\n'
+
 seed_home="$test_root/seed-home"
 seed_log="$test_root/seed.log"
 make_home "$seed_home"

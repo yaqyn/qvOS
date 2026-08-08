@@ -105,6 +105,10 @@ AC-event rules must execute only root-owned helpers under `/usr/lib/qvos`.
 Install or update those helpers through their qvOS owner before atomically
 replacing a known udev rule; never embed a home, source-checkout, or
 compatibility-link command in a root event.
+DNS policy likewise mutates only through the root-owned
+`/usr/lib/qvos/network/dns-policy` helper. Desktop reconciliation installs its
+exact source before any user can select a provider; fresh installation never
+chooses, changes, or activates a DNS provider automatically.
 Install private About and screensaver customization only through
 `qvcore/branding/install`; desktop reconciliation invokes it before the
 screensaver runtime. Never copy top-level logo assets or write active

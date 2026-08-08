@@ -8,7 +8,7 @@ look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|E
 about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:qv-branding-about text|Set Image|run:qv-branding-about image|Restore|run:qv-branding-about reset
 wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:omarchy-launch-wifi|Restart|present:qv-restart-wifi
 bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:omarchy-launch-bluetooth|Restart|present:qv-restart-bluetooth
-dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:omarchy-qvos-setup-dns
+dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:qv-setup-dns
 audio||Audio|Settings · Devices|sound,volume,wiremix|Open|run:omarchy-launch-audio|Restart|present:qv-restart-pipewire
 monitors|󰍹|Monitors|Settings · Devices|display,screen,config|Edit|edit:.config/hypr/monitors.conf
 input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.config/hypr/input.conf

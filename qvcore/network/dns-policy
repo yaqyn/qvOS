@@ -1,0 +1,558 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+
+action=${1:-}
+provider=${2:-}
+shift_count=0
+case $action in
+apply | check | validate)
+  (($# >= 2)) || {
+    echo "Usage: dns-policy <apply|check|validate> <Cloudflare|Quad9|DHCP|Custom> [SERVER ...]" >&2
+    exit 2
+  }
+  shift_count=2
+  ;;
+migrate-legacy)
+  (($# == 1)) || {
+    echo "Usage: dns-policy migrate-legacy" >&2
+    exit 2
+  }
+  ;;
+*)
+  echo "Usage: dns-policy <apply|check|validate|migrate-legacy> ..." >&2
+  exit 2
+  ;;
+esac
+((shift_count == 0)) || shift "$shift_count"
+servers=("$@")
+
+validate_servers() {
+  local validation_output
+  local -a values=("$@")
+
+  ((${#values[@]} >= 1 && ${#values[@]} <= 8)) || {
+    echo "Custom DNS requires between one and eight server addresses." >&2
+    return 1
+  }
+  if ! validation_output=$(
+    /usr/bin/python - "${values[@]}" <<'PY'
+import ipaddress
+import re
+import sys
+
+hostname = re.compile(
+    r"(?=.{1,253}\Z)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*"
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z"
+)
+try:
+    for value in sys.argv[1:]:
+        if len(value) > 511 or any(ord(character) < 33 or ord(character) == 127 for character in value):
+            raise ValueError("control or whitespace character")
+        address, separator, server_name = value.partition("#")
+        if separator and (not server_name or "#" in server_name or not hostname.fullmatch(server_name)):
+            raise ValueError("invalid DNS-over-TLS server name")
+        ipaddress.ip_address(address)
+except ValueError:
+    raise SystemExit(1)
+PY
+  ); then
+    [[ -z $validation_output ]] || printf '%s\n' "$validation_output" >&2
+    echo "Custom DNS entries must be literal IP addresses with an optional valid #server-name." >&2
+    return 1
+  fi
+}
+
+if [[ $action != "migrate-legacy" ]]; then
+  case $provider in
+  Cloudflare | Quad9 | DHCP)
+    ((${#servers[@]} == 0)) || {
+      echo "$provider does not accept custom server arguments." >&2
+      exit 2
+    }
+    ;;
+  Custom) validate_servers "${servers[@]}" ;;
+  *)
+    echo "Unknown qvOS DNS provider: ${provider:-<empty>}" >&2
+    exit 2
+    ;;
+  esac
+  [[ $action != "validate" ]] || exit 0
+fi
+
+system_root=${QVOS_NETWORK_SYSTEM_ROOT:-}
+testing=${QVOS_NETWORK_TESTING:-}
+expected_uid=0
+expected_gid=0
+resolved_main="$system_root/etc/systemd/resolved.conf"
+resolved_dir="$system_root/etc/systemd/resolved.conf.d"
+resolved_policy="$resolved_dir/80-qvos-dns.conf"
+network_root="$system_root/etc/systemd/network"
+policy_name=80-qvos-dns.conf
+managed_header="# Managed by qvOS DNS. Do not edit."
+transaction_root=
+transaction_active=false
+lock_file="$system_root/run/qvos-dns-policy.lock"
+declare -a transaction_targets=()
+declare -a transaction_backups=()
+declare -A transaction_seen=()
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(/usr/bin/stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS network test root." >&2
+    exit 2
+  }
+  expected_uid=$(id -u)
+  expected_gid=$(id -g)
+elif [[ $action == "apply" || $action == "migrate-legacy" ]] && ((EUID != 0)); then
+  echo "qvOS DNS policy mutation must run as root." >&2
+  exit 1
+fi
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+safe_regular_file() {
+  local path=$1
+
+  [[ -f $path && ! -L $path ]] &&
+    [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]]
+}
+
+ensure_directory() {
+  local path=$1
+  local parent=${path%/*}
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || {
+      echo "Refusing unsafe qvOS DNS directory: $path" >&2
+      return 1
+    }
+    return 0
+  fi
+  safe_directory "$parent" || {
+    echo "Refusing unsafe qvOS DNS parent: $parent" >&2
+    return 1
+  }
+  /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m 0755 "$path"
+}
+
+validate_resolved_policy() {
+  local path=$1
+  local -a lines=()
+  local dns_value
+  local fallback_value
+  local -a dns_tokens=()
+  local -a fallback_tokens=()
+
+  safe_regular_file "$path" || return 1
+  mapfile -t lines <"$path"
+  ((${#lines[@]} == 5)) || return 1
+  [[ ${lines[0]} == "$managed_header" && ${lines[1]} == "[Resolve]" &&
+    ${lines[2]} == DNS=* && ${lines[3]} == FallbackDNS=* &&
+    ${lines[4]} == "DNSOverTLS=opportunistic" ]] || return 1
+  dns_value=${lines[2]#DNS=}
+  fallback_value=${lines[3]#FallbackDNS=}
+  read -r -a dns_tokens <<<"$dns_value"
+  ((${#dns_tokens[@]} >= 1 && ${#dns_tokens[@]} <= 8)) || return 1
+  validate_servers "${dns_tokens[@]}" >/dev/null 2>&1 || return 1
+  if [[ -n $fallback_value ]]; then
+    read -r -a fallback_tokens <<<"$fallback_value"
+    validate_servers "${fallback_tokens[@]}" >/dev/null 2>&1 || return 1
+  fi
+}
+
+write_network_candidate() {
+  printf '%s\n[DHCPv4]\nUseDNS=no\n\n[DHCPv6]\nUseDNS=no\n\n[IPv6AcceptRA]\nUseDNS=no\n' \
+    "$managed_header" >"$1"
+}
+
+validate_network_policy() {
+  local path=$1
+  local candidate="$transaction_root/network-policy"
+
+  safe_regular_file "$path" || return 1
+  [[ -f $candidate ]] || write_network_candidate "$candidate"
+  /usr/bin/cmp -s "$candidate" "$path"
+}
+
+managed_target_valid() {
+  local target=$1
+
+  if [[ $target == "$resolved_policy" ]]; then
+    validate_resolved_policy "$target"
+  else
+    validate_network_policy "$target"
+  fi
+}
+
+begin_transaction() {
+  local runtime_parent="$system_root/run"
+
+  safe_directory "$runtime_parent" || {
+    echo "Refusing unsafe qvOS DNS transaction root: $runtime_parent" >&2
+    return 1
+  }
+  transaction_root=$(/usr/bin/mktemp -d "$runtime_parent/qvos-dns.XXXXXX")
+  transaction_active=true
+}
+
+snapshot_target() {
+  local target=$1
+  local backup=-
+  local directory=${target%/*}
+
+  [[ -z ${transaction_seen[$target]:-} ]] || return 0
+  if [[ -e $directory || -L $directory ]]; then
+    safe_directory "$directory" || {
+      echo "Refusing unsafe qvOS DNS policy directory: $directory" >&2
+      return 1
+    }
+  fi
+  transaction_seen[$target]=1
+  if [[ -e $target || -L $target ]]; then
+    managed_target_valid "$target" || {
+      echo "Refusing modified or unsafe qvOS DNS policy: $target" >&2
+      return 1
+    }
+    backup="$transaction_root/backup-${#transaction_targets[@]}"
+    /usr/bin/cp -a -- "$target" "$backup"
+  fi
+  transaction_targets+=("$target")
+  transaction_backups+=("$backup")
+}
+
+install_atomic() {
+  local source=$1
+  local target=$2
+  local directory=${target%/*}
+  local temporary
+
+  ensure_directory "$directory"
+  temporary=$(/usr/bin/mktemp "$directory/.${target##*/}.XXXXXX")
+  /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 \
+    "$source" "$temporary"
+  /usr/bin/mv -fT -- "$temporary" "$target"
+}
+
+rollback_transaction() {
+  local index
+  local target
+  local backup
+
+  [[ $transaction_active == "true" ]] || return 0
+  trap - ERR INT TERM
+  for ((index = ${#transaction_targets[@]} - 1; index >= 0; index--)); do
+    target=${transaction_targets[$index]}
+    backup=${transaction_backups[$index]}
+    if [[ $backup == "-" ]]; then
+      /usr/bin/rm -f -- "$target"
+    else
+      install_atomic "$backup" "$target"
+    fi
+  done
+  [[ -z $transaction_root ]] || /usr/bin/rm -rf -- "$transaction_root"
+  transaction_active=false
+}
+
+finish_transaction() {
+  transaction_active=false
+  trap - ERR INT TERM
+  /usr/bin/rm -rf -- "$transaction_root"
+}
+
+transaction_failed() {
+  local status=$?
+
+  rollback_transaction || true
+  echo "qvOS DNS policy failed; restored the previous managed policy." >&2
+  exit "$status"
+}
+
+transaction_interrupted() {
+  local status=$1
+
+  rollback_transaction || true
+  echo "qvOS DNS policy was interrupted; restored the previous managed policy." >&2
+  exit "$status"
+}
+
+collect_network_files() {
+  /usr/bin/find -P "$network_root" -mindepth 1 -maxdepth 1 \
+    -name '*.network' -print0 | /usr/bin/sort -z
+}
+
+collect_policy_targets() {
+  /usr/bin/find -P "$network_root" -mindepth 2 -maxdepth 2 \
+    -path "*.network.d/$policy_name" -print0 | /usr/bin/sort -z
+}
+
+build_resolved_candidate() {
+  local target=$1
+  local dns_line
+  local fallback_line
+
+  case $provider in
+  Cloudflare)
+    dns_line='1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com'
+    fallback_line="$dns_line"
+    ;;
+  Quad9)
+    dns_line='9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net'
+    fallback_line="$dns_line"
+    ;;
+  Custom)
+    printf -v dns_line '%s ' "${servers[@]}"
+    dns_line=${dns_line% }
+    fallback_line=
+    ;;
+  esac
+  printf '%s\n[Resolve]\nDNS=%s\nFallbackDNS=%s\nDNSOverTLS=opportunistic\n' \
+    "$managed_header" "$dns_line" "$fallback_line" >"$target"
+}
+
+preflight_roots() {
+  safe_directory "$system_root/etc" || {
+    echo "Refusing unsafe qvOS DNS /etc root." >&2
+    return 1
+  }
+  safe_directory "$system_root/etc/systemd" || {
+    echo "Refusing unsafe qvOS DNS systemd root." >&2
+    return 1
+  }
+  safe_directory "$network_root" || {
+    echo "Refusing unsafe qvOS DNS network root." >&2
+    return 1
+  }
+}
+
+lock_policy() {
+  [[ ! -L $lock_file ]] || {
+    echo "Refusing a symbolic-link qvOS DNS policy lock." >&2
+    return 1
+  }
+  if [[ -e $lock_file ]]; then
+    safe_regular_file "$lock_file" || {
+      echo "Refusing an unsafe qvOS DNS policy lock." >&2
+      return 1
+    }
+  fi
+  exec 9>>"$lock_file"
+  /usr/bin/chmod 0600 "$lock_file"
+  /usr/bin/flock 9
+}
+
+check_policy() {
+  local network_file
+  local target
+  local desired_count=0
+  local existing_count=0
+  local resolved_candidate
+  local network_candidate
+
+  transaction_root=$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/qvos-dns-check.XXXXXX")
+  trap '/usr/bin/rm -rf -- "$transaction_root"' EXIT
+  resolved_candidate="$transaction_root/resolved-policy"
+  network_candidate="$transaction_root/network-policy"
+  write_network_candidate "$network_candidate"
+
+  if [[ $provider == "DHCP" ]]; then
+    [[ ! -e $resolved_policy && ! -L $resolved_policy ]] || return 1
+    while IFS= read -r -d '' target; do
+      ((existing_count += 1))
+    done < <(collect_policy_targets)
+    ((existing_count == 0))
+    return
+  fi
+
+  build_resolved_candidate "$resolved_candidate"
+  [[ -f $resolved_policy && ! -L $resolved_policy ]] &&
+    /usr/bin/cmp -s "$resolved_candidate" "$resolved_policy" || return 1
+  while IFS= read -r -d '' network_file; do
+    safe_regular_file "$network_file" || return 1
+    ((desired_count += 1))
+    target="$network_file.d/$policy_name"
+    [[ -f $target && ! -L $target ]] &&
+      /usr/bin/cmp -s "$network_candidate" "$target" || return 1
+  done < <(collect_network_files)
+  ((desired_count > 0)) || return 1
+  while IFS= read -r -d '' target; do
+    ((existing_count += 1))
+  done < <(collect_policy_targets)
+  ((existing_count == desired_count))
+}
+
+apply_policy() {
+  local network_file
+  local target
+  local base_count=0
+  local resolved_candidate="$transaction_root/resolved-policy"
+  local network_candidate="$transaction_root/network-policy"
+  local -a desired_targets=()
+  local -a existing_targets=()
+
+  write_network_candidate "$network_candidate"
+  while IFS= read -r -d '' network_file; do
+    safe_regular_file "$network_file" || {
+      echo "Refusing unsafe networkd source: $network_file" >&2
+      return 1
+    }
+    ((base_count += 1))
+    desired_targets+=("$network_file.d/$policy_name")
+  done < <(collect_network_files)
+  ((base_count > 0)) || {
+    echo "No systemd-networkd configuration is available for DNS policy." >&2
+    return 1
+  }
+  while IFS= read -r -d '' target; do
+    existing_targets+=("$target")
+  done < <(collect_policy_targets)
+
+  snapshot_target "$resolved_policy"
+  for target in "${desired_targets[@]}" "${existing_targets[@]}"; do
+    snapshot_target "$target"
+  done
+
+  if [[ $provider == "DHCP" ]]; then
+    for target in "${existing_targets[@]}"; do
+      /usr/bin/rm -f -- "$target"
+      /usr/bin/rmdir --ignore-fail-on-non-empty -- "${target%/*}"
+    done
+    /usr/bin/rm -f -- "$resolved_policy"
+    [[ ! -d $resolved_dir ]] ||
+      /usr/bin/rmdir --ignore-fail-on-non-empty -- "$resolved_dir"
+    return
+  fi
+
+  build_resolved_candidate "$resolved_candidate"
+  install_atomic "$resolved_candidate" "$resolved_policy"
+  for target in "${desired_targets[@]}"; do
+    install_atomic "$network_candidate" "$target"
+  done
+  for target in "${existing_targets[@]}"; do
+    [[ " ${desired_targets[*]} " == *" $target "* ]] && continue
+    /usr/bin/rm -f -- "$target"
+    /usr/bin/rmdir --ignore-fail-on-non-empty -- "${target%/*}"
+  done
+}
+
+legacy_resolved_policy() {
+  local path=$1
+
+  /usr/bin/python - "$path" <<'PY'
+from pathlib import Path
+import sys
+
+value = Path(sys.argv[1]).read_text()
+known = {
+    "[Resolve]\nFallbackDNS=\n",
+    "[Resolve]\nDNSOverTLS=no\n",
+    "[Resolve]\nDNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com\nFallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net\nDNSOverTLS=opportunistic\n",
+    "[Resolve]\nDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net\nFallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net\nDNSOverTLS=opportunistic\n",
+    "[Resolve]\nDNS=8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google\nFallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net\nDNSOverTLS=opportunistic\n",
+}
+raise SystemExit(0 if value in known else 1)
+PY
+}
+
+build_systemd_default() {
+  local output=$1
+  local version
+  local archive
+  local -a archives=()
+
+  version=$(/usr/bin/pacman -Q systemd 2>/dev/null | /usr/bin/awk 'NF == 2 { print $2 }')
+  if [[ -n $version ]]; then
+    mapfile -d '' -t archives < <(
+      /usr/bin/find /var/cache/pacman/pkg -maxdepth 1 -type f \
+        -name "systemd-$version-*.pkg.tar.*" ! -name '*.sig' \
+        -print0 2>/dev/null | /usr/bin/sort -z
+    )
+  fi
+  if ((${#archives[@]} > 0)); then
+    archive=${archives[${#archives[@]} - 1]}
+    if /usr/bin/bsdtar -xOf "$archive" etc/systemd/resolved.conf \
+      >"$output" 2>/dev/null &&
+      /usr/bin/grep -Fqx '[Resolve]' "$output"; then
+      return
+    fi
+  fi
+  printf '[Resolve]\n' >"$output"
+}
+
+migrate_legacy() {
+  local default_candidate="$transaction_root/resolved-default"
+  local network_file
+  local candidate
+  local changed=false
+
+  if [[ -f $resolved_main && ! -L $resolved_main ]] &&
+    legacy_resolved_policy "$resolved_main"; then
+    [[ $(/usr/bin/stat -c '%u:%g' -- "$resolved_main") == \
+      "$expected_uid:$expected_gid" ]] || {
+      echo "Refusing foreign legacy resolver policy: $resolved_main" >&2
+      return 1
+    }
+    transaction_seen[$resolved_main]=1
+    transaction_targets+=("$resolved_main")
+    transaction_backups+=("$transaction_root/resolved-main-backup")
+    /usr/bin/cp -a -- "$resolved_main" "${transaction_backups[-1]}"
+    build_systemd_default "$default_candidate"
+    install_atomic "$default_candidate" "$resolved_main"
+    changed=true
+  fi
+
+  while IFS= read -r -d '' network_file; do
+    safe_regular_file "$network_file" || {
+      echo "Refusing unsafe networkd source: $network_file" >&2
+      return 1
+    }
+    candidate="$transaction_root/legacy-${network_file##*/}"
+    /usr/bin/awk '
+      previous == "[DHCPv4]" && $0 == "UseDNS=no" { previous = ""; next }
+      previous == "[IPv6AcceptRA]" && $0 == "UseDNS=no" { previous = ""; next }
+      { print; previous = $0 }
+    ' "$network_file" >"$candidate"
+    if ! /usr/bin/cmp -s "$candidate" "$network_file"; then
+      transaction_seen[$network_file]=1
+      transaction_targets+=("$network_file")
+      transaction_backups+=("$transaction_root/network-backup-${#transaction_targets[@]}")
+      /usr/bin/cp -a -- "$network_file" "${transaction_backups[-1]}"
+      install_atomic "$candidate" "$network_file"
+      changed=true
+    fi
+  done < <(collect_network_files)
+
+  [[ $changed == "false" ]] || echo "Retired the exact legacy qvOS DNS policy."
+  return 0
+}
+
+preflight_roots
+if [[ $action == "check" ]]; then
+  check_policy
+  /usr/bin/rm -rf -- "$transaction_root"
+  trap - EXIT
+  exit
+fi
+
+lock_policy
+begin_transaction
+trap transaction_failed ERR
+trap 'transaction_interrupted 130' INT
+trap 'transaction_interrupted 143' TERM
+if [[ $action == "migrate-legacy" ]]; then
+  migrate_legacy
+else
+  apply_policy
+fi
+finish_transaction

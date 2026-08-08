@@ -195,12 +195,13 @@ if rg -q 'omarchy-pkg-drop[[:space:]]+gnome-keyring' "$root/qvcore/migrations"; 
 fi
 
 [[ ! -e $root/qvcore/install/packaging/warp.sh ]] || fail "WARP fresh-install stage"
-grep -Fqx '    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
+grep -Fqx '    qv-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qvcore/network/setup-dns" || fail "on-demand WARP package contract"
-if rg -q -i 'qvcore' "$root/qvcore/network/setup-dns"; then
-  fail "DNS-owned WARP writes qvCORE state"
+if rg -q -i 'qvcore/(core|warp)|state/qvos/.*/warp' \
+  "$root/qvcore/network/setup-dns" "$root/qvcore/network/dns-policy"; then
+  fail "DNS-owned WARP writes retired qvCORE state"
 fi
-grep -Fqx 'dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:omarchy-qvos-setup-dns' \
+grep -Fqx 'dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:qv-setup-dns' \
   "$root/qvcore/menu/concepts.psv" ||
   fail "WARP remains available through DNS configuration"
 pass "WARP stays DNS-owned and installs only when selected"

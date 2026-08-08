@@ -10,7 +10,7 @@
 
   mkdir -p "$HOME/.local/lib/qvos"
 
-  for feature in branding desktop direct hooks power screensaver security shell thunar tmux tui waybar windows; do
+  for feature in branding desktop direct hooks network power screensaver security shell thunar tmux tui waybar windows; do
     feature_source="$QVOS_PATH/qvcore/$feature"
     if [[ ! -d $feature_source ]]; then
       echo "Missing qvOS desktop feature source: $feature_source" >&2
@@ -58,6 +58,9 @@
     qvcore/menu/walker-elephant-ready.conf
     qvcore/menu/walker-provider-set.toml
     qvcore/menu/walker-subtext.css
+    qvcore/network/dns-policy
+    qvcore/network/install
+    qvcore/network/setup-dns
     qvcore/power/inhibit-sleep
     qvcore/power/battery-protection
     qvcore/power/battery-protection-backend
@@ -265,6 +268,7 @@
   "$QVOS_PATH/qvcore/tui/install" --build-if-available
   "$QVOS_PATH/qvcore/shell/install"
   "$QVOS_PATH/qvcore/screensaver/install"
+  "$QVOS_PATH/qvcore/network/install"
   "$QVOS_PATH/qvcore/power/install"
   "$QVOS_PATH/qvcore/security/install"
 )

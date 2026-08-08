@@ -489,7 +489,7 @@ show_setup_menu() {
   *Keybindings*) open_in_editor ~/.config/hypr/bindings.conf ;;
   *Input*) open_in_editor ~/.config/hypr/input.conf ;;
   *Defaults*) show_setup_default_menu ;;
-  *DNS*) present_terminal omarchy-qvos-setup-dns ;;
+  *DNS*) present_terminal qv-setup-dns ;;
   *Security*) show_setup_security_menu ;;
   *Config*) show_setup_config_menu ;;
   *) show_settings_menu ;;

@@ -266,6 +266,7 @@ Root-started sessions must read every matching route completely before editing:
 - Gaming, install, migration, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/migrations/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
 - Read-only hardware detection shared by install, config, gaming, and software: `qvcore/hardware/AGENTS.md`
 - Menu, search, Walker, Elephant, presentation, sharing, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/presentation/AGENTS.md`, `qvcore/share/AGENTS.md`, `qvcore/software/AGENTS.md`
+- DNS, WARP, and privileged resolver policy: `qvcore/network/AGENTS.md`
 - Picture, video, and terminal-art conversion: `qvcore/transcode/AGENTS.md`
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`

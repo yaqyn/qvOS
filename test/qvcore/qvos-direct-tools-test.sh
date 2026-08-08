@@ -202,7 +202,7 @@ fi
 for forbidden in \
   'auth login' \
   'omarchy-install-qvcore' \
-  'omarchy-qvos-setup-dns' \
+  'setup-dns' \
   'qvcore/core' \
   'health.sh'; do
   if rg -Fq "$forbidden" "$root/qvcore/direct/update" "$root/qvcore/direct/post-update-hook"; then

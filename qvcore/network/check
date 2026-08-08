@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/network/native-paths"
+
+fail() {
+  printf 'qvOS network check: %s\n' "$1" >&2
+  exit 1
+}
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
+  "bin/omarchy-setup-dns" ]] || fail "native DNS inventory"
+for owner in setup-dns dns-policy install; do
+  [[ -x $root/qvcore/network/$owner && ! -L $root/qvcore/network/$owner ]] ||
+    fail "native network owner: $owner"
+done
+
+native="$root/bin/qv-setup-dns"
+compatibility="$root/bin/omarchy-setup-dns"
+[[ -x $native && -x $compatibility ]] || fail "DNS adapter modes"
+rg -q '^# qv:summary=' "$native" || fail "native DNS metadata"
+! rg -q '^# (qv|omarchy):' "$compatibility" ||
+  fail "compatibility DNS metadata"
+for adapter in "$native" "$compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/network/setup-dns" "$@"' "$adapter" ||
+    fail "DNS adapter bypasses native owner"
+done
+
+[[ ! -e $root/bin/omarchy-qvos-setup-dns ]] ||
+  fail "obsolete qvOS-in-Omarchy DNS namespace"
+if rg -n 'omarchy-(qvos-)?setup-dns' \
+  "$root/qvcore" "$root/config" \
+  --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv'; then
+  fail "native qvOS source calls a DNS compatibility route"
+fi
+grep -Fqx 'qv-setup-dns' <(
+  awk -F '|' '$1 == "dns-configure" { print $11 }' \
+    "$root/qvcore/tui/task/actions.psv"
+) || fail "TUI DNS owner"
+
+grep -Fq '/usr/lib/qvos/network/dns-policy' "$root/qvcore/network/setup-dns" ||
+  fail "root-owned DNS mutation boundary"
+! rg -q 'sudo[[:space:]]+(tee|sed)|/etc/systemd/network/\*' \
+  "$root/qvcore/network/setup-dns" ||
+  fail "interactive DNS owner mutates system policy directly"
+
+printf 'ok - qvOS owns one validated DNS and WARP policy boundary\n'

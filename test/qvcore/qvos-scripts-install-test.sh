@@ -5,6 +5,8 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 export QVOS_POWER_TESTING=1
 export QVOS_POWER_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_NETWORK_TESTING=1
+export QVOS_NETWORK_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_SECURITY_TESTING=1
 export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
 export XDG_STATE_HOME="$test_root/.local/state"
@@ -96,7 +98,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qvcore"
-for feature in branding desktop direct hooks power screensaver security shell thunar tmux tui waybar windows; do
+for feature in branding desktop direct hooks network power screensaver security shell thunar tmux tui waybar windows; do
   cp -a "$root/qvcore/$feature" "$partial_file_root/qvcore/$feature"
 done
 install -d "$partial_file_home/.local/lib/qvos/desktop"
@@ -514,6 +516,10 @@ cmp -s \
   "$root/qvcore/security/dev-share-firewall" \
   "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/dev-share-firewall" ||
   fail "LAN preview root helper payload"
+cmp -s \
+  "$root/qvcore/network/dns-policy" \
+  "$QVOS_NETWORK_SYSTEM_ROOT/usr/lib/qvos/network/dns-policy" ||
+  fail "DNS policy root helper payload"
 jq -e '
   .ip == "127.0.0.1" and
   .["default-network-opts"].bridge[

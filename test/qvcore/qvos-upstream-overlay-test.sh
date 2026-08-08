@@ -302,7 +302,6 @@ public_adapters=(
   bin/omarchy-launch-update
   bin/omarchy-qvcore-remove
   bin/omarchy-qvos-refresh-waybar
-  bin/omarchy-qvos-setup-dns
   bin/omarchy-share
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep

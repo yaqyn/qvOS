@@ -1,55 +1,63 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qvcore/network/dns-policy
+# qvos:contract=qvcore/network/install
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+policy_helper=/usr/lib/qvos/network/dns-policy
+policy_install="$QVOS_PATH/qvcore/network/install"
+networkctl_command=/usr/bin/networkctl
+systemctl_command=/usr/bin/systemctl
+sudo_command=/usr/bin/sudo
+
+if [[ ${QVOS_NETWORK_TESTING:-} == "1" ]]; then
+  policy_helper=${QVOS_NETWORK_POLICY_HELPER:-$policy_helper}
+  policy_install=${QVOS_NETWORK_INSTALL:-$policy_install}
+  networkctl_command=${QVOS_NETWORK_NETWORKCTL:-$networkctl_command}
+  systemctl_command=${QVOS_NETWORK_SYSTEMCTL:-$systemctl_command}
+  sudo_command=${QVOS_NETWORK_SUDO:-$sudo_command}
+fi
+
+usage() {
+  echo "Usage: qv setup dns [WARP|Cloudflare|Quad9|DHCP|Custom [SERVER ...]]" >&2
+}
+
 reload_dns() {
-  # Reload matching network files without tearing down every connection.
-  sudo networkctl reload
-  sudo systemctl restart systemd-resolved
+  "$sudo_command" "$networkctl_command" reload
+  "$sudo_command" "$systemctl_command" restart systemd-resolved
 }
 
-lock_dns_to_resolved() {
-  for file in /etc/systemd/network/*.network; do
-    [[ -f $file ]] || continue
-    if ! grep -q "^\[DHCPv4\]" "$file"; then continue; fi
-
-    if ! sed -n '/^\[DHCPv4\]/,/^\[/p' "$file" | grep -q "^UseDNS="; then
-      sudo sed -i '/^\[DHCPv4\]/a UseDNS=no' "$file"
-    fi
-
-    if grep -q "^\[IPv6AcceptRA\]" "$file" &&
-      ! sed -n '/^\[IPv6AcceptRA\]/,/^\[/p' "$file" |
-      grep -q "^UseDNS="; then
-      sudo sed -i '/^\[IPv6AcceptRA\]/a UseDNS=no' "$file"
-    fi
-  done
+install_policy_helper() {
+  [[ -x $policy_install && ! -L $policy_install ]] || {
+    echo "The qvOS DNS installer is unavailable." >&2
+    return 1
+  }
+  "$policy_install"
+  [[ -x $policy_helper && ! -L $policy_helper ]] || {
+    echo "The root-owned qvOS DNS helper is unavailable." >&2
+    return 1
+  }
 }
 
-unlock_dns_to_dhcp() {
-  for file in /etc/systemd/network/*.network; do
-    [[ -f $file ]] || continue
-    sudo sed -i '/^\[DHCPv4\]/{n;/^UseDNS=no$/d}' "$file"
-    sudo sed -i '/^\[IPv6AcceptRA\]/{n;/^UseDNS=no$/d}' "$file"
-  done
-}
+apply_dns_policy() {
+  local provider=$1
+  shift
 
-set_dns_to_dhcp() {
-  sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
-[Resolve]
-FallbackDNS=
-EOF
-  unlock_dns_to_dhcp
+  install_policy_helper
+  "$policy_helper" validate "$provider" "$@"
+  "$sudo_command" "$policy_helper" apply "$provider" "$@"
+  reload_dns
+  "$policy_helper" check "$provider" "$@"
 }
 
 deactivate_warp() {
-  if omarchy-cmd-missing warp-cli; then
-    return
-  fi
+  qv-cmd-missing warp-cli && return
 
-  if systemctl is-active --quiet warp-svc.service; then
-    warp-cli disconnect || true
+  if "$systemctl_command" is-active --quiet warp-svc.service; then
+    warp-cli disconnect
   fi
-
-  sudo systemctl disable --now warp-svc.service
+  "$sudo_command" "$systemctl_command" disable --now warp-svc.service
 }
 
 ensure_warp_registration() {
@@ -71,51 +79,63 @@ ensure_warp_registration() {
   warp-cli --accept-tos registration new >/dev/null
 }
 
+cleanup_warp_activation() {
+  warp-cli disconnect >/dev/null 2>&1 || true
+  "$sudo_command" "$systemctl_command" disable --now warp-svc.service || true
+}
+
 activate_warp() {
-  if omarchy-cmd-missing warp-cli; then
+  if qv-cmd-missing warp-cli; then
     echo "Installing Cloudflare WARP..."
-    omarchy-pkg-aur-add cloudflare-warp-nox-bin || return 1
+    qv-pkg-aur-add cloudflare-warp-nox-bin || return 1
   fi
 
-  sudo systemctl enable --now warp-svc.service || return 1
-
+  "$sudo_command" "$systemctl_command" enable --now warp-svc.service || return 1
   if ! ensure_warp_registration; then
-    sudo systemctl disable --now warp-svc.service
+    cleanup_warp_activation
     return 1
   fi
-
-  warp-cli mode warp || return 1
-  set_dns_to_dhcp
-  reload_dns
-  warp-cli connect || return 1
+  if ! warp-cli mode warp || ! apply_dns_policy DHCP || ! warp-cli connect; then
+    cleanup_warp_activation
+    return 1
+  fi
   warp-cli status
 }
 
-if [[ -z ${1:-} ]]; then
+if (($# == 0)); then
   dns=$(
     gum choose --height 7 --header "Select WARP or DNS provider" \
-      WARP Cloudflare Quad9 None Custom
+      WARP Cloudflare Quad9 DHCP Custom
   )
 else
   dns=$1
+  shift
 fi
 
 case $dns in
-WARP | Cloudflare | Quad9 | None | DHCP | Custom) ;;
+WARP | Cloudflare | Quad9 | DHCP | Custom) ;;
 *)
   echo "Error: Unknown DNS provider '$dns'." >&2
+  usage
   exit 2
   ;;
 esac
 
+dns_servers=()
 if [[ $dns == "Custom" ]]; then
-  echo "Enter your DNS servers (space-separated, e.g. '192.168.1.1 1.1.1.1'):"
-  read -r dns_servers
-
-  if [[ -z $dns_servers ]]; then
-    echo "Error: No DNS servers provided."
-    exit 1
+  if (($# > 0)); then
+    dns_servers=("$@")
+  else
+    echo "Enter literal DNS server addresses separated by spaces:"
+    read -r -a dns_servers
   fi
+  ((${#dns_servers[@]} > 0)) || {
+    echo "Error: No DNS servers provided." >&2
+    exit 1
+  }
+elif (($# > 0)); then
+  usage
+  exit 2
 fi
 
 if [[ $dns == "WARP" ]]; then
@@ -123,38 +143,9 @@ if [[ $dns == "WARP" ]]; then
   exit $?
 fi
 
+install_policy_helper
+"$policy_helper" validate "$dns" "${dns_servers[@]}"
 deactivate_warp
-
-case $dns in
-Cloudflare)
-  sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
-[Resolve]
-DNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com
-FallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
-DNSOverTLS=opportunistic
-EOF
-  lock_dns_to_resolved
-  ;;
-Quad9)
-  sudo tee /etc/systemd/resolved.conf >/dev/null <<'EOF'
-[Resolve]
-DNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
-FallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
-DNSOverTLS=opportunistic
-EOF
-  lock_dns_to_resolved
-  ;;
-None | DHCP)
-  set_dns_to_dhcp
-  ;;
-Custom)
-  sudo tee /etc/systemd/resolved.conf >/dev/null <<EOF
-[Resolve]
-DNS=$dns_servers
-FallbackDNS=9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
-EOF
-  lock_dns_to_resolved
-  ;;
-esac
-
+"$sudo_command" "$policy_helper" apply "$dns" "${dns_servers[@]}"
 reload_dns
+"$policy_helper" check "$dns" "${dns_servers[@]}"
