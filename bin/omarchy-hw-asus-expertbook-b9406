@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect ASUS ExpertBook B9406 series laptops on Intel Panther Lake.
-
-omarchy-hw-match "B9406" && omarchy-hw-intel-ptl
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" asus-expertbook-b9406 "$@"

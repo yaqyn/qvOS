@@ -1,7 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer has an Intel SOF-capable audio DSP.
-# Matches Intel audio controllers (PCI class Multimedia audio or Audio device)
-# present on Skylake-and-later platforms that use sof-audio-pci-intel-* drivers.
-
-lspci | grep -qiE '(Multimedia audio controller|Audio device).*Intel'
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" intel-sof "$@"

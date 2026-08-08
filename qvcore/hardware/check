@@ -1,0 +1,47 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/hardware/native-paths"
+owner="$root/qvcore/hardware/detect"
+
+fail() {
+  printf 'qvOS hardware check: %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-hw-asus-expertbook-b9406\nbin/omarchy-hw-asus-rog\nbin/omarchy-hw-asus-zenbook-ux5406aa\nbin/omarchy-hw-dell-xps-haptic-touchpad\nbin/omarchy-hw-dell-xps-oled\nbin/omarchy-hw-external-monitors\nbin/omarchy-hw-framework16\nbin/omarchy-hw-hybrid-gpu\nbin/omarchy-hw-intel\nbin/omarchy-hw-intel-ptl\nbin/omarchy-hw-intel-sof\nbin/omarchy-hw-match\nbin/omarchy-hw-nvidia-gsp\nbin/omarchy-hw-nvidia-without-gsp\nbin/omarchy-hw-surface\nbin/omarchy-hw-touchpad\nbin/omarchy-hw-touchscreen\nbin/omarchy-hw-vulkan'
+native_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
+[[ $native_paths == "$expected" ]] || fail "native detector inventory is incomplete or unordered"
+[[ -x $owner && ! -L $owner ]] || fail "native detector owner is unavailable or unsafe"
+
+while IFS= read -r inherited_path; do
+  route=${inherited_path##*/omarchy-hw-}
+  native_adapter="$root/bin/qv-hw-$route"
+  compatibility_adapter="$root/$inherited_path"
+  [[ -x $native_adapter && ! -L $native_adapter &&
+    -x $compatibility_adapter && ! -L $compatibility_adapter ]] ||
+    fail "hardware adapters are unavailable or unsafe: $route"
+  (($(wc -l <"$native_adapter") <= 9)) ||
+    fail "native hardware adapter contains implementation: $route"
+  (($(wc -l <"$compatibility_adapter") <= 6)) ||
+    fail "hardware compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native hardware adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "hardware compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/hardware/detect\" $route \"\$@\"" \
+      "$adapter" || fail "hardware adapter bypasses its owner: $route"
+  done
+done <<<"$native_paths"
+
+remaining_compatibility=$(
+  rg --no-filename -o 'omarchy-hw-[a-z0-9-]+' "$root/qvcore" "$root/config" \
+    --glob '!**/hardware/**' --glob '!**/AGENTS.md' \
+    --glob '!**/owner-contracts.psv' | sort -u || true
+)
+[[ $remaining_compatibility == "omarchy-hw-recover-internal-monitor" ]] ||
+  fail "native qvOS source still calls a hardware compatibility command"
+
+printf 'ok - qvOS owns one read-only hardware detection boundary\n'

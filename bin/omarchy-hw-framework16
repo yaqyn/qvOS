@@ -1,6 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer is a Framework Laptop 16.
-
-[[ $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null) == "Framework" ]] &&
-  omarchy-hw-match "Laptop 16"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" framework16 "$@"

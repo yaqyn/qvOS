@@ -108,7 +108,7 @@ keep its exact compatibility ABI until that complete domain moves:
 - `qv-pkg-add` - install from qvOS configured repositories
 - `qv-pkg-aur-add` - explicitly install a user-selected AUR package
 - `qv-restart-*` - restart supported desktop processes, services, and devices
-- `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
+- `qv-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
 
 Exceptions are allowed for bootstrap, preflight, migration, and package-helper scripts where the helper may not be available yet, where the helper itself is being implemented, or where direct package-manager behavior is required.
 
@@ -264,6 +264,7 @@ Root-started sessions must read every matching route completely before editing:
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`
 - Gaming, install, migration, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/migrations/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
+- Read-only hardware detection shared by install, config, gaming, and software: `qvcore/hardware/AGENTS.md`
 - Menu, search, Walker, Elephant, presentation, sharing, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/presentation/AGENTS.md`, `qvcore/share/AGENTS.md`, `qvcore/software/AGENTS.md`
 - Picture, video, and terminal-art conversion: `qvcore/transcode/AGENTS.md`
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`

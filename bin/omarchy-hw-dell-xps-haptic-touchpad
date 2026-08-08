@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Match Dell XPS systems with the Synaptics haptic touchpad.
-
-omarchy-hw-match "XPS" && [[ -e /sys/bus/i2c/devices/i2c-VEN_06CB:00 ]]
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" dell-xps-haptic-touchpad "$@"

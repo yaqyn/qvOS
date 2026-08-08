@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer has an Intel CPU.
-
-[[ $(grep -m1 "vendor_id" /proc/cpuinfo 2>/dev/null | cut -d: -f2 | tr -d ' ') == "GenuineIntel" ]]
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" intel "$@"

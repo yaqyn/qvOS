@@ -1,6 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer is a Microsoft Surface device.
-
-[[ $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null) == "Microsoft Corporation" ]] &&
-  omarchy-hw-match "Surface"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" surface "$@"

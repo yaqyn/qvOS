@@ -10,6 +10,6 @@ qvos_toggle_safe_file "$toggle" || {
   echo "Refusing unsafe qvOS internal-monitor toggle: $toggle" >&2
   exit 1
 }
-if [[ -f $toggle ]] && ! omarchy-hw-external-monitors; then
+if [[ -f $toggle ]] && ! qv-hw-external-monitors; then
   qvos_toggle_remove "$toggle"
 fi

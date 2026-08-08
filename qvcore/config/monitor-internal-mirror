@@ -41,7 +41,7 @@ disable() {
 }
 
 recover() {
-  if ! omarchy-hw-external-monitors &&
+  if ! qv-hw-external-monitors &&
     "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
     "$QVOS_PATH/qvcore/config/hyprland-toggle" "$toggle_name"
   fi

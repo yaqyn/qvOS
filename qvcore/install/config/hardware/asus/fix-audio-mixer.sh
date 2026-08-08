@@ -1,6 +1,6 @@
 # Fix audio volume on Asus ROG laptops by using a soft mixer.
 
-if omarchy-hw-asus-rog; then
+if qv-hw-asus-rog; then
   mkdir -p ~/.config/wireplumber/wireplumber.conf.d/
   cp "$QVOS_PATH/default/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf" ~/.config/wireplumber/wireplumber.conf.d/
   rm -rf ~/.local/state/wireplumber/default-routes

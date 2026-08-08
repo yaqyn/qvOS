@@ -4,6 +4,6 @@
 # Output sink. This affects Arrow Lake, Meteor Lake, Tiger Lake, Alder Lake,
 # Wildcat Lake, Panther Lake, and similar platforms.
 
-if omarchy-hw-intel-sof; then
+if qv-hw-intel-sof; then
   omarchy-pkg-add sof-firmware
 fi

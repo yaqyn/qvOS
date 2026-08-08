@@ -72,7 +72,7 @@ install -m 0755 /dev/stdin "$test_bin/voxtype" <<'SCRIPT'
 #!/bin/bash
 printf 'voxtype:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hw-vulkan" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hw-vulkan" <<'SCRIPT'
 #!/bin/bash
 exit 1
 SCRIPT
@@ -100,6 +100,7 @@ SCRIPT
 run_owner() {
   HOME="$test_home" \
     USER=qv \
+    QVOS_PATH="$root" \
     OMARCHY_PATH="$root" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     PATH="$test_bin:/usr/bin" \

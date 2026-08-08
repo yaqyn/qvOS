@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# qv:summary=Detect whether this computer is a Microsoft Surface device
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" surface "$@"

@@ -3,7 +3,7 @@
 (
   set -euo pipefail
 
-  if omarchy-hw-asus-expertbook-b9406; then
+  if qv-hw-asus-expertbook-b9406; then
     quirk_file="/usr/share/libinput/99-qvos-asus-b9406-touchpad.quirks"
     legacy_file="/etc/libinput/asus-expertbook-b9406.quirks"
 

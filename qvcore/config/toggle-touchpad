@@ -6,7 +6,7 @@ QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 source "$QVOS_PATH/qvcore/config/toggle-lib"
 
 state_conf="$qvos_hypr_toggle_root/touchpad-disabled.conf"
-device=$(omarchy-hw-touchpad)
+device=$(qv-hw-touchpad)
 
 [[ -n $device && $device != *$'\n'* && $device != *$'\r'* ]] || {
   echo "No touchpad device found" >&2

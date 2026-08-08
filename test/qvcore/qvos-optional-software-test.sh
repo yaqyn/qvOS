@@ -86,7 +86,7 @@ install -m 0755 /dev/stdin "$test_bin/voxtype" <<'STUB'
 #!/bin/bash
 printf 'voxtype:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
-install -m 0755 /dev/stdin "$test_bin/omarchy-hw-vulkan" <<'STUB'
+install -m 0755 /dev/stdin "$test_bin/qv-hw-vulkan" <<'STUB'
 #!/bin/bash
 exit 1
 STUB
@@ -111,6 +111,7 @@ touch "$action_log"
 run_software() {
   HOME="$test_home" \
     USER=qv \
+    QVOS_PATH="$fixture" \
     OMARCHY_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \

@@ -1,3 +1,3 @@
-if omarchy-hw-surface; then
+if qv-hw-surface; then
   omarchy-pkg-add linux-firmware-marvell
 fi

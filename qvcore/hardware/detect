@@ -1,0 +1,239 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  printf 'Usage: qv hw <detector> [arguments]\n' >&2
+  exit 2
+}
+
+((1 <= $# && $# <= 2)) || usage
+action=$1
+shift
+
+testing=${QVOS_HARDWARE_TESTING:-}
+fixture_root=${QVOS_HARDWARE_FIXTURE_ROOT:-}
+if [[ -n $fixture_root ]]; then
+  if [[ $testing != "1" || $fixture_root == "/" || $fixture_root != /* || ! -d $fixture_root ||
+    -L $fixture_root || $(realpath -e -- "$fixture_root") != "$fixture_root" ]]; then
+    printf 'Invalid qvOS hardware fixture root: %s\n' "$fixture_root" >&2
+    exit 2
+  fi
+  sys_root="$fixture_root/sys"
+  proc_root="$fixture_root/proc"
+  usr_root="$fixture_root/usr"
+else
+  sys_root=/sys
+  proc_root=/proc
+  usr_root=/usr
+fi
+
+require_no_arguments() {
+  (($# == 0)) || usage
+}
+
+require_one_argument() {
+  (($# == 1)) || usage
+  [[ -n $1 && ${#1} -le 128 && $1 != *$'\n'* && $1 != *$'\r'* ]] || usage
+}
+
+dmi_value() {
+  local field=$1
+  local path="$sys_root/class/dmi/id/$field"
+
+  [[ -r $path ]] || return 1
+  IFS= read -r REPLY <"$path" || [[ -n ${REPLY:-} ]]
+  printf '%s\n' "$REPLY"
+}
+
+dmi_match() {
+  local pattern=$1
+  local value
+
+  for field in product_name product_family; do
+    value=$(dmi_value "$field" 2>/dev/null || true)
+    [[ -n $value ]] && grep -Fqi -- "$pattern" <<<"$value" && return 0
+  done
+  return 1
+}
+
+pci_output() {
+  qv-cmd-present lspci || return 1
+  lspci 2>/dev/null
+}
+
+intel_ptl() {
+  local line
+  local normalized
+
+  while IFS= read -r line; do
+    normalized=${line,,}
+    if [[ $normalized =~ (vga|3d|display) && $normalized == *"panther lake"* ]]; then
+      return 0
+    fi
+  done < <(pci_output || true)
+  return 1
+}
+
+intel_sof() {
+  local line
+  local normalized
+
+  while IFS= read -r line; do
+    normalized=${line,,}
+    if [[ $normalized =~ (multimedia\ audio\ controller|audio\ device).*intel ]]; then
+      return 0
+    fi
+  done < <(pci_output || true)
+  return 1
+}
+
+nvidia_match() {
+  local pattern=$1
+  local line
+
+  while IFS= read -r line; do
+    if [[ ${line,,} == *"nvidia"* && $line =~ $pattern ]]; then
+      return 0
+    fi
+  done < <(pci_output || true)
+  return 1
+}
+
+external_monitors() {
+  local status
+  local connector
+  local state
+  local -a status_files=()
+
+  shopt -s nullglob
+  status_files=("$sys_root/class/drm"/card*-*/status)
+  shopt -u nullglob
+  for status in "${status_files[@]}"; do
+    connector=${status%/status}
+    connector=${connector##*/}
+    [[ $connector =~ -(eDP|LVDS|DSI)-?[0-9]*$ ]] && continue
+    [[ -r $status ]] || continue
+    IFS= read -r state <"$status" || continue
+    [[ $state == "connected" ]] && return 0
+  done
+  return 1
+}
+
+dell_xps_oled() {
+  local edid
+  local manufacturer
+  local -a panels=()
+
+  dmi_match "XPS" && intel_ptl || return 1
+  shopt -s nullglob
+  panels=("$sys_root/class/drm"/card*-eDP-*/edid)
+  shopt -u nullglob
+  for edid in "${panels[@]}"; do
+    [[ -r $edid ]] || continue
+    manufacturer=$(od -An -tx1 -j8 -N2 -- "$edid" 2>/dev/null | tr -d ' \n')
+    [[ $manufacturer == "30e4" ]] && return 0
+  done
+  return 1
+}
+
+hyprland_device() {
+  local kind=$1
+  local filter
+
+  qv-cmd-present hyprctl jq || return 1
+  case $kind in
+  touchpad)
+    filter='[.mice[]?.name | select(type == "string" and test("touchpad|trackpad"; "i"))] | first // empty'
+    ;;
+  touchscreen)
+    filter='[.touch[]?.name, .tablets[]?.name] | map(select(type == "string" and length > 0)) | first // empty'
+    ;;
+  *) return 2 ;;
+  esac
+  hyprctl devices -j 2>/dev/null | jq -er "$filter"
+}
+
+case $action in
+asus-expertbook-b9406)
+  require_no_arguments "$@"
+  dmi_match "B9406" && intel_ptl
+  ;;
+asus-rog)
+  require_no_arguments "$@"
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "ASUSTeK COMPUTER INC." ]] &&
+    grep -Fqi -- 'ROG' <<<"$(dmi_value product_family 2>/dev/null || true)"
+  ;;
+asus-zenbook-ux5406aa)
+  require_no_arguments "$@"
+  dmi_match "UX5406AA" && intel_ptl
+  ;;
+dell-xps-haptic-touchpad)
+  require_no_arguments "$@"
+  dmi_match "XPS" && [[ -e $sys_root/bus/i2c/devices/i2c-VEN_06CB:00 ]]
+  ;;
+dell-xps-oled)
+  require_no_arguments "$@"
+  dell_xps_oled
+  ;;
+external-monitors)
+  require_no_arguments "$@"
+  external_monitors
+  ;;
+framework16)
+  require_no_arguments "$@"
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Framework" ]] &&
+    dmi_match "Laptop 16"
+  ;;
+hybrid-gpu)
+  require_no_arguments "$@"
+  if qv-cmd-present supergfxctl; then
+    supergfxctl -s 2>/dev/null | grep -Fqw -- 'Hybrid'
+  else
+    count=$(pci_output | grep -ciE 'vga|3d|display' || true)
+    ((count >= 2))
+  fi
+  ;;
+intel)
+  require_no_arguments "$@"
+  grep -m1 -Eq -- '^vendor_id[[:space:]]*:[[:space:]]*GenuineIntel$' \
+    "$proc_root/cpuinfo" 2>/dev/null
+  ;;
+intel-ptl)
+  require_no_arguments "$@"
+  intel_ptl
+  ;;
+intel-sof)
+  require_no_arguments "$@"
+  intel_sof
+  ;;
+match)
+  require_one_argument "$@"
+  dmi_match "$1"
+  ;;
+nvidia-gsp)
+  require_no_arguments "$@"
+  nvidia_match \
+    'GTX 16[0-9]{2}|RTX [2-5][0-9]{3}|RTX PRO [0-9]{4}|Quadro RTX|RTX A[0-9]{4}|A[1-9][0-9]{2}|H[1-9][0-9]{2}|T4|L[0-9]+'
+  ;;
+nvidia-without-gsp)
+  require_no_arguments "$@"
+  nvidia_match \
+    'GTX (9[0-9]{2}|10[0-9]{2})|GT 10[0-9]{2}|Quadro [PM][0-9]{3,4}|Quadro GV100|MX *[0-9]+|Titan (X|Xp|V)|Tesla V100'
+  ;;
+surface)
+  require_no_arguments "$@"
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Microsoft Corporation" ]] &&
+    dmi_match "Surface"
+  ;;
+touchpad | touchscreen)
+  require_no_arguments "$@"
+  hyprland_device "$action"
+  ;;
+vulkan)
+  require_no_arguments "$@"
+  [[ -d $usr_root/share/vulkan/icd.d ]] &&
+    find -L "$usr_root/share/vulkan/icd.d" -maxdepth 1 -type f -name '*.json' \
+      -print -quit 2>/dev/null | grep -q .
+  ;;
+*) usage ;;
+esac

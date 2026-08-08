@@ -23,7 +23,7 @@ disable() {
     echo "No internal laptop display found" >&2
     return 1
   }
-  if ! omarchy-hw-external-monitors; then
+  if ! qv-hw-external-monitors; then
     notify-send -u low "󰍹    Can't disable the only active display"
     return 1
   fi
@@ -36,7 +36,7 @@ disable() {
 }
 
 recover() {
-  if ! omarchy-hw-external-monitors &&
+  if ! qv-hw-external-monitors &&
     "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
     "$QVOS_PATH/qvcore/config/hyprland-toggle" "$toggle_name"
   fi

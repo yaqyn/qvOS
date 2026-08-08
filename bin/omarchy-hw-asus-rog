@@ -1,6 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Detect whether the computer is an Asus ROG machine.
-
-[[ $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null) == "ASUSTeK COMPUTER INC." ]] &&
-   grep -q "ROG" /sys/class/dmi/id/product_family 2>/dev/null
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hardware/detect" asus-rog "$@"

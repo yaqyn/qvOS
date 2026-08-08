@@ -6,7 +6,7 @@ QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 source "$QVOS_PATH/qvcore/config/toggle-lib"
 
 state_conf="$qvos_hypr_toggle_root/touchscreen-disabled.conf"
-device=$(omarchy-hw-touchscreen)
+device=$(qv-hw-touchscreen)
 
 [[ -n $device && $device != *$'\n'* && $device != *$'\r'* ]] || {
   echo "No touchscreen device found" >&2

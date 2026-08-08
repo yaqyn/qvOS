@@ -38,7 +38,7 @@ rm) exec /usr/bin/rm "${arguments[@]}" ;;
 *) exit 2 ;;
 esac
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hw-asus-expertbook-b9406" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hw-asus-expertbook-b9406" <<'SCRIPT'
 #!/bin/bash
 [[ ${QVOS_TEST_ASUS_B9406:-0} == "1" ]]
 SCRIPT

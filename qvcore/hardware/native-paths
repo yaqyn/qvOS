@@ -1,0 +1,19 @@
+# Inherited hardware detectors promoted to native qvOS ownership.
+bin/omarchy-hw-asus-expertbook-b9406
+bin/omarchy-hw-asus-rog
+bin/omarchy-hw-asus-zenbook-ux5406aa
+bin/omarchy-hw-dell-xps-haptic-touchpad
+bin/omarchy-hw-dell-xps-oled
+bin/omarchy-hw-external-monitors
+bin/omarchy-hw-framework16
+bin/omarchy-hw-hybrid-gpu
+bin/omarchy-hw-intel
+bin/omarchy-hw-intel-ptl
+bin/omarchy-hw-intel-sof
+bin/omarchy-hw-match
+bin/omarchy-hw-nvidia-gsp
+bin/omarchy-hw-nvidia-without-gsp
+bin/omarchy-hw-surface
+bin/omarchy-hw-touchpad
+bin/omarchy-hw-touchscreen
+bin/omarchy-hw-vulkan
