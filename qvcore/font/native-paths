@@ -1,0 +1,4 @@
+# Inherited font commands promoted to native qvOS ownership.
+bin/omarchy-font-current
+bin/omarchy-font-list
+bin/omarchy-font-set

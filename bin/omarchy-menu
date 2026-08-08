@@ -64,10 +64,6 @@ install_and_launch() {
   present_terminal "echo 'Installing $1...'; omarchy-pkg-add $2 && setsid gtk-launch $3"
 }
 
-install_font() {
-  present_terminal "echo 'Installing $1...'; omarchy-pkg-add $2 && sleep 2 && omarchy-font-set '$3'"
-}
-
 install_terminal() {
   present_terminal "omarchy-install-terminal $1"
 }
@@ -308,11 +304,11 @@ show_background_menu() {
 }
 
 show_font_menu() {
-  theme=$(menu "Font" "$(omarchy-font-list)" "--width 350" "$(omarchy-font-current)")
+  theme=$(menu "Font" "$(qv-font-list)" "--width 350" "$(qv-font-current)")
   if [[ $theme == "CNCLD" || -z $theme ]]; then
     back_to show_style_menu
   else
-    omarchy-font-set "$theme"
+    qv-font-set "$theme"
   fi
 }
 
@@ -602,18 +598,6 @@ show_install_style_menu() {
   *Theme*) present_terminal omarchy-theme-install ;;
   *Background*) omarchy-theme-bg-install ;;
   *Font*) show_install_font_menu ;;
-  *) show_install_menu ;;
-  esac
-}
-
-show_install_font_menu() {
-  case $(menu "Install" "  Cascadia Mono\n  Meslo LG Mono\n  Fira Code\n  Victor Code\n  Bitstream Vera Mono\n  Iosevka" "--width 350") in
-  *Cascadia*) install_font "Cascadia Mono" "ttf-cascadia-mono-nerd" "CaskaydiaMono Nerd Font" ;;
-  *Meslo*) install_font "Meslo LG Mono" "ttf-meslo-nerd" "MesloLGL Nerd Font" ;;
-  *Fira*) install_font "Fira Code" "ttf-firacode-nerd" "FiraCode Nerd Font" ;;
-  *Victor*) install_font "Victor Code" "ttf-victor-mono-nerd" "VictorMono Nerd Font" ;;
-  *Bitstream*) install_font "Bitstream Vera Code" "ttf-bitstream-vera-mono-nerd" "BitstromWera Nerd Font" ;;
-  *Iosevka*) install_font "Iosevka" "ttf-iosevka-nerd" "Iosevka Nerd Font Mono" ;;
   *) show_install_menu ;;
   esac
 }

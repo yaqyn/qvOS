@@ -1,0 +1,83 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/font/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-font-current\nbin/omarchy-font-list\nbin/omarchy-font-set'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native font inventory"
+
+commands=(current list set)
+for command in "${commands[@]}"; do
+  owner="$root/qvcore/font/$command"
+  native_adapter="$root/bin/qv-font-$command"
+  compatibility_adapter="$root/bin/omarchy-font-$command"
+
+  [[ -x $owner && -x $native_adapter && -x $compatibility_adapter ]] ||
+    fail "$command font owner or adapter mode"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native $command font adapter contains implementation"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "$command font compatibility adapter contains implementation"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native $command font metadata"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "$command font compatibility adapter duplicates metadata"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/font/$command\" \"\$@\"" "$adapter" ||
+      fail "$command font adapter ownership"
+  done
+done
+
+[[ -x $root/qvcore/font/lib ]] || fail "font shared library mode"
+rg -q 'flock -x' "$root/qvcore/font/set" || fail "font mutation is not serialized"
+# shellcheck disable=SC2016
+grep -Fq 'mv -T -- "$temporary" "$destination"' "$root/qvcore/font/set" ||
+  fail "font configs are not replaced atomically"
+grep -Fq 'original_hashes' "$root/qvcore/font/set" ||
+  fail "font mutation does not detect concurrent changes"
+grep -Fq 'rollback_configs' "$root/qvcore/font/set" ||
+  fail "font mutation has no transaction rollback"
+grep -Fq '/string)[1]' "$root/qvcore/font/set" ||
+  fail "font mutation can overwrite the Fontconfig Arabic fallback"
+if rg -n 'sed -i|xmlstarlet ed -L|grep -i[qE]* .*\$font' \
+  "$root/qvcore/font/lib" \
+  "$root/qvcore/font/list" \
+  "$root/qvcore/font/current" \
+  "$root/qvcore/font/set"; then
+  fail "font owner retains an in-place or regex-input mutation"
+fi
+
+if rg -n 'omarchy-font-(current|list|set)' \
+  "$root/qvcore/menu/font-install" "$root/bin/omarchy-menu"; then
+  fail "native menu calls a font compatibility route"
+fi
+if rg -n 'omarchy-pkg-add' "$root/qvcore/menu/font-install"; then
+  fail "native font lifecycle calls the package compatibility route"
+fi
+for dependency in bin/qv-font-current bin/qv-font-set; do
+  grep -Fqx "# qvos:contract=$dependency" "$root/qvcore/menu/font-install" ||
+    fail "font lifecycle omits dependency: $dependency"
+done
+if rg -n '^install_font\(\)|sleep 2.*font-set' "$root/bin/omarchy-menu"; then
+  fail "menu retains a duplicate font installer"
+fi
+
+for frontend in qv omarchy; do
+  for command in current list set; do
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend font $command" \
+      --arg binary "qv-font-$command" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend font $command native route"
+  done
+done
+
+printf 'ok - qvOS fonts have one transactional native owner\n'

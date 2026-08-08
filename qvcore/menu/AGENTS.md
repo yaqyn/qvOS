@@ -47,9 +47,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   opens the shared TUI with `Apply Now` and `Uninstall`; the active font shows
   `Already Applied` with only `Uninstall`. Keep status as text, never a dummy
   selectable action, and never put the action sheet in Walker. Keep package
-  state, active-font detection, Apply, exact removal, and the JetBrains Mono
-  fallback in `qvcore/menu/font-install`; menu routes only hand the selected font
-  to the TUI.
+  package state, Apply, exact removal, and the JetBrains Mono fallback in
+  `qvcore/menu/font-install`; active-font detection and safe configuration
+  mutation belong only to `qvcore/font/`. Menu routes only hand the selected
+  font to the TUI.
 - Terminals are a second deliberate managed exception. Route Alacritty, Foot,
   Ghostty, and Kitty through `action/terminal-launch` from every menu surface.
   `qvcore/menu/terminal-action` reports `available`, `installed`, or `active`,

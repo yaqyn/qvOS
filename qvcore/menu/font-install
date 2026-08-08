@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-font-current
+# qvos:contract=bin/qv-font-set
+
 slug=${1:-}
 action=${2:-}
 action_state=${3:-}
@@ -68,8 +71,8 @@ active_font_hook_exists() {
 }
 
 check_rollback_support() {
-  command -v omarchy-font-set >/dev/null
-  command -v omarchy-font-current >/dev/null
+  command -v qv-font-set >/dev/null
+  command -v qv-font-current >/dev/null
   if active_font_hook_exists; then
     echo "Font rollback is unavailable while a custom font-set hook is active." >&2
     return 1
@@ -157,7 +160,7 @@ restore_font_configs() {
     font_configs_match_snapshot after || return 1
   else
     font_configs_match_snapshot before || return 1
-    [[ $(omarchy-font-current) == "$previous_font" ]]
+    [[ $(qv-font-current) == "$previous_font" ]]
     return
   fi
 
@@ -181,7 +184,7 @@ restore_font_configs() {
   done
 
   font_configs_match_snapshot before || return 1
-  [[ $(omarchy-font-current) == "$previous_font" ]] || return 1
+  [[ $(qv-font-current) == "$previous_font" ]] || return 1
   qv-restart-waybar
   qv-restart-swayosd
   pkill -USR1 kitty 2>/dev/null || true
@@ -191,7 +194,7 @@ restore_font_configs() {
 font_state() {
   if ! pacman -Q "$package" >/dev/null 2>&1; then
     printf 'available\n'
-  elif [[ $(omarchy-font-current) == "$font" ]]; then
+  elif [[ $(qv-font-current) == "$font" ]]; then
     printf 'active\n'
   else
     printf 'installed\n'
@@ -203,7 +206,7 @@ apply_font() {
     echo "$name is not installed." >&2
     return 1
   }
-  omarchy-font-set "$font"
+  qv-font-set "$font"
   [[ $(font_state) == "active" ]] || {
     echo "$name could not be applied." >&2
     return 1
@@ -221,8 +224,8 @@ uninstall_font() {
     return 1
   }
   if [[ $state == "active" ]]; then
-    omarchy-font-set "$fallback_font"
-    [[ $(omarchy-font-current) == "$fallback_font" ]] || {
+    qv-font-set "$fallback_font"
+    [[ $(qv-font-current) == "$fallback_font" ]] || {
       echo "The default font could not be restored." >&2
       return 1
     }
@@ -230,7 +233,7 @@ uninstall_font() {
   fi
   if ! sudo pacman -Rn --noconfirm -- "$package"; then
     if [[ $was_active == "true" ]]; then
-      omarchy-font-set "$font" || true
+      qv-font-set "$font" || true
     fi
     return 1
   fi
@@ -254,14 +257,14 @@ case $action in
   [[ ! -e $action_state ]] || exit 1
   install -d -m 0700 "$action_state"
   printf '%s\n' "$slug" >"$action_state/slug"
-  printf '%s\n' "$(omarchy-font-current)" >"$action_state/font"
+  printf '%s\n' "$(qv-font-current)" >"$action_state/font"
   snapshot_font_configs before
   exit
   ;;
 --qvos-rollback-seal)
   (($# == 3)) || exit 2
   [[ -f $action_state/slug && $(<"$action_state/slug") == "$slug" ]] || exit 1
-  [[ $(omarchy-font-current) == "$font" ]] || exit 1
+  [[ $(qv-font-current) == "$font" ]] || exit 1
   snapshot_font_configs after
   exit
   ;;
@@ -306,7 +309,7 @@ else
 
   trap restore_interrupted_font INT TERM
   echo "Installing $name..."
-  omarchy-pkg-add "$package"
-  omarchy-font-set "$font"
+  qv-pkg-add "$package"
+  qv-font-set "$font"
   trap - INT TERM
 fi

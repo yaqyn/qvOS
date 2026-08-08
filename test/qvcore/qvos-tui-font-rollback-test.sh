@@ -42,12 +42,12 @@ for path in "${config_paths[@]}"; do
 done
 cp -a -- "$test_home/.config" "$test_root/config-before"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-font-current" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-font-current" <<'SCRIPT'
 #!/bin/bash
 IFS= read -r path <"$QVOS_TEST_FONT_CONFIGS"
 sed -n 's/^font=//p' "$path"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-font-set" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-font-set" <<'SCRIPT'
 #!/bin/bash
 font=${1:-}
 [[ -n $font ]] || exit 2
@@ -56,7 +56,7 @@ while IFS= read -r path; do
   printf 'font=%s\n' "$font" >"$path"
 done <"$QVOS_TEST_FONT_CONFIGS"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-add" <<'SCRIPT'
 #!/bin/bash
 touch "$QVOS_TEST_PACKAGE_MARKER"
 SCRIPT
@@ -89,6 +89,7 @@ exec "$@"
 SCRIPT
 
 export HOME="$test_home"
+export QVOS_PATH="$root"
 export OMARCHY_PATH="$root"
 export PATH="$test_bin:/usr/bin"
 export XDG_RUNTIME_DIR="$test_root/runtime"
@@ -102,11 +103,11 @@ export QVOS_ACTION_ROLLBACK_STATE="$test_root/runtime/rollback-state"
 
 "$root/qvcore/tui/action/run-installer" --check
 "$root/qvcore/tui/action/run-installer" >/dev/null
-[[ $(omarchy-font-current) == "MesloLGL Nerd Font" ]] ||
+[[ $(qv-font-current) == "MesloLGL Nerd Font" ]] ||
   fail "font owner did not apply the selected font"
 "$root/qvcore/tui/action/run-installer" --rollback
 
-[[ $(omarchy-font-current) == "JetBrainsMono Nerd Font" ]] ||
+[[ $(qv-font-current) == "JetBrainsMono Nerd Font" ]] ||
   fail "font rollback did not restore the previous active font"
 for path in "${config_paths[@]}"; do
   relative=${path#"$test_home/.config/"}
@@ -122,14 +123,14 @@ export QVOS_FONT_STATE=installed
   fail "installed inactive font actions"
 "$root/qvcore/tui/action/font-run" --check
 "$root/qvcore/tui/action/font-run" >/dev/null
-[[ $(omarchy-font-current) == "MesloLGL Nerd Font" ]] ||
+[[ $(qv-font-current) == "MesloLGL Nerd Font" ]] ||
   fail "font Apply did not activate the installed font"
 if "$root/qvcore/tui/action/font-run" --rollback >/dev/null 2>&1; then
   fail "font Apply retained obsolete Stop rollback plumbing"
 fi
 printf 'ok - installed font Apply completes without Stop plumbing\n'
 
-"$test_bin/omarchy-font-set" "MesloLGL Nerd Font"
+"$test_bin/qv-font-set" "MesloLGL Nerd Font"
 : >"$QVOS_TEST_FONT_LOG"
 export QVOS_ACTION_SELECTIONS=Uninstall
 export QVOS_ACTION_ROLLBACK=
@@ -144,7 +145,7 @@ fi
 "$root/qvcore/tui/action/font-run" >/dev/null
 [[ ! -e $QVOS_TEST_PACKAGE_MARKER ]] ||
   fail "font Uninstall left the package installed"
-[[ $(omarchy-font-current) == "JetBrainsMono Nerd Font" ]] ||
+[[ $(qv-font-current) == "JetBrainsMono Nerd Font" ]] ||
   fail "active font Uninstall did not restore JetBrains Mono"
 [[ $(sed -n '1p' "$QVOS_TEST_FONT_LOG") == $'font\tJetBrainsMono Nerd Font' ]] ||
   fail "font Uninstall did not restore JetBrains Mono before package removal"
@@ -156,7 +157,7 @@ touch "$QVOS_TEST_PACKAGE_MARKER"
 
 second_state="$test_root/runtime/second-state"
 "$root/qvcore/menu/font-install" meslo-mono --qvos-rollback-snapshot "$second_state"
-"$test_bin/omarchy-font-set" "MesloLGL Nerd Font"
+"$test_bin/qv-font-set" "MesloLGL Nerd Font"
 "$root/qvcore/menu/font-install" meslo-mono --qvos-rollback-seal "$second_state"
 printf 'foreign change\n' >>"${config_paths[0]}"
 if "$root/qvcore/menu/font-install" meslo-mono --qvos-rollback-restore "$second_state"; then
@@ -167,7 +168,7 @@ grep -Fqx 'foreign change' "${config_paths[0]}" ||
 printf 'ok - font Stop preserves concurrently changed configuration\n'
 
 sed -i '/foreign change/d' "${config_paths[0]}"
-"$test_bin/omarchy-font-set" "JetBrainsMono Nerd Font"
+"$test_bin/qv-font-set" "JetBrainsMono Nerd Font"
 font_route=$(
   bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
 set -euo pipefail
@@ -209,7 +210,7 @@ install -m 0755 /dev/stdin "$font_tui/launch" <<'SCRIPT'
 SCRIPT
 
 touch "$QVOS_TEST_PACKAGE_MARKER"
-"$test_bin/omarchy-font-set" "JetBrainsMono Nerd Font"
+"$test_bin/qv-font-set" "JetBrainsMono Nerd Font"
 export QVOS_ACTION_ROLLBACK=owner-state-v1
 QVOS_TEST_FONT_LAUNCH_LOG="$font_launch_log" \
   "$font_tui/action/font-launch" font-meslo-mono
@@ -231,7 +232,7 @@ grep -Fqx $'selection-title\tMeslo LG Mono' "$font_launch_log" ||
   fail "inactive font action title"
 printf 'ok - installed inactive font offers Apply Now or Uninstall\n'
 
-"$test_bin/omarchy-font-set" "MesloLGL Nerd Font"
+"$test_bin/qv-font-set" "MesloLGL Nerd Font"
 QVOS_TEST_FONT_LAUNCH_LOG="$font_launch_log" \
   "$font_tui/action/font-launch" font-meslo-mono
 grep -Fqx $'font-state\tactive' "$font_launch_log" ||

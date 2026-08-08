@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 0)); then
+  echo "Usage: qv font list" >&2
+  exit 2
+fi
+
+command -v -- fc-list >/dev/null 2>&1 || {
+  echo "qvOS font: Fontconfig discovery is unavailable." >&2
+  exit 1
+}
+
+fc-list :spacing=100 -f '%{family[0]}\n' |
+  awk '
+    {
+      family = $0
+      folded = tolower(family)
+      if (family != "" && folded !~ /(emoji|signwriting|omarchy|qvos)/) {
+        print family
+      }
+    }
+  ' |
+  LC_ALL=C sort -u

@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# This library declares the shared arrays consumed by the font owners.
+# shellcheck disable=SC2034
+qvos_font_config_root=${QVOS_FONT_CONFIG_ROOT:-$HOME/.config}
+qvos_font_relatives=(
+  alacritty/alacritty.toml
+  kitty/kitty.conf
+  ghostty/config
+  foot/foot.ini
+  hypr/hyprlock.conf
+  waybar/style.css
+  swayosd/style.css
+  fontconfig/fonts.conf
+)
+qvos_font_kinds=(
+  alacritty
+  kitty
+  ghostty
+  foot
+  hyprlock
+  css
+  css
+  fontconfig
+)
+qvos_font_required=(0 0 0 0 1 1 1 1)
+
+qvos_font_fail() {
+  printf 'qvOS font: %s\n' "$1" >&2
+}
+
+qvos_font_validate_components() {
+  local path=$1
+  local current
+
+  [[ $path == /* && $path != "/" ]] || {
+    qvos_font_fail "path must be absolute and bounded: $path"
+    return 1
+  }
+
+  current=$path
+  while [[ $current != "/" ]]; do
+    [[ ! -L $current ]] || {
+      qvos_font_fail "refusing symbolic-link path: $current"
+      return 1
+    }
+    current=$(dirname -- "$current")
+  done
+}
+
+qvos_font_validate_root() {
+  qvos_font_validate_components "$qvos_font_config_root" || return
+  [[ -d $qvos_font_config_root && -O $qvos_font_config_root ]] || {
+    qvos_font_fail "config root is missing or not owned by the current user: $qvos_font_config_root"
+    return 1
+  }
+}
+
+qvos_font_validate_file() {
+  local path=$1
+  local required=$2
+
+  qvos_font_validate_components "$path" || return
+  if [[ ! -e $path ]]; then
+    [[ ! -L $path ]] || {
+      qvos_font_fail "refusing symbolic-link config: $path"
+      return 1
+    }
+    if ((required)); then
+      qvos_font_fail "required config is missing: $path"
+      return 1
+    fi
+    return 3
+  fi
+
+  [[ -f $path && ! -L $path && -O $path ]] || {
+    qvos_font_fail "refusing unsafe config: $path"
+    return 1
+  }
+}
+
+qvos_font_validate_name() {
+  local font=$1
+
+  [[ $font != *$'\n'* && $font != *$'\r'* ]] || {
+    qvos_font_fail "font family contains a line break"
+    return 1
+  }
+  (( ${#font} <= 128 )) || {
+    qvos_font_fail "font family is longer than 128 characters"
+    return 1
+  }
+  LC_ALL=C grep -Eq "^[[:alnum:]][[:alnum:] ._+()&',/-]{0,127}$" <<<"$font" || {
+    qvos_font_fail "font family contains unsupported characters"
+    return 1
+  }
+}
+
+qvos_font_read_current() {
+  local path=$1
+
+  awk '
+    /^[[:space:]]*font-family[[:space:]]*:/ {
+      value = $0
+      sub(/^[[:space:]]*font-family[[:space:]]*:[[:space:]]*/, "", value)
+      sub(/[[:space:]]*;[[:space:]]*$/, "", value)
+      sub(/^[[:space:]]*/, "", value)
+      sub(/[[:space:]]*$/, "", value)
+      if ((value ~ /^".*"$/) || (value ~ /^\047.*\047$/)) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      count++
+    }
+    END {
+      if (count != 1 || value == "") {
+        exit 1
+      }
+      print value
+    }
+  ' "$path"
+}

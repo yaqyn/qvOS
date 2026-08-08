@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 0)); then
+  echo "Usage: qv font current" >&2
+  exit 2
+fi
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/font/lib
+source "$QVOS_PATH/qvcore/font/lib"
+
+qvos_font_validate_root
+waybar_style="$qvos_font_config_root/waybar/style.css"
+qvos_font_validate_file "$waybar_style" 1
+qvos_font_read_current "$waybar_style" || {
+  qvos_font_fail "Waybar has no singular valid font-family setting"
+  exit 1
+}

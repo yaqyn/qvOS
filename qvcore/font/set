@@ -1,0 +1,348 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "Usage: qv font set <font-name>" >&2
+  exit 2
+fi
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/font/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/font/lib"
+
+font=$1
+qvos_font_validate_name "$font"
+qvos_font_validate_root
+
+available_fonts=$("$QVOS_PATH/qvcore/font/list") || {
+  qvos_font_fail "could not discover installed monospace fonts"
+  exit 1
+}
+font_found=0
+while IFS= read -r available_font; do
+  if [[ $available_font == "$font" ]]; then
+    font_found=1
+    break
+  fi
+done <<<"$available_fonts"
+((font_found)) || {
+  qvos_font_fail "font family is not installed exactly: $font"
+  exit 1
+}
+
+for required_command in awk cp flock mktemp mv sha256sum stat xmlstarlet; do
+  command -v -- "$required_command" >/dev/null 2>&1 || {
+    qvos_font_fail "required command is unavailable: $required_command"
+    exit 1
+  }
+done
+
+lock_dir=${XDG_RUNTIME_DIR:-$qvos_font_config_root}
+[[ $lock_dir == /* && -d $lock_dir && ! -L $lock_dir && -O $lock_dir ]] || {
+  qvos_font_fail "runtime lock directory is unsafe: $lock_dir"
+  exit 1
+}
+lock_file="$lock_dir/qvos-font.lock"
+[[ ! -L $lock_file && (! -e $lock_file || (-f $lock_file && -O $lock_file)) ]] || {
+  qvos_font_fail "runtime lock is unsafe: $lock_file"
+  exit 1
+}
+exec {lock_fd}>"$lock_file"
+chmod 0600 "$lock_file"
+flock -x "$lock_fd"
+
+transaction=$(mktemp -d "$lock_dir/qvos-font.XXXXXX")
+chmod 0700 "$transaction"
+declare -a active_indices=()
+declare -a applied_indices=()
+declare -a original_hashes=()
+declare -a staged_hashes=()
+declare -a modes=()
+
+cleanup() {
+  rm -rf -- "$transaction"
+}
+trap cleanup EXIT
+
+transform_text_config() {
+  local kind=$1
+  local source=$2
+  local destination=$3
+
+  case $kind in
+  alacritty)
+    awk -v font="$font" '
+      /^[[:space:]]*family[[:space:]]*=[[:space:]]*"[^"]*"[[:space:]]*$/ {
+        match($0, /^[[:space:]]*/)
+        print substr($0, 1, RLENGTH) "family = \"" font "\""
+        count++
+        next
+      }
+      { print }
+      END { if (count < 1 || count > 4) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  kitty)
+    awk -v font="$font" '
+      /^[[:space:]]*font_family[[:space:]]+/ {
+        match($0, /^[[:space:]]*/)
+        print substr($0, 1, RLENGTH) "font_family " font
+        count++
+        next
+      }
+      { print }
+      END { if (count != 1) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  ghostty)
+    awk -v font="$font" '
+      /^[[:space:]]*font-family[[:space:]]*=/ {
+        match($0, /^[[:space:]]*/)
+        print substr($0, 1, RLENGTH) "font-family = \"" font "\""
+        count++
+        next
+      }
+      { print }
+      END { if (count != 1) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  foot)
+    awk -v font="$font" '
+      /^[[:space:]]*font=.*:size=/ {
+        match($0, /^[[:space:]]*/)
+        indent = substr($0, 1, RLENGTH)
+        size_at = index($0, ":size=")
+        print indent "font=" font substr($0, size_at)
+        count++
+        next
+      }
+      { print }
+      END { if (count != 1) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  hyprlock)
+    awk -v font="$font" '
+      /^[[:space:]]*font_family[[:space:]]*=/ {
+        match($0, /^[[:space:]]*/)
+        print substr($0, 1, RLENGTH) "font_family = " font
+        count++
+        next
+      }
+      { print }
+      END { if (count != 1) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  css)
+    awk -v font="$font" '
+      /^[[:space:]]*font-family[[:space:]]*:/ {
+        match($0, /^[[:space:]]*/)
+        print substr($0, 1, RLENGTH) "font-family: \"" font "\";"
+        count++
+        next
+      }
+      { print }
+      END { if (count != 1) exit 42 }
+    ' "$source" >"$destination"
+    ;;
+  *)
+    return 2
+    ;;
+  esac
+}
+
+transform_fontconfig() {
+  local source=$1
+  local destination=$2
+  local match_xpath='//match[@target="pattern"][test/string="monospace"]'
+  local xpath='(//match[@target="pattern"][test/string="monospace"]/edit[@name="family"]/string)[1]'
+  local count
+  local xml_error="$transaction/xml-error"
+
+  xmlstarlet val --well-formed "$source" >/dev/null
+  count=$(xmlstarlet sel -t -v "count($match_xpath)" "$source" 2>"$xml_error")
+  [[ $count == "1" ]] || return 42
+  [[ $(xmlstarlet sel -t -v "count($xpath)" "$source" 2>"$xml_error") == "1" ]] ||
+    return 42
+  xmlstarlet ed -u "$xpath" -v "$font" "$source" >"$destination" 2>"$xml_error"
+  xmlstarlet val --well-formed "$destination" >/dev/null
+  [[ $(xmlstarlet sel -t -v "count($match_xpath)" "$destination" 2>"$xml_error") == "1" ]]
+  [[ $(xmlstarlet sel -t -v "$xpath" "$destination" 2>"$xml_error") == "$font" ]]
+}
+
+# The shared library owns the parallel config arrays.
+# shellcheck disable=SC2154
+for index in "${!qvos_font_relatives[@]}"; do
+  path="$qvos_font_config_root/${qvos_font_relatives[$index]}"
+  if qvos_font_validate_file "$path" "${qvos_font_required[$index]}"; then
+    :
+  else
+    status=$?
+    if ((status == 3)); then
+      continue
+    fi
+    exit 1
+  fi
+
+  active_indices+=("$index")
+  cp -p -- "$path" "$transaction/original.$index"
+  original_hashes[index]=$(sha256sum "$path" | awk '{ print $1 }')
+  modes[index]=$(stat -c '%a' "$path")
+
+  if [[ ${qvos_font_kinds[$index]} == "fontconfig" ]]; then
+    transform_fontconfig "$path" "$transaction/staged.$index" || {
+      qvos_font_fail "malformed or ambiguous config: $path"
+      exit 1
+    }
+  else
+    transform_text_config \
+      "${qvos_font_kinds[$index]}" \
+      "$path" \
+      "$transaction/staged.$index" || {
+      qvos_font_fail "malformed or ambiguous config: $path"
+      exit 1
+    }
+  fi
+  [[ -s $transaction/staged.$index ]] || {
+    qvos_font_fail "staged config is empty: $path"
+    exit 1
+  }
+  staged_hashes[index]=$(sha256sum "$transaction/staged.$index" | awk '{ print $1 }')
+done
+
+replace_config() {
+  local source=$1
+  local destination=$2
+  local mode=$3
+  local temporary
+
+  temporary=$(mktemp "$(dirname -- "$destination")/.qvos-font.XXXXXX") || return
+  if ! cp -- "$source" "$temporary" ||
+    ! chmod "$mode" "$temporary" ||
+    ! mv -T -- "$temporary" "$destination"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+rollback_configs() {
+  local rollback_failed=0
+  local position
+  local rollback_index
+  local rollback_path
+  local current_hash
+
+  trap - INT TERM HUP
+  for ((position = ${#applied_indices[@]} - 1; position >= 0; position--)); do
+    rollback_index=${applied_indices[$position]}
+    rollback_path="$qvos_font_config_root/${qvos_font_relatives[$rollback_index]}"
+    if [[ ! -f $rollback_path || -L $rollback_path || ! -O $rollback_path ]]; then
+      qvos_font_fail "cannot safely restore changed config: $rollback_path"
+      rollback_failed=1
+      continue
+    fi
+    current_hash=$(sha256sum "$rollback_path" | awk '{ print $1 }') || {
+      rollback_failed=1
+      continue
+    }
+    if [[ $current_hash == "${original_hashes[$rollback_index]}" ]]; then
+      continue
+    fi
+    if [[ $current_hash != "${staged_hashes[$rollback_index]}" ]]; then
+      qvos_font_fail "preserving concurrent change instead of restoring: $rollback_path"
+      rollback_failed=1
+      continue
+    fi
+    replace_config \
+      "$transaction/original.$rollback_index" \
+      "$rollback_path" \
+      "${modes[$rollback_index]}" || {
+      qvos_font_fail "could not restore changed config: $rollback_path"
+      rollback_failed=1
+    }
+  done
+  return "$rollback_failed"
+}
+
+interrupt_transaction() {
+  rollback_configs || true
+  exit 130
+}
+trap interrupt_transaction INT TERM HUP
+
+commit_failed=0
+for index in "${active_indices[@]}"; do
+  path="$qvos_font_config_root/${qvos_font_relatives[$index]}"
+  if ! qvos_font_validate_file "$path" 1 ||
+    [[ $(sha256sum "$path" | awk '{ print $1 }') != "${original_hashes[$index]}" ]]; then
+    qvos_font_fail "config changed during the transaction: $path"
+    commit_failed=1
+    break
+  fi
+  applied_indices+=("$index")
+  if ! replace_config "$transaction/staged.$index" "$path" "${modes[$index]}"; then
+    qvos_font_fail "could not replace config atomically: $path"
+    commit_failed=1
+    break
+  fi
+done
+
+if ((commit_failed)); then
+  rollback_configs || {
+    qvos_font_fail "font application failed and one or more files require manual recovery"
+    exit 1
+  }
+  qvos_font_fail "font application failed; restored the previous configuration"
+  exit 1
+fi
+
+current_font=$(qvos_font_read_current "$qvos_font_config_root/waybar/style.css") || {
+  rollback_configs || {
+    qvos_font_fail "verification failed and one or more files require manual recovery"
+    exit 1
+  }
+  qvos_font_fail "committed font could not be verified"
+  exit 1
+}
+[[ $current_font == "$font" ]] || {
+  rollback_configs || {
+    qvos_font_fail "verification failed and one or more files require manual recovery"
+    exit 1
+  }
+  qvos_font_fail "committed font does not match the requested family"
+  exit 1
+}
+trap - INT TERM HUP
+applied_indices=()
+
+integration_failed=0
+run_integration() {
+  local label=$1
+  shift
+  if ! command -v -- "$1" >/dev/null 2>&1 || ! "$@"; then
+    printf 'qvOS font: applied configuration, but %s could not be refreshed.\n' "$label" >&2
+    integration_failed=1
+  fi
+}
+
+run_integration "Waybar" qv-restart-waybar
+run_integration "SwayOSD" qv-restart-swayosd
+pkill -USR1 -x kitty >/dev/null 2>&1 || true
+pkill -SIGUSR2 -x ghostty >/dev/null 2>&1 || true
+
+if command -v -- pgrep >/dev/null 2>&1 && command -v -- notify-send >/dev/null 2>&1; then
+  if pgrep -x ghostty >/dev/null 2>&1; then
+    notify-send -u low "    Restart Ghostty if its font did not refresh" >/dev/null 2>&1 || true
+  fi
+  if pgrep -x foot >/dev/null 2>&1; then
+    notify-send -u low "    Restart Foot to apply the font" >/dev/null 2>&1 || true
+  fi
+fi
+
+if command -v -- omarchy-hook >/dev/null 2>&1; then
+  run_integration "custom font hooks" omarchy-hook font-set "$font"
+fi
+
+if ((integration_failed)); then
+  echo "qvOS font: the font is active; review the integration warnings above." >&2
+fi

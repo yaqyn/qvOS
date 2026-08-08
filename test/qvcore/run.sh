@@ -14,7 +14,7 @@ mapfile -d '' test_files < <(
 
 for test_file in "${test_files[@]}"; do
   printf '\n==> %s\n' "${test_file#"$repo_root/"}"
-  bash "$test_file"
+  env -u QVOS_PATH -u OMARCHY_PATH bash "$test_file"
 done
 
 printf '\nAll %d shell test files passed.\n' "${#test_files[@]}"

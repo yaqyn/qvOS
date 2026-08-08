@@ -916,6 +916,9 @@ mapfile -t qvos_tests < <(
 for qvos_test in "${qvos_tests[@]}"; do
   [[ -x $qvos_test ]] || fail "$(basename "$qvos_test") executable mode"
 done
+grep -Fqx '  env -u QVOS_PATH -u OMARCHY_PATH bash "$test_file"' \
+  "$root/test/qvcore/run.sh" ||
+  fail "full test runner can inherit the live source root"
 pass "qvOS-owned test entrypoints are executable"
 
 install -d \

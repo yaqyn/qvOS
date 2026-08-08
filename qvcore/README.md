@@ -23,6 +23,7 @@ qvcore/
   defaults/    Browser, editor, and terminal default ownership.
   desktop/     Shared context, web, Hyprland, and runtime restart owners.
   direct/      Verified manifest-driven direct software and updates.
+  font/        Installed font discovery and transactional configuration.
   install/     Complete native qvOS installation lifecycle.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   migrations/  Native ordered migrations and private applied-state ownership.
@@ -83,6 +84,10 @@ Services and Development integrations never change qvOS base readiness.
 - Desktop restart commands are native under `qvcore/desktop/restart/`. Native
   qvOS consumers use `qv-restart-*`; exact `omarchy-restart-*` names remain
   direct compatibility adapters for inherited consumers and external callers.
+- Font discovery, current-state reporting, and configuration mutation are
+  native under `qvcore/font/`. One serialized transaction validates and stages
+  every supported config, preserves optional terminal settings and Arabic
+  fallback fonts, and restores earlier files if an atomic replacement fails.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records
@@ -177,7 +182,9 @@ exposes, installs, or refreshes the native owner:
   tree must not return. Existing-system transitions live only in
   `qvcore/migrations/`; the historical top-level migration tree is retired.
 - `test/qvcore/run.sh` recursively runs the qvCORE, Services, Development,
-  Release, Upstream, Compatibility, and inherited root shell suites.
+  Release, Upstream, Compatibility, and inherited root shell suites after
+  clearing ambient source-root overrides so fixtures cannot silently read the
+  live installation.
 - `qvcore/theme/yaqyn/` is qvOS's only bundled theme. The renderer reads Yaqyn and
   compatible custom themes only from the user theme directory; users can copy
   Yaqyn, install an Omarchy-format Git theme, or link one from elsewhere.
