@@ -4,7 +4,6 @@ tailscale||Tailscale|Settings · Software · Services|vpn,network|native|true
 nordvpn|󱇱|NordVPN|Settings · Software · Services|aur,vpn|tui|true|package|nordvpn-bin|Install NordVPN and choose whether to reboot|qv-install-nordvpn --defer-reboot
 once|󰏖|ONCE|Settings · Software · Services|37signals,server|native|true|package|once-bin|Install ONCE and continue in its interactive TUI|omarchy-install-once
 bitwarden|󰟵|Bitwarden|Settings · Software · Services|password,vault|tui|true|package|bitwarden|Install Bitwarden and its command-line client|qvcore/menu/software-install bitwarden --no-launch
-chromium-account||Chromium Account|Settings · Software · Services|google,sync|tui|false|file-prefixes|.config/chromium-flags.conf --oauth2-client-id= --oauth2-client-secret=|Configure Chromium account support|omarchy-install-chromium-google-account
 docker-db||Docker DB|Settings · Software · Development|database,container|native|true|none|-|Choose and install a supported Docker database|omarchy-install-docker-dbs
 vscode||VSCode|Settings · Software · Editor|code,ide|tui|true|package|visual-studio-code-bin|Install VS Code and apply qvOS defaults|qv-install-vscode
 cursor||Cursor|Settings · Software · Editor|code,ide,ai|tui|true|package|cursor-bin|Install Cursor|qvcore/menu/software-install cursor --no-launch

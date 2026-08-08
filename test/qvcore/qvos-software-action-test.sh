@@ -498,7 +498,7 @@ while IFS='|' read -r slug operation protocol extra; do
   rollback_installers+="${rollback_installers:+ }$slug"
 done <"$root/qvcore/tui/action/rollbacks.psv"
 
-[[ $tui_installers == "dropbox nordvpn bitwarden chromium-account vscode cursor zed sublime-text helix vim emacs font-cascadia-mono font-meslo-mono font-fira-code font-victor-code font-bitstream-vera font-iosevka alacritty foot ghostty kitty lm-studio ollama crush" ]] ||
+[[ $tui_installers == "dropbox nordvpn bitwarden vscode cursor zed sublime-text helix vim emacs font-cascadia-mono font-meslo-mono font-fira-code font-victor-code font-bitstream-vera font-iosevka alacritty foot ghostty kitty lm-studio ollama crush" ]] ||
   fail "complete captured-stream software installer sweep"
 [[ $native_installers == "tailscale once docker-db" ]] ||
   fail "interactive software installer native-terminal boundary"

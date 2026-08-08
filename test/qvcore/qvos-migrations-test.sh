@@ -180,6 +180,41 @@ grep -Fq 'Preserving modified Firefox Wayland environment:' \
   <<<"$browser_warning" || fail "modified Firefox Wayland migration warning"
 printf 'ok - browser runtime naming migrates exactly and preserves modifications\n'
 
+oauth_migration="$root/qvcore/migrations/1786214549.sh"
+oauth_home="$test_root/oauth-home"
+oauth_flags="$oauth_home/.config/chromium-flags.conf"
+install -d "${oauth_flags%/*}"
+if git -C "$root" show-ref --verify --quiet refs/remotes/upstream/master; then
+  oauth_upstream_ref=upstream/master
+else
+  oauth_upstream_ref=origin/master
+fi
+mapfile -t inherited_oauth_flags < <(
+  git -C "$root" show \
+    "$oauth_upstream_ref:bin/omarchy-install-chromium-google-account" |
+    sed -n '/^[[:space:]]*echo "--oauth2-client-/{s/^[[:space:]]*echo "//;s/" >>.*$//;p}'
+)
+((${#inherited_oauth_flags[@]} == 2)) ||
+  fail "reviewed Chromium OAuth migration fixture"
+printf '%s\n' "${inherited_oauth_flags[@]}" '--unrelated-flag' >"$oauth_flags"
+HOME="$oauth_home" \
+  XDG_CONFIG_HOME="$oauth_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$oauth_migration" >/dev/null
+grep -Fqx -- '--unrelated-flag' "$oauth_flags" ||
+  fail "Chromium OAuth migration unrelated flag preservation"
+if grep -qE '^--oauth2-client-(id|secret)=' "$oauth_flags"; then
+  fail "Chromium OAuth migration retained inherited credentials"
+fi
+oauth_snapshot=$(sha256sum "$oauth_flags")
+HOME="$oauth_home" \
+  XDG_CONFIG_HOME="$oauth_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$oauth_migration" >/dev/null
+[[ $(sha256sum "$oauth_flags") == "$oauth_snapshot" ]] ||
+  fail "Chromium OAuth migration idempotence"
+printf 'ok - inherited Chromium OAuth credentials retire exactly and atomically\n'
+
 dns_migration="$root/qvcore/migrations/1786210567.sh"
 dns_system_root="$test_root/dns-system"
 dns_network_root="$dns_system_root/etc/systemd/network"

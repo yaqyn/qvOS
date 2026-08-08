@@ -12,7 +12,6 @@ bin/omarchy-launch-bluetooth
 bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu
-bin/omarchy-refresh-chromium
 bin/omarchy-refresh-fastfetch
 bin/omarchy-refresh-walker
 bin/omarchy-remove-preinstalls

@@ -3,40 +3,55 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/browser/native-paths"
+retired_manifest="$root/qvcore/browser/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $'bin/omarchy-install-browser\nbin/omarchy-remove-browser\nconfig/chromium-flags.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $'bin/omarchy-install-browser\nbin/omarchy-refresh-chromium\nbin/omarchy-remove-browser\nconfig/chromium-flags.conf' ]] ||
   fail "native browser inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "bin/omarchy-install-chromium-google-account" ]] ||
+  fail "retired browser inventory"
+[[ ! -e $root/bin/omarchy-install-chromium-google-account &&
+  ! -L $root/bin/omarchy-install-chromium-google-account ]] ||
+  fail "retired Chromium OAuth installer remains"
 
-for operation in install remove; do
-  native_adapter="$root/bin/qv-$operation-browser"
-  compatibility_adapter="$root/bin/omarchy-$operation-browser"
-  owner="$root/qvcore/browser/$operation"
-  [[ -x $native_adapter && -x $compatibility_adapter && -x $owner ]] ||
-    fail "browser $operation adapter or owner mode"
+declare -A browser_routes=(
+  [install-browser]=install
+  [refresh-chromium]=refresh-chromium
+  [remove-browser]=remove
+)
+for route in "${!browser_routes[@]}"; do
+  owner=${browser_routes[$route]}
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+  [[ -x $native_adapter && -x $compatibility_adapter &&
+    -x $root/qvcore/browser/$owner ]] ||
+    fail "browser $route adapter or owner mode"
   (( $(wc -l <"$native_adapter") <= 12 )) ||
-    fail "native browser $operation adapter contains implementation"
+    fail "native browser $route adapter contains implementation"
   (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
-    fail "browser $operation compatibility adapter contains implementation"
+    fail "browser $route compatibility adapter contains implementation"
   rg -q '^# qv:summary=' "$native_adapter" ||
-    fail "native browser $operation adapter lacks metadata"
+    fail "native browser $route adapter lacks metadata"
   ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
-    fail "browser $operation compatibility adapter duplicates metadata"
+    fail "browser $route compatibility adapter duplicates metadata"
   for adapter in "$native_adapter" "$compatibility_adapter"; do
     # shellcheck disable=SC2016
-    grep -Fqx "exec \"\$QVOS_PATH/qvcore/browser/$operation\" \"\$@\"" \
-      "$adapter" || fail "browser $operation adapter owner"
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/browser/$owner\" \"\$@\"" \
+      "$adapter" || fail "browser $route adapter owner"
   done
+done
+
+for owner in migrate-runtime-root retire-google-oauth setup-policy; do
+  [[ -x $root/qvcore/browser/$owner ]] || fail "browser owner mode: $owner"
 done
 
 grep -Fq 'qvcore/browser/setup-policy' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses policy ownership"
-[[ -x $root/qvcore/browser/migrate-runtime-root ]] ||
-  fail "browser runtime migration owner mode"
 grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses runtime migration"
 grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/remove" ||
@@ -65,5 +80,11 @@ if rg -n 'omarchy-(install|remove)-browser' \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces still call browser compatibility routes"
 fi
+if rg -n 'chromium-account|install-chromium-google-account' \
+  "$root/bin" "$root/qvcore/menu" "$root/qvcore/tui" \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/retired-paths'; then
+  fail "retired Chromium OAuth feature remains active"
+fi
 
-printf 'ok - optional browsers have one exact install and removal lifecycle\n'
+printf 'ok - browsers have one exact lifecycle without inherited OAuth credentials\n'

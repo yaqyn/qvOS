@@ -221,20 +221,6 @@ if grep -Fq 'set-timezone Etc/Unknown' "$action_log"; then
   fail "Invalid timezone reached the privileged mutation"
 fi
 
-chromium_flags="$test_home/.config/chromium-flags.conf"
-printf '%s\n' '--oauth2-client-id=' '--oauth2-client-secret=' >"$chromium_flags"
-if run_owner "$root/qvcore/menu/software-installer-state" chromium-account >/dev/null 2>&1; then
-  fail "Chromium Account accepted empty OAuth flags"
-fi
-: >"$chromium_flags"
-run_owner "$root/bin/omarchy-install-chromium-google-account" >/dev/null
-grep -qE '^--oauth2-client-id=.+$' "$chromium_flags" ||
-  fail "Chromium Account client id result"
-grep -qE '^--oauth2-client-secret=.+$' "$chromium_flags" ||
-  fail "Chromium Account client secret result"
-[[ $(run_owner "$root/qvcore/menu/software-installer-state" chromium-account) == "installed" ]] ||
-  fail "Chromium Account semantic result probe"
-
 run_owner "$root/bin/qv-voxtype-install" --yes >/dev/null
 grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
   fail "Dictation noninteractive TUI owner"

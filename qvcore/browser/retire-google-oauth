@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euo pipefail
+
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/chromium-flags.conf"
+known_line_hashes=(
+  97af7d063eb38e7bacad8f140aa015817cb16eb6ddcf50ad982673046fdb1575
+  8c490d5fa69f1a2553f124ef7a70bc3e18974e2d1dfed9f479a5dc0eb52703d8
+)
+temporary=""
+
+if (($# != 0)); then
+  printf 'Usage: qvcore/browser/retire-google-oauth\n' >&2
+  exit 2
+fi
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || unlink -- "$temporary"
+}
+trap cleanup EXIT
+
+[[ -e $config_file || -L $config_file ]] || exit 0
+[[ -f $config_file && ! -L $config_file ]] || {
+  printf 'Refusing unsafe Chromium flags file: %s\n' "$config_file" >&2
+  exit 1
+}
+[[ $(stat -c '%u' -- "$config_file") == "$EUID" ]] || {
+  printf 'Refusing foreign Chromium flags file: %s\n' "$config_file" >&2
+  exit 1
+}
+(( $(stat -c '%s' -- "$config_file") <= 1048576 )) || {
+  printf 'Refusing oversized Chromium flags file: %s\n' "$config_file" >&2
+  exit 1
+}
+
+temporary=$(mktemp "${config_file%/*}/.chromium-flags.XXXXXX")
+removed=0
+while IFS= read -r line || [[ -n $line ]]; do
+  line_hash=$(printf '%s\n' "$line" | sha256sum | awk '{print $1}')
+  if [[ $line_hash == "${known_line_hashes[0]}" ||
+    $line_hash == "${known_line_hashes[1]}" ]]; then
+    ((removed += 1))
+  else
+    printf '%s\n' "$line" >>"$temporary"
+  fi
+done <"$config_file"
+
+if ((removed == 0)); then
+  unlink -- "$temporary"
+  temporary=""
+  exit 0
+fi
+
+chmod --reference="$config_file" "$temporary"
+mv -- "$temporary" "$config_file"
+temporary=""
+printf 'Removed inherited Chromium OAuth application credentials.\n'

@@ -280,23 +280,23 @@ func TestUnprivilegedRemovalChoiceCanChangeSummaryWithoutAddingSudo(t *testing.T
 }
 
 func TestSpecLoadsOnlySingleLineMutationSuccessGuidance(t *testing.T) {
-	t.Setenv("QVOS_ACTION_SLUG", "chromium-account")
+	t.Setenv("QVOS_ACTION_SLUG", "bitwarden")
 	t.Setenv("QVOS_ACTION_OPERATION", "install")
-	t.Setenv("QVOS_ACTION_TITLE", "Chromium Account")
-	t.Setenv("QVOS_ACTION_SUMMARY", "Configure Chromium account support")
+	t.Setenv("QVOS_ACTION_TITLE", "Bitwarden")
+	t.Setenv("QVOS_ACTION_SUMMARY", "Install Bitwarden")
 	t.Setenv("QVOS_ACTION_REQUIRES_SUDO", "0")
 	t.Setenv("QVOS_ACTION_RINGS", "2")
 	t.Setenv("QVOS_ACTION_BEHAVIOR", "mutation")
 	t.Setenv(
 		"QVOS_ACTION_NEXT_STEP",
-		"Restart Chromium, then open Settings > You and Google to sign in.",
+		"Open Bitwarden and sign in.",
 	)
 
 	spec, err := FromEnvironment()
 	if err != nil {
 		t.Fatalf("success guidance spec: %v", err)
 	}
-	if spec.NextStep != "Restart Chromium, then open Settings > You and Google to sign in." {
+	if spec.NextStep != "Open Bitwarden and sign in." {
 		t.Fatalf("success guidance = %q", spec.NextStep)
 	}
 

@@ -22,12 +22,17 @@ install -d \
   "$fixture/qvcore/browser" \
   "$test_bin"
 install -m 0755 "$root/bin/omarchy-install-browser" "$fixture/bin/"
+install -m 0755 "$root/bin/omarchy-refresh-chromium" "$fixture/bin/"
 install -m 0755 "$root/bin/omarchy-remove-browser" "$fixture/bin/"
 install -m 0755 "$root/bin/qv-install-browser" "$fixture/bin/"
+install -m 0755 "$root/bin/qv-refresh-chromium" "$fixture/bin/"
 install -m 0755 "$root/bin/qv-remove-browser" "$fixture/bin/"
 install -m 0755 "$root/qvcore/browser/install" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/migrate-runtime-root" "$fixture/qvcore/browser/"
+install -m 0755 "$root/qvcore/browser/refresh-chromium" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/remove" "$fixture/qvcore/browser/"
+install -m 0755 "$root/qvcore/browser/retire-google-oauth" "$fixture/qvcore/browser/"
+install -D -m 0755 "$root/qvcore/config/refresh" "$fixture/qvcore/config/refresh"
 printf '%s\n' '--enable-features=UseOzonePlatform' >"$fixture/config/chromium-flags.conf"
 printf '%s\n' '{"policies":{}}' >"$fixture/default/firefox/policies.json"
 touch "$action_log"
@@ -83,12 +88,76 @@ STUB
 
 run_browser() {
   HOME="$test_home" \
+    XDG_CONFIG_HOME="$test_home/.config" \
     QVOS_PATH="$fixture" \
     OMARCHY_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     "$@"
 }
+
+if git -C "$root" show-ref --verify --quiet refs/remotes/upstream/master; then
+  upstream_ref=upstream/master
+else
+  upstream_ref=origin/master
+fi
+mapfile -t inherited_oauth_flags < <(
+  git -C "$root" show \
+    "$upstream_ref:bin/omarchy-install-chromium-google-account" |
+    sed -n '/^[[:space:]]*echo "--oauth2-client-/{s/^[[:space:]]*echo "//;s/" >>.*$//;p}'
+)
+((${#inherited_oauth_flags[@]} == 2)) ||
+  fail "reviewed inherited Chromium OAuth fixture"
+
+chromium_flags="$test_home/.config/chromium-flags.conf"
+printf '%s\n' "${inherited_oauth_flags[@]}" '--custom-browser-flag' \
+  >"$chromium_flags"
+run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
+grep -Fqx -- '--custom-browser-flag' "$chromium_flags" ||
+  fail "Chromium OAuth retirement preserved unrelated flags"
+if grep -qE '^--oauth2-client-(id|secret)=' "$chromium_flags"; then
+  fail "inherited Chromium OAuth credentials remain"
+fi
+retired_snapshot=$(sha256sum "$chromium_flags")
+run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
+[[ $(sha256sum "$chromium_flags") == "$retired_snapshot" ]] ||
+  fail "Chromium OAuth retirement idempotence"
+
+printf '%s\n' \
+  '--oauth2-client-id=user-owned' \
+  '--oauth2-client-secret=user-owned' \
+  '--custom-browser-flag' >"$chromium_flags"
+custom_snapshot=$(sha256sum "$chromium_flags")
+run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
+[[ $(sha256sum "$chromium_flags") == "$custom_snapshot" ]] ||
+  fail "user-owned Chromium OAuth preservation"
+
+external_flags="$test_root/external-chromium-flags"
+printf 'external\n' >"$external_flags"
+unlink -- "$chromium_flags"
+ln -s "$external_flags" "$chromium_flags"
+if run_browser "$fixture/qvcore/browser/retire-google-oauth" \
+  >/dev/null 2>&1; then
+  fail "linked Chromium flags accepted"
+fi
+[[ $(<"$external_flags") == "external" ]] ||
+  fail "linked Chromium flags target changed"
+unlink -- "$chromium_flags"
+
+printf '%s\n' "${inherited_oauth_flags[@]}" '--preserve-in-backup' \
+  >"$chromium_flags"
+run_browser "$fixture/bin/qv-refresh-chromium" >/dev/null
+cmp -s "$fixture/config/chromium-flags.conf" "$chromium_flags" ||
+  fail "native Chromium refresh"
+if rg -q '^--oauth2-client-(id|secret)=' "$test_home/.config"; then
+  fail "Chromium refresh retained inherited OAuth credentials in a backup"
+fi
+grep -Rqx -- '--preserve-in-backup' "$test_home/.config" ||
+  fail "Chromium refresh sanitized backup"
+if run_browser "$fixture/bin/qv-refresh-chromium" unexpected \
+  >/dev/null 2>&1; then
+  fail "Chromium refresh accepted unexpected arguments"
+fi
 
 run_browser "$fixture/bin/qv-install-browser" chrome >/dev/null
 grep -Fqx 'aur-add:google-chrome' "$action_log" || fail "Chrome package owner"
