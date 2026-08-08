@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+process_lib="$QVOS_PATH/qvcore/desktop/restart/process-lib"
+notification_owner="$QVOS_PATH/qvcore/controls/notification/send"
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$process_lib"
+
+(( $# == 0 )) || {
+  echo "Usage: qv toggle idle" >&2
+  exit 2
+}
+
+mapfile -t idle_pids < <(qvos_process_exact_pids hypridle)
+if ((${#idle_pids[@]} > 0)); then
+  qvos_process_stop_exact hypridle
+  "$notification_owner" "󱫖" "Idle locking disabled" -u low || true
+else
+  "$QVOS_PATH/qvcore/desktop/restart/hypridle"
+  qvos_process_wait_exact hypridle
+  "$notification_owner" "󱫖" "Idle locking enabled" -u low || true
+fi
+
+qvos_process_signal_exact waybar RTMIN+9 || true

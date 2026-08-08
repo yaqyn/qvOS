@@ -44,3 +44,45 @@ qvos_process_signal_exact() {
   done < <(qvos_process_exact_pids "$name")
   return "$status"
 }
+
+qvos_process_stop_exact() {
+  local name=$1
+  local pid
+  local -a process_pids=()
+
+  mapfile -t process_pids < <(qvos_process_exact_pids "$name")
+  ((${#process_pids[@]} > 0)) || return 0
+
+  for pid in "${process_pids[@]}"; do
+    qvos_process_signal_pid "$name" TERM "$pid"
+  done
+  for _ in {1..20}; do
+    mapfile -t process_pids < <(qvos_process_exact_pids "$name")
+    ((${#process_pids[@]} > 0)) || return 0
+    sleep 0.05
+  done
+  for pid in "${process_pids[@]}"; do
+    qvos_process_signal_pid "$name" KILL "$pid"
+  done
+  for _ in {1..20}; do
+    mapfile -t process_pids < <(qvos_process_exact_pids "$name")
+    ((${#process_pids[@]} > 0)) || return 0
+    sleep 0.05
+  done
+
+  echo "Could not stop $name safely." >&2
+  return 1
+}
+
+qvos_process_wait_exact() {
+  local name=$1
+  local -a process_pids=()
+
+  for _ in {1..40}; do
+    mapfile -t process_pids < <(qvos_process_exact_pids "$name")
+    ((${#process_pids[@]} == 0)) || return 0
+    sleep 0.05
+  done
+  echo "$name did not start." >&2
+  return 1
+}

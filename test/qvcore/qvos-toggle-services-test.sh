@@ -81,6 +81,47 @@ fi
 [[ ! -e $test_home/.local/state/qvos/escape ]] ||
   fail "toggle path traversal escaped its owner"
 
+install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+HOME="$test_home" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/toggle" \
+  --enabled-notification "presentation failure" notification-failure
+[[ -f $test_home/.local/state/qvos/toggles/notification-failure ]] ||
+  fail "notification failure hid a successful toggle mutation"
+HOME="$test_home" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/toggle" notification-failure
+
+unsafe_toggle_home="$test_root/unsafe-toggle-home"
+external_toggles="$test_root/external-toggles"
+install -d "$unsafe_toggle_home/.local/state/qvos" "$external_toggles"
+ln -s "$external_toggles" "$unsafe_toggle_home/.local/state/qvos/toggles"
+if HOME="$unsafe_toggle_home" QVOS_PATH="$root" \
+  "$root/qvcore/config/toggle" unsafe >/dev/null 2>&1; then
+  fail "generic toggle accepted a linked state root"
+fi
+[[ -z $(find "$external_toggles" -mindepth 1 -print -quit) ]] ||
+  fail "generic toggle followed a linked state root"
+
+concurrent_home="$test_root/concurrent-toggle-home"
+install -d "$concurrent_home"
+for _ in {1..10}; do
+  HOME="$concurrent_home" QVOS_PATH="$root" \
+    "$root/qvcore/config/toggle" concurrent &
+  first_toggle_pid=$!
+  HOME="$concurrent_home" QVOS_PATH="$root" \
+    "$root/qvcore/config/toggle" concurrent &
+  second_toggle_pid=$!
+  wait "$first_toggle_pid"
+  wait "$second_toggle_pid"
+  [[ ! -e $concurrent_home/.local/state/qvos/toggles/concurrent ]] ||
+    fail "concurrent toggle mutations were not serialized"
+done
+[[ $(stat -c '%a' "$concurrent_home/.local/state/qvos/toggles/.lock") == "600" ]] ||
+  fail "toggle transaction lock is not private"
+printf 'ok - generic toggle mutations reject links, serialize, and outlive presentation failures\n'
+
 hyprctl_log="$test_root/hyprctl.log"
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash

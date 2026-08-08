@@ -16,8 +16,51 @@ qvos_hypr_toggle_validate_name() {
   [[ $name =~ ^[a-z0-9][a-z0-9-]*$ ]]
 }
 
+qvos_toggle_directory_chain() {
+  local path=$1
+  local current
+  local relative
+  local component
+  local -a components=()
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] || return 1
+  [[ $path == "$qvos_toggle_root" || $path == "$qvos_toggle_root/"* ]] ||
+    return 1
+
+  printf '%s\n' \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$qvos_toggle_root"
+  relative=${path#"$qvos_toggle_root"}
+  relative=${relative#/}
+  [[ -n $relative ]] || return 0
+  IFS='/' read -r -a components <<<"$relative"
+  current=$qvos_toggle_root
+  for component in "${components[@]}"; do
+    current+="/$component"
+    printf '%s\n' "$current"
+  done
+}
+
+qvos_toggle_directory_chain_safe() {
+  local path=$1
+  local directory
+  local directory_chain
+
+  directory_chain=$(qvos_toggle_directory_chain "$path") || return 1
+  while IFS= read -r directory; do
+    [[ ! -e $directory && ! -L $directory ]] ||
+      [[ -d $directory && ! -L $directory && -O $directory ]] || return 1
+  done <<<"$directory_chain"
+}
+
 qvos_toggle_safe_file() {
   local path=$1
+  local parent
+
+  parent=$(dirname -- "$path")
+  qvos_toggle_directory_chain_safe "$parent" || return 1
 
   [[ ! -e $path && ! -L $path ]] ||
     [[ -f $path && ! -L $path && -O $path ]]
@@ -25,16 +68,21 @@ qvos_toggle_safe_file() {
 
 qvos_toggle_ensure_dir() {
   local path=$1
+  local directory
+  local directory_chain
 
-  if [[ -e $path || -L $path ]]; then
-    [[ -d $path && ! -L $path && -O $path ]] || {
-      echo "Refusing unsafe qvOS toggle directory: $path" >&2
-      return 1
-    }
-  else
-    install -d -m 0700 "$path"
-  fi
-  chmod 0700 -- "$path"
+  qvos_toggle_directory_chain_safe "$path" || {
+    echo "Refusing unsafe qvOS toggle directory: $path" >&2
+    return 1
+  }
+  directory_chain=$(qvos_toggle_directory_chain "$path") || return 1
+  while IFS= read -r directory; do
+    [[ -d $directory ]] || install -d -m 0700 -- "$directory"
+    if [[ $directory == "$qvos_toggle_root" ||
+      $directory == "$qvos_toggle_root/"* ]]; then
+      chmod 0700 -- "$directory"
+    fi
+  done <<<"$directory_chain"
 }
 
 qvos_toggle_write() {
@@ -63,4 +111,28 @@ qvos_toggle_remove() {
     return 1
   }
   rm -f -- "$path"
+}
+
+qvos_toggle_lock() {
+  local lock_file="$qvos_toggle_root/.lock"
+
+  command -v flock >/dev/null || {
+    echo "Cannot lock qvOS toggle state: flock is unavailable." >&2
+    return 1
+  }
+  qvos_toggle_ensure_dir "$qvos_toggle_root"
+  qvos_toggle_safe_file "$lock_file" || {
+    echo "Refusing unsafe qvOS toggle lock: $lock_file" >&2
+    return 1
+  }
+  if [[ ! -f $lock_file ]]; then
+    (umask 077; set -o noclobber; : >"$lock_file") 2>/dev/null || true
+  fi
+  qvos_toggle_safe_file "$lock_file" && [[ -f $lock_file ]] || {
+    echo "Could not create a safe qvOS toggle lock: $lock_file" >&2
+    return 1
+  }
+  chmod 0600 -- "$lock_file"
+  exec {qvos_toggle_lock_fd}<"$lock_file"
+  flock -x "$qvos_toggle_lock_fd"
 }

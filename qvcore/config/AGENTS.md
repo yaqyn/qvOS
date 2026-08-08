@@ -10,6 +10,12 @@ Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
 private-browser, localhost, and prompted-website access; users may install and
 bind their own Web Apps later.
 
+Promoted desktop bindings call `qv-toggle-*` routes. Matching
+`omarchy-toggle-*` commands exist only as metadata-free saved-config
+compatibility adapters after their feature owner is promoted; retained
+inherited config may keep that compatibility ABI until its complete domain
+moves.
+
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
   neither `unbind` nor a second active source to override it.
@@ -89,8 +95,12 @@ the inert flags file, and rewrites only the exact inherited Hyprland source
 line with a backup. Toggle templates and command implementations live under
 `qvcore/config/`; native `qv-*` routes carry metadata and matching
 `bin/omarchy-*` routes are metadata-free compatibility only. Keep state files
-private, validate names and ownership before mutation,
-and preserve every compatible custom toggle during install and update.
+private, validate every ancestor and reject links before mutation, and
+serialize changes through the shared toggle lock. A process launched while a
+toggle transaction is locked must close that descriptor in the child so the
+long-running process cannot retain it after the owner exits. Treat desktop
+notifications as best effort after state publication, and preserve every
+compatible custom toggle during install and update.
 Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`,
 the first-run and desktop-install suites, `systemd-analyze verify` after live
 alignment, and the full qvOS suite.

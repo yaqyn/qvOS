@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-hibernation-available\nbin/omarchy-hibernation-remove\nbin/omarchy-hibernation-setup\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown\nbin/omarchy-wifi-powersave'
+expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-hibernation-available\nbin/omarchy-hibernation-remove\nbin/omarchy-hibernation-setup\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown\nbin/omarchy-toggle-suspend\nbin/omarchy-wifi-powersave'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native power route inventory"
 
@@ -31,6 +31,7 @@ declare -A route_owners=(
   [system-shutdown]=system-power
   [system-inhibit-sleep]=inhibit-sleep
   [system-suspend-if-safe]=suspend-if-safe
+  [toggle-suspend]=toggle-suspend
   [wifi-powersave]=wifi-powersave
 )
 declare -A route_actions=(
@@ -104,7 +105,7 @@ if rg -n '\.local/share/(qvos|omarchy).*(profiles|wifi-powersave)' \
   "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
   fail "installer retains a user-writable root event command"
 fi
-if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|hibernation-|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|wifi-powersave)' \
+if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|hibernation-|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|toggle-suspend|wifi-powersave)' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \

@@ -19,6 +19,10 @@ runner and desktop lock owner. It prevalidates the complete matching Hyprland
 window inventory before issuing any close dispatch; never restore broad
 process-pattern termination.
 
+`qvcore/screensaver/toggle` is the only screensaver-availability mutation. It
+delegates the private `screensaver-off` flag to the shared config toggle owner;
+menus and concepts use `qv-toggle-screensaver`, never its compatibility name.
+
 - Never use `cursor:invisible true`. It is compositor-wide state and can leave
   the desktop cursor hidden when lock, DPMS, or an external process closes the
   screensaver terminal before local cleanup completes.

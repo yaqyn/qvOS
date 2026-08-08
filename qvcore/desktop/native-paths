@@ -41,6 +41,8 @@ bin/omarchy-restart-xcompose
 bin/omarchy-system-lock
 bin/omarchy-system-logout
 bin/omarchy-system-wake
+bin/omarchy-toggle-idle
+bin/omarchy-toggle-nightlight
 bin/omarchy-webapp-install
 bin/omarchy-webapp-remove
 bin/omarchy-webapp-remove-all

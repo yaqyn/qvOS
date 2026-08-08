@@ -21,6 +21,7 @@ declare -A owners=(
   [swayosd-brightness]=osd/brightness
   [swayosd-client]=osd/client
   [swayosd-kbd-brightness]=osd/keyboard-brightness
+  [toggle-notification-silencing]=notification/toggle-silencing
 )
 
 mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
@@ -50,7 +51,7 @@ for inherited_path in "${native_paths[@]}"; do
   done
 done
 
-if rg -n 'omarchy-(audio|brightness|notification|swayosd)-' \
+if rg -n 'omarchy-(audio|brightness|notification|swayosd)-|omarchy-toggle-notification-silencing' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/README.md' \
   --glob '!**/check' \

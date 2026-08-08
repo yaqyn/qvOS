@@ -1,0 +1,57 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+process_lib="$QVOS_PATH/qvcore/desktop/restart/process-lib"
+toggle_lib="$QVOS_PATH/qvcore/config/toggle-lib"
+notification_owner="$QVOS_PATH/qvcore/controls/notification/send"
+# shellcheck disable=SC1090,SC1091
+source "$process_lib"
+# shellcheck disable=SC1090
+source "$toggle_lib"
+
+(( $# == 0 )) || {
+  echo "Usage: qv toggle waybar" >&2
+  exit 2
+}
+qvos_toggle_lock
+# shellcheck disable=SC2154
+flag="$qvos_toggle_root/waybar-off"
+qvos_toggle_safe_file "$flag" || {
+  echo "Refusing unsafe qvOS Waybar state: $flag" >&2
+  exit 1
+}
+
+mapfile -t waybar_pids < <(qvos_process_exact_pids waybar)
+if ((${#waybar_pids[@]} > 0)); then
+  created_flag=false
+  if [[ ! -f $flag ]]; then
+    qvos_toggle_write "$flag" </dev/null
+    created_flag=true
+  fi
+  if ! qvos_process_stop_exact waybar; then
+    [[ $created_flag == "false" ]] || qvos_toggle_remove "$flag"
+    exit 1
+  fi
+  # shellcheck disable=SC2154
+  "$notification_owner" "󰍜" "Top bar hidden" -u low \
+    {qvos_toggle_lock_fd}<&- || true
+else
+  removed_flag=false
+  if [[ -f $flag ]]; then
+    qvos_toggle_remove "$flag"
+    removed_flag=true
+  fi
+  # Keep the transaction lock in this owner, but never leak it into Waybar.
+  # shellcheck disable=SC2154
+  if ! "$QVOS_PATH/qvcore/desktop/restart/waybar" {qvos_toggle_lock_fd}<&- ||
+    ! qvos_process_wait_exact waybar; then
+    if [[ $removed_flag == "true" ]]; then
+      qvos_toggle_write "$flag" </dev/null
+    fi
+    exit 1
+  fi
+  # shellcheck disable=SC2154
+  "$notification_owner" "󰍜" "Top bar shown" -u low \
+    {qvos_toggle_lock_fd}<&- || true
+fi

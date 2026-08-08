@@ -1,7 +1,8 @@
 # qvOS Desktop Controls Workflow
 
 Read this file completely when changing audio switching, display or keyboard
-brightness, desktop notifications, or SwayOSD presentation.
+brightness, desktop notifications, notification silencing, or SwayOSD
+presentation.
 
 `qvcore/controls/` owns these user-session controls. Public `qv-*` commands
 carry metadata; matching `omarchy-*` files are metadata-free compatibility
@@ -14,6 +15,11 @@ arguments, and fail clearly when no compatible device exists. Treat hardware
 LED feedback as best effort only after the real audio mutation succeeds. Use
 one shared OSD client owner and direct owner-to-owner calls; never duplicate
 progress calculations or rebuild command strings.
+
+Notification silencing reads the current Mako mode, toggles exactly
+`do-not-disturb`, verifies the opposite state, and rolls back on disagreement.
+Notify and refresh the Waybar indicator only after the state is verified; both
+are best-effort presentation, not evidence of mutation success.
 
 List every promoted inherited route in `native-paths`, sorted and unique. Run
 `qvcore/controls/check`, the focused controls suite, binding/config checks,

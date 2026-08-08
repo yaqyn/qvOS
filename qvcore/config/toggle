@@ -34,6 +34,7 @@ qvos_toggle_validate_name "$flag_name" || {
   exit 2
 }
 flag="$qvos_toggle_root/$flag_name"
+qvos_toggle_lock
 qvos_toggle_safe_file "$flag" || {
   echo "Refusing unsafe qvOS toggle file: $flag" >&2
   exit 1
@@ -41,9 +42,16 @@ qvos_toggle_safe_file "$flag" || {
 
 if [[ -f $flag ]]; then
   qvos_toggle_remove "$flag"
-  [[ -z $disabled_notification ]] || notify-send -u low "$disabled_notification"
+  # shellcheck disable=SC2154
+  if [[ -n $disabled_notification ]] &&
+    ! notify-send -u low "$disabled_notification" {qvos_toggle_lock_fd}<&-; then
+    echo "qvOS toggle changed, but its notification could not be shown." >&2
+  fi
 else
-  qvos_toggle_ensure_dir "$(dirname -- "$flag")"
-  install -m 0600 /dev/null "$flag"
-  [[ -z $enabled_notification ]] || notify-send -u low "$enabled_notification"
+  qvos_toggle_write "$flag" </dev/null
+  # shellcheck disable=SC2154
+  if [[ -n $enabled_notification ]] &&
+    ! notify-send -u low "$enabled_notification" {qvos_toggle_lock_fd}<&-; then
+    echo "qvOS toggle changed, but its notification could not be shown." >&2
+  fi
 fi

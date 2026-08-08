@@ -13,6 +13,11 @@ because stale state cleanup was refused. Schedule the fixed systemctl action
 before closing windows, preserve the existing two-second application grace,
 and never build a user-controlled shell command.
 
+`toggle-suspend` owns only the user-facing availability flag consumed by the
+system menu and automatic-suspend guard. It delegates the private `suspend-off`
+state to the shared config toggle owner; it never changes logind, systemd, or
+kernel sleep policy.
+
 ## Root-owned AC event boundary
 
 `profiles-set` owns power-profile policy. Accept only `autodetect`, `ac`,

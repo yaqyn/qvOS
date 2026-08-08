@@ -13,4 +13,5 @@ bin/omarchy-powerprofiles-list
 bin/omarchy-powerprofiles-set
 bin/omarchy-system-reboot
 bin/omarchy-system-shutdown
+bin/omarchy-toggle-suspend
 bin/omarchy-wifi-powersave

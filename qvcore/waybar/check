@@ -11,7 +11,7 @@ fail() {
 }
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
-  "bin/omarchy-refresh-waybar" ]] || fail "native Waybar inventory"
+  $'bin/omarchy-refresh-waybar\nbin/omarchy-toggle-waybar' ]] || fail "native Waybar inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest") == \
   $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] || fail "Waybar runtime inventory"
 
@@ -34,6 +34,19 @@ for adapter in "$native" "$compatibility"; do
   # shellcheck disable=SC2016
   grep -Fqx 'exec "$QVOS_PATH/qvcore/waybar/refresh" "$@"' "$adapter" ||
     fail "Waybar adapter bypasses native owner"
+done
+
+toggle_native="$root/bin/qv-toggle-waybar"
+toggle_compatibility="$root/bin/omarchy-toggle-waybar"
+[[ -x $root/qvcore/waybar/toggle && -x $toggle_native &&
+  -x $toggle_compatibility ]] || fail "Waybar toggle owner and adapter modes"
+rg -q '^# qv:summary=' "$toggle_native" || fail "native Waybar toggle metadata"
+! rg -q '^# (qv|omarchy):' "$toggle_compatibility" ||
+  fail "compatibility Waybar toggle metadata"
+for adapter in "$toggle_native" "$toggle_compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/waybar/toggle" "$@"' "$adapter" ||
+    fail "Waybar toggle adapter bypasses native owner"
 done
 
 task_native="$root/bin/qv-launch-task"
@@ -59,6 +72,11 @@ if rg -n 'omarchy-(launch-qvos-task|qvos-refresh-waybar)' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls a retired Waybar or task route"
+fi
+if rg -n 'omarchy-toggle-waybar' "$root/qvcore" "$root/config" \
+  --glob '!**/AGENTS.md' --glob '!**/check' \
+  --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
+  fail "native qvOS source calls the Waybar-toggle compatibility route"
 fi
 
 jq -e '

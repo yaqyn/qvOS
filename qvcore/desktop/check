@@ -50,6 +50,8 @@ declare -A helper_owners=(
   [system-lock]=session/lock
   [system-logout]=session/logout
   [system-wake]=session/wake
+  [toggle-idle]=session/toggle-idle
+  [toggle-nightlight]=session/toggle-nightlight
   [webapp-install]=webapp/install
   [webapp-remove]=webapp/remove
 )
@@ -214,6 +216,12 @@ grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
   fail "inherited autostart no longer uses the retained monitor-watch compatibility seam"
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
+fi
+if rg -n 'omarchy-toggle-(idle|nightlight)' \
+  "$root/qvcore" "$root/config" "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md' --glob '!**/check' \
+  --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
+  fail "native qvOS source calls a desktop-toggle compatibility route"
 fi
 # shellcheck disable=SC2016
 grep -Fq 'exec {cmdline_fd}<"/proc/$process/cmdline"' \

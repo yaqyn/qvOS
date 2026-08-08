@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+notification_owner="$QVOS_PATH/qvcore/controls/notification/send"
+restart_owner="$QVOS_PATH/qvcore/desktop/restart/hyprsunset"
+on_temperature=4000
+off_temperature=6000
+
+(( $# == 0 )) || {
+  echo "Usage: qv toggle nightlight" >&2
+  exit 2
+}
+command -v hyprctl >/dev/null || {
+  echo "Cannot toggle Nightlight: hyprctl is unavailable." >&2
+  exit 1
+}
+
+read_temperature() {
+  local temperature_output=""
+  local temperature
+  local -a temperatures=()
+
+  for _ in {1..20}; do
+    if temperature_output=$(hyprctl hyprsunset temperature 2>/dev/null); then
+      mapfile -t temperatures < <(grep -oE '[0-9]+' <<<"$temperature_output" || true)
+      if ((${#temperatures[@]} == 1)) &&
+        [[ ${temperatures[0]} =~ ^[0-9]+$ ]]; then
+        temperature=${temperatures[0]}
+        if (( temperature >= 1000 && temperature <= 20000 )); then
+          printf '%s\n' "$temperature"
+          return 0
+        fi
+      fi
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
+if ! pgrep -A -u "$EUID" -x -- hyprsunset >/dev/null 2>&1; then
+  "$restart_owner"
+fi
+
+current_temperature=$(read_temperature) || {
+  echo "Hyprsunset did not return one valid temperature." >&2
+  exit 1
+}
+
+if (( current_temperature == off_temperature )); then
+  target_temperature=$on_temperature
+  notification_glyph=""
+  notification_text="Nightlight enabled"
+else
+  target_temperature=$off_temperature
+  notification_glyph=""
+  notification_text="Nightlight disabled"
+fi
+if ! hyprctl hyprsunset temperature "$target_temperature" >/dev/null; then
+  hyprctl hyprsunset temperature "$current_temperature" >/dev/null 2>&1 || true
+  echo "Nightlight could not apply the requested temperature." >&2
+  exit 1
+fi
+applied_temperature=$(read_temperature) || applied_temperature=""
+if [[ $applied_temperature != "$target_temperature" ]]; then
+  hyprctl hyprsunset temperature "$current_temperature" >/dev/null 2>&1 || true
+  echo "Nightlight verification failed; restored the prior temperature." >&2
+  exit 1
+fi
+"$notification_owner" "$notification_glyph" "$notification_text" -u low || true
+
+if [[ -f $HOME/.config/waybar/config.jsonc ]] &&
+  grep -Fq 'custom/nightlight' "$HOME/.config/waybar/config.jsonc"; then
+  "$QVOS_PATH/qvcore/desktop/restart/waybar" ||
+    echo "Nightlight changed, but Waybar could not be refreshed." >&2
+fi

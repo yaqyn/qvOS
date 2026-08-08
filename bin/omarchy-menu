@@ -206,11 +206,11 @@ show_toggle_menu() {
   local options="󱄄  Screensaver\n󰔎  Nightlight\n󱫖  Idle Lock\n󰂛  Notifications\n󰍜  Top Bar\n󱂬  Workspace Layout\n  Window Gaps\n  1-Window Ratio\n󰍹  Monitor Scaling\n  Direct Boot\n󰟵  Passwordless Sudo"
 
   case $(menu "Toggle" "$options") in
-  *Screensaver*) omarchy-toggle-screensaver ;;
-  *Nightlight*) omarchy-toggle-nightlight ;;
-  *Idle*) omarchy-toggle-idle ;;
-  *Notifications*) omarchy-toggle-notification-silencing ;;
-  *Bar*) omarchy-toggle-waybar ;;
+  *Screensaver*) qv-toggle-screensaver ;;
+  *Nightlight*) qv-toggle-nightlight ;;
+  *Idle*) qv-toggle-idle ;;
+  *Notifications*) qv-toggle-notification-silencing ;;
+  *Bar*) qv-toggle-waybar ;;
   *Layout*) qv-hyprland-workspace-layout-toggle ;;
   *Ratio*) qv-hyprland-window-single-square-aspect-toggle ;;
   *Gaps*) qv-hyprland-window-gaps-toggle ;;
@@ -476,7 +476,7 @@ show_setup_config_menu() {
 show_setup_system_menu() {
   local options=""
 
-  if omarchy-toggle-enabled suspend-off; then
+  if qv-toggle-enabled suspend-off; then
     options="$options󰒲  Enable Suspend"
   else
     options="$options󰒲  Disable Suspend"
@@ -489,7 +489,7 @@ show_setup_system_menu() {
   fi
 
   case $(menu "System" "$options") in
-  *Suspend*) omarchy-toggle-suspend ;;
+  *Suspend*) qv-toggle-suspend ;;
   *"Enable Hibernate"*) present_terminal qv-hibernation-setup ;;
   *"Disable Hibernate"*) present_terminal qv-hibernation-remove ;;
   *) show_setup_menu ;;
@@ -806,7 +806,7 @@ show_about() {
 
 show_system_menu() {
   local options="󱄄  Screensaver\n  Lock"
-  ! omarchy-toggle-enabled suspend-off && options="$options\n󰒲  Suspend"
+  ! qv-toggle-enabled suspend-off && options="$options\n󰒲  Suspend"
   qv-hibernation-available && options="$options\n󰤁  Hibernate"
   options="$options\n󰍃  Logout\n󰜉  Restart\n󰐥  Shutdown"
 

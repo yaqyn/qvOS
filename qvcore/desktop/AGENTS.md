@@ -24,9 +24,12 @@ Never overwrite an
 existing desktop entry, accept an arbitrary Exec string, fetch an icon without
 explicit input, or remove a desktop file or icon without proving its bounded
 qvOS Web App ownership. Keep compatibility adapters thin and metadata-free.
-`qvcore/desktop/session/` owns lock, logout, wake, and the delayed logout
-worker. `qvcore/desktop/restart/` is the singular owner for supported runtime restart
-operations. Public `qv-restart-*` commands carry metadata; matching
+`qvcore/desktop/session/` owns lock, logout, wake, the delayed logout worker,
+and session-scoped Idle Lock and Nightlight toggles. Use the shared exact-process
+helper for Hypridle, validate one bounded Hyprsunset temperature before changing
+it, and treat notifications or an optional Waybar refresh as secondary to the
+desktop mutation. `qvcore/desktop/restart/` is the singular owner for supported
+runtime restart operations. Public `qv-restart-*` commands carry metadata; matching
 `omarchy-restart-*` files are metadata-free compatibility adapters only.
 qvOS-owned consumers call the native command or owner, never the compatibility
 name. Keep process names exact, preserve argument boundaries, treat an absent
@@ -54,7 +57,9 @@ compatibility command until that inherited source is promoted. Never exercise
 window, workspace, or display mutations on the live desktop merely to test a
 route.
 
-Process-aware tests must replace discovery inside their fixture. They must not
+`restart/process-lib` owns graceful exact-process termination with a bounded
+forced fallback. Reuse it for restarts and session toggles; never copy a
+TERM/wait/KILL loop. Process-aware tests must replace discovery inside their fixture. They must not
 observe, signal, lock, or otherwise depend on real desktop processes belonging
 to the developer session. Process inspection must tolerate a process
 disappearing between discovery and `/proc` access without leaking a misleading

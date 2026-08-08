@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+process_lib="$QVOS_PATH/qvcore/desktop/restart/process-lib"
+# shellcheck disable=SC1090,SC1091
+source "$process_lib"
+
+(( $# == 0 )) || {
+  echo "Usage: qv toggle notification silencing" >&2
+  exit 2
+}
+command -v makoctl >/dev/null || {
+  echo "Cannot toggle notification silencing: makoctl is unavailable." >&2
+  exit 1
+}
+
+before=$(makoctl mode)
+before_silenced=false
+grep -Fxq 'do-not-disturb' <<<"$before" && before_silenced=true
+makoctl mode -t do-not-disturb >/dev/null
+after=$(makoctl mode)
+after_silenced=false
+grep -Fxq 'do-not-disturb' <<<"$after" && after_silenced=true
+
+if [[ $before_silenced == "$after_silenced" ]]; then
+  makoctl mode -t do-not-disturb >/dev/null 2>&1 || true
+  restored=$(makoctl mode 2>/dev/null || true)
+  restored_silenced=false
+  grep -Fxq 'do-not-disturb' <<<"$restored" && restored_silenced=true
+  if [[ $restored_silenced == "$before_silenced" ]]; then
+    echo "Notification silencing did not change; restored the prior mode." >&2
+  else
+    echo "Notification silencing failed and its prior mode could not be restored." >&2
+  fi
+  exit 1
+fi
+if [[ $after_silenced == "true" ]]; then
+  "$QVOS_PATH/qvcore/controls/notification/send" "󰂛" "Notifications silenced" -u low || true
+else
+  "$QVOS_PATH/qvcore/controls/notification/send" "󰂚" "Notifications enabled" -u low || true
+fi
+qvos_process_signal_exact waybar RTMIN+10 || true

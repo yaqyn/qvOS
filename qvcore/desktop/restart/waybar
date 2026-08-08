@@ -6,26 +6,7 @@ restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/restart/process-lib
 source "$restart_root/process-lib"
 
-mapfile -t waybar_pids < <(qvos_process_exact_pids waybar)
-if ((${#waybar_pids[@]} > 0)); then
-  for waybar_pid in "${waybar_pids[@]}"; do
-    qvos_process_signal_pid waybar TERM "$waybar_pid"
-  done
-  for _ in {1..20}; do
-    waybar_running=false
-    for waybar_pid in "${waybar_pids[@]}"; do
-      if qvos_process_pid_matches waybar "$waybar_pid"; then
-        waybar_running=true
-        break
-      fi
-    done
-    [[ $waybar_running == "true" ]] || break
-    sleep 0.05
-  done
-  for waybar_pid in "${waybar_pids[@]}"; do
-    qvos_process_signal_pid waybar KILL "$waybar_pid"
-  done
-fi
+qvos_process_stop_exact waybar
 command -v uwsm-app >/dev/null || {
   echo "Cannot restart Waybar: uwsm-app is unavailable." >&2
   exit 1

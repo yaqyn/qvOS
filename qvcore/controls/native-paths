@@ -10,3 +10,4 @@ bin/omarchy-notification-send
 bin/omarchy-swayosd-brightness
 bin/omarchy-swayosd-client
 bin/omarchy-swayosd-kbd-brightness
+bin/omarchy-toggle-notification-silencing

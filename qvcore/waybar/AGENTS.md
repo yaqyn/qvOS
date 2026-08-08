@@ -8,6 +8,14 @@ with `overrides.jsonc`. `qv-refresh-waybar` is the native command;
 `omarchy-refresh-waybar` is a metadata-free compatibility adapter. Native qvOS
 menus, TUI catalogs, hooks, and installed configuration use only qv routes.
 
+`qvcore/waybar/toggle` owns visibility and the private `waybar-off` startup
+flag as one rollback-aware action. Stop Waybar through the shared exact-process
+helper and start it through the native restart owner. If either primary action
+fails, restore the prior flag; notifications are best effort only. Never use a
+broad or unconditional SIGKILL. Close the toggle-lock descriptor only in the
+restart child so Waybar never inherits the lock while the owner retains its
+transaction boundary through startup verification.
+
 The overlay may replace only qvOS-owned keys and the clock module placement.
 Preserve every unrelated inherited key so qvsync can review upstream Waybar
 capability without maintaining a copied configuration. A reset backs up a

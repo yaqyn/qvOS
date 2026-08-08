@@ -19,6 +19,7 @@ done
 declare -A route_owners=(
   [launch-screensaver]=qvos-launch-screensaver
   [screensaver]=qvos-screensaver
+  [toggle-screensaver]=toggle
 )
 for route in "${!route_owners[@]}"; do
   owner="qvcore/screensaver/${route_owners[$route]}"
@@ -36,7 +37,7 @@ for route in "${!route_owners[@]}"; do
   done
 done
 
-expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver'
+expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver\nbin/omarchy-toggle-screensaver'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_manifest" ]] ||
   fail "screensaver native inventory is incomplete or unordered"
 
@@ -63,7 +64,7 @@ for alias_entry in \
   grep -Fqx "  $alias_entry" "$root/qvcore/screensaver/install" ||
     fail "screensaver runtime alias is missing: $alias_entry"
 done
-if rg -n 'omarchy-(launch-)?screensaver([^[:alnum:]_-]|$)' \
+if rg -n 'omarchy-((launch-)?screensaver|toggle-screensaver)([^[:alnum:]_-]|$)' \
   "$root/qvcore" "$root/config" "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/screensaver/check' --glob '!**/config/migrate-runtime-root' \

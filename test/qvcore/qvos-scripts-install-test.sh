@@ -433,7 +433,7 @@ pass "desktop refresh reconciles enrolled integrations without reinstalling stac
 pass "modified Nautilus extensions and bytecode remain untouched"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
-[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\ninstall\nnative-paths\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nruntime-paths' ]] ||
+[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\ninstall\nnative-paths\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nruntime-paths\ntoggle' ]] ||
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 

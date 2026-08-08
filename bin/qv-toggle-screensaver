@@ -1,4 +1,7 @@
 #!/bin/bash
 
+# qv:summary=Toggle screensaver availability
+# qv:examples=qv toggle screensaver
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/screensaver/toggle" "$@"
