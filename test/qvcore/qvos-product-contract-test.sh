@@ -488,8 +488,10 @@ grep -Fq 'Update qvOS source' "$root/qvcore/update/update-source" ||
   fail "qvOS source update progress"
 grep -Fq '# qv:summary=Update qvOS and system packages safely' \
   "$root/bin/qv-update" || fail "qvOS update help"
-grep -Fq 'powers the qvOS Menu' "$root/bin/omarchy-refresh-walker" ||
-  fail "qvOS menu help"
+grep -Fq '# qv:summary=Restore Walker and Elephant defaults' \
+  "$root/bin/qv-refresh-walker" || fail "qvOS menu help"
+! rg -q '^# (qv|omarchy):' "$root/bin/omarchy-refresh-walker" ||
+  fail "Walker compatibility metadata"
 grep -Fq 'QVOS_CLI_NAME=qv' "$root/bin/qv" ||
   fail "native qv CLI adapter"
 grep -Fq 'QVOS_CLI_NAME=omarchy' "$root/bin/omarchy" ||

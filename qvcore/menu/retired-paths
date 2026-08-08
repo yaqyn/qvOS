@@ -1,0 +1,3 @@
+# Inherited Walker startup sources moved into the native config tree.
+default/walker/restart.conf
+default/walker/walker.desktop

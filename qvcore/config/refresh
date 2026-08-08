@@ -13,7 +13,7 @@ if (($# != 1)); then
 fi
 
 config_path=$1
-[[ $config_path =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ &&
+[[ $config_path =~ ^[A-Za-z0-9][A-Za-z0-9@._/-]*$ &&
   $config_path != *..* ]] || {
   printf 'qvOS config refresh: invalid config path: %s\n' "$config_path" >&2
   exit 2

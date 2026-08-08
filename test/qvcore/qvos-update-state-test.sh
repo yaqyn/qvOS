@@ -39,6 +39,16 @@ for marker in reboot-required restart-waybar-required; do
   [[ $(stat -c '%a' "$state_root/$marker") == "600" ]] ||
     fail "qvOS update marker mode: $marker"
 done
+printf 'private update output\n' >"$state_root/update.log"
+chmod 0600 "$state_root/update.log"
+run_state migrate
+grep -Fqx 'private update output' "$state_root/update.log" ||
+  fail "private update log changed during marker validation"
+chmod 0644 "$state_root/update.log"
+if run_state migrate >/dev/null 2>&1; then
+  fail "insecure update log mode was accepted"
+fi
+chmod 0600 "$state_root/update.log"
 if run_state set arbitrary-setting >/dev/null 2>&1; then
   fail "generic persistent state was accepted"
 fi
@@ -50,7 +60,7 @@ run_state clear reboot-required
 run_state clear 're*-required'
 [[ -z $(find "$state_root" -maxdepth 1 -type f -name 're*-required' -print -quit) ]] ||
   fail "update-marker clear-all compatibility"
-printf 'ok - update state is private and restricted to reviewed markers\n'
+printf 'ok - update state accepts only reviewed markers and its private sibling log\n'
 
 legacy_root="$home/.local/state/omarchy"
 install -d "$legacy_root"

@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+(( $# == 0 )) || {
+  echo "Usage: qv refresh walker" >&2
+  exit 2
+}
+
+"$QVOS_PATH/qvcore/menu/install" --preflight
+
+for config_path in \
+  autostart/walker.desktop \
+  elephant/calc.toml \
+  elephant/desktopapplications.toml \
+  systemd/user/app-walker@autostart.service.d/restart.conf \
+  walker/config.toml; do
+  "$QVOS_PATH/qvcore/config/refresh" "$config_path"
+done
+
+"$QVOS_PATH/qvcore/menu/install" --install

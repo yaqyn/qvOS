@@ -256,6 +256,8 @@ upstream_config_steps=$(
       '$OMARCHY_INSTALL/config/omarchy-toggles.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/config/toggle-state'
         ;;
+      '$OMARCHY_INSTALL/config/walker-elephant.sh')
+        ;;
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
         ;;
@@ -273,6 +275,16 @@ native_config_steps=$(
 )
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
   fail "native configuration stage changed reviewed capability order or coverage"
+for walker_source in \
+  config/autostart/walker.desktop \
+  config/systemd/user/app-walker@autostart.service.d/restart.conf; do
+  [[ -f $root/$walker_source && ! -L $root/$walker_source ]] ||
+    fail "native Walker startup source is missing: $walker_source"
+done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/menu/install" --install' \
+  "$root/qvcore/install/first-run/run" ||
+  fail "fresh install omits native Walker and Elephant reconciliation"
 while IFS= read -r step; do
   # shellcheck disable=SC2016
   case $step in

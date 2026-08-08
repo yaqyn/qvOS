@@ -3,13 +3,14 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/menu/native-paths"
+retired_manifest="$root/qvcore/menu/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-expected=$'bin/omarchy-launch-walker\nbin/omarchy-menu-file\nbin/omarchy-menu-input\nbin/omarchy-menu-keybindings\nbin/omarchy-menu-select\nconfig/walker/config.toml'
+expected=$'bin/omarchy-launch-walker\nbin/omarchy-menu-file\nbin/omarchy-menu-input\nbin/omarchy-menu-keybindings\nbin/omarchy-menu-select\nbin/omarchy-refresh-walker\nconfig/walker/config.toml'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native menu inventory"
 
@@ -19,6 +20,7 @@ declare -A owners=(
   [menu-input]=input
   [menu-keybindings]=keybindings
   [menu-select]=select
+  [refresh-walker]=refresh-walker
 )
 for command in "${!owners[@]}"; do
   owner=${owners[$command]}
@@ -37,7 +39,7 @@ for command in "${!owners[@]}"; do
     "$compatibility" || fail "compatibility menu adapter owner: $command"
 done
 
-if rg -n 'omarchy-(launch-walker|menu-(file|input|keybindings|select|share)|qvos-share)' \
+if rg -n 'omarchy-(launch-walker|menu-(file|input|keybindings|select|share)|qvos-share|refresh-walker)' \
   "$root/bin/omarchy-menu" \
   "$root/config/hypr/bindings.conf" \
   "$root/default/mako/core.ini" \
@@ -58,6 +60,7 @@ for frontend in qv omarchy; do
     'menu input|qv-menu-input' \
     'menu keybindings|qv-menu-keybindings' \
     'menu select|qv-menu-select' \
+    'refresh walker|qv-refresh-walker' \
     'share|qv-share'; do
     name=${route%%|*}
     binary=${route#*|}
@@ -68,6 +71,20 @@ for frontend in qv omarchy; do
       ' >/dev/null || fail "$frontend $name native route"
   done
 done
+
+expected_retired=$'default/walker/restart.conf\ndefault/walker/walker.desktop'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "$expected_retired" ]] || fail "retired Walker source inventory"
+while IFS= read -r path; do
+  [[ -n $path && $path != \#* ]] || continue
+  [[ ! -e $root/$path && ! -L $root/$path ]] ||
+    fail "retired Walker source remains: $path"
+done <"$retired_manifest"
+
+[[ -x $root/qvcore/menu/retire-pacman-hook ]] ||
+  fail "retired Walker hook cleanup owner mode"
+grep -Fq 'restart-walker-required' "$root/qvcore/update/analyze-log" ||
+  fail "Walker update restart marker"
 
 [[ -x $root/bin/qv-share && -x $root/bin/omarchy-share ]] ||
   fail "Share adapter mode"

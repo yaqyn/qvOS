@@ -94,6 +94,17 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   prompts, choices, search directories, formats, monitor data, and arguments
   before handing them to Walker. Active qvOS config and owners use only the
   native routes.
+- `qvcore/menu/refresh-walker` owns explicit restoration of Walker startup,
+  Walker, and Elephant config. Preflight every source before the first backup,
+  restore through `qvcore/config/refresh`, then reconcile the menu once. The
+  native command is `qv-refresh-walker`; its Omarchy name is compatibility
+  only. Fresh install receives startup files from `config/` and never creates
+  a Pacman hook that executes a user-writable checkout. qvOS update-log analysis
+  records a private Walker restart marker after Walker or Elephant changes.
+- `retire-pacman-hook` removes only the exact historical qvOS/Omarchy Walker
+  hook schema and preserves links, foreign ownership, and modified content.
+  Its system-root override is test-only and must remain confined to a
+  caller-owned directory under `/tmp`.
 - Capture menu leaves delegate once to `qv-capture-screenshot`,
   `qv-capture-screenrecording`, or `qv-capture-text-extraction`; selection,
   media, process, and recovery behavior remains in `qvcore/capture/`.

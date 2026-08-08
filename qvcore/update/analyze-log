@@ -20,3 +20,9 @@ if grep -Fq "Updating linux initcpios" "$update_log" &&
   echo "qvOS update: initramfs generation may have failed; stopping before restart." >&2
   exit 1
 fi
+
+if grep -Eq \
+  '(upgrading|downgrading|reinstalling) (walker(-debug)?|elephant[[:alnum:]_.+-]*)([[:space:]]|$)' \
+  "$update_log"; then
+  "$QVOS_PATH/qvcore/update/state" set restart-walker-required
+fi

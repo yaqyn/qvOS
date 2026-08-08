@@ -169,6 +169,33 @@ fi
 rm -f -- "$log_path"
 pass "qvOS update logs are private and link-safe"
 
+# Log analysis records only bounded Walker and Elephant package transitions.
+analysis_home="$test_root/analysis-home"
+install -d "$analysis_home"
+analysis_log=$(HOME="$analysis_home" "$root/qvcore/update/log-path" prepare)
+printf '%s\n' '(1/1) upgrading walkerland' >"$analysis_log"
+HOME="$analysis_home" XDG_RUNTIME_DIR="$test_root" QVOS_PATH="$root" \
+  QVOS_UPDATE_LOG_PATH="$analysis_log" "$root/qvcore/update/analyze-log"
+[[ ! -e $analysis_home/.local/state/qvos/update/restart-walker-required ]] ||
+  fail "unrelated package created a Walker restart marker"
+printf '%s\n' \
+  '(1/2) upgrading elephant' \
+  '(2/2) reinstalling walker-debug' >"$analysis_log"
+HOME="$analysis_home" XDG_RUNTIME_DIR="$test_root" QVOS_PATH="$root" \
+  QVOS_UPDATE_LOG_PATH="$analysis_log" "$root/qvcore/update/analyze-log"
+walker_marker="$analysis_home/.local/state/qvos/update/restart-walker-required"
+[[ -f $walker_marker && ! -s $walker_marker && $(stat -c '%a' "$walker_marker") == "600" ]] ||
+  fail "Walker restart marker from package transition"
+printf '%s\n' 'Updating linux initcpios' >"$analysis_log"
+set +e
+HOME="$analysis_home" XDG_RUNTIME_DIR="$test_root" QVOS_PATH="$root" \
+  QVOS_UPDATE_LOG_PATH="$analysis_log" "$root/qvcore/update/analyze-log" \
+  >/dev/null 2>&1
+analysis_status=$?
+set -e
+((analysis_status == 1)) || fail "incomplete initramfs analysis status"
+pass "update analysis marks exact Walker transitions and fails closed on initramfs"
+
 # Captured engine mode must serialize snapshot, source, and pipeline stages.
 engine="$test_root/engine"
 install -d "$engine/qvcore/update" "$test_root/engine-home" "$test_root/runtime"

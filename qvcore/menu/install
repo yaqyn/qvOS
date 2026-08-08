@@ -48,6 +48,10 @@ legacy_provider_set_end="# qvOS Omarchy menu provider set end"
 legacy_provider_set_header="[providers.sets.qvos-omarchy-menu]"
 walker_config="$HOME/.config/walker/config.toml"
 walker_config_source="$OMARCHY_PATH/config/walker/config.toml"
+walker_autostart_source="$OMARCHY_PATH/config/autostart/walker.desktop"
+walker_restart_source="$OMARCHY_PATH/config/systemd/user/app-walker@autostart.service.d/restart.conf"
+elephant_calc_source="$OMARCHY_PATH/config/elephant/calc.toml"
+elephant_desktop_source="$OMARCHY_PATH/config/elephant/desktopapplications.toml"
 walker_theme_name="qvos-menu"
 legacy_walker_theme_name="qvos-omarchy-menu"
 walker_theme_source="$OMARCHY_PATH/default/walker/themes/omarchy-default"
@@ -93,6 +97,10 @@ require_sources() {
     "$provider_set_source"
     "$walker_subtext_source"
     "$walker_config_source"
+    "$walker_autostart_source"
+    "$walker_restart_source"
+    "$elephant_calc_source"
+    "$elephant_desktop_source"
     "$walker_theme_source/layout.xml"
     "$walker_theme_source/style.css"
   )
@@ -238,6 +246,10 @@ backup_walker_config() {
   local backup_path
 
   [[ $walker_config_backed_up == "false" ]] || return 0
+  if cmp -s "$walker_config_source" "$walker_config"; then
+    walker_config_backed_up=true
+    return 0
+  fi
 
   backup_path="$walker_config.bak.$(date +%s).$$"
   cp -a "$walker_config" "$backup_path"
@@ -462,6 +474,9 @@ menu_theme_ready() {
 }
 
 case $mode in
+--preflight)
+  require_sources
+  ;;
 --status)
   require_sources >/dev/null 2>&1 &&
     [[ -f $walker_config ]] &&
@@ -487,7 +502,7 @@ case $mode in
   reload_active_menu_services
   ;;
 *)
-  echo "Usage: install [--status|--install]" >&2
+  echo "Usage: install [--preflight|--status|--install]" >&2
   exit 2
   ;;
 esac

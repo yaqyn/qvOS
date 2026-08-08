@@ -215,6 +215,56 @@ HOME="$oauth_home" \
   fail "Chromium OAuth migration idempotence"
 printf 'ok - inherited Chromium OAuth credentials retire exactly and atomically\n'
 
+walker_migration="$root/qvcore/migrations/1786215563.sh"
+walker_system="$test_root/walker-system"
+walker_hook="$walker_system/etc/pacman.d/hooks/walker-restart.hook"
+install -d "${walker_hook%/*}"
+install -m 0644 /dev/stdin "$walker_hook" <<'HOOK'
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = walker
+Target = walker-debug
+Target = elephant*
+
+[Action]
+Description = Restarting Walker services after system update
+When = PostTransaction
+Exec = /home/qv/.local/share/omarchy/bin/omarchy-restart-walker
+HOOK
+QVOS_PATH="$root" \
+  QVOS_MENU_TESTING=1 \
+  QVOS_MENU_SYSTEM_ROOT="$walker_system" \
+  bash "$walker_migration" >/dev/null
+[[ ! -e $walker_hook && ! -L $walker_hook ]] ||
+  fail "exact retired Walker Pacman hook remains"
+QVOS_PATH="$root" \
+  QVOS_MENU_TESTING=1 \
+  QVOS_MENU_SYSTEM_ROOT="$walker_system" \
+  bash "$walker_migration" >/dev/null
+
+install -m 0644 /dev/stdin "$walker_hook" <<'HOOK'
+[Trigger]
+Type = Package
+Operation = Upgrade
+Target = custom-walker
+
+[Action]
+Description = Custom administrator hook
+When = PostTransaction
+Exec = /usr/local/bin/custom-walker-restart
+HOOK
+walker_warning=$(
+  QVOS_PATH="$root" \
+    QVOS_MENU_TESTING=1 \
+    QVOS_MENU_SYSTEM_ROOT="$walker_system" \
+    bash "$walker_migration" 2>&1 >/dev/null
+)
+[[ -f $walker_hook ]] || fail "modified Walker Pacman hook was removed"
+grep -Fq 'Preserving modified or unsafe retired Walker Pacman hook:' \
+  <<<"$walker_warning" || fail "modified Walker Pacman hook warning"
+printf 'ok - retired Walker root hook cleanup is exact and preservation-safe\n'
+
 dns_migration="$root/qvcore/migrations/1786210567.sh"
 dns_system_root="$test_root/dns-system"
 dns_network_root="$dns_system_root/etc/systemd/network"

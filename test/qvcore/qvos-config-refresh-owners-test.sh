@@ -80,6 +80,18 @@ done
   fail "invalid refresh restarted a desktop component"
 pass "config refresh owners reject unexpected input before mutation"
 
+template_path=systemd/user/app-example@autostart.service.d/restart.conf
+install -D -m 0644 /dev/stdin "$source_root/config/$template_path" <<'CONFIG'
+[Service]
+Restart=always
+CONFIG
+run_owner "$source_root/qvcore/config/refresh" "$template_path"
+cmp -s \
+  "$source_root/config/$template_path" \
+  "$test_home/.config/$template_path" ||
+  fail "systemd template config refresh"
+pass "config refresh accepts bounded systemd template paths"
+
 printf 'preserve before failed preflight\n' \
   >"$test_home/.config/swayosd/config.toml"
 rm "$source_root/config/swayosd/style.css"

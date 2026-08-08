@@ -30,6 +30,10 @@ safe_marker() {
   [[ -f $1 && ! -L $1 && -O $1 && ! -s $1 ]]
 }
 
+safe_update_log() {
+  [[ -f $1 && ! -L $1 && -O $1 && $(stat -c '%a' -- "$1") == "600" ]]
+}
+
 valid_marker_name() {
   [[ $1 == "reboot-required" ||
     $1 =~ ^restart-[a-z0-9][a-z0-9-]*-required$ ]]
@@ -61,6 +65,8 @@ validate_qvos_state() {
     name=${entry##*/}
     if valid_marker_name "$name"; then
       safe_marker "$entry" || fail "refusing unsafe update marker: $entry"
+    elif [[ $name == "update.log" ]]; then
+      safe_update_log "$entry" || fail "refusing unsafe update log: $entry"
     elif [[ $name == .qvos-update-state.?????? ]] && safe_marker "$entry"; then
       rm -f -- "$entry"
     else

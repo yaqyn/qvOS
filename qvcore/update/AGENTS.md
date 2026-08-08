@@ -56,7 +56,9 @@ replay the retired top-level Omarchy migration tree.
 
 `qvcore/update/state` owns only `reboot-required` and validated
 `restart-<service>-required` markers under the private qvOS update-state
-directory. It atomically records markers, serializes changes, migrates exact
+directory. It accepts the separately owned regular `0600` `update.log` in that
+shared private directory without reading, changing, or deleting it. It
+atomically records markers, serializes changes, migrates exact
 safe legacy files, and removes the old state root only when empty. Reject
 arbitrary names, contents, links, and foreign ownership. `restart` invokes this
 owner before inspection and clears a service marker only after its exact
@@ -67,6 +69,10 @@ requirements. Use only package-owned kernel images, inspect one running
 Hyprland process safely, accept only exact restart-marker service slugs, and
 clear each marker only after its restart owner succeeds. Delegate every reboot
 choice to `qvcore/update/reboot-request`; never restore an inherited fallback.
+`analyze-log` also recognizes completed Pacman upgrade, downgrade, or reinstall
+lines for Walker and Elephant and records `restart-walker-required` through the
+private state owner. This replaces the retired root Pacman hook; keep matching
+bounded to package tokens so unrelated log text cannot create restart state.
 
 Run `qvcore/update/check`, `qvcore/packages/check`, Bash syntax, ShellCheck, the focused update and source
 lifecycle tests, and the full qvOS suite. A source-only audit must not invoke

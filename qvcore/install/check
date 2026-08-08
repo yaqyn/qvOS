@@ -130,6 +130,18 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
   fail "retired inherited toggle-state stage"
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
+[[ ! -e $root/qvcore/install/config/walker-elephant.sh ]] ||
+  fail "retired duplicate Walker configuration owner"
+if rg -n 'walker-restart\.hook|default/walker/(walker\.desktop|restart\.conf)' \
+  "$root/qvcore/install"; then
+  fail "unsafe or duplicate Walker install lifecycle remains"
+fi
+for walker_source in \
+  config/autostart/walker.desktop \
+  config/systemd/user/app-walker@autostart.service.d/restart.conf; do
+  [[ -f $root/$walker_source && ! -L $root/$walker_source ]] ||
+    fail "native Walker startup source: $walker_source"
+done
 if rg -n 'Nautilus action icons|nautilus-python/extensions' \
   "$root/qvcore/install/config" \
   "$root/qvcore/install/first-run" \

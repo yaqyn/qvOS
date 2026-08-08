@@ -35,6 +35,9 @@ the destination directory, preserve a unique backup, and restore that backup
 if publication fails. `qv-refresh-config` owns metadata and
 `omarchy-refresh-config` is compatibility only. Native owners call the
 transaction directly and never route back through the compatibility command.
+The bounded path alphabet includes `@` for systemd template-instance
+directories; traversal, links, escaping sources, and non-file targets remain
+invalid.
 
 `qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.
 Its native command carries metadata and its matching Omarchy command is a

@@ -595,7 +595,7 @@ show_update_config_menu() {
   *Plymouth*) present_terminal qv-refresh-plymouth ;;
   *Swayosd*) present_terminal qv-refresh-swayosd ;;
   *Tmux*) present_terminal qv-refresh-tmux ;;
-  *Walker*) present_terminal omarchy-refresh-walker ;;
+  *Walker*) present_terminal qv-refresh-walker ;;
   *Waybar*) present_terminal qv-refresh-waybar ;;
   *) show_update_menu ;;
   esac

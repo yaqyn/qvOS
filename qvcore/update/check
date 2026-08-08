@@ -92,6 +92,8 @@ grep -Fq 'log_path="$state_root/update.log"' "$root/qvcore/update/log-path" ||
   fail "private qvOS update log path"
 grep -Fq 'trap restore_idle EXIT' "$root/qvcore/update/perform" ||
   fail "update no-idle cleanup trap"
+grep -Fq 'restart-walker-required' "$root/qvcore/update/analyze-log" ||
+  fail "Walker package restart analysis"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
   fail "native migration owner in update pipeline"
