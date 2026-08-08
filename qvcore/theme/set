@@ -140,7 +140,7 @@ for integration in foot gnome browser vscode obsidian keyboard; do
 done
 
 # Call hook on theme set
-run_integration "theme hooks" omarchy-hook theme-set "$THEME_NAME"
+run_integration "theme hooks" qv-hook theme-set "$THEME_NAME"
 
 if ((integration_failed)); then
   echo "The theme is active; review the integration warnings above." >&2

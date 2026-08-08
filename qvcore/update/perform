@@ -26,6 +26,11 @@ fi
 "$QVOS_PATH/qvcore/migrations/run"
 "$QVOS_PATH/qvcore/packages/update-aur"
 "$QVOS_PATH/qvcore/packages/remove-orphans"
-omarchy-hook post-update
+"$QVOS_PATH/qvcore/install/post-update-hook"
+"$QVOS_PATH/qvcore/direct/post-update-hook"
+"$QVOS_PATH/qvcore/waybar/post-update-hook"
+if ! qv-hook post-update; then
+  echo "qvOS update: one or more custom post-update hooks failed." >&2
+fi
 "$QVOS_PATH/qvcore/update/analyze-log"
 "$QVOS_PATH/qvcore/update/restart"

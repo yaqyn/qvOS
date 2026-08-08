@@ -41,7 +41,9 @@ send_notification() {
     "Battery is down to ${level}%" \
     -i battery-caution \
     -t 30000
-  omarchy-hook battery-low "$level"
+  if ! qv-hook battery-low "$level"; then
+    echo "qvOS battery monitor: a custom battery-low hook failed." >&2
+  fi
 }
 
 if [[ $battery_level =~ ^[0-9]+$ ]] &&

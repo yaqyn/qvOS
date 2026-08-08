@@ -88,9 +88,6 @@ bash "$QVOS_PATH/qvcore/install/first-run/elephant.sh"
 "$QVOS_PATH/qvcore/install/first-run/icons"
 "$QVOS_PATH/qvcore/config/monitor-autodetect"
 "$QVOS_PATH/qvcore/menu/install" --install
-omarchy-hook-install \
-  post-update \
-  "$QVOS_PATH/qvcore/install/first-run/install-voxtype.hook"
 
 "$sudo" "$root_helper" cleanup
 rm -f -- "$marker"

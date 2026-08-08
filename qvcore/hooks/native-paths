@@ -1,0 +1,3 @@
+# Inherited hook commands promoted to native qvOS ownership.
+bin/omarchy-hook
+bin/omarchy-hook-install

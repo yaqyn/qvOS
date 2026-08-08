@@ -80,7 +80,6 @@ identity_paths=(
   default/elephant/omarchy_themes.lua
   default/elephant/omarchy_unlocks.lua
   default/omarchy-skill/SKILL.md
-  qvcore/install/first-run/install-voxtype.hook
   qvcore/install/first-run/welcome.sh
   qvcore/install/config/hardware/apple/fix-suspend-nvme.sh
   qvcore/install/helpers/logging.sh

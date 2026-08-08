@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# < 1)); then
+  echo "Usage: qv hook <event> [args...]" >&2
+  exit 2
+fi
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/hooks/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/hooks/lib"
+
+event=$1
+shift
+qvos_hooks_validate_event "$event"
+qvos_hooks_validate_managed_path "$qvos_hooks_root"
+if [[ ! -e $qvos_hooks_root && ! -L $qvos_hooks_root ]]; then
+  exit 0
+fi
+qvos_hooks_validate_tree "$qvos_hooks_root"
+
+hook_failed=0
+run_hook() {
+  local hook=$1
+  shift
+
+  if ! bash "$hook" "$@"; then
+    qvos_hooks_error "hook failed: $hook"
+    hook_failed=1
+  fi
+}
+
+hook_path="$qvos_hooks_root/$event"
+hook_dir="$hook_path.d"
+if [[ -e $hook_path || -L $hook_path ]]; then
+  [[ -f $hook_path && ! -L $hook_path && -O $hook_path ]] || {
+    qvos_hooks_error "unsafe hook: $hook_path"
+    exit 1
+  }
+  run_hook "$hook_path" "$@"
+fi
+
+if [[ -e $hook_dir || -L $hook_dir ]]; then
+  [[ -d $hook_dir && ! -L $hook_dir && -O $hook_dir ]] || {
+    qvos_hooks_error "unsafe hook directory: $hook_dir"
+    exit 1
+  }
+  while IFS= read -r -d '' hook; do
+    [[ $hook == *.sample ]] && continue
+    if [[ ! -f $hook || -L $hook || ! -O $hook ]]; then
+      qvos_hooks_error "unsafe hook entry: $hook"
+      hook_failed=1
+      continue
+    fi
+    run_hook "$hook" "$@"
+  done < <(find -P "$hook_dir" -mindepth 1 -maxdepth 1 -print0 | LC_ALL=C sort -z)
+fi
+
+exit "$hook_failed"

@@ -75,7 +75,7 @@ printf '#!/bin/bash\nexit 0\n' >"$test_bin/theme-command-stub"
 printf '#!/bin/bash\nexit 1\n' >"$test_bin/pgrep"
 chmod 0755 "$test_bin/theme-command-stub" "$test_bin/pgrep"
 for command in \
-  omarchy-hook \
+  qv-hook \
   qv-restart-btop \
   qv-restart-helix \
   qv-restart-hyprctl \

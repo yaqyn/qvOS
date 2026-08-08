@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# This hook receives the selected font family name. Remove .sample from the
+# filename to enable it.
+
+# notify-send -u low "New font" "Your new font is $1"

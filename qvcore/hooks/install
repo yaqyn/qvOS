@@ -1,0 +1,47 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 2)); then
+  echo "Usage: qv hook install <event> <file>" >&2
+  exit 2
+fi
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/hooks/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/hooks/lib"
+
+event=$1
+source_file=$2
+qvos_hooks_validate_event "$event"
+[[ -f $source_file && ! -L $source_file && -O $source_file ]] || {
+  qvos_hooks_error "source must be a regular file owned by the current user: $source_file"
+  exit 1
+}
+
+hook_name=${source_file##*/}
+(( ${#hook_name} <= 128 )) &&
+  [[ $hook_name =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ && $hook_name != *.sample ]] || {
+  qvos_hooks_error "invalid installed hook filename: $hook_name"
+  exit 1
+}
+
+qvos_hooks_prepare_root
+hook_dir="$qvos_hooks_root/$event.d"
+hook_path="$hook_dir/$hook_name"
+qvos_hooks_validate_managed_path "$hook_path"
+if [[ -e $hook_path || -L $hook_path ]]; then
+  [[ -f $hook_path && ! -L $hook_path && -O $hook_path ]] || {
+    qvos_hooks_error "unsafe existing hook: $hook_path"
+    exit 1
+  }
+  if cmp -s -- "$source_file" "$hook_path"; then
+    printf 'Hook already installed: %s\n' "$hook_path"
+    exit 0
+  fi
+  qvos_hooks_error "a different hook already exists: $hook_path"
+  exit 1
+fi
+
+qvos_hooks_atomic_copy "$source_file" "$hook_path" 0700
+printf 'Installed %s hook: %s\n' "$event" "$hook_path"

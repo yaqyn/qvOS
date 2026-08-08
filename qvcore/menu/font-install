@@ -57,7 +57,7 @@ font_config_paths=(
 )
 
 active_font_hook_exists() {
-  local hook="$HOME/.config/omarchy/hooks/font-set"
+  local hook="$HOME/.config/qvos/hooks/font-set"
   local hook_dir="$hook.d"
   local candidate
 

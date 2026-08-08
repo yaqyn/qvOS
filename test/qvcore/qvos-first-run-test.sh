@@ -39,11 +39,6 @@ install -m 0755 /dev/stdin "$test_sudo" <<'SCRIPT'
 #!/bin/bash
 printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hook-install" <<'SCRIPT'
-#!/bin/bash
-printf 'hook:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
-SCRIPT
-
 first_run_paths=(
   qvcore/config/toggle-state
   qvcore/config/user-services
@@ -68,9 +63,6 @@ printf 'owner:%s:%s\n' "$path" "$*" >>"$QVOS_TEST_EVENT_LOG"
 [[ ${QVOS_TEST_FAIL_PATH:-} != "$path" ]]
 SCRIPT
 done
-install -m 0644 /dev/null \
-  "$test_qvos/qvcore/install/first-run/install-voxtype.hook"
-
 run_first_run() {
   HOME="$test_home" \
     QVOS_PATH="$test_qvos" \
@@ -117,7 +109,6 @@ expected_run=$(printf '%s\n' \
   'owner:qvcore/install/first-run/icons:' \
   'owner:qvcore/config/monitor-autodetect:' \
   'owner:qvcore/menu/install:--install' \
-  "hook:post-update $test_qvos/qvcore/install/first-run/install-voxtype.hook" \
   "sudo:$test_helper cleanup" \
   'owner:qvcore/install/first-run/welcome.sh:' \
   'owner:qvcore/install/first-run/wifi.sh:')

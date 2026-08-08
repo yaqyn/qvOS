@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Show the weather status after qvOS starts. Remove .sample from the filename
+# to enable it.
+
+weather=$(qv weather status 2>/dev/null) || true
+
+if [[ -n $weather && $weather != "Weather unavailable" ]]; then
+  notify-send -u low "$weather"
+fi

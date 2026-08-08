@@ -62,7 +62,7 @@ This directory contains qvOS source files managed by git. Any changes will be:
 **Always use these safe locations instead:**
 - `~/.config/` - User configuration (safe to edit)
 - `~/.config/omarchy/themes/<custom-name>/` - Custom themes (must be real directories)
-- `~/.config/omarchy/hooks/` - Custom automation hooks
+- `~/.config/qvos/hooks/` - Custom automation hooks
 
 If the request is to develop qvOS itself, this skill is out of scope. Follow repository development instructions instead of this skill.
 
@@ -222,17 +222,17 @@ directories and external links during updates.
 
 ### Pattern 3: Use Hooks for Automation
 
-Create scripts in `~/.config/omarchy/hooks/` to run automatically on events:
+Create scripts in `~/.config/qvos/hooks/` to run automatically on events:
 
 ```bash
-# Available hooks (see samples in ~/.config/omarchy/hooks/):
-~/.config/omarchy/hooks/
+# Available hooks (see samples in ~/.config/qvos/hooks/):
+~/.config/qvos/hooks/
 ├── theme-set        # Runs after theme change (receives theme name as $1)
 ├── font-set         # Runs after font change
-└── post-update      # Runs after `omarchy update`
+└── post-update      # Runs after `qv update`
 ```
 
-Example hook (`~/.config/omarchy/hooks/theme-set`):
+Example hook (`~/.config/qvos/hooks/theme-set`):
 ```bash
 #!/bin/bash
 THEME_NAME=$1
@@ -361,7 +361,7 @@ When user requests system changes:
 1. **Is it a stock omarchy command?** Use it directly
 2. **Is it a config edit?** Edit in `~/.config/`, never `~/.local/share/qvos/`
 3. **Is it a theme customization?** Create a NEW custom theme directory
-4. **Is it automation?** Use hooks in `~/.config/omarchy/hooks/`
+4. **Is it automation?** Use hooks in `~/.config/qvos/hooks/`
 5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (or `omarchy pkg aur add <pkgs...>` for AUR-only packages)
 6. **Unsure if command exists?** Run `omarchy commands` (or `omarchy <group> --help` for one group)
 
@@ -394,5 +394,5 @@ This skill intentionally does not cover qvOS source development. Do not use this
 - "Show my reminders" -> `omarchy reminder show`
 - "Clear all reminders" -> `omarchy reminder clear`
 - "Customize the Yaqyn theme colors" -> Copy Yaqyn to `~/.config/omarchy/themes/yaqyn-custom/`, edit the copy, then apply it
-- "Run a script every time I change themes" -> Create `~/.config/omarchy/hooks/theme-set`
+- "Run a script every time I change themes" -> Create `~/.config/qvos/hooks/theme-set`
 - "Reset waybar to defaults" -> `omarchy refresh waybar`

@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# shellcheck disable=SC2034
+qvos_hooks_root=${QVOS_HOOKS_ROOT:-$HOME/.config/qvos/hooks}
+# shellcheck disable=SC2034
+qvos_hooks_legacy_root=${QVOS_HOOKS_LEGACY_ROOT:-$HOME/.config/omarchy/hooks}
+
+qvos_hooks_error() {
+  printf 'qvOS hooks: %s\n' "$1" >&2
+}
+
+qvos_hooks_validate_managed_path() {
+  local path=$1
+  local current
+
+  [[ $HOME == /* && -d $HOME && ! -L $HOME && -O $HOME ]] || {
+    qvos_hooks_error "HOME is unsafe"
+    return 1
+  }
+  [[ $path == "$HOME/"* && $path != *'/../'* && $path != */.. &&
+    $path != *'/./'* && $path != */. ]] || {
+    qvos_hooks_error "path must stay below HOME: $path"
+    return 1
+  }
+
+  current=$path
+  while [[ $current != "$HOME" ]]; do
+    [[ ! -L $current ]] || {
+      qvos_hooks_error "refusing symbolic-link path: $current"
+      return 1
+    }
+    current=$(dirname -- "$current")
+    [[ $current == "$HOME" || $current == "$HOME/"* ]] || {
+      qvos_hooks_error "path escaped HOME: $path"
+      return 1
+    }
+  done
+}
+
+qvos_hooks_validate_tree() {
+  local root=$1
+  local entry
+
+  qvos_hooks_validate_managed_path "$root" || return
+  [[ -d $root && ! -L $root && -O $root ]] || {
+    qvos_hooks_error "unsafe hook directory: $root"
+    return 1
+  }
+
+  while IFS= read -r -d '' entry; do
+    [[ ! -L $entry && -O $entry && (-d $entry || -f $entry) ]] || {
+      qvos_hooks_error "unsafe hook entry: $entry"
+      return 1
+    }
+  done < <(find -P "$root" -mindepth 1 -print0)
+}
+
+qvos_hooks_validate_event() {
+  local event=$1
+
+  (( ${#event} <= 64 )) && [[ $event =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
+    qvos_hooks_error "invalid hook event: $event"
+    return 1
+  }
+}
+
+qvos_hooks_prepare_root() {
+  local parent
+
+  qvos_hooks_validate_managed_path "$qvos_hooks_root" || return
+  parent=$(dirname -- "$qvos_hooks_root")
+  mkdir -p -- "$parent"
+  [[ -d $parent && ! -L $parent && -O $parent ]] || {
+    qvos_hooks_error "unsafe hook parent: $parent"
+    return 1
+  }
+  install -d -m 0700 -- "$qvos_hooks_root"
+  qvos_hooks_validate_tree "$qvos_hooks_root"
+}
+
+qvos_hooks_atomic_copy() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local parent
+  local temporary
+
+  parent=$(dirname -- "$target")
+  install -d -m 0700 -- "$parent"
+  [[ -d $parent && ! -L $parent && -O $parent ]] || {
+    qvos_hooks_error "unsafe hook target directory: $parent"
+    return 1
+  }
+  temporary=$(mktemp "$parent/.qvos-hook.XXXXXX") || return
+  if ! install -m "$mode" -- "$source" "$temporary" ||
+    ! ln -- "$temporary" "$target"; then
+    rm -f -- "$temporary"
+    qvos_hooks_error "could not install hook atomically: $target"
+    return 1
+  fi
+  rm -f -- "$temporary"
+}

@@ -20,7 +20,7 @@ metadata-free compatibility adapters only.
   edits, replace each file atomically in its own directory, and restore every
   already-replaced file if the configuration transaction fails.
 - Configuration commit is the durable result. Desktop restarts, terminal
-  signals, notifications, and the retained custom-hook compatibility call are
+  signals, notifications, and the native custom-hook call are
   best-effort integrations and cannot turn a verified commit into partial
   rollback.
 - Fixture path overrides must remain inside the explicitly selected user-owned

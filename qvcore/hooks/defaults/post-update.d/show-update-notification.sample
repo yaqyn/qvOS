@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# This hook runs after a qvOS system update. Remove .sample from the filename
+# to enable it.
+
+# notify-send -u low "Update complete" "qvOS is up to date"

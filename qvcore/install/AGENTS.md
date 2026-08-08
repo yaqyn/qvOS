@@ -97,6 +97,10 @@ Before first-run services are enabled, run the native config toggle-state and
 user-service reconcilers. Battery monitoring and internal-monitor recovery use
 only `qvos-*` unit identities; inherited unit names and toggle roots are
 existing-system migration inputs, never fresh state.
+Custom hooks are reconciled through `qvcore/hooks/reconcile` during desktop
+installation. Never copy qvOS update jobs into the user-writable hook tree or
+restore the retired delayed Voxtype prompt; optional software remains an
+explicit menu action.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for

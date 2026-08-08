@@ -52,6 +52,7 @@ partial_root="$test_root/partial-source"
 partial_home="$test_root/partial-home"
 install -d \
   "$partial_root/qvcore/desktop" \
+  "$partial_root/qvcore/hooks" \
   "$partial_root/qvcore/screensaver" \
   "$partial_root/qvcore/thunar" \
   "$partial_root/qvcore/waybar" \
@@ -72,7 +73,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qvcore"
-for feature in desktop direct power screensaver security shell thunar tmux tui waybar windows; do
+for feature in desktop direct hooks power screensaver security shell thunar tmux tui waybar windows; do
   cp -a "$root/qvcore/$feature" "$partial_file_root/qvcore/$feature"
 done
 install -d "$partial_file_home/.local/lib/qvos/desktop"
@@ -149,7 +150,7 @@ done
 pass "later privileged failures cannot break the screensaver runtime"
 
 install -d \
-  "$test_root/.config/omarchy/hooks/post-update.d" \
+  "$test_root/.config/qvos/hooks" \
   "$test_root/.config/systemd/user" \
   "$test_root/.local/share/dbus-1/services" \
   "$test_root/.local/share/applications" \
@@ -238,15 +239,15 @@ done
   fail "qvOS menu provider runtime inventory"
 pass "menu uses original Omarchy providers plus qvOS deltas"
 
-cmp -s \
-  "$root/qvcore/direct/post-update-hook" \
-  "$test_root/.config/omarchy/hooks/post-update.d/qvos-direct-tools" ||
-  fail "direct-tool post-update hook install"
-cmp -s \
-  "$root/qvcore/waybar/post-update-hook" \
-  "$test_root/.config/omarchy/hooks/post-update.d/qvos-waybar-overrides" ||
-  fail "qvOS Waybar post-update hook install"
-pass "qvOS post-update hooks install from their feature owners"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" --check >/dev/null ||
+  fail "native custom hook reconciliation"
+if find "$test_root/.config/qvos/hooks" -type f \
+  \( -name qvos-base -o -name qvos-direct-tools -o -name qvos-waybar-overrides \) \
+  -print -quit | grep -q .; then
+  fail "qvOS system jobs leaked into the custom hook tree"
+fi
+pass "custom hooks contain samples without duplicate qvOS system jobs"
 
 [[ ! -e $test_root/.local/lib/qvos/desktop/context/removed-helper ]] || fail "stale desktop helper cleanup"
 [[ ! -e $test_root/.local/lib/qvos/screensaver/removed-launcher ]] || fail "stale screensaver cleanup"

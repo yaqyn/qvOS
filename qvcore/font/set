@@ -339,8 +339,8 @@ if command -v -- pgrep >/dev/null 2>&1 && command -v -- notify-send >/dev/null 2
   fi
 fi
 
-if command -v -- omarchy-hook >/dev/null 2>&1; then
-  run_integration "custom font hooks" omarchy-hook font-set "$font"
+if command -v -- qv-hook >/dev/null 2>&1; then
+  run_integration "custom font hooks" qv-hook font-set "$font"
 fi
 
 if ((integration_failed)); then

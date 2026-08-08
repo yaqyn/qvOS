@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# This hook receives the selected theme name. Remove .sample from the filename
+# to enable it.
+
+# notify-send -u low "New theme" "Your new theme is $1"

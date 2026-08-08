@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# qv:summary=Run one qvOS custom-hook event
+# qv:args=<event> [args...]
+# qv:examples=qv hook theme-set yaqyn | qv hook post-update
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/hooks/run" "$@"

@@ -24,6 +24,7 @@ qvcore/
   desktop/     Shared context, web, Hyprland, and runtime restart owners.
   direct/      Verified manifest-driven direct software and updates.
   font/        Installed font discovery and transactional configuration.
+  hooks/       Private custom automation, installation, and state migration.
   install/     Complete native qvOS installation lifecycle.
   menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
   migrations/  Native ordered migrations and private applied-state ownership.
@@ -88,6 +89,10 @@ Services and Development integrations never change qvOS base readiness.
   native under `qvcore/font/`. One serialized transaction validates and stages
   every supported config, preserves optional terminal settings and Arabic
   fallback fonts, and restores earlier files if an atomic replacement fails.
+- Custom automation is native under `qvcore/hooks/` and private under
+  `~/.config/qvos/hooks`. qvOS runs system update jobs directly from their
+  tracked feature owners; the custom tree contains only user automation and
+  disabled samples. Exact Omarchy hook commands are compatibility adapters.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records

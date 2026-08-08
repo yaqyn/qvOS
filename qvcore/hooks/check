@@ -1,0 +1,75 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+native_manifest="$root/qvcore/hooks/native-paths"
+retired_manifest="$root/qvcore/hooks/retired-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-hook\nbin/omarchy-hook-install'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == "$expected" ]] ||
+  fail "native hook inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "config/omarchy/hooks/" ]] || fail "retired hook-default inventory"
+[[ ! -e $root/config/omarchy/hooks && ! -L $root/config/omarchy/hooks ]] ||
+  fail "inherited hook defaults remain"
+
+for owner in lib run install reconcile; do
+  [[ -x $root/qvcore/hooks/$owner ]] || fail "hook owner mode: $owner"
+done
+# shellcheck disable=SC2016
+grep -Fq 'ln -- "$temporary" "$target"' "$root/qvcore/hooks/lib" ||
+  fail "hook installation lacks an atomic no-clobber commit"
+for route in hook hook-install; do
+  native="$root/bin/qv-$route"
+  compatibility="$root/bin/omarchy-$route"
+  [[ -x $native && -x $compatibility ]] || fail "hook adapter mode: $route"
+  (( $(wc -l <"$native") <= 12 )) || fail "native hook adapter implementation: $route"
+  (( $(wc -l <"$compatibility") <= 5 )) ||
+    fail "compatibility hook adapter implementation: $route"
+  rg -q '^# qv:summary=' "$native" || fail "native hook metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility hook metadata: $route"
+done
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/hooks/run" "$@"' "$root/bin/qv-hook" ||
+  fail "native hook runner owner"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/hooks/run" "$@"' "$root/bin/omarchy-hook" ||
+  fail "compatibility hook runner owner"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/hooks/install" "$@"' \
+  "$root/bin/qv-hook-install" || fail "native hook installer owner"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/hooks/install" "$@"' \
+  "$root/bin/omarchy-hook-install" || fail "compatibility hook installer owner"
+
+if rg -n 'omarchy-hook|\.config/omarchy/hooks' \
+  "$root/qvcore/config/battery-monitor" \
+  "$root/qvcore/font/set" \
+  "$root/qvcore/install/desktop" \
+  "$root/qvcore/install/first-run/run" \
+  "$root/qvcore/menu/font-install" \
+  "$root/qvcore/theme/set" \
+  "$root/qvcore/update/perform" \
+  "$root/default/hypr/autostart.conf"; then
+  fail "native source still consumes the inherited hook route or root"
+fi
+for owner in \
+  qvcore/install/post-update-hook \
+  qvcore/direct/post-update-hook \
+  qvcore/waybar/post-update-hook; do
+  grep -Fq "\"\$QVOS_PATH/$owner\"" "$root/qvcore/update/perform" ||
+    fail "update pipeline omits tracked owner: $owner"
+done
+if rg -n 'qvos-(base|direct-tools|waybar-overrides)' "$root/qvcore/install/desktop"; then
+  fail "desktop install still copies system jobs into custom hooks"
+fi
+[[ ! -e $root/qvcore/install/first-run/install-voxtype.hook ]] ||
+  fail "obsolete delayed Voxtype prompt remains"
+
+printf 'ok - qvOS custom hooks have one preservation-safe native owner\n'

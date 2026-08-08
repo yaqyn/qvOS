@@ -251,7 +251,13 @@ pass "qvOS update engine orders and reports its transaction safely"
 
 # The pipeline always removes no-idle and stops at the first failed stage.
 pipeline="$test_root/pipeline"
-install -d "$pipeline/qvcore/packages" "$pipeline/qvcore/update" "$pipeline/qvcore/migrations"
+install -d \
+  "$pipeline/qvcore/direct" \
+  "$pipeline/qvcore/install" \
+  "$pipeline/qvcore/migrations" \
+  "$pipeline/qvcore/packages" \
+  "$pipeline/qvcore/update" \
+  "$pipeline/qvcore/waybar"
 for stage in update-keyring update-system update-aur remove-orphans; do
   install -m 0755 /dev/stdin "$pipeline/qvcore/packages/$stage" <<SCRIPT
 #!/bin/bash
@@ -275,20 +281,56 @@ install -m 0755 /dev/stdin "$pipeline/qvcore/migrations/run" <<'SCRIPT'
 #!/bin/bash
 printf 'migrations\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+for owner in \
+  install/post-update-hook \
+  direct/post-update-hook \
+  waybar/post-update-hook; do
+  install -m 0755 /dev/stdin "$pipeline/qvcore/$owner" <<SCRIPT
+#!/bin/bash
+printf '$owner\n' >>"\$QVOS_TEST_ACTION_LOG"
+SCRIPT
+done
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
 printf 'hyprctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hook" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-hook" <<'SCRIPT'
 #!/bin/bash
 printf 'hook:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+exit "${QVOS_TEST_HOOK_STATUS:-0}"
 SCRIPT
 
 : >"$action_log"
 QVOS_PATH="$pipeline" QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" "$root/qvcore/update/perform"
+expected_pipeline=$(printf '%s\n' \
+  'hyprctl:dispatch tagwindow +noidle' \
+  update-keyring \
+  available-reset \
+  update-system \
+  migrations \
+  update-aur \
+  remove-orphans \
+  install/post-update-hook \
+  direct/post-update-hook \
+  waybar/post-update-hook \
+  'hook:post-update' \
+  analyze-log \
+  restart \
+  'hyprctl:dispatch tagwindow -- -noidle')
+[[ $(<"$action_log") == "$expected_pipeline" ]] ||
+  fail "native update pipeline stage order"
 [[ $(tail -n 1 "$action_log") == 'hyprctl:dispatch tagwindow -- -noidle' ]] ||
   fail "successful no-idle cleanup"
+
+: >"$action_log"
+QVOS_PATH="$pipeline" QVOS_TEST_ACTION_LOG="$action_log" \
+  QVOS_TEST_HOOK_STATUS=7 PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/update/perform" >/dev/null 2>&1
+grep -Fqx 'analyze-log' "$action_log" ||
+  fail "custom hook failure stopped update analysis"
+grep -Fqx 'restart' "$action_log" ||
+  fail "custom hook failure stopped update restart"
 
 : >"$action_log"
 set +e

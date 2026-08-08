@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# This hook receives the current battery percentage when a low-battery
+# notification is sent. Remove .sample from the filename to enable it.
+
+SOUND_FILE="/usr/share/sounds/freedesktop/stereo/dialog-warning.oga"
+
+if qv-cmd-present mpv && [[ -f $SOUND_FILE ]]; then
+  mpv --no-video "$SOUND_FILE" >/dev/null 2>&1
+fi

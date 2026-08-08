@@ -32,7 +32,7 @@ printf '%s\n' \
   'Noto Color Emoji' \
   'MesloLGL Nerd Font'
 SCRIPT
-for command in qv-restart-waybar qv-restart-swayosd omarchy-hook; do
+for command in qv-restart-waybar qv-restart-swayosd qv-hook; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
 printf '%s\t%s\n' "${0##*/}" "$*" >>"$QVOS_FONT_TEST_LOG"
@@ -116,7 +116,7 @@ grep -Fqx 'font-family: "MesloLGL Nerd Font";' "$config_root/swayosd/style.css" 
   fail "Fontconfig Arabic fallback was overwritten"
 grep -Fqx $'qv-restart-waybar\t' "$log" || fail "Waybar refresh"
 grep -Fqx $'qv-restart-swayosd\t' "$log" || fail "SwayOSD refresh"
-grep -Fqx $'omarchy-hook\tfont-set MesloLGL Nerd Font' "$log" || fail "custom hook compatibility"
+grep -Fqx $'qv-hook\tfont-set MesloLGL Nerd Font' "$log" || fail "native custom hook"
 printf 'ok - font transaction updates every supported config without damaging fallbacks\n'
 
 find "$config_root" -type f -print0 | sort -z | xargs -0 sha256sum >"$test_root/before-rejection"
