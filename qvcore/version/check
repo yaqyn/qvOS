@@ -54,8 +54,22 @@ fi
 if rg -n 'omarchy-version(-branch|-channel|-pkgs)?' "$root/qvcore" \
   --glob '!**/AGENTS.md' \
   --glob '!**/check' \
-  --glob '!**/native-paths'; then
+  --glob '!**/native-paths' \
+  --glob '!migrate-runtime-root'; then
   fail "native qvOS source calls a version compatibility route"
 fi
+version_migration_compatibility=$(
+  rg -o 'omarchy-version(-branch|-channel|-pkgs)?' \
+    "$root/qvcore/config/migrate-runtime-root" | sort -u
+)
+expected_version_migrations=$'omarchy-version\nomarchy-version-pkgs'
+[[ $version_migration_compatibility == "$expected_version_migrations" ]] ||
+  fail "runtime migration retains an unexpected version compatibility route"
+for migration in \
+  "'omarchy-version' 'qv-version'" \
+  "'omarchy-version-pkgs' 'qv-version-pkgs'"; do
+  grep -Fq "$migration" "$root/qvcore/config/migrate-runtime-root" ||
+    fail "runtime migration does not converge Fastfetch version reporting"
+done
 
 printf 'ok - qvOS version reporting has one read-only native owner\n'

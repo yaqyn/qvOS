@@ -113,9 +113,19 @@ if rg -n \
   'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))([^[:alnum:]_-]|$)' \
   "$root/qvcore" "$root/config" "$root/default/elephant" \
   --glob '!AGENTS.md' --glob '!check' --glob '!native-paths' \
-  --glob '!owner-contracts.psv'; then
+  --glob '!owner-contracts.psv' --glob '!migrate-runtime-root'; then
   fail "native qvOS surface calls a theme compatibility route"
 fi
+theme_migration_compatibility=$(
+  rg -o \
+    'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))' \
+    "$root/qvcore/config/migrate-runtime-root" | sort -u
+)
+[[ $theme_migration_compatibility == "omarchy-theme-current" ]] ||
+  fail "runtime migration retains an unexpected theme compatibility route"
+grep -Fq "'omarchy-theme-current' 'qv-theme-current'" \
+  "$root/qvcore/config/migrate-runtime-root" ||
+  fail "runtime migration does not converge Fastfetch on the native theme route"
 
 grep -Fq 'qvcore/theme/name' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses the shared name validator"
