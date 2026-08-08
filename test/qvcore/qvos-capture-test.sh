@@ -314,7 +314,9 @@ printf '%s\n' "$original_state" >"$state"
 chmod 0600 "$state"
 pass "process start tokens prevent PID-reuse signaling and unsafe recovery"
 
-$screenrecord --stop-recording >/dev/null
+stop_stderr="$test_root/stop.stderr"
+$screenrecord --stop-recording >/dev/null 2>"$stop_stderr"
+[[ ! -s $stop_stderr ]] || fail "recording stop emitted a process-race error"
 [[ ! -e $state && ! -L $state ]] || fail "recording state cleanup"
 (( $(find "$QVOS_SCREENRECORD_DIR" -maxdepth 1 -type f -name 'screenrecording-*.mp4' | wc -l) == 1 )) ||
   fail "recording publication"

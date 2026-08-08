@@ -412,7 +412,9 @@ capture_process_matches() {
   local process_name=$2
   local expected_start=${3:-}
   local argument
+  local cmdline_fd
   local executable
+  local matched=false
 
   [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
@@ -423,20 +425,35 @@ capture_process_matches() {
   [[ ${executable##*/} == "$process_name" ]] && return
 
   [[ ${QVOS_CAPTURE_TESTING:-} == "1" ]] || return 1
+  if ! { exec {cmdline_fd}<"/proc/$pid/cmdline"; } 2>/dev/null; then
+    return 1
+  fi
   while IFS= read -r -d '' argument; do
-    [[ $argument == /tmp/*/"$process_name" ]] && return
-  done <"/proc/$pid/cmdline"
-  return 1
+    if [[ $argument == /tmp/*/"$process_name" ]]; then
+      matched=true
+      break
+    fi
+  done <&"$cmdline_fd"
+  exec {cmdline_fd}<&-
+  [[ $matched == "true" ]]
 }
 
 capture_process_start() {
   local pid=$1
   local rest
   local stat
+  local stat_fd
   local -a fields
 
   [[ $pid =~ ^[1-9][0-9]*$ && -r /proc/$pid/stat ]] || return 1
-  stat=$(<"/proc/$pid/stat")
+  if ! { exec {stat_fd}<"/proc/$pid/stat"; } 2>/dev/null; then
+    return 1
+  fi
+  if ! IFS= read -r stat <&"$stat_fd"; then
+    exec {stat_fd}<&-
+    return 1
+  fi
+  exec {stat_fd}<&-
   rest=${stat##*) }
   read -r -a fields <<<"$rest"
   (( ${#fields[@]} >= 20 )) || return 1

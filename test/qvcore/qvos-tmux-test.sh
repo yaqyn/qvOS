@@ -116,7 +116,7 @@ ln -s /bin/sleep "$temporary_bin/codex"
 temporary_command_pid=$!
 temporary_executable=""
 for _ in {1..100}; do
-  temporary_executable="$(tr '\0' '\n' <"/proc/$temporary_command_pid/cmdline" 2>/dev/null | head -n 1 || true)"
+  temporary_executable="$(tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" | head -n 1 || true)"
   [[ $temporary_executable == "$temporary_bin/codex" ]] && break
   sleep 0.01
 done
@@ -134,7 +134,7 @@ SCRIPT
 node "$temporary_bin/codex" --yolo &
 temporary_command_pid=$!
 for _ in {1..100}; do
-  if tr '\0' '\n' <"/proc/$temporary_command_pid/cmdline" 2>/dev/null |
+  if tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" |
     grep -Fqx "$temporary_bin/codex"; then
     break
   fi
