@@ -64,8 +64,15 @@
     qvcore/power/battery-protection-hwdb
     qvcore/power/battery-protection-lib
     qvcore/power/install
+    qvcore/power/event-rule
+    qvcore/power/profile-rule
+    qvcore/power/profiles-set
     qvcore/power/qvos-battery-full-charge-once.service
+    qvcore/power/root-install
+    qvcore/power/supply-lib
     qvcore/power/suspend-if-safe
+    qvcore/power/wifi-powersave
+    qvcore/power/wifi-rule
     qvcore/screensaver/alacritty.toml
     qvcore/screensaver/install
     qvcore/screensaver/qvos-launch-screensaver

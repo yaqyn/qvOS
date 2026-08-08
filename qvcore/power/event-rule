@@ -1,0 +1,213 @@
+#!/bin/bash
+set -euo pipefail
+
+kind=${1:-}
+shift || true
+mode=install
+case ${1:-} in
+"") ;;
+--existing) mode=existing ;;
+*)
+  echo "Usage: qvcore/power/event-rule <profile|wifi> [--existing]" >&2
+  exit 2
+  ;;
+esac
+(($# <= 1)) || {
+  echo "Usage: qvcore/power/event-rule <profile|wifi> [--existing]" >&2
+  exit 2
+}
+
+script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
+qvos_root=$(cd -- "$(/usr/bin/dirname -- "$script_path")/../.." && pwd)
+system_root=${QVOS_POWER_SYSTEM_ROOT:-}
+testing=${QVOS_POWER_TESTING:-}
+legacy_root="${qvos_root%/*}/omarchy"
+reload_command=/usr/bin/udevadm
+trigger=false
+temporary=""
+backup=""
+
+if [[ -n $system_root && $testing != "1" ]]; then
+  echo "A custom qvOS power system root is valid only in tests." >&2
+  exit 2
+fi
+if [[ $testing == "1" ]]; then
+  reload_command=${QVOS_UDEVADM:-}
+fi
+
+profile_rule_content() {
+  local command_path=$1
+
+  for supply_pattern in Mains 'USB*' Wireless; do
+    printf 'SUBSYSTEM=="power_supply", ATTR{type}=="%s", RUN+="/usr/bin/systemd-run --quiet --no-block --collect --service-type=exec --property=After=power-profiles-daemon.service --property=CapabilityBoundingSet= --property=NoNewPrivileges=yes --property=PrivateTmp=yes --property=ProtectHome=yes --property=ProtectSystem=strict %s autodetect"\n' \
+      "$supply_pattern" "$command_path"
+  done
+}
+
+legacy_profile_rule_content() {
+  local command_path=$1
+  local unit_argument=${2:-}
+
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect%s --property=After=power-profiles-daemon.service %s"\n' \
+    "$unit_argument" "$command_path"
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect%s --property=After=power-profiles-daemon.service %s"\n' \
+    "$unit_argument" "$command_path"
+}
+
+wifi_rule_content() {
+  local command_path=$1
+
+  for supply_type in Mains 'USB*' Wireless; do
+    printf 'SUBSYSTEM=="power_supply", ATTR{type}=="%s", RUN+="/usr/bin/systemd-run --quiet --no-block --collect --service-type=exec --property=CapabilityBoundingSet=CAP_NET_ADMIN --property=NoNewPrivileges=yes --property=PrivateTmp=yes --property=ProtectHome=yes --property=ProtectSystem=strict %s auto"\n' \
+      "$supply_type" "$command_path"
+  done
+}
+
+legacy_wifi_rule_content() {
+  local command_path=$1
+
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-wifi-powersave-on %s on"\n' \
+    "$command_path"
+  printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-wifi-powersave-off %s off"\n' \
+    "$command_path"
+}
+
+case $kind in
+profile)
+  rule_path=${QVOS_POWER_PROFILE_RULE:-$system_root/etc/udev/rules.d/99-power-profile.rules}
+  default_rule=/etc/udev/rules.d/99-power-profile.rules
+  helper="$system_root/usr/lib/qvos/power/profiles-set"
+  desired_content=$(profile_rule_content "$helper")
+  allowed_contents=(
+    "$(legacy_profile_rule_content "$qvos_root/bin/qv-powerprofiles-set")"
+    "$(legacy_profile_rule_content "$qvos_root/bin/omarchy-powerprofiles-set")"
+    "$(legacy_profile_rule_content "$legacy_root/bin/omarchy-powerprofiles-set")"
+    "$(legacy_profile_rule_content "$qvos_root/bin/qv-powerprofiles-set" ' --unit=omarchy-power-profile')"
+    "$(legacy_profile_rule_content "$qvos_root/bin/omarchy-powerprofiles-set" ' --unit=omarchy-power-profile')"
+    "$(legacy_profile_rule_content "$legacy_root/bin/omarchy-powerprofiles-set" ' --unit=omarchy-power-profile')"
+  )
+  label=power-profile
+  ;;
+wifi)
+  rule_path=${QVOS_POWER_WIFI_RULE:-$system_root/etc/udev/rules.d/99-wifi-powersave.rules}
+  default_rule=/etc/udev/rules.d/99-wifi-powersave.rules
+  helper="$system_root/usr/lib/qvos/power/wifi-powersave"
+  desired_content=$(wifi_rule_content "$helper")
+  allowed_contents=(
+    "$(legacy_wifi_rule_content "$qvos_root/bin/omarchy-wifi-powersave")"
+    "$(legacy_wifi_rule_content "$legacy_root/bin/omarchy-wifi-powersave")"
+  )
+  label=wifi-power-save
+  trigger=true
+  ;;
+*)
+  echo "Usage: qvcore/power/event-rule <profile|wifi> [--existing]" >&2
+  exit 2
+  ;;
+esac
+
+if [[ $rule_path != "$default_rule" && $testing != "1" ]]; then
+  echo "A custom qvOS $label rule path is valid only in tests." >&2
+  exit 2
+fi
+if [[ $mode == "existing" && ! -e $rule_path && ! -L $rule_path ]]; then
+  exit
+fi
+if [[ $rule_path == "$default_rule" && $EUID != 0 ]]; then
+  exec /usr/bin/sudo -- "$script_path" "$kind" "$@"
+fi
+if [[ ! $helper =~ ^/[-[:alnum:]_./:]+$ ]]; then
+  echo "The qvOS root helper path is unsafe for a udev command." >&2
+  exit 1
+fi
+
+rule_dir=${rule_path%/*}
+expected_uid=$EUID
+if [[ -z $system_root ]]; then
+  expected_uid=0
+fi
+[[ -d $rule_dir && ! -L $rule_dir ]] || {
+  echo "Refusing unsafe udev rule directory: $rule_dir" >&2
+  exit 1
+}
+[[ $(/usr/bin/stat -c %u -- "$rule_dir") == "$expected_uid" ]] || {
+  echo "Refusing a foreign udev rule directory: $rule_dir" >&2
+  exit 1
+}
+
+rule_current=false
+if [[ -e $rule_path || -L $rule_path ]]; then
+  [[ -f $rule_path && ! -L $rule_path &&
+    $(/usr/bin/stat -c %u -- "$rule_path") == "$expected_uid" ]] || {
+    echo "Refusing unsafe qvOS $label rule: $rule_path" >&2
+    exit 1
+  }
+  current_content=$(<"$rule_path")
+  if [[ $current_content == "$desired_content" ]]; then
+    rule_current=true
+  else
+    known_rule=false
+    for allowed_content in "${allowed_contents[@]}"; do
+      if [[ $current_content == "$allowed_content" ]]; then
+        known_rule=true
+        break
+      fi
+    done
+    [[ $known_rule == "true" ]] || {
+      echo "Preserving an unknown qvOS $label rule: $rule_path" >&2
+      exit 1
+    }
+  fi
+fi
+
+QVOS_POWER_SYSTEM_ROOT="$system_root" QVOS_POWER_TESTING="$testing" \
+  "$qvos_root/qvcore/power/root-install"
+if [[ $rule_current == "true" ]]; then
+  /usr/bin/chmod 0644 -- "$rule_path"
+  exit
+fi
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || /usr/bin/rm -f -- "$temporary"
+}
+trap cleanup EXIT
+temporary=$(/usr/bin/mktemp "$rule_dir/.qvos-$label.XXXXXX")
+printf '%s\n' "$desired_content" >"$temporary"
+/usr/bin/chmod 0644 -- "$temporary"
+if [[ -e $rule_path ]]; then
+  backup=$(/usr/bin/mktemp "$rule_dir/${rule_path##*/}.qvos-backup.XXXXXX")
+  /usr/bin/cp -a -- "$rule_path" "$backup"
+fi
+/usr/bin/mv -f -- "$temporary" "$rule_path"
+temporary=""
+
+restore_rule() {
+  if [[ -n $backup ]]; then
+    temporary=$(/usr/bin/mktemp "$rule_dir/.qvos-$label.XXXXXX")
+    /usr/bin/cp -a -- "$backup" "$temporary"
+    /usr/bin/mv -f -- "$temporary" "$rule_path"
+    temporary=""
+  else
+    /usr/bin/rm -f -- "$rule_path"
+  fi
+  [[ -z $reload_command ]] ||
+    "$reload_command" control --reload-rules >/dev/null 2>&1 || true
+}
+
+if [[ -n $reload_command ]] && ! "$reload_command" control --reload-rules; then
+  restore_rule
+  echo "Could not reload the native qvOS $label rule; restored its prior state." >&2
+  exit 1
+fi
+if [[ $trigger == "true" && -n $reload_command ]] &&
+  ! "$reload_command" trigger --subsystem-match=power_supply; then
+  restore_rule
+  echo "Could not activate the native qvOS $label rule; restored its prior state." >&2
+  exit 1
+fi
+
+if [[ -n $backup ]]; then
+  printf 'Installed native qvOS %s rule; backup: %s\n' "$label" "$backup"
+else
+  printf 'Installed native qvOS %s rule.\n' "$label"
+fi

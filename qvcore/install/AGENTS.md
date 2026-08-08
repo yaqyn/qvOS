@@ -101,6 +101,10 @@ Before first-run services are enabled, run the native config toggle-state and
 user-service reconcilers. Battery monitoring and internal-monitor recovery use
 only `qvos-*` unit identities; inherited unit names and toggle roots are
 existing-system migration inputs, never fresh state.
+AC-event rules must execute only root-owned helpers under `/usr/lib/qvos`.
+Install or update those helpers through their qvOS owner before atomically
+replacing a known udev rule; never embed a home, source-checkout, or
+compatibility-link command in a root event.
 Install private About and screensaver customization only through
 `qvcore/branding/install`; desktop reconciliation invokes it before the
 screensaver runtime. Never copy top-level logo assets or write active

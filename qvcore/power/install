@@ -96,6 +96,8 @@ else
     "$source_dir/battery-protection-hwdb" "$system_helper"
 fi
 
+"$source_dir/root-install"
+
 if [[ -z $system_root ]]; then
   /usr/bin/systemctl --user daemon-reload
 fi

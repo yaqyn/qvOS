@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown'
+expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown\nbin/omarchy-wifi-powersave'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native power route inventory"
 
@@ -28,6 +28,7 @@ declare -A route_owners=(
   [system-shutdown]=system-power
   [system-inhibit-sleep]=inhibit-sleep
   [system-suspend-if-safe]=suspend-if-safe
+  [wifi-powersave]=wifi-powersave
 )
 declare -A route_actions=(
   [ac-present]=ac
@@ -66,23 +67,58 @@ for route in "${!route_owners[@]}"; do
 done
 
 [[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
-[[ -x $root/qvcore/power/profile-rule ]] || fail "power-profile rule owner mode"
+for owner in event-rule profile-rule root-install wifi-rule; do
+  [[ -x $root/qvcore/power/$owner ]] || fail "power event owner mode: $owner"
+done
 # shellcheck disable=SC2016
 grep -Fqx '  "$QVOS_PATH/qvcore/power/profile-rule"' \
   "$root/qvcore/install/config/powerprofilesctl-rules.sh" ||
   fail "installer does not use the native power-profile rule owner"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/power/wifi-rule"' \
+  "$root/qvcore/install/config/wifi-powersave-rules.sh" ||
+  fail "installer does not use the native Wi-Fi power rule owner"
 if rg -q 'cat <<EOF|tee .*99-power-profile' \
   "$root/qvcore/install/config/powerprofilesctl-rules.sh"; then
   fail "installer duplicates the native power-profile rule"
 fi
-if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown))' \
+if rg -q 'cat <<EOF|tee .*99-wifi-powersave' \
+  "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
+  fail "installer duplicates the native Wi-Fi power rule"
+fi
+for helper in profiles-set supply-lib wifi-powersave; do
+  grep -Fq "install_system_helper $helper" "$root/qvcore/power/root-install" ||
+    fail "root helper installer omits $helper"
+done
+grep -Fq '/usr/lib/qvos/power/profiles-set' "$root/qvcore/power/event-rule" ||
+  fail "power-profile rule bypasses its root-owned helper"
+grep -Fq '/usr/lib/qvos/power/wifi-powersave' "$root/qvcore/power/event-rule" ||
+  fail "Wi-Fi rule bypasses its root-owned helper"
+if rg -n '\.local/share/(qvos|omarchy).*(profiles|wifi-powersave)' \
+  "$root/qvcore/install/config/powerprofilesctl-rules.sh" \
+  "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
+  fail "installer retains a user-writable root event command"
+fi
+if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|wifi-powersave)' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
   --glob '!**/check' --glob '!**/omarchy/extensions/menu.sh' \
+  --glob '!**/power/event-rule' \
   --glob '!**/power/profile-rule' --glob '!**/power/install' \
   --glob '!**/config/migrate-runtime-root'; then
   fail "native qvOS source still calls a power compatibility command"
 fi
+event_compatibility=$(
+  rg -o 'omarchy-(powerprofiles-set|wifi-powersave)' \
+    "$root/qvcore/power/event-rule" | sort -u
+)
+[[ $event_compatibility == $'omarchy-powerprofiles-set\nomarchy-wifi-powersave' ]] ||
+  fail "AC-event migration accepts an unexpected compatibility command"
+for owner in profile-rule wifi-rule; do
+  grep -Fqx "\"\$QVOS_PATH/qvcore/power/$owner\" --existing" \
+    "$root/qvcore/migrations/1786205077.sh" ||
+    fail "root-owned AC-event migration omits $owner"
+done
 
 printf 'ok - qvOS owns power telemetry, profiles, sleep guards, and system power\n'

@@ -378,8 +378,8 @@ Environment=USER_CUSTOM=1
 BusName=org.xfce.FileManager
 KillMode=process
 EOF
-power_helper_state_before=$(stat -c '%u:%g:%a|%i|%y' \
-  "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb")
+power_helper_state_before=$(find "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos" \
+  -type f -printf '%P|%u:%g:%m|%i|%T@\n' | sort)
 install -d -m 0700 \
   "$test_root/.local/state/qvos/services" \
   "$test_root/.local/state/qvos/development"
@@ -389,8 +389,8 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
-[[ $(stat -c '%u:%g:%a|%i|%y' \
-  "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb") == \
+[[ $(find "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos" \
+  -type f -printf '%P|%u:%g:%m|%i|%T@\n' | sort) == \
   "$power_helper_state_before" ]] ||
   fail "desktop refresh rewrote an exact privileged power helper"
 grep -Fq 'Exec=/usr/bin/custom-file-manager' \
@@ -488,6 +488,15 @@ cmp -s \
   "$root/qvcore/power/battery-protection-hwdb" \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb" ||
   fail "root-owned Battery Protection helper payload"
+for helper in profiles-set supply-lib wifi-powersave; do
+  mode=755
+  [[ $helper != "supply-lib" ]] || mode=644
+  target="$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/power/$helper"
+  cmp -s "$root/qvcore/power/$helper" "$target" ||
+    fail "root-owned AC-event helper payload: $helper"
+  [[ $(stat -c '%a' -- "$target") == "$mode" ]] ||
+    fail "root-owned AC-event helper mode: $helper"
+done
 [[ ! -e $QVOS_POWER_SYSTEM_ROOT/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb ]] ||
   fail "desktop install must not enable Battery Protection"
 [[ ! -e $test_root/.local/state/qvos/battery-protection ]] ||

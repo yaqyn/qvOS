@@ -1,0 +1,117 @@
+#!/bin/bash
+set -euo pipefail
+
+script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
+source_dir=$(cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd)
+system_root=${QVOS_POWER_SYSTEM_ROOT:-}
+testing=${QVOS_POWER_TESTING:-}
+target_dir="$system_root/usr/lib/qvos/power"
+expected_uid=0
+expected_gid=0
+temporary=""
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || /usr/bin/rm -f -- "$temporary"
+}
+trap cleanup EXIT
+
+if [[ -n $system_root && $testing != "1" ]]; then
+  echo "A custom qvOS power system root is valid only in tests." >&2
+  exit 2
+fi
+if [[ -z $system_root && $target_dir != "/usr/lib/qvos/power" ]]; then
+  echo "Invalid qvOS power helper destination." >&2
+  exit 1
+fi
+if [[ -n $system_root ]]; then
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+fi
+
+safe_system_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_system_directory() {
+  local path=$1
+
+  if [[ -e $path || -L $path ]]; then
+    safe_system_directory "$path" || {
+      echo "Refusing unsafe qvOS system helper directory: $path" >&2
+      return 1
+    }
+  else
+    /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m 0755 "$path"
+  fi
+}
+
+install_system_helper() {
+  local name=$1
+  local mode=$2
+  local source="$source_dir/$name"
+  local target="$target_dir/$name"
+
+  [[ -f $source && ! -L $source ]] || {
+    echo "Missing qvOS power helper source: $source" >&2
+    return 1
+  }
+  if [[ -e $target || -L $target ]]; then
+    [[ -f $target && ! -L $target ]] || {
+      echo "Refusing unsafe qvOS power helper: $target" >&2
+      return 1
+    }
+    [[ $(/usr/bin/stat -c '%u:%g' -- "$target") == "$expected_uid:$expected_gid" ]] || {
+      echo "Refusing foreign qvOS power helper: $target" >&2
+      return 1
+    }
+    if [[ $(/usr/bin/stat -c '%a' -- "$target") == "${mode#0}" ]] &&
+      /usr/bin/cmp -s "$source" "$target"; then
+      return 0
+    fi
+  fi
+
+  temporary=$(/usr/bin/mktemp "$target_dir/.$name.XXXXXX")
+  /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m "$mode" \
+    "$source" "$temporary"
+  /usr/bin/mv -f -- "$temporary" "$target"
+  temporary=""
+}
+
+system_helpers_ready() {
+  local helper
+  local mode
+
+  safe_system_directory "$system_root/usr" || return 1
+  safe_system_directory "$system_root/usr/lib" || return 1
+  safe_system_directory "$system_root/usr/lib/qvos" || return 1
+  safe_system_directory "$target_dir" || return 1
+  for helper in supply-lib profiles-set wifi-powersave; do
+    mode=755
+    [[ $helper != "supply-lib" ]] || mode=644
+    [[ -f $target_dir/$helper && ! -L $target_dir/$helper ]] || return 1
+    [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$target_dir/$helper") == \
+      "$expected_uid:$expected_gid:$mode" ]] || return 1
+    /usr/bin/cmp -s "$source_dir/$helper" "$target_dir/$helper" || return 1
+  done
+}
+
+if [[ -z $system_root && $EUID != 0 ]]; then
+  system_helpers_ready && exit
+  exec /usr/bin/sudo -- "$script_path"
+fi
+
+ensure_system_directory "$system_root/usr"
+ensure_system_directory "$system_root/usr/lib"
+ensure_system_directory "$system_root/usr/lib/qvos"
+ensure_system_directory "$target_dir"
+
+install_system_helper supply-lib 0644
+install_system_helper profiles-set 0755
+install_system_helper wifi-powersave 0755

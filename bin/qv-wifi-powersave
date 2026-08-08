@@ -1,4 +1,8 @@
 #!/bin/bash
 
+# qv:summary=Set Wi-Fi power saving from AC state or an explicit mode
+# qv:args=[auto|on|off]
+# qv:requires-sudo=true
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/power/wifi-powersave" "$@"

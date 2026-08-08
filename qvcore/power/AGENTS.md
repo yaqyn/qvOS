@@ -13,23 +13,36 @@ because stale state cleanup was refused. Schedule the fixed systemctl action
 before closing windows, preserve the existing two-second application grace,
 and never build a user-controlled shell command.
 
-## Session power profiles
+## Root-owned AC event boundary
 
 `profiles-set` owns power-profile policy. Accept only `autodetect`, `ac`,
 `battery`, or an exact profile reported by `powerprofilesctl`; use Balanced as
 the safe battery and missing-Performance fallback. Autodetection reads only
-Mains and USB supplies with a validated `online` value. Test fixtures may
+Mains, USB-class, and wireless supplies with a validated `online` value. Test
+fixtures may
 override the power-supply root only with `QVOS_POWER_TESTING=1`. The init and
 list owners delegate to this policy or the system service without duplicating
-selection logic. `profile-rule` is the singular installer and update owner for
-the root udev rule. It accepts only exact known qvOS/Omarchy predecessors,
-writes atomically, keeps a root-owned backup, and restores it when reload fails.
+selection logic. `wifi-powersave` shares `supply-lib`, accepts only `auto`, `on`,
+or `off`, and updates validated wireless interfaces with the required `iw`
+base package.
+
+No root AC event may execute the user-writable source checkout. `root-install`
+is the singular owner of root copies under `/usr/lib/qvos/power/`.
+It verifies an exact safe payload without privilege first so routine desktop
+reconciliation never prompts for sudo when the root helpers are already current.
+`event-rule` owns the shared atomic udev transaction; `profile-rule` and
+`wifi-rule` select only their fixed policy. Accept only exact known qvOS or
+Omarchy predecessors, keep a root-owned backup, and restore the prior rule when
+reload or activation fails. Both policies run in bounded transient services.
+Wi-Fi derives the effective mode from every supported external supply instead
+of trusting a single event's online value.
 
 ## Power telemetry and sleep guards
 
-`supply-lib` is the one sysfs owner for battery and AC presence, including
-USB-C power. `battery-info` selects the aggregate UPower DisplayDevice when
-available, validates every reported value, and formats capacity, percentage,
+`supply-lib` is the one sysfs owner for battery and external-power presence,
+including USB-C/PD and wireless power. `battery-info` selects the aggregate
+UPower DisplayDevice when available, validates every reported value, and
+formats capacity, percentage,
 remaining time, monitoring samples, and status without repeating device
 queries. Low-battery notification state lives only in the validated user
 runtime directory. Test roots require
@@ -88,7 +101,7 @@ without writing until the conflict is gone.
 
 ## Verification and live approval
 
-- Use simulated UPower, D-Bus, sysfs, hwdb, power-profile, Polkit denial, concurrency, and
+- Use simulated UPower, D-Bus, sysfs, hwdb, Wi-Fi, udev, power-profile, Polkit denial, concurrency, and
   systemd fixtures for mutation coverage. Run Bash syntax, ShellCheck, focused
   power/menu/install tests, `git diff --check`, and `test/qvcore/run.sh`.
 - After a verified commit, apply the desktop overlay and system helper, reload

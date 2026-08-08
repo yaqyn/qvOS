@@ -2,4 +2,4 @@
 set -euo pipefail
 
 power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$power_root/event-rule" profile "$@"
+exec "$power_root/event-rule" wifi "$@"

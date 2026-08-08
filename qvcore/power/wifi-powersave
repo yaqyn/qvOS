@@ -1,0 +1,69 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# <= 1)) || {
+  echo "Usage: qv wifi powersave [auto|on|off]" >&2
+  exit 2
+}
+action=${1:-auto}
+case $action in
+auto | on | off) ;;
+*)
+  echo "Usage: qv wifi powersave [auto|on|off]" >&2
+  exit 2
+  ;;
+esac
+
+testing=${QVOS_POWER_TESTING:-}
+if [[ $testing != "1" && $EUID != 0 ]]; then
+  helper=/usr/lib/qvos/power/wifi-powersave
+  [[ -f $helper && ! -L $helper &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$helper") == "0:0:755" ]] || {
+    echo "The root-owned qvOS Wi-Fi power helper is missing or unsafe." >&2
+    echo "Re-run qvOS desktop setup before changing Wi-Fi power saving." >&2
+    exit 1
+  }
+  exec /usr/bin/sudo -- "$helper" "$action"
+fi
+
+power_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/power/supply-lib
+source "$power_root/supply-lib"
+network_root=${QVOS_POWER_NETWORK_ROOT:-/sys/class/net}
+iw_command=/usr/bin/iw
+if [[ $testing == "1" ]]; then
+  iw_command=${QVOS_IW:-$(command -v iw || true)}
+elif [[ $network_root != "/sys/class/net" ]]; then
+  echo "A custom network root is valid only in tests." >&2
+  exit 2
+fi
+[[ -x $iw_command ]] || {
+  echo "The iw command required for Wi-Fi power saving is unavailable." >&2
+  exit 1
+}
+
+if [[ $action == "auto" ]]; then
+  if qvos_ac_present; then
+    action=off
+  else
+    action=on
+  fi
+fi
+
+status=0
+for wireless in "$network_root"/*/wireless; do
+  [[ -d $wireless ]] || continue
+  interface=${wireless%/wireless}
+  interface=${interface##*/}
+  [[ $interface =~ ^[[:alnum:]_.:-]{1,15}$ ]] || {
+    echo "Refusing an invalid wireless interface name." >&2
+    status=1
+    continue
+  }
+  if ! "$iw_command" dev "$interface" set power_save "$action"; then
+    printf 'Could not set Wi-Fi power saving %s on %s.\n' \
+      "$action" "$interface" >&2
+    status=1
+  fi
+done
+exit "$status"

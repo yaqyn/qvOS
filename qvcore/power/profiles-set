@@ -6,11 +6,21 @@ set -euo pipefail
   exit 2
 }
 action=${1:-autodetect}
-power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+power_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/power/supply-lib
 source "$power_root/supply-lib"
+powerprofilesctl_command=/usr/bin/powerprofilesctl
+awk_command=/usr/bin/awk
+if [[ ${QVOS_POWER_TESTING:-} == "1" ]]; then
+  powerprofilesctl_command=$(command -v powerprofilesctl || true)
+  awk_command=$(command -v awk || true)
+fi
+[[ -x $powerprofilesctl_command && -x $awk_command ]] || {
+  echo "Power Profiles is unavailable." >&2
+  exit 1
+}
 
-mapfile -t profiles < <(powerprofilesctl list | awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
+mapfile -t profiles < <("$powerprofilesctl_command" list | "$awk_command" '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
   gsub(/^[*[:space:]]+|:$/, "")
   print
 }')
@@ -58,4 +68,4 @@ has_profile "$target" || {
   echo "Required power profile is unavailable: $target" >&2
   exit 1
 }
-exec powerprofilesctl set "$target"
+exec "$powerprofilesctl_command" set "$target"

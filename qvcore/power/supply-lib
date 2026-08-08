@@ -30,7 +30,10 @@ qvos_ac_present() {
   for supply in "$qvos_power_supply_root"/*; do
     [[ -r $supply/type && -r $supply/online ]] || continue
     type=$(<"$supply/type")
-    [[ $type == "Mains" || $type == "USB" ]] || continue
+    case $type in
+    Mains | USB* | Wireless) ;;
+    *) continue ;;
+    esac
     online=$(<"$supply/online")
     [[ $online == "1" ]] && return 0
   done
