@@ -44,6 +44,7 @@ qvos_web_validate_url() {
   local https_only=${3:-false}
   local authority
   local hostname
+  local invalid_character
   local port
   local remainder
 
@@ -63,6 +64,23 @@ qvos_web_validate_url() {
     qvos_web_validation_error="Website cannot contain spaces"
     return 1
   fi
+
+  for invalid_character in '<' '>' '"' $'\\' '^' '`' '{' '|' '}'; do
+    if [[ $candidate == *"$invalid_character"* ]]; then
+      qvos_web_validation_error="Website contains an invalid URL character"
+      return 1
+    fi
+  done
+
+  remainder=$candidate
+  while [[ $remainder == *%* ]]; do
+    remainder=${remainder#*%}
+    if [[ ! $remainder =~ ^[0-9A-Fa-f]{2} ]]; then
+      qvos_web_validation_error="Website contains an invalid percent escape"
+      return 1
+    fi
+    remainder=${remainder:2}
+  done
 
   case $candidate in
   https://*) ;;

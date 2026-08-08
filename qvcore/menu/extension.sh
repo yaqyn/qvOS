@@ -512,7 +512,7 @@ show_install_menu() {
 
 show_install_easy_list_menu() {
   case $(menu "Easy List" "  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
-  *Web*) present_terminal omarchy-webapp-install ;;
+  *Web*) present_terminal qv-webapp-install ;;
   *TUI*) present_terminal omarchy-tui-install ;;
   *Service*)
     INSTALL_EASY_LIST_ACTIVE=true

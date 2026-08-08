@@ -206,13 +206,16 @@ port_url_status=$?
 ipv6_url_status=$?
 "$launch_root/webapp" $'https://example.com/\303\251' >/dev/null 2>&1
 non_ascii_url_status=$?
+"$launch_root/webapp" 'https://example.com/%ZZ' >/dev/null 2>&1
+percent_url_status=$?
 set -e
 ((invalid_url_status == 2 &&
   credentials_url_status == 2 &&
   hostname_url_status == 2 &&
   port_url_status == 2 &&
   ipv6_url_status == 2 &&
-  non_ascii_url_status == 2)) || fail "invalid web-app URL status"
+  non_ascii_url_status == 2 &&
+  percent_url_status == 2)) || fail "invalid web-app URL status"
 [[ ! -e $setsid_log ]] || fail "invalid web-app URL launched"
 pass "web-app launch rejects malformed, credential-bearing, and ambiguous URLs"
 

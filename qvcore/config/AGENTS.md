@@ -6,6 +6,10 @@ refresh reconciliation, or installed desktop configuration.
 `config/hypr/bindings.conf` is the single authoritative qvOS binding source.
 There is no inherited binding layer and no qvOS binding overlay.
 
+Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
+private-browser, localhost, and prompted-website access; users may install and
+bind their own Web Apps later.
+
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
   neither `unbind` nor a second active source to override it.

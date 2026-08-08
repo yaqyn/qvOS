@@ -100,6 +100,10 @@ Services and Development integrations never change qvOS base readiness.
   arguments, validates compositor and browser state, and contains no
   caller-controlled shell evaluation; matching Omarchy names are compatibility
   adapters only.
+- Custom Web App creation, inventory, removal, and migration are native under
+  `qvcore/desktop/webapp/`. They validate every URL and target, preserve foreign
+  desktop entries, and permit no arbitrary Exec payload. Fresh qvOS includes
+  no Web App instance, fixed service binding, service handler, or related icon.
 - Font discovery, current-state reporting, and configuration mutation are
   native under `qvcore/font/`. One serialized transaction validates and stages
   every supported config, preserves optional terminal settings and Arabic

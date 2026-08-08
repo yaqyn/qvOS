@@ -143,6 +143,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited unit names are migration input only
 - desktop application, browser, web-app, and terminal launching belongs to
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
+- custom Web App desktop entries belong to `qvcore/desktop/webapp`;
+  installation and removal preserve foreign files, while fresh qvOS contains
+  no preinstalled Web Apps, fixed service URLs, or service protocol handlers
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - local debug inventory belongs to `qvcore/security/debug`; it remains private,

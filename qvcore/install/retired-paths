@@ -1,4 +1,19 @@
 # The inherited installer tree is fully promoted into qvcore/install and
 # qvcore/boot. No installed or update lifecycle may depend on this prefix.
+applications/icons/Basecamp.png
+applications/icons/ChatGPT.png
+applications/icons/Discord.png
+applications/icons/Figma.png
+applications/icons/Fizzy.png
+applications/icons/GitHub.png
+applications/icons/Google Contacts.png
+applications/icons/Google Maps.png
+applications/icons/Google Messages.png
+applications/icons/Google Photos.png
+applications/icons/HEY.png
+applications/icons/WhatsApp.png
+applications/icons/X.png
+applications/icons/YouTube.png
+applications/icons/Zoom.png
 default/nautilus-python/
 install/

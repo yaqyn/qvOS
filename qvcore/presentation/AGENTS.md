@@ -8,6 +8,10 @@ commands are `qv-launch-floating-terminal-with-presentation`, `qv-show-done`,
 and `qv-show-failed`; matching Omarchy names are metadata-free compatibility
 adapters only.
 
+Its audited `default/hypr/apps/system.conf` seam keeps only application classes
+needed by installed qvOS capabilities. Never retain service-specific Web App
+or absent application classes there.
+
 - Preserve command arguments exactly. Never rebuild, evaluate, or implicitly
   pass a caller string through a shell. A caller that needs a shell passes an
   explicit reviewed shell and argument vector.

@@ -46,8 +46,6 @@ for video_mime in \
   xdg-mime default mpv.desktop "$video_mime"
 done
 
-xdg-mime default HEY.desktop x-scheme-handler/mailto
-
 editor_desktop=nvim.desktop
 editor_mimes=(
   application/ecmascript

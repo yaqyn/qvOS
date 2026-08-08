@@ -54,7 +54,7 @@ list_options() {
     list_desktop_apps '^Exec=.*(\$TERMINAL|xdg-terminal-exec).*-e' | sort
     ;;
   webapp-remove)
-    list_desktop_apps '^Exec=.*(qv-launch-webapp|omarchy-launch-webapp|omarchy-webapp-handler).*' | sort
+    "$QVOS_PATH/qvcore/desktop/webapp/remove" --list
     ;;
   *)
     usage
@@ -115,6 +115,6 @@ tui-remove)
   "$OMARCHY_PATH/bin/omarchy-tui-remove" "$@"
   ;;
 webapp-remove)
-  "$OMARCHY_PATH/bin/omarchy-webapp-remove" "$@"
+  "$QVOS_PATH/bin/qv-webapp-remove" "$@"
   ;;
 esac

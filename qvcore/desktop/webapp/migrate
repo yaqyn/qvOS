@@ -1,0 +1,237 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/desktop/webapp/lib
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/webapp/lib
+source "$script_dir/lib"
+
+changed=0
+qvos_webapp_paths
+
+retired_binding_urls=(
+  https://account.proton.me
+  https://app.infisical.com/
+  https://app.standardnotes.com/
+  https://bsky.app/
+  https://calendar.proton.me
+  https://chatgpt.com
+  https://dash.cloudflare.com
+  https://discord.com/app
+  https://docs.google.com/
+  https://docs.proton.me
+  https://drive.proton.me
+  https://github.com
+  https://lumo.proton.me
+  https://mail.proton.me
+  https://meet.proton.me
+  https://pass.proton.me
+  https://qirtaas.io/dashboard
+  https://quran.com/
+  https://supabase.com/dashboard
+  https://t.me/Qayyimental
+  https://web.telegram.org/
+  https://web.whatsapp.com/
+  https://workspace.google.com/dashboard
+  https://www.elm-academy.net/ar/%D8%A7%D9%84%D9%85%D9%86%D9%87%D8%AC
+  https://www.recraft.ai/
+  https://x.com/
+)
+
+retired_binding_line() {
+  local line=$1
+  local url
+
+  [[ $line == bind*"="*", exec,"* ]] || return 1
+  for url in "${retired_binding_urls[@]}"; do
+    [[ $line != *"$url"* ]] || return 0
+  done
+  return 1
+}
+
+rewrite_active_config() {
+  local file=$1
+  local kind=$2
+  local line
+  local original_hash
+  local temporary
+
+  [[ -f $file && ! -L $file && -O $file ]] || return 0
+  original_hash=$(sha256sum -- "$file")
+  temporary=$(mktemp "${file%/*}/.qvos-webapp-config.XXXXXX")
+  while IFS= read -r line || [[ -n $line ]]; do
+    case $kind:$line in
+    bindings:*)
+      retired_binding_line "$line" && continue
+      ;;
+    apps:'source = ~/.local/share/qvos/default/hypr/apps/telegram.conf' | \
+      apps:'source = ~/.local/share/omarchy/default/hypr/apps/telegram.conf')
+      continue
+      ;;
+    browser:'windowrule = tag -chromium-based-browser, match:class (chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)' | \
+      browser:'windowrule = tag -default-opacity, match:class (chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)')
+      continue
+      ;;
+    system:'windowrule = tag -default-opacity, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$')
+      line='windowrule = tag -default-opacity, match:class ^(vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$'
+      ;;
+    system:'windowrule = opacity 1 1, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$')
+      line='windowrule = opacity 1 1, match:class ^(vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$'
+      ;;
+    esac
+    printf '%s\n' "$line"
+  done <"$file" >"$temporary"
+
+  if cmp -s -- "$file" "$temporary"; then
+    unlink -- "$temporary"
+    return 0
+  fi
+  chmod --reference="$file" "$temporary"
+  if [[ $(sha256sum -- "$file") != "$original_hash" ]]; then
+    unlink -- "$temporary" 2>/dev/null || true
+    echo "Desktop config changed during Web App cleanup; preserving it: $file" >&2
+    return 1
+  fi
+  mv -T -- "$temporary" "$file"
+  ((changed += 1))
+}
+
+retired_desktop_matches() {
+  local desktop_file=$1
+  local route=$2
+
+  (( $(grep -c '^Exec=' "$desktop_file" || true) == 1 )) || return 1
+  case $route in
+  handler-hey)
+    grep -Eq '^Exec=(omarchy|qv)-webapp-handler-hey %u$' "$desktop_file"
+    ;;
+  handler-zoom)
+    grep -Eq '^Exec=(omarchy|qv)-webapp-handler-zoom %u$' "$desktop_file"
+    ;;
+  *)
+    grep -Fqx "Exec=omarchy-launch-webapp $route" "$desktop_file" ||
+      grep -Fqx "Exec=qv-launch-webapp $route" "$desktop_file"
+    ;;
+  esac
+}
+
+retire_bundled_webapps() {
+  local desktop_file
+  local desktop_hash
+  local icon_hash
+  local icon_path
+  local name
+  local route
+
+  [[ -d $qvos_webapp_application_dir && ! -L $qvos_webapp_application_dir &&
+    -O $qvos_webapp_application_dir ]] || return 0
+
+  while IFS='|' read -r name route icon_hash; do
+    [[ -n $name && $name != \#* ]] || continue
+    desktop_file="$qvos_webapp_application_dir/$name.desktop"
+    if [[ -f $desktop_file && ! -L $desktop_file && -O $desktop_file ]] &&
+      retired_desktop_matches "$desktop_file" "$route"; then
+      desktop_hash=$(sha256sum -- "$desktop_file")
+      if [[ $(sha256sum -- "$desktop_file") != "$desktop_hash" ]] ||
+        ! retired_desktop_matches "$desktop_file" "$route"; then
+        echo "Bundled Web App changed during retirement; preserving it: $desktop_file" >&2
+        return 1
+      fi
+      unlink -- "$desktop_file"
+      ((changed += 1))
+    fi
+
+    icon_path="$qvos_webapp_icon_dir/$name.png"
+    if [[ -f $icon_path && ! -L $icon_path && -O $icon_path &&
+      $(sha256sum -- "$icon_path" | cut -d' ' -f1) == "$icon_hash" ]] &&
+      ! qvos_webapp_icon_referenced "$icon_path"; then
+      unlink -- "$icon_path"
+    fi
+  done <<'RETIRED_WEBAPPS'
+Basecamp|https://launchpad.37signals.com|363ba1b6e3bb02b0bb16098882b6b5ca8c873d2a4c4e6c3b51786b748f028c83
+ChatGPT|https://chatgpt.com/|aa52ec3bb65d97c175f460a22df5f2f1a16197443e7e914ae39da230748e743c
+Discord|https://discord.com/channels/@me|13ae2215f810ed44c9689dad38d622e5555dbc25c4eb347f46ad1c8a3539574c
+Figma|https://figma.com/|1eb14ead337b39d8ec19ae72be390ab12abe5ddf972e89fbdbc542d5c11e5e09
+Fizzy|https://app.fizzy.do/|0240e3be063dd0c4f8c9bcdc75fb21d96f16fe057392bf6424d07b11d6c82f2e
+GitHub|https://github.com/|8428d2593389143eae3120d20ecef48a9dd8c7bc469c51bee0f7f653d1584512
+Google Contacts|https://contacts.google.com/|42378a621a5b5d5735756650fc7cb6836b12244ec372892818c8518a707f5b05
+Google Maps|https://maps.google.com|e01b857a679a76f22a24003a1421e38001d53f90c1b77d34f9163822dc0ac8b2
+Google Messages|https://messages.google.com/web/conversations|e2260b787697353fca5cf9acfe0613df53233b00f89394090e55d2f734bc4db0
+Google Photos|https://photos.google.com/|20947dd25d0306c3a2e644202c932beffc6036545af5026c921f2da5eebf3e80
+HEY|handler-hey|96478a25cd1b22f3cf2e0d5c23706d4d9860775cbcdce107f8828cb2d8f48e05
+WhatsApp|https://web.whatsapp.com/|a276e094b5e89be22e4cc76e5c0200b6e8c94a08449adc16fcf11dd1d49ee0fc
+X|https://x.com/|154256be6a5771401439a2d3ce6e84217240ae776cc1e5fc976c49e10c405644
+YouTube|https://youtube.com/|21712266fd01c447e36b4461ff86124735c483c8921252c011f0a43547031552
+Zoom|handler-zoom|ad04fc14af3fecdcc8a76d7fb5c63c029ed26c795361b3ca5962f81a86ab3add
+RETIRED_WEBAPPS
+}
+
+retire_bundled_webapps
+
+if [[ -e $qvos_webapp_application_dir || -L $qvos_webapp_application_dir ]]; then
+  qvos_webapp_safe_directory "$qvos_webapp_application_dir" || {
+    echo "Refusing unsafe qvOS Web App directory: $qvos_webapp_application_dir" >&2
+    exit 1
+  }
+  while IFS= read -r -d '' desktop_file; do
+    [[ -O $desktop_file && ! -L $desktop_file ]] || continue
+    exec_count=$(grep -c '^Exec=' "$desktop_file" || true)
+    ((exec_count == 1)) || continue
+    marker_count=$(grep -c '^X-qvOS-WebApp=' "$desktop_file" || true)
+    if ((marker_count > 0)); then
+      marker_true_count=$(grep -c '^X-qvOS-WebApp=true$' "$desktop_file" || true)
+      ((marker_count == 1 && marker_true_count == 1)) || continue
+    fi
+    legacy_exec=$(sed -n 's/^Exec=omarchy-launch-webapp /&/p' "$desktop_file")
+    [[ -n $legacy_exec ]] || continue
+    legacy_url=${legacy_exec#Exec=omarchy-launch-webapp }
+    qvos_web_validate_url "$legacy_url" 2048 true || continue
+    native_exec=$(qvos_webapp_desktop_exec_url "$legacy_url")
+
+    original_hash=$(sha256sum -- "$desktop_file")
+    temporary=$(mktemp "$qvos_webapp_application_dir/.qvos-webapp-migrate.XXXXXX")
+    if ! awk -v native_exec="Exec=$native_exec" '
+      /^X-qvOS-WebApp=/ { marker = 1 }
+      /^Exec=omarchy-launch-webapp / { $0 = native_exec }
+      { print }
+      END { if (!marker) print "X-qvOS-WebApp=true" }
+    ' "$desktop_file" >"$temporary"; then
+      unlink -- "$temporary" 2>/dev/null || true
+      exit 1
+    fi
+    chmod --reference="$desktop_file" "$temporary"
+    if [[ $(sha256sum -- "$desktop_file") != "$original_hash" ]]; then
+      unlink -- "$temporary" 2>/dev/null || true
+      echo "Web App changed during migration; preserving it: $desktop_file" >&2
+      exit 1
+    fi
+    mv -T -- "$temporary" "$desktop_file"
+    ((changed += 1))
+  done < <(
+    find -P "$qvos_webapp_application_dir" \
+      -maxdepth 1 -type f -name '*.desktop' -print0
+  )
+fi
+
+rewrite_active_config "$HOME/.config/hypr/bindings.conf" bindings
+rewrite_active_config "$HOME/.config/hypr/apps.conf" apps
+rewrite_active_config "$HOME/.config/hypr/apps/browser.conf" browser
+rewrite_active_config "$HOME/.config/hypr/apps/system.conf" system
+
+if command -v -- xdg-mime >/dev/null 2>&1 &&
+  command -v -- xdg-settings >/dev/null 2>&1 &&
+  [[ $(xdg-mime query default x-scheme-handler/mailto 2>/dev/null) == "HEY.desktop" &&
+    ! -e $qvos_webapp_application_dir/HEY.desktop &&
+    ! -L $qvos_webapp_application_dir/HEY.desktop ]]; then
+  default_browser=$(xdg-settings get default-web-browser) || default_browser=""
+  if [[ $default_browser =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}\.desktop$ ]]; then
+    xdg-mime default "$default_browser" x-scheme-handler/mailto
+    ((changed += 1))
+  fi
+fi
+
+if ((changed > 0)); then
+  qvos_webapp_refresh_desktop
+  printf 'Cleaned or migrated %d Web App setting(s) for qvOS.\n' "$changed"
+fi

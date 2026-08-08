@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# qvos:contract=qvcore/desktop/web/url-lib
+
+qvos_webapp_lib_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/web/url-lib
+source "$qvos_webapp_lib_dir/../web/url-lib"
+unset qvos_webapp_lib_dir
+
+qvos_webapp_paths() {
+  [[ $HOME == /* && $HOME != "/" ]] || {
+    echo "qvOS Web Apps require an absolute user home." >&2
+    return 1
+  }
+
+  qvos_webapp_data_dir="$HOME/.local/share"
+  qvos_webapp_application_dir="$qvos_webapp_data_dir/applications"
+  qvos_webapp_icon_dir="$qvos_webapp_application_dir/icons"
+}
+
+qvos_webapp_safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+qvos_webapp_prepare_directories() {
+  local directory
+
+  qvos_webapp_paths || return
+  qvos_webapp_safe_directory "$HOME" || {
+    echo "Refusing unsafe qvOS Web App home: $HOME" >&2
+    return 1
+  }
+  for directory in \
+    "$HOME/.local" \
+    "$qvos_webapp_data_dir" \
+    "$qvos_webapp_application_dir" \
+    "$qvos_webapp_icon_dir"; do
+    if [[ ! -e $directory && ! -L $directory ]]; then
+      install -d -m 0755 -- "$directory"
+    fi
+    qvos_webapp_safe_directory "$directory" || {
+      echo "Refusing unsafe qvOS Web App directory: $directory" >&2
+      return 1
+    }
+  done
+}
+
+qvos_webapp_valid_name() {
+  local name=$1
+
+  ((0 < ${#name} && ${#name} <= 128)) || return 1
+  [[ $name != "." && $name != ".." &&
+    $name != *"/"* &&
+    $name != *[[:cntrl:]]* &&
+    $name != " "* &&
+    $name != *" " ]]
+}
+
+qvos_webapp_desktop_exec_url() {
+  local value=$1
+
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//\`/\\\`}
+  value=${value//\$/\\\$}
+  value=${value//%/%%}
+  printf 'qv-launch-webapp "%s"\n' "$value"
+}
+
+qvos_webapp_managed_desktop() {
+  local desktop_file=$1
+  local exec_count=0
+  local legacy_url
+  local line
+  local marker_count=0
+  local marker_true=false
+
+  qvos_webapp_exec_line=""
+  [[ -f $desktop_file && ! -L $desktop_file && -O $desktop_file ]] || return 1
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line == Exec=* ]] || continue
+    ((exec_count += 1))
+    qvos_webapp_exec_line=$line
+  done <"$desktop_file"
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line == X-qvOS-WebApp=* ]] || continue
+    ((marker_count += 1))
+    [[ $line != "X-qvOS-WebApp=true" ]] || marker_true=true
+  done <"$desktop_file"
+  ((exec_count == 1)) || return 1
+
+  case $qvos_webapp_exec_line in
+  'Exec=qv-launch-webapp '*)
+    ((marker_count == 1)) && [[ $marker_true == "true" ]]
+    ;;
+  'Exec=omarchy-launch-webapp '*)
+    legacy_url=${qvos_webapp_exec_line#Exec=omarchy-launch-webapp }
+    ((marker_count == 0)) && qvos_web_validate_url "$legacy_url" 2048 true
+    ;;
+  *) return 1 ;;
+  esac
+}
+
+qvos_webapp_list() {
+  local desktop_file
+
+  qvos_webapp_paths || return
+  [[ ! -e $qvos_webapp_application_dir && ! -L $qvos_webapp_application_dir ]] &&
+    return 0
+  qvos_webapp_safe_directory "$qvos_webapp_application_dir" || {
+    echo "Refusing unsafe qvOS Web App directory: $qvos_webapp_application_dir" >&2
+    return 1
+  }
+
+  while IFS= read -r -d '' desktop_file; do
+    qvos_webapp_managed_desktop "$desktop_file" || continue
+    basename -- "${desktop_file%.desktop}"
+  done < <(
+    find -P "$qvos_webapp_application_dir" \
+      -maxdepth 1 -type f -name '*.desktop' -print0
+  )
+}
+
+qvos_webapp_load_inventory() {
+  local app_name
+  local inventory
+
+  inventory=$(qvos_webapp_list) || return
+  qvos_webapp_inventory=()
+  while IFS= read -r app_name; do
+    [[ -z $app_name ]] || qvos_webapp_inventory+=("$app_name")
+  done < <(sort <<<"$inventory")
+}
+
+qvos_webapp_refresh_desktop() {
+  if command -v -- update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$qvos_webapp_application_dir" >/dev/null 2>&1 ||
+      echo "qvOS Web Apps could not refresh the desktop database." >&2
+  fi
+  if command -v -- qv-restart-walker >/dev/null 2>&1; then
+    qv-restart-walker >/dev/null 2>&1 ||
+      echo "qvOS Web Apps could not restart Walker." >&2
+  fi
+}
+
+qvos_webapp_icon_referenced() {
+  local desktop_file
+  local icon_path=$1
+
+  while IFS= read -r -d '' desktop_file; do
+    grep -Fqx -- "Icon=$icon_path" "$desktop_file" && return 0
+  done < <(
+    find -P "$qvos_webapp_application_dir" \
+      -maxdepth 1 -type f -name '*.desktop' -print0
+  )
+  return 1
+}

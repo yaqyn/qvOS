@@ -16,6 +16,14 @@ and app-window mode require an explicitly supported browser executable. Treat
 radio unblock failure as a warning and still open its accessible controls.
 `qvcore/desktop/web/url-lib` singularly owns strict HTTP and HTTPS authority
 validation for both direct web-app launches and the website normalizer.
+`qvcore/desktop/webapp/` owns custom Web App installation, inventory, removal,
+and exact legacy-launcher migration. Fresh qvOS carries no preinstalled Web
+Apps, fixed web-service shortcuts, protocol handlers, or service-specific
+assets. Keep only the generic website keybinding and the on-demand installer.
+Never overwrite an
+existing desktop entry, accept an arbitrary Exec string, fetch an icon without
+explicit input, or remove a desktop file or icon without proving its bounded
+qvOS Web App ownership. Keep compatibility adapters thin and metadata-free.
 `qvcore/desktop/session/` owns lock, logout, wake, and the delayed logout
 worker. `qvcore/desktop/restart/` is the singular owner for supported runtime restart
 operations. Public `qv-restart-*` commands carry metadata; matching
@@ -70,7 +78,7 @@ unique. `runtime-paths` is the exact source-independent desktop payload; never
 copy policy, checks, inventories, or source-only restart owners into the user
 runtime. Runtime deployment stages only that inventory and restores the prior
 payload if replacement fails. Run `qvcore/desktop/check`, the focused launch,
-restart, and session suites, CLI and TUI
+Web App, restart, and session suites, CLI and TUI
 owner-contract checks, Bash syntax and ShellCheck for changed shell, then the
 full qvOS suite. Live verification is read-only: inspect CLI help and adapter
 resolution unless the user explicitly requests an actual application, window,

@@ -24,4 +24,5 @@ default/bash/envs
 default/bash/rc
 default/bashrc
 default/hypr/apps.conf
+default/hypr/apps/browser.conf
 default/hypr/windows.conf

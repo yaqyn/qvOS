@@ -67,6 +67,8 @@ if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed)
 fi
 grep -Fq 'org.qvos.terminal' "$root/default/hypr/apps/system.conf" ||
   fail "native result terminal does not float"
+! rg -qi 'match:class .*\bzoom\b' "$root/default/hypr/apps/system.conf" ||
+  fail "retired service-specific application rule remains"
 grep -Fq "'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation'" \
   "$root/qvcore/config/migrate-runtime-root" || fail "presentation config migration"
 

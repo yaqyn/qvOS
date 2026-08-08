@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/desktop/native-paths"
+retired_manifest="$root/qvcore/desktop/retired-paths"
 runtime_manifest="$root/qvcore/desktop/runtime-paths"
 restart_root="$root/qvcore/desktop/restart"
 
@@ -49,6 +50,8 @@ declare -A helper_owners=(
   [system-lock]=session/lock
   [system-logout]=session/logout
   [system-wake]=session/wake
+  [webapp-install]=webapp/install
+  [webapp-remove]=webapp/remove
 )
 for helper in "${!helper_owners[@]}"; do
   native_adapter="$root/bin/qv-$helper"
@@ -77,6 +80,21 @@ done
 [[ -f $root/qvcore/desktop/web/url-lib && ! -L $root/qvcore/desktop/web/url-lib &&
   $(stat -c '%a' "$root/qvcore/desktop/web/url-lib") == "644" ]] ||
   fail "desktop URL library is unavailable or unsafe"
+[[ -f $root/qvcore/desktop/webapp/lib && ! -L $root/qvcore/desktop/webapp/lib &&
+  $(stat -c '%a' "$root/qvcore/desktop/webapp/lib") == "644" ]] ||
+  fail "desktop Web App library is unavailable or unsafe"
+for adapter in "$root/bin/qv-webapp-remove-all" "$root/bin/omarchy-webapp-remove-all"; do
+  [[ -x $adapter ]] || fail "Web App remove-all adapter is unavailable"
+  (($(wc -l <"$adapter") <= 8)) ||
+    fail "Web App remove-all adapter contains implementation"
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/desktop/webapp/remove" --all "$@"' \
+    "$adapter" || fail "Web App remove-all adapter does not delegate directly"
+done
+rg -q '^# qv:summary=' "$root/bin/qv-webapp-remove-all" ||
+  fail "native Web App remove-all adapter lacks metadata"
+! rg -q '^# (qv|omarchy):' "$root/bin/omarchy-webapp-remove-all" ||
+  fail "Web App remove-all compatibility adapter duplicates metadata"
 if rg -n '\beval\b|bash[[:space:]]+-c[[:space:]]+.*\$' \
   "$root/qvcore/desktop/launch" --glob '!AGENTS.md'; then
   fail "desktop launch owner shell-parses caller input"
@@ -158,8 +176,38 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/config/migrate-runtime-root' \
-  --glob '!**/tui/task/selectable-owner'; then
+  --glob '!**/tui/task/selectable-owner' \
+  --glob '!**/desktop/webapp/lib' \
+  --glob '!**/desktop/webapp/migrate'; then
   fail "native qvOS source still calls a launch compatibility command"
+fi
+if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
+  "$root/qvcore" \
+  "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/desktop/check' \
+  --glob '!**/native-paths' \
+  --glob '!**/owner-contracts.psv' \
+  --glob '!**/desktop/webapp/lib' \
+  --glob '!**/desktop/webapp/migrate' \
+  --glob '!**/tui/task/selectable-owner'; then
+  fail "native qvOS source still calls a Web App compatibility command"
+fi
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  $'bin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
+  fail "retired Web App handler inventory is incomplete"
+for handler in hey zoom; do
+  for path in \
+    "$root/bin/qv-webapp-handler-$handler" \
+    "$root/bin/omarchy-webapp-handler-$handler" \
+    "$root/qvcore/desktop/webapp/handler-$handler"; do
+    [[ ! -e $path && ! -L $path ]] ||
+      fail "retired service-specific Web App handler remains: ${path#"$root/"}"
+  done
+done
+if rg -n 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?://' \
+  "$root/config/hypr/bindings.conf"; then
+  fail "fresh qvOS contains fixed Web App destinations"
 fi
 grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
   "$root/default/hypr/autostart.conf" ||

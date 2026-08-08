@@ -1,0 +1,157 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/desktop/webapp/lib
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/webapp/lib
+source "$script_dir/lib"
+
+usage() {
+  echo "Usage: qv webapp remove [name...]" >&2
+}
+
+qvos_webapp_paths
+case ${1:-} in
+--list)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  qvos_webapp_list | sort
+  exit
+  ;;
+--all)
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  qvos_webapp_load_inventory
+  app_names=("${qvos_webapp_inventory[@]}")
+  ;;
+"")
+  command -v -- gum >/dev/null 2>&1 || {
+    echo "qvOS Web Apps require gum for interactive removal." >&2
+    exit 1
+  }
+  qvos_webapp_load_inventory
+  available=("${qvos_webapp_inventory[@]}")
+  if ((${#available[@]} == 0)); then
+    echo "No qvOS Web Apps are installed."
+    exit 0
+  fi
+  selection=$(gum choose \
+    --no-limit \
+    --header "Select Web Apps to remove" \
+    --selected-prefix="✗ " \
+    "${available[@]}") || exit 0
+  app_names=()
+  while IFS= read -r app_name; do
+    [[ -z $app_name ]] || app_names+=("$app_name")
+  done <<<"$selection"
+  ;;
+*) app_names=("$@") ;;
+esac
+
+((${#app_names[@]} > 0)) || exit 0
+qvos_webapp_prepare_directories
+
+declare -A seen_names=()
+desktop_files=()
+desktop_hashes=()
+icon_candidates=()
+icon_hashes=()
+for app_name in "${app_names[@]}"; do
+  qvos_webapp_valid_name "$app_name" || {
+    echo "Invalid Web App name: $app_name" >&2
+    exit 2
+  }
+  [[ -z ${seen_names[$app_name]:-} ]] || continue
+  seen_names[$app_name]=1
+  desktop_file="$qvos_webapp_application_dir/$app_name.desktop"
+  if [[ ! -e $desktop_file && ! -L $desktop_file ]]; then
+    continue
+  fi
+  qvos_webapp_managed_desktop "$desktop_file" || {
+    echo "Refusing non-qvOS or unsafe desktop entry: $desktop_file" >&2
+    exit 1
+  }
+  desktop_files+=("$desktop_file")
+  desktop_hashes+=("$(sha256sum -- "$desktop_file")")
+
+  icon_path=$(sed -n 's/^Icon=//p' "$desktop_file" | head -n 1)
+  icon_owned=$(sed -n 's/^X-qvOS-WebApp-IconOwned=//p' "$desktop_file" | head -n 1)
+  if [[ $icon_path == "$qvos_webapp_icon_dir/$app_name.png" &&
+    $icon_owned != "false" ]]; then
+    icon_candidates+=("$icon_path")
+    if [[ -f $icon_path && ! -L $icon_path && -O $icon_path ]]; then
+      icon_hashes+=("$(sha256sum -- "$icon_path")")
+    else
+      icon_hashes+=("")
+    fi
+  fi
+done
+
+((${#desktop_files[@]} > 0)) || {
+  echo "No matching qvOS Web Apps are installed."
+  exit 0
+}
+
+remove_stage=$(mktemp -d "$qvos_webapp_application_dir/.qvos-webapp-remove.XXXXXX")
+moved_files=()
+moved_icons=()
+original_icons=()
+cleanup() {
+  local index
+  local status=$?
+  local moved_file
+  local original_file
+
+  if ((status != 0)) && [[ -d $remove_stage ]]; then
+    for moved_file in "${moved_files[@]}"; do
+      original_file="$qvos_webapp_application_dir/${moved_file##*/}"
+      [[ ! -e $original_file && -f $moved_file ]] || continue
+      mv -T -- "$moved_file" "$original_file" || true
+    done
+    for index in "${!moved_icons[@]}"; do
+      moved_file=${moved_icons[$index]}
+      original_file=${original_icons[$index]}
+      [[ ! -e $original_file && -f $moved_file ]] || continue
+      mv -T -- "$moved_file" "$original_file" || true
+    done
+  fi
+  [[ ! -d $remove_stage ]] || rm -rf -- "$remove_stage"
+  exit "$status"
+}
+trap cleanup EXIT
+
+for index in "${!desktop_files[@]}"; do
+  desktop_file=${desktop_files[$index]}
+  if [[ $(sha256sum -- "$desktop_file") != "${desktop_hashes[$index]}" ]] ||
+    ! qvos_webapp_managed_desktop "$desktop_file"; then
+    echo "Web App changed during removal; restored every staged entry." >&2
+    exit 1
+  fi
+  moved_file="$remove_stage/${desktop_file##*/}"
+  mv -T -- "$desktop_file" "$moved_file"
+  moved_files+=("$moved_file")
+done
+
+for index in "${!icon_candidates[@]}"; do
+  icon_path=${icon_candidates[$index]}
+  if [[ -f $icon_path && ! -L $icon_path && -O $icon_path ]] &&
+    [[ -n ${icon_hashes[$index]} &&
+      $(sha256sum -- "$icon_path") == "${icon_hashes[$index]}" ]] &&
+    ! qvos_webapp_icon_referenced "$icon_path"; then
+    moved_icon="$remove_stage/icon-${icon_path##*/}"
+    mv -T -- "$icon_path" "$moved_icon"
+    moved_icons+=("$moved_icon")
+    original_icons+=("$icon_path")
+  fi
+done
+
+removed_count=${#desktop_files[@]}
+rm -rf -- "$remove_stage"
+trap - EXIT
+qvos_webapp_refresh_desktop
+printf 'Removed %d qvOS Web App(s).\n' "$removed_count"

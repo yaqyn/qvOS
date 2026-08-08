@@ -116,6 +116,7 @@ assert_rejected "https://[::1]" "unsupported IPv6 websites are rejected"
 assert_rejected "not a website" "spaces are rejected"
 assert_rejected ".youtube" "leading dots are rejected"
 assert_rejected "youtube..com" "empty hostname labels are rejected"
+assert_rejected "https://example.com/%ZZ" "invalid percent escapes are rejected"
 assert_rejected "youtubé" "non-ASCII shorthand is rejected"
 assert_rejected $'youtube\n.com' "control characters are rejected"
 printf -v oversized_url 'a%.0s' {1..2049}

@@ -37,9 +37,9 @@ fail() {
   ! -L $root/qvcore/config/files/hypr/hypridle.conf ]] ||
   fail "specialized native Hypridle source is unavailable"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/apps/browser.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/hypr/hypridle.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/hypr/hypridle.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/apps/telegram.conf\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
   fail "retired config inventory changed"
 
 # shellcheck disable=SC2016
@@ -54,6 +54,14 @@ if rg -q 'default/hypr/bindings|qvcore/bindings\.conf' "$hyprland" "$root/qvcore
 fi
 if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
   fail "native binding source still contains overlay unbinds"
+fi
+if rg -q 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?://' \
+  "$bindings"; then
+  fail "fresh qvOS bindings contain fixed web-service destinations"
+fi
+if rg -qi 'chrome-(youtube\.com|app\.zoom\.us)|match:class .*\bzoom\b' \
+  "$root/default/hypr/apps/browser.conf"; then
+  fail "retired service-specific window rules remain"
 fi
 
 duplicate_bindings=$(

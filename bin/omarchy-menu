@@ -500,7 +500,7 @@ show_install_menu() {
   case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
-  *Web*) present_terminal omarchy-webapp-install ;;
+  *Web*) present_terminal qv-webapp-install ;;
   *TUI*) present_terminal omarchy-tui-install ;;
   *Service*) show_install_service_menu ;;
   *Style*) show_install_style_menu ;;
@@ -650,7 +650,7 @@ show_install_elixir_menu() {
 show_remove_menu() {
   case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n󰏓  Preinstalls\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
-  *Web*) present_terminal omarchy-webapp-remove ;;
+  *Web*) present_terminal qv-webapp-remove ;;
   *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;
   *Theme*) present_terminal omarchy-theme-remove ;;

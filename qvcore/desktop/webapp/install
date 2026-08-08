@@ -1,0 +1,204 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/desktop/webapp/lib
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/desktop/webapp/lib
+source "$script_dir/lib"
+
+usage() {
+  echo "Usage: qv webapp install [name url icon]" >&2
+}
+
+normalize_url() {
+  qvos_webapp_url=$1
+  if [[ $qvos_webapp_url != *"://"* ]]; then
+    qvos_webapp_url="https://$qvos_webapp_url"
+  elif [[ $qvos_webapp_url == "http://"* ]]; then
+    qvos_webapp_url="https://${qvos_webapp_url#http://}"
+  fi
+  qvos_web_validate_url "$qvos_webapp_url" 2048 true || {
+    echo "qvOS Web Apps: $qvos_web_validation_error." >&2
+    return 1
+  }
+}
+
+valid_png() {
+  local height_hex
+  local ihdr
+  local signature
+  local size
+  local width_hex
+
+  size=$(stat -c '%s' -- "$1") || return
+  ((24 <= size && size <= 1048576)) || return 1
+  signature=$(od -An -tx1 -N8 -- "$1" | tr -d ' \n')
+  ihdr=$(od -An -tx1 -j8 -N8 -- "$1" | tr -d ' \n')
+  width_hex=$(od -An -tx1 -j16 -N4 -- "$1" | tr -d ' \n')
+  height_hex=$(od -An -tx1 -j20 -N4 -- "$1" | tr -d ' \n')
+  [[ $signature == "89504e470d0a1a0a" &&
+    $ihdr == "0000000d49484452" &&
+    $width_hex =~ ^[0-9a-f]{8}$ && $height_hex =~ ^[0-9a-f]{8}$ ]] || return 1
+  ((0 < 16#$width_hex && 16#$width_hex <= 4096 &&
+    0 < 16#$height_hex && 16#$height_hex <= 4096))
+}
+
+case $# in
+0)
+  command -v -- gum >/dev/null 2>&1 || {
+    echo "qvOS Web Apps require gum for interactive setup." >&2
+    exit 1
+  }
+  app_name=$(gum input --prompt "Name> " --placeholder "My Web App") || exit 0
+  app_url=$(gum input --prompt "URL> " --placeholder "https://example.com") || exit 0
+  icon_ref=$(gum input --prompt "Icon> " --placeholder "Optional HTTPS PNG or theme icon") || exit 0
+  interactive=true
+  ;;
+3)
+  app_name=$1
+  app_url=$2
+  icon_ref=$3
+  interactive=false
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+qvos_webapp_valid_name "$app_name" || {
+  echo "Web App names must be 1-128 printable characters without slashes or outer spaces." >&2
+  exit 2
+}
+normalize_url "$app_url"
+qvos_webapp_exec=$(qvos_webapp_desktop_exec_url "$qvos_webapp_url")
+qvos_webapp_prepare_directories
+
+desktop_file="$qvos_webapp_application_dir/$app_name.desktop"
+[[ ! -e $desktop_file && ! -L $desktop_file ]] || {
+  echo "A desktop entry already exists for $app_name; preserving it." >&2
+  exit 1
+}
+
+icon_owned=false
+icon_stage=""
+icon_target=""
+case $icon_ref in
+"") icon_value="web-browser" ;;
+http://*)
+  echo "Web App icons must use HTTPS." >&2
+  exit 2
+  ;;
+https://*)
+  qvos_web_validate_url "$icon_ref" 2048 true || {
+    echo "qvOS Web Apps icon: $qvos_web_validation_error." >&2
+    exit 2
+  }
+  command -v -- curl >/dev/null 2>&1 || {
+    echo "qvOS Web Apps require curl to download an icon." >&2
+    exit 1
+  }
+  icon_target="$qvos_webapp_icon_dir/$app_name.png"
+  [[ ! -e $icon_target && ! -L $icon_target ]] || {
+    echo "A Web App icon already exists for $app_name; preserving it." >&2
+    exit 1
+  }
+  icon_stage=$(mktemp "$qvos_webapp_icon_dir/.qvos-webapp-icon.XXXXXX")
+  if ! curl \
+    --fail \
+    --silent \
+    --show-error \
+    --location \
+    --proto '=https' \
+    --proto-redir '=https' \
+    --connect-timeout 10 \
+    --max-time 30 \
+    --max-filesize 1048576 \
+    --output "$icon_stage" \
+    "$icon_ref" || ! valid_png "$icon_stage"; then
+    unlink -- "$icon_stage" 2>/dev/null || true
+    echo "The Web App icon download was not a valid PNG up to 1 MiB." >&2
+    exit 1
+  fi
+  chmod 0644 "$icon_stage"
+  icon_value=$icon_target
+  icon_owned=true
+  ;;
+*)
+  [[ $icon_ref != *"/"* && $icon_ref != *[[:cntrl:]]* ]] || {
+    echo "Use a theme icon name, a bundled PNG name, or an HTTPS icon URL." >&2
+    exit 2
+  }
+  if [[ -f $qvos_webapp_icon_dir/$icon_ref &&
+    ! -L $qvos_webapp_icon_dir/$icon_ref &&
+    -O $qvos_webapp_icon_dir/$icon_ref ]]; then
+    icon_value="$qvos_webapp_icon_dir/$icon_ref"
+  elif [[ $icon_ref =~ ^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$ &&
+    $icon_ref != *.png ]]; then
+    icon_value=$icon_ref
+  else
+    echo "The selected Web App icon is unavailable or unsafe." >&2
+    exit 1
+  fi
+  ;;
+esac
+
+desktop_stage=$(mktemp "$qvos_webapp_application_dir/.qvos-webapp.XXXXXX")
+desktop_published=false
+icon_published=false
+cleanup() {
+  local status=$?
+
+  [[ -z $desktop_stage || ! -e $desktop_stage ]] ||
+    unlink -- "$desktop_stage" 2>/dev/null || true
+  [[ -z $icon_stage || ! -e $icon_stage ]] ||
+    unlink -- "$icon_stage" 2>/dev/null || true
+  if [[ $desktop_published == "false" && $icon_published == "true" &&
+    -f $icon_target && ! -L $icon_target && -O $icon_target ]]; then
+    unlink -- "$icon_target" 2>/dev/null || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+{
+  printf '%s\n' \
+    '[Desktop Entry]' \
+    'Version=1.0' \
+    "Name=$app_name" \
+    "Comment=$app_name" \
+    "Exec=$qvos_webapp_exec" \
+    'Terminal=false' \
+    'Type=Application' \
+    "Icon=$icon_value" \
+    'StartupNotify=true' \
+    'X-qvOS-WebApp=true' \
+    "X-qvOS-WebApp-IconOwned=$icon_owned"
+} >"$desktop_stage"
+chmod 0644 "$desktop_stage"
+
+if [[ -n $icon_stage ]]; then
+  if ! ln -- "$icon_stage" "$icon_target"; then
+    echo "A Web App icon appeared concurrently for $app_name; preserving it." >&2
+    exit 1
+  fi
+  unlink -- "$icon_stage"
+  icon_stage=""
+  icon_published=true
+fi
+if ! ln -- "$desktop_stage" "$desktop_file"; then
+  echo "A desktop entry appeared concurrently for $app_name; preserving it." >&2
+  exit 1
+fi
+unlink -- "$desktop_stage"
+desktop_stage=""
+desktop_published=true
+trap - EXIT
+
+qvos_webapp_refresh_desktop
+if [[ $interactive == "true" ]]; then
+  printf 'You can now find %s in qvOS Apps.\n' "$app_name"
+else
+  printf 'Installed Web App: %s\n' "$app_name"
+fi

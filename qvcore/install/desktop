@@ -52,6 +52,10 @@
     qvcore/desktop/web/qvos-localhost-open
     qvcore/desktop/web/url-lib
     qvcore/desktop/web/qvos-website-open
+    qvcore/desktop/webapp/install
+    qvcore/desktop/webapp/lib
+    qvcore/desktop/webapp/migrate
+    qvcore/desktop/webapp/remove
     qvcore/direct/manifest.tsv
     qvcore/direct/post-update-hook
     qvcore/direct/tool

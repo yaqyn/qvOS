@@ -2,7 +2,7 @@
 theme-install|Extra Theme|Install a theme from a Git repository|2|mutation|native|false|Install|Installing|Installed|qv-theme-install
 theme-remove|Extra Theme|Choose and remove a user-installed theme|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner theme-remove
 theme-update|Extra Themes|Update every user-installed Git theme|1|mutation|tui|false|Update|Updating|Updated|qv-theme-update
-webapp-install|Web App|Create a desktop launcher from interactive app details|2|mutation|native|false|Install|Installing|Installed|omarchy-webapp-install
+webapp-install|Web App|Create a desktop launcher from interactive app details|2|mutation|native|false|Install|Installing|Installed|qv-webapp-install
 webapp-remove|Web App|Choose and remove Web App launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner webapp-remove
 tui-install|TUI Shortcut|Create a terminal app launcher from interactive details|2|mutation|native|false|Install|Installing|Installed|omarchy-tui-install
 tui-remove|TUI Shortcut|Choose and remove terminal app launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner tui-remove
