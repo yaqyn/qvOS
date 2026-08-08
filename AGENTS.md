@@ -277,6 +277,7 @@ Root-started sessions must read every matching route completely before editing:
 - qvOS power, root-owned AC events, battery protection, and charging thresholds: `qvcore/power/AGENTS.md`
 - Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
 - Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`
+- Drive discovery, selection, and LUKS key lifecycle: `qvcore/storage/AGENTS.md`
 - Commit and qvsync command mechanics: `upstream/qvsync/AGENTS.md`
 - Native migration execution and state cleanup: `qvcore/migrations/AGENTS.md`
 - Retained Omarchy command and state compatibility: `compat/omarchy/AGENTS.md`

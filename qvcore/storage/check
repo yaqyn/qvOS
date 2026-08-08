@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+manifest="$root/qvcore/storage/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-drive-info\nbin/omarchy-drive-password\nbin/omarchy-drive-select'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native storage route inventory"
+
+for route in info password select; do
+  native="$root/bin/qv-drive-$route"
+  compatibility="$root/bin/omarchy-drive-$route"
+  owner="$root/qvcore/storage/$route"
+  [[ -x $native && -x $compatibility && -x $owner ]] ||
+    fail "storage owner or adapter mode: $route"
+  (($(wc -l <"$native") <= 12)) ||
+    fail "native storage adapter contains implementation: $route"
+  (($(wc -l <"$compatibility") <= 6)) ||
+    fail "storage compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native" ||
+    fail "native storage adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "storage compatibility adapter duplicates metadata: $route"
+  for adapter in "$native" "$compatibility"; do
+    grep -Fqx "exec \"\$QVOS_PATH/qvcore/storage/$route\" \"\$@\"" "$adapter" ||
+      fail "storage adapter ownership: $route"
+  done
+done
+
+[[ -f $root/qvcore/storage/lib && ! -x $root/qvcore/storage/lib ]] ||
+  fail "storage library mode"
+if rg -n 'omarchy-drive-(info|password|select)' \
+  "$root/qvcore" "$root/bin/omarchy-menu" \
+  --glob '!owner-contracts.psv' --glob '!**/check' \
+  --glob '!**/native-paths'; then
+  fail "active qvOS source calls storage compatibility"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'luksChangeKey --verify-passphrase "$selected"' \
+  "$root/qvcore/storage/password" ||
+  fail "LUKS key replacement does not require passphrase verification"
+! rg -q -- '--(pbkdf|iter-time)' "$root/qvcore/storage/password" ||
+  fail "storage owner forces a format-specific PBKDF policy"
+grep -Fq 'qvcore/storage/AGENTS.md' "$root/AGENTS.md" ||
+  fail "storage workflow is not routed from the repository contract"
+grep -Fq 'storage/     Validated drive discovery' "$root/qvcore/README.md" ||
+  fail "qvCORE layout omits native storage ownership"
+
+printf 'ok - qvOS owns bounded drive discovery and interactive LUKS key changes\n'

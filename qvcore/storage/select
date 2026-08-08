@@ -1,0 +1,74 @@
+#!/bin/bash
+set -euo pipefail
+
+storage_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/storage/lib
+source "$storage_root/lib"
+
+lsblk=$(qvos_storage_tool lsblk)
+gum=$(qvos_storage_tool gum)
+candidates=()
+devices=()
+displays=()
+
+add_candidate() {
+  local candidate=$1
+  local canonical
+  local display
+  local existing
+
+  [[ -n $candidate ]] || return 0
+  canonical=$(qvos_storage_device "$candidate")
+  for existing in "${devices[@]}"; do
+    [[ $existing != "$canonical" ]] || return 0
+  done
+  display=$("$storage_root/info" "$canonical")
+  devices+=("$canonical")
+  displays+=("$display")
+}
+
+if (($# == 0)); then
+  rows=$("$lsblk" -dpn -o NAME,TYPE 2>/dev/null) || {
+    echo "Could not inspect available drives." >&2
+    exit 1
+  }
+  while read -r device type extra; do
+    [[ -n $device ]] || continue
+    [[ -z $extra ]] || {
+      echo "Received malformed drive information." >&2
+      exit 1
+    }
+    [[ $type == "disk" ]] || continue
+    candidates+=("$device")
+  done <<<"$rows"
+else
+  for argument in "$@"; do
+    while IFS= read -r device; do
+      [[ -n $device ]] || continue
+      candidates+=("$device")
+    done <<<"$argument"
+  done
+fi
+
+for candidate in "${candidates[@]}"; do
+  add_candidate "$candidate"
+done
+((${#devices[@]} > 0)) || {
+  echo "No drives are available." >&2
+  exit 1
+}
+
+set +e
+selected=$(printf '%s\n' "${displays[@]}" | "$gum" choose --header "Select drive")
+selection_status=$?
+set -e
+((selection_status == 0)) || exit 130
+
+for ((index = 0; index < ${#displays[@]}; index++)); do
+  if [[ ${displays[$index]} == "$selected" ]]; then
+    printf '%s\n' "${devices[$index]}"
+    exit 0
+  fi
+done
+echo "The selected drive is no longer available." >&2
+exit 1

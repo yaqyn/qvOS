@@ -16,7 +16,7 @@ timezone|Timezone|Choose and apply the system timezone|1|mutation|tui|true|Set|S
 time-sync|System Time|Restart system time synchronization|1|mutation|tui|true|Sync|Syncing|Synced|qv-update-time
 firmware-update|Firmware|Review device safety prompts and install firmware updates|3|mutation|native|true|Update|Updating|Updated|qv-update-firmware
 user-password|User Password|Change the current user password securely|3|mutation|native|false|Change|Changing|Changed|passwd
-drive-password|Drive Encryption Password|Choose an encrypted drive and change its key securely|3|mutation|native|true|Change|Changing|Changed|omarchy-drive-password
+drive-password|Drive Encryption Password|Choose an encrypted drive and change its key securely|3|mutation|native|true|Change|Changing|Changed|qv-drive-password
 fingerprint-setup|Fingerprint Authentication|Enroll and verify a fingerprint for authentication|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fingerprint
 fingerprint-remove|Fingerprint Authentication|Remove fingerprint authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fingerprint
 fido2-setup|FIDO2 Authentication|Register and verify a hardware security key|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fido2

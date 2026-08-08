@@ -851,7 +851,7 @@ QVOS_TEST_CONCEPT_CHOICE=Update run_menu concept:theme
 QVOS_TEST_CONCEPT_CHOICE="Drive Encryption" run_menu concept:password
 [[ $(<"$concept_options_log") == $'  User\n󰌾  Drive Encryption' ]] ||
   fail "Password concept actions"
-[[ $(<"$presentation_log") == "omarchy-drive-password" ]] ||
+[[ $(<"$presentation_log") == "qv-drive-password" ]] ||
   fail "Drive Encryption password owner"
 
 QVOS_TEST_CONCEPT_CHOICE=Report run_menu concept:battery-protection

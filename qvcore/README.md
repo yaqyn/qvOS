@@ -38,6 +38,7 @@ qvcore/
   security/    Codex-operated security auditing and hardening workflow.
   share/       LocalSend request routing.
   shell/       qvOS shell additions.
+  storage/     Validated drive discovery, selection, and LUKS key changes.
   theme/       Bundled Yaqyn theme and compatible user-theme lifecycle.
   thunar/      Thunar feature entry points.
   tmux/        Persistent tmux session manager.

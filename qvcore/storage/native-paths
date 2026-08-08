@@ -1,0 +1,4 @@
+# Inherited drive routes promoted to native qvOS storage ownership.
+bin/omarchy-drive-info
+bin/omarchy-drive-password
+bin/omarchy-drive-select

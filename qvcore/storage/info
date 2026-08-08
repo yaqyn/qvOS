@@ -1,0 +1,83 @@
+#!/bin/bash
+set -euo pipefail
+
+storage_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/storage/lib
+source "$storage_root/lib"
+
+(( $# == 1 )) || {
+  echo "Usage: qv drive info <drive>" >&2
+  exit 2
+}
+
+lsblk=$(qvos_storage_tool lsblk)
+drive=$(qvos_storage_device "$1")
+
+field() {
+  local column=$1
+  local target=$2
+  local value
+
+  value=$("$lsblk" -dn -o "$column" -- "$target" 2>/dev/null) || return 1
+  qvos_storage_clean_field "$value"
+}
+
+parent=$(
+  "$lsblk" -n -o PKNAME -- "$drive" 2>/dev/null |
+    awk 'NF { value = $1 } END { print value }'
+) || {
+  echo "Could not inspect drive: $drive" >&2
+  exit 1
+}
+if [[ -n $parent ]]; then
+  [[ $parent =~ ^[A-Za-z0-9._:+-]+$ ]] || {
+    echo "Received an invalid parent drive for $drive" >&2
+    exit 1
+  }
+  root_drive=$(qvos_storage_device "/dev/$parent")
+else
+  root_drive=$drive
+fi
+
+size=$(field SIZE "$drive")
+vendor=$(field VENDOR "$root_drive")
+model=$(field MODEL "$root_drive")
+
+label=""
+if [[ -n $vendor && -n $model ]]; then
+  if [[ ${model,,} == *${vendor,,}* ]]; then
+    label=$model
+  else
+    label="$vendor $model"
+  fi
+elif [[ -n $model ]]; then
+  label=$model
+elif [[ -n $vendor ]]; then
+  label=$vendor
+fi
+
+display=$drive
+[[ -z $size ]] || display+=" ($size)"
+[[ -z $label ]] || display+=" - $label"
+
+partition_rows=$("$lsblk" -nr -o TYPE,FSTYPE,MOUNTPOINT -- "$root_drive" 2>/dev/null) || {
+  echo "Could not inspect partitions on $root_drive" >&2
+  exit 1
+}
+partition_summary=""
+while read -r type fstype mountpoint extra; do
+  [[ $type == "part" ]] || continue
+  [[ -z $extra ]] || {
+    echo "Received malformed partition information for $root_drive" >&2
+    exit 1
+  }
+  fstype=$(qvos_storage_clean_field "${fstype:-unknown}")
+  [[ -n $fstype ]] || fstype=unknown
+  mountpoint=$(qvos_storage_clean_field "${mountpoint:-}")
+  [[ -z $partition_summary ]] || partition_summary+=", "
+  partition_summary+=$fstype
+  [[ -z $mountpoint ]] || partition_summary+="($mountpoint)"
+done <<<"$partition_rows"
+[[ -z $partition_summary ]] || display+=" [$partition_summary]"
+
+printf '%s\n' "$display"

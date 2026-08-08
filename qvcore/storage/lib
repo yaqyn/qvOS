@@ -1,0 +1,111 @@
+#!/bin/bash
+
+qvos_storage_testing=${QVOS_STORAGE_TESTING:-}
+qvos_storage_test_bin=${QVOS_STORAGE_TEST_BIN:-}
+
+if [[ $qvos_storage_testing == "1" ]]; then
+  if [[ $qvos_storage_test_bin != /tmp/* || ! -d $qvos_storage_test_bin ||
+    -L $qvos_storage_test_bin ||
+    $(stat -c '%u' -- "$qvos_storage_test_bin") != "$UID" ]]; then
+    echo "Invalid qvOS storage test tool directory." >&2
+    return 2
+  fi
+elif [[ -n $qvos_storage_testing || -n $qvos_storage_test_bin ]]; then
+  echo "qvOS storage test overrides require QVOS_STORAGE_TESTING=1." >&2
+  return 2
+fi
+
+qvos_storage_tool() {
+  local name=$1
+  local path="/usr/bin/$name"
+
+  [[ $name =~ ^[a-z0-9-]+$ ]] || return 2
+  [[ $qvos_storage_testing != "1" ]] || path="$qvos_storage_test_bin/$name"
+  [[ -x $path && ! -L $path ]] || {
+    echo "Missing qvOS storage tool: $name" >&2
+    return 1
+  }
+  printf '%s\n' "$path"
+}
+
+qvos_storage_clean_field() {
+  local value=$1
+
+  while [[ $value =~ [[:cntrl:]] ]]; do
+    value=${value/"${BASH_REMATCH[0]}"/}
+  done
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  ((${#value} <= 256)) || return 1
+  printf '%s\n' "$value"
+}
+
+qvos_storage_device() {
+  local canonical
+  local device=$1
+  local device_type
+  local lsblk
+
+  [[ -n $device && ${#device} -le 4096 && $device == /dev/* &&
+    ! $device =~ [[:cntrl:]] && $device != *//* &&
+    $device != */./* && $device != */../* && $device != */. &&
+    $device != */.. && $device != */ ]] || {
+    echo "Invalid drive path: $device" >&2
+    return 2
+  }
+
+  if [[ $qvos_storage_testing == "1" ]]; then
+    canonical=$device
+  else
+    canonical=$(readlink -f -- "$device") || {
+      echo "Drive does not exist: $device" >&2
+      return 1
+    }
+    [[ $canonical == /dev/* && -b $canonical ]] || {
+      echo "Not a block device: $device" >&2
+      return 1
+    }
+  fi
+
+  lsblk=$(qvos_storage_tool lsblk)
+  device_type=$(
+    "$lsblk" -dn -o TYPE -- "$canonical" 2>/dev/null |
+      awk 'NF { value = $1 } END { print value }'
+  ) || return 1
+  [[ $device_type =~ ^[A-Za-z0-9_-]+$ ]] || {
+    echo "Could not inspect drive: $device" >&2
+    return 1
+  }
+  printf '%s\n' "$canonical"
+}
+
+qvos_storage_luks_devices() {
+  local canonical
+  local device
+  local extra
+  local fstype
+  local lsblk
+  local rows
+  local seen_device
+  local -a seen=()
+
+  lsblk=$(qvos_storage_tool lsblk)
+  rows=$("$lsblk" -rpn -o NAME,FSTYPE 2>/dev/null) || {
+    echo "Could not inspect encrypted drives." >&2
+    return 1
+  }
+  while read -r device fstype extra; do
+    [[ -n $device ]] || continue
+    [[ -z $extra ]] || {
+      echo "Received malformed drive information." >&2
+      return 1
+    }
+    [[ $fstype == "crypto_LUKS" ]] || continue
+    canonical=$(qvos_storage_device "$device") || return
+    for seen_device in "${seen[@]}"; do
+      [[ $seen_device != "$canonical" ]] || continue 2
+    done
+    seen+=("$canonical")
+    printf '%s\n' "$canonical"
+  done <<<"$rows"
+}
