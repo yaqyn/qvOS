@@ -152,7 +152,7 @@ fi
   fail "foreign Thunar unit override preservation"
 pass "Thunar installation refuses foreign command and service ownership"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-floating-terminal-with-presentation" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
 SCRIPT
@@ -165,7 +165,7 @@ QVOS_TEST_PRESENTATION_ARGV_LOG="$argv_log" \
   fail "Transcode presentation argument boundaries"
 pass "Thunar Transcode preserves selected filenames as exact arguments"
 
-if rg -n 'omarchy-launch-floating-terminal-with-presentation "\$[^" ]*command"' "$root/qvcore"; then
+if rg -n 'qv-launch-floating-terminal-with-presentation "\$[^" ]*command"' "$root/qvcore"; then
   fail "qvOS presentation caller passes a collapsed command string"
 fi
 pass "qvOS presentation callers preserve argv instead of rebuilding shell commands"

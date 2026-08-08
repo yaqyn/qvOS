@@ -184,7 +184,7 @@ if grep -Fq $'proton-drive\tfilesystem upload' "$action_log"; then
 fi
 pass "Proton Drive upload rejects remote-path control characters"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-floating-terminal-with-presentation" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_PRESENTATION_ARGV_LOG"
 SCRIPT

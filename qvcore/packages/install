@@ -28,7 +28,8 @@ esac
 
 mapfile -t packages <<<"$selection"
 "$QVOS_PATH/qvcore/packages/validate-targets" "${packages[@]}"
+# shellcheck source=bin/omarchy-sudo-keepalive disable=SC1091
 source "$QVOS_PATH/bin/omarchy-sudo-keepalive"
 sudo pacman -S --noconfirm --needed -- "${packages[@]}"
 command -v updatedb >/dev/null 2>&1 && sudo updatedb
-omarchy-show-done
+qv-show-done

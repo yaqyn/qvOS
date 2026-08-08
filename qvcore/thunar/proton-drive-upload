@@ -166,7 +166,7 @@ if [[ ${1:-} != "--run" ]]; then
     exit 2
   }
 
-  exec omarchy-launch-floating-terminal-with-presentation "$0" --run "$@"
+  exec qv-launch-floating-terminal-with-presentation "$0" --run "$@"
 fi
 
 shift

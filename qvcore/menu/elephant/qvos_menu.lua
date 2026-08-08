@@ -94,7 +94,7 @@ function ShowMenu()
 end
 
 local function terminal(command)
-  return "xdg-terminal-exec --app-id=org.omarchy.terminal " .. command
+  return "xdg-terminal-exec --app-id=org.qvos.terminal " .. command
 end
 
 local function edit(relative_path)

@@ -44,11 +44,11 @@ menu() {
 }
 
 terminal() {
-  xdg-terminal-exec --app-id=org.omarchy.terminal "$@"
+  xdg-terminal-exec --app-id=org.qvos.terminal "$@"
 }
 
 present_terminal() {
-  omarchy-launch-floating-terminal-with-presentation "$1"
+  qv-launch-floating-terminal-with-presentation bash -c "$1" qvos-menu
 }
 
 open_in_editor() {

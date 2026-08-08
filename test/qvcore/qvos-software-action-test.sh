@@ -269,7 +269,7 @@ install -m 0755 /dev/stdin "$source_root/qvcore/tui/launch" <<'SCRIPT'
 } >"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT
 install -m 0755 "$root/qvcore/tui/action/launch" "$source_root/qvcore/tui/action/launch"
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-floating-terminal-with-presentation" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT

@@ -9,7 +9,6 @@ bin/omarchy-install-terminal
 bin/omarchy-install-zed
 bin/omarchy-launch-audio
 bin/omarchy-launch-bluetooth
-bin/omarchy-launch-floating-terminal-with-presentation
 bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu

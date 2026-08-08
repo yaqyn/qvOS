@@ -1,0 +1,83 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/presentation/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-launch-floating-terminal-with-presentation\nbin/omarchy-show-done\ndefault/hypr/apps/system.conf'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native presentation inventory"
+
+declare -A owners=(
+  [launch-floating-terminal-with-presentation]=run
+  [show-done]=show-done
+  [show-failed]=show-failed
+)
+for command in "${!owners[@]}"; do
+  owner=${owners[$command]}
+  native="$root/bin/qv-$command"
+  compatibility="$root/bin/omarchy-$command"
+  [[ -x $root/qvcore/presentation/$owner && -x $native && -x $compatibility ]] ||
+    fail "presentation owner or adapter mode: $command"
+  rg -q '^# qv:summary=' "$native" ||
+    fail "native presentation metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility presentation metadata: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/presentation/$owner\" \"\$@\"" \
+    "$native" || fail "native presentation adapter owner: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/presentation/$owner\" \"\$@\"" \
+    "$compatibility" || fail "compatibility presentation adapter owner: $command"
+done
+
+grep -Fq -- '--app-id=org.qvos.terminal' "$root/qvcore/presentation/run" ||
+  fail "native result-terminal identity"
+# shellcheck disable=SC2016
+grep -Fq '"$show_done_owner"' "$root/qvcore/presentation/run" ||
+  fail "result terminal does not pin the completion owner"
+# shellcheck disable=SC2016
+grep -Fq '"$show_failed_owner" "$status"' "$root/qvcore/presentation/run" ||
+  fail "result terminal does not pin the failure owner"
+if rg -n 'bash -c "\$1"|\$1 == \*\[\[:space:\]\]\*' \
+  "$root/qvcore/presentation/run"; then
+  fail "presentation owner shell-parses a caller string"
+fi
+# The retained inherited menu owns reviewed compound install-and-launch
+# sequences and must request its shell explicitly at the call boundary.
+# shellcheck disable=SC2016
+grep -Fq 'qv-launch-floating-terminal-with-presentation bash -c "$1" qvos-menu' \
+  "$root/bin/omarchy-menu" || fail "menu presentation shell boundary"
+if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed))' \
+  "$root/bin/omarchy-menu" \
+  "$root/config/waybar/config.jsonc" \
+  "$root/default/elephant/omarchy_unlocks.lua" \
+  "$root/default/mako/core.ini" \
+  "$root/qvcore" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/migrate-runtime-root' \
+  --glob '!**/native-paths'; then
+  fail "active qvOS consumer uses presentation compatibility"
+fi
+grep -Fq 'org.qvos.terminal' "$root/default/hypr/apps/system.conf" ||
+  fail "native result terminal does not float"
+grep -Fq "'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation'" \
+  "$root/qvcore/config/migrate-runtime-root" || fail "presentation config migration"
+
+for frontend in qv omarchy; do
+  "$root/bin/$frontend" commands --json | jq -e \
+    --arg route "$frontend launch floating terminal with presentation" '
+      [.commands[] | select(
+        .route == $route and
+        .binary == "qv-launch-floating-terminal-with-presentation"
+      )] | length == 1
+    ' >/dev/null || fail "$frontend presentation native route"
+done
+
+printf 'ok - qvOS result presentation preserves exact commands under native identity\n'

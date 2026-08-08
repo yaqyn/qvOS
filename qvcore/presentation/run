@@ -2,32 +2,40 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-branding_owner="$OMARCHY_PATH/qvcore/branding/show-logo"
+branding_owner="$QVOS_PATH/qvcore/branding/show-logo"
+show_done_owner="$QVOS_PATH/qvcore/presentation/show-done"
+show_failed_owner="$QVOS_PATH/qvcore/presentation/show-failed"
 
 (( $# > 0 )) || {
-  echo "Usage: omarchy-launch-floating-terminal-with-presentation <command> [args...]" >&2
+  echo "Usage: qv launch floating-terminal-with-presentation <command> [args...]" >&2
   exit 2
 }
-if (( $# == 1 )) && [[ $1 == *[[:space:]]* ]]; then
-  set -- bash -c "$1"
-fi
+for owner in "$branding_owner" "$show_done_owner" "$show_failed_owner"; do
+  [[ -x $owner ]] || {
+    echo "Missing qvOS presentation owner: $owner" >&2
+    exit 1
+  }
+done
 
+# Preserve every command argument as data. Callers that need a shell must pass
+# bash and its arguments explicitly through a reviewed owner.
 # shellcheck disable=SC2016
 exec setsid uwsm-app -- \
   xdg-terminal-exec \
-  --app-id=org.omarchy.terminal \
+  --app-id=org.qvos.terminal \
   --title=qvOS \
   -e bash -c \
   'branding_owner=$1
-  shift
+  show_done_owner=$2
+  show_failed_owner=$3
+  shift 3
   "$branding_owner"
   "$@"
   status=$?
   if ((status == 0)); then
-    omarchy-show-done
+    "$show_done_owner"
   elif ((status != 130)); then
-    omarchy-show-failed "$status"
+    "$show_failed_owner" "$status"
   fi
   exit "$status"' \
-  _ "$branding_owner" "$@"
+  _ "$branding_owner" "$show_done_owner" "$show_failed_owner" "$@"

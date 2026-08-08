@@ -4,7 +4,7 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
 tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-# shellcheck source=qvcore/tui/owner-resolver
+# shellcheck source=qvcore/tui/owner-resolver disable=SC1091
 source "$tui_root/owner-resolver"
 catalog="$OMARCHY_PATH/qvcore/menu/software-actions.psv"
 installer_catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
@@ -246,7 +246,7 @@ read -r -a owner_args <<<"$owner_command"
 }
 
 if [[ $presentation == "native" ]]; then
-  exec omarchy-launch-floating-terminal-with-presentation "${owner_args[@]}"
+  exec qv-launch-floating-terminal-with-presentation "${owner_args[@]}"
 fi
 
 [[ $presentation == "tui" ]] || {

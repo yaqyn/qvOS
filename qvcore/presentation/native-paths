@@ -1,0 +1,4 @@
+# Inherited presentation paths promoted to native qvOS ownership.
+bin/omarchy-launch-floating-terminal-with-presentation
+bin/omarchy-show-done
+default/hypr/apps/system.conf

@@ -470,8 +470,8 @@ grep -Fq 'local qvos_path = os.getenv("QVOS_PATH")' \
 grep -Fq 'dofile(qvos_path .. "/default/elephant/omarchy_unlocks.lua")' \
   "$root/qvcore/menu/elephant/omarchy_unlocks.lua" ||
   fail "qvOS unlock provider source ownership"
-grep -Fq -- '--app-id=org.omarchy.terminal' "$root/qvcore/presentation/run" ||
-  fail "inherited terminal app ID"
+grep -Fq -- '--app-id=org.qvos.terminal' "$root/qvcore/presentation/run" ||
+  fail "native terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qvcore/presentation/run" ||
   fail "qvOS terminal title"
 grep -Fq 'Description=qvOS Battery Monitor Check' "$root/config/systemd/user/qvos-battery-monitor.service" || fail "qvOS battery service label"
@@ -1060,7 +1060,7 @@ assert(yaqyn_unlock)
 assert(yaqyn_unlock.Preview == root .. "/qvcore/boot/plymouth/preview-unlock.png")
 assert(
   yaqyn_unlock.Actions.activate
-    == "omarchy-launch-floating-terminal-with-presentation 'qv-plymouth-reset'"
+    == "qv-launch-floating-terminal-with-presentation qv-plymouth-reset"
 )
 assert(custom_unlock)
 assert(custom_unlock.Preview:match("/%.config/omarchy/themes/custom/preview%-unlock%.png$"))

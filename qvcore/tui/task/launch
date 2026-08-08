@@ -103,7 +103,7 @@ read -r -a owner_args <<<"$owner_command"
 }
 
 if [[ $presentation == "native" ]]; then
-  exec omarchy-launch-floating-terminal-with-presentation "${owner_args[@]}"
+  exec qv-launch-floating-terminal-with-presentation "${owner_args[@]}"
 fi
 [[ $presentation == "tui" ]] || {
   echo "Invalid qvOS TUI task presentation: $presentation" >&2

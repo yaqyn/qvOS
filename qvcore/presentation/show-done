@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv show done" >&2
+  exit 2
+}
+
+echo
+gum spin --spinner "globe" --title "Done! Press any key to close..." -- \
+  bash -c 'read -n 1 -s'

@@ -105,7 +105,7 @@ install -m 0755 /dev/stdin "$test_home/.local/lib/qvos/tui/task/fixture-selectio
 echo "stale installed qvOS owner was used" >&2
 exit 77
 OWNER
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-floating-terminal-with-presentation" <<'NATIVE'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-floating-terminal-with-presentation" <<'NATIVE'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TASK_TEST_CAPTURE"
 NATIVE

@@ -29,4 +29,4 @@ esac
 mapfile -t packages <<<"$selection"
 "$QVOS_PATH/qvcore/packages/validate-targets" "${packages[@]}"
 sudo pacman -Rns --noconfirm -- "${packages[@]}"
-omarchy-show-done
+qv-show-done

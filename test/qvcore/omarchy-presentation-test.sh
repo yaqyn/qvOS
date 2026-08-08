@@ -2,7 +2,8 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-launcher="$root/bin/omarchy-launch-floating-terminal-with-presentation"
+launcher="$root/bin/qv-launch-floating-terminal-with-presentation"
+compatibility_launcher="$root/bin/omarchy-launch-floating-terminal-with-presentation"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
@@ -22,10 +23,15 @@ fail() {
   exit 1
 }
 
-(( $(wc -l <"$launcher") <= 10 )) ||
-  fail "presentation compatibility adapter contains implementation"
+(( $(wc -l <"$launcher") <= 10 &&
+  $(wc -l <"$compatibility_launcher") <= 5 )) ||
+  fail "presentation adapter contains implementation"
 # shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/presentation/run" "$@"' "$launcher" ||
+grep -Fqx 'exec "$QVOS_PATH/qvcore/presentation/run" "$@"' "$launcher" ||
+  fail "native presentation adapter is not direct"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/presentation/run" "$@"' \
+  "$compatibility_launcher" ||
   fail "presentation compatibility adapter is not direct"
 
 install -d \
@@ -61,12 +67,12 @@ install -m 0755 /dev/stdin "$test_omarchy/qvcore/branding/show-logo" <<'SCRIPT'
 printf 'logo\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-show-done" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_omarchy/qvcore/presentation/show-done" <<'SCRIPT'
 #!/bin/bash
 printf 'done\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-show-failed" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_omarchy/qvcore/presentation/show-failed" <<'SCRIPT'
 #!/bin/bash
 printf 'failed\t%s\n' "$1" >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
@@ -93,7 +99,7 @@ SCRIPT
 
 run_launcher() {
   QVOS_TEST_EVENT_LOG="$event_log" \
-    OMARCHY_PATH="$test_omarchy" \
+    QVOS_PATH="$test_omarchy" \
     PATH="$test_bin:/usr/bin" \
     "$launcher" "$@"
 }
@@ -131,7 +137,37 @@ run_launcher qvos-test-arguments "argument with spaces"
 pass "presentation preserves command argument boundaries"
 
 : >"$event_log"
-run_launcher "qvos-test-arguments 'legacy argument with spaces'"
-[[ $(<"$event_log") == $'logo\nargument\tlegacy argument with spaces\ndone' ]] ||
-  fail "legacy presentation command compatibility"
-pass "presentation preserves inherited one-string command compatibility"
+set +e
+run_launcher "qvos-test-arguments 'shell-looking argument'" >/dev/null 2>&1
+string_status=$?
+set -e
+((string_status == 127)) || fail "shell-looking command status"
+[[ $(<"$event_log") == $'logo\nfailed\t127' ]] ||
+  fail "shell-looking command execution"
+pass "presentation never shell-parses a caller string"
+
+gum_log="$test_root/gum"
+install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$@" >"$QVOS_TEST_GUM_LOG"
+SCRIPT
+
+QVOS_TEST_GUM_LOG="$gum_log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/presentation/show-done"
+grep -Fqx 'Done! Press any key to close...' "$gum_log" ||
+  fail "completion owner copy"
+pass "completion owner validates and presents a native result"
+
+QVOS_TEST_GUM_LOG="$gum_log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/presentation/show-failed" 7
+grep -Fqx 'Failed (exit 7). Press any key to close...' "$gum_log" ||
+  fail "failure owner copy"
+for invalid_status in 0 256 08 invalid; do
+  set +e
+  QVOS_TEST_GUM_LOG="$gum_log" PATH="$test_bin:/usr/bin" \
+    "$root/qvcore/presentation/show-failed" "$invalid_status" >/dev/null 2>&1
+  invalid_result=$?
+  set -e
+  (( invalid_result == 2 )) || fail "invalid failure status: $invalid_status"
+done
+pass "failure owner rejects misleading or malformed statuses"

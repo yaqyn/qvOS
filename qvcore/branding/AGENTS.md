@@ -12,9 +12,8 @@ as the installed product name.
 About, screensaver, and terminal-logo behavior lives in this directory. Their
 inherited `omarchy-*` commands are metadata-only compatibility adapters, and
 qvOS-owned consumers call the branding owners directly.
-The shared floating-terminal route is likewise a direct adapter to
-qvcore/presentation/run; its owner preserves exact argument boundaries and the
-single-string legacy route without retaining a second launcher implementation.
+Result terminals and their completion or failure screens belong to
+`qvcore/presentation/`; branding owns only the logo rendered inside them.
 
 - Do not rename lowercase `omarchy-*` commands, `OMARCHY_*` variables, package
   repositories, state paths, app IDs, or compatibility filenames in a branding

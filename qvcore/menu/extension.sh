@@ -34,7 +34,7 @@ present_terminal() {
   if task=$(tui_task_for_owner "$owner_command"); then
     launch_tui_task "$task"
   else
-    omarchy-launch-floating-terminal-with-presentation "${owner_args[@]}"
+    qv-launch-floating-terminal-with-presentation "${owner_args[@]}"
   fi
 }
 

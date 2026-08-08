@@ -52,8 +52,8 @@ function GetEntries()
           Preview = preview_path,
           PreviewType = "file",
           Actions = {
-            activate = "omarchy-launch-floating-terminal-with-presentation "
-              .. shell_escape("qv-plymouth-set-by-theme " .. shell_escape(theme_name)),
+            activate = "qv-launch-floating-terminal-with-presentation "
+              .. "qv-plymouth-set-by-theme " .. shell_escape(theme_name),
           },
         })
       end
@@ -66,8 +66,7 @@ function GetEntries()
   local default_entry = {
     Text = "Default  ",
     Actions = {
-      activate = "omarchy-launch-floating-terminal-with-presentation "
-        .. shell_escape("qv-plymouth-reset"),
+      activate = "qv-launch-floating-terminal-with-presentation qv-plymouth-reset",
     },
   }
   if file_exists(default_preview) then

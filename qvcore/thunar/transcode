@@ -12,4 +12,4 @@ media_file=$1
   exit 1
 }
 
-exec omarchy-launch-floating-terminal-with-presentation omarchy-transcode "$media_file"
+exec qv-launch-floating-terminal-with-presentation omarchy-transcode "$media_file"

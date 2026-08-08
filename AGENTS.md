@@ -256,7 +256,7 @@ Root-started sessions must read every matching route completely before editing:
 - qvCORE architecture and lifecycle boundaries: `qvcore/README.md`
 - Services and Development ownership: `services/AGENTS.md`, `development/AGENTS.md`
 - Gaming, install, migration, package, and update ownership: `qvcore/gaming/AGENTS.md`, `qvcore/install/AGENTS.md`, `qvcore/migrations/AGENTS.md`, `qvcore/packages/AGENTS.md`, `qvcore/update/AGENTS.md`
-- Menu, search, Walker, Elephant, sharing, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/share/AGENTS.md`, `qvcore/software/AGENTS.md`
+- Menu, search, Walker, Elephant, presentation, sharing, and optional software: `qvcore/menu/AGENTS.md`, `qvcore/presentation/AGENTS.md`, `qvcore/share/AGENTS.md`, `qvcore/software/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
 - qvOS Hyprland and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`

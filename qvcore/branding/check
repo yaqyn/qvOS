@@ -30,14 +30,12 @@ done
 adapter_routes=(
   bin/omarchy-branding-about
   bin/omarchy-branding-screensaver
-  bin/omarchy-launch-floating-terminal-with-presentation
   bin/omarchy-show-logo
   bin/omarchy-windows-vm
 )
 adapter_owners=(
   qvcore/branding/about
   qvcore/branding/screensaver
-  qvcore/presentation/run
   qvcore/branding/show-logo
   qvcore/windows/command
 )

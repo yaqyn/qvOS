@@ -55,7 +55,7 @@ exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"battery":"$(omarchy-battery-status)","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
+{"battery":"$(omarchy-battery-status)","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -120,11 +120,15 @@ grep -Fq 'qv-battery-status' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar battery telemetry migration"
 grep -Fq 'qv-tz-select' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar timezone route migration"
+grep -Fq 'qv-launch-floating-terminal-with-presentation' \
+  "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar presentation route migration"
 grep -Fq 'qv-weather-icon' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar weather icon migration"
 grep -Fq 'qv-weather-status' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar weather status migration"
-if rg -q 'omarchy-weather-(icon|status)' "$test_home/.config/waybar/config.jsonc"; then
+if rg -q 'omarchy-(launch-floating-terminal-with-presentation|weather-(icon|status))' \
+  "$test_home/.config/waybar/config.jsonc"; then
   fail "Waybar weather compatibility route remains"
 fi
 grep -Fq '.local/lib/qvos/thunar/open-here' \
