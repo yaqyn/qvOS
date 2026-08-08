@@ -1,0 +1,120 @@
+#!/bin/bash
+
+qvos_reminder_runtime=${XDG_RUNTIME_DIR:-/run/user/$UID}
+qvos_reminder_state="$qvos_reminder_runtime/qvos/reminders"
+qvos_reminder_legacy_state="$qvos_reminder_runtime/omarchy-reminders"
+
+qvos_reminder_error() {
+  printf 'qvOS reminder: %s\n' "$1" >&2
+}
+
+qvos_reminder_notify() {
+  "$QVOS_PATH/qvcore/controls/notification/send" "$@"
+}
+
+qvos_reminder_validate_text() {
+  local message=$1
+
+  ((${#message} <= 512)) && [[ ! $message =~ [[:cntrl:]] ]] || {
+    qvos_reminder_error "message must be at most 512 printable characters"
+    return 1
+  }
+}
+
+qvos_reminder_validate_runtime() {
+  [[ $qvos_reminder_runtime == /* && -d $qvos_reminder_runtime &&
+    ! -L $qvos_reminder_runtime && -O $qvos_reminder_runtime &&
+    $(realpath -e -- "$qvos_reminder_runtime") == "$qvos_reminder_runtime" ]] || {
+    qvos_reminder_error "runtime directory is unsafe: $qvos_reminder_runtime"
+    return 1
+  }
+}
+
+qvos_reminder_validate_state() {
+  local state=$1
+  local parent=${state%/*}
+
+  qvos_reminder_validate_runtime || return
+  [[ $state == "$qvos_reminder_state" ||
+    $state == "$qvos_reminder_legacy_state" ]] || {
+    qvos_reminder_error "unexpected state directory: $state"
+    return 1
+  }
+  if [[ $state == "$qvos_reminder_state" ]]; then
+    [[ ! -e $parent && ! -L $parent ]] ||
+      [[ -d $parent && ! -L $parent && -O $parent ]] || {
+      qvos_reminder_error "state parent is unsafe: $parent"
+      return 1
+    }
+  fi
+  [[ ! -e $state && ! -L $state ]] ||
+    [[ -d $state && ! -L $state && -O $state ]] || {
+    qvos_reminder_error "state directory is unsafe: $state"
+    return 1
+  }
+}
+
+qvos_reminder_prepare_state() {
+  qvos_reminder_validate_state "$qvos_reminder_state" || return
+  install -d -m 0700 -- "$qvos_reminder_state"
+  [[ -d $qvos_reminder_state && ! -L $qvos_reminder_state &&
+    -O $qvos_reminder_state ]] || {
+    qvos_reminder_error "could not prepare private reminder state"
+    return 1
+  }
+  chmod 0700 -- "$qvos_reminder_state"
+}
+
+qvos_reminder_validate_unit() {
+  local unit=${1%.timer}
+  unit=${unit%.service}
+
+  [[ $unit =~ ^qvos-reminder-([0-9]{1,6})m-[0-9]{10}-[0-9]{10,20}$ ||
+    $unit =~ ^omarchy-reminder-([0-9]{1,6})m-[0-9]{10}$ ]]
+}
+
+qvos_reminder_minutes() {
+  local unit=${1%.timer}
+  unit=${unit%.service}
+
+  qvos_reminder_validate_unit "$unit" || return
+  unit=${unit#*-reminder-}
+  printf '%s\n' "${unit%%m-*}"
+}
+
+qvos_reminder_message_path() {
+  local unit=${1%.timer}
+  unit=${unit%.service}
+  local state=$qvos_reminder_state
+
+  qvos_reminder_validate_unit "$unit" || return
+  [[ $unit != omarchy-* ]] || state=$qvos_reminder_legacy_state
+  printf '%s/%s.message\n' "$state" "$unit"
+}
+
+qvos_reminder_validate_message_file() {
+  local path=$1
+  local parent=${path%/*}
+  local name=${path##*/}
+
+  [[ $parent == "$qvos_reminder_state" ||
+    $parent == "$qvos_reminder_legacy_state" ]] || {
+    qvos_reminder_error "unexpected message path: $path"
+    return 1
+  }
+  qvos_reminder_validate_state "$parent" || return
+  [[ $name == *.message ]] || return 1
+  qvos_reminder_validate_unit "${name%.message}" || return
+  [[ ! -e $path && ! -L $path ]] ||
+    [[ -f $path && ! -L $path && -O $path ]] || {
+    qvos_reminder_error "message state is unsafe: $path"
+    return 1
+  }
+}
+
+qvos_reminder_remove_message() {
+  local path=$1
+
+  qvos_reminder_validate_message_file "$path" || return
+  [[ ! -e $path ]] || rm -f -- "$path"
+}

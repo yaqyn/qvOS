@@ -1,0 +1,65 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/reminder/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
+  "bin/omarchy-reminder" ]] || fail "native reminder inventory"
+for owner in lib notify run; do
+  [[ -x $root/qvcore/reminder/$owner ]] || fail "reminder owner mode: $owner"
+done
+for adapter in "$root/bin/qv-reminder" "$root/bin/omarchy-reminder"; do
+  [[ -x $adapter ]] || fail "reminder adapter mode: $adapter"
+  (( $(wc -l <"$adapter") <= 12 )) ||
+    fail "reminder adapter contains implementation: $adapter"
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/reminder/run" "$@"' "$adapter" ||
+    fail "reminder adapter ownership: $adapter"
+done
+rg -q '^# qv:summary=' "$root/bin/qv-reminder" ||
+  fail "native reminder metadata"
+! rg -q '^# (qv|omarchy):' "$root/bin/omarchy-reminder" ||
+  fail "compatibility reminder metadata"
+
+if rg -n 'omarchy-reminder' \
+  "$root/config/hypr/bindings.conf" \
+  "$root/default/omarchy-skill/SKILL.md" \
+  "$root/qvcore/menu/elephant/qvos_menu.lua"; then
+  fail "native reminder consumer uses the compatibility route"
+fi
+if rg -n 'XDG_RUNTIME_DIR:-/tmp|bash -c|omarchy-notification-send' \
+  "$root/qvcore/reminder" --glob '!AGENTS.md' --glob '!check'; then
+  fail "reminder owner retains shared state or shell-string execution"
+fi
+grep -Fq 'qvos-reminder-' "$root/qvcore/reminder/run" ||
+  fail "native reminder unit identity"
+# shellcheck disable=SC2016
+grep -Fq 'ln -- "$temporary" "$destination"' "$root/qvcore/reminder/run" ||
+  fail "reminder state lacks an atomic no-clobber commit"
+grep -Fq 'qvcore/controls/notification/send' "$root/qvcore/reminder/lib" ||
+  fail "reminder does not use the native notification owner"
+for route in clear show; do
+  grep -Fq "'omarchy-reminder $route' 'qv-reminder $route'" \
+    "$root/qvcore/config/migrate-runtime-root" ||
+    fail "reminder binding migration: $route"
+done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
+  "$root/qvcore/migrations/1786191758.sh" ||
+  fail "native reminder migration owner"
+
+for frontend in qv omarchy; do
+  "$root/bin/$frontend" commands --json | jq -e \
+    --arg route "$frontend reminder" '
+      [.commands[] | select(.route == $route and .binary == "qv-reminder")] |
+      length == 1
+    ' >/dev/null || fail "$frontend reminder native route"
+done
+
+printf 'ok - qvOS reminders have one private native transient-unit owner\n'

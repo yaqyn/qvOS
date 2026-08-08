@@ -53,8 +53,9 @@ done
 if rg -n 'omarchy-(audio|brightness|notification|swayosd)-' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/README.md' \
+  --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv' \
-  --glob '!**/controls/check' --glob '!**/config/migrate-runtime-root'; then
+  --glob '!**/config/migrate-runtime-root'; then
   fail "native qvOS source still calls a desktop-control compatibility command"
 fi
 

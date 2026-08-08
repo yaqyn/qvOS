@@ -46,8 +46,8 @@ assert_binding 'bindd = SUPER SHIFT, R, Qayyimental on Telegram, exec, uwsm-app 
 assert_binding 'bindd = SUPER CTRL, R, Qirtaas, exec, omarchy-launch-webapp "https://qirtaas.io/dashboard"' "Qirtaas binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, R, Elm Academy curriculum, exec, omarchy-launch-webapp "https://www.elm-academy.net/ar/%D8%A7%D9%84%D9%85%D9%86%D9%87%D8%AC"' "Elm Academy binding"
 assert_binding 'bindd = SUPER ALT, R, Set reminder, exec, omarchy-menu reminder-set' "Set reminder binding"
-assert_binding 'bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear' "Clear reminders binding"
-assert_binding 'bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show' "Show reminders binding"
+assert_binding 'bindd = SUPER CTRL ALT, R, Clear reminders, exec, qv-reminder clear' "Clear reminders binding"
+assert_binding 'bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, qv-reminder show' "Show reminders binding"
 pass "the R family owns Quran destinations and relocated reminders"
 
 assert_binding 'bindd = SUPER, C, Universal copy, sendshortcut, CTRL, Insert, activewindow' "Universal copy binding"

@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 1 )) || {
+  echo "Usage: qvcore/reminder/notify <message-file>" >&2
+  exit 2
+}
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/reminder/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/reminder/lib"
+
+message_file=$1
+qvos_reminder_validate_message_file "$message_file"
+message=$(<"$message_file")
+qvos_reminder_validate_text "$message"
+notification_status=0
+qvos_reminder_notify "󰔛" "Reminder" "$message" -u critical ||
+  notification_status=$?
+qvos_reminder_remove_message "$message_file"
+exit "$notification_status"

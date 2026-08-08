@@ -119,7 +119,7 @@ Run `omarchy --help` for the full list. The most common groups:
 | `omarchy install` | Install optional software / packages | `omarchy install docker dbs` |
 | `omarchy launch` | Launch apps | `omarchy launch browser` |
 | `omarchy capture` | Screenshots and recordings | `omarchy capture screenshot` |
-| `omarchy reminder` | Desktop notification reminders | `omarchy reminder 15 "Pickup Jack"` |
+| `qv reminder` | Desktop notification reminders | `qv reminder 15 "Pickup Jack"` |
 | `omarchy pkg` | Package management | `omarchy pkg install <pkg>` |
 | `omarchy setup` | Initial setup tasks | `omarchy setup fingerprint` |
 | `omarchy update` | System updates | `omarchy update` |
@@ -367,13 +367,13 @@ When user requests system changes:
 
 ### Reminder Requests
 
-When the user asks to set a reminder, use `omarchy reminder <minutes> [message]` directly. Convert natural language durations to minutes and title-case short reminder labels when appropriate.
+When the user asks to set a reminder, use `qv reminder <minutes> [message]` directly. Convert natural language durations to minutes and title-case short reminder labels when appropriate.
 
 ```bash
-omarchy reminder 15 "Pickup Jack"
-omarchy reminder 60 "Check laundry"
-omarchy reminder show
-omarchy reminder clear
+qv reminder 15 "Pickup Jack"
+qv reminder 60 "Check laundry"
+qv reminder show
+qv reminder clear
 ```
 
 ## Out of Scope
@@ -390,9 +390,9 @@ This skill intentionally does not cover qvOS source development. Do not use this
 - "Configure my external monitor" -> Edit `~/.config/hypr/monitors.conf`
 - "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.conf`
 - "Set up night light to turn on at sunset" -> `omarchy toggle nightlight` or edit `~/.config/hypr/hyprsunset.conf`
-- "Set a reminder to pickup jack in 15 minutes" -> `omarchy reminder 15 "Pickup Jack"`
-- "Show my reminders" -> `omarchy reminder show`
-- "Clear all reminders" -> `omarchy reminder clear`
+- "Set a reminder to pickup jack in 15 minutes" -> `qv reminder 15 "Pickup Jack"`
+- "Show my reminders" -> `qv reminder show`
+- "Clear all reminders" -> `qv reminder clear`
 - "Customize the Yaqyn theme colors" -> Copy Yaqyn to `~/.config/omarchy/themes/yaqyn-custom/`, edit the copy, then apply it
 - "Run a script every time I change themes" -> Create `~/.config/qvos/hooks/theme-set`
 - "Reset waybar to defaults" -> `omarchy refresh waybar`

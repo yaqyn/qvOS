@@ -32,6 +32,7 @@ qvcore/
   packages/    Omarchy package-provider boundary and Stable configuration.
   power/       Telemetry, profiles, sleep guards, and opt-in battery protection.
   presentation/ qvOS terminal presentation and failure handling.
+  reminder/    Private transient desktop reminders and legacy cleanup.
   screensaver/ Screensaver launchers and terminal profile.
   security/    Codex-operated security auditing and hardening workflow.
   share/       LocalSend request routing.

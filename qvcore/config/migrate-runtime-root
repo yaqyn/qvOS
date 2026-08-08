@@ -101,6 +101,8 @@ rewrite_literals \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
   'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
   'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
+  'omarchy-reminder clear' 'qv-reminder clear' \
+  'omarchy-reminder show' 'qv-reminder show' \
   'omarchy-swayosd-client' 'qv-swayosd-client' \
   'omarchy-toggle-touchpad' 'qv-toggle-touchpad' \
   'omarchy-toggle-touchscreen' 'qv-toggle-touchscreen'

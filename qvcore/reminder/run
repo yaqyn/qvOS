@@ -1,0 +1,230 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/reminder/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/reminder/lib"
+
+usage() {
+  echo "Usage: qv reminder <minutes> [message]" >&2
+  echo "       qv reminder show" >&2
+  echo "       qv reminder clear" >&2
+}
+
+format_remaining() {
+  local seconds=$1
+  local minutes=$((seconds / 60))
+  local remainder=$((seconds % 60))
+
+  if ((minutes > 0 && remainder > 0)); then
+    printf '%dm %ds\n' "$minutes" "$remainder"
+  elif ((minutes > 0)); then
+    printf '%dm\n' "$minutes"
+  else
+    printf '%ds\n' "$remainder"
+  fi
+}
+
+parse_systemd_timespan() {
+  local timespan=$1
+  local total=0
+  local value unit whole
+
+  while read -r value unit; do
+    whole=${value%.*}
+    case $unit in
+    d) total=$((total + whole * 86400)) ;;
+    h) total=$((total + whole * 3600)) ;;
+    min) total=$((total + whole * 60)) ;;
+    s) total=$((total + whole)) ;;
+    ms | us) ;;
+    esac
+  done < <(
+    grep -oE '[0-9]+([.][0-9]+)?(d|h|min|s|ms|us)' <<<"$timespan" |
+      sed -E 's/^([0-9.]+)([a-z]+)$/\1 \2/'
+  )
+  printf '%s\n' "$total"
+}
+
+list_timer_units() {
+  LC_ALL=C systemctl --user list-units --type=timer --all --no-legend \
+    --no-pager --plain 'qvos-reminder-*.timer' \
+    'omarchy-reminder-*.timer' 2>/dev/null |
+    awk '{ print $1 }' | LC_ALL=C sort -u
+}
+
+show_reminders() {
+  local timer next next_seconds uptime remaining minutes due message_file
+  local message=""
+  local body=""
+  local timers
+
+  qvos_reminder_validate_runtime
+  qvos_reminder_validate_state "$qvos_reminder_state"
+  qvos_reminder_validate_state "$qvos_reminder_legacy_state"
+  uptime=${SECONDS_SINCE_BOOT:-$(awk '{ print int($1) }' /proc/uptime)}
+  [[ $uptime =~ ^[0-9]+$ ]] || {
+    qvos_reminder_error "could not read system uptime"
+    return 1
+  }
+  timers=$(list_timer_units) || {
+    qvos_reminder_error "could not query the user timer manager"
+    return 1
+  }
+
+  while IFS= read -r timer; do
+    [[ -n $timer ]] || continue
+    qvos_reminder_validate_unit "$timer" || {
+      qvos_reminder_error "ignoring unexpected timer: $timer"
+      continue
+    }
+    next=$(systemctl --user show --property=NextElapseUSecMonotonic \
+      --value "$timer" 2>/dev/null || true)
+    [[ -n $next ]] || continue
+    next_seconds=$(parse_systemd_timespan "$next")
+    ((next_seconds > uptime)) || continue
+
+    remaining=$((next_seconds - uptime))
+    minutes=$(qvos_reminder_minutes "$timer")
+    due=$(date -d "+${remaining} seconds" +%-H:%M)
+    message_file=$(qvos_reminder_message_path "$timer")
+    if [[ -e $message_file || -L $message_file ]]; then
+      qvos_reminder_validate_message_file "$message_file"
+      message=$(<"$message_file")
+      qvos_reminder_validate_text "$message"
+    else
+      message=""
+    fi
+    if [[ -n $message ]]; then
+      body+="$message in $(format_remaining "$remaining") ($due)"$'\n'
+    else
+      body+="${minutes}-min reminder in $(format_remaining "$remaining") ($due)"$'\n'
+    fi
+  done <<<"$timers"
+
+  if [[ -z $body ]]; then
+    qvos_reminder_notify "󰔛" "Upcoming reminders" \
+      "No outstanding reminders" -u low
+  else
+    qvos_reminder_notify "󰔛" "Upcoming reminders" "${body%$'\n'}" -u low
+  fi
+}
+
+clear_message_state() {
+  local state=$1
+  local path
+  local -a paths=()
+
+  qvos_reminder_validate_state "$state"
+  [[ -d $state ]] || return 0
+  shopt -s nullglob
+  paths=("$state"/*-reminder-*.message)
+  shopt -u nullglob
+  for path in "${paths[@]}"; do
+    qvos_reminder_validate_message_file "$path"
+    rm -f -- "$path"
+  done
+}
+
+clear_reminders() {
+  local timer
+  local timers
+  local -a units=()
+
+  qvos_reminder_validate_runtime
+  timers=$(list_timer_units) || {
+    qvos_reminder_error "could not query the user timer manager"
+    return 1
+  }
+  while IFS= read -r timer; do
+    [[ -n $timer ]] || continue
+    qvos_reminder_validate_unit "$timer" || {
+      qvos_reminder_error "refusing unexpected timer: $timer"
+      return 1
+    }
+    units+=("$timer")
+  done <<<"$timers"
+  if ((${#units[@]} > 0)); then
+    systemctl --user stop -- "${units[@]}" >/dev/null 2>&1 || {
+      qvos_reminder_error "could not stop every reminder timer; preserving state"
+      return 1
+    }
+  fi
+  clear_message_state "$qvos_reminder_state"
+  clear_message_state "$qvos_reminder_legacy_state"
+  qvos_reminder_notify "󰔛" "All reminders have been cleared" -u low
+}
+
+store_message() {
+  local message=$1
+  local destination=$2
+  local temporary
+
+  temporary=$(mktemp "$qvos_reminder_state/.qvos-reminder.XXXXXX")
+  if ! printf '%s' "$message" >"$temporary" ||
+    ! chmod 0600 -- "$temporary" ||
+    ! ln -- "$temporary" "$destination"; then
+    rm -f -- "$temporary"
+    qvos_reminder_error "could not store private reminder message"
+    return 1
+  fi
+  rm -f -- "$temporary"
+}
+
+case ${1:-} in
+show | list)
+  (( $# == 1 )) || {
+    usage
+    exit 2
+  }
+  show_reminders
+  exit
+  ;;
+clear)
+  (( $# == 1 )) || {
+    usage
+    exit 2
+  }
+  clear_reminders
+  exit
+  ;;
+esac
+
+minutes=${1:-}
+if [[ ! $minutes =~ ^[0-9]+$ ]] || ((minutes < 1 || minutes > 525600)); then
+  usage
+  exit 2
+fi
+shift
+message="$*"
+custom_message=$message
+qvos_reminder_validate_text "$message" || exit 2
+[[ -n $message ]] || message="Your ${minutes} minutes are up"
+
+qvos_reminder_prepare_state
+set_at=$(date +%s)
+nonce=$(date +%s%N)
+unit="qvos-reminder-${minutes}m-${set_at}-${nonce}"
+qvos_reminder_validate_unit "$unit" || {
+  qvos_reminder_error "could not create a safe unique unit name"
+  exit 1
+}
+message_file=$(qvos_reminder_message_path "$unit")
+store_message "$message" "$message_file"
+
+if ! systemd-run --user --quiet --collect --on-active="${minutes}m" \
+  --unit="$unit" -- "$QVOS_PATH/qvcore/reminder/notify" \
+  "$message_file"; then
+  qvos_reminder_remove_message "$message_file"
+  qvos_reminder_error "could not schedule the reminder"
+  exit 1
+fi
+
+remind_at=$(date -d "+${minutes} minutes" +%H:%M)
+title="Reminder set for ${minutes} minutes"
+[[ -z $custom_message ]] || title="$custom_message in ${minutes} minutes"
+if ! qvos_reminder_notify "󰔛" "$title" \
+  "You'll be reminded at $remind_at" -u low; then
+  qvos_reminder_error "scheduled successfully, but confirmation could not be shown"
+fi
