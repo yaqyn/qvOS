@@ -39,9 +39,13 @@ done <<<"$native_paths"
 remaining_compatibility=$(
   rg --no-filename -o 'omarchy-hw-[a-z0-9-]+' "$root/qvcore" "$root/config" \
     --glob '!**/hardware/**' --glob '!**/AGENTS.md' \
+    --glob '!**/config/migrate-runtime-root' \
     --glob '!**/owner-contracts.psv' | sort -u || true
 )
 [[ $remaining_compatibility == "omarchy-hw-recover-internal-monitor" ]] ||
   fail "native qvOS source still calls a hardware compatibility command"
+grep -Fq "'omarchy-hw-external-monitors' 'qv-hw-external-monitors'" \
+  "$root/qvcore/config/migrate-runtime-root" ||
+  fail "active binding migration omits the promoted hardware route"
 
 printf 'ok - qvOS owns one read-only hardware detection boundary\n'

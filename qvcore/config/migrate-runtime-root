@@ -101,6 +101,7 @@ rewrite_literals \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
   'omarchy-capture-screenshot' 'qv-capture-screenshot' \
   'omarchy-capture-text-extraction' 'qv-capture-text-extraction' \
+  'omarchy-hw-external-monitors' 'qv-hw-external-monitors' \
   'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
   'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
   'omarchy-launch-walker' 'qv-launch-walker' \

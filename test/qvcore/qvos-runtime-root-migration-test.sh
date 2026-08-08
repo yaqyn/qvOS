@@ -44,6 +44,7 @@ bindld = SUPER, XF86AudioMute, Switch audio output, exec, omarchy-audio-output-s
 bindd = SUPER CTRL ALT, B, Show battery remaining, exec, notify-send "$(omarchy-battery-status)"
 bindd = SUPER CTRL, Delete, Toggle laptop display, exec, omarchy-hyprland-monitor-internal toggle
 bindd = SUPER CTRL ALT, Delete, Mirror laptop display, exec, omarchy-hyprland-monitor-internal-mirror toggle
+bindl = , switch:on:Lid Switch, exec, omarchy-hw-external-monitors && omarchy-hyprland-monitor-internal off
 bindld = , XF86TouchpadToggle, Toggle touchpad, exec, omarchy-toggle-touchpad
 bindld = , XF86TouchscreenToggle, Toggle touchscreen, exec, omarchy-toggle-touchscreen
 bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear
@@ -100,6 +101,7 @@ for command in \
   qv-battery-status \
   qv-brightness-display \
   qv-brightness-keyboard \
+  qv-hw-external-monitors \
   qv-hyprland-monitor-internal \
   qv-hyprland-monitor-internal-mirror \
   qv-swayosd-client; do
@@ -123,7 +125,7 @@ for command in \
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted menu route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen|transcode)' \
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
