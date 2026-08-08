@@ -133,6 +133,15 @@ touchpad=$(QVOS_TEST_HYPR_JSON="$device_json" run_detect touchpad)
 [[ $touchpad == "elan-touchpad" ]] || fail "touchpad selector"
 touchscreen=$(QVOS_TEST_HYPR_JSON="$device_json" run_detect touchscreen)
 [[ $touchscreen == "goodix-touchscreen" ]] || fail "touchscreen selector"
+empty_device_json='{"mice":[],"touch":[],"tablets":[]}'
+set +e
+QVOS_TEST_HYPR_JSON="$empty_device_json" run_detect touchscreen >/dev/null 2>&1
+empty_touchscreen_status=$?
+QVOS_TEST_HYPR_JSON='{"mice":[]}' run_detect touchscreen >/dev/null 2>&1
+malformed_touchscreen_status=$?
+set -e
+((empty_touchscreen_status == 1)) || fail "absent touchscreen status"
+((malformed_touchscreen_status == 2)) || fail "malformed device inventory status"
 
 if run_detect vulkan >/dev/null 2>&1; then
   fail "empty Vulkan directory reported capability"

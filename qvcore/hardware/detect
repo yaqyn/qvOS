@@ -138,19 +138,31 @@ dell_xps_oled() {
 
 hyprland_device() {
   local kind=$1
+  local device
   local filter
+  local payload
+  local validator
 
   qv-cmd-present hyprctl jq || return 1
   case $kind in
   touchpad)
+    validator='type == "object" and (.mice | type == "array")'
     filter='[.mice[]?.name | select(type == "string" and test("touchpad|trackpad"; "i"))] | first // empty'
     ;;
   touchscreen)
+    validator='type == "object" and (.touch | type == "array") and (.tablets | type == "array")'
     filter='[.touch[]?.name, .tablets[]?.name] | map(select(type == "string" and length > 0)) | first // empty'
     ;;
   *) return 2 ;;
   esac
-  hyprctl devices -j 2>/dev/null | jq -er "$filter"
+  payload=$(hyprctl devices -j 2>/dev/null) || return 1
+  if ! jq -e "$validator" >/dev/null 2>&1 <<<"$payload"; then
+    printf 'Hyprland returned an invalid device inventory.\n' >&2
+    return 2
+  fi
+  device=$(jq -r "$filter" <<<"$payload") || return 2
+  [[ -n $device ]] || return 1
+  printf '%s\n' "$device"
 }
 
 case $action in
