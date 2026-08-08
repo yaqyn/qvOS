@@ -3,6 +3,17 @@
 set -euo pipefail
 
 CHROMIUM_THEME="$HOME/.config/omarchy/current/theme/chromium.theme"
+testing=${QVOS_THEME_TESTING:-}
+policy_root=${QVOS_THEME_BROWSER_POLICY_ROOT:-}
+
+if [[ -n $policy_root && $testing != "1" ]]; then
+  echo "A custom browser-policy root is valid only in tests." >&2
+  exit 2
+fi
+if [[ -n $policy_root && ( $policy_root != /* || ! -d $policy_root || -L $policy_root ) ]]; then
+  echo "Invalid browser-policy test root: $policy_root" >&2
+  exit 2
+fi
 
 if [[ -f $CHROMIUM_THEME ]]; then
   THEME_RGB_COLOR=$(<"$CHROMIUM_THEME")
@@ -20,20 +31,82 @@ else
   THEME_HEX_COLOR="#1c2027"
 fi
 
-set_browser_policy() {
-  local policy_dir="$1"
-  local candidate
+desired_policy=$(printf \
+  '{"BrowserThemeColor":"%s","BrowserColorScheme":"device"}' \
+  "$THEME_HEX_COLOR")
+policy_dirs=(
+  "$policy_root/etc/chromium/policies/managed"
+  "$policy_root/etc/opt/chrome/policies/managed"
+  "$policy_root/etc/opt/edge/policies/managed"
+  "$policy_root/etc/brave/policies/managed"
+)
+policy_targets=()
+declare -A previous_policies=()
 
-  [[ -d $policy_dir ]] || return
-  candidate=$(mktemp "$policy_dir/.qvos-color.json.XXXXXX")
-  if ! printf '{"BrowserThemeColor":"%s","BrowserColorScheme":"device"}\n' \
-    "$THEME_HEX_COLOR" >"$candidate" ||
-    ! chmod 0644 "$candidate" ||
-    ! mv -- "$candidate" "$policy_dir/color.json"; then
-    rm -f -- "$candidate"
-    return 1
-  fi
+for policy_dir in "${policy_dirs[@]}"; do
+  [[ -e $policy_dir || -L $policy_dir ]] || continue
+  expected_dir_uid=0
+  [[ $testing != "1" ]] || expected_dir_uid=$(/usr/bin/id -u)
+  [[ -d $policy_dir && ! -L $policy_dir &&
+    $(/usr/bin/realpath -e -- "$policy_dir") == "$policy_dir" &&
+    $(/usr/bin/stat -c %u -- "$policy_dir") == "$expected_dir_uid" ]] || {
+    echo "Refusing unsafe browser-policy directory: $policy_dir" >&2
+    exit 1
+  }
+  dir_mode=$(/usr/bin/stat -c %a -- "$policy_dir")
+  (( (8#$dir_mode & 022) == 0 )) || {
+    echo "Refusing writable browser-policy directory: $policy_dir" >&2
+    exit 1
+  }
+
+  target="$policy_dir/color.json"
+  [[ -f $target && ! -L $target &&
+    $(/usr/bin/stat -c '%u:%a' -- "$target") == "$EUID:644" ]] || {
+    echo "Refusing unsafe browser theme policy: $target" >&2
+    echo "Re-run the qvOS browser setup before applying its theme." >&2
+    exit 1
+  }
+  policy_targets+=("$target")
+  previous_policies["$target"]=$(<"$target")
+done
+
+changed_targets=()
+rollback_policies() {
+  local changed_target
+  local rollback_failed=false
+
+  for changed_target in "${changed_targets[@]}"; do
+    if ! printf '%s\n' "${previous_policies[$changed_target]}" >"$changed_target" ||
+      ! /usr/bin/chmod 0644 -- "$changed_target"; then
+      rollback_failed=true
+    fi
+  done
+  [[ $rollback_failed != "true" ]]
 }
+
+interrupt_update() {
+  local status=$1
+
+  rollback_policies ||
+    echo "Browser theme policy rollback needs manual repair." >&2
+  exit "$status"
+}
+
+trap 'interrupt_update 129' HUP
+trap 'interrupt_update 130' INT
+trap 'interrupt_update 143' TERM
+for target in "${policy_targets[@]}"; do
+  changed_targets+=("$target")
+  if ! printf '%s\n' "$desired_policy" >"$target" ||
+    ! /usr/bin/chmod 0644 -- "$target" ||
+    [[ $(<"$target") != "$desired_policy" ]]; then
+    rollback_policies ||
+      echo "Browser theme policy rollback needs manual repair." >&2
+    echo "Could not apply the browser theme policy; restored its prior state." >&2
+    exit 1
+  fi
+done
+trap - HUP INT TERM
 
 refresh_running_browser() {
   local process="$1"
@@ -45,15 +118,11 @@ refresh_running_browser() {
   fi
 }
 
-set_browser_policy /etc/chromium/policies/managed
 refresh_running_browser chromium chromium
 
-set_browser_policy /etc/opt/chrome/policies/managed
 refresh_running_browser chrome google-chrome-stable || refresh_running_browser chrome google-chrome
 
-set_browser_policy /etc/opt/edge/policies/managed
 refresh_running_browser msedge microsoft-edge-stable
 
-set_browser_policy /etc/brave/policies/managed
 refresh_running_browser brave brave
 refresh_running_browser brave-origin-beta brave-origin-beta -f

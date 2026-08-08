@@ -38,6 +38,11 @@ behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
   source code or terminal control sequences. Never install an editor extension
   declared by an external theme. The explicit VS Code installer may install only
   the bundled, version-checked Yaqyn VSIX.
+- Browser theme policy directories remain root-owned and non-writable. Their
+  exact `color.json` leaf is desktop-user-owned. Preflight every installed
+  browser before a bounded in-place update, verify readback, and restore every
+  changed leaf on failure; an atomic rename cannot work across this ownership
+  boundary and must not be emulated by weakening the directory.
 - Yaqyn is always present and cannot be installed over or removed. Removing an
   active custom theme first returns to Yaqyn without changing the background.
 - Theme activation stages and validates a complete next tree, swaps it

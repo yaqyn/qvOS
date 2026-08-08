@@ -83,6 +83,7 @@ STUB
 
 run_browser() {
   HOME="$test_home" \
+    QVOS_PATH="$fixture" \
     OMARCHY_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \

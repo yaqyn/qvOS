@@ -13,7 +13,9 @@ delegate each selected operation once through the shared TUI.
   replace it automatically.
 - Browser policy directories remain root-owned. Theme policy files may be
   desktop-user writable only where `qvcore/browser/setup-policy` explicitly grants
-  it; never make the directory or file world-writable.
+  it; never make the directory or file world-writable. The theme owner validates
+  the exact directory and `color.json` ownership before its bounded in-place
+  update because the user cannot atomically rename inside a root-owned directory.
 - Remove only exact qvOS-created flags, policy, and environment files. Never
   recursively delete a shared policy tree or user browser profile.
 - Preserve the Firefox/Zen Wayland environment while either browser remains.

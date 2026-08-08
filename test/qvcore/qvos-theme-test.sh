@@ -140,6 +140,57 @@ HOME="$test_root" QVOS_PATH="$root" QVOS_THEME_SKIP_INTEGRATIONS=1 \
 [[ $(<"$test_root/.config/omarchy/current/theme.name") == "yaqyn" ]] ||
   fail "active custom theme fallback"
 
+policy_root="$test_root/browser-policies"
+outside_policy="$test_root/outside-browser-policy"
+for browser_policy in \
+  etc/chromium/policies/managed \
+  etc/brave/policies/managed; do
+  install -d -m 0755 "$policy_root/$browser_policy"
+  printf 'prior policy\n' >"$policy_root/$browser_policy/color.json"
+  chmod 0644 "$policy_root/$browser_policy/color.json"
+done
+install -d -m 0755 "$policy_root/etc/opt/edge/policies/managed"
+printf 'outside policy\n' >"$outside_policy"
+ln -s "$outside_policy" \
+  "$policy_root/etc/opt/edge/policies/managed/color.json"
+if HOME="$test_root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_THEME_TESTING=1 \
+  QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+  "$root/qvcore/theme/set-browser" >/dev/null 2>&1; then
+  fail "linked browser theme policy was accepted"
+fi
+for browser_policy in \
+  etc/chromium/policies/managed \
+  etc/brave/policies/managed; do
+  [[ $(<"$policy_root/$browser_policy/color.json") == "prior policy" ]] ||
+    fail "browser policy preflight mutated an earlier target"
+done
+[[ $(<"$outside_policy") == "outside policy" ]] ||
+  fail "linked browser policy target was mutated"
+rm -f -- "$policy_root/etc/opt/edge/policies/managed/color.json"
+install -m 0644 /dev/null \
+  "$policy_root/etc/opt/edge/policies/managed/color.json"
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'COMMAND'
+#!/bin/bash
+exit 1
+COMMAND
+HOME="$test_root" \
+PATH="$test_bin:/usr/bin" \
+QVOS_THEME_TESTING=1 \
+QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+  "$root/qvcore/theme/set-browser"
+expected_policy='{"BrowserThemeColor":"#141414","BrowserColorScheme":"device"}'
+for browser_policy in \
+  etc/chromium/policies/managed \
+  etc/opt/edge/policies/managed \
+  etc/brave/policies/managed; do
+  target="$policy_root/$browser_policy/color.json"
+  [[ $(<"$target") == "$expected_policy" && $(stat -c %a -- "$target") == "644" ]] ||
+    fail "bounded browser theme policy: $browser_policy"
+done
+printf 'ok - browser colors respect the root-directory and user-leaf policy boundary\n'
+
 set +e
 yaqyn_install_output=$(
   HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \

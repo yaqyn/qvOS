@@ -154,6 +154,13 @@ if rg -n -- '--install-extension|int\('\''\$hex' \
   "$root/qvcore/theme/set-keyboard-f16"; then
   fail "theme data can still install editor code or enter Python source"
 fi
+if rg -q 'mktemp.*policy_dir|mv .*color\.json' "$root/qvcore/theme/set-browser"; then
+  fail "browser theme policy assumes write access to its root-owned directory"
+fi
+# shellcheck disable=SC2016
+grep -Fq '$(/usr/bin/stat -c '\''%u:%a'\'' -- "$target") == "$EUID:644"' \
+  "$root/qvcore/theme/set-browser" ||
+  fail "browser theme policy bypasses exact leaf ownership"
 
 [[ -f $root/qvcore/install/config/theme.sh &&
   ! -x $root/qvcore/install/config/theme.sh ]] ||
