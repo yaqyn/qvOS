@@ -631,10 +631,10 @@ function GetEntries(query)
   add(entries, "󰟸", "Restart Trackpad", "Settings · Devices · Input", { "input", "device" }, task_action("restart-trackpad"))
 
   -- Power actions remain globally searchable without crowding Home.
-  add(entries, "", "Lock", "More · Power", { "screen", "security" }, "omarchy-system-lock")
+  add(entries, "", "Lock", "More · Power", { "screen", "security" }, "qv-system-lock")
   add(entries, "󰒲", "Suspend", "More · Power", { "sleep", "power" }, "systemctl suspend")
   add(entries, "󰤁", "Hibernate", "More · Power", { "sleep", "power" }, "systemctl hibernate")
-  add(entries, "󰍃", "Logout", "More · Power", { "session", "exit" }, "omarchy-system-logout")
+  add(entries, "󰍃", "Logout", "More · Power", { "session", "exit" }, "qv-system-logout")
   add(entries, "󰜉", "Restart", "More · Power", { "reboot", "power" }, "qv-system-reboot")
   add(entries, "󰐥", "Shutdown", "More · Power", { "power", "off" }, "qv-system-shutdown")
 

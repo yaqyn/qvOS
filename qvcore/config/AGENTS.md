@@ -51,7 +51,9 @@ future specialized config in the `qvcore/` sublayer. Reconcile after refresh
 and verify tracked and installed config.
 
 Hypridle, Hyprlock, Hyprsunset, and SwayOSD each have one small refresh owner
-here. Each owner rejects arguments, delegates file restoration to
+here. Hypridle is a specialized native source under `qvcore/config/files/`;
+its former top-level duplicate is retired. The other sources remain under
+`config/`. Each owner rejects arguments, delegates file restoration to
 `qvcore/config/refresh`, and invokes the native desktop restart owner only after
 every file succeeds. Public `qv-refresh-*` commands carry metadata; matching
 `omarchy-refresh-*` files are compatibility only. Native menus and TUI actions
@@ -88,20 +90,21 @@ Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`
 the first-run and desktop-install suites, `systemd-analyze verify` after live
 alignment, and the full qvOS suite.
 
-`migrate-runtime-root` changes only exact retired qvOS path and promoted command
-literals in named active configs. Back up each changed regular user-owned file,
-preserve all other content, refuse links and foreign ownership, and remain a
-no-op after success. Keep its inherited migration stub thin and its
-implementation native.
+`migrate-runtime-root` changes only exact retired qvOS path, session policy,
+and promoted command literals in named active configs. Back up each changed
+regular user-owned file, preserve all other content, refuse links and foreign
+ownership, and remain a no-op after success. Keep its inherited migration stub
+thin and its implementation native.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM
 examples use `QVOS_SCREENSHOT_DIR` and `QVOS_SCREENRECORD_DIR`. Migrate only
 their exact inherited command, indicator, and variable literals.
 
-Config and session commands use metadata-bearing `qv-*` adapters and one
-owner here. Retain matching metadata-free `omarchy-*` files only as external
-and saved-config compatibility routes. Native bindings, menus, sleep guards,
+Config commands use metadata-bearing `qv-*` adapters and one owner here.
+Desktop lock, logout, and wake owners live under `qvcore/desktop/session/`.
+Retain matching metadata-free `omarchy-*` files only as external and
+saved-config compatibility routes. Native bindings, menus, sleep guards,
 screensavers, reinstall flows, and TUI tasks must call the qv route.
 
 `qvcore/config/timezone` owns both the direct searchable picker and the TUI-selected

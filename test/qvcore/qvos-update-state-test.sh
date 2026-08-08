@@ -95,9 +95,21 @@ install -m 0755 /dev/stdin "$test_bin/nohup" <<'SCRIPT'
 #!/bin/bash
 printf 'schedule:%s\n' "$*" >>"$QVOS_TEST_POWER_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-hyprland-window-close-all" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
-printf 'close-windows\n' >>"$QVOS_TEST_POWER_LOG"
+case ${1:-} in
+clients)
+  printf '[{"address":"0x1"}]\n'
+  ;;
+dispatch)
+  case ${2:-} in
+  closewindow) printf 'close-windows\n' >>"$QVOS_TEST_POWER_LOG" ;;
+  workspace) printf 'workspace:%s\n' "${3:-}" >>"$QVOS_TEST_POWER_LOG" ;;
+  *) exit 1 ;;
+  esac
+  ;;
+*) exit 1 ;;
+esac
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/sleep" <<'SCRIPT'
 #!/bin/bash
@@ -117,6 +129,7 @@ for ((attempt = 0; attempt < 100; attempt++)); do
 done
 grep -Fq 'qvos-power reboot' "$action_log" || fail "fixed reboot scheduling"
 grep -Fqx 'close-windows' "$action_log" || fail "window-close delegation"
+grep -Fqx 'workspace:1' "$action_log" || fail "post-close workspace"
 grep -Fqx 'grace:1' "$action_log" || fail "application shutdown grace"
 [[ ! -e $state_root/reboot-required ]] || fail "system power marker cleanup"
 

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/desktop/hyprland/window-close-all
+
+(($# == 0)) || {
+  echo "Usage: qv system logout" >&2
+  exit 2
+}
+
+session_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+desktop_root=$(cd -- "$session_root/.." && pwd)
+
+nohup "$session_root/logout-worker" >/dev/null 2>&1 &
+
+if ! "$desktop_root/hyprland/window-close-all"; then
+  echo "qvOS scheduled logout, but some windows could not be closed cleanly." >&2
+fi
+sleep 1

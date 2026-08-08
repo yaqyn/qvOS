@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qvcore/screensaver/close
+
 # Render the qvOS-colored TTE screensaver.
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 branding_lib="$QVOS_PATH/qvcore/branding/lib"
+close_owner="$QVOS_PATH/qvcore/screensaver/close"
 screen_text="$HOME/.config/qvos/branding/screensaver.txt"
 effect_count=15
 effect_pid=""
@@ -22,15 +25,6 @@ cleanup() {
   [[ -n $terminal_state ]] && stty "$terminal_state" 2>/dev/null || true
 
   return "$status"
-}
-
-close_screensaver_windows() {
-  local address
-
-  while IFS= read -r address; do
-    [[ -n $address ]] || continue
-    hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
-  done < <(hyprctl clients -j 2>/dev/null | jq -r '.[] | select((.class // "") == "org.omarchy.screensaver") | .address' 2>/dev/null || true)
 }
 
 input_detected() {
@@ -242,14 +236,14 @@ while true; do
 
   while kill -0 "$effect_pid" 2>/dev/null; do
     if input_detected; then
-      close_screensaver_windows
+      "$close_owner"
       exit 0
     fi
   done
 
   if ! wait "$effect_pid"; then
     effect_pid=""
-    close_screensaver_windows
+    "$close_owner" || true
     notify-send -u critical "qvOS Screensaver" "Animation effect failed" >/dev/null 2>&1 || true
     exit 1
   fi

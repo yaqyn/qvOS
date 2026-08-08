@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-for owner in qvos-launch-screensaver qvos-screensaver; do
+for owner in close qvos-launch-screensaver qvos-screensaver; do
   [[ -x $root/qvcore/screensaver/$owner ]] ||
     fail "screensaver owner mode: $owner"
 done
@@ -36,7 +36,7 @@ for route in "${!route_owners[@]}"; do
   done
 done
 
-expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver\nconfig/hypr/hypridle.conf'
+expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_manifest" ]] ||
   fail "screensaver native inventory is incomplete or unordered"
 
@@ -44,6 +44,12 @@ grep -Fq 'qv-cmd-present tte' "$root/qvcore/screensaver/qvos-launch-screensaver"
   fail "screensaver bypasses the native command helper"
 grep -Fq 'qv-hyprland-monitor-focused' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
   fail "screensaver bypasses the native monitor helper"
+# shellcheck disable=SC2016
+grep -Fq '"$close_owner"' "$root/qvcore/screensaver/qvos-screensaver" ||
+  fail "screensaver runner bypasses the shared close owner"
+if rg -q '^close_screensaver_windows\(\)' "$root/qvcore/screensaver/qvos-screensaver"; then
+  fail "screensaver runner duplicates the shared close owner"
+fi
 # shellcheck disable=SC2016
 grep -Fqx '    on-timeout = pidof hyprlock || ~/.local/lib/qvos/bin/qvos-launch-screensaver' \
   "$root/qvcore/config/files/hypr/hypridle.conf" ||

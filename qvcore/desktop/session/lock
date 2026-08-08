@@ -1,0 +1,82 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/controls/brightness
+# qvos:contract=qvcore/desktop/restart/process-lib
+# qvos:contract=qvcore/screensaver/close
+
+(($# == 0)) || {
+  echo "Usage: qv system lock" >&2
+  exit 2
+}
+
+lock_only=${QVOS_LOCK_ONLY:-${OMARCHY_LOCK_ONLY:-false}}
+[[ $lock_only == "true" || $lock_only == "false" ]] || {
+  echo "QVOS_LOCK_ONLY must be true or false." >&2
+  exit 2
+}
+
+session_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+desktop_root=$(cd -- "$session_root/.." && pwd)
+qvos_root=$(cd -- "$desktop_root/.." && pwd)
+process_lib="$desktop_root/restart/process-lib"
+screensaver_close="$qvos_root/screensaver/close"
+controls_root="$qvos_root/controls"
+
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$process_lib"
+mapfile -t lock_pids < <(qvos_process_exact_pids hyprlock)
+lock_ready=false
+if ((${#lock_pids[@]} == 0)); then
+  (
+    status=0
+    hyprlock || status=$?
+    "$session_root/wake" || true
+    exit "$status"
+  ) &
+  supervisor_pid=$!
+  lock_observations=0
+  for ((attempt = 0; attempt < 20; attempt++)); do
+    mapfile -t lock_pids < <(qvos_process_exact_pids hyprlock)
+    if ((${#lock_pids[@]} > 0)); then
+      ((lock_observations += 1))
+      if ((lock_observations >= 2)); then
+        lock_ready=true
+        break
+      fi
+    else
+      lock_observations=0
+    fi
+    kill -0 "$supervisor_pid" 2>/dev/null || break
+    sleep 0.05
+  done
+else
+  lock_ready=true
+fi
+
+if [[ $lock_ready == "false" ]]; then
+  if ! kill -0 "$supervisor_pid" 2>/dev/null; then
+    wait "$supervisor_pid" 2>/dev/null || true
+  fi
+  echo "qvOS could not start Hyprlock; the current screensaver was preserved." >&2
+  exit 1
+fi
+
+hyprctl switchxkblayout all 0 >/dev/null 2>&1 || true
+
+mapfile -t password_pids < <(qvos_process_exact_pids 1password)
+if ((${#password_pids[@]} > 0)) && command -v 1password >/dev/null; then
+  1password --lock >/dev/null 2>&1 &
+fi
+
+"$screensaver_close" >/dev/null 2>&1 || true
+
+if [[ $lock_only == "false" ]]; then
+  (
+    sleep 3
+    mapfile -t current_lock_pids < <(qvos_process_exact_pids hyprlock)
+    ((${#current_lock_pids[@]} > 0)) || exit 0
+    "$controls_root/brightness/keyboard" off >/dev/null 2>&1 || true
+    "$controls_root/brightness/display" off >/dev/null 2>&1 || true
+  ) &
+fi

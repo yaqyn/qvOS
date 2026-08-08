@@ -31,11 +31,21 @@ fail() {
   fail "duplicate Fastfetch config source remains"
 [[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
   fail "legacy branding config source remains"
+[[ ! -e $root/config/hypr/hypridle.conf && ! -L $root/config/hypr/hypridle.conf ]] ||
+  fail "duplicate top-level Hypridle source remains"
+[[ -f $root/qvcore/config/files/hypr/hypridle.conf &&
+  ! -L $root/qvcore/config/files/hypr/hypridle.conf ]] ||
+  fail "specialized native Hypridle source is unavailable"
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/hypr/hypridle.conf\nconfig/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
   fail "retired config inventory changed"
+
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/refresh" --owned hypr/hypridle.conf' \
+  "$root/qvcore/config/refresh-hypridle" ||
+  fail "Hypridle refresh bypasses its specialized native source"
 
 [[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"

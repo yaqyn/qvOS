@@ -22,7 +22,7 @@ qvcore/
   config/      qvOS config sources and reconciliation after Omarchy defaults.
   controls/    Audio, brightness, notification, and session OSD controls.
   defaults/    Browser, editor, and terminal default ownership.
-  desktop/     Shared context, web, Hyprland, and runtime restart owners.
+  desktop/     Shared context, web, Hyprland, session, and restart owners.
   direct/      Verified manifest-driven direct software and updates.
   font/        Installed font discovery and transactional configuration.
   hooks/       Private custom automation, installation, and state migration.

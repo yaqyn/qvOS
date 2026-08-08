@@ -23,8 +23,13 @@
     qvcore/desktop/context/qvos-launch-editor-here
     qvcore/desktop/context/qvos-launch-terminal-here
     qvcore/desktop/hyprland/qvos-toggle-special-window
+    qvcore/desktop/hyprland/window-close-all
     qvcore/desktop/open
     qvcore/desktop/runtime-paths
+    qvcore/desktop/session/lock
+    qvcore/desktop/session/logout
+    qvcore/desktop/session/logout-worker
+    qvcore/desktop/session/wake
     qvcore/desktop/web/qvos-localhost-open
     qvcore/desktop/web/qvos-website-open
     qvcore/direct/manifest.tsv
@@ -83,6 +88,7 @@
     qvcore/power/wifi-powersave
     qvcore/power/wifi-rule
     qvcore/screensaver/alacritty.toml
+    qvcore/screensaver/close
     qvcore/screensaver/install
     qvcore/screensaver/qvos-launch-screensaver
     qvcore/screensaver/qvos-screensaver

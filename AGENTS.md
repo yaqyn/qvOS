@@ -116,7 +116,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 - `config/` and `default/` remain reviewed sources only for domains not yet
   promoted
-- `qvcore/config/files/` owns specialized native installed sources
+- `qvcore/config/files/` owns specialized native installed sources; Hypridle
+  lives only there and its former top-level duplicate remains retired
 - `config/fastfetch/config.jsonc` is the singular Fastfetch source and reads
   private terminal art from `~/.config/qvos/branding`; never restore a
   `qvcore/config/files/fastfetch` overlay or active Omarchy branding state
@@ -127,6 +128,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   privately under `~/.local/state/qvos/toggles`
 - `qvcore/hooks/` owns custom automation under `~/.config/qvos/hooks`; qvOS
   system jobs execute from their tracked feature owners, never user copies
+- `qvcore/desktop/session/` owns native lock, logout, and wake behavior;
+  qvOS config and menus call its `qv-system-*` routes, while exact
+  `omarchy-system-*` names remain external compatibility adapters only
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
 - update and restart markers live privately under

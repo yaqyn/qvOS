@@ -3,10 +3,12 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 
+# qvos:contract=qvcore/config/files/hypr/hypridle.conf
+
 if (($# != 0)); then
   printf 'Usage: qv refresh hypridle\n' >&2
   exit 2
 fi
 
-"$QVOS_PATH/qvcore/config/refresh" hypr/hypridle.conf
+"$QVOS_PATH/qvcore/config/refresh" --owned hypr/hypridle.conf
 "$QVOS_PATH/qvcore/desktop/restart/hypridle"

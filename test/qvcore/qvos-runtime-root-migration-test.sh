@@ -51,11 +51,16 @@ bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear
 bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show
 bindd = SUPER CTRL, V, Clipboard manager, exec, omarchy-launch-walker -m clipboard
 bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
+bindd = CTRL ALT, DELETE, Close all windows, exec, omarchy-hyprland-window-close-all
+bindd = SUPER CTRL, L, Lock system, exec, omarchy-system-lock
 bindd = , PRINT, Screenshot, exec, omarchy-capture-screenshot
 bindd = SUPER CTRL, PRINT, Extract text, exec, omarchy-capture-text-extraction
 bindd = SUPER CTRL, PERIOD, Transcode, exec, omarchy-transcode
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
+lock_cmd = omarchy-system-lock
+before_sleep_cmd = OMARCHY_LOCK_ONLY=true omarchy-system-lock
+after_sleep_cmd = sleep 1 && omarchy-system-wake
 exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
@@ -125,7 +130,11 @@ for command in \
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted menu route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen|transcode)' \
+for command in qv-hyprland-window-close-all qv-system-lock; do
+  grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
+    fail "promoted desktop session route was not migrated: $command"
+done
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|window-close-all)|launch-walker|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
@@ -135,6 +144,15 @@ grep -Fq '.local/lib/qvos/bin/qvos-launch-screensaver' \
 grep -Fq '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
   "$test_home/.config/hypr/hypridle.conf" ||
   fail "suspend runtime migration"
+grep -Fq 'QVOS_LOCK_ONLY=true qv-system-lock' \
+  "$test_home/.config/hypr/hypridle.conf" ||
+  fail "lock-only session policy migration"
+grep -Fq 'qv-system-wake' "$test_home/.config/hypr/hypridle.conf" ||
+  fail "wake route migration"
+if rg -q 'OMARCHY_LOCK_ONLY|omarchy-system-(lock|wake)' \
+  "$test_home/.config/hypr/hypridle.conf"; then
+  fail "desktop session compatibility policy remains after migration"
+fi
 grep -Fq 'qv-battery-status' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar battery telemetry migration"
 grep -Fq 'qv-tz-select' "$test_home/.config/waybar/config.jsonc" ||

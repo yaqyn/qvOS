@@ -1,6 +1,7 @@
 # Inherited desktop helpers and restart commands promoted to native qvOS ownership.
 bin/omarchy-hyprland-monitor-focused
 bin/omarchy-hyprland-monitor-focused-apple
+bin/omarchy-hyprland-window-close-all
 bin/omarchy-restart-app
 bin/omarchy-restart-bluetooth
 bin/omarchy-restart-btop
@@ -19,3 +20,6 @@ bin/omarchy-restart-walker
 bin/omarchy-restart-waybar
 bin/omarchy-restart-wifi
 bin/omarchy-restart-xcompose
+bin/omarchy-system-lock
+bin/omarchy-system-logout
+bin/omarchy-system-wake

@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv hyprland window-close-all" >&2
+  exit 2
+}
+
+clients_json=$(hyprctl clients -j) || {
+  echo "Could not read Hyprland clients." >&2
+  exit 1
+}
+if ! jq -e '
+  type == "array" and
+  all(.[];
+    (.address | type) == "string" and
+    (.address | test("^0x[0-9A-Fa-f]+$")))
+' >/dev/null 2>&1 <<<"$clients_json"; then
+  echo "Hyprland returned an invalid window inventory." >&2
+  exit 1
+fi
+
+mapfile -t addresses < <(jq -r '.[].address' <<<"$clients_json")
+status=0
+for address in "${addresses[@]}"; do
+  hyprctl dispatch closewindow "address:$address" >/dev/null || status=1
+done
+hyprctl dispatch workspace 1 >/dev/null || status=1
+
+((status == 0)) || {
+  echo "Could not close every Hyprland window or select workspace 1." >&2
+  exit 1
+}

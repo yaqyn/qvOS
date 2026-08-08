@@ -27,6 +27,10 @@ done <<<"$runtime_paths"
 declare -A helper_owners=(
   [hyprland-monitor-focused]=hyprland/focused-monitor
   [hyprland-monitor-focused-apple]=hyprland/focused-monitor-apple
+  [hyprland-window-close-all]=hyprland/window-close-all
+  [system-lock]=session/lock
+  [system-logout]=session/logout
+  [system-wake]=session/wake
 )
 for helper in "${!helper_owners[@]}"; do
   native_adapter="$root/bin/qv-$helper"
@@ -34,6 +38,10 @@ for helper in "${!helper_owners[@]}"; do
   owner="qvcore/desktop/${helper_owners[$helper]}"
   [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
     fail "desktop helper owner or adapter is unavailable: $helper"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native desktop helper contains implementation: $helper"
+  (( $(wc -l <"$compatibility_adapter") <= 6 )) ||
+    fail "desktop helper compatibility adapter contains implementation: $helper"
   rg -q '^# qv:summary=' "$native_adapter" ||
     fail "native desktop helper lacks metadata: $helper"
   ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
@@ -43,6 +51,8 @@ for helper in "${!helper_owners[@]}"; do
       fail "desktop helper adapter does not delegate directly: $helper"
   done
 done
+[[ -x $root/qvcore/desktop/session/logout-worker ]] ||
+  fail "desktop logout worker is unavailable"
 
 while IFS= read -r inherited_path; do
   stem=${inherited_path##*/omarchy-restart-}
@@ -94,5 +104,17 @@ if rg -n 'omarchy-hyprland-monitor-focused' \
   --glob '!**/desktop/check'; then
   fail "native qvOS source still calls a monitor-helper compatibility command"
 fi
+if rg -n 'omarchy-(hyprland-window-close-all|system-(lock|logout|wake))' \
+  "$root/qvcore/config/files" \
+  "$root/qvcore/menu" \
+  "$root/qvcore/power" \
+  "$root/config/hypr" \
+  "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md'; then
+  fail "native qvOS source still calls a session compatibility command"
+fi
+if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
+  fail "desktop session owner bypasses exact process matching"
+fi
 
-printf 'qvOS desktop restart ownership check passed.\n'
+printf 'qvOS desktop runtime ownership check passed.\n'

@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qvcore/screensaver/close" >&2
+  exit 2
+}
+
+clients_json=$(hyprctl clients -j 2>/dev/null) || {
+  echo "Could not read Hyprland clients while closing the qvOS screensaver." >&2
+  exit 1
+}
+if ! jq -e '
+  type == "array" and
+  all(.[] | select((.class // "") == "org.omarchy.screensaver");
+    (.address | type) == "string" and
+    (.address | test("^0x[0-9A-Fa-f]+$")))
+' >/dev/null 2>&1 <<<"$clients_json"; then
+  echo "Hyprland returned an invalid qvOS screensaver window inventory." >&2
+  exit 1
+fi
+
+mapfile -t addresses < <(
+  jq -r '.[] | select((.class // "") == "org.omarchy.screensaver") | .address' \
+    <<<"$clients_json"
+)
+status=0
+for address in "${addresses[@]}"; do
+  hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || status=1
+done
+
+((status == 0)) || {
+  echo "Could not close every qvOS screensaver window." >&2
+  exit 1
+}

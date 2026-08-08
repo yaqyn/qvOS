@@ -28,7 +28,6 @@ for owner in refresh-hypridle refresh-hyprlock refresh-hyprsunset refresh-swayos
     "$source_root/qvcore/config/$owner"
 done
 for config_path in \
-  hypr/hypridle.conf \
   hypr/hyprlock.conf \
   hypr/hyprsunset.conf \
   swayosd/config.toml \
@@ -36,6 +35,8 @@ for config_path in \
   install -D -m 0644 "$root/config/$config_path" \
     "$source_root/config/$config_path"
 done
+install -D -m 0644 "$root/qvcore/config/files/hypr/hypridle.conf" \
+  "$source_root/qvcore/config/files/hypr/hypridle.conf"
 for service in hypridle hyprsunset swayosd; do
   install -D -m 0755 /dev/stdin \
     "$source_root/qvcore/desktop/restart/$service" <<'RESTART'
@@ -57,7 +58,6 @@ run_owner "$source_root/qvcore/config/refresh-hyprsunset"
 run_owner "$source_root/qvcore/config/refresh-swayosd"
 
 for config_path in \
-  hypr/hypridle.conf \
   hypr/hyprlock.conf \
   hypr/hyprsunset.conf \
   swayosd/config.toml \
@@ -65,6 +65,10 @@ for config_path in \
   cmp -s "$root/config/$config_path" "$test_home/.config/$config_path" ||
     fail "refreshed config mismatch: $config_path"
 done
+cmp -s \
+  "$root/qvcore/config/files/hypr/hypridle.conf" \
+  "$test_home/.config/hypr/hypridle.conf" ||
+  fail "refreshed specialized Hypridle config mismatch"
 [[ $(<"$restart_log") == $'hypridle\nhyprsunset\nswayosd' ]] ||
   fail "refresh restart order"
 pass "native config refresh owners restore exact defaults before restart"

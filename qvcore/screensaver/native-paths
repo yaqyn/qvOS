@@ -1,4 +1,3 @@
 # Inherited screensaver paths promoted to native qvOS ownership.
 bin/omarchy-launch-screensaver
 bin/omarchy-screensaver
-config/hypr/hypridle.conf
