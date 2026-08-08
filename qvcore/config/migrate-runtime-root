@@ -140,7 +140,10 @@ rewrite_literals \
   '~/.config/omarchy/branding/about-fastfetch.ansi' \
   '~/.config/qvos/branding/about.txt' \
   '~/.config/omarchy/branding/about.txt' \
-  '~/.config/qvos/branding/about.txt'
+  '~/.config/qvos/branding/about.txt' \
+  'omarchy-theme-current' 'qv-theme-current' \
+  'omarchy-version-pkgs' 'qv-version-pkgs' \
+  'omarchy-version' 'qv-version'
 rewrite_literals \
   "$HOME/.config/uwsm/default" \
   'OMARCHY_SCREENSHOT_DIR' 'QVOS_SCREENSHOT_DIR' \

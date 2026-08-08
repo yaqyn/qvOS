@@ -62,7 +62,7 @@ install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
 {"battery":"$(omarchy-battery-status)","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/fastfetch/config.jsonc" <<'CONFIG'
-{"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"}}
+{"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"},"modules":[{"text":"$(omarchy-version)"},{"text":"$(omarchy-theme-current)"},{"text":"$(omarchy-version-pkgs)"}]}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -162,6 +162,14 @@ grep -Fq '~/.config/qvos/branding/about.txt' \
 if grep -Fq '~/.config/omarchy/branding/' \
   "$test_home/.config/fastfetch/config.jsonc"; then
   fail "Fastfetch legacy branding state remains"
+fi
+for command in qv-theme-current qv-version qv-version-pkgs; do
+  grep -Fq "$command" "$test_home/.config/fastfetch/config.jsonc" ||
+    fail "Fastfetch native command migration: $command"
+done
+if rg -q 'omarchy-(theme-current|version)' \
+  "$test_home/.config/fastfetch/config.jsonc"; then
+  fail "Fastfetch compatibility command remains"
 fi
 grep -Fq '.local/lib/qvos/thunar/open-here' \
   "$test_home/.config/Thunar/uca.xml" ||
