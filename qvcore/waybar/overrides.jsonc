@@ -10,7 +10,7 @@
     "tooltip-format": "qvOS update available"
   },
   "network": {
-    "on-click-right": "omarchy-launch-qvos-task dns-configure"
+    "on-click-right": "qv-launch-task dns-configure"
   },
   "custom/prayerbar": {
     "format": "{}",
@@ -26,7 +26,7 @@
     "interval": 60,
     "signal": 12,
     "exec": "~/.local/lib/qvos/waybar/clock.sh",
-    "on-click-right": "omarchy-launch-qvos-task timezone",
+    "on-click-right": "qv-launch-task timezone",
     "return-type": "json"
   },
   "group/prayer-clock": {

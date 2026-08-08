@@ -17,6 +17,8 @@ fail() {
 
 install -d "$test_bin"
 
+"$root/qvcore/waybar/check" >/dev/null || fail "Waybar owner contract"
+
 cat >"$test_bin/qv-restart-waybar" <<'STUB'
 #!/bin/bash
 touch "$HOME/waybar-restarted"
@@ -24,7 +26,7 @@ STUB
 
 chmod 0755 "$test_bin/qv-restart-waybar"
 
-PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
+PATH="$test_bin:$PATH" HOME="$test_root" QVOS_PATH="$root" \
   bash "$root/qvcore/waybar/refresh"
 [[ -f $test_root/waybar-restarted ]] || fail "Waybar restart"
 
@@ -56,15 +58,15 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
-  (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
+  (."network"."on-click-right" == "qv-launch-task dns-configure") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
   (."custom/prayerbar".exec == "~/.local/lib/qvos/waybar/prayerbar.sh") and
   (."custom/qv-clock".exec == "~/.local/lib/qvos/waybar/clock.sh") and
-  (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone")
+  (."custom/qv-clock"."on-click-right" == "qv-launch-task timezone")
 ' "$live_config" >/dev/null || fail "prayer clock overlay"
 
-PATH="$test_bin:$PATH" HOME="$test_root" OMARCHY_PATH="$root" \
+PATH="$test_bin:$PATH" HOME="$test_root" QVOS_PATH="$root" \
   bash "$root/qvcore/waybar/refresh"
 if compgen -G "$test_root/.config/waybar/config.jsonc.bak.*" >/dev/null; then
   fail "unchanged refresh backup cleanup"
@@ -105,7 +107,7 @@ jq '
   | .["modules-right"] |= map(select(. != "clock"))
 ' "$source_config" >"$no_clock_config"
 
-PATH="$test_bin:$PATH" HOME="$no_clock_home" OMARCHY_PATH="$no_clock_root" \
+PATH="$test_bin:$PATH" HOME="$no_clock_home" QVOS_PATH="$no_clock_root" \
   bash "$root/qvcore/waybar/refresh"
 no_clock_live="$no_clock_home/.config/waybar/config.jsonc"
 
@@ -147,7 +149,7 @@ jq '
   | ."future-omarchy-setting" = true
 ' "$source_config" >"$sparse_config"
 
-PATH="$test_bin:$PATH" HOME="$sparse_home" OMARCHY_PATH="$sparse_root" \
+PATH="$test_bin:$PATH" HOME="$sparse_home" QVOS_PATH="$sparse_root" \
   bash "$root/qvcore/waybar/refresh"
 sparse_live="$sparse_home/.config/waybar/config.jsonc"
 
@@ -162,7 +164,7 @@ custom_config="$custom_home/.config/waybar/config.jsonc"
 install -D -m 0644 "$source_config" "$custom_config"
 jq '."personal-setting" = true' "$custom_config" >"$custom_config.tmp"
 mv "$custom_config.tmp" "$custom_config"
-PATH="$test_bin:$PATH" HOME="$custom_home" OMARCHY_PATH="$root" \
+PATH="$test_bin:$PATH" HOME="$custom_home" QVOS_PATH="$root" \
   bash "$root/qvcore/waybar/refresh" >/dev/null
 custom_backup="$(find "$custom_home/.config/waybar" -maxdepth 1 -name 'config.jsonc.bak.*' -print -quit)"
 [[ -n $custom_backup ]] || fail "changed Waybar config backup"
@@ -178,7 +180,7 @@ install -D -m 0755 "$root/qvcore/config/refresh-upstream" \
   "$invalid_root/qvcore/config/refresh-upstream"
 install -D -m 0644 "$source_config" "$invalid_live"
 printf '[]\n' >"$invalid_root/config/waybar/config.jsonc"
-if PATH="$test_bin:$PATH" HOME="$invalid_home" OMARCHY_PATH="$invalid_root" \
+if PATH="$test_bin:$PATH" HOME="$invalid_home" QVOS_PATH="$invalid_root" \
   bash "$root/qvcore/waybar/refresh" >/dev/null 2>&1; then
   fail "invalid Waybar config rejection"
 fi
@@ -188,9 +190,9 @@ cmp -s "$source_config" "$invalid_live" || fail "invalid Waybar config preservat
 fresh_home="$test_root/fresh-home"
 install -d "$fresh_home/.local/share"
 ln -s "$root" "$fresh_home/.local/share/omarchy"
-PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
-  QVOS_PATH="$root" bash "$root/qvcore/install/config/config.sh"
-PATH="$test_bin:$PATH" HOME="$fresh_home" OMARCHY_PATH="$root" \
+PATH="$test_bin:$PATH" HOME="$fresh_home" QVOS_PATH="$root" \
+  bash "$root/qvcore/install/config/config.sh"
+PATH="$test_bin:$PATH" HOME="$fresh_home" QVOS_PATH="$root" \
   QVOS_WAYBAR_SKIP_RESTART=1 bash "$root/qvcore/waybar/refresh"
 
 jq -e --slurpfile source "$source_config" '
@@ -199,8 +201,8 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
-  (."network"."on-click-right" == "omarchy-launch-qvos-task dns-configure") and
-  (."custom/qv-clock"."on-click-right" == "omarchy-launch-qvos-task timezone") and
+  (."network"."on-click-right" == "qv-launch-task dns-configure") and
+  (."custom/qv-clock"."on-click-right" == "qv-launch-task timezone") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")
 ' "$fresh_home/.config/waybar/config.jsonc" >/dev/null || fail "fresh install Waybar overlay"
 if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then
@@ -208,14 +210,69 @@ if compgen -G "$fresh_home/.config/waybar/config.jsonc.bak.*" >/dev/null; then
 fi
 [[ ! -e $fresh_home/waybar-restarted ]] || fail "fresh install Waybar restart"
 
-cat >"$test_bin/omarchy-qvos-refresh-waybar" <<'STUB'
+cat >"$test_bin/qv-refresh-waybar" <<'STUB'
 #!/bin/bash
 touch "$HOME/waybar-refreshed"
 STUB
-chmod 0755 "$test_bin/omarchy-qvos-refresh-waybar"
+chmod 0755 "$test_bin/qv-refresh-waybar"
 
 PATH="$test_bin:$PATH" HOME="$test_root" \
   bash "$root/qvcore/waybar/post-update-hook"
 [[ -f $test_root/waybar-refreshed ]] || fail "post-update prayer clock refresh"
+
+runtime_home="$test_root/runtime-home"
+install -d "$runtime_home/.local/lib/qvos/waybar"
+touch "$runtime_home/.local/lib/qvos/waybar/stale-owner"
+HOME="$runtime_home" QVOS_PATH="$root" "$root/qvcore/waybar/install"
+runtime_inventory=$(find "$runtime_home/.local/lib/qvos/waybar" \
+  -type f -printf '%P\n' | sort)
+[[ $runtime_inventory == $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] ||
+  fail "minimal Waybar runtime inventory"
+for runtime_path in clock.sh prayer-data.sh prayerbar.sh; do
+  cmp -s \
+    "$root/qvcore/waybar/$runtime_path" \
+    "$runtime_home/.local/lib/qvos/waybar/$runtime_path" ||
+    fail "Waybar runtime source: $runtime_path"
+done
+
+unsafe_home="$test_root/unsafe-runtime-home"
+foreign_runtime="$test_root/foreign-waybar-runtime"
+install -d "$unsafe_home/.local/lib/qvos" "$foreign_runtime"
+touch "$foreign_runtime/preserve"
+ln -s "$foreign_runtime" "$unsafe_home/.local/lib/qvos/waybar"
+if HOME="$unsafe_home" QVOS_PATH="$root" \
+  "$root/qvcore/waybar/install" >/dev/null 2>&1; then
+  fail "symbolic-link Waybar runtime rejection"
+fi
+[[ -e $foreign_runtime/preserve && ! -e $foreign_runtime/clock.sh ]] ||
+  fail "symbolic-link Waybar runtime preservation"
+
+incomplete_home="$test_root/incomplete-runtime-home"
+incomplete_source="$test_root/incomplete-source"
+install -d \
+  "$incomplete_home/.local/lib/qvos/waybar" \
+  "$incomplete_source/qvcore/waybar"
+touch "$incomplete_home/.local/lib/qvos/waybar/preserve"
+printf 'missing.sh\n' >"$incomplete_source/qvcore/waybar/runtime-paths"
+if HOME="$incomplete_home" QVOS_PATH="$incomplete_source" \
+  "$root/qvcore/waybar/install" >/dev/null 2>&1; then
+  fail "incomplete Waybar runtime source rejection"
+fi
+[[ -e $incomplete_home/.local/lib/qvos/waybar/preserve ]] ||
+  fail "incomplete Waybar runtime preservation"
+
+for adapter in qv-refresh-waybar omarchy-refresh-waybar; do
+  HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:$PATH" \
+    QVOS_WAYBAR_SKIP_RESTART=1 "$root/bin/$adapter" --status ||
+    fail "$adapter owner delegation"
+done
+rg -q '^# qv:summary=' "$root/bin/qv-refresh-waybar" ||
+  fail "native Waybar adapter metadata"
+! rg -q '^# (qv|omarchy):' "$root/bin/omarchy-refresh-waybar" ||
+  fail "compatibility Waybar adapter metadata"
+[[ ! -e $root/bin/omarchy-qvos-refresh-waybar ]] ||
+  fail "retired qvOS-in-Omarchy Waybar route"
+[[ ! -e $root/bin/omarchy-launch-qvos-task ]] ||
+  fail "retired qvOS-in-Omarchy task route"
 
 printf 'ok - qvOS applies only its narrow Waybar overrides\n'

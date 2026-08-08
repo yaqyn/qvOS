@@ -269,6 +269,7 @@ Root-started sessions must read every matching route completely before editing:
 - DNS, WARP, and privileged resolver policy: `qvcore/network/AGENTS.md`
 - Picture, video, and terminal-art conversion: `qvcore/transcode/AGENTS.md`
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`
+- Waybar overlay, runtime modules, refresh, and task actions: `qvcore/waybar/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
 - qvOS Hyprland and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`

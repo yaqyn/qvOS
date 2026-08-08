@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Apply qvOS Waybar defaults with qvOS overrides
-# omarchy:group=qvos
-# omarchy:name=refresh waybar
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/waybar/refresh" "$@"

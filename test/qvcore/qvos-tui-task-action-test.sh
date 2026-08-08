@@ -9,6 +9,9 @@ test_bin="$test_root/bin"
 capture="$test_root/capture"
 owner_log="$test_root/owner.log"
 
+# Exercise the explicit compatibility root without inheriting a live source.
+unset QVOS_PATH
+
 cleanup() {
   rm -rf -- "$test_root"
 }

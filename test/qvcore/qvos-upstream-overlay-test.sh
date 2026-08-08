@@ -298,14 +298,14 @@ pass "fresh installation owns every reviewed configuration capability natively"
 public_adapters=(
   bin/omarchy-battery-protection
   bin/omarchy-install-qvcore
-  bin/omarchy-launch-qvos-task
   bin/omarchy-launch-update
   bin/omarchy-qvcore-remove
-  bin/omarchy-qvos-refresh-waybar
   bin/omarchy-share
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep
   bin/omarchy-system-suspend-if-safe
+  bin/qv-launch-task
+  bin/qv-refresh-waybar
 )
 
 for path in "${public_adapters[@]}"; do

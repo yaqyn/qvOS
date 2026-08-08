@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/waybar/native-paths"
+runtime_manifest="$root/qvcore/waybar/runtime-paths"
+
+fail() {
+  printf 'qvOS Waybar check: %s\n' "$1" >&2
+  exit 1
+}
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
+  "bin/omarchy-refresh-waybar" ]] || fail "native Waybar inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest") == \
+  $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] || fail "Waybar runtime inventory"
+
+for owner in check install refresh; do
+  [[ -x $root/qvcore/waybar/$owner && ! -L $root/qvcore/waybar/$owner ]] ||
+    fail "native Waybar owner: $owner"
+done
+for runtime_path in clock.sh prayer-data.sh prayerbar.sh; do
+  [[ -f $root/qvcore/waybar/$runtime_path && ! -L $root/qvcore/waybar/$runtime_path ]] ||
+    fail "Waybar runtime source: $runtime_path"
+done
+
+native="$root/bin/qv-refresh-waybar"
+compatibility="$root/bin/omarchy-refresh-waybar"
+[[ -x $native && -x $compatibility ]] || fail "Waybar adapter modes"
+rg -q '^# qv:summary=' "$native" || fail "native Waybar metadata"
+! rg -q '^# (qv|omarchy):' "$compatibility" ||
+  fail "compatibility Waybar metadata"
+for adapter in "$native" "$compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/waybar/refresh" "$@"' "$adapter" ||
+    fail "Waybar adapter bypasses native owner"
+done
+
+[[ -x $root/bin/qv-launch-task ]] || fail "native task launcher mode"
+rg -q '^# qv:summary=' "$root/bin/qv-launch-task" ||
+  fail "native task launcher metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/tui/task/launch" "$@"' \
+  "$root/bin/qv-launch-task" || fail "native task launcher owner"
+
+for obsolete in \
+  bin/omarchy-launch-qvos-task \
+  bin/omarchy-qvos-refresh-waybar; do
+  [[ ! -e $root/$obsolete && ! -L $root/$obsolete ]] ||
+    fail "obsolete qvOS-in-Omarchy route: $obsolete"
+done
+if rg -n 'omarchy-(launch-qvos-task|qvos-refresh-waybar)' \
+  "$root/qvcore" "$root/config" \
+  --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/owner-contracts.psv'; then
+  fail "native qvOS source calls a retired Waybar or task route"
+fi
+
+jq -e '
+  ."network"."on-click-right" == "qv-launch-task dns-configure" and
+  ."custom/qv-clock"."on-click-right" == "qv-launch-task timezone"
+' "$root/qvcore/waybar/overrides.jsonc" >/dev/null ||
+  fail "Waybar task routes"
+grep -Fqx 'qv-refresh-waybar' "$root/qvcore/waybar/post-update-hook" ||
+  fail "Waybar post-update route"
+
+printf 'ok - qvOS owns one narrow Waybar overlay and runtime payload\n'

@@ -998,7 +998,7 @@ pass "LocalSend menu follows command availability"
 
 jq -e '
   ."network"."on-click-right"
-    == "omarchy-launch-qvos-task dns-configure"
+    == "qv-launch-task dns-configure"
 ' "$root/qvcore/waybar/overrides.jsonc" >/dev/null ||
   fail "Waybar network DNS route"
 pass "network surfaces reuse their established owners"

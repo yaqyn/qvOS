@@ -2,15 +2,20 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-waybar_source="$OMARCHY_PATH/config/waybar/config.jsonc"
-qvos_overrides="$OMARCHY_PATH/qvcore/waybar/overrides.jsonc"
+waybar_source="$QVOS_PATH/config/waybar/config.jsonc"
+qvos_overrides="$QVOS_PATH/qvcore/waybar/overrides.jsonc"
 waybar_config="$HOME/.config/waybar/config.jsonc"
-waybar_style_source="$OMARCHY_PATH/config/waybar/style.css"
+waybar_style_source="$QVOS_PATH/config/waybar/style.css"
 waybar_style="$HOME/.config/waybar/style.css"
 mode=${1:---reset}
 merged_config=$(mktemp)
-trap 'rm -f "$merged_config"' EXIT
+staged_config=""
+
+cleanup() {
+  rm -f -- "$merged_config"
+  [[ -z $staged_config ]] || rm -f -- "$staged_config"
+}
+trap cleanup EXIT
 
 case $mode in
 --reset | --status) ;;
@@ -72,18 +77,22 @@ fi
 if ((config_changed)) &&
   [[ -f $waybar_config ]] &&
   ! cmp -s "$waybar_source" "$waybar_config"; then
-  backup_config="$waybar_config.bak.$(date +%s)"
-  cp -f "$waybar_config" "$backup_config"
+  backup_config=$(mktemp "$waybar_config.bak.XXXXXXXX")
+  cp --preserve=all -- "$waybar_config" "$backup_config"
   printf 'Updated qvOS Waybar integration.\nSaved backup as %s.\n' \
     "$backup_config"
 fi
 
 install -d "$(dirname -- "$waybar_config")"
 if ((config_changed)); then
-  install -m 0644 "$merged_config" "$waybar_config"
+  staged_config=$(mktemp "$(dirname -- "$waybar_config")/.config.jsonc.XXXXXXXX")
+  install -m 0644 "$merged_config" "$staged_config"
+  mv -f -- "$staged_config" "$waybar_config"
+  staged_config=""
 fi
 if ((style_changed)); then
-  "$OMARCHY_PATH/qvcore/config/refresh-upstream" waybar/style.css
+  OMARCHY_PATH=$QVOS_PATH \
+    "$QVOS_PATH/qvcore/config/refresh-upstream" waybar/style.css
 fi
 
 if ((config_changed || style_changed)) &&

@@ -111,6 +111,9 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
 
 - Launch desktop TUI windows through `qvcore/tui/launch`; the shared
   `org.qvos.tui` class owns the centered 1024x509 floating stage.
+- `qv-launch-task` is the native command fallback for fixed task slugs when a
+  caller cannot use the checked runtime path directly. Active qvOS surfaces
+  never call the retired `omarchy-launch-qvos-task` namespace.
 - Model roles are semantic: CORE (beating red/grayscale) is the hub identity,
   three rings are system-critical or high-impact operations, two rings are
   simple Software installs/removals, and one ring is an ordinary safe task or

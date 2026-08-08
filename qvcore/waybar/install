@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_root="$QVOS_PATH/qvcore/waybar"
+manifest="$source_root/runtime-paths"
+runtime_parent="$HOME/.local/lib/qvos"
+runtime_root="$runtime_parent/waybar"
+stage=""
+backup=""
+restore=false
+installed_count=0
+
+cleanup() {
+  local status=$?
+
+  if [[ -n $stage && -d $stage ]]; then
+    rm -rf -- "$stage"
+  fi
+  if [[ $restore == "true" && ! -e $runtime_root && -d $backup ]]; then
+    mv -- "$backup" "$runtime_root" || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+[[ -f $manifest && ! -L $manifest ]] || {
+  echo "Missing qvOS Waybar runtime manifest: $manifest" >&2
+  exit 1
+}
+[[ ! -L $runtime_root ]] || {
+  echo "Refusing symbolic-link qvOS Waybar runtime: $runtime_root" >&2
+  exit 1
+}
+[[ ! -e $runtime_root || -d $runtime_root ]] || {
+  echo "Refusing non-directory qvOS Waybar runtime: $runtime_root" >&2
+  exit 1
+}
+
+install -d "$runtime_parent"
+stage=$(mktemp -d "$runtime_parent/.waybar-stage.XXXXXX")
+
+while IFS= read -r runtime_path; do
+  [[ $runtime_path == \#* || -z $runtime_path ]] && continue
+  [[ $runtime_path =~ ^[a-z0-9][a-z0-9._/-]*$ && $runtime_path != *..* ]] || {
+    echo "Invalid qvOS Waybar runtime path: $runtime_path" >&2
+    exit 1
+  }
+
+  source_path="$source_root/$runtime_path"
+  [[ -f $source_path && ! -L $source_path ]] || {
+    echo "Unsafe qvOS Waybar runtime source: $source_path" >&2
+    exit 1
+  }
+  install -D -m "$(stat -c '%a' -- "$source_path")" \
+    "$source_path" "$stage/$runtime_path"
+  ((installed_count += 1))
+done <"$manifest"
+((installed_count > 0)) || {
+  echo "The qvOS Waybar runtime manifest is empty." >&2
+  exit 1
+}
+
+if [[ -d $runtime_root ]]; then
+  backup=$(mktemp -d "$runtime_parent/.waybar-backup.XXXXXX")
+  rmdir -- "$backup"
+  mv -- "$runtime_root" "$backup"
+  restore=true
+fi
+
+mv -- "$stage" "$runtime_root"
+stage=""
+restore=false
+if [[ -n $backup ]]; then
+  rm -rf -- "$backup"
+  backup=""
+fi
+trap - EXIT

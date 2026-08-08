@@ -128,11 +128,13 @@
     qvcore/windows/launch
     qvcore/tmux/qvos-tmux
     qvcore/waybar/clock.sh
+    qvcore/waybar/install
     qvcore/waybar/overrides.jsonc
     qvcore/waybar/post-update-hook
     qvcore/waybar/prayer-data.sh
     qvcore/waybar/prayerbar.sh
     qvcore/waybar/refresh
+    qvcore/waybar/runtime-paths
   )
   for source_path in "${required_sources[@]}"; do
     if [[ ! -f $QVOS_PATH/$source_path ]]; then
@@ -151,13 +153,15 @@
 
   "$QVOS_PATH/qvcore/install/cleanup-obsolete"
 
-  for feature in direct tmux waybar; do
+  for feature in direct tmux; do
     feature_source="$QVOS_PATH/qvcore/$feature"
     feature_runtime="$HOME/.local/lib/qvos/$feature"
 
     rm -rf -- "$feature_runtime"
     cp -a "$feature_source" "$feature_runtime"
   done
+
+  "$QVOS_PATH/qvcore/waybar/install"
 
   desktop_source="$QVOS_PATH/qvcore/desktop"
   desktop_runtime="$HOME/.local/lib/qvos/desktop"

@@ -596,7 +596,7 @@ show_update_config_menu() {
   *Swayosd*) present_terminal omarchy-refresh-swayosd ;;
   *Tmux*) present_terminal omarchy-refresh-tmux ;;
   *Walker*) present_terminal omarchy-refresh-walker ;;
-  *Waybar*) present_terminal omarchy-qvos-refresh-waybar ;;
+  *Waybar*) present_terminal qv-refresh-waybar ;;
   *) show_update_menu ;;
   esac
 }

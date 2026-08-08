@@ -109,6 +109,9 @@ DNS policy likewise mutates only through the root-owned
 `/usr/lib/qvos/network/dns-policy` helper. Desktop reconciliation installs its
 exact source before any user can select a provider; fresh installation never
 chooses, changes, or activates a DNS provider automatically.
+Waybar runtime reconciliation installs only the clock and prayer modules from
+`qvcore/waybar/runtime-paths`; source policy, checks, refresh owners, hooks, and
+configuration overlays never enter `~/.local/lib/qvos/waybar`.
 Install private About and screensaver customization only through
 `qvcore/branding/install`; desktop reconciliation invokes it before the
 screensaver runtime. Never copy top-level logo assets or write active

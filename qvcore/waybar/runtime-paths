@@ -1,0 +1,4 @@
+# Source-relative qvOS Waybar modules installed into ~/.local/lib/qvos/waybar.
+clock.sh
+prayer-data.sh
+prayerbar.sh

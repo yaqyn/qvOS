@@ -126,7 +126,7 @@ touch "$external_screensaver/preserve"
 ln -s \
   "$external_screensaver" \
   "$unsafe_screensaver_home/.local/lib/qvos/screensaver"
-if HOME="$unsafe_screensaver_home" OMARCHY_PATH="$root" \
+if HOME="$unsafe_screensaver_home" QVOS_PATH="$root" \
   "$root/qvcore/screensaver/install" >/dev/null 2>&1; then
   fail "symbolic-link screensaver runtime"
 fi
@@ -323,11 +323,19 @@ pass "retired Thunar launch state converges on its native runtime owner"
 [[ ! -e $root/qvcore/scripts ]] || fail "orphaned generic script namespace"
 pass "every private helper has a feature owner"
 
-for feature in direct tmux waybar; do
+for feature in direct tmux; do
   expected_feature="$(find "$root/qvcore/$feature" -type f -printf '%P\n' | sort)"
   installed_feature="$(find "$test_root/.local/lib/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
 done
+expected_waybar=$(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+    "$root/qvcore/waybar/runtime-paths"
+)
+installed_waybar=$(
+  find "$test_root/.local/lib/qvos/waybar" -type f -printf '%P\n' | sort
+)
+[[ $installed_waybar == "$expected_waybar" ]] || fail "Waybar runtime inventory"
 expected_desktop=$(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$root/qvcore/desktop/runtime-paths"
 )
@@ -425,7 +433,7 @@ pass "desktop refresh reconciles enrolled integrations without reinstalling stac
 pass "modified Nautilus extensions and bytecode remain untouched"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
-[[ $waybar_source_inventory == $'clock.sh\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh' ]] ||
+[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\ninstall\nnative-paths\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nruntime-paths' ]] ||
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
@@ -568,7 +576,7 @@ while IFS= read -r presenter; do
     "$test_root/.local/lib/qvos/tui/$relative_presenter" ||
     fail "qvOS TUI $relative_presenter runtime"
 done < <(find "$root/qvcore/tui/task/presenters" -type f | sort)
-HOME="$test_root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/tui/install" --status ||
   fail "qvOS TUI source parity"
 cancel_test_bin="$test_root/tui-cancel-bin"
@@ -579,7 +587,7 @@ install -m 0755 /dev/stdin "$cancel_test_bin/pacman" <<'SCRIPT'
 SCRIPT
 cancel_status=$(
   HOME="$test_root" \
-    OMARCHY_PATH="$root" \
+    QVOS_PATH="$root" \
     PATH="$cancel_test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=emacs \
     QVOS_ACTION_OPERATION=install \
@@ -614,12 +622,18 @@ pass "Bash loads the source-independent qvOS shell overlay"
 
 [[ "$(stat -c '%a' "$test_root/.local/lib/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
 [[ -x $test_root/.local/lib/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
-[[ -x $test_root/.local/lib/qvos/waybar/refresh ]] ||
-  fail "Waybar refresh mode"
-[[ ! -x $test_root/.local/lib/qvos/waybar/overrides.jsonc ]] ||
-  fail "Waybar override data mode"
-[[ ! -x $test_root/.local/lib/qvos/waybar/post-update-hook ]] ||
-  fail "Waybar hook source mode"
+for source_only_path in \
+  AGENTS.md \
+  check \
+  install \
+  native-paths \
+  overrides.jsonc \
+  post-update-hook \
+  refresh \
+  runtime-paths; do
+  [[ ! -e $test_root/.local/lib/qvos/waybar/$source_only_path ]] ||
+    fail "source-only Waybar payload leaked into runtime: $source_only_path"
+done
 [[ -x $test_root/.local/lib/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"
 while IFS= read -r helper; do
   [[ -x $helper ]] || fail "desktop helper mode"

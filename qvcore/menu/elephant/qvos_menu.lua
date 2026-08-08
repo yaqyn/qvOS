@@ -137,7 +137,7 @@ end
 
 local function task_action(slug)
   return qvos_tui_owner("task/launch", slug)
-    or "omarchy-launch-qvos-task " .. shell_escape(slug)
+    or "qv-launch-task " .. shell_escape(slug)
 end
 
 local function install_font(slug)
