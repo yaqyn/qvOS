@@ -222,9 +222,13 @@ grep -Fq 'qvos/development/devel' "$root/development/devel/manage" ||
 [[ -x $root/qvcore/install/migrate-structure ]] ||
   fail "legacy integration migration owner"
 for retired_qvcore_source in \
+  bin/omarchy-install-qvcore \
+  bin/omarchy-qvcore-remove \
   bin/omarchy-qvcore-status \
   bin/omarchy-qvcore-repair \
-  bin/omarchy-qvcore-disable; do
+  bin/omarchy-qvcore-disable \
+  compat/omarchy/install-qvcore \
+  compat/omarchy/remove-qvcore; do
   [[ ! -e $root/$retired_qvcore_source ]] ||
     fail "retired qvCORE source remains: $retired_qvcore_source"
 done
@@ -250,13 +254,6 @@ pass "LocalSend and its network policy remain base-owned"
 if grep -Eq '^(warp|media|qvcore)\|' "$root/qvcore/menu/concepts.psv"; then
   fail "retired optional qvCORE concept remains"
 fi
-for adapter in bin/omarchy-install-qvcore bin/omarchy-qvcore-remove; do
-  [[ -x $root/$adapter ]] || fail "former qvCORE compatibility adapter: $adapter"
-  grep -Fqx '# omarchy:hidden=true' "$root/$adapter" ||
-    fail "former qvCORE adapter is publicly listed: $adapter"
-  grep -Fq 'compat/omarchy/' "$root/$adapter" ||
-    fail "former qvCORE adapter bypasses compatibility ownership: $adapter"
-done
 [[ ! -e $root/qvcore/codex ]] ||
   fail "redundant qvOS Codex inspection domain remains"
 grep -Fqx 'omarchy-npx-install @openai/codex codex' \

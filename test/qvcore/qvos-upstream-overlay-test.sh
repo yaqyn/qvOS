@@ -297,9 +297,7 @@ pass "fresh installation owns every reviewed configuration capability natively"
 
 public_adapters=(
   bin/omarchy-battery-protection
-  bin/omarchy-install-qvcore
   bin/omarchy-launch-update
-  bin/omarchy-qvcore-remove
   bin/omarchy-share
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep

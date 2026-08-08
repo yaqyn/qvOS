@@ -19,6 +19,10 @@ or behavior that supports an older qvOS installation or external caller.
   inputs, keep removal explicit, and test both delegation and retired inputs.
 - Remove a compatibility route together with its old state support once no
   supported installation needs it.
+- qvCORE is mandatory and no supported qvOS release has an optional qvCORE
+  lifecycle. Former `install-qvcore`, `qvcore-remove`, and qvDEV translation
+  routes are retired; Services and Development expose their own native
+  lifecycles and must never be routed through a qvCORE compatibility bundle.
 
 Run the owning domain check, `test/qvcore/qvos-upstream-overlay-test.sh`, the CLI
 catalog tests, and the full suite whenever this manifest changes.
