@@ -26,7 +26,7 @@ install -m 0755 /dev/stdin "$test_bin/qv-menu-file" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "${QVOS_TEST_IMAGE:-}"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-transcode-ascii" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-transcode-ascii" <<'SCRIPT'
 #!/bin/bash
 printf 'transcode' >>"$QVOS_TEST_EVENT_LOG"
 printf '\t%s' "$@" >>"$QVOS_TEST_EVENT_LOG"

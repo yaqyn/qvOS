@@ -63,8 +63,9 @@ keep its order explicit and call it through `run_logged`. The specialized qvOS
 MIME and corrected ASUS B9406 owners replace their superseded upstream leaves.
 Thunar is the singular file manager; omit the inherited Nautilus package,
 extension, context-menu, and Yaru action-icon setup instead of preserving a
-guarded dead installer path. Keep `yaru-icon-theme` only for compatible
-external themes.
+guarded dead installer path. The inherited `default/nautilus-python/` source
+is retired with that lifecycle and must remain absent. Keep `yaru-icon-theme`
+only for compatible external themes.
 Never restore `install/config/`, a second stage overlay, or an inherited
 fallback.
 

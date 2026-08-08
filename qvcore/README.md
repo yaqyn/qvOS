@@ -15,7 +15,7 @@ Current product layout:
 ```text
 qvcore/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
-  branding/    qvOS terminal and desktop branding.
+  branding/    qvOS desktop identity and terminal logo branding.
   browser/     Secure browser policy ownership.
   cli/         Native qv command engine and Omarchy compatibility frontend.
   config/      qvOS config sources and reconciliation after Omarchy defaults.
@@ -40,6 +40,7 @@ qvcore/
   theme/       Bundled Yaqyn theme and compatible user-theme lifecycle.
   thunar/      Thunar feature entry points.
   tmux/        Persistent tmux session manager.
+  transcode/   Atomic picture, video, and terminal-art conversion.
   tui/         Shared actions plus installer and progress presentation.
   update/      qvOS update preflight and presentation wrapper.
   version/     Installed source, branch, channel, and package-age reporting.

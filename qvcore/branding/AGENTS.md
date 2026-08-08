@@ -12,6 +12,8 @@ as the installed product name.
 About, screensaver, and terminal-logo behavior lives in this directory. Their
 inherited `omarchy-*` commands are metadata-only compatibility adapters, and
 qvOS-owned consumers call the branding owners directly.
+About and screensaver image imports delegate terminal-art conversion once to
+`qv-transcode-ascii`; branding never owns a second image renderer.
 Result terminals and their completion or failure screens belong to
 `qvcore/presentation/`; branding owns only the logo rendered inside them.
 

@@ -12,6 +12,8 @@ path.
 
 Keep custom-action mutation in `actions.sh` and reconcile only named qvOS
 actions. Preserve valid foreign actions and optional Proton or Devel actions.
+The Transcode action accepts one regular selected file and launches the native
+`qv-transcode` owner through the qvOS presentation route with exact arguments.
 Remove old desktop files, user units, D-Bus services, copied launchers, and
 plugin links only through exact checks in `qvcore/install/cleanup-obsolete`.
 Never delete modified or foreign state.

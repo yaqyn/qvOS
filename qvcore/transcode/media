@@ -1,0 +1,368 @@
+#!/bin/bash
+set -euo pipefail
+
+temporary_dir=""
+temporary_output=""
+
+cleanup() {
+  [[ -z $temporary_output || ! -e $temporary_output ]] ||
+    rm -f -- "$temporary_output"
+  if [[ -n $temporary_dir && -d $temporary_dir ]]; then
+    rmdir -- "$temporary_dir" 2>/dev/null ||
+      echo "Warning: retained nonempty Transcode staging: $temporary_dir" >&2
+  fi
+}
+trap cleanup EXIT
+
+usage() {
+  cat <<'EOF'
+Usage:
+  qv transcode [--path path] [input] [format] [resolution]
+
+With no input, pick a picture or video with Walker from existing Pictures and
+Videos directories, or only from --path. Then pick format and resolution.
+
+Options:
+  --path path  Limit interactive file selection to one directory
+
+Formats:
+  Pictures: jpg, png
+  Videos: mp4, gif
+
+Resolutions:
+  Pictures: high, medium, low
+  MP4 video: 4k, 1080p, 720p
+  GIF video: 1080p, 720p
+EOF
+}
+
+require_command() {
+  local command=$1
+
+  if qv-cmd-missing "$command"; then
+    echo "Transcode requires $command." >&2
+    return 1
+  fi
+}
+
+select_value() {
+  local status
+  local value
+
+  if value=$("$@"); then
+    [[ -n $value ]] || return 130
+    printf '%s\n' "$value"
+    return
+  else
+    status=$?
+  fi
+  (( status != 1 )) || status=130
+  return "$status"
+}
+
+media_type() {
+  local mime
+
+  mime=$(file -b --mime-type -- "$1") || {
+    echo "Unable to identify media: $1" >&2
+    return 1
+  }
+  case $mime in
+  image/*) printf 'picture\n' ;;
+  video/*) printf 'video\n' ;;
+  *)
+    echo "Unsupported file type: $mime" >&2
+    return 1
+    ;;
+  esac
+}
+
+validate_target() {
+  local type=$1
+  local format=$2
+  local resolution=$3
+
+  case "$type:$format:$resolution" in
+  picture:jpg:high | picture:jpg:medium | picture:jpg:low | \
+    picture:png:high | picture:png:medium | picture:png:low | \
+    video:mp4:4k | video:mp4:1080p | video:mp4:720p | \
+    video:gif:1080p | video:gif:720p)
+    return
+    ;;
+  esac
+
+  echo "Invalid $type Transcode target: $format $resolution" >&2
+  return 2
+}
+
+output_path() {
+  local input=$1
+  local format=$2
+  local resolution=$3
+  local base
+  local directory
+  local stem
+
+  directory=$(dirname -- "$input")
+  base=$(basename -- "$input")
+  stem=${base%.*}
+  [[ -n $stem ]] || stem=$base
+  printf '%s/%s-%s.%s\n' "$directory" "$stem" "$resolution" "$format"
+}
+
+transcode_picture() {
+  local input=$1
+  local format=$2
+  local resolution=$3
+  local output=$4
+  local resize
+  local -a limits=(
+    -limit memory 1GiB
+    -limit map 2GiB
+    -limit disk 4GiB
+    -limit time 300
+  )
+
+  case $resolution in
+  high) resize='3160x>' ;;
+  medium) resize='2160x>' ;;
+  low) resize='1080x>' ;;
+  esac
+
+  case $format in
+  jpg)
+    magick "${limits[@]}" "$input" -auto-orient -background white \
+      -alpha remove -alpha off -resize "$resize" -colorspace sRGB \
+      -quality 85 -strip "$output"
+    ;;
+  png)
+    magick "${limits[@]}" "$input" -auto-orient -resize "$resize" \
+      -colorspace sRGB -strip -define png:compression-filter=5 \
+      -define png:compression-level=9 \
+      -define png:compression-strategy=1 \
+      -define png:exclude-chunk=all \
+      "$output"
+    ;;
+  esac
+}
+
+transcode_video() {
+  local input=$1
+  local format=$2
+  local resolution=$3
+  local output=$4
+  local scale
+  local -a common=(
+    -hide_banner
+    -nostdin
+    -n
+    -i "$input"
+    -map_metadata -1
+    -map_chapters -1
+  )
+
+  case $resolution in
+  4k) scale='scale=-2:2160' ;;
+  1080p) scale='scale=-2:1080' ;;
+  720p) scale='scale=-2:720' ;;
+  esac
+
+  case $format in
+  mp4)
+    if [[ $resolution == "4k" ]]; then
+      ffmpeg "${common[@]}" -vf "$scale" -c:v libx265 -preset medium \
+        -crf 26 -tag:v hvc1 -pix_fmt yuv420p -c:a aac -b:a 192k \
+        -movflags +faststart "$output"
+    else
+      ffmpeg "${common[@]}" -vf "$scale" -c:v libx264 -preset fast \
+        -crf 23 -pix_fmt yuv420p -c:a aac -b:a 192k \
+        -movflags +faststart "$output"
+    fi
+    ;;
+  gif)
+    ffmpeg "${common[@]}" -vf \
+      "fps=10,$scale:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+      -an "$output"
+    ;;
+  esac
+}
+
+copy_to_clipboard() {
+  local output=$1
+  local canonical
+  local uri
+
+  qv-cmd-missing jq wl-copy && return 1
+  canonical=$(realpath -e -- "$output") || return 1
+  uri=$(jq -rn --arg path "$canonical" \
+    '$path | split("/") | map(@uri) | join("/") | "file://" + .') || return 1
+  printf '%s\r\n' "$uri" | wl-copy --type text/uri-list
+}
+
+send_notification() {
+  if qv-cmd-missing qv-notification-send || ! qv-notification-send "$@"; then
+    echo "Warning: unable to send the Transcode notification." >&2
+  fi
+}
+
+main() {
+  local format=""
+  local input=""
+  local output
+  local resolution=""
+  local search_path=""
+  local search_path_set=false
+  local type
+  local -a positional=()
+  local -a search_dirs=()
+
+  while (( $# > 0 )); do
+    case $1 in
+    --path)
+      (( $# >= 2 )) || {
+        echo "Missing value for --path" >&2
+        return 2
+      }
+      search_path=$2
+      search_path_set=true
+      shift 2
+      continue
+      ;;
+    --path=*)
+      search_path=${1#*=}
+      search_path_set=true
+      ;;
+    --help | -h)
+      usage
+      return
+      ;;
+    --)
+      shift
+      positional+=("$@")
+      break
+      ;;
+    --*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      return 2
+      ;;
+    *) positional+=("$1") ;;
+    esac
+    shift
+  done
+
+  (( ${#positional[@]} <= 3 )) || {
+    echo "Too many Transcode arguments." >&2
+    usage >&2
+    return 2
+  }
+  input=${positional[0]:-}
+  format=${positional[1]:-}
+  resolution=${positional[2]:-}
+
+  if [[ $search_path_set == "true" ]]; then
+    [[ -n $search_path && ! $search_path =~ [[:cntrl:]:] ]] || {
+      echo "Invalid Transcode search path." >&2
+      return 2
+    }
+    [[ -d $search_path ]] || {
+      echo "Search directory not found: $search_path" >&2
+      return 1
+    }
+    search_path=$(realpath -e -- "$search_path")
+  elif [[ -z $input ]]; then
+    [[ ! $HOME =~ [[:cntrl:]:] ]] || {
+      echo "The home path cannot be used for Transcode selection." >&2
+      return 1
+    }
+    [[ ! -d $HOME/Pictures ]] || search_dirs+=("$(realpath -e -- "$HOME/Pictures")")
+    [[ ! -d $HOME/Videos ]] || search_dirs+=("$(realpath -e -- "$HOME/Videos")")
+    (( ${#search_dirs[@]} > 0 )) || {
+      echo "No Pictures or Videos directory is available for selection." >&2
+      return 1
+    }
+    search_path=$(IFS=:; printf '%s' "${search_dirs[*]}")
+  fi
+
+  require_command file
+  if [[ -z $input ]]; then
+    require_command qv-menu-file
+    input=$(select_value qv-menu-file \
+      "Transcode picture or video" \
+      "$search_path" \
+      "jpg jpeg png webp gif heic avif mp4 mov m4v mkv webm avi")
+  fi
+
+  [[ -n $input && ! $input =~ [[:cntrl:]] ]] || {
+    echo "Invalid Transcode input path." >&2
+    return 2
+  }
+  [[ -f $input ]] || {
+    echo "File not found: $input" >&2
+    return 1
+  }
+  input=$(realpath -e -- "$input")
+  type=$(media_type "$input")
+
+  if [[ -z $format ]]; then
+    require_command qv-menu-select
+    if [[ $type == "picture" ]]; then
+      format=$(select_value qv-menu-select "Select format" jpg png)
+    else
+      format=$(select_value qv-menu-select "Select format" mp4 gif)
+    fi
+  fi
+  if [[ -z $resolution ]]; then
+    require_command qv-menu-select
+    if [[ $type == "picture" ]]; then
+      resolution=$(select_value qv-menu-select "Select resolution" high medium low)
+    elif [[ $format == "gif" ]]; then
+      resolution=$(select_value qv-menu-select "Select resolution" 1080p 720p)
+    else
+      resolution=$(select_value qv-menu-select "Select resolution" 4k 1080p 720p)
+    fi
+  fi
+  validate_target "$type" "$format" "$resolution"
+
+  output=$(output_path "$input" "$format" "$resolution")
+  [[ ! -e $output && ! -L $output ]] || {
+    echo "Refusing to overwrite an existing Transcode result: $output" >&2
+    return 1
+  }
+  temporary_dir=$(mktemp -d -- "$(dirname -- "$output")/.qvos-transcode.XXXXXX")
+  temporary_output="$temporary_dir/output.$format"
+
+  if [[ $type == "picture" ]]; then
+    require_command magick
+    transcode_picture "$input" "$format" "$resolution" "$temporary_output"
+  else
+    require_command ffmpeg
+    send_notification "" "Transcoding video…" "$format · $resolution"
+    transcode_video "$input" "$format" "$resolution" "$temporary_output"
+  fi
+  [[ -f $temporary_output && ! -L $temporary_output && -s $temporary_output ]] || {
+    echo "Transcode did not produce a complete result." >&2
+    return 1
+  }
+
+  ln -- "$temporary_output" "$output" || {
+    echo "Unable to publish the Transcode result without overwriting: $output" >&2
+    return 1
+  }
+  rm -f -- "$temporary_output"
+  temporary_output=""
+  rmdir -- "$temporary_dir"
+  temporary_dir=""
+
+  if copy_to_clipboard "$output"; then
+    send_notification "󰧸" "Transcoded to $resolution $format" \
+      "Saved and copied to clipboard."
+  else
+    echo "Saved the Transcode result, but could not copy it to the clipboard." >&2
+    send_notification "󰧸" "Transcoded to $resolution $format" \
+      "Saved; clipboard unavailable."
+  fi
+  printf 'Saved Transcode result: %q\n' "$output"
+}
+
+main "$@"

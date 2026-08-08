@@ -161,7 +161,7 @@ printf 'fixture\n' >"$media_file"
 QVOS_TEST_PRESENTATION_ARGV_LOG="$argv_log" \
   PATH="$test_bin:/usr/bin" \
   "$feature_dir/transcode" "$media_file"
-[[ $(<"$argv_log") == $'omarchy-transcode\n'"$media_file" ]] ||
+[[ $(<"$argv_log") == $'qv-transcode\n'"$media_file" ]] ||
   fail "Transcode presentation argument boundaries"
 pass "Thunar Transcode preserves selected filenames as exact arguments"
 

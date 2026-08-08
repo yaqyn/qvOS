@@ -1,0 +1,4 @@
+# Inherited Transcode paths promoted to native qvOS ownership.
+bin/omarchy-transcode
+bin/omarchy-transcode-ascii
+default/bash/fns/transcoding

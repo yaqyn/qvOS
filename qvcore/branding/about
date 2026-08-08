@@ -9,7 +9,7 @@ case "${1:-}" in
 image)
   image=$(qv-menu-file "Logo image" "$HOME" "svg png")
   if [[ -n $image ]] &&
-    omarchy-transcode-ascii \
+    qv-transcode-ascii \
       "$image" \
       "$branding_file" \
       --width 54 \

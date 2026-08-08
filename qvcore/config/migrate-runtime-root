@@ -106,6 +106,8 @@ rewrite_literals \
   'omarchy-reminder clear' 'qv-reminder clear' \
   'omarchy-reminder show' 'qv-reminder show' \
   'omarchy-swayosd-client' 'qv-swayosd-client' \
+  'omarchy-transcode-ascii' 'qv-transcode-ascii' \
+  'omarchy-transcode' 'qv-transcode' \
   'omarchy-toggle-touchpad' 'qv-toggle-touchpad' \
   'omarchy-toggle-touchscreen' 'qv-toggle-touchscreen'
 rewrite_literals \

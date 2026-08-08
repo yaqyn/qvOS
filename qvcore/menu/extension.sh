@@ -437,7 +437,7 @@ show_trigger_menu() {
   case $(menu "Trigger" "$options") in
   *Reminder*) show_reminder_menu ;;
   *Capture*) show_capture_menu ;;
-  *Transcode*) omarchy-transcode || back_to show_trigger_menu ;;
+  *Transcode*) qv-transcode || back_to show_trigger_menu ;;
   *Share*) show_share_menu ;;
   *Toggle*) show_toggle_menu ;;
   *Hardware*) show_hardware_menu ;;

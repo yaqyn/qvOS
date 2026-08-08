@@ -1,0 +1,86 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/transcode/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-transcode\nbin/omarchy-transcode-ascii\ndefault/bash/fns/transcoding'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native Transcode inventory"
+
+declare -A owners=(
+  [transcode]=media
+  [transcode-ascii]=ascii
+)
+for command in "${!owners[@]}"; do
+  owner=${owners[$command]}
+  native="$root/bin/qv-$command"
+  compatibility="$root/bin/omarchy-$command"
+  [[ -x $root/qvcore/transcode/$owner && -x $native && -x $compatibility ]] ||
+    fail "Transcode owner or adapter mode: $command"
+  rg -q '^# qv:summary=' "$native" || fail "native Transcode metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility Transcode metadata: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/transcode/$owner\" \"\$@\"" \
+    "$native" || fail "native Transcode adapter owner: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/transcode/$owner\" \"\$@\"" \
+    "$compatibility" || fail "compatibility Transcode adapter owner: $command"
+done
+
+if rg -n 'omarchy-transcode(-ascii)?' \
+  "$root/bin/omarchy-menu" \
+  "$root/config/hypr/bindings.conf" \
+  "$root/default/bash/fns/transcoding" \
+  "$root/qvcore/branding" \
+  "$root/qvcore/menu" \
+  "$root/qvcore/thunar" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/migrate-runtime-root' \
+  --glob '!**/native-paths'; then
+  fail "active qvOS consumer uses Transcode compatibility"
+fi
+[[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||
+  fail "retired Nautilus extension source remains"
+grep -Fqx 'default/nautilus-python/' "$root/qvcore/install/retired-paths" ||
+  fail "retired Nautilus extension inventory"
+
+# shellcheck disable=SC2016
+grep -Fq 'mktemp -d -- "$(dirname -- "$output")/.qvos-transcode.XXXXXX"' \
+  "$root/qvcore/transcode/media" || fail "private media staging"
+# shellcheck disable=SC2016
+grep -Fq 'ln -- "$temporary_output" "$output"' \
+  "$root/qvcore/transcode/media" || fail "no-clobber media publication"
+grep -Fq -- '-map_metadata -1' "$root/qvcore/transcode/media" ||
+  fail "media metadata stripping"
+grep -Fq -- '-limit memory 512MiB' "$root/qvcore/transcode/ascii" ||
+  fail "terminal-art resource limit"
+# shellcheck disable=SC2016
+grep -Fq 'mv -fT -- "$temporary_output" "$output_path"' \
+  "$root/qvcore/transcode/ascii" || fail "atomic terminal-art replacement"
+# shellcheck disable=SC2016
+grep -Fq 'ln -- "$temporary_output" "$output_path"' \
+  "$root/qvcore/transcode/ascii" || fail "no-clobber terminal-art creation"
+
+for frontend in qv omarchy; do
+  for route in \
+    'transcode|qv-transcode' \
+    'transcode ascii|qv-transcode-ascii'; do
+    name=${route%%|*}
+    binary=${route#*|}
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend $name" --arg binary "$binary" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend $name native route"
+  done
+done
+
+printf 'ok - qvOS Transcode output is bounded, atomic, and singularly owned\n'

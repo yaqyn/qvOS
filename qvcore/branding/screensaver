@@ -9,7 +9,7 @@ case "${1:-}" in
 image)
   image=$(qv-menu-file "Logo image" "$HOME" "svg png")
   if [[ -n $image ]] &&
-    omarchy-transcode-ascii "$image" "$branding_file"; then
+    qv-transcode-ascii "$image" "$branding_file"; then
     qv-launch-screensaver force >/dev/null 2>&1
   fi
   ;;

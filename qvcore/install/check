@@ -65,8 +65,10 @@ done
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "install/" ]] ||
-  fail "retired install tree inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/nautilus-python/\ninstall/' ]] ||
+  fail "retired install and Nautilus source inventory"
+[[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||
+  fail "retired Nautilus extension source remains"
 for inventory in "$manifest" "$retired_manifest"; do
   [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
     sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u

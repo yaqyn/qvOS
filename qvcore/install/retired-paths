@@ -1,3 +1,4 @@
 # The inherited installer tree is fully promoted into qvcore/install and
 # qvcore/boot. No installed or update lifecycle may depend on this prefix.
+default/nautilus-python/
 install/

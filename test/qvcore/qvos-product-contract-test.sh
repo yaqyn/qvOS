@@ -170,6 +170,10 @@ for retired_file_manager_package in nautilus nautilus-python sushi; do
 done
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
+[[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||
+  fail "retired Nautilus extension source"
+grep -Fqx 'default/nautilus-python/' "$root/qvcore/install/retired-paths" ||
+  fail "retired Nautilus extension inventory"
 if grep -Eq '^[[:space:]]*nautilus([[:space:]]|$)' \
   "$root/bin/qv-theme-bg-install" \
   "$root/bin/omarchy-install-gaming-retroarch"; then
