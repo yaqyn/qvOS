@@ -119,6 +119,8 @@ rewrite_literals \
 rewrite_literals \
   "$HOME/.config/waybar/config.jsonc" \
   'omarchy-battery-status' 'qv-battery-status' \
+  'omarchy-weather-icon' 'qv-weather-icon' \
+  'omarchy-weather-status' 'qv-weather-status' \
   'omarchy-tz-select' 'qv-tz-select'
 rewrite_literals \
   "$HOME/.config/Thunar/uca.xml" \

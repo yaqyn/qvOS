@@ -44,6 +44,7 @@ qvcore/
   update/      qvOS update preflight and presentation wrapper.
   version/     Installed source, branch, channel, and package-age reporting.
   waybar/      qvOS prayer clock modules.
+  weather/     Bounded weather-provider parsing for Waybar and status.
   windows/     Windows VM configuration, safe removal, and rollback.
 ```
 

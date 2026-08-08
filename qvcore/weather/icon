@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv weather icon" >&2
+  exit 2
+}
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/weather/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/weather/lib"
+
+data=$(qvos_weather_fetch) || exit 1
+fields=$(qvos_weather_icon_fields <<<"$data") || exit 1
+IFS=$'\t' read -r weather_code sunrise sunset <<<"$fields"
+qvos_weather_icon_for "$weather_code" "$sunrise" "$sunset"

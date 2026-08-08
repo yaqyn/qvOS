@@ -1,0 +1,70 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/weather/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-weather-icon\nbin/omarchy-weather-status\ndefault/waybar/weather.sh'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native weather inventory"
+for owner in lib icon status; do
+  [[ -x $root/qvcore/weather/$owner ]] || fail "weather owner mode: $owner"
+done
+for command in icon status; do
+  native="$root/bin/qv-weather-$command"
+  compatibility="$root/bin/omarchy-weather-$command"
+  [[ -x $native && -x $compatibility ]] ||
+    fail "weather adapter mode: $command"
+  (( $(wc -l <"$native") <= 10 && $(wc -l <"$compatibility") <= 5 )) ||
+    fail "weather adapter contains implementation: $command"
+  rg -q '^# qv:summary=' "$native" || fail "native weather metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility weather metadata: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/weather/$command\" \"\$@\"" "$native" ||
+    fail "native weather adapter owner: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/weather/$command\" \"\$@\"" \
+    "$compatibility" || fail "compatibility weather adapter owner: $command"
+done
+
+if rg -n 'omarchy-weather-(icon|status)' \
+  "$root/config/waybar/config.jsonc" "$root/default/waybar/weather.sh"; then
+  fail "Waybar uses a weather compatibility route"
+fi
+grep -Fq -- '--connect-timeout 2 --max-time 4' "$root/qvcore/weather/lib" ||
+  fail "weather request timeouts"
+grep -Fq -- '--max-filesize 1048576' "$root/qvcore/weather/lib" ||
+  fail "weather response limit"
+[[ $(rg -c 'qvos_weather_fetch' "$root/qvcore/weather/status") == 1 ]] ||
+  fail "weather status performs more than one provider request"
+if rg -n 'weather/icon|qv-weather-icon|omarchy-weather-icon' \
+  "$root/qvcore/weather/status"; then
+  fail "weather status makes a second icon request"
+fi
+for command in icon status; do
+  grep -Fq "'omarchy-weather-$command' 'qv-weather-$command'" \
+    "$root/qvcore/config/migrate-runtime-root" ||
+    fail "weather config migration: $command"
+done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
+  "$root/qvcore/migrations/1786192342.sh" || fail "native weather migration owner"
+
+for frontend in qv omarchy; do
+  for command in icon status; do
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend weather $command" \
+      --arg binary "qv-weather-$command" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend weather $command native route"
+  done
+done
+
+printf 'ok - qvOS weather uses one bounded native provider request per command\n'

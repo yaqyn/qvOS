@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv weather status" >&2
+  exit 2
+}
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+# shellcheck source=qvcore/weather/lib
+# shellcheck disable=SC1091
+source "$QVOS_PATH/qvcore/weather/lib"
+
+unavailable() {
+  echo "Weather unavailable"
+  exit 1
+}
+
+data=$(qvos_weather_fetch) || unavailable
+fields=$(qvos_weather_status_fields <<<"$data") || unavailable
+IFS=$'\t' read -r place temperature wind_direction wind_speed \
+  weather_code sunrise sunset <<<"$fields"
+if ! (( ${#place} >= 1 && ${#place} <= 100 )) ||
+  [[ $place == *\\* || $place =~ [[:cntrl:]] ||
+    ! $temperature =~ ^-?[0-9]{1,3}$ ||
+    ! $wind_direction =~ ^[A-Z]{1,3}$ ||
+    ! $wind_speed =~ ^[0-9]{1,3}$ ]]; then
+  unavailable
+fi
+icon=$(qvos_weather_icon_for "$weather_code" "$sunrise" "$sunset") || unavailable
+printf '%s    %s · Temp %s°C · Wind %s %s km/h\n' \
+  "$icon" "${place^}" "$temperature" "$wind_direction" "$wind_speed"

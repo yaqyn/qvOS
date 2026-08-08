@@ -71,7 +71,7 @@
     "return-type": "json",
     "interval": 60,
     "tooltip": false,
-    "on-click": "notify-send -u low \"$(omarchy-weather-status)\""
+    "on-click": "notify-send -u low \"$(qv-weather-status)\""
   },
   "network": {
     "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
