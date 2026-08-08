@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/config/hyprland-toggle
+
+(($# == 0)) || {
+  echo "Usage: qv hyprland window gaps toggle" >&2
+  exit 2
+}
+hyprland_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+qvcore_root=$(cd -- "$hyprland_root/../.." && pwd)
+exec "$qvcore_root/config/hyprland-toggle" window-no-gaps

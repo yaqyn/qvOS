@@ -104,6 +104,12 @@ rewrite_literals \
   'omarchy-hw-external-monitors' 'qv-hw-external-monitors' \
   'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
   'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
+  'omarchy-hyprland-monitor-scaling-cycle' 'qv-hyprland-monitor-scaling-cycle' \
+  'omarchy-hyprland-window-gaps-toggle' 'qv-hyprland-window-gaps-toggle' \
+  'omarchy-hyprland-window-pop' 'qv-hyprland-window-pop' \
+  'omarchy-hyprland-window-single-square-aspect-toggle' 'qv-hyprland-window-single-square-aspect-toggle' \
+  'omarchy-hyprland-window-transparency-toggle' 'qv-hyprland-window-transparency-toggle' \
+  'omarchy-hyprland-workspace-layout-toggle' 'qv-hyprland-workspace-layout-toggle' \
   'omarchy-launch-walker' 'qv-launch-walker' \
   'omarchy-hyprland-window-close-all' 'qv-hyprland-window-close-all' \
   'omarchy-menu-keybindings' 'qv-menu-keybindings' \

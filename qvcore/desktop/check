@@ -27,7 +27,14 @@ done <<<"$runtime_paths"
 declare -A helper_owners=(
   [hyprland-monitor-focused]=hyprland/focused-monitor
   [hyprland-monitor-focused-apple]=hyprland/focused-monitor-apple
+  [hyprland-monitor-scaling-cycle]=hyprland/monitor-scaling-cycle
+  [hyprland-monitor-watch]=hyprland/monitor-watch
   [hyprland-window-close-all]=hyprland/window-close-all
+  [hyprland-window-gaps-toggle]=hyprland/window-gaps-toggle
+  [hyprland-window-pop]=hyprland/window-pop
+  [hyprland-window-single-square-aspect-toggle]=hyprland/window-single-square-aspect-toggle
+  [hyprland-window-transparency-toggle]=hyprland/window-transparency-toggle
+  [hyprland-workspace-layout-toggle]=hyprland/workspace-layout-toggle
   [system-lock]=session/lock
   [system-logout]=session/logout
   [system-wake]=session/wake
@@ -113,6 +120,16 @@ if rg -n 'omarchy-(hyprland-window-close-all|system-(lock|logout|wake))' \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a session compatibility command"
 fi
+if rg -n 'omarchy-hyprland-(monitor-scaling-cycle|window-gaps-toggle|window-pop|window-single-square-aspect-toggle|window-transparency-toggle|workspace-layout-toggle)' \
+  "$root/qvcore/menu" \
+  "$root/config/hypr" \
+  "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md'; then
+  fail "native qvOS source still calls a Hyprland-control compatibility command"
+fi
+grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
+  "$root/default/hypr/autostart.conf" ||
+  fail "inherited autostart no longer uses the retained monitor-watch compatibility seam"
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi

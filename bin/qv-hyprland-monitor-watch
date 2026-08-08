@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Recover managed monitor toggles after display removal
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/desktop/hyprland/monitor-watch" "$@"

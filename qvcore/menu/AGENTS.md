@@ -122,6 +122,8 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
    Tab behavior, runtime installation, and startup ordering. Run
    `qvcore/tui/owner-contracts --check`; after a reviewed catalog or owner change,
    refresh its manifest deliberately and inspect the exact diff.
+   Walker fixtures must distinguish terminal stdin from piped choice input so
+   tests remain bounded in both interactive and noninteractive runners.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.
 5. Run the focused menu suites, then `test/qvcore/run.sh` when shared contracts
    change.

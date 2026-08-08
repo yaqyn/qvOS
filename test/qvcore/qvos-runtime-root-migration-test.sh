@@ -52,6 +52,12 @@ bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show
 bindd = SUPER CTRL, V, Clipboard manager, exec, omarchy-launch-walker -m clipboard
 bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
 bindd = CTRL ALT, DELETE, Close all windows, exec, omarchy-hyprland-window-close-all
+bindd = SUPER SHIFT CTRL, F, Pop window, exec, omarchy-hyprland-window-pop
+bindd = SUPER, L, Layout, exec, omarchy-hyprland-workspace-layout-toggle
+bindd = SUPER, code:61, Scale, exec, omarchy-hyprland-monitor-scaling-cycle --reverse
+bindd = SUPER, BACKSPACE, Transparency, exec, omarchy-hyprland-window-transparency-toggle
+bindd = SUPER SHIFT, BACKSPACE, Gaps, exec, omarchy-hyprland-window-gaps-toggle
+bindd = SUPER CTRL, BACKSPACE, Aspect, exec, omarchy-hyprland-window-single-square-aspect-toggle
 bindd = SUPER CTRL, L, Lock system, exec, omarchy-system-lock
 bindd = , PRINT, Screenshot, exec, omarchy-capture-screenshot
 bindd = SUPER CTRL, PRINT, Extract text, exec, omarchy-capture-text-extraction
@@ -130,11 +136,19 @@ for command in \
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted menu route was not migrated: $command"
 done
-for command in qv-hyprland-window-close-all qv-system-lock; do
+for command in \
+  qv-hyprland-monitor-scaling-cycle \
+  qv-hyprland-window-close-all \
+  qv-hyprland-window-gaps-toggle \
+  qv-hyprland-window-pop \
+  qv-hyprland-window-single-square-aspect-toggle \
+  qv-hyprland-window-transparency-toggle \
+  qv-hyprland-workspace-layout-toggle \
+  qv-system-lock; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted desktop session route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|window-close-all)|launch-walker|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|monitor-scaling-cycle|window-(close-all|gaps-toggle|pop|single-square-aspect-toggle|transparency-toggle)|workspace-layout-toggle)|launch-walker|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi

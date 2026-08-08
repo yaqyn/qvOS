@@ -90,6 +90,9 @@ Services and Development integrations never change qvOS base readiness.
 - Desktop restart commands are native under `qvcore/desktop/restart/`. Native
   qvOS consumers use `qv-restart-*`; exact `omarchy-restart-*` names remain
   direct compatibility adapters for inherited consumers and external callers.
+- Hyprland window, workspace, scaling, and monitor-recovery controls are native
+  under `qvcore/desktop/hyprland/`. They validate compositor state before
+  mutation; matching Omarchy names remain direct compatibility only.
 - Font discovery, current-state reporting, and configuration mutation are
   native under `qvcore/font/`. One serialized transaction validates and stages
   every supported config, preserves optional terminal settings and Arabic

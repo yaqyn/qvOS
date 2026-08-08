@@ -1,0 +1,160 @@
+#!/bin/bash
+set -euo pipefail
+
+reverse=false
+case ${1:-} in
+"") ;;
+--reverse) reverse=true ;;
+*)
+  echo "Usage: qv hyprland monitor scaling cycle [--reverse]" >&2
+  exit 2
+  ;;
+esac
+(($# <= 1)) || {
+  echo "Usage: qv hyprland monitor scaling cycle [--reverse]" >&2
+  exit 2
+}
+
+monitor_config="$HOME/.config/hypr/monitors.conf"
+staged_config=""
+
+cleanup() {
+  [[ -z $staged_config ]] || rm -f -- "$staged_config"
+}
+trap cleanup EXIT
+
+if [[ -e $monitor_config || -L $monitor_config ]]; then
+  [[ -f $monitor_config && ! -L $monitor_config && -O $monitor_config ]] || {
+    echo "Refusing unsafe Hyprland monitor config: $monitor_config" >&2
+    exit 1
+  }
+fi
+
+monitor_json=$(hyprctl monitors -j) || {
+  echo "Could not read Hyprland monitors." >&2
+  exit 1
+}
+monitor_record=$(
+  jq -er '
+    [.[] | select(.focused == true and .disabled != true)] as $focused |
+    if ($focused | length) != 1 then error("focused monitor") else
+      $focused[0] |
+      [
+        .name,
+        (.width | tostring),
+        (.height | tostring),
+        (.refreshRate | tostring),
+        (.x | tostring),
+        (.y | tostring),
+        (.scale | tostring)
+      ] | @tsv
+    end
+  ' <<<"$monitor_json" 2>/dev/null
+) || {
+  echo "Hyprland did not report one valid focused monitor." >&2
+  exit 1
+}
+IFS=$'\t' read -r monitor width height refresh x y current_scale \
+  <<<"$monitor_record"
+
+[[ $monitor =~ ^[A-Za-z0-9._:-]+$ &&
+  $width =~ ^[1-9][0-9]{0,4}$ &&
+  $height =~ ^[1-9][0-9]{0,4}$ &&
+  $refresh =~ ^[0-9]+([.][0-9]+)?$ &&
+  $x =~ ^-?[0-9]{1,5}$ &&
+  $y =~ ^-?[0-9]{1,5}$ &&
+  $current_scale =~ ^[0-9]+([.][0-9]+)?$ ]] || {
+  echo "Hyprland reported unsafe focused-monitor geometry." >&2
+  exit 1
+}
+if ((10#$width > 32768 || 10#$height > 32768)) ||
+  ! awk -v refresh="$refresh" -v scale="$current_scale" \
+    'BEGIN { exit !(refresh > 0 && refresh <= 1000 && scale >= 0.5 && scale <= 10) }'; then
+  echo "Hyprland reported out-of-range focused-monitor geometry." >&2
+  exit 1
+fi
+for coordinate in "$x" "$y"; do
+  magnitude=${coordinate#-}
+  ((10#$magnitude <= 65535)) || {
+    echo "Hyprland reported out-of-range monitor placement." >&2
+    exit 1
+  }
+done
+
+scales=(1 1.25 1.6 2 3 4)
+current_index=$(awk -v scale="$current_scale" -v list="${scales[*]}" 'BEGIN {
+  count = split(list, values, " ")
+  best = 1
+  best_difference = 1e9
+  for (entry = 1; entry <= count; entry++) {
+    difference = scale - values[entry]
+    if (difference < 0) difference = -difference
+    if (difference < best_difference) {
+      best_difference = difference
+      best = entry
+    }
+  }
+  print best - 1
+}')
+if [[ $reverse == "true" ]]; then
+  new_index=$(((current_index - 1 + ${#scales[@]}) % ${#scales[@]}))
+else
+  new_index=$(((current_index + 1) % ${#scales[@]}))
+fi
+new_scale=${scales[$new_index]}
+monitor_rule="$monitor,${width}x${height}@${refresh},${x}x${y},$new_scale"
+rollback_rule="$monitor,${width}x${height}@${refresh},${x}x${y},$current_scale"
+
+persist_scale=false
+if [[ -f $monitor_config ]]; then
+  mapfile -t active_monitor_lines < <(
+    awk '
+      /^[[:space:]]*monitor[[:space:]]*=/ &&
+      $0 !~ /,[[:space:]]*disable[[:space:]]*(#.*)?$/ { print }
+    ' "$monitor_config"
+  )
+  adaptive_pattern='^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,[[:space:]]*preferred[[:space:]]*,[[:space:]]*auto[[:space:]]*,[[:space:]]*(auto|[0-9]+([.][0-9]+)?)[[:space:]]*(#.*)?$'
+  if ((${#active_monitor_lines[@]} == 1)) &&
+    [[ ${active_monitor_lines[0]} =~ $adaptive_pattern ]]; then
+    staged_config=$(mktemp "${monitor_config%/*}/.qvos-monitor-scale.XXXXXX")
+    awk -v scale="$new_scale" '
+      BEGIN { changed = 0 }
+      /^[[:space:]]*monitor[[:space:]]*=/ &&
+      $0 !~ /,[[:space:]]*disable[[:space:]]*(#.*)?$/ &&
+      changed == 0 {
+        comment = ""
+        if (match($0, /[[:space:]]*#.*/)) {
+          comment = substr($0, RSTART)
+        }
+        prefix = $0
+        sub(/[[:space:]]*#.*/, "", prefix)
+        sub(/(auto|[0-9]+([.][0-9]+)?)[[:space:]]*$/, scale, prefix)
+        print prefix comment
+        changed = 1
+        next
+      }
+      { print }
+      END { if (changed != 1) exit 1 }
+    ' "$monitor_config" >"$staged_config"
+    chmod --reference="$monitor_config" "$staged_config"
+    persist_scale=true
+  fi
+fi
+
+hyprctl keyword monitor "$monitor_rule" >/dev/null || {
+  echo "Hyprland could not apply display scale ${new_scale}x." >&2
+  exit 1
+}
+
+if [[ $persist_scale == "true" ]]; then
+  backup="$monitor_config.bak.$(date +%s%N)"
+  if ! cp -a -- "$monitor_config" "$backup" ||
+    ! mv -f -- "$staged_config" "$monitor_config"; then
+    hyprctl keyword monitor "$rollback_rule" >/dev/null 2>&1 || true
+    echo "Could not persist display scaling; restored the live scale when possible." >&2
+    exit 1
+  fi
+  staged_config=""
+fi
+
+notify-send -u low "󰍹    Display scaling set to ${new_scale}x" >/dev/null 2>&1 || true

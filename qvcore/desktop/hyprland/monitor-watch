@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/config/monitor-internal
+# qvos:contract=qvcore/config/monitor-internal-mirror
+
+(($# == 0)) || {
+  echo "Usage: qv hyprland monitor watch" >&2
+  exit 2
+}
+
+runtime_root=${XDG_RUNTIME_DIR:-}
+instance=${HYPRLAND_INSTANCE_SIGNATURE:-}
+[[ $runtime_root == /* && $instance =~ ^[A-Za-z0-9._-]+$ ]] || {
+  echo "Hyprland monitor watch requires a valid runtime instance." >&2
+  exit 1
+}
+socket_root="$runtime_root/hypr/$instance"
+[[ -d $socket_root && ! -L $socket_root && -O $socket_root ]] || {
+  echo "Refusing unsafe Hyprland runtime directory: $socket_root" >&2
+  exit 1
+}
+
+hyprland_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+qvcore_root=$(cd -- "$hyprland_root/../.." && pwd)
+socket="$socket_root/.socket2.sock"
+
+socat -U - "UNIX-CONNECT:$socket" | while IFS= read -r event; do
+  case $event in
+  monitorremoved\>\>* | monitorremovedv2\>\>*)
+    "$qvcore_root/config/monitor-internal" recover ||
+      echo "qvOS could not recover the internal-monitor toggle." >&2
+    "$qvcore_root/config/monitor-internal-mirror" recover ||
+      echo "qvOS could not recover the monitor-mirror toggle." >&2
+    ;;
+  esac
+done

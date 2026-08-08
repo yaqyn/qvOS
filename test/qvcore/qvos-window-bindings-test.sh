@@ -46,12 +46,23 @@ pass "Super+Shift+Ctrl+Alt+WASD moves workspaces between monitors"
 assert_binding 'bindd = SUPER, F, Full screen, fullscreen, 0' "full screen binding"
 assert_binding 'bindd = SUPER SHIFT, F, Tiled full screen, fullscreenstate, 0 2' "tiled full screen binding"
 assert_binding 'bindd = SUPER CTRL, F, Toggle window floating/tiling, togglefloating,' "toggle floating binding"
-assert_binding 'bindd = SUPER SHIFT CTRL, F, Pop window out (float & pin), exec, omarchy-hyprland-window-pop' "pop window binding"
+assert_binding 'bindd = SUPER SHIFT CTRL, F, Pop window out (float & pin), exec, qv-hyprland-window-pop' "pop window binding"
 assert_binding 'bindd = SUPER ALT, F, Full width, fullscreen, 1' "full-width binding"
 if grep -Eq '^bind[a-z]* = SUPER, (T|O),' "$bindings"; then
   fail "redundant legacy window-state alias"
 fi
 pass "the F family singularly owns every retained window state"
+
+for line in \
+  'bindd = SUPER, L, Toggle workspace layout, exec, qv-hyprland-workspace-layout-toggle' \
+  'bindd = SUPER, code:61, Cycle monitor scaling, exec, qv-hyprland-monitor-scaling-cycle' \
+  'bindd = SUPER ALT, code:61, Cycle monitor scaling backwards, exec, qv-hyprland-monitor-scaling-cycle --reverse' \
+  'bindd = SUPER, BACKSPACE, Toggle window transparency, exec, qv-hyprland-window-transparency-toggle' \
+  'bindd = SUPER SHIFT, BACKSPACE, Toggle window gaps, exec, qv-hyprland-window-gaps-toggle' \
+  'bindd = SUPER CTRL, BACKSPACE, Toggle single-window square aspect, exec, qv-hyprland-window-single-square-aspect-toggle'; do
+  assert_binding "$line" "native Hyprland control binding: $line"
+done
+pass "native qvOS routes own interactive Hyprland controls"
 
 if grep -Eq '^bind[a-z]* = SUPER (ALT|SHIFT ALT), (A|W|D|S), .*resizeactive' "$bindings"; then
   fail "resize binding outside Super+Ctrl+Alt+WASD"

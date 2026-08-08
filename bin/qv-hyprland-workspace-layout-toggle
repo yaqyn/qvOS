@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Toggle the active workspace between dwindle and scrolling layouts
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/desktop/hyprland/workspace-layout-toggle" "$@"

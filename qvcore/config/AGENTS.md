@@ -83,8 +83,9 @@ paths and preserves the rest of an existing Fastfetch config.
 `.local/state/qvos/toggles` tree, rejects conflicts before mutation, installs
 the inert flags file, and rewrites only the exact inherited Hyprland source
 line with a backup. Toggle templates and command implementations live under
-`qvcore/config/`; inherited `bin/omarchy-*` routes are metadata-bearing adapters
-only. Keep state files private, validate names and ownership before mutation,
+`qvcore/config/`; native `qv-*` routes carry metadata and matching
+`bin/omarchy-*` routes are metadata-free compatibility only. Keep state files
+private, validate names and ownership before mutation,
 and preserve every compatible custom toggle during install and update.
 Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`,
 the first-run and desktop-install suites, `systemd-analyze verify` after live
@@ -103,6 +104,9 @@ their exact inherited command, indicator, and variable literals.
 
 Config commands use metadata-bearing `qv-*` adapters and one owner here.
 Desktop lock, logout, and wake owners live under `qvcore/desktop/session/`.
+Interactive monitor, window, and workspace controls live under
+`qvcore/desktop/hyprland/`; config owns their native bindings and exact
+saved-config migration only.
 Retain matching metadata-free `omarchy-*` files only as external and
 saved-config compatibility routes. Native bindings, menus, sleep guards,
 screensavers, reinstall flows, and TUI tasks must call the qv route.

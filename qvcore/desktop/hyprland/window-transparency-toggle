@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv hyprland window transparency toggle" >&2
+  exit 2
+}
+active_window=$(hyprctl activewindow -j) || {
+  echo "Could not read the active Hyprland window." >&2
+  exit 1
+}
+address=$(jq -er '
+  if type == "object" and
+    (.address | type) == "string" and
+    (.address | test("^0x[0-9A-Fa-f]+$")) and
+    .address != "0x0"
+  then .address else error("active window") end
+' <<<"$active_window" 2>/dev/null) || {
+  echo "No valid active Hyprland window was found." >&2
+  exit 1
+}
+hyprctl dispatch setprop "address:$address" opaque toggle >/dev/null

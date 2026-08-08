@@ -131,6 +131,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/desktop/session/` owns native lock, logout, and wake behavior;
   qvOS config and menus call its `qv-system-*` routes, while exact
   `omarchy-system-*` names remain external compatibility adapters only
+- `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
+  focused-window mutations, and workspace-layout changes; qvOS bindings and
+  menus call `qv-hyprland-*`, while the inherited autostart source alone keeps
+  the exact monitor-watch compatibility seam until that source is promoted
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
 - update and restart markers live privately under

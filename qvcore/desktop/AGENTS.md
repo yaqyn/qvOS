@@ -4,8 +4,9 @@ Read this file completely when changing desktop process reloads, user-service
 restarts, session lock/logout/wake behavior, Hyprland window cleanup, radio
 resets, trackpad recovery, or shared desktop launch helpers.
 
-`qvcore/desktop/hyprland/` owns shared compositor context such as
-focused-monitor detection and validated all-window closure.
+`qvcore/desktop/hyprland/` owns shared compositor context, validated window and
+workspace mutations, focused-monitor detection, display scaling, monitor-event
+recovery, and all-window closure.
 `qvcore/desktop/session/` owns lock, logout, wake, and the delayed logout
 worker. `qvcore/desktop/restart/` is the singular owner for supported runtime restart
 operations. Public `qv-restart-*` commands carry metadata; matching
@@ -24,6 +25,21 @@ schedules one fixed worker before closing a prevalidated Hyprland client
 inventory so cleanup failure cannot cancel the requested session exit. Never
 exercise lock, logout, wake, all-window closure, or display dimming on the live
 desktop merely to test routing.
+
+Prevalidate every Hyprland JSON result, bounded geometry, monitor name, window
+address, and workspace identifier before the first compositor mutation.
+Focused-monitor scaling must preserve the monitor's exact placement, update
+only a singular generic adaptive rule, publish that config atomically, and roll
+the live scale back when persistence fails. Custom monitor layouts remain
+untouched. Monitor-event recovery calls the native config owners directly;
+`default/hypr/autostart.conf` retains only the metadata-free monitor-watch
+compatibility command until that inherited source is promoted. Never exercise
+window, workspace, or display mutations on the live desktop merely to test a
+route.
+
+Process-aware tests must replace discovery inside their fixture. They must not
+observe, signal, lock, or otherwise depend on real desktop processes belonging
+to the developer session.
 
 Prefer graceful process termination before a bounded forced fallback. User
 services stay in the invoking user's systemd manager. Privileged hardware

@@ -8,6 +8,7 @@ test_bin="$test_root/bin"
 hyprctl_log="$test_root/hyprctl.log"
 session_log="$test_root/session.log"
 controls_log="$test_root/controls.log"
+hyprlock_pid_file="$test_root/hyprlock.pid"
 lock_pid=""
 
 cleanup() {
@@ -103,11 +104,23 @@ SCRIPT
 done
 install -m 0755 /dev/stdin "$test_bin/hyprlock" <<'SCRIPT'
 #!/bin/bash
+printf '%s\n' "$$" >"$QVOS_TEST_HYPRLOCK_PID_FILE"
+trap 'rm -f -- "$QVOS_TEST_HYPRLOCK_PID_FILE"' EXIT
 printf 'hyprlock\n' >>"$QVOS_TEST_SESSION_LOG"
 if [[ ${QVOS_TEST_HYPRLOCK_STATUS:-0} != "0" ]]; then
   exit "$QVOS_TEST_HYPRLOCK_STATUS"
 fi
 /usr/bin/sleep 1
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+name=${!#}
+[[ $name == "hyprlock" && -r $QVOS_TEST_HYPRLOCK_PID_FILE ]] || exit 1
+pid=$(<"$QVOS_TEST_HYPRLOCK_PID_FILE")
+[[ $pid =~ ^[1-9][0-9]*$ && -r /proc/$pid/comm ]] || exit 1
+printf '%s\n' "$pid"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/sleep" <<'SCRIPT'
 #!/bin/bash
@@ -129,6 +142,7 @@ run_session_owner() {
   QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
     QVOS_TEST_SESSION_LOG="$session_log" \
     QVOS_TEST_CONTROLS_LOG="$controls_log" \
+    QVOS_TEST_HYPRLOCK_PID_FILE="$hyprlock_pid_file" \
     QVOS_TEST_CLIENTS_JSON='[]' \
     PATH="$test_bin:/usr/bin" \
     "$source_root/qvcore/desktop/session/$1" "${@:2}"
@@ -175,6 +189,7 @@ printf 'ok - failed Hyprlock launch preserves the screensaver and reports failur
 cp /usr/bin/sleep "$test_bin/hyprlock"
 "$test_bin/hyprlock" 30 &
 lock_pid=$!
+printf '%s\n' "$lock_pid" >"$hyprlock_pid_file"
 for ((attempt = 0; attempt < 100; attempt++)); do
   [[ $(</proc/$lock_pid/comm) == "hyprlock" ]] && break
   /usr/bin/sleep 0.01
@@ -190,6 +205,7 @@ done
 kill "$lock_pid"
 wait "$lock_pid" 2>/dev/null || true
 lock_pid=""
+rm -f -- "$hyprlock_pid_file"
 printf 'ok - display dimming runs only while an exact Hyprlock process remains\n'
 
 if QVOS_LOCK_ONLY=invalid run_session_owner lock >/dev/null 2>&1; then

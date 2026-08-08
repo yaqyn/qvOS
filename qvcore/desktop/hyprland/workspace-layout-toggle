@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv hyprland workspace layout toggle" >&2
+  exit 2
+}
+workspace_json=$(hyprctl activeworkspace -j) || {
+  echo "Could not read the active Hyprland workspace." >&2
+  exit 1
+}
+workspace_record=$(jq -er '
+  if type == "object" and
+    (.id | type) == "number" and
+    (.id | floor) == .id and
+    (.tiledLayout | type) == "string"
+  then [(.id | tostring), .tiledLayout] | @tsv
+  else error("active workspace") end
+' <<<"$workspace_json" 2>/dev/null) || {
+  echo "Hyprland returned an invalid active workspace." >&2
+  exit 1
+}
+IFS=$'\t' read -r workspace_id current_layout <<<"$workspace_record"
+[[ $workspace_id =~ ^-?[0-9]{1,10}$ ]] || {
+  echo "Hyprland returned an invalid workspace identifier." >&2
+  exit 1
+}
+magnitude=${workspace_id#-}
+((10#$magnitude <= 2147483647)) || {
+  echo "Hyprland returned an out-of-range workspace identifier." >&2
+  exit 1
+}
+
+case $current_layout in
+dwindle) new_layout=scrolling ;;
+*) new_layout=dwindle ;;
+esac
+hyprctl keyword workspace "$workspace_id, layout:$new_layout" >/dev/null
+notify-send -u low "󱂬    Workspace layout set to $new_layout" >/dev/null 2>&1 || true

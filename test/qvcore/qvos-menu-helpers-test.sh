@@ -26,7 +26,11 @@ touch "$test_home/Pictures/ignored.txt"
 install -m 0755 /dev/stdin "$test_bin/qv-launch-walker" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_WALKER_ARGS"
-cat >"$QVOS_TEST_WALKER_INPUT"
+if [[ -t 0 ]]; then
+  : >"$QVOS_TEST_WALKER_INPUT"
+else
+  cat >"$QVOS_TEST_WALKER_INPUT"
+fi
 case ${QVOS_TEST_WALKER_RESULT:-} in
 "") ;;
 *) printf '%s\n' "$QVOS_TEST_WALKER_RESULT" ;;
