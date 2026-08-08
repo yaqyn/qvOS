@@ -17,6 +17,7 @@ qvcore/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
   branding/    qvOS desktop identity and terminal logo branding.
   browser/     Secure browser policy ownership.
+  capture/     Private screenshots, OCR, and recoverable screen recording.
   cli/         Native qv command engine and Omarchy compatibility frontend.
   config/      qvOS config sources and reconciliation after Omarchy defaults.
   controls/    Audio, brightness, notification, and session OSD controls.

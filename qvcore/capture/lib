@@ -1,0 +1,546 @@
+#!/bin/bash
+# shellcheck shell=bash
+
+CAPTURE_RUNTIME_PARENT=${XDG_RUNTIME_DIR:-/run/user/$UID}
+CAPTURE_RUNTIME_ROOT="$CAPTURE_RUNTIME_PARENT/qvos-capture"
+CAPTURE_PICKER_ROOT="$CAPTURE_RUNTIME_ROOT/picker"
+CAPTURE_STATE_FILE="$CAPTURE_RUNTIME_ROOT/screenrecord.state"
+CAPTURE_SELECTION=""
+CAPTURE_FREEZE_PID=""
+CAPTURE_PICKER_LOCKED=false
+CAPTURE_STATE_STATUS=inactive
+CAPTURE_STATE_PID=""
+CAPTURE_STATE_PID_START=""
+CAPTURE_STATE_WEBCAM_PID=""
+CAPTURE_STATE_WEBCAM_START=""
+CAPTURE_STATE_STAGING=""
+CAPTURE_STATE_RECORDING=""
+CAPTURE_STATE_FINAL=""
+CAPTURE_STATE_OUTPUT_DIR=""
+# shellcheck disable=SC2034 # Read by the sourcing command owner.
+CAPTURE_PUBLISHED_PATH=""
+
+capture_validate_testing_environment() {
+  [[ ${QVOS_CAPTURE_TESTING:-} == "1" ]] || return 0
+  if (( EUID == 0 )) || [[ $HOME != /tmp/* || $CAPTURE_RUNTIME_PARENT != /tmp/* ]]; then
+    echo "QVOS_CAPTURE_TESTING requires an unprivileged temporary HOME and runtime." >&2
+    return 1
+  fi
+}
+
+capture_validate_testing_environment || return 1
+
+capture_require_commands() {
+  local command
+
+  for command in "$@"; do
+    if qv-cmd-missing "$command"; then
+      echo "Capture requires $command." >&2
+      return 1
+    fi
+  done
+}
+
+capture_notify() {
+  if qv-cmd-missing qv-notification-send ||
+    ! qv-notification-send "$@"; then
+    echo "Warning: unable to send the qvOS Capture notification." >&2
+  fi
+}
+
+capture_runtime_init() {
+  [[ -d $CAPTURE_RUNTIME_PARENT && ! -L $CAPTURE_RUNTIME_PARENT &&
+    -O $CAPTURE_RUNTIME_PARENT ]] || {
+    echo "Unsafe qvOS runtime directory: $CAPTURE_RUNTIME_PARENT" >&2
+    return 1
+  }
+  if [[ -e $CAPTURE_RUNTIME_ROOT || -L $CAPTURE_RUNTIME_ROOT ]]; then
+    [[ -d $CAPTURE_RUNTIME_ROOT && ! -L $CAPTURE_RUNTIME_ROOT &&
+      -O $CAPTURE_RUNTIME_ROOT ]] || {
+      echo "Unsafe qvOS Capture runtime: $CAPTURE_RUNTIME_ROOT" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 "$CAPTURE_RUNTIME_ROOT"
+  fi
+  chmod 0700 "$CAPTURE_RUNTIME_ROOT"
+
+  if [[ -e $CAPTURE_PICKER_ROOT || -L $CAPTURE_PICKER_ROOT ]]; then
+    [[ -d $CAPTURE_PICKER_ROOT && ! -L $CAPTURE_PICKER_ROOT &&
+      -O $CAPTURE_PICKER_ROOT ]] || {
+      echo "Unsafe qvOS Capture picker runtime: $CAPTURE_PICKER_ROOT" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 "$CAPTURE_PICKER_ROOT"
+  fi
+  chmod 0700 "$CAPTURE_PICKER_ROOT"
+}
+
+capture_xdg_directory() {
+  local key=$1
+  local fallback=$2
+  local config_file="$HOME/.config/user-dirs.dirs"
+  local decoded=""
+  local index
+  local line
+  local next
+  local raw
+  local value=${!key:-}
+
+  if [[ -z $value && -f $config_file && ! -L $config_file &&
+    -O $config_file ]]; then
+    line=$(grep -m1 -E "^${key}=\".*\"$" "$config_file" || true)
+    if [[ -n $line ]]; then
+      raw=${line#*=\"}
+      raw=${raw%\"}
+      for ((index = 0; index < ${#raw}; index++)); do
+        next=${raw:index:1}
+        if [[ $next == "\\" ]]; then
+          ((index += 1))
+          (( index < ${#raw} )) || {
+            decoded=""
+            break
+          }
+          next=${raw:index:1}
+        fi
+        decoded+=$next
+      done
+      if [[ $decoded == "\$HOME" ]]; then
+        value=$HOME
+      elif [[ $decoded == "\$HOME/"* ]]; then
+        value="$HOME/${decoded#\$HOME/}"
+      elif [[ $decoded == /* ]]; then
+        value=$decoded
+      fi
+    fi
+  fi
+
+  [[ -n $value ]] || value=$fallback
+  printf '%s\n' "$value"
+}
+
+capture_prepare_output_directory() {
+  local label=$1
+  local path=$2
+  local resolved
+
+  [[ -n $path && $path == /* && ! $path =~ [[:cntrl:]] &&
+    ${#path} -le 4096 ]] || {
+    echo "Invalid $label directory: $path" >&2
+    return 2
+  }
+  if [[ ! -e $path && ! -L $path ]]; then
+    install -d -m 0700 "$path" || {
+      echo "Unable to create $label directory: $path" >&2
+      return 1
+    }
+  fi
+  resolved=$(realpath -e -- "$path") || return 1
+  [[ -d $resolved && -O $resolved && -w $resolved ]] || {
+    echo "$label directory is not a writable user directory: $resolved" >&2
+    return 1
+  }
+  printf '%s\n' "$resolved"
+}
+
+capture_next_output_path() {
+  local directory=$1
+  local extension=$2
+  local stem=$3
+  local candidate="$directory/$stem.$extension"
+  local suffix=0
+
+  while [[ -e $candidate || -L $candidate ]]; do
+    ((suffix += 1))
+    (( suffix <= 999 )) || {
+      echo "Unable to allocate a unique Capture output name." >&2
+      return 1
+    }
+    candidate="$directory/$stem-$suffix.$extension"
+  done
+  printf '%s\n' "$candidate"
+}
+
+capture_publish_file() {
+  local desired=$1
+  local source=$2
+  local base=${desired%.*}
+  local extension=${desired##*.}
+  local candidate=$desired
+  local suffix=0
+
+  [[ -f $source && ! -L $source && -O $source && -s $source ]] || {
+    echo "Capture did not produce a complete output." >&2
+    return 1
+  }
+  chmod 0600 "$source"
+  while ! ln -- "$source" "$candidate" 2>/dev/null; do
+    ((suffix += 1))
+    (( suffix <= 999 )) || {
+      echo "Unable to publish a unique Capture output." >&2
+      return 1
+    }
+    candidate="$base-$suffix.$extension"
+  done
+  unlink -- "$source"
+  # shellcheck disable=SC2034 # Read by the sourcing command owner.
+  CAPTURE_PUBLISHED_PATH=$candidate
+}
+
+capture_focused_monitor_geometry() {
+  local monitors
+
+  monitors=$(hyprctl monitors -j) || return 1
+  jq -er '
+    def geometry:
+      .x as $x | .y as $y |
+      (.width / .scale | floor) as $width |
+      (.height / .scale | floor) as $height |
+      if .transform == 1 or .transform == 3 then
+        "\($x),\($y) \($height)x\($width)"
+      else
+        "\($x),\($y) \($width)x\($height)"
+      end;
+    .[] | select(.focused == true) | geometry
+  ' <<<"$monitors"
+}
+
+capture_rectangles() {
+  local clients
+  local monitors
+  local workspace
+
+  monitors=$(hyprctl monitors -j) || return 1
+  clients=$(hyprctl clients -j) || return 1
+  workspace=$(jq -er '.[] | select(.focused == true) | .activeWorkspace.id' \
+    <<<"$monitors") || return 1
+  jq -er --argjson workspace "$workspace" '
+    def geometry:
+      .x as $x | .y as $y |
+      (.width / .scale | floor) as $width |
+      (.height / .scale | floor) as $height |
+      if .transform == 1 or .transform == 3 then
+        "\($x),\($y) \($height)x\($width)"
+      else
+        "\($x),\($y) \($width)x\($height)"
+      end;
+    .[] | select(.activeWorkspace.id == $workspace) | geometry
+  ' <<<"$monitors"
+  jq -er --argjson workspace "$workspace" '
+    .[] | select(.workspace.id == $workspace) |
+    "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"
+  ' <<<"$clients"
+}
+
+capture_end_freeze() {
+  if [[ -n $CAPTURE_FREEZE_PID ]]; then
+    kill "$CAPTURE_FREEZE_PID" 2>/dev/null || true
+    wait "$CAPTURE_FREEZE_PID" 2>/dev/null || true
+    CAPTURE_FREEZE_PID=""
+  fi
+  if [[ $CAPTURE_PICKER_LOCKED == "true" ]]; then
+    flock -u 8 2>/dev/null || true
+    exec 8<&-
+    CAPTURE_PICKER_LOCKED=false
+  fi
+  return 0
+}
+
+capture_select_geometry() {
+  local mode=$1
+  local picker_status
+  local rectangles=""
+  local selection
+  local sx
+  local sy
+  local sw
+  local sh
+  local rect
+  local rx
+  local ry
+  local rw
+  local rh
+
+  case $mode in
+  fullscreen)
+    capture_require_commands hyprctl jq
+    selection=$(capture_focused_monitor_geometry) || return 1
+    [[ -n $selection ]] || return 1
+    CAPTURE_SELECTION=$selection
+    return
+    ;;
+  region | windows | smart) ;;
+  *)
+    echo "Invalid Capture selection mode: $mode" >&2
+    return 2
+    ;;
+  esac
+
+  capture_require_commands flock hyprctl hyprpicker jq slurp
+  capture_runtime_init
+  exec 8<"$CAPTURE_PICKER_ROOT"
+  if ! flock -n 8; then
+    exec 8<&-
+    echo "Another qvOS Capture selection is already open." >&2
+    return 130
+  fi
+  CAPTURE_PICKER_LOCKED=true
+
+  if [[ $mode != "region" ]]; then
+    rectangles=$(capture_rectangles) || {
+      capture_end_freeze
+      return 1
+    }
+  fi
+
+  hyprpicker -r -z >/dev/null 2>&1 &
+  CAPTURE_FREEZE_PID=$!
+  sleep 0.1
+  if [[ $mode == "windows" ]]; then
+    if selection=$(printf '%s\n' "$rectangles" | slurp -r 2>/dev/null); then
+      :
+    else
+      picker_status=$?
+      capture_end_freeze
+      (( picker_status == 1 )) && return 130
+      return "$picker_status"
+    fi
+  elif [[ $mode == "region" ]]; then
+    if selection=$(slurp 2>/dev/null); then
+      :
+    else
+      picker_status=$?
+      capture_end_freeze
+      (( picker_status == 1 )) && return 130
+      return "$picker_status"
+    fi
+  elif selection=$(printf '%s\n' "$rectangles" | slurp 2>/dev/null); then
+    :
+  else
+    picker_status=$?
+    capture_end_freeze
+    (( picker_status == 1 )) && return 130
+    return "$picker_status"
+  fi
+
+  [[ $selection =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([1-9][0-9]*)x([1-9][0-9]*)$ ]] || {
+    capture_end_freeze
+    echo "Capture returned an invalid selection." >&2
+    return 1
+  }
+  sx=${BASH_REMATCH[1]}
+  sy=${BASH_REMATCH[2]}
+  sw=${BASH_REMATCH[3]}
+  sh=${BASH_REMATCH[4]}
+
+  if [[ $mode == "smart" ]] && ((sw * sh < 20)); then
+    while IFS= read -r rect; do
+      [[ $rect =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([1-9][0-9]*)x([1-9][0-9]*)$ ]] ||
+        continue
+      rx=${BASH_REMATCH[1]}
+      ry=${BASH_REMATCH[2]}
+      rw=${BASH_REMATCH[3]}
+      rh=${BASH_REMATCH[4]}
+      if ((sx >= rx && sx < rx + rw && sy >= ry && sy < ry + rh)); then
+        sx=$rx
+        sy=$ry
+        sw=$rw
+        sh=$rh
+        break
+      fi
+    done <<<"$rectangles"
+  fi
+
+  # shellcheck disable=SC2034 # Read by the sourcing command owner.
+  CAPTURE_SELECTION="${sx},${sy} ${sw}x${sh}"
+}
+
+capture_monitor_for_geometry() {
+  local geometry=$1
+  local monitors
+
+  monitors=$(hyprctl monitors -j) || return 1
+  jq -er --arg geometry "$geometry" '
+    def geometry:
+      .x as $x | .y as $y |
+      (.width / .scale | floor) as $width |
+      (.height / .scale | floor) as $height |
+      if .transform == 1 or .transform == 3 then
+        "\($x),\($y) \($height)x\($width)"
+      else
+        "\($x),\($y) \($width)x\($height)"
+      end;
+    .[] | select(geometry == $geometry) | .name
+  ' <<<"$monitors" | head -n 1
+}
+
+capture_default_resolution() {
+  local dimensions
+  local extra
+  local height
+  local width
+
+  dimensions=$(hyprctl monitors -j | jq -er '
+    .[] | select(.focused == true) | "\(.width) \(.height)"
+  ') || return 1
+  read -r width height extra <<<"$dimensions"
+  [[ $width =~ ^[1-9][0-9]*$ && $height =~ ^[1-9][0-9]*$ &&
+    -z ${extra:-} ]] || return 1
+  if ((width > 3840 || height > 2160)); then
+    printf '3840x2160\n'
+  else
+    printf '0x0\n'
+  fi
+}
+
+capture_process_matches() {
+  local pid=$1
+  local process_name=$2
+  local expected_start=${3:-}
+  local argument
+  local executable
+
+  [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  if [[ -n $expected_start ]]; then
+    [[ $(capture_process_start "$pid") == "$expected_start" ]] || return 1
+  fi
+  executable=$(readlink -e -- "/proc/$pid/exe" 2>/dev/null || true)
+  [[ ${executable##*/} == "$process_name" ]] && return
+
+  [[ ${QVOS_CAPTURE_TESTING:-} == "1" ]] || return 1
+  while IFS= read -r -d '' argument; do
+    [[ $argument == /tmp/*/"$process_name" ]] && return
+  done <"/proc/$pid/cmdline"
+  return 1
+}
+
+capture_process_start() {
+  local pid=$1
+  local rest
+  local stat
+  local -a fields
+
+  [[ $pid =~ ^[1-9][0-9]*$ && -r /proc/$pid/stat ]] || return 1
+  stat=$(<"/proc/$pid/stat")
+  rest=${stat##*) }
+  read -r -a fields <<<"$rest"
+  (( ${#fields[@]} >= 20 )) || return 1
+  [[ ${fields[19]} =~ ^[1-9][0-9]*$ ]] || return 1
+  printf '%s\n' "${fields[19]}"
+}
+
+capture_write_screenrecord_state() {
+  local pid=$1
+  local pid_start=$2
+  local webcam_pid=$3
+  local webcam_start=$4
+  local staging=$5
+  local recording=$6
+  local final=$7
+  local output_dir=$8
+  local temporary
+  local value
+
+  for value in "$staging" "$recording" "$final" "$output_dir"; do
+    [[ -n $value && $value == /* && ! $value =~ [[:cntrl:]] ]] || return 1
+  done
+  [[ $pid =~ ^[1-9][0-9]*$ && $pid_start =~ ^[1-9][0-9]*$ &&
+    $webcam_pid =~ ^(0|[1-9][0-9]*)$ &&
+    $webcam_start =~ ^(0|[1-9][0-9]*)$ ]] || return 1
+  if (( webcam_pid == 0 )); then
+    [[ $webcam_start == "0" ]] || return 1
+  else
+    [[ $webcam_start != "0" ]] || return 1
+  fi
+  temporary=$(mktemp "$CAPTURE_RUNTIME_ROOT/.screenrecord-state.XXXXXX")
+  chmod 0600 "$temporary"
+  printf '2\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$pid" "$pid_start" "$webcam_pid" "$webcam_start" \
+    "$staging" "$recording" "$final" "$output_dir" \
+    >"$temporary"
+  mv -fT -- "$temporary" "$CAPTURE_STATE_FILE"
+}
+
+capture_read_screenrecord_state() {
+  local extra
+  local version
+
+  [[ -f $CAPTURE_STATE_FILE && ! -L $CAPTURE_STATE_FILE &&
+    -O $CAPTURE_STATE_FILE && $(stat -c '%a' "$CAPTURE_STATE_FILE") == "600" &&
+    $(wc -l <"$CAPTURE_STATE_FILE") == 1 ]] || return 1
+  IFS=$'\t' read -r \
+    version \
+    CAPTURE_STATE_PID \
+    CAPTURE_STATE_PID_START \
+    CAPTURE_STATE_WEBCAM_PID \
+    CAPTURE_STATE_WEBCAM_START \
+    CAPTURE_STATE_STAGING \
+    CAPTURE_STATE_RECORDING \
+    CAPTURE_STATE_FINAL \
+    CAPTURE_STATE_OUTPUT_DIR \
+    extra <"$CAPTURE_STATE_FILE"
+  [[ $version == "2" && -z ${extra:-} &&
+    $CAPTURE_STATE_PID =~ ^[1-9][0-9]*$ &&
+    $CAPTURE_STATE_PID_START =~ ^[1-9][0-9]*$ &&
+    $CAPTURE_STATE_WEBCAM_PID =~ ^(0|[1-9][0-9]*)$ &&
+    $CAPTURE_STATE_WEBCAM_START =~ ^(0|[1-9][0-9]*)$ ]] || return 1
+  if (( CAPTURE_STATE_WEBCAM_PID == 0 )); then
+    [[ $CAPTURE_STATE_WEBCAM_START == "0" ]] || return 1
+  else
+    [[ $CAPTURE_STATE_WEBCAM_START != "0" ]] || return 1
+  fi
+  for value in \
+    "$CAPTURE_STATE_STAGING" \
+    "$CAPTURE_STATE_RECORDING" \
+    "$CAPTURE_STATE_FINAL" \
+    "$CAPTURE_STATE_OUTPUT_DIR"; do
+    [[ -n $value && $value == /* && ! $value =~ [[:cntrl:]] ]] || return 1
+  done
+  [[ -d $CAPTURE_STATE_OUTPUT_DIR && ! -L $CAPTURE_STATE_OUTPUT_DIR &&
+    -O $CAPTURE_STATE_OUTPUT_DIR && -w $CAPTURE_STATE_OUTPUT_DIR ]] || return 1
+  [[ $CAPTURE_STATE_STAGING == "$CAPTURE_STATE_OUTPUT_DIR/.qvos-screenrecord."* &&
+    -d $CAPTURE_STATE_STAGING && ! -L $CAPTURE_STATE_STAGING &&
+    -O $CAPTURE_STATE_STAGING &&
+    $(stat -c '%a' "$CAPTURE_STATE_STAGING") == "700" ]] || return 1
+  [[ $CAPTURE_STATE_RECORDING == "$CAPTURE_STATE_STAGING/recording.mp4" &&
+    -f $CAPTURE_STATE_RECORDING && ! -L $CAPTURE_STATE_RECORDING &&
+    -O $CAPTURE_STATE_RECORDING ]] || return 1
+  [[ ${CAPTURE_STATE_FINAL%/*} == "$CAPTURE_STATE_OUTPUT_DIR" &&
+    ${CAPTURE_STATE_FINAL##*/} == screenrecording-*.mp4 ]] || return 1
+}
+
+capture_screenrecord_state_status() {
+  CAPTURE_STATE_STATUS=inactive
+  if [[ ! -e $CAPTURE_RUNTIME_ROOT && ! -L $CAPTURE_RUNTIME_ROOT ]]; then
+    return 0
+  fi
+  [[ -d $CAPTURE_RUNTIME_PARENT && ! -L $CAPTURE_RUNTIME_PARENT &&
+    -O $CAPTURE_RUNTIME_PARENT &&
+    -d $CAPTURE_RUNTIME_ROOT && ! -L $CAPTURE_RUNTIME_ROOT &&
+    -O $CAPTURE_RUNTIME_ROOT &&
+    $(stat -c '%a' "$CAPTURE_RUNTIME_ROOT") == "700" ]] || {
+    CAPTURE_STATE_STATUS=unsafe
+    return 0
+  }
+  [[ -e $CAPTURE_STATE_FILE || -L $CAPTURE_STATE_FILE ]] || return 0
+  if ! capture_read_screenrecord_state; then
+    CAPTURE_STATE_STATUS=unsafe
+  elif capture_process_matches \
+    "$CAPTURE_STATE_PID" \
+    gpu-screen-recorder \
+    "$CAPTURE_STATE_PID_START"; then
+    CAPTURE_STATE_STATUS=active
+  elif capture_process_matches "$CAPTURE_STATE_PID" gpu-screen-recorder; then
+    CAPTURE_STATE_STATUS=unsafe
+  else
+    # shellcheck disable=SC2034 # Read by the sourcing command owner.
+    CAPTURE_STATE_STATUS=stale
+  fi
+  return 0
+}
+
+capture_signal_waybar() {
+  pkill -RTMIN+8 -x waybar 2>/dev/null || true
+}

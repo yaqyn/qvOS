@@ -899,7 +899,7 @@ for retired_duplicate in \
   [[ ! -e $root/$retired_duplicate ]] ||
     fail "duplicated Omarchy implementation remains: $retired_duplicate"
 done
-pass "debug and capture notifications retain their current owners without duplication"
+pass "debug and Capture presentation retain singular native owners"
 [[ ! -e $root/qvcore/launcher ]] ||
   fail "redundant qvOS launcher domain"
 if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin"; then

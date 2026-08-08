@@ -145,8 +145,8 @@
     "on-scroll-right": ""
   },
   "custom/screenrecording-indicator": {
-    "on-click": "omarchy-capture-screenrecording",
-    "exec": "$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh",
+    "on-click": "qv-capture-screenrecording",
+    "exec": "$QVOS_PATH/qvcore/capture/status",
     "signal": 8,
     "return-type": "json"
   },

@@ -9,7 +9,7 @@ export VISUAL="$EDITOR"
 export SUDO_EDITOR="$EDITOR"
 
 # Use a custom directory for screenshots (remember to make the directory!)
-# export OMARCHY_SCREENSHOT_DIR="$HOME/Pictures/Screenshots"
+# export QVOS_SCREENSHOT_DIR="$HOME/Pictures/Screenshots"
 
 # Use a custom directory for screenrecordings (remember to make the directory!)
-# export OMARCHY_SCREENRECORD_DIR="$HOME/Videos/Screencasts"
+# export QVOS_SCREENRECORD_DIR="$HOME/Videos/Screencasts"

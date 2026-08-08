@@ -1,0 +1,552 @@
+#!/bin/bash
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib"
+
+usage() {
+  cat <<'EOF'
+Usage: qv capture screenrecording [options]
+
+With no active recording, select a monitor or region and start recording.
+With an active or recoverable recording, stop and save it.
+
+Options:
+  --with-desktop-audio
+  --with-microphone-audio
+  --with-webcam
+  --webcam-device=/dev/videoN
+  --resolution=WIDTHxHEIGHT
+  --stop-recording
+  --status
+
+Environment:
+  QVOS_SCREENRECORD_DIR         Output directory
+  QVOS_SCREENRECORD_USE_PORTAL  true uses the portal capture backend
+  QVOS_SCREENRECORD_DEBUG       true keeps a bounded private debug log
+EOF
+}
+
+desktop_audio=false
+microphone_audio=false
+webcam=false
+webcam_device=""
+resolution=""
+stop_only=false
+show_status=false
+owned_staging=""
+owned_recorder_pid=0
+owned_webcam_pid=0
+state_committed=false
+
+cleanup_start_failure() {
+  if [[ $state_committed != "true" ]]; then
+    if capture_process_matches "$owned_recorder_pid" gpu-screen-recorder; then
+      kill -INT "$owned_recorder_pid" 2>/dev/null || true
+    fi
+    if capture_process_matches "$owned_webcam_pid" ffplay; then
+      kill "$owned_webcam_pid" 2>/dev/null || true
+    fi
+    if [[ -n $owned_staging && -d $owned_staging && ! -L $owned_staging &&
+      -O $owned_staging ]]; then
+      find "$owned_staging" -depth -delete
+    fi
+  fi
+  capture_end_freeze
+}
+trap cleanup_start_failure EXIT
+
+for argument in "$@"; do
+  case $argument in
+  --with-desktop-audio) desktop_audio=true ;;
+  --with-microphone-audio) microphone_audio=true ;;
+  --with-webcam) webcam=true ;;
+  --webcam-device=*) webcam_device=${argument#*=} ;;
+  --resolution=*) resolution=${argument#*=} ;;
+  --stop-recording) stop_only=true ;;
+  --status) show_status=true ;;
+  --help | -h)
+    usage
+    exit
+    ;;
+  *)
+    echo "Unknown screen-recording option: $argument" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+done
+
+if [[ $show_status == "true" ]] && (( $# != 1 )); then
+  echo "--status cannot be combined with recording options." >&2
+  exit 2
+fi
+if [[ -n $resolution ]] &&
+  [[ ! $resolution =~ ^(0x0|[1-9][0-9]{0,3}x[1-9][0-9]{0,3})$ ]]; then
+  echo "Invalid recording resolution: $resolution" >&2
+  exit 2
+fi
+if [[ -n $resolution && $resolution != "0x0" ]]; then
+  width=${resolution%x*}
+  height=${resolution#*x}
+  (( width >= 16 && width <= 7680 && height >= 16 && height <= 4320 )) || {
+    echo "Recording resolution must be between 16x16 and 7680x4320." >&2
+    exit 2
+  }
+fi
+if [[ -n $webcam_device ]]; then
+  [[ $webcam_device =~ ^/dev/video[0-9]+$ &&
+    ! -L $webcam_device && -e $webcam_device && -r $webcam_device ]] || {
+    echo "Invalid webcam device: $webcam_device" >&2
+    exit 2
+  }
+fi
+
+screenrecord_debug_log() {
+  local debug=${QVOS_SCREENRECORD_DEBUG:-${OMARCHY_SCREENRECORD_DEBUG:-false}}
+  local log_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/capture"
+  local log_file="$log_dir/screenrecord.log"
+  local temporary
+
+  case $debug in
+  false) printf '/dev/null\n'; return ;;
+  true) ;;
+  *)
+    echo "QVOS_SCREENRECORD_DEBUG must be true or false." >&2
+    return 2
+    ;;
+  esac
+  if [[ -e $log_dir || -L $log_dir ]]; then
+    [[ -d $log_dir && ! -L $log_dir && -O $log_dir ]] || {
+      echo "Unsafe qvOS Capture log directory: $log_dir" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 "$log_dir"
+  fi
+  chmod 0700 "$log_dir"
+  if [[ -e $log_file || -L $log_file ]]; then
+    [[ -f $log_file && ! -L $log_file && -O $log_file ]] || {
+      echo "Unsafe qvOS Capture debug log: $log_file" >&2
+      return 1
+    }
+    if (( $(stat -c '%s' "$log_file") > 1048576 )); then
+      temporary=$(mktemp "$log_dir/.screenrecord-log.XXXXXX")
+      chmod 0600 "$temporary"
+      tail -c 262144 "$log_file" >"$temporary"
+      mv -fT -- "$temporary" "$log_file"
+    fi
+  else
+    install -m 0600 /dev/null "$log_file"
+  fi
+  chmod 0600 "$log_file"
+  printf '%s\n' "$log_file"
+}
+
+start_webcam_overlay() {
+  local available_formats
+  local candidate
+  local monitor_scale
+  local target_width
+  local -a size_args=()
+
+  capture_require_commands ffplay v4l2-ctl
+  if [[ -z $webcam_device ]]; then
+    webcam_device=$(
+      v4l2-ctl --list-devices 2>/dev/null |
+        awk '/^[[:space:]]*\/dev\/video[0-9]+[[:space:]]*$/ {
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+          print
+          exit
+        }'
+    )
+    [[ -n $webcam_device && ! -L $webcam_device &&
+      -e $webcam_device && -r $webcam_device ]] || {
+      echo "No readable webcam device was found." >&2
+      return 1
+    }
+  fi
+
+  monitor_scale=$(hyprctl monitors -j |
+    jq -er '.[] | select(.focused == true) | .scale') || return 1
+  [[ $monitor_scale =~ ^[0-9]+([.][0-9]+)?$ ]] || {
+    echo "Hyprland returned an invalid monitor scale." >&2
+    return 1
+  }
+  target_width=$(awk -v scale="$monitor_scale" \
+    'BEGIN { width = 360 * scale; if (width < 180 || width > 1440) exit 1; printf "%.0f", width }') ||
+    return 1
+
+  available_formats=$(v4l2-ctl --list-formats-ext -d "$webcam_device" 2>/dev/null) ||
+    return 1
+  for candidate in 640x360 1280x720 1920x1080; do
+    if grep -Fq "$candidate" <<<"$available_formats"; then
+      size_args=(-video_size "$candidate")
+      break
+    fi
+  done
+
+  ffplay \
+    -f v4l2 \
+    "${size_args[@]}" \
+    -framerate 30 \
+    "$webcam_device" \
+    -vf "crop=iw/2:ih,scale=${target_width}:-1" \
+    -window_title WebcamOverlay \
+    -noborder \
+    -fflags nobuffer \
+    -flags low_delay \
+    -probesize 32 \
+    -analyzeduration 0 \
+    -loglevel quiet \
+    -an \
+    9>&- </dev/null &
+  owned_webcam_pid=$!
+  sleep 0.2
+  capture_process_matches "$owned_webcam_pid" ffplay || {
+    echo "Unable to start the webcam overlay." >&2
+    return 1
+  }
+}
+
+normalize_recording() {
+  local recording=$1
+  local processed="${recording%.mp4}-processed.mp4"
+  local -a audio_args=()
+  local -a video_codec=(-c:v copy)
+  local -a arguments
+
+  ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 \
+    "$recording" >/dev/null 2>&1 || {
+    echo "The retained recording is not a valid media file: $recording" >&2
+    return 1
+  }
+  if ffprobe \
+    -v error \
+    -select_streams v:0 \
+    -read_intervals %+0.2 \
+    -show_entries packet=flags \
+    -of csv=p=0 \
+    "$recording" 2>/dev/null | grep -q D; then
+    video_codec=(-c:v libx264 -preset veryfast -crf 20)
+  fi
+  if ffprobe \
+    -v error \
+    -select_streams a \
+    -show_entries stream=codec_type \
+    -of csv=p=0 \
+    "$recording" 2>/dev/null | grep -Fq audio; then
+    audio_args=(-af "volume=enable='lt(t,0.4)':volume=0,afade=t=in:st=0.4:d=0.05,loudnorm=I=-14:TP=-1.5:LRA=11")
+  fi
+
+  arguments=(
+    -hide_banner
+    -nostdin
+    -y
+    -ss 0.1
+    -i "$recording"
+    "${video_codec[@]}"
+    "${audio_args[@]}"
+    -movflags +faststart
+    "$processed"
+  )
+  if ffmpeg "${arguments[@]}" -loglevel quiet 2>/dev/null &&
+    [[ -s $processed ]] &&
+    ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 \
+      "$processed" >/dev/null 2>&1; then
+    mv -fT -- "$processed" "$recording"
+  elif [[ -e $processed && ! -L $processed ]]; then
+    unlink -- "$processed"
+  fi
+}
+
+notify_saved_recording() {
+  local filename=$1
+
+  if qv-cmd-missing notify-send; then
+    capture_notify "󰻂" "Screen recording saved" "Saved privately."
+    return 0
+  fi
+  (
+    local action
+    local preview
+
+    preview=$(mktemp "$CAPTURE_RUNTIME_ROOT/.screenrecord-preview.XXXXXX.png")
+    trap '[[ ! -e $preview ]] || unlink -- "$preview"' EXIT
+    if qv-cmd-present ffmpeg && ffmpeg \
+      -hide_banner \
+      -nostdin \
+      -y \
+      -ss 00:00:00.1 \
+      -i "$filename" \
+      -frames:v 1 \
+      -q:v 2 \
+      "$preview" \
+      -loglevel quiet 2>/dev/null; then
+      chmod 0600 "$preview"
+      action=$(notify-send \
+        "Screen recording saved" \
+        "Saved privately. Click to open." \
+        -t 10000 \
+        -i "$preview" \
+        -A "default=open" 2>/dev/null || true)
+    else
+      action=$(notify-send \
+        "Screen recording saved" \
+        "Saved privately. Click to open." \
+        -t 10000 \
+        -A "default=open" 2>/dev/null || true)
+    fi
+    if [[ $action == "default" ]] && qv-cmd-present mpv; then
+      mpv "$filename"
+    fi
+  ) >/dev/null 2>&1 9>&- &
+}
+
+finish_recording() {
+  local recording=$CAPTURE_STATE_RECORDING
+  local saved
+  local staging=$CAPTURE_STATE_STAGING
+
+  capture_require_commands ffprobe
+  if qv-cmd-present ffmpeg; then
+    normalize_recording "$recording"
+  else
+    ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 \
+      "$recording" >/dev/null 2>&1 || {
+      echo "The retained recording is not a valid media file: $recording" >&2
+      return 1
+    }
+    echo "Warning: FFmpeg is unavailable; preserving the original recording." >&2
+  fi
+  capture_publish_file "$CAPTURE_STATE_FINAL" "$recording"
+  saved=$CAPTURE_PUBLISHED_PATH
+  rmdir -- "$staging" 2>/dev/null ||
+    echo "Warning: retained nonempty recording staging: $staging" >&2
+  unlink -- "$CAPTURE_STATE_FILE"
+  capture_signal_waybar
+  notify_saved_recording "$saved"
+  printf 'Saved screen recording: %q\n' "$saved"
+}
+
+stop_recording() {
+  local forced=false
+  local attempts=0
+
+  if capture_process_matches \
+    "$CAPTURE_STATE_PID" \
+    gpu-screen-recorder \
+    "$CAPTURE_STATE_PID_START"; then
+    kill -INT "$CAPTURE_STATE_PID" || {
+      echo "Unable to stop the qvOS recording process." >&2
+      return 1
+    }
+    while capture_process_matches \
+      "$CAPTURE_STATE_PID" \
+      gpu-screen-recorder \
+      "$CAPTURE_STATE_PID_START" &&
+      ((attempts < 50)); do
+      sleep 0.1
+      ((attempts += 1))
+    done
+    if capture_process_matches \
+      "$CAPTURE_STATE_PID" \
+      gpu-screen-recorder \
+      "$CAPTURE_STATE_PID_START"; then
+      kill -KILL "$CAPTURE_STATE_PID" || return 1
+      forced=true
+      attempts=0
+      while capture_process_matches \
+        "$CAPTURE_STATE_PID" \
+        gpu-screen-recorder \
+        "$CAPTURE_STATE_PID_START" &&
+        ((attempts < 10)); do
+        sleep 0.1
+        ((attempts += 1))
+      done
+      capture_process_matches \
+        "$CAPTURE_STATE_PID" \
+        gpu-screen-recorder \
+        "$CAPTURE_STATE_PID_START" && {
+        echo "Unable to confirm the recording process stopped." >&2
+        return 1
+      }
+    fi
+  fi
+  if capture_process_matches \
+    "$CAPTURE_STATE_WEBCAM_PID" \
+    ffplay \
+    "$CAPTURE_STATE_WEBCAM_START"; then
+    kill "$CAPTURE_STATE_WEBCAM_PID" 2>/dev/null || true
+  fi
+  if [[ $forced == "true" ]]; then
+    capture_notify \
+      "󰻂" \
+      "Recording process required a forced stop" \
+      "qvOS will save it only if the media remains valid." \
+      -u critical
+  fi
+  finish_recording
+}
+
+start_recording() {
+  local audio_devices=""
+  local debug_log
+  local fallback
+  local final
+  local filename
+  local monitor
+  local output_dir
+  local portal=${QVOS_SCREENRECORD_USE_PORTAL:-${OMARCHY_SCREENRECORD_USE_PORTAL:-false}}
+  local recording
+  local recorder_start
+  local region
+  local target
+  local wait_count=0
+  local webcam_start=0
+  local -a audio_args=()
+  local -a capture_args=()
+
+  case $portal in true | false) ;; *)
+    echo "QVOS_SCREENRECORD_USE_PORTAL must be true or false." >&2
+    return 2
+  esac
+  capture_require_commands date gpu-screen-recorder hyprctl jq
+  fallback=$(capture_xdg_directory XDG_VIDEOS_DIR "$HOME/Videos")
+  output_dir=${QVOS_SCREENRECORD_DIR:-${OMARCHY_SCREENRECORD_DIR:-$fallback}}
+  output_dir=$(capture_prepare_output_directory "screen-recording" "$output_dir")
+
+  if [[ $portal == "true" ]]; then
+    target=portal
+    capture_args=(-w portal -s "${resolution:-$(capture_default_resolution)}")
+  else
+    capture_select_geometry smart || return
+    target=$CAPTURE_SELECTION
+    capture_end_freeze
+    monitor=$(capture_monitor_for_geometry "$target" || true)
+    if [[ -n $monitor ]]; then
+      capture_args=(-w "$monitor" -s "${resolution:-$(capture_default_resolution)}")
+    else
+      [[ $target =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([1-9][0-9]*)x([1-9][0-9]*)$ ]] ||
+        return 1
+      region="${BASH_REMATCH[3]}x${BASH_REMATCH[4]}+${BASH_REMATCH[1]}+${BASH_REMATCH[2]}"
+      capture_args=(-w "$region")
+      [[ -z $resolution ]] || capture_args+=(-s "$resolution")
+    fi
+  fi
+
+  if [[ $webcam == "true" ]]; then
+    start_webcam_overlay
+  fi
+
+  [[ $desktop_audio != "true" ]] || audio_devices=default_output
+  if [[ $microphone_audio == "true" ]]; then
+    [[ -z $audio_devices ]] || audio_devices+='|'
+    audio_devices+=default_input
+  fi
+  [[ -z $audio_devices ]] || audio_args=(-a "$audio_devices" -ac aac)
+
+  filename="screenrecording-$(date +'%Y-%m-%d_%H-%M-%S').mp4"
+  final=$(capture_next_output_path "$output_dir" mp4 "${filename%.mp4}")
+  owned_staging=$(mktemp -d -- "$output_dir/.qvos-screenrecord.XXXXXX")
+  chmod 0700 "$owned_staging"
+  recording="$owned_staging/recording.mp4"
+  debug_log=$(screenrecord_debug_log) || return
+  if [[ $debug_log == "/dev/null" ]]; then
+    gpu-screen-recorder \
+      "${capture_args[@]}" \
+      -k auto \
+      -f 60 \
+      -fm cfr \
+      -fallback-cpu-encoding yes \
+      -o "$recording" \
+      "${audio_args[@]}" \
+      9>&- </dev/null 2>/dev/null &
+  else
+    printf '===== %s target: %s =====\n' "$(date '+%F %T')" "$target" \
+      >>"$debug_log"
+    gpu-screen-recorder \
+      "${capture_args[@]}" \
+      -k auto \
+      -f 60 \
+      -fm cfr \
+      -fallback-cpu-encoding yes \
+      -o "$recording" \
+      "${audio_args[@]}" \
+      9>&- </dev/null 2>>"$debug_log" &
+  fi
+  owned_recorder_pid=$!
+
+  while capture_process_matches "$owned_recorder_pid" gpu-screen-recorder &&
+    [[ ! -f $recording ]] && ((wait_count < 50)); do
+    sleep 0.1
+    ((wait_count += 1))
+  done
+  if ! capture_process_matches "$owned_recorder_pid" gpu-screen-recorder ||
+    [[ ! -f $recording || -L $recording || ! -O $recording ]]; then
+    echo "Screen recording did not start within five seconds." >&2
+    return 1
+  fi
+  chmod 0600 "$recording"
+  recorder_start=$(capture_process_start "$owned_recorder_pid") || {
+    echo "Unable to identify the recording process instance." >&2
+    return 1
+  }
+  if (( owned_webcam_pid > 0 )); then
+    webcam_start=$(capture_process_start "$owned_webcam_pid") || {
+      echo "Unable to identify the webcam process instance." >&2
+      return 1
+    }
+  fi
+  capture_write_screenrecord_state \
+    "$owned_recorder_pid" \
+    "$recorder_start" \
+    "$owned_webcam_pid" \
+    "$webcam_start" \
+    "$owned_staging" \
+    "$recording" \
+    "$final" \
+    "$output_dir" || {
+    echo "Unable to store private qvOS recording state." >&2
+    return 1
+  }
+  state_committed=true
+  owned_staging=""
+  owned_recorder_pid=0
+  owned_webcam_pid=0
+  capture_signal_waybar
+  capture_notify "󰻂" "Screen recording started" "Run the command again to stop and save."
+  printf 'Screen recording started.\n'
+}
+
+capture_screenrecord_state_status
+if [[ $show_status == "true" ]]; then
+  printf '%s\n' "$CAPTURE_STATE_STATUS"
+  [[ $CAPTURE_STATE_STATUS != "unsafe" ]]
+  exit
+fi
+
+capture_runtime_init
+capture_require_commands flock
+exec 9<"$CAPTURE_RUNTIME_ROOT"
+if ! flock -n 9; then
+  echo "Another qvOS screen-recording action is still in progress." >&2
+  exit 1
+fi
+capture_screenrecord_state_status
+case $CAPTURE_STATE_STATUS in
+active | stale)
+  stop_recording
+  ;;
+inactive)
+  if [[ $stop_only == "true" ]]; then
+    echo "No qvOS screen recording is active." >&2
+    exit 1
+  fi
+  start_recording
+  ;;
+unsafe)
+  echo "Unsafe qvOS screen-recording state requires manual inspection: $CAPTURE_STATE_FILE" >&2
+  exit 1
+  ;;
+esac

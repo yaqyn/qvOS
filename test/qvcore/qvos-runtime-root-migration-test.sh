@@ -49,6 +49,8 @@ bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear
 bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show
 bindd = SUPER CTRL, V, Clipboard manager, exec, omarchy-launch-walker -m clipboard
 bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
+bindd = , PRINT, Screenshot, exec, omarchy-capture-screenshot
+bindd = SUPER CTRL, PRINT, Extract text, exec, omarchy-capture-text-extraction
 bindd = SUPER CTRL, PERIOD, Transcode, exec, omarchy-transcode
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
@@ -56,7 +58,7 @@ exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"battery":"$(omarchy-battery-status)","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
+{"battery":"$(omarchy-battery-status)","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -69,6 +71,11 @@ export USER_SETTING=preserved
 # qvOS PATH begin
 export PATH="$HOME/.local/share/qvos/bin:$PATH"
 # qvOS PATH end
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/uwsm/default" <<'CONFIG'
+# Keep this user comment.
+export OMARCHY_SCREENSHOT_DIR="$HOME/Pictures/Private"
+export OMARCHY_SCREENRECORD_DIR="$HOME/Videos/Private"
 CONFIG
 HOME="$test_home" \
   PATH="$test_bin:/usr/bin" \
@@ -103,11 +110,16 @@ for command in 'qv-reminder clear' 'qv-reminder show'; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted reminder route was not migrated: $command"
 done
-for command in qv-launch-walker qv-menu-keybindings qv-transcode; do
+for command in \
+  qv-capture-screenshot \
+  qv-capture-text-extraction \
+  qv-launch-walker \
+  qv-menu-keybindings \
+  qv-transcode; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted menu route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen|transcode)' \
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
@@ -128,7 +140,12 @@ grep -Fq 'qv-weather-icon' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar weather icon migration"
 grep -Fq 'qv-weather-status' "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar weather status migration"
-if rg -q 'omarchy-(launch-floating-terminal-with-presentation|weather-(icon|status))' \
+grep -Fq 'qv-capture-screenrecording' "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar Capture route migration"
+grep -Fq '$QVOS_PATH/qvcore/capture/status' \
+  "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar Capture indicator migration"
+if rg -q 'omarchy-(capture-screenrecording|launch-floating-terminal-with-presentation|weather-(icon|status))' \
   "$test_home/.config/waybar/config.jsonc"; then
   fail "Waybar weather compatibility route remains"
 fi
@@ -146,7 +163,13 @@ grep -Fqx 'export USER_SETTING=preserved' "$test_home/.config/uwsm/env" ||
 if grep -Fq '# qvOS PATH begin' "$test_home/.config/uwsm/env"; then
   fail "duplicate source path block cleanup"
 fi
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "5" ]] ||
+grep -Fqx 'export QVOS_SCREENSHOT_DIR="$HOME/Pictures/Private"' \
+  "$test_home/.config/uwsm/default" || fail "screenshot environment migration"
+grep -Fqx 'export QVOS_SCREENRECORD_DIR="$HOME/Videos/Private"' \
+  "$test_home/.config/uwsm/default" || fail "recording environment migration"
+grep -Fqx '# Keep this user comment.' "$test_home/.config/uwsm/default" ||
+  fail "Capture environment custom content preservation"
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "6" ]] ||
   fail "changed config backup count"
 [[ $(<"$systemctl_log") == "--user daemon-reload" ]] ||
   fail "user service reload"

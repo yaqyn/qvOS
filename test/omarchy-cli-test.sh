@@ -168,9 +168,9 @@ assert_output_contains "mutating command help does not execute target" "$output"
 assert_output_contains "root command help shows related child commands" "$output" "omarchy update firmware"
 
 output=$("$CLI" screenshot --help)
-assert_output_contains "root alias resolves to command help" "$output" "omarchy-capture-screenshot"
+assert_output_contains "root alias resolves to command help" "$output" "qv-capture-screenshot"
 
-"$CLI" commands --json | jq -e '.commands[] | select(.binary == "omarchy-capture-screenshot") | .aliases | index("omarchy screenshot")' >/dev/null
+"$CLI" commands --json | jq -e '.commands[] | select(.binary == "qv-capture-screenshot") | .aliases | index("omarchy screenshot")' >/dev/null
 pass "aliases are included in JSON metadata"
 
 output=$("$CLI" pkg add --help)
@@ -200,6 +200,7 @@ for binary in \
   qv-update \
   qv-theme-set \
   omarchy-capture-screenshot \
+  qv-capture-screenshot \
   omarchy-system-reboot \
   qv-system-reboot \
   qv-system-shutdown \

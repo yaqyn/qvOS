@@ -1,0 +1,104 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/capture/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-capture-screenrecording\nbin/omarchy-capture-screenshot\nbin/omarchy-capture-text-extraction'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native Capture inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+  "$root/qvcore/capture/retired-paths") == \
+  "default/waybar/indicators/screen-recording.sh" ]] ||
+  fail "retired Capture inventory"
+
+declare -A owners=(
+  [capture-screenrecording]=screenrecord
+  [capture-screenshot]=screenshot
+  [capture-text-extraction]=ocr
+)
+for command in "${!owners[@]}"; do
+  owner=${owners[$command]}
+  native="$root/bin/qv-$command"
+  compatibility="$root/bin/omarchy-$command"
+  [[ -x $root/qvcore/capture/$owner && -x $native && -x $compatibility ]] ||
+    fail "Capture owner or adapter mode: $command"
+  (( $(wc -l <"$native") <= 12 && $(wc -l <"$compatibility") <= 5 )) ||
+    fail "Capture adapter contains implementation: $command"
+  rg -q '^# qv:summary=' "$native" || fail "native Capture metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility Capture metadata: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/capture/$owner\" \"\$@\"" "$native" ||
+    fail "native Capture adapter owner: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/capture/$owner\" \"\$@\"" \
+    "$compatibility" || fail "compatibility Capture adapter owner: $command"
+done
+for owner in lib status; do
+  [[ -x $root/qvcore/capture/$owner ]] || fail "Capture owner mode: $owner"
+done
+
+if rg -n 'omarchy-capture-(screenrecording|screenshot|text-extraction)' \
+  "$root/bin/omarchy-menu" \
+  "$root/config/hypr/bindings.conf" \
+  "$root/config/waybar/config.jsonc" \
+  "$root/qvcore/menu/elephant/qvos_menu.lua"; then
+  fail "active qvOS consumer uses Capture compatibility"
+fi
+[[ ! -e $root/default/waybar/indicators/screen-recording.sh &&
+  ! -L $root/default/waybar/indicators/screen-recording.sh ]] ||
+  fail "retired recording indicator implementation remains"
+# shellcheck disable=SC2016
+grep -Fq '"exec": "$QVOS_PATH/qvcore/capture/status"' \
+  "$root/config/waybar/config.jsonc" || fail "native recording indicator owner"
+if rg -n '/tmp/omarchy|pkill .*gpu-screen-recorder|pgrep .*gpu-screen-recorder|pkill .*WebcamOverlay' \
+  "$root/qvcore/capture" --glob '!AGENTS.md' --glob '!check'; then
+  fail "Capture owner retains shared state or broad process control"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'ln -- "$source" "$candidate"' "$root/qvcore/capture/lib" ||
+  fail "no-clobber Capture publication"
+# shellcheck disable=SC2016
+grep -Fq '$(stat -c '\''%a'\'' "$CAPTURE_STATE_FILE") == "600"' \
+  "$root/qvcore/capture/lib" || fail "private recording state"
+# shellcheck disable=SC2016
+grep -Fq 'capture_process_start "$pid"' "$root/qvcore/capture/lib" ||
+  fail "recording process-instance identity"
+grep -Fq 'select(.focused == true) | geometry' "$root/qvcore/capture/lib" ||
+  fail "focused fullscreen selection"
+grep -Fq 'return 130' "$root/qvcore/capture/lib" ||
+  fail "Capture cancellation status"
+for variable in QVOS_SCREENSHOT_DIR QVOS_SCREENRECORD_DIR; do
+  grep -Fq "$variable" "$root/qvcore/config/files/uwsm/default" ||
+    fail "qvOS Capture environment: $variable"
+done
+grep -Fq "'omarchy-capture-screenshot' 'qv-capture-screenshot'" \
+  "$root/qvcore/config/migrate-runtime-root" || fail "screenshot config migration"
+grep -Fq "'omarchy-capture-screenrecording' 'qv-capture-screenrecording'" \
+  "$root/qvcore/config/migrate-runtime-root" || fail "recording config migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
+  "$root/qvcore/migrations/1786199374.sh" || fail "native Capture migration owner"
+
+for frontend in qv omarchy; do
+  for route in \
+    'capture screenshot|qv-capture-screenshot' \
+    'capture screenrecording|qv-capture-screenrecording' \
+    'capture ocr|qv-capture-text-extraction'; do
+    name=${route%%|*}
+    binary=${route#*|}
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend $name" --arg binary "$binary" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend $name native route"
+  done
+done
+
+printf 'ok - qvOS Capture output, state, selection, and process ownership are private\n'

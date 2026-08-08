@@ -67,6 +67,11 @@ preserve all other content, refuse links and foreign ownership, and remain a
 no-op after success. Keep its inherited migration stub thin and its
 implementation native.
 
+Capture bindings and Waybar actions use native `qv-capture-*` routes. The
+recording indicator executes `qvcore/capture/status` directly, and active UWSM
+examples use `QVOS_SCREENSHOT_DIR` and `QVOS_SCREENRECORD_DIR`. Migrate only
+their exact inherited command, indicator, and variable literals.
+
 Config and session commands use metadata-bearing `qv-*` adapters and one
 owner here. Retain matching metadata-free `omarchy-*` files only as external
 and saved-config compatibility routes. Native bindings, menus, sleep guards,

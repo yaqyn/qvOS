@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Start, stop, or recover a private screen recording
+# qv:args=[--with-desktop-audio] [--with-microphone-audio] [--with-webcam] [--webcam-device=/dev/videoN] [--resolution=WIDTHxHEIGHT] [--stop-recording|--status]
+# qv:examples=qv screenrecord | qv capture screenrecording --with-desktop-audio | qv capture screenrecording --status
+# qv:aliases=qv screenrecord
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/capture/screenrecord" "$@"

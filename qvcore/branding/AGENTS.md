@@ -16,6 +16,8 @@ About and screensaver image imports delegate terminal-art conversion once to
 `qv-transcode-ascii`; branding never owns a second image renderer.
 Result terminals and their completion or failure screens belong to
 `qvcore/presentation/`; branding owns only the logo rendered inside them.
+Capture notifications and recording-indicator copy belong to `qvcore/capture/`;
+branding must not duplicate their presentation or lifecycle.
 
 - Do not rename lowercase `omarchy-*` commands, `OMARCHY_*` variables, package
   repositories, state paths, app IDs, or compatibility filenames in a branding

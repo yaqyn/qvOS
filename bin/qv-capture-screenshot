@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Take a private screenshot
+# qv:args=[smart|region|windows|fullscreen] [slurp|copy|save] [--editor=name]
+# qv:examples=qv screenshot | qv capture screenshot region | qv capture screenshot fullscreen save
+# qv:aliases=qv screenshot
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/capture/screenshot" "$@"

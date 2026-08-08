@@ -94,6 +94,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   prompts, choices, search directories, formats, monitor data, and arguments
   before handing them to Walker. Active qvOS config and owners use only the
   native routes.
+- Capture menu leaves delegate once to `qv-capture-screenshot`,
+  `qv-capture-screenrecording`, or `qv-capture-text-extraction`; selection,
+  media, process, and recovery behavior remains in `qvcore/capture/`.
 
 ## Change workflow
 

@@ -1,0 +1,101 @@
+#!/bin/bash
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib"
+
+usage() {
+  cat <<'EOF'
+Usage: qv capture ocr [--langs=eng+ara]
+
+Select a region, extract its text with Tesseract, and copy the result.
+Languages must already be installed Tesseract language identifiers.
+EOF
+}
+
+languages=${QVOS_OCR_LANGS:-${OMARCHY_OCR_LANGS:-eng}}
+temporary_dir=""
+
+cleanup() {
+  capture_end_freeze
+  [[ -z $temporary_dir || ! -d $temporary_dir ]] ||
+    find "$temporary_dir" -depth -delete
+}
+trap cleanup EXIT
+
+while (( $# > 0 )); do
+  case $1 in
+  --langs=*) languages=${1#*=} ;;
+  --help | -h)
+    usage
+    exit
+    ;;
+  *)
+    echo "Unknown OCR option: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+[[ $languages =~ ^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$ &&
+  ${#languages} -le 128 ]] || {
+  echo "Invalid OCR language list: $languages" >&2
+  exit 2
+}
+
+capture_require_commands grim tesseract timeout wl-copy
+available_languages=$(tesseract --list-langs 2>/dev/null) || {
+  echo "Unable to read installed OCR languages." >&2
+  exit 1
+}
+IFS=+ read -r -a requested_languages <<<"$languages"
+for language in "${requested_languages[@]}"; do
+  grep -Fqx "$language" <<<"$available_languages" || {
+    echo "OCR language is not installed: $language" >&2
+    exit 1
+  }
+done
+
+capture_runtime_init
+temporary_dir=$(mktemp -d "$CAPTURE_RUNTIME_ROOT/.ocr.XXXXXX")
+image="$temporary_dir/selection.png"
+text="$temporary_dir/text.txt"
+if capture_select_geometry region; then
+  :
+else
+  status=$?
+  exit "$status"
+fi
+if ! grim -g "$CAPTURE_SELECTION" "$image"; then
+  capture_end_freeze
+  echo "Unable to capture the OCR region." >&2
+  exit 1
+fi
+capture_end_freeze
+chmod 0600 "$image"
+if ! timeout --foreground 30s tesseract \
+  "$image" stdout \
+  --oem 1 \
+  --psm 6 \
+  -l "$languages" \
+  --dpi 300 \
+  -c preserve_interword_spaces=1 \
+  >"$text" 2>/dev/null; then
+  echo "Unable to extract text from the selected region." >&2
+  exit 1
+fi
+[[ -s $text ]] || {
+  echo "No text was found in the selected region." >&2
+  exit 1
+}
+(( $(stat -c '%s' "$text") <= 1048576 )) || {
+  echo "OCR output exceeded the 1 MiB safety limit." >&2
+  exit 1
+}
+wl-copy --type "text/plain;charset=utf-8" <"$text" || {
+  echo "OCR succeeded, but the clipboard was unavailable." >&2
+  exit 1
+}
+capture_notify "󰴑" "Copied text from the selected region"
+printf 'Copied OCR text to the clipboard.\n'

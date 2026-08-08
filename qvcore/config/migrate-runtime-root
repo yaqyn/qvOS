@@ -99,6 +99,8 @@ rewrite_literals \
   'omarchy-battery-status' 'qv-battery-status' \
   'omarchy-brightness-display' 'qv-brightness-display' \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
+  'omarchy-capture-screenshot' 'qv-capture-screenshot' \
+  'omarchy-capture-text-extraction' 'qv-capture-text-extraction' \
   'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
   'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
   'omarchy-launch-walker' 'qv-launch-walker' \
@@ -120,13 +122,21 @@ rewrite_literals \
   '.local/lib/qvos/bin/qv-system-suspend-if-safe' \
   '.local/lib/qvos/bin/omarchy-system-suspend-if-safe' \
   '.local/lib/qvos/bin/qv-system-suspend-if-safe'
+# shellcheck disable=SC2016
 rewrite_literals \
   "$HOME/.config/waybar/config.jsonc" \
   'omarchy-battery-status' 'qv-battery-status' \
+  'omarchy-capture-screenrecording' 'qv-capture-screenrecording' \
+  '$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh' \
+  '$QVOS_PATH/qvcore/capture/status' \
   'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation' \
   'omarchy-weather-icon' 'qv-weather-icon' \
   'omarchy-weather-status' 'qv-weather-status' \
   'omarchy-tz-select' 'qv-tz-select'
+rewrite_literals \
+  "$HOME/.config/uwsm/default" \
+  'OMARCHY_SCREENSHOT_DIR' 'QVOS_SCREENSHOT_DIR' \
+  'OMARCHY_SCREENRECORD_DIR' 'QVOS_SCREENRECORD_DIR'
 rewrite_literals \
   "$HOME/.config/Thunar/uca.xml" \
   '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/'

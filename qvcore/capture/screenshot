@@ -1,0 +1,146 @@
+#!/bin/bash
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib"
+
+usage() {
+  cat <<'EOF'
+Usage: qv capture screenshot [smart|region|windows|fullscreen] [slurp|copy|save] [--editor=name]
+
+Modes:
+  smart       Select a region; a click snaps to its window or monitor
+  region      Select an exact region
+  windows     Select a visible window or monitor rectangle
+  fullscreen  Capture the focused monitor
+
+Results:
+  slurp  Save privately, copy the PNG, and offer the editor (default)
+  copy   Copy the PNG without saving it
+  save   Save privately without copying it
+EOF
+}
+
+mode=smart
+processing=slurp
+editor=${QVOS_SCREENSHOT_EDITOR:-${OMARCHY_SCREENSHOT_EDITOR:-satty}}
+temporary=""
+declare -a positional=()
+
+cleanup() {
+  capture_end_freeze
+  [[ -z $temporary || ! -e $temporary ]] || unlink -- "$temporary"
+}
+trap cleanup EXIT
+
+for argument in "$@"; do
+  case $argument in
+  --editor=*) editor=${argument#*=} ;;
+  --help | -h)
+    usage
+    exit
+    ;;
+  --*)
+    echo "Unknown screenshot option: $argument" >&2
+    usage >&2
+    exit 2
+    ;;
+  *) positional+=("$argument") ;;
+  esac
+done
+(( ${#positional[@]} <= 2 )) || {
+  echo "Too many screenshot arguments." >&2
+  usage >&2
+  exit 2
+}
+mode=${positional[0]:-$mode}
+processing=${positional[1]:-$processing}
+case $mode in smart | region | windows | fullscreen) ;; *)
+  echo "Invalid screenshot mode: $mode" >&2
+  exit 2
+esac
+case $processing in slurp | copy | save) ;; *)
+  echo "Invalid screenshot result: $processing" >&2
+  exit 2
+esac
+[[ -n $editor && ! $editor =~ [[:cntrl:][:space:]] ]] || {
+  echo "Invalid screenshot editor: $editor" >&2
+  exit 2
+}
+
+capture_require_commands grim
+[[ $processing != "copy" ]] || capture_require_commands wl-copy
+
+if capture_select_geometry "$mode"; then
+  :
+else
+  status=$?
+  exit "$status"
+fi
+
+if [[ $processing == "copy" ]]; then
+  set +e
+  grim -g "$CAPTURE_SELECTION" - | wl-copy --type image/png
+  status=$?
+  set -e
+  capture_end_freeze
+  exit "$status"
+fi
+
+fallback=$(capture_xdg_directory XDG_PICTURES_DIR "$HOME/Pictures")
+output_dir=${QVOS_SCREENSHOT_DIR:-${OMARCHY_SCREENSHOT_DIR:-$fallback}}
+output_dir=$(capture_prepare_output_directory "screenshot" "$output_dir")
+stem="screenshot-$(date +'%Y-%m-%d_%H-%M-%S')"
+desired=$(capture_next_output_path "$output_dir" png "$stem")
+temporary=$(mktemp -- "$output_dir/.qvos-screenshot.XXXXXX.png")
+chmod 0600 "$temporary"
+if ! grim -g "$CAPTURE_SELECTION" "$temporary"; then
+  capture_end_freeze
+  echo "Unable to capture the selected region." >&2
+  exit 1
+fi
+capture_end_freeze
+capture_publish_file "$desired" "$temporary"
+temporary=""
+saved=$CAPTURE_PUBLISHED_PATH
+
+if [[ $processing == "slurp" ]]; then
+  if qv-cmd-present wl-copy && wl-copy --type image/png <"$saved"; then
+    notification="Saved and copied privately."
+  else
+    notification="Saved privately; clipboard unavailable."
+  fi
+  if qv-cmd-present notify-send; then
+    (
+      if qv-cmd-present "$editor"; then
+        action=$(notify-send \
+          "Screenshot saved" \
+          "$notification Click to edit." \
+          -t 10000 \
+          -i "$saved" \
+          -A "default=edit" 2>/dev/null || true)
+        if [[ $action == "default" ]]; then
+          if [[ $editor == "satty" ]]; then
+            satty --filename "$saved" \
+              --output-filename "$saved" \
+              --actions-on-enter save-to-clipboard \
+              --save-after-copy \
+              --copy-command wl-copy
+          else
+            "$editor" "$saved"
+          fi
+        fi
+      else
+        notify-send \
+          "Screenshot saved" \
+          "$notification Editor unavailable." \
+          -t 10000 \
+          -i "$saved" 2>/dev/null || true
+      fi
+    ) >/dev/null 2>&1 &
+  else
+    capture_notify "" "Screenshot saved" "$notification"
+  fi
+fi
+
+printf 'Saved screenshot: %q\n' "$saved"

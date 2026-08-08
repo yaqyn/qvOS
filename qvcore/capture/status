@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib"
+
+capture_screenrecord_state_status
+case $CAPTURE_STATE_STATUS in
+active)
+  printf '{"text":"󰻂","tooltip":"Stop recording","class":"active"}\n'
+  ;;
+stale)
+  printf '{"text":"󰔷","tooltip":"Recover interrupted recording","class":"warning"}\n'
+  ;;
+unsafe)
+  printf '{"text":"󰀪","tooltip":"Unsafe recording state","class":"critical"}\n'
+  ;;
+inactive)
+  printf '{"text":""}\n'
+  ;;
+esac
