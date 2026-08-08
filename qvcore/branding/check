@@ -44,6 +44,7 @@ done
 declare -A branding_routes=(
   [branding-about]=about
   [branding-screensaver]=screensaver
+  [refresh-fastfetch]=refresh-fastfetch
   [show-logo]=show-logo
 )
 for route in "${!branding_routes[@]}"; do
@@ -67,11 +68,11 @@ for route in "${!branding_routes[@]}"; do
   done
 done
 
-for owner in about install lib screensaver show-logo; do
+for owner in about install lib refresh-fastfetch screensaver show-logo; do
   [[ -f $root/qvcore/branding/$owner && ! -L $root/qvcore/branding/$owner ]] ||
     fail "missing native branding owner: $owner"
 done
-for owner in about install screensaver show-logo; do
+for owner in about install refresh-fastfetch screensaver show-logo; do
   [[ -x $root/qvcore/branding/$owner ]] || fail "branding owner mode: $owner"
 done
 [[ -f $root/qvcore/branding/terminal-art.txt &&
@@ -106,7 +107,7 @@ for frontend in qv omarchy; do
   done
 done
 
-if rg -n 'omarchy-branding-(about|screensaver)|omarchy-show-logo' \
+if rg -n 'omarchy-branding-(about|screensaver)|omarchy-(refresh-fastfetch|show-logo)' \
   "$root/qvcore/branding" "$root/qvcore/menu" "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths'; then
   fail "native qvOS source calls a branding compatibility route"

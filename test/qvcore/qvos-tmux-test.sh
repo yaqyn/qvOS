@@ -32,6 +32,67 @@ fail() {
   exit 1
 }
 
+for frontend in qv omarchy; do
+  adapter="$root/bin/$frontend-refresh-tmux"
+  [[ -x $adapter ]] || fail "$frontend refresh adapter mode"
+  # shellcheck disable=SC2016
+  grep -Fqx \
+    'exec "$QVOS_PATH/qvcore/tmux/refresh" "$@"' \
+    "$adapter" || fail "$frontend refresh adapter owner"
+done
+rg -q '^# qv:summary=' "$root/bin/qv-refresh-tmux" ||
+  fail "native refresh adapter metadata"
+if rg -q '^# (qv|omarchy):' "$root/bin/omarchy-refresh-tmux"; then
+  fail "compatibility refresh adapter metadata"
+fi
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+  "$root/qvcore/tmux/native-paths") == "bin/omarchy-refresh-tmux" ]] ||
+  fail "Tmux native path inventory"
+# shellcheck disable=SC2016
+grep -Fq 'Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`' \
+  "$root/AGENTS.md" || fail "Tmux workflow route"
+
+refresh_home="$test_root/refresh-home"
+refresh_source="$test_root/refresh-source"
+refresh_log="$test_root/refresh-log"
+install -D -m 0644 "$root/config/tmux/tmux.conf" \
+  "$refresh_source/config/tmux/tmux.conf"
+install -D -m 0755 "$root/qvcore/config/refresh" \
+  "$refresh_source/qvcore/config/refresh"
+install -D -m 0755 "$root/qvcore/tmux/refresh" \
+  "$refresh_source/qvcore/tmux/refresh"
+install -D -m 0755 /dev/stdin \
+  "$refresh_source/qvcore/desktop/restart/tmux" <<'RESTART'
+#!/bin/bash
+printf 'reload\n' >>"$QVOS_TEST_REFRESH_LOG"
+RESTART
+install -D -m 0644 /dev/stdin \
+  "$refresh_home/.config/tmux/tmux.conf" <<'CONFIG'
+personal tmux config
+CONFIG
+HOME="$refresh_home" \
+  QVOS_PATH="$refresh_source" \
+  QVOS_TEST_REFRESH_LOG="$refresh_log" \
+  "$refresh_source/qvcore/tmux/refresh"
+cmp -s "$root/config/tmux/tmux.conf" \
+  "$refresh_home/.config/tmux/tmux.conf" || fail "Tmux config refresh"
+grep -Fqx 'reload' "$refresh_log" || fail "Tmux reload after refresh"
+refresh_backup=$(
+  find "$refresh_home/.config/tmux" \
+    -maxdepth 1 \
+    -name 'tmux.conf.bak.*' \
+    -print -quit
+)
+[[ -n $refresh_backup && $(<"$refresh_backup") == "personal tmux config" ]] ||
+  fail "Tmux config backup"
+if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+  "$refresh_source/qvcore/tmux/refresh" unexpected >/dev/null 2>&1; then
+  fail "Tmux refresh accepted unexpected arguments"
+fi
+[[ $(wc -l <"$refresh_log") == "1" ]] ||
+  fail "invalid Tmux refresh reloaded the server"
+pass "Tmux refresh is native, backed up, strict, and reload-aware"
+
 line_count() {
   if [[ -f $launch_log ]]; then
     wc -l <"$launch_log"

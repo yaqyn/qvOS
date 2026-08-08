@@ -271,8 +271,9 @@ Root-started sessions must read every matching route completely before editing:
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`
 - Waybar overlay, runtime modules, refresh, and task actions: `qvcore/waybar/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
+- Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
-- qvOS Hyprland and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`
+- qvOS configuration and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`
 - qvOS power, root-owned AC events, battery protection, and charging thresholds: `qvcore/power/AGENTS.md`
 - Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
 - Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`

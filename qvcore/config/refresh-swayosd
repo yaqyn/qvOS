@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+if (($# != 0)); then
+  printf 'Usage: qv refresh swayosd\n' >&2
+  exit 2
+fi
+
+config_paths=(
+  swayosd/config.toml
+  swayosd/style.css
+)
+for config_path in "${config_paths[@]}"; do
+  [[ -f $QVOS_PATH/config/$config_path &&
+    ! -L $QVOS_PATH/config/$config_path ]] || {
+    printf 'Missing qvOS config source: %s\n' "$config_path" >&2
+    exit 1
+  }
+done
+for config_path in "${config_paths[@]}"; do
+  "$QVOS_PATH/qvcore/config/refresh" "$config_path"
+done
+"$QVOS_PATH/qvcore/desktop/restart/swayosd"

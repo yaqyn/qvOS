@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+
+if (($# != 0)); then
+  printf 'Usage: qv refresh fastfetch\n' >&2
+  exit 2
+fi
+
+"$QVOS_PATH/qvcore/config/refresh" fastfetch/config.jsonc

@@ -1,7 +1,7 @@
-# qvOS Hyprland Config Workflow
+# qvOS Config Workflow
 
-Read this file completely when changing qvOS-owned Hyprland bindings, refresh
-reconciliation, or installed Hyprland configuration.
+Read this file completely when changing qvOS-owned Hyprland bindings, config
+refresh reconciliation, or installed desktop configuration.
 
 `config/hypr/bindings.conf` is the single authoritative qvOS binding source.
 There is no inherited binding layer and no qvOS binding overlay.
@@ -46,6 +46,13 @@ keyboard layout. Never copy an inherited file immediately before replacing the
 same destination with a specialized owner. Put only look, window, input, and
 future specialized config in the `qvcore/` sublayer. Reconcile after refresh
 and verify tracked and installed config.
+
+Hypridle, Hyprlock, Hyprsunset, and SwayOSD each have one small refresh owner
+here. Each owner rejects arguments, delegates file restoration to
+`qvcore/config/refresh`, and invokes the native desktop restart owner only after
+every file succeeds. Public `qv-refresh-*` commands carry metadata; matching
+`omarchy-refresh-*` files are compatibility only. Native menus and TUI actions
+always call the qv route.
 
 Promoted defaults under `config/` are native qvOS sources and must not be
 duplicated under `qvcore/config/files/`. qvOS-managed user units use `qvos-*`

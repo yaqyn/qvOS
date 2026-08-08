@@ -7,7 +7,11 @@ bin/omarchy-hyprland-toggle
 bin/omarchy-hyprland-toggle-disabled
 bin/omarchy-hyprland-toggle-enabled
 bin/omarchy-refresh-config
+bin/omarchy-refresh-hypridle
 bin/omarchy-refresh-hyprland
+bin/omarchy-refresh-hyprlock
+bin/omarchy-refresh-hyprsunset
+bin/omarchy-refresh-swayosd
 bin/omarchy-toggle
 bin/omarchy-toggle-enabled
 bin/omarchy-toggle-touchpad

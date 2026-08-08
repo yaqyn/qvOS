@@ -27,12 +27,12 @@ hybrid-gpu|Hybrid GPU|Confirm a GPU mode change and system reboot|3|mutation|nat
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|mutation|native|true|Enable|Enabling|Enabled|omarchy-hibernation-setup
 hibernation-disable|Hibernation|Confirm and remove hibernation configuration|3|mutation|native|true|Disable|Disabling|Disabled|omarchy-hibernation-remove
 refresh-hyprland|Hyprland Config|Restore qvOS Hyprland defaults with display detection and backups|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-hyprland
-refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hypridle
-refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprlock
-refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-hyprsunset
+refresh-hypridle|Hypridle Config|Restore the Hypridle default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-hypridle
+refresh-hyprlock|Hyprlock Config|Restore the Hyprlock default with a backup|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-hyprlock
+refresh-hyprsunset|Hyprsunset Config|Restore the Hyprsunset default and restart it|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-hyprsunset
 refresh-plymouth|Plymouth|Restore the qvOS boot theme and rebuild boot images|3|mutation|tui|true|Restore|Restoring|Restored|qv-refresh-plymouth
-refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-swayosd
-refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-tmux
+refresh-swayosd|SwayOSD Config|Restore SwayOSD defaults and restart it|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-swayosd
+refresh-tmux|Tmux Config|Restore the Tmux default and reload Tmux|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-tmux
 refresh-walker|Walker Config|Restore Walker and Elephant defaults and restart them|3|mutation|tui|false|Restore|Restoring|Restored|omarchy-refresh-walker
 refresh-waybar|Waybar Config|Restore Waybar defaults with qvOS overrides|3|mutation|tui|false|Restore|Restoring|Restored|qv-refresh-waybar
 restart-hypridle|Hypridle|Restart the Hypridle user service|1|mutation|tui|false|Restart|Restarting|Restarted|qv-restart-hypridle

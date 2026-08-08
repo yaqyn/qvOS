@@ -39,6 +39,15 @@ run_owner() {
     "$@"
 }
 
+run_owner "$root/qvcore/branding/refresh-fastfetch"
+cmp -s "$root/config/fastfetch/config.jsonc" \
+  "$test_home/.config/fastfetch/config.jsonc" ||
+  fail "native Fastfetch refresh"
+if run_owner "$root/qvcore/branding/refresh-fastfetch" unexpected \
+  >/dev/null 2>&1; then
+  fail "Fastfetch refresh accepted unexpected arguments"
+fi
+
 run_owner "$branding_install" >/dev/null
 [[ $(<"$test_home/.config/qvos/branding/about.txt") == "custom About" ]] ||
   fail "plain legacy About preservation"

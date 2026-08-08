@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Restore the qvOS Fastfetch configuration
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/branding/refresh-fastfetch" "$@"
