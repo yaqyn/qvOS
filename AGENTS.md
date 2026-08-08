@@ -143,6 +143,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited unit names are migration input only
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
+- local debug inventory belongs to `qvcore/security/debug`; it remains private,
+  bounded, terminal-safe, and upload-free, with sudo limited to optional dmesg
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
 - `default/themed/*.tpl` remains the compatible custom-theme template format
 

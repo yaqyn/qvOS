@@ -9,6 +9,9 @@ installer="$root/qvcore/security/install"
 boot_mount="$root/qvcore/security/boot-mount"
 dev_share="$root/qvcore/security/dev-share"
 dev_share_helper="$root/qvcore/security/dev-share-firewall"
+debug_owner="$root/qvcore/security/debug"
+debug_adapter="$root/bin/qv-debug"
+debug_compatibility="$root/bin/omarchy-debug"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 escalation_log="$test_root/escalation.log"
@@ -25,7 +28,8 @@ fail() {
 
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
-[[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper ]] \
+[[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper &&
+  -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
 grep -Fq 'qvcore/security/AGENTS.md' "$root/AGENTS.md" \
   || fail "root security workflow route"
@@ -37,7 +41,7 @@ grep -Fq 'never authorize automatic hardening' "$root/qvcore/README.md" \
 [[ ! -e $root/bin/omarchy-upload-log ]] ||
   fail "unsupported diagnostic upload command"
 if rg -q 'logs\.omarchy\.org|omarchy upload log' \
-  "$root/bin/omarchy-debug" \
+  "$debug_owner" \
   "$root/default/omarchy-skill/SKILL.md" \
   "$root/qvcore/install/helpers/errors" \
   "$root/release/iso/omarchy-iso-qvos-tui.patch"; then
@@ -49,14 +53,133 @@ if rg -q 'omarchy-upload-log|Upload log for support' \
     rg -q 'omarchy-upload-log|Upload log for support'; then
   fail "retired diagnostic upload remains in install or ISO lifecycle"
 fi
-grep -Fq 'mktemp -d' "$root/bin/omarchy-debug" ||
+(( $(wc -l <"$debug_adapter") <= 12 )) ||
+  fail "native debug adapter contains implementation"
+(( $(wc -l <"$debug_compatibility") <= 5 )) ||
+  fail "debug compatibility adapter contains implementation"
+rg -q '^# qv:summary=' "$debug_adapter" ||
+  fail "native debug metadata"
+! rg -q '^# (qv|omarchy):' "$debug_compatibility" ||
+  fail "debug compatibility metadata duplication"
+for adapter in "$debug_adapter" "$debug_compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/security/debug" "$@"' "$adapter" ||
+    fail "debug adapter delegation"
+done
+grep -Fq 'mktemp -d' "$debug_owner" ||
   fail "qvOS debug log private temporary storage"
 debug_tmp="$test_root/debug-tmp"
-install -d "$debug_tmp"
-TMPDIR="$debug_tmp" OMARCHY_PATH="$root" \
-  "$root/bin/omarchy-debug" --no-sudo --print >/dev/null
+debug_save="$test_root/debug-save"
+install -d "$debug_tmp" "$debug_save" "$test_bin"
+install -m 0755 /dev/stdin "$test_bin/inxi" <<'SCRIPT'
+#!/bin/bash
+printf 'fixture system\033[31m unsafe-color\n'
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/journalctl" <<'SCRIPT'
+#!/bin/bash
+printf 'fixture warning\033]8;;https://unsafe.invalid\a linked\n'
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+case ${1:-} in
+-Qqen) printf 'official-alpha\n' ;;
+-Qqem) printf 'foreign-beta\n' ;;
+*) exit 64 ;;
+esac
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/expac" <<'SCRIPT'
+#!/bin/bash
+mode=$1
+shift 2
+for package in "$@"; do
+  case $mode in
+  -S)
+    printf '%s\tcore\n' "$package"
+    printf '%s\tomarchy\n' "$package"
+    ;;
+  -Q)
+    case $package in
+    official-alpha) printf '%s\t1.0-installed\n' "$package" ;;
+    foreign-beta) printf '%s\t2.0-installed\n' "$package" ;;
+    *) exit 64 ;;
+    esac
+    ;;
+  *) exit 64 ;;
+  esac
+done
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
+#!/bin/bash
+[[ -z ${QVOS_TEST_GUM_STATUS:-} ]] || exit "$QVOS_TEST_GUM_STATUS"
+printf '%s\n' "${QVOS_TEST_GUM_ACTION:-View log}"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/less" <<'SCRIPT'
+#!/bin/bash
+cat -- "${@: -1}"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
+#!/bin/bash
+[[ $# == 1 && $1 == "dmesg" ]] || exit 64
+printf 'fixture kernel warning\n'
+SCRIPT
+
+debug_output=$(
+  TMPDIR="$debug_tmp" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_PATH="$root" \
+    "$debug_adapter" --no-sudo --print
+)
+grep -Fq 'qvOS Branch:' <<<"$debug_output" ||
+  fail "qvOS debug native identity"
+grep -Fq 'official-alpha 1.0-installed (core)' <<<"$debug_output" ||
+  fail "qvOS debug repository package classification"
+grep -Fq 'foreign-beta 2.0-installed (foreign)' <<<"$debug_output" ||
+  fail "qvOS debug foreign package classification"
+(( $(grep -Fc 'official-alpha ' <<<"$debug_output") == 1 )) ||
+  fail "qvOS debug repository priority duplication"
+if LC_ALL=C grep -q $'\033\|\a\|\r' <<<"$debug_output"; then
+  fail "qvOS debug terminal-control sanitization"
+fi
+privileged_debug_output=$(
+  TMPDIR="$debug_tmp" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_PATH="$root" \
+    "$debug_adapter" --print
+)
+grep -Fq 'fixture kernel warning' <<<"$privileged_debug_output" ||
+  fail "qvOS debug limits sudo to dmesg collection"
 [[ -z $(find "$debug_tmp" -mindepth 1 -maxdepth 1 -print -quit) ]] ||
   fail "qvOS debug private temporary cleanup"
+
+debug_save_output=$(
+  cd -- "$debug_save"
+  TMPDIR="$debug_tmp" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_PATH="$root" \
+    QVOS_TEST_GUM_ACTION="Save in current directory" \
+    "$debug_adapter" --no-sudo
+)
+saved_debug=${debug_save_output#Log saved to }
+[[ $saved_debug == "$debug_save"/qvos-debug-*.log &&
+  -f $saved_debug && ! -L $saved_debug &&
+  $(stat -c '%a' "$saved_debug") == "600" ]] ||
+  fail "qvOS debug unique private save"
+[[ $(find "$debug_save" -maxdepth 1 -type f -name 'qvos-debug-*.log' | wc -l) == "1" ]] ||
+  fail "qvOS debug exact save inventory"
+[[ -z $(find "$debug_save" -maxdepth 1 -type f -name '.qvos-debug-stage.*' -print -quit) ]] ||
+  fail "qvOS debug atomic save staging cleanup"
+
+set +e
+TMPDIR="$debug_tmp" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_PATH="$root" \
+  QVOS_TEST_GUM_STATUS=130 \
+  "$debug_adapter" --no-sudo >/dev/null 2>&1
+debug_cancel_status=$?
+set -e
+((debug_cancel_status == 130)) || fail "qvOS debug cancellation status"
+[[ -z $(find "$debug_tmp" -mindepth 1 -maxdepth 1 -print -quit) ]] ||
+  fail "qvOS debug cancellation cleanup"
 grep -Fq '104b2ad73595de52a2f92f0bb17160385bae0579' "$runner" \
   || fail "LinUtil source provenance"
 

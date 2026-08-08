@@ -173,6 +173,8 @@ sysctl baseline, signed-package and localhost-first container defaults, the
 temporary private-LAN development preview, and the balanced-hardening
 workflow. Its reports contain private system inventory, stay outside Git under
 the user's state directory, and never authorize automatic hardening.
+It also owns bounded local debug collection: output is control-sanitized,
+private, explicitly viewed or uniquely saved, and never uploaded.
 
 `qvcore/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs its default helpers, including the LocalSend Share

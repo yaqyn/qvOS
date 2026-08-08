@@ -1,0 +1,192 @@
+#!/bin/bash
+set -euo pipefail
+
+no_sudo=false
+print_only=false
+debug_dir=""
+save_stage=""
+
+cleanup() {
+  local status=$?
+
+  [[ -z $save_stage || ! -e $save_stage ]] || unlink -- "$save_stage" 2>/dev/null || true
+  [[ -z $debug_dir || ! -e $debug_dir ]] || rm -rf -- "$debug_dir" 2>/dev/null || true
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+show_usage() {
+  echo "Usage: qv debug [--no-sudo] [--print]"
+}
+
+while (($# > 0)); do
+  case $1 in
+  --no-sudo) no_sudo=true ;;
+  --print) print_only=true ;;
+  --help | -h)
+    show_usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    show_usage >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+for command in date expac git hostname inxi journalctl pacman; do
+  command -v -- "$command" >/dev/null || {
+    echo "qvOS debug requires $command." >&2
+    exit 1
+  }
+done
+
+umask 077
+debug_dir=$(mktemp -d "${TMPDIR:-/tmp}/qvos-debug.XXXXXX") || {
+  echo "Could not create private qvOS debug storage." >&2
+  exit 1
+}
+raw_log="$debug_dir/debug.raw"
+debug_log="$debug_dir/debug.log"
+repository_packages="$debug_dir/repository-packages"
+foreign_packages="$debug_dir/foreign-packages"
+repository_sources="$debug_dir/repository-sources"
+repository_versions="$debug_dir/repository-versions"
+package_inventory="$debug_dir/package-inventory"
+
+if [[ $no_sudo == "true" ]]; then
+  dmesg_output="(skipped: --no-sudo was used)"
+else
+  command -v -- sudo >/dev/null || {
+    echo "qvOS debug requires sudo unless --no-sudo is used." >&2
+    exit 1
+  }
+  dmesg_output=$(sudo dmesg) || {
+    echo "Could not read the kernel log; retry with --no-sudo to omit it." >&2
+    exit 1
+  }
+fi
+
+system_information=$(inxi -Farz) || {
+  echo "Could not collect system information." >&2
+  exit 1
+}
+journal_output=$(journalctl -b -p 4..1 --no-pager -n 5000) || {
+  echo "Could not collect current-boot warnings." >&2
+  exit 1
+}
+pacman -Qqen | LC_ALL=C sort -u >"$repository_packages" || {
+  echo "Could not collect explicitly installed repository packages." >&2
+  exit 1
+}
+pacman -Qqem | LC_ALL=C sort -u >"$foreign_packages" || {
+  echo "Could not collect explicitly installed foreign packages." >&2
+  exit 1
+}
+{
+  if [[ -s $repository_packages ]]; then
+    xargs -r expac -Q $'%n\t%v' <"$repository_packages" >"$repository_versions"
+    xargs -r expac -S $'%n\t%r' <"$repository_packages" |
+      LC_ALL=C awk -F '\t' '
+        NF != 2 { invalid = 1; next }
+        !seen[$1]++ { print }
+        END { exit invalid }
+      ' >"$repository_sources"
+    LC_ALL=C awk -F '\t' '
+      NR == FNR { repository[$1] = $2; next }
+      NF != 2 || !($1 in repository) { invalid = 1; next }
+      { printf "%s %s (%s)\n", $1, $2, repository[$1] }
+      END { exit invalid }
+    ' "$repository_sources" "$repository_versions"
+  fi
+  if [[ -s $foreign_packages ]]; then
+    xargs -r expac -Q $'%n\t%v' <"$foreign_packages" |
+      LC_ALL=C awk -F '\t' '
+        NF != 2 { invalid = 1; next }
+        { printf "%s %s (foreign)\n", $1, $2 }
+        END { exit invalid }
+      '
+  fi
+} | LC_ALL=C sort >"$package_inventory" || {
+  echo "Could not format the installed package inventory." >&2
+  exit 1
+}
+
+qvos_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+branch=$(git -C "$qvos_root" branch --show-current 2>/dev/null || true)
+[[ -n $branch ]] || branch=unknown
+{
+  printf 'Date: %s\n' "$(date --iso-8601=seconds)"
+  printf 'Hostname: %s\n' "$(hostname)"
+  printf 'qvOS Branch: %s\n' "$branch"
+  printf '\n=========================================\n'
+  printf 'SYSTEM INFORMATION\n'
+  printf '=========================================\n%s\n' "$system_information"
+  printf '\n=========================================\n'
+  printf 'DMESG\n'
+  printf '=========================================\n%s\n' "$dmesg_output"
+  printf '\n=========================================\n'
+  printf 'JOURNALCTL (CURRENT BOOT, WARNINGS+ERRORS; LAST 5000)\n'
+  printf '=========================================\n%s\n' "$journal_output"
+  printf '\n=========================================\n'
+  printf 'EXPLICITLY INSTALLED PACKAGES\n'
+  printf '=========================================\n'
+  cat -- "$package_inventory"
+} >"$raw_log"
+
+raw_size=$(stat -c '%s' "$raw_log")
+if [[ ! $raw_size =~ ^[0-9]{1,9}$ ]] || ((raw_size > 16777216)); then
+  echo "qvOS debug output exceeded the 16 MiB safety limit." >&2
+  exit 1
+fi
+LC_ALL=C tr -cd '\11\12\40-\176' <"$raw_log" >"$debug_log"
+chmod 0600 "$debug_log"
+
+if [[ $print_only == "true" ]]; then
+  cat -- "$debug_log"
+  exit 0
+fi
+
+for command in gum less; do
+  command -v -- "$command" >/dev/null || {
+    echo "qvOS debug requires $command for interactive use." >&2
+    exit 1
+  }
+done
+set +e
+action=$(gum choose "View log" "Save in current directory")
+action_status=$?
+set -e
+((action_status == 0)) || exit "$action_status"
+case $action in
+"View log") less -- "$debug_log" ;;
+"Save in current directory")
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  save_stage=$(mktemp "$PWD/.qvos-debug-stage.XXXXXX") || {
+    echo "Could not create a private debug log in $PWD." >&2
+    exit 1
+  }
+  if ! cp -- "$debug_log" "$save_stage" || ! chmod 0600 "$save_stage"; then
+    echo "Could not save the qvOS debug log." >&2
+    exit 1
+  fi
+  random_suffix=${save_stage##*.qvos-debug-stage.}
+  saved_log="$PWD/qvos-debug-${timestamp}.${random_suffix}.log"
+  if ! ln -- "$save_stage" "$saved_log"; then
+    echo "Could not publish the qvOS debug log without overwriting a file." >&2
+    exit 1
+  fi
+  unlink -- "$save_stage"
+  save_stage=""
+  printf 'Log saved to %q\n' "$saved_log"
+  ;;
+*)
+  echo "qvOS debug received an invalid action." >&2
+  exit 1
+  ;;
+esac

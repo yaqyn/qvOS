@@ -935,6 +935,8 @@ for retired_duplicate in \
   [[ ! -e $root/$retired_duplicate ]] ||
     fail "duplicated Omarchy implementation remains: $retired_duplicate"
 done
+[[ -x $root/qvcore/security/debug ]] ||
+  fail "native qvOS debug owner is unavailable"
 pass "debug and Capture presentation retain singular native owners"
 [[ ! -e $root/qvcore/launcher ]] ||
   fail "redundant qvOS launcher domain"

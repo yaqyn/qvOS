@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Collect private local qvOS debugging information
+# qv:args=[--no-sudo] [--print]
+# qv:examples=qv debug --print --no-sudo
+# qv:requires-sudo=true
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/security/debug" "$@"

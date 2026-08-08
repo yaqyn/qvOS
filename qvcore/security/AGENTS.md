@@ -7,9 +7,16 @@ changing a security default, or planning a hardening batch.
 live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
-Interactive `omarchy debug` output is likewise private and local-only. Use a
-private temporary directory, remove it on exit, and offer only local viewing or
-an explicit copy. qvOS has no diagnostic upload service.
+`qvcore/security/debug` owns local system diagnostics. Public `qv-debug`
+metadata and its exact metadata-free Omarchy adapter share that owner. Keep its
+temporary directory and saved files private, bound journal and total output,
+remove terminal control bytes, label non-repository packages truthfully as
+foreign, report installed rather than available package versions, and never
+upload. Kernel logs require sudo unless the user explicitly chooses
+`--no-sudo`; `--print` is an explicit local disclosure. Interactive saves
+publish atomically under a unique qvOS filename in the chosen current
+directory and never overwrite an existing path. qvOS has no diagnostic upload
+service.
 
 `qvcore/security/60-qvos-security.conf` is the small default hardening baseline.
 It may protect common local boundaries without disabling user capabilities.
