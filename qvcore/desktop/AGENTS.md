@@ -39,7 +39,9 @@ route.
 
 Process-aware tests must replace discovery inside their fixture. They must not
 observe, signal, lock, or otherwise depend on real desktop processes belonging
-to the developer session.
+to the developer session. Process inspection must tolerate a process
+disappearing between discovery and `/proc` access without leaking a misleading
+error.
 
 Prefer graceful process termination before a bounded forced fallback. User
 services stay in the invoking user's systemd manager. Privileged hardware

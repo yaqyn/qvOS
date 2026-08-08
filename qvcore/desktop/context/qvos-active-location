@@ -74,11 +74,13 @@ process_cwd() {
 
 code_location_from_process() {
   local pid="$1"
-  local process arg previous path process_dir
+  local process arg previous path process_dir cmdline_fd
   local best=""
 
   while IFS= read -r process; do
-    [[ -r /proc/$process/cmdline ]] || continue
+    if ! { exec {cmdline_fd}<"/proc/$process/cmdline"; } 2>/dev/null; then
+      continue
+    fi
     process_dir="$(readlink -f "/proc/$process/cwd" 2>/dev/null || true)"
     previous=""
     best=""
@@ -122,7 +124,8 @@ code_location_from_process() {
         [[ -n $path ]] && best="$path"
         ;;
       esac
-    done < "/proc/$process/cmdline"
+    done <&"$cmdline_fd" 2>/dev/null
+    exec {cmdline_fd}<&-
 
     [[ -n $best ]] && printf '%s\n' "$best" && return 0
   done < <(process_tree "$pid")

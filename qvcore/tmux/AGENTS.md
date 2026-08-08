@@ -17,6 +17,8 @@ metadata-free compatibility adapter. Native menus and TUI actions call qv.
 
 Keep source and runtime paths independent, normalize ephemeral Codex launchers
 to the canonical command, and preserve user recipes across install, update,
-refresh, and removal. Verify Bash syntax, ShellCheck, adapter ownership,
+refresh, and removal. Treat a foreground process disappearing during `/proc`
+inspection as an empty command, without emitting a procfs race diagnostic.
+Verify Bash syntax, ShellCheck, adapter ownership,
 refresh failure behavior, and `test/qvcore/qvos-tmux-test.sh`, then run the full
 qvOS suite when shared configuration, desktop restart, or menu contracts move.

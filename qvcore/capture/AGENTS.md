@@ -14,7 +14,8 @@ qv routes.
   `${XDG_RUNTIME_DIR}/qvos-capture`. Serialize picker and recorder actions,
   validate state ownership and exact paths, and signal or stop only the PID and
   process-start token recorded by qvOS. Never use broad `pkill` or shared
-  `/tmp` state.
+  `/tmp` state. Treat a process disappearing during `/proc` inspection as a
+  normal no-match and suppress only that race's procfs diagnostic.
 - Freeze the screen until a selection has been captured, return cancellation
   as 130, support negative monitor coordinates and transformed outputs, and
   use the focused monitor for fullscreen capture. Refuse a powered-off focused

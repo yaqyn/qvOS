@@ -133,5 +133,9 @@ grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi
+# shellcheck disable=SC2016
+grep -Fq 'exec {cmdline_fd}<"/proc/$process/cmdline"' \
+  "$root/qvcore/desktop/context/qvos-active-location" ||
+  fail "desktop context lacks race-safe procfs access"
 
 printf 'qvOS desktop runtime ownership check passed.\n'

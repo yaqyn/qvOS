@@ -433,7 +433,7 @@ capture_process_matches() {
       matched=true
       break
     fi
-  done <&"$cmdline_fd"
+  done <&"$cmdline_fd" 2>/dev/null
   exec {cmdline_fd}<&-
   [[ $matched == "true" ]]
 }
@@ -449,7 +449,7 @@ capture_process_start() {
   if ! { exec {stat_fd}<"/proc/$pid/stat"; } 2>/dev/null; then
     return 1
   fi
-  if ! IFS= read -r stat <&"$stat_fd"; then
+  if ! { IFS= read -r stat <&"$stat_fd"; } 2>/dev/null; then
     exec {stat_fd}<&-
     return 1
   fi

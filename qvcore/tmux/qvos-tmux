@@ -451,9 +451,11 @@ tile_manager_terminal() {
 
 process_command_line() {
   local pid="$1"
-  local argument escaped command_line="" argument_index=0
+  local argument escaped command_line="" argument_index=0 cmdline_fd
 
-  [[ -r /proc/$pid/cmdline ]] || return 0
+  if ! { exec {cmdline_fd}<"/proc/$pid/cmdline"; } 2>/dev/null; then
+    return 0
+  fi
   while IFS= read -r -d '' argument; do
     if ((argument_index == 0)) && [[ $argument == */node_modules/.bin/* ]]; then
       argument="${argument##*/}"
@@ -464,7 +466,8 @@ process_command_line() {
     fi
     command_line+="$escaped"
     argument_index=$((argument_index + 1))
-  done <"/proc/$pid/cmdline"
+  done <&"$cmdline_fd" 2>/dev/null
+  exec {cmdline_fd}<&-
   normalize_codex_command "$command_line"
 }
 

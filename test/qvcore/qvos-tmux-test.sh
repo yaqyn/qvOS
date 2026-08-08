@@ -188,6 +188,11 @@ wait "$temporary_command_pid" 2>/dev/null || true
 [[ $detected_command == "codex 30" ]] || fail "temporary package executable cleanup"
 pass "temporary package paths display as reusable commands"
 
+vanished_process_stderr="$test_root/vanished-process.stderr"
+process_command_line 99999999 2>"$vanished_process_stderr" >/dev/null
+[[ ! -s $vanished_process_stderr ]] || fail "vanished process emitted a procfs error"
+pass "vanished foreground processes degrade without procfs diagnostics"
+
 rm "$temporary_bin/codex"
 install -m 0644 /dev/stdin "$temporary_bin/codex" <<'SCRIPT'
 setTimeout(() => {}, 30000)
