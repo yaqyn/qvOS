@@ -108,15 +108,17 @@ refresh_home="$test_root/refresh-home"
 refresh_source="$test_root/refresh-source"
 refresh_fail_bin="$test_root/refresh-fail-bin"
 install -d \
+  "$refresh_source/config/qvos" \
   "$refresh_source/qvcore/config/files/qvos" \
   "$refresh_home/.config/qvos" \
   "$refresh_fail_bin"
-printf 'staged source\n' >"$refresh_source/qvcore/config/files/qvos/path.conf"
+printf 'staged source\n' >"$refresh_source/config/qvos/path.conf"
+printf 'owned source\n' >"$refresh_source/qvcore/config/files/qvos/owned.conf"
 printf 'personal config\n' >"$refresh_home/.config/qvos/path.conf"
-HOME="$refresh_home" OMARCHY_PATH="$refresh_source" \
+HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/path.conf
 [[ $(<"$refresh_home/.config/qvos/path.conf") == "staged source" ]] ||
-  fail "OMARCHY_PATH config refresh"
+  fail "QVOS_PATH config refresh"
 refresh_backup=$(
   find "$refresh_home/.config/qvos" \
     -maxdepth 1 \
@@ -126,13 +128,47 @@ refresh_backup=$(
 )
 [[ -n $refresh_backup && $(<"$refresh_backup") == "personal config" ]] ||
   fail "qvOS config refresh backup"
+refresh_backup_count=$(
+  find "$refresh_home/.config/qvos" \
+    -maxdepth 1 \
+    -name 'path.conf.bak.*' |
+    wc -l
+)
+HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+  "$root/qvcore/config/refresh" qvos/path.conf
+[[ $(
+  find "$refresh_home/.config/qvos" \
+    -maxdepth 1 \
+    -name 'path.conf.bak.*' |
+    wc -l
+) == "$refresh_backup_count" ]] || fail "idempotent config refresh backup"
+HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+  "$root/qvcore/config/refresh" --owned qvos/owned.conf
+[[ $(<"$refresh_home/.config/qvos/owned.conf") == "owned source" ]] ||
+  fail "specialized qvOS config refresh"
+invalid_refresh_paths=(
+  ../outside
+  /absolute
+  path..conf
+)
+for invalid_path in "${invalid_refresh_paths[@]}"; do
+  if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+    "$root/qvcore/config/refresh" "$invalid_path" >/dev/null 2>&1; then
+    fail "unsafe config path accepted: $invalid_path"
+  fi
+done
+ln -s path.conf "$refresh_source/config/qvos/linked.conf"
+if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+  "$root/qvcore/config/refresh" qvos/linked.conf >/dev/null 2>&1; then
+  fail "linked config source accepted"
+fi
 
 install -m 0755 /dev/stdin "$refresh_fail_bin/install" <<'INSTALL'
 #!/bin/bash
 exit 1
 INSTALL
 printf 'current config\n' >"$refresh_home/.config/qvos/path.conf"
-printf 'future source\n' >"$refresh_source/qvcore/config/files/qvos/path.conf"
+printf 'future source\n' >"$refresh_source/config/qvos/path.conf"
 refresh_backup_count=$(
   find "$refresh_home/.config/qvos" \
     -maxdepth 1 \
@@ -140,7 +176,7 @@ refresh_backup_count=$(
     wc -l
 )
 if HOME="$refresh_home" \
-  OMARCHY_PATH="$refresh_source" \
+  QVOS_PATH="$refresh_source" \
   PATH="$refresh_fail_bin:/usr/bin" \
   "$root/qvcore/config/refresh" qvos/path.conf >/dev/null 2>&1; then
   fail "failed qvOS config staging was accepted"
@@ -154,7 +190,7 @@ fi
     wc -l
 ) == "$refresh_backup_count" ]] ||
   fail "failed qvOS config staging created a misleading backup"
-pass "config refreshes honor staged and installed Omarchy roots"
+pass "config refreshes are bounded, atomic, idempotent, and source-scoped"
 
 grep -Fqx '"$QVOS_PATH/qvcore/defaults/browser" chromium' "$root/qvcore/install/config/mimetypes" || fail "browser default contract"
 grep -Fqx 'editor_desktop=nvim.desktop' "$root/qvcore/install/config/mimetypes" || fail "text MIME default contract"
@@ -361,7 +397,7 @@ grep -Fq '`config/hypr/bindings.conf` is the single authoritative qvOS binding s
 grep -Fq 'There is no inherited binding layer and no qvOS binding overlay.' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS singular binding ownership instruction"
-grep -Fq '`qvcore/config/refresh-hyprland` is the single restore owner.' \
+grep -Fq '`qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS singular Hyprland restore instruction"
 [[ -x $root/qvcore/config/refresh-hyprland ]] ||

@@ -27,14 +27,25 @@ There is no inherited binding layer and no qvOS binding overlay.
   and compare the live file, reload Hyprland, require no config errors, and show
   the updated qvOS-only inventory.
 
-`qvcore/config/refresh-hyprland` is the single restore owner. The public inherited
-command name is a metadata-only compatibility adapter. The owner preflights
-the monitor destination, installs the native `config/hypr/` defaults through
-the inherited generic file copier, reconciles the specialized qvOS sources
-under `qvcore/config/files/hypr/`, detects the current display scale, then detects
-the keyboard layout. Put only look, window, input, and future specialized
-config in the `qvcore/` sublayer. Reconcile after refresh and verify tracked and
-installed config.
+`qvcore/config/refresh` is the singular atomic file-restoration transaction.
+Its default source is `config/`; the internal `--owned` mode reads specialized
+files from `qvcore/config/files/`. Validate a bounded relative path, reject
+linked or escaping sources and non-file targets, skip exact matches, stage in
+the destination directory, preserve a unique backup, and restore that backup
+if publication fails. `qv-refresh-config` owns metadata and
+`omarchy-refresh-config` is compatibility only. Native owners call the
+transaction directly and never route back through the compatibility command.
+
+`qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.
+Its native command carries metadata and its matching Omarchy command is a
+metadata-free compatibility adapter. The owner preflights the monitor
+destination, installs native `config/hypr/` defaults through the shared refresh
+transaction, reconciles the specialized qvOS sources under
+`qvcore/config/files/hypr/`, detects the current display scale, then detects the
+keyboard layout. Never copy an inherited file immediately before replacing the
+same destination with a specialized owner. Put only look, window, input, and
+future specialized config in the `qvcore/` sublayer. Reconcile after refresh
+and verify tracked and installed config.
 
 Promoted defaults under `config/` are native qvOS sources and must not be
 duplicated under `qvcore/config/files/`. qvOS-managed user units use `qvos-*`

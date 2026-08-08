@@ -14,14 +14,14 @@ export QVOS_PATH OMARCHY_PATH
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 
-omarchy-refresh-config hypr/autostart.conf
-omarchy-refresh-config hypr/bindings.conf
-omarchy-refresh-config hypr/input.conf
-omarchy-refresh-config hypr/looknfeel.conf
-omarchy-refresh-config hypr/hyprland.conf
-omarchy-refresh-config hypr/monitors.conf
-
 config_owner="$QVOS_PATH/qvcore/config/refresh"
+default_config_paths=(
+  hypr/autostart.conf
+  hypr/bindings.conf
+  hypr/looknfeel.conf
+  hypr/hyprland.conf
+  hypr/monitors.conf
+)
 config_paths=(
   hypr/input.conf
   hypr/qv.conf
@@ -29,6 +29,12 @@ config_paths=(
   hypr/qv/windows.conf
 )
 
+for config_path in "${default_config_paths[@]}"; do
+  [[ -f $QVOS_PATH/config/$config_path ]] || {
+    printf 'Missing qvOS config source: %s\n' "$config_path" >&2
+    exit 1
+  }
+done
 for config_path in "${config_paths[@]}"; do
   [[ -f $QVOS_PATH/qvcore/config/files/$config_path ]] || {
     printf 'Missing qvOS Hyprland config source: %s\n' "$config_path" >&2
@@ -36,8 +42,11 @@ for config_path in "${config_paths[@]}"; do
   }
 done
 
-for config_path in "${config_paths[@]}"; do
+for config_path in "${default_config_paths[@]}"; do
   "$config_owner" "$config_path"
+done
+for config_path in "${config_paths[@]}"; do
+  "$config_owner" --owned "$config_path"
 done
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect"

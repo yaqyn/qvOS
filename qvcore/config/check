@@ -32,7 +32,7 @@ fail() {
 [[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
   fail "legacy branding config source remains"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-hyprland\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hyprland\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/systemd/user/omarchy-battery-monitor.service\nconfig/systemd/user/omarchy-battery-monitor.timer\nconfig/systemd/user/omarchy-recover-internal-monitor.service\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
   fail "retired config inventory changed"
@@ -86,6 +86,7 @@ config_routes=(
   hyprland-toggle:hyprland-toggle
   hyprland-toggle-disabled:hyprland-toggle-disabled
   hyprland-toggle-enabled:hyprland-toggle-enabled
+  refresh-config:refresh
   refresh-hyprland:refresh-hyprland
   toggle:toggle
   toggle-enabled:toggle-enabled
@@ -118,7 +119,7 @@ for owner in toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
 
-if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-internal(-mirror)?|hyprland-toggle(-disabled|-enabled)?|refresh-hyprland|toggle-enabled|toggle-touchpad|toggle-touchscreen|tz-select)' \
+if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-internal(-mirror)?|hyprland-toggle(-disabled|-enabled)?|refresh-(config|hyprland)|toggle-enabled|toggle-touchpad|toggle-touchscreen|tz-select)' \
   "$root/qvcore/config" \
   "$root/qvcore/menu" \
   "$root/qvcore/power" \

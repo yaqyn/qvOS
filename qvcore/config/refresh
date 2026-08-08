@@ -1,8 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
-config_path=${1:-}
-source_file="$OMARCHY_PATH/qvcore/config/files/$config_path"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_scope=default
+if [[ ${1:-} == "--owned" ]]; then
+  source_scope=owned
+  shift
+fi
+if (($# != 1)); then
+  printf 'Usage: qv refresh config <config-path>\n' >&2
+  exit 2
+fi
+
+config_path=$1
+[[ $config_path =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ &&
+  $config_path != *..* ]] || {
+  printf 'qvOS config refresh: invalid config path: %s\n' "$config_path" >&2
+  exit 2
+}
+
+if [[ $source_scope == "owned" ]]; then
+  source_root="$QVOS_PATH/qvcore/config/files"
+else
+  source_root="$QVOS_PATH/config"
+fi
+source_file="$source_root/$config_path"
 target_file="$HOME/.config/$config_path"
 target_dir=${target_file%/*}
 backup_file=""
@@ -19,13 +41,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -z $config_path || ! -f $source_file ]]; then
-  fail "unknown config: ${config_path:-<empty>}" 2
+if [[ ! -f $source_file || -L $source_file ]]; then
+  fail "unknown config: $config_path" 2
+fi
+canonical_source_root=$(readlink -f -- "$source_root") ||
+  fail "could not resolve the config source root"
+canonical_source=$(readlink -f -- "$source_file") ||
+  fail "could not resolve config: $config_path"
+[[ $canonical_source == "$canonical_source_root/"* ]] ||
+  fail "config escapes its source root: $config_path" 2
+
+if [[ -e $target_file || -L $target_file ]]; then
+  [[ -f $target_file || -L $target_file ]] ||
+    fail "refusing non-file config target: $target_file"
+  cmp -s "$source_file" "$target_file" && exit 0
 fi
 
 mkdir -p "$target_dir"
 staged_file=$(mktemp "$target_dir/.qvos-refresh.XXXXXX")
-install -m "$(stat -c '%a' "$source_file")" "$source_file" "$staged_file"
+install -m "$(stat -c '%a' -- "$source_file")" "$source_file" "$staged_file"
 
 if [[ -e $target_file || -L $target_file ]]; then
   backup_file="$target_file.bak.$(date +%s)"

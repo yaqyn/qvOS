@@ -13,7 +13,6 @@ bin/omarchy-launch-tui
 bin/omarchy-launch-wifi
 bin/omarchy-menu
 bin/omarchy-refresh-chromium
-bin/omarchy-refresh-config
 bin/omarchy-refresh-fastfetch
 bin/omarchy-refresh-hypridle
 bin/omarchy-refresh-hyprlock

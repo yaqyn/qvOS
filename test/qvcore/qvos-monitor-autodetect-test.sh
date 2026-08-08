@@ -187,12 +187,6 @@ grep -Fq \
   <<<"$output" ||
   fail "detected-scale validation failure diagnostic"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'REFRESH'
-#!/bin/bash
-source_file="$OMARCHY_PATH/config/$1"
-target_file="$HOME/.config/$1"
-install -D -m 0644 "$source_file" "$target_file"
-REFRESH
 install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 [
   {

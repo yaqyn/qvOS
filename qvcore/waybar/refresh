@@ -91,8 +91,7 @@ if ((config_changed)); then
   staged_config=""
 fi
 if ((style_changed)); then
-  OMARCHY_PATH=$QVOS_PATH \
-    "$QVOS_PATH/qvcore/config/refresh-upstream" waybar/style.css
+  "$QVOS_PATH/qvcore/config/refresh" waybar/style.css
 fi
 
 if ((config_changed || style_changed)) &&

@@ -99,8 +99,8 @@ no_clock_home="$test_root/no-clock-home"
 install -D -m 0644 "$root/config/waybar/style.css" "$no_clock_root/config/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$no_clock_root/qvcore/waybar/overrides.jsonc"
-install -D -m 0755 "$root/qvcore/config/refresh-upstream" \
-  "$no_clock_root/qvcore/config/refresh-upstream"
+install -D -m 0755 "$root/qvcore/config/refresh" \
+  "$no_clock_root/qvcore/config/refresh"
 jq '
   .["modules-left"] |= map(select(. != "clock"))
   | .["modules-center"] |= map(select(. != "clock"))
@@ -141,8 +141,8 @@ sparse_home="$test_root/sparse-home"
 install -D -m 0644 "$root/config/waybar/style.css" "$sparse_root/config/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$sparse_root/qvcore/waybar/overrides.jsonc"
-install -D -m 0755 "$root/qvcore/config/refresh-upstream" \
-  "$sparse_root/qvcore/config/refresh-upstream"
+install -D -m 0755 "$root/qvcore/config/refresh" \
+  "$sparse_root/qvcore/config/refresh"
 jq '
   del(.["modules-left"], .["modules-center"])
   | .["modules-right"] |= map(select(. != "clock"))
@@ -176,8 +176,8 @@ invalid_live="$invalid_home/.config/waybar/config.jsonc"
 install -D -m 0644 "$root/config/waybar/style.css" "$invalid_root/config/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$invalid_root/qvcore/waybar/overrides.jsonc"
-install -D -m 0755 "$root/qvcore/config/refresh-upstream" \
-  "$invalid_root/qvcore/config/refresh-upstream"
+install -D -m 0755 "$root/qvcore/config/refresh" \
+  "$invalid_root/qvcore/config/refresh"
 install -D -m 0644 "$source_config" "$invalid_live"
 printf '[]\n' >"$invalid_root/config/waybar/config.jsonc"
 if PATH="$test_bin:$PATH" HOME="$invalid_home" QVOS_PATH="$invalid_root" \

@@ -6,6 +6,7 @@ bin/omarchy-hyprland-monitor-internal-mirror
 bin/omarchy-hyprland-toggle
 bin/omarchy-hyprland-toggle-disabled
 bin/omarchy-hyprland-toggle-enabled
+bin/omarchy-refresh-config
 bin/omarchy-refresh-hyprland
 bin/omarchy-toggle
 bin/omarchy-toggle-enabled
