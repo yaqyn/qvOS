@@ -304,6 +304,7 @@ public_adapters=(
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep
   bin/omarchy-system-suspend-if-safe
+  bin/qv-dev-share
   bin/qv-launch-task
   bin/qv-refresh-waybar
 )

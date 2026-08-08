@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Temporarily share a local development server on this LAN
+# qv:args=<frontend-port> [--supabase] [--interface NAME] [--duration 1m-8h]
+# qv:examples=qv dev share 3000 --supabase
+# qv:hidden=true
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/security/dev-share" "$@"

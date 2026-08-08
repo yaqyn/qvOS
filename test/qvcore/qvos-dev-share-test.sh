@@ -4,7 +4,8 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 dev_share="$root/qvcore/security/dev-share"
 firewall_helper="$root/qvcore/security/dev-share-firewall"
-adapter="$root/bin/omarchy-qvos-dev-share"
+adapter="$root/bin/qv-dev-share"
+compatibility_adapter="$root/bin/omarchy-dev-share"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 fixture="$test_root/fixture"
@@ -336,9 +337,20 @@ if env "${helper_environment[@]}" \
 fi
 
 # shellcheck disable=SC2016
-grep -Fq 'exec "$OMARCHY_PATH/qvcore/security/dev-share" "$@"' "$adapter" ||
+grep -Fq 'exec "$QVOS_PATH/qvcore/security/dev-share" "$@"' "$adapter" ||
   fail "public command is a thin security-owner adapter"
-grep -Fq '# omarchy:hidden=true' "$adapter" ||
+grep -Fq '# qv:hidden=true' "$adapter" ||
   fail "advanced LAN preview stays out of the default command surface"
+! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+  fail "LAN preview compatibility metadata"
+# shellcheck disable=SC2016
+grep -Fq 'exec "$QVOS_PATH/qvcore/security/dev-share" "$@"' \
+  "$compatibility_adapter" || fail "LAN preview compatibility owner"
+[[ ! -e $root/bin/omarchy-qvos-dev-share ]] ||
+  fail "retired qvOS-in-Omarchy LAN preview route"
+HOME="$test_root" QVOS_PATH="$root" "$adapter" --help >/dev/null 2>&1 ||
+  fail "native LAN preview adapter delegation"
+HOME="$test_root" QVOS_PATH="$root" "$compatibility_adapter" --help \
+  >/dev/null 2>&1 || fail "compatibility LAN preview adapter delegation"
 
 printf 'ok - LAN preview is explicit, subnet-scoped, process-bound, and self-cleaning\n'

@@ -38,12 +38,18 @@ run first, followed immediately by `qvcore/security/install`, so the final
 `[omarchy]` repository is hardened before reboot is allowed.
 Docker publishes to loopback by default. This is a base network boundary, not
 Supabase ownership: never install, enroll, or require Supabase from the
-security owner. `omarchy qvos dev-share` may temporarily proxy one existing
+security owner. `qv dev share` may temporarily proxy one existing
 localhost frontend and the current project's configured Supabase API port to
 one private IPv4 interface. It must never auto-share the database, Studio,
 mail, analytics, wildcard addresses, public addresses, or more than two ports.
 Keep its firewall rule runtime-only, subnet-scoped, process-bound, and
 automatically expiring.
+
+`qv-dev-share` is the only metadata-bearing LAN-preview adapter. The former
+`omarchy-qvos-dev-share` qvOS-in-Omarchy namespace is retired and must remain
+absent; `omarchy-dev-share` is its metadata-free matching compatibility
+adapter, and the compatibility CLI frontend still discovers the native route
+through the shared command engine.
 
 1. Inspect the current source, worktree, installed state, and prior report,
    then run `qvcore/security/lynis-audit` before changing anything.

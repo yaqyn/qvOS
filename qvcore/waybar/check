@@ -36,12 +36,18 @@ for adapter in "$native" "$compatibility"; do
     fail "Waybar adapter bypasses native owner"
 done
 
-[[ -x $root/bin/qv-launch-task ]] || fail "native task launcher mode"
-rg -q '^# qv:summary=' "$root/bin/qv-launch-task" ||
+task_native="$root/bin/qv-launch-task"
+task_compatibility="$root/bin/omarchy-launch-task"
+[[ -x $task_native && -x $task_compatibility ]] || fail "task launcher modes"
+rg -q '^# qv:summary=' "$task_native" ||
   fail "native task launcher metadata"
+! rg -q '^# (qv|omarchy):' "$task_compatibility" ||
+  fail "compatibility task launcher metadata"
 # shellcheck disable=SC2016
-grep -Fqx 'exec "$QVOS_PATH/qvcore/tui/task/launch" "$@"' \
-  "$root/bin/qv-launch-task" || fail "native task launcher owner"
+for adapter in "$task_native" "$task_compatibility"; do
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/tui/task/launch" "$@"' "$adapter" ||
+    fail "task launcher owner"
+done
 
 for obsolete in \
   bin/omarchy-launch-qvos-task \

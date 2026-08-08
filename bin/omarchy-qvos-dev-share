@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Temporarily share a local development server on this LAN
-# omarchy:args=<frontend-port> [--supabase] [--interface NAME] [--duration 1m-8h]
-# omarchy:examples=omarchy qvos dev-share 3000 --supabase
-# omarchy:hidden=true
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/security/dev-share" "$@"

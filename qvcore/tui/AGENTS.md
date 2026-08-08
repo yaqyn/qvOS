@@ -113,7 +113,8 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   `org.qvos.tui` class owns the centered 1024x509 floating stage.
 - `qv-launch-task` is the native command fallback for fixed task slugs when a
   caller cannot use the checked runtime path directly. Active qvOS surfaces
-  never call the retired `omarchy-launch-qvos-task` namespace.
+  never call the retired `omarchy-launch-qvos-task` namespace; the matching
+  `omarchy-launch-task` file is metadata-free compatibility only.
 - Model roles are semantic: CORE (beating red/grayscale) is the hub identity,
   three rings are system-critical or high-impact operations, two rings are
   simple Software installs/removals, and one ring is an ordinary safe task or
