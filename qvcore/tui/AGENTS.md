@@ -36,6 +36,10 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   owner. TUI adapters delegate once and never reproduce an engine.
 - Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
   for update, and ISO flows retain their inherited fallback.
+- Treat `qvcore/tui` as the qvOS product interface only. Never restore the
+  inherited generic TUI-shortcut installer or accept arbitrary shell command
+  strings to synthesize desktop launchers; terminal tools use their CLI or an
+  explicit domain owner.
 - Treat progress as milestones, not elapsed-time prediction. Unknown output
   stays in logs and must not fabricate progress or overwrite the active stage.
 - Success guidance names the stable destination or next action, never a key

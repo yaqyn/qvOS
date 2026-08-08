@@ -127,7 +127,6 @@ identity_paths=(
   bin/omarchy-refresh-config
   bin/omarchy-reinstall
   bin/omarchy-reinstall-configs
-  bin/omarchy-remove-preinstalls
   bin/omarchy-update-available
   bin/omarchy-windows-vm
   boot.sh

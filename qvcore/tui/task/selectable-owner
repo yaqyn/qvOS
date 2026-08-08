@@ -2,14 +2,13 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
 slug=${1:-}
 if (($# > 0)); then
   shift
 fi
 
 usage() {
-  echo "Usage: qvcore/tui/task/selectable-owner <theme-remove|timezone|tui-remove|webapp-remove> [--list|-- selection...]" >&2
+  echo "Usage: qvcore/tui/task/selectable-owner <theme-remove|timezone|webapp-remove> [--list|-- selection...]" >&2
 }
 
 list_extra_themes() {
@@ -24,23 +23,6 @@ list_extra_themes() {
     sort
 }
 
-list_desktop_apps() {
-  local pattern=$1
-  local file
-
-  while IFS= read -r -d '' file; do
-    if grep -qE "$pattern" "$file"; then
-      basename "${file%.desktop}"
-    fi
-  done < <(
-    find "$HOME/.local/share/applications" \
-      -maxdepth 1 \
-      -type f \
-      -name '*.desktop' \
-      -print0
-  )
-}
-
 list_options() {
   case $slug in
   theme-remove)
@@ -48,10 +30,6 @@ list_options() {
     ;;
   timezone)
     timedatectl list-timezones
-    ;;
-  tui-remove)
-    # shellcheck disable=SC2016
-    list_desktop_apps '^Exec=.*(\$TERMINAL|xdg-terminal-exec).*-e' | sort
     ;;
   webapp-remove)
     "$QVOS_PATH/qvcore/desktop/webapp/remove" --list
@@ -110,9 +88,6 @@ theme-remove)
   ;;
 timezone)
   "$QVOS_PATH/bin/qv-tz-select" -- "$1"
-  ;;
-tui-remove)
-  "$OMARCHY_PATH/bin/omarchy-tui-remove" "$@"
   ;;
 webapp-remove)
   "$QVOS_PATH/bin/qv-webapp-remove" "$@"

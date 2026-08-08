@@ -28,14 +28,17 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - Never bundle optional user-data deletion into a generic Uninstall. Put the
   exact removal scope inside the TUI before authorization, default to preserving
   data, and make the authorization summary match the selected scope.
-- Preserve generic Package, Web App, and TUI workflows plus software selectors
-  that lack a paired lifecycle owner. Show selectors as `Browse` and delegate
+- Preserve generic Package and Web App workflows plus software selectors that
+  lack a paired lifecycle owner. Show selectors as `Browse` and delegate
   directly to their inherited list; never invent an Uninstall owner from a
   package name.
 - Web App creation and removal are the native exception to that inherited
   selector seam: route them only through `qv-webapp-install`, the shared
   searchable selector, and `qv-webapp-remove`. Inventory and mutation remain
   singularly owned by `qvcore/desktop/webapp`.
+- Do not expose a generic TUI-shortcut installer. The qvOS TUI is the product
+  interface, not an arbitrary-command desktop-wrapper lifecycle; terminal tools
+  remain accessible through their ordinary CLI or dedicated owner.
 - `software-state` owns batched menu detection only. It must not mutate state,
   infer lifecycle state from menu history, or reproduce an installer's own
   convergence checks.

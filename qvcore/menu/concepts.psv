@@ -16,7 +16,6 @@ keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:q
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:omarchy-pkg-install|AUR|terminal:omarchy-pkg-aur-install|Remove|terminal:omarchy-pkg-remove
 web-app||Web App|Settings · Software|website,pwa|Install|present:qv-webapp-install|Remove|present:qvcore/tui/task/selectable-owner webapp-remove
-tui||TUI|Settings · Software|terminal,app,wrapper|Install|present:omarchy-tui-install|Remove|present:qvcore/tui/task/selectable-owner tui-remove
 development|󰵮|Development|Settings · Software|languages,runtime,dev|Browse|menu:software-development
 browser||Browser|Settings · Software|web,chromium,firefox|Browse|menu:software-browser
 gaming||Gaming|Settings · Software|steam,games|Browse|menu:software-gaming

@@ -6,7 +6,6 @@ bin/omarchy-install-terminal
 bin/omarchy-install-zed
 bin/omarchy-menu
 bin/omarchy-refresh-fastfetch
-bin/omarchy-remove-preinstalls
 bin/omarchy-windows-vm
 config/fastfetch/config.jsonc
 config/waybar/config.jsonc

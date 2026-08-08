@@ -1,0 +1,4 @@
+# Inherited arbitrary-command desktop shortcut installers retired by qvOS.
+bin/omarchy-tui-install
+bin/omarchy-tui-remove
+bin/omarchy-tui-remove-all

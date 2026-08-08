@@ -24,7 +24,6 @@ fi
 
 bash "$QVOS_PATH/qvcore/install/packaging/icons.sh"
 "$QVOS_PATH/qvcore/install/packaging/webapps"
-bash "$QVOS_PATH/qvcore/install/packaging/tuis.sh"
 "$QVOS_PATH/qvcore/install/packaging/npx"
 
 update-desktop-database "$application_dir"

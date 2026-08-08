@@ -4,8 +4,6 @@ theme-remove|Extra Theme|Choose and remove a user-installed theme|2|mutation|tui
 theme-update|Extra Themes|Update every user-installed Git theme|1|mutation|tui|false|Update|Updating|Updated|qv-theme-update
 webapp-install|Web App|Create a desktop launcher from interactive app details|2|mutation|native|false|Install|Installing|Installed|qv-webapp-install
 webapp-remove|Web App|Choose and remove Web App launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner webapp-remove
-tui-install|TUI Shortcut|Create a terminal app launcher from interactive details|2|mutation|native|false|Install|Installing|Installed|omarchy-tui-install
-tui-remove|TUI Shortcut|Choose and remove terminal app launchers|2|mutation|tui|false|Remove|Removing|Removed|qvcore/tui/task/selectable-owner tui-remove
 dns-configure|DNS|Choose and configure qvOS DNS or Cloudflare WARP|3|mutation|native|true|Configure|Configuring|Configured|qv-setup-dns
 battery-status|Battery Protection|Inspect the current charging-protection state|1|information|tui|false||||qv battery protection status
 battery-enable|Battery Protection|Choose and confirm a safe charging-protection preset|3|mutation|native|false|Enable|Enabling|Enabled|qv battery protection enable

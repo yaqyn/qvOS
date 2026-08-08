@@ -497,11 +497,10 @@ show_setup_system_menu() {
 }
 
 show_install_menu() {
-  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
+  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
   *Web*) present_terminal qv-webapp-install ;;
-  *TUI*) present_terminal omarchy-tui-install ;;
   *Service*) show_install_service_menu ;;
   *Style*) show_install_style_menu ;;
   *Development*) show_install_development_menu ;;
@@ -648,17 +647,15 @@ show_install_elixir_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n󰏓  Preinstalls\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n  Web App\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
   *Web*) present_terminal qv-webapp-remove ;;
-  *TUI*) present_terminal omarchy-tui-remove ;;
   *Development*) show_remove_development_menu ;;
   *Theme*) present_terminal omarchy-theme-remove ;;
   *Browser*) show_remove_browser_menu ;;
   *Dictation*) present_terminal omarchy-voxtype-remove ;;
   *Gaming*) show_remove_gaming_menu ;;
   *Windows*) present_terminal "omarchy-windows-vm remove" ;;
-  *Preinstalls*) present_terminal omarchy-remove-preinstalls ;;
   *Security*) show_remove_security_menu ;;
   *) show_main_menu ;;
   esac

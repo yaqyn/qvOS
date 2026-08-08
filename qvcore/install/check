@@ -65,7 +65,7 @@ done
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
-expected_retired=$'applications/icons/Basecamp.png\napplications/icons/ChatGPT.png\napplications/icons/Discord.png\napplications/icons/Figma.png\napplications/icons/Fizzy.png\napplications/icons/GitHub.png\napplications/icons/Google Contacts.png\napplications/icons/Google Maps.png\napplications/icons/Google Messages.png\napplications/icons/Google Photos.png\napplications/icons/HEY.png\napplications/icons/WhatsApp.png\napplications/icons/X.png\napplications/icons/YouTube.png\napplications/icons/Zoom.png\ndefault/nautilus-python/\ninstall/'
+expected_retired=$'applications/icons/Basecamp.png\napplications/icons/ChatGPT.png\napplications/icons/Discord.png\napplications/icons/Disk Usage.png\napplications/icons/Docker.png\napplications/icons/Figma.png\napplications/icons/Fizzy.png\napplications/icons/GitHub.png\napplications/icons/Google Contacts.png\napplications/icons/Google Maps.png\napplications/icons/Google Messages.png\napplications/icons/Google Photos.png\napplications/icons/HEY.png\napplications/icons/WhatsApp.png\napplications/icons/X.png\napplications/icons/YouTube.png\napplications/icons/Zoom.png\nbin/omarchy-remove-preinstalls\ndefault/nautilus-python/\ninstall/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
   fail "retired install and Nautilus source inventory"
 [[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||
@@ -206,7 +206,7 @@ grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/webapps"' \
 grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/npx"' \
   "$root/qvcore/install/refresh-applications" || fail "native npx refresh wiring"
 
-expected_icons=$'Disk Usage.png\nDocker.png\nimv.png\nwindows.png'
+expected_icons=$'imv.png\nwindows.png'
 actual_icons=$(find "$root/applications/icons" -maxdepth 1 -type f -printf '%f\n' | sort)
 [[ $actual_icons == "$expected_icons" ]] ||
   fail "application icon inventory contains unowned assets"
@@ -220,6 +220,8 @@ if rg -n '(omarchy|qv)-(launch-webapp|webapp-handler)' \
   "$root/applications" "$root/qvcore/install/packaging/webapps"; then
   fail "fresh-install application payload contains a Web App"
 fi
+[[ ! -e $root/qvcore/install/packaging/tuis.sh ]] ||
+  fail "fresh install retains the retired arbitrary-command TUI shortcut owner"
 
 if rg -n \
   'omarchy-(first-run|refresh-applications|reinstall(-configs|-git|-pkgs)?)([^[:alnum:]_-]|$)' \

@@ -3,6 +3,8 @@
 applications/icons/Basecamp.png
 applications/icons/ChatGPT.png
 applications/icons/Discord.png
+applications/icons/Disk Usage.png
+applications/icons/Docker.png
 applications/icons/Figma.png
 applications/icons/Fizzy.png
 applications/icons/GitHub.png
@@ -15,5 +17,6 @@ applications/icons/WhatsApp.png
 applications/icons/X.png
 applications/icons/YouTube.png
 applications/icons/Zoom.png
+bin/omarchy-remove-preinstalls
 default/nautilus-python/
 install/

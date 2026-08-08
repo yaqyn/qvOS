@@ -183,13 +183,7 @@ install -m 0644 /dev/stdin "$test_home/.local/share/applications/My Web.desktop"
 [Desktop Entry]
 Exec=omarchy-launch-webapp https://example.com
 DESKTOP
-install -m 0644 /dev/stdin "$test_home/.local/share/applications/My TUI.desktop" <<'DESKTOP'
-[Desktop Entry]
-Exec=xdg-terminal-exec --app-id=TUI.float -e lazygit
-DESKTOP
-touch \
-  "$test_home/.local/share/applications/icons/My Web.png" \
-  "$test_home/.local/share/applications/icons/My TUI.png"
+touch "$test_home/.local/share/applications/icons/My Web.png"
 
 [[ $(run_owner "$root/qvcore/tui/task/selectable-owner" webapp-remove --list) == "My Web" ]] ||
   fail "Web App searchable selection inventory"
@@ -200,12 +194,6 @@ run_owner "$root/qvcore/tui/task/selectable-owner" webapp-remove -- "My Web" \
 grep -Fqx 'restart-walker' "$action_log" || fail "web app removal restarted Walker"
 [[ ! -e "$test_home/.local/share/applications/My Web.desktop" ]] ||
   fail "Web App multi-selection delegation"
-
-[[ $(run_owner "$root/qvcore/tui/task/selectable-owner" tui-remove --list) == "My TUI" ]] ||
-  fail "TUI Shortcut searchable selection inventory"
-run_owner "$root/qvcore/tui/task/selectable-owner" tui-remove -- "My TUI"
-[[ ! -e "$test_home/.local/share/applications/My TUI.desktop" ]] ||
-  fail "TUI Shortcut multi-selection delegation"
 
 [[ $(run_owner "$root/qvcore/tui/task/selectable-owner" timezone --list) == $'Africa/Cairo\nEurope/London' ]] ||
   fail "Timezone searchable selection inventory"

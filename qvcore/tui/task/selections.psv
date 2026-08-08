@@ -1,5 +1,4 @@
 # slug|title|mode|empty message
 theme-remove|Select Extra Theme|single|No extra themes are installed.
 webapp-remove|Select Web Apps|multi|No Web Apps are installed.
-tui-remove|Select TUI Shortcuts|multi|No TUI shortcuts are installed.
 timezone|Select Timezone|single|No timezones are available.

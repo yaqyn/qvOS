@@ -303,7 +303,7 @@ awk -F '|' '
   $5 == "mutation" && ($8 == "" || $9 == "" || $10 == "") { exit 1 }
   $6 == "tui" { tui++ }
   $6 == "native" { native++ }
-  END { exit !(tui >= 18 && native >= 12) }
+  END { exit !(tui >= 17 && native >= 11) }
 ' "$root/qvcore/tui/task/actions.psv" ||
   fail "tracked task catalog schema, uniqueness, or coverage"
 
@@ -314,7 +314,7 @@ awk -F '|' '
   $2 == "" || $4 == "" { exit 1 }
   $3 != "single" && $3 != "multi" { exit 1 }
   END { exit !(seen["theme-remove"] && seen["webapp-remove"] &&
-    seen["tui-remove"] && seen["timezone"]) }
+    seen["timezone"]) }
 ' "$root/qvcore/tui/task/selections.psv" ||
   fail "tracked task selection schema or searchable conversion coverage"
 

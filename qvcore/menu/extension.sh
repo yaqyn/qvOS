@@ -511,9 +511,8 @@ show_install_menu() {
 }
 
 show_install_easy_list_menu() {
-  case $(menu "Easy List" "  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
+  case $(menu "Easy List" "  Web App\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n  Browser\n󱚤  AI\n  Gaming\n󰍲  Windows") in
   *Web*) present_terminal qv-webapp-install ;;
-  *TUI*) present_terminal omarchy-tui-install ;;
   *Service*)
     INSTALL_EASY_LIST_ACTIVE=true
     show_install_service_menu
@@ -555,10 +554,9 @@ show_install_easy_list_menu() {
 }
 
 show_remove_menu() {
-  case $(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
+  case $(menu "Remove" "󰣇  Package\n  Web App\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
   *Package*) terminal omarchy-pkg-remove ;;
   *Web*) launch_tui_task webapp-remove ;;
-  *TUI*) launch_tui_task tui-remove ;;
   *Development*) show_remove_development_menu ;;
   *Theme*) launch_tui_task theme-remove ;;
   *Browser*) show_remove_browser_menu ;;
