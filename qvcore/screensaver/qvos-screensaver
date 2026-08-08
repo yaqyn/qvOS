@@ -3,7 +3,9 @@ set -euo pipefail
 
 # Render the qvOS-colored TTE screensaver.
 
-screen_text="$HOME/.config/omarchy/branding/screensaver.txt"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+branding_lib="$QVOS_PATH/qvcore/branding/lib"
+screen_text="$HOME/.config/qvos/branding/screensaver.txt"
 effect_count=15
 effect_pid=""
 terminal_state="$(stty -g 2>/dev/null || true)"
@@ -50,7 +52,14 @@ input_detected() {
 trap cleanup EXIT
 trap 'exit 0' SIGINT SIGTERM SIGHUP SIGQUIT
 
-if [[ ! -f "$screen_text" ]]; then
+[[ -f $branding_lib && ! -L $branding_lib ]] || {
+  notify-send -u normal "qvOS branding safety owner is not installed"
+  exit 1
+}
+# shellcheck source=qvcore/branding/lib
+source "$branding_lib"
+
+if ! qvos_branding_valid_text "$screen_text"; then
   notify-send -u normal "qvOS screensaver branding is not installed"
   exit 1
 fi

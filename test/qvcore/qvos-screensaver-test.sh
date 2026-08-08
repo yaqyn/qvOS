@@ -27,8 +27,11 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin" "$test_root/.local/lib/qvos/bin" "$test_root/.config/omarchy/branding" "$test_root/runtime"
-printf 'qvOS\n' >"$test_root/.config/omarchy/branding/screensaver.txt"
+install -d "$test_bin" "$test_root/.local/lib/qvos/bin" "$test_root/.config/qvos/branding" "$test_root/runtime"
+printf 'qvOS\n' >"$test_root/.config/qvos/branding/screensaver.txt"
+chmod 0700 "$test_root/.config/qvos" "$test_root/.config/qvos/branding"
+chmod 0600 "$test_root/.config/qvos/branding/screensaver.txt"
+export QVOS_PATH="$root"
 
 install -m 0755 /dev/stdin "$test_root/.local/lib/qvos/bin/qvos-screensaver" <<'SCRIPT'
 #!/bin/bash

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# qv:summary=Edit, set, or reset screensaver terminal art
+# qv:group=branding
+# qv:name=screensaver
+# qv:args=<image|text|reset>
+# qv:examples=qv branding screensaver image | qv branding screensaver text | qv branding screensaver reset
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/branding/screensaver" "$@"

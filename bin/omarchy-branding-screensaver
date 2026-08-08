@@ -1,10 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Edit, set, or reset screensaver branding
-# omarchy:group=branding
-# omarchy:name=screensaver
-# omarchy:args=<image|text|reset>
-# omarchy:examples=omarchy branding screensaver image | omarchy branding screensaver text | omarchy branding screensaver reset
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/branding/screensaver" "$@"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/branding/screensaver" "$@"

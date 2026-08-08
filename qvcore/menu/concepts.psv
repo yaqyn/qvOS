@@ -2,10 +2,10 @@
 theme|󰸌|Theme|Settings · Appearance|appearance,colors,style,extra themes|Choose|menu:theme|Install|present:qv-theme-install|Remove|present:qvcore/tui/task/selectable-owner theme-remove|Update|present:qv-theme-update
 background||Background|Settings · Appearance|wallpaper,appearance,style|Choose|menu:background|Install|run:qv-theme-bg-install
 font||Font|Settings · Appearance|typeface,appearance,style|Choose|menu:font|Install|menu:install-font
-screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:qv-launch-screensaver force|Toggle|run:omarchy-toggle-screensaver|Edit Text|run:omarchy-branding-screensaver text|Set Image|run:omarchy-branding-screensaver image|Restore|run:omarchy-branding-screensaver reset
+screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:qv-launch-screensaver force|Toggle|run:omarchy-toggle-screensaver|Edit Text|run:qv-branding-screensaver text|Set Image|run:qv-branding-screensaver image|Restore|run:qv-branding-screensaver reset
 unlock-screen|󰟵|Unlock Screen|Settings · Appearance|plymouth,boot,style|Open|run:qv-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400
 look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|Edit|edit:.config/hypr/looknfeel.conf
-about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:omarchy-branding-about text|Set Image|run:omarchy-branding-about image|Restore|run:omarchy-branding-about reset
+about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:qv-branding-about text|Set Image|run:qv-branding-about image|Restore|run:qv-branding-about reset
 wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:omarchy-launch-wifi|Restart|present:qv-restart-wifi
 bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:omarchy-launch-bluetooth|Restart|present:qv-restart-bluetooth
 dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:omarchy-qvos-setup-dns

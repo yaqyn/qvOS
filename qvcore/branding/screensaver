@@ -2,8 +2,14 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-branding_file="$HOME/.config/omarchy/branding/screensaver.txt"
+branding_file="$HOME/.config/qvos/branding/screensaver.txt"
+branding_install="$QVOS_PATH/qvcore/branding/install"
+branding_lib="$QVOS_PATH/qvcore/branding/lib"
+default_art="$QVOS_PATH/qvcore/branding/terminal-art.txt"
+
+"$branding_install"
+# shellcheck source=qvcore/branding/lib
+source "$branding_lib"
 
 case "${1:-}" in
 image)
@@ -15,14 +21,15 @@ image)
   ;;
 text)
   omarchy-launch-editor "$branding_file" >/dev/null 2>&1 &&
+    qvos_branding_valid_text "$branding_file" &&
     qv-launch-screensaver force >/dev/null 2>&1
   ;;
 reset)
-  cp "$OMARCHY_PATH/qvcore/branding/logo.txt" "$branding_file"
+  qvos_branding_atomic_install "$default_art" "$branding_file"
   qv-launch-screensaver force >/dev/null 2>&1
   ;;
 *)
-  echo "Usage: omarchy-branding-screensaver <image|text|reset>" >&2
-  exit 1
+  echo "Usage: qv branding screensaver <image|text|reset>" >&2
+  exit 2
   ;;
 esac

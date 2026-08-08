@@ -96,7 +96,7 @@ pass "incomplete source cannot erase the installed desktop payload"
 partial_file_root="$test_root/partial-file-source"
 partial_file_home="$test_root/partial-file-home"
 install -d "$partial_file_root/qvcore"
-for feature in desktop direct hooks power screensaver security shell thunar tmux tui waybar windows; do
+for feature in branding desktop direct hooks power screensaver security shell thunar tmux tui waybar windows; do
   cp -a "$root/qvcore/$feature" "$partial_file_root/qvcore/$feature"
 done
 install -d "$partial_file_home/.local/lib/qvos/desktop"

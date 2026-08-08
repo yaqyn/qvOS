@@ -45,14 +45,11 @@ for frontend in qv omarchy; do
   ' >/dev/null || fail "$frontend version route does not prefer the native catalog"
 done
 
-for config in \
-  "$root/config/fastfetch/config.jsonc" \
-  "$root/qvcore/config/files/fastfetch/config.jsonc"; do
-  rg -q 'qv-version' "$config" || fail "Fastfetch omits native version reporting"
-  if rg -n 'omarchy-version' "$config"; then
-    fail "Fastfetch calls a version compatibility route"
-  fi
-done
+config="$root/config/fastfetch/config.jsonc"
+rg -q 'qv-version' "$config" || fail "Fastfetch omits native version reporting"
+if rg -n 'omarchy-version' "$config"; then
+  fail "Fastfetch calls a version compatibility route"
+fi
 
 if rg -n 'omarchy-version(-branch|-channel|-pkgs)?' "$root/qvcore" \
   --glob '!**/AGENTS.md' \

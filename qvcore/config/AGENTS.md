@@ -49,6 +49,12 @@ Only manage the user systemd instance when `HOME` is the active account home.
 Cross-home fixtures may deploy files but must never contact the real manager;
 the test override accepts only an executable temporary `systemctl` fixture.
 
+`config/fastfetch/config.jsonc` is the singular native Fastfetch source. It
+reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to
+`qvcore/branding/install`. The former specialized Fastfetch copy and legacy
+ANSI asset are retired; runtime-root migration rewrites only their exact source
+paths and preserves the rest of an existing Fastfetch config.
+
 `toggle-state` singularly migrates safe, user-owned toggle files from
 `.local/state/omarchy/toggles` into the private
 `.local/state/qvos/toggles` tree, rejects conflicts before mutation, installs

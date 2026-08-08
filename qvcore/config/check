@@ -27,6 +27,10 @@ fail() {
   fail "duplicate native battery monitor service remains"
 [[ ! -e $root/qvcore/config/files/systemd/user/qvos-battery-monitor.timer ]] ||
   fail "duplicate native battery monitor timer remains"
+[[ ! -e $root/qvcore/config/files/fastfetch ]] ||
+  fail "duplicate Fastfetch config source remains"
+[[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
+  fail "legacy branding config source remains"
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-hyprland\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\nconfig/hypr/bindings.conf\nconfig/hypr/hyprland.conf\nconfig/uwsm/env\ndefault/bash/envs\ndefault/bash/rc\ndefault/bashrc\ndefault/hypr/apps.conf\ndefault/hypr/windows.conf' ]] ||
   fail "native config inventory changed"

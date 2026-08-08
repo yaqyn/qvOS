@@ -279,18 +279,18 @@ show_style_menu() {
 
 show_about_menu() {
   case $(menu "About" "  Edit Text\n  Set From Image\n  Restore Default") in
-  *Text*) omarchy-branding-about text ;;
-  *Image*) omarchy-branding-about image ;;
-  *Default*) omarchy-branding-about reset ;;
+  *Text*) qv-branding-about text ;;
+  *Image*) qv-branding-about image ;;
+  *Default*) qv-branding-about reset ;;
   *) show_style_menu ;;
   esac
 }
 
 show_screensaver_menu() {
   case $(menu "Screensaver" "  Edit Text\n  Set From Image\n  Restore Default") in
-  *Text*) omarchy-branding-screensaver text ;;
-  *Image*) omarchy-branding-screensaver image ;;
-  *Default*) omarchy-branding-screensaver reset ;;
+  *Text*) qv-branding-screensaver text ;;
+  *Image*) qv-branding-screensaver image ;;
+  *Default*) qv-branding-screensaver reset ;;
   *) show_style_menu ;;
   esac
 }

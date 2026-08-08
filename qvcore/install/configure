@@ -18,13 +18,6 @@
 
   mkdir -p "$HOME/.config"
   cp -a "$config_source/." "$HOME/.config/"
-  install -D -m 0644 \
-    "$QVOS_PATH/qvcore/branding/icon.txt" \
-    "$HOME/.config/omarchy/branding/about.txt"
-  install -D -m 0644 \
-    "$QVOS_PATH/qvcore/branding/logo.txt" \
-    "$HOME/.config/omarchy/branding/screensaver.txt"
-
   # shellcheck disable=SC1091
   source "$QVOS_PATH/qvcore/install/config/mimetypes"
   # shellcheck source=qvcore/install/desktop

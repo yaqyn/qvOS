@@ -22,6 +22,7 @@ fail() {
 install -d \
   "$test_bin" \
   "$test_home/.config/Thunar" \
+  "$test_home/.config/fastfetch" \
   "$test_home/.config/hypr" \
   "$test_home/.config/uwsm" \
   "$test_home/.config/waybar"
@@ -59,6 +60,9 @@ exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
 {"battery":"$(omarchy-battery-status)","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","timezone":"omarchy-tz-select"}
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/fastfetch/config.jsonc" <<'CONFIG'
+{"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"}}
 CONFIG
 install -m 0600 /dev/stdin "$test_home/.config/Thunar/uca.xml" <<'CONFIG'
 <command>$HOME/.local/share/qvos/thunar/open-here</command>
@@ -149,6 +153,16 @@ if rg -q 'omarchy-(capture-screenrecording|launch-floating-terminal-with-present
   "$test_home/.config/waybar/config.jsonc"; then
   fail "Waybar weather compatibility route remains"
 fi
+# These are literal config values, not shell paths.
+# shellcheck disable=SC2088
+grep -Fq '~/.config/qvos/branding/about.txt' \
+  "$test_home/.config/fastfetch/config.jsonc" ||
+  fail "Fastfetch branding-state migration"
+# shellcheck disable=SC2088
+if grep -Fq '~/.config/omarchy/branding/' \
+  "$test_home/.config/fastfetch/config.jsonc"; then
+  fail "Fastfetch legacy branding state remains"
+fi
 grep -Fq '.local/lib/qvos/thunar/open-here' \
   "$test_home/.config/Thunar/uca.xml" ||
   fail "Thunar action runtime migration"
@@ -169,7 +183,7 @@ grep -Fqx 'export QVOS_SCREENRECORD_DIR="$HOME/Videos/Private"' \
   "$test_home/.config/uwsm/default" || fail "recording environment migration"
 grep -Fqx '# Keep this user comment.' "$test_home/.config/uwsm/default" ||
   fail "Capture environment custom content preservation"
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "6" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "7" ]] ||
   fail "changed config backup count"
 [[ $(<"$systemctl_log") == "--user daemon-reload" ]] ||
   fail "user service reload"

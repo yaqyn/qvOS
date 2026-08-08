@@ -101,6 +101,10 @@ Before first-run services are enabled, run the native config toggle-state and
 user-service reconcilers. Battery monitoring and internal-monitor recovery use
 only `qvos-*` unit identities; inherited unit names and toggle roots are
 existing-system migration inputs, never fresh state.
+Install private About and screensaver customization only through
+`qvcore/branding/install`; desktop reconciliation invokes it before the
+screensaver runtime. Never copy top-level logo assets or write active
+`.config/omarchy/branding` state from an install, reset, or update path.
 Custom hooks are reconciled through `qvcore/hooks/reconcile` during desktop
 installation. Never copy qvOS update jobs into the user-writable hook tree or
 restore the retired delayed Voxtype prompt; optional software remains an

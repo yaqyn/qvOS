@@ -15,7 +15,7 @@ Current product layout:
 ```text
 qvcore/
   boot/        qvOS boot, Plymouth, SDDM, Limine, and session assets.
-  branding/    qvOS desktop identity and terminal logo branding.
+  branding/    qvOS vectors, approved terminal art, and private customization.
   browser/     Secure browser policy ownership.
   capture/     Private screenshots, OCR, and recoverable screen recording.
   cli/         Native qv command engine and Omarchy compatibility frontend.

@@ -2,9 +2,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
 
 clear
 printf '\033[32m\n'
-cat -- "$OMARCHY_PATH/qvcore/branding/logo.txt"
+cat -- "$QVOS_PATH/qvcore/branding/terminal-art.txt"
 printf '\033[0m\n\n'

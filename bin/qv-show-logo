@@ -1,4 +1,9 @@
 #!/bin/bash
 
+# qv:summary=Display the qvOS terminal art
+# qv:group=branding
+# qv:name=logo
+# qv:aliases=qv logo | qv show logo
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/branding/show-logo" "$@"

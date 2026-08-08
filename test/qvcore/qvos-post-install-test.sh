@@ -29,8 +29,8 @@ install -m 0755 \
   "$root/qvcore/install/post-install/finished" \
   "$test_qvos/qvcore/install/post-install/finished"
 install -m 0644 \
-  "$root/qvcore/branding/logo.txt" \
-  "$test_qvos/qvcore/branding/logo.txt"
+  "$root/qvcore/branding/terminal-art.txt" \
+  "$test_qvos/qvcore/branding/terminal-art.txt"
 : >"$event_log"
 
 install -m 0644 /dev/stdin \
@@ -124,7 +124,7 @@ run_finished >/dev/null
 [[ ! -e $completion_marker ]] ||
   fail "declined non-ISO reboot created a completion marker"
 grep -Fqx \
-  "tte:-i $test_qvos/qvcore/branding/logo.txt --canvas-width 0 --anchor-text c --frame-rate 920 laseretch:" \
+  "tte:-i $test_qvos/qvcore/branding/terminal-art.txt --canvas-width 0 --anchor-text c --frame-rate 920 laseretch:" \
   "$event_log" || fail "qvOS finished logo owner"
 grep -Fqx \
   'tte:--canvas-width 0 --anchor-text c --frame-rate 640 print:Installed in 3m 12s' \

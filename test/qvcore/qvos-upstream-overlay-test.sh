@@ -20,7 +20,13 @@ else
   fail "no tracked upstream master ref is available for overlay verification"
 fi
 
-inherited_seams=()
+seam_manifest="$root/compat/omarchy/inherited-seams"
+mapfile -t inherited_seams < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$seam_manifest"
+)
+[[ $(printf '%s\n' "${inherited_seams[@]}" | sort -u) == \
+  $(printf '%s\n' "${inherited_seams[@]}") ]] ||
+  fail "inherited compatibility seams are not sorted and unique"
 
 declare -A inherited_seam_set=()
 for path in "${inherited_seams[@]}"; do

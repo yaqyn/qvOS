@@ -23,7 +23,6 @@ bin/omarchy-refresh-tmux
 bin/omarchy-refresh-walker
 bin/omarchy-refresh-waybar
 bin/omarchy-remove-preinstalls
-bin/omarchy-show-logo
 bin/omarchy-windows-vm
 config/fastfetch/config.jsonc
 config/waybar/config.jsonc

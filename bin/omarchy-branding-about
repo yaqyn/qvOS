@@ -1,10 +1,4 @@
 #!/bin/bash
 
-# omarchy:summary=Edit, set, or reset About branding
-# omarchy:group=branding
-# omarchy:name=about
-# omarchy:args=<image|text|reset>
-# omarchy:examples=omarchy branding about image | omarchy branding about text | omarchy branding about reset
-
-OMARCHY_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-exec "$OMARCHY_PATH/qvcore/branding/about" "$@"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/branding/about" "$@"

@@ -1,0 +1,101 @@
+#!/bin/bash
+
+QVOS_BRANDING_MAX_BYTES=$((512 * 1024))
+QVOS_BRANDING_MAX_LINES=500
+QVOS_BRANDING_MAX_LINE_BYTES=2000
+
+qvos_branding_safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+qvos_branding_safe_file() {
+  local path=$1
+  local size
+
+  [[ -f $path && ! -L $path && -O $path ]] || return 1
+  size=$(stat -Lc '%s' -- "$path") || return 1
+  ((size <= QVOS_BRANDING_MAX_BYTES))
+}
+
+qvos_branding_safe_source() {
+  local path=$1
+  local size
+
+  [[ -f $path && ! -L $path ]] || return 1
+  size=$(stat -Lc '%s' -- "$path") || return 1
+  ((size <= QVOS_BRANDING_MAX_BYTES))
+}
+
+qvos_branding_valid_text() {
+  local path=$1
+
+  qvos_branding_safe_file "$path" || return 1
+  iconv -f UTF-8 -t UTF-8 "$path" >/dev/null 2>&1 || return 1
+  ! LC_ALL=C grep -q '[[:cntrl:]]' "$path" || return 1
+  LC_ALL=C awk \
+    -v max_lines="$QVOS_BRANDING_MAX_LINES" \
+    -v max_width="$QVOS_BRANDING_MAX_LINE_BYTES" '
+      NR > max_lines || length($0) > max_width { exit 1 }
+    ' "$path"
+}
+
+qvos_branding_valid_source_text() {
+  local path=$1
+
+  qvos_branding_safe_source "$path" || return 1
+  iconv -f UTF-8 -t UTF-8 "$path" >/dev/null 2>&1 || return 1
+  ! LC_ALL=C grep -q '[[:cntrl:]]' "$path" || return 1
+  LC_ALL=C awk \
+    -v max_lines="$QVOS_BRANDING_MAX_LINES" \
+    -v max_width="$QVOS_BRANDING_MAX_LINE_BYTES" '
+      NR > max_lines || length($0) > max_width { exit 1 }
+    ' "$path"
+}
+
+qvos_branding_ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    qvos_branding_safe_directory "$path" || {
+      printf 'Refusing unsafe qvOS branding directory: %s\n' "$path" >&2
+      return 1
+    }
+    chmod "$mode" -- "$path"
+  else
+    install -d -m "$mode" "$path"
+  fi
+}
+
+qvos_branding_atomic_install() {
+  local source=$1
+  local target=$2
+  local target_parent
+  local temporary
+
+  qvos_branding_valid_source_text "$source" || {
+    printf 'Refusing unsafe qvOS branding source: %s\n' "$source" >&2
+    return 1
+  }
+  target_parent=${target%/*}
+  qvos_branding_safe_directory "$target_parent" || {
+    printf 'Refusing unsafe qvOS branding directory: %s\n' "$target_parent" >&2
+    return 1
+  }
+  if [[ -e $target || -L $target ]]; then
+    qvos_branding_safe_file "$target" || {
+      printf 'Refusing unsafe qvOS branding file: %s\n' "$target" >&2
+      return 1
+    }
+  fi
+
+  temporary=$(mktemp "$target_parent/.qvos-branding.XXXXXX")
+  if ! install -m 0600 "$source" "$temporary"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  if ! mv -f -- "$temporary" "$target"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}

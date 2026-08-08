@@ -117,6 +117,12 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `config/` and `default/` remain reviewed sources only for domains not yet
   promoted
 - `qvcore/config/files/` owns specialized native installed sources
+- `config/fastfetch/config.jsonc` is the singular Fastfetch source and reads
+  private terminal art from `~/.config/qvos/branding`; never restore a
+  `qvcore/config/files/fastfetch` overlay or active Omarchy branding state
+- `qvcore/branding/` owns the qvOS vector masters, the user-approved terminal
+  art, its private install/migration lifecycle, and branding commands; the
+  graphical wordmark and terminal composition are intentionally distinct
 - `qvcore/config/toggles/` owns toggle templates; active toggle state lives
   privately under `~/.local/state/qvos/toggles`
 - `qvcore/hooks/` owns custom automation under `~/.config/qvos/hooks`; qvOS
@@ -196,7 +202,9 @@ Every qvOS change must leave one traceable lifecycle.
   is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` compatibility
   link, and keep runtime payloads under `~/.local/lib/qvos`.
 - New persistent state is feature-owned and private under
-  `~/.local/state/qvos`. The generic state compatibility route accepts only
+  `~/.local/state/qvos`. User-editable qvOS configuration is feature-owned
+  under `~/.config/qvos`; legacy branding is preserved privately and retired
+  through its native owner. The generic state compatibility route accepts only
   reviewed reboot and service-restart markers; it never recreates an active
   Omarchy state root.
 - Use thin, absent-safe adapters only as transition seams that complete a user

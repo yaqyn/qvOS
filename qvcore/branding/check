@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/branding/native-paths"
+retired_manifest="$root/qvcore/branding/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -27,29 +28,89 @@ for path in "${native_paths[@]}"; do
     fail "native branding path no longer differs from upstream: $path"
 done
 
-adapter_routes=(
-  bin/omarchy-branding-about
-  bin/omarchy-branding-screensaver
-  bin/omarchy-show-logo
-  bin/omarchy-windows-vm
+mapfile -t retired_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
 )
-adapter_owners=(
-  qvcore/branding/about
-  qvcore/branding/screensaver
-  qvcore/branding/show-logo
-  qvcore/windows/command
-)
-for index in "${!adapter_routes[@]}"; do
-  route=${adapter_routes[$index]}
-  owner=${adapter_owners[$index]}
-
-  [[ -x $root/$route && -x $root/$owner ]] ||
-    fail "branding adapter or owner is not executable: $route"
-  (($(wc -l <"$root/$route") <= 10)) ||
-    fail "branding compatibility adapter contains implementation: $route"
-  grep -Fqx "exec \"\$OMARCHY_PATH/$owner\" \"\$@\"" "$root/$route" ||
-    fail "branding compatibility adapter does not delegate directly: $route"
+[[ $(printf '%s\n' "${retired_paths[@]}" | sort -u) == \
+  $(printf '%s\n' "${retired_paths[@]}") ]] ||
+  fail "retired branding paths are not sorted and unique"
+for path in "${retired_paths[@]}"; do
+  [[ ! -e $root/$path && ! -L $root/$path ]] ||
+    fail "retired inherited branding path remains: $path"
+  git -C "$root" cat-file -e "upstream/master:$path" ||
+    fail "retired branding path is not inherited: $path"
 done
+
+declare -A branding_routes=(
+  [branding-about]=about
+  [branding-screensaver]=screensaver
+  [show-logo]=show-logo
+)
+for route in "${!branding_routes[@]}"; do
+  owner="qvcore/branding/${branding_routes[$route]}"
+  native_adapter="$root/bin/qv-$route"
+  compatibility_adapter="$root/bin/omarchy-$route"
+
+  [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
+    fail "branding adapter or owner is not executable: $route"
+  (( $(wc -l <"$native_adapter") <= 12 )) ||
+    fail "native branding adapter contains implementation: $route"
+  (( $(wc -l <"$compatibility_adapter") <= 5 )) ||
+    fail "branding compatibility adapter contains implementation: $route"
+  rg -q '^# qv:summary=' "$native_adapter" ||
+    fail "native branding adapter lacks metadata: $route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
+    fail "branding compatibility adapter duplicates metadata: $route"
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+      fail "branding adapter does not delegate directly: $route"
+  done
+done
+
+for owner in about install lib screensaver show-logo; do
+  [[ -f $root/qvcore/branding/$owner && ! -L $root/qvcore/branding/$owner ]] ||
+    fail "missing native branding owner: $owner"
+done
+for owner in about install screensaver show-logo; do
+  [[ -x $root/qvcore/branding/$owner ]] || fail "branding owner mode: $owner"
+done
+[[ -f $root/qvcore/branding/terminal-art.txt &&
+  ! -L $root/qvcore/branding/terminal-art.txt ]] ||
+  fail "missing qvOS terminal art"
+
+expected_assets=$'qv-mark-dark.svg\nqv-mark-light.svg\nqvos-wordmark-dark.svg\nqvos-wordmark-light.svg'
+[[ $(find "$root/qvcore/branding/assets" -maxdepth 1 -type f -printf '%f\n' | sort) == \
+  "$expected_assets" ]] || fail "qvOS vector asset inventory"
+for asset in "$root"/qvcore/branding/assets/*.svg; do
+  grep -Fq '<svg ' "$asset" || fail "invalid qvOS vector asset: $asset"
+  if rg -n -i '<script|javascript:|xlink:href|[[:space:]]href=' "$asset"; then
+    fail "external or executable qvOS vector asset: $asset"
+  fi
+done
+
+[[ ! -e $root/qvcore/config/files/fastfetch ]] ||
+  fail "duplicate Fastfetch branding overlay remains"
+[[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
+  fail "legacy branding config source remains"
+grep -Fq '"source": "~/.config/qvos/branding/about.txt"' \
+  "$root/config/fastfetch/config.jsonc" ||
+  fail "Fastfetch bypasses native qvOS branding state"
+
+for frontend in qv omarchy; do
+  for route in 'branding about' 'branding screensaver' 'branding logo'; do
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend $route" '
+        [.commands[] | select(.route == $route and (.binary | startswith("qv-")))] |
+        length == 1
+      ' >/dev/null || fail "$frontend $route route does not prefer qvOS"
+  done
+done
+
+if rg -n 'omarchy-branding-(about|screensaver)|omarchy-show-logo' \
+  "$root/qvcore/branding" "$root/qvcore/menu" "$root/bin/omarchy-menu" \
+  --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths'; then
+  fail "native qvOS source calls a branding compatibility route"
+fi
 
 if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qvcore"; then
   fail "public command help still brands qvOS as Omarchy"
@@ -122,4 +183,4 @@ grep -Fq 'Description=qvOS Battery Monitor Check' \
   "$root/config/systemd/user/qvos-battery-monitor.service" ||
   fail "qvOS battery service label"
 
-printf 'ok - visible product identity is qvOS while legacy internals remain compatible\n'
+printf 'ok - qvOS singularly owns visible identity, terminal art, and branding state\n'

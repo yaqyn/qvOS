@@ -133,6 +133,14 @@ rewrite_literals \
   'omarchy-weather-icon' 'qv-weather-icon' \
   'omarchy-weather-status' 'qv-weather-status' \
   'omarchy-tz-select' 'qv-tz-select'
+# These are literal config values, not shell paths.
+# shellcheck disable=SC2088
+rewrite_literals \
+  "$HOME/.config/fastfetch/config.jsonc" \
+  '~/.config/omarchy/branding/about-fastfetch.ansi' \
+  '~/.config/qvos/branding/about.txt' \
+  '~/.config/omarchy/branding/about.txt' \
+  '~/.config/qvos/branding/about.txt'
 rewrite_literals \
   "$HOME/.config/uwsm/default" \
   'OMARCHY_SCREENSHOT_DIR' 'QVOS_SCREENSHOT_DIR' \
