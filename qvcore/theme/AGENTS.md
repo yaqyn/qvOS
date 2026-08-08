@@ -8,6 +8,9 @@ qvOS has one bundled product theme: `qvcore/theme/yaqyn/`. Users may copy Yaqyn,
 install a compatible Omarchy-format Git theme, or link a compatible theme into
 `~/.config/omarchy/themes/`. Keep one renderer for bundled and user themes; do
 not restore the inherited source catalog or a second rendering system.
+The bundled background and preview are identical copies of the user-approved
+centered qvOS wordmark artwork. Keep graphical wallpaper assets here; terminal
+art remains independently owned by `qvcore/branding/terminal-art.txt`.
 
 The `~/.config/omarchy/{themes,current,backgrounds,themed}` namespace is a
 documented external-theme compatibility ABI, not an inherited source owner.

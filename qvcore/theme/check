@@ -87,6 +87,15 @@ done
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "themes/" ]] ||
   fail "retired theme inventory is broader than the inherited catalog"
 
+yaqyn_background="$root/qvcore/theme/yaqyn/backgrounds/yaqyn.png"
+yaqyn_preview="$root/qvcore/theme/yaqyn/preview.png"
+for artwork in "$yaqyn_background" "$yaqyn_preview"; do
+  [[ -f $artwork && ! -L $artwork ]] ||
+    fail "Yaqyn artwork must be a regular file: ${artwork#"$root/"}"
+done
+cmp -s "$yaqyn_background" "$yaqyn_preview" ||
+  fail "Yaqyn background and preview differ"
+
 for inventory in "$native_manifest" "$retired_manifest"; do
   [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
     sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u

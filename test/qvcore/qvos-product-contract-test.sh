@@ -965,7 +965,8 @@ SCRIPT
 
 printf '%s\n' 'show_about() { printf "personal menu\n"; }' \
   >"$test_root/.config/omarchy/extensions/menu.sh"
-HOME="$test_root" OMARCHY_PATH="$root" "$root/qvcore/menu/install" --install
+HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+  "$root/qvcore/menu/install" --install
 grep -Fqx 'show_about() { printf "personal menu\n"; }' \
   "$test_root/.config/omarchy/extensions/menu.sh" ||
   fail "personal Omarchy menu extension preservation"
@@ -1004,6 +1005,7 @@ pass "network surfaces reuse their established owners"
 set +e
 share_output=$(
   QVOS_TEST_LOCALSEND=0 \
+    QVOS_PATH="$root" \
     OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
     "$root/bin/qv-share" clipboard 2>&1
@@ -1021,7 +1023,8 @@ printf 'personal theme\n' >"$test_root/.config/omarchy/themes/yaqyn/personal-mar
 cp -a "$root/qvcore/theme/yaqyn/." "$test_root/custom-theme/"
 touch "$test_root/custom-theme/preview-unlock.png"
 ln -s "$test_root/custom-theme" "$test_root/.config/omarchy/themes/custom"
-HOME="$test_root" OMARCHY_PATH="$root" "$root/qvcore/theme/install" >/dev/null
+HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+  "$root/qvcore/theme/install" >/dev/null
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/personal-marker" >/dev/null ||
   fail "personal Yaqyn theme backup"
 
@@ -1033,7 +1036,8 @@ if grep -Fqx 'Tokyo Night' <<<"$theme_list"; then
 fi
 pass "Yaqyn is the only bundled theme while compatible user themes remain available"
 
-HOME="$test_root" OMARCHY_PATH="$root" lua - "$root" <<'LUA' || fail "qvOS Style entries"
+HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+  lua - "$root" <<'LUA' || fail "qvOS Style entries"
 local root = arg[1]
 
 dofile(root .. "/default/elephant/omarchy_themes.lua")
