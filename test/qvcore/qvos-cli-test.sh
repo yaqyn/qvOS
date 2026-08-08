@@ -29,8 +29,27 @@ compat_help=$("$compat_cli" --help)
   (all(.commands[]; .route | startswith("qv "))) and
   ([.commands[].binary | select(. == "omarchy-update" or startswith("omarchy-update-"))] | length == 0) and
   ([.commands[] | select(.route == "qv update" and .binary == "qv-update")] | length == 1) and
-  ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1)
+  ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1) and
+  ([.commands[] | select(.route == "qv dev benchmark" and .binary == "qv-dev-benchmark")] | length == 1) and
+  ([.commands[] | select(.route == "qv dev bin metadata" and .binary == "qv-dev-bin-metadata")] | length == 1)
 ' >/dev/null || fail "native command catalog"
+
+metadata=$("$qv_cli" dev bin metadata --json)
+jq -e '
+  .ok == true and
+  .defaults.group == "first filename segment after qv-" and
+  .defaults.route == "qv <group> <name>" and
+  ([.fields[].name] | index("summary")) and
+  ([.fields[].name] | index("aliases"))
+' <<<"$metadata" >/dev/null || fail "native metadata documentation"
+benchmark=$("$qv_cli" dev benchmark --repeat=1)
+[[ $benchmark == *"qvOS CLI benchmark (1 runs each)"* ]] ||
+  fail "native CLI benchmark"
+for invalid_repeat in 0 101 999999999999999999999; do
+  if "$qv_cli" dev benchmark --repeat="$invalid_repeat" >/dev/null 2>&1; then
+    fail "bounded CLI benchmark repeat: $invalid_repeat"
+  fi
+done
 
 update_help=$("$qv_cli" update --help)
 [[ $update_help == *"Usage:"* ]] || fail "native update help"

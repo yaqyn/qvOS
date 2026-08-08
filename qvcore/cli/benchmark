@@ -1,0 +1,105 @@
+#!/bin/bash
+set -euo pipefail
+
+qvcore_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+qvos_root=$(cd -- "$qvcore_root/.." && pwd)
+qv_cli="$qvos_root/bin/qv"
+repeat=5
+
+show_help() {
+  cat <<'EOF'
+Usage:
+  qv dev benchmark [--repeat=<count>]
+
+Measure response times for static qvOS CLI surfaces.
+
+Options:
+  --repeat=<count>  Number of runs per case, from 1 through 100 (default: 5)
+EOF
+}
+
+now_us() {
+  printf '%s' "${EPOCHREALTIME/./}"
+}
+
+format_ms() {
+  local microseconds=$1
+
+  printf '%d.%03d' "$((microseconds / 1000))" "$((microseconds % 1000))"
+}
+
+run_case() {
+  local label=$1
+  shift
+  local elapsed_us
+  local end_us
+  local iteration
+  local max_us=0
+  local min_us=0
+  local start_us
+  local status
+  local total_us=0
+
+  for ((iteration = 1; iteration <= repeat; iteration++)); do
+    start_us=$(now_us)
+    if "$@" >/dev/null; then
+      status=0
+    else
+      status=$?
+    fi
+    end_us=$(now_us)
+    if ((status != 0)); then
+      printf '%-30s failed (exit %d)\n' "$label" "$status" >&2
+      return "$status"
+    fi
+
+    elapsed_us=$((end_us - start_us))
+    total_us=$((total_us + elapsed_us))
+    if ((iteration == 1 || elapsed_us < min_us)); then
+      min_us=$elapsed_us
+    fi
+    ((elapsed_us <= max_us)) || max_us=$elapsed_us
+  done
+
+  printf '%-30s avg %8s ms  min %8s ms  max %8s ms\n' \
+    "$label" \
+    "$(format_ms "$((total_us / repeat))")" \
+    "$(format_ms "$min_us")" \
+    "$(format_ms "$max_us")"
+}
+
+while (($# > 0)); do
+  case $1 in
+  --repeat=*) repeat=${1#*=} ;;
+  --help | -h)
+    show_help
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    show_help >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+if [[ ! $repeat =~ ^[1-9][0-9]{0,2}$ ]] || ((repeat > 100)); then
+  echo "--repeat must be an integer from 1 through 100" >&2
+  exit 2
+fi
+[[ -f $qv_cli && -x $qv_cli && ! -L $qv_cli ]] || {
+  echo "Native qvOS CLI is unavailable: $qv_cli" >&2
+  exit 1
+}
+
+printf 'qvOS CLI benchmark (%d runs each)\n\n' "$repeat"
+run_case "qv" "$qv_cli"
+run_case "qv --help" "$qv_cli" --help
+run_case "qv commands" "$qv_cli" commands
+run_case "qv commands --json" "$qv_cli" commands --json
+run_case "qv commands --all --json" "$qv_cli" commands --all --json
+run_case "qv theme set --help" "$qv_cli" theme set --help
+run_case "qv screenshot --help" "$qv_cli" screenshot --help
+run_case "qv restart --help" "$qv_cli" restart --help
+run_case "qv system reboot --help" "$qv_cli" system reboot --help

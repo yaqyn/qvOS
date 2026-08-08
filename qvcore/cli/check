@@ -5,7 +5,7 @@ QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 native_manifest="$QVOS_PATH/qvcore/cli/native-paths"
 retired_manifest="$QVOS_PATH/qvcore/cli/retired-paths"
 
-expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present'
+expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present\nbin/omarchy-dev-benchmark\nbin/omarchy-dev-bin-metadata'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == "$expected_native" ]] || {
   echo "Native CLI path inventory is incomplete or unordered." >&2
   exit 1
@@ -34,6 +34,42 @@ done
   echo "Native command-presence owners are unavailable." >&2
   exit 1
 }
+
+declare -A dev_tool_owners=(
+  [dev-benchmark]=benchmark
+  [dev-bin-metadata]=metadata
+)
+for route in "${!dev_tool_owners[@]}"; do
+  owner="qvcore/cli/${dev_tool_owners[$route]}"
+  native_adapter="$QVOS_PATH/bin/qv-$route"
+  compatibility_adapter="$QVOS_PATH/bin/omarchy-$route"
+  [[ -x $QVOS_PATH/$owner && -x $native_adapter && -x $compatibility_adapter ]] || {
+    echo "Missing native CLI tool owner or adapter: $route" >&2
+    exit 1
+  }
+  (($(wc -l <"$native_adapter") <= 12)) || {
+    echo "Native CLI tool adapter contains implementation: $route" >&2
+    exit 1
+  }
+  (($(wc -l <"$compatibility_adapter") <= 5)) || {
+    echo "CLI tool compatibility adapter contains implementation: $route" >&2
+    exit 1
+  }
+  rg -q '^# qv:summary=' "$native_adapter" || {
+    echo "Native CLI tool adapter lacks metadata: $route" >&2
+    exit 1
+  }
+  ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" || {
+    echo "CLI tool compatibility adapter duplicates metadata: $route" >&2
+    exit 1
+  }
+  for adapter in "$native_adapter" "$compatibility_adapter"; do
+    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" || {
+      echo "CLI tool adapter does not delegate directly: $route" >&2
+      exit 1
+    }
+  done
+done
 
 "$QVOS_PATH/bin/qv" commands --check
 "$QVOS_PATH/bin/omarchy" commands --check

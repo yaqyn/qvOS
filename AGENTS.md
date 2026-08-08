@@ -19,6 +19,10 @@ the native route. Unpromoted inherited `bin/omarchy-*` files remain intact until
 their complete domain moves. Never add mutation logic, state ownership, or
 product branding to `bin/`.
 
+Native CLI benchmarking and metadata documentation live under `qvcore/cli/`.
+They inspect only static `qv` surfaces and describe only the current `qv:*`
+schema; inherited dev-tool names are external compatibility adapters.
+
 The authoritative command group list lives in `qvcore/cli/qv` in
 `GROUP_DESCRIPTIONS`. Keep it updated when adding a command prefix. User-facing
 help, examples, errors, and suggestions use `qv`, even while an inherited

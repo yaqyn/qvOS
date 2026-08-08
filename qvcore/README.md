@@ -85,6 +85,8 @@ Services and Development integrations never change qvOS base readiness.
 - `qv` is the primary user-facing command. `omarchy` remains a compatibility
   frontend for inherited scripts and upstream tooling; both use the one native
   qvOS command engine.
+- CLI benchmarking and command-metadata documentation are native, bounded,
+  read-only `qvcore/cli/` tools and describe qvOS routes exclusively.
 - Promoted commands expose `qv-*` metadata and one native owner; exact
   `omarchy-*` names remain metadata-free compatibility only while required.
 - Desktop restart commands are native under `qvcore/desktop/restart/`. Native

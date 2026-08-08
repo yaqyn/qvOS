@@ -1,0 +1,82 @@
+#!/bin/bash
+set -euo pipefail
+
+show_json() {
+  jq -n '{
+    ok: true,
+    defaults: {
+      group: "first filename segment after qv-",
+      name: "remaining filename segments with dashes converted to spaces",
+      route: "qv <group> <name>",
+      binary: "filename",
+      requires_sudo: false
+    },
+    fields: [
+      {name: "summary", required: true, type: "string", note: "One-line human and agent-facing description."},
+      {name: "group", required: false, type: "string", note: "Set only when the route group differs from the filename-derived group."},
+      {name: "name", required: false, type: "string", note: "Set only when the route name differs from the filename-derived name; it may be empty for root commands."},
+      {name: "args", required: false, type: "string", note: "Include only when the command accepts arguments."},
+      {name: "examples", required: false, type: "string", note: "Pipe-separated examples."},
+      {name: "aliases", required: false, type: "string", note: "Pipe-separated alternate routes, for example qv screenshot."},
+      {name: "requires-sudo", required: false, type: "true", default: false, note: "Include only when true."},
+      {name: "hidden", required: false, type: "true", default: false, note: "Hide from default command listings; visible with --all."}
+    ]
+  }'
+}
+
+show_help() {
+  cat <<'EOF'
+qvOS command metadata
+
+Metadata lives in the first 80 lines of an executable bin/qv-* adapter. Keep
+it small: define only required fields or deliberate route overrides.
+
+Required:
+  # qv:summary=<one-line description>
+
+Inferred defaults:
+  group         first filename segment after qv-
+  name          remaining filename segments, with dashes converted to spaces
+  route         qv <group> <name>
+  binary        filename
+  requires-sudo false
+  hidden        false
+
+Optional fields:
+  # qv:group=<group>                  route override only
+  # qv:name=<name>                    route override only; may be empty
+  # qv:args=<args>                    only if the command accepts args
+  # qv:examples=<cmd> | <cmd>         pipe-separated examples
+  # qv:aliases=<route> | <route>      pipe-separated alternate routes
+  # qv:requires-sudo=true             only when true
+  # qv:hidden=true                    hide from default command listings
+
+Do not define:
+  binary      inferred from filename
+  usage       derived from route plus args
+  false flags or empty args
+
+Examples:
+  # qv:summary=Restart Walker and related user services
+
+  # qv:summary=Take a screenshot
+  # qv:group=capture
+  # qv:args=[smart|region|windows|fullscreen] [slurp|copy]
+  # qv:examples=qv screenshot | qv capture screenshot region
+  # qv:aliases=qv screenshot
+EOF
+}
+
+(($# <= 1)) || {
+  echo "Usage: qv dev bin metadata [--json]" >&2
+  exit 2
+}
+case ${1:-} in
+--json) show_json ;;
+--help | -h | "") show_help ;;
+*)
+  echo "Unknown option: $1" >&2
+  echo "Usage: qv dev bin metadata [--json]" >&2
+  exit 2
+  ;;
+esac

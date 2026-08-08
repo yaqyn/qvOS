@@ -23,6 +23,14 @@ every command is present and no command is missing. The old hidden terminal-CWD
 helper is retired; `qvcore/desktop/context/qvos-active-location` is the singular
 tested desktop-context resolver.
 
+`qvcore/cli/{benchmark,metadata}` owns developer-facing CLI introspection.
+Benchmark only static native `qv` surfaces, bound repeats before arithmetic,
+and never depend on user configuration or execute a mutation. Metadata help and
+JSON describe the current `qv:*` schema and native filename-derived routes;
+the Omarchy frontend translates the shared catalog only at its compatibility
+boundary. Public `qv-dev-*` adapters carry metadata and exact
+`omarchy-dev-*` names are metadata-free compatibility only.
+
 `qv update` must resolve only to `qv-update`, which delegates to the
 guarded qvOS update owner. Never expose the inherited raw updater or its
 implementation subcommands as native `qv update` routes. Do not run an update
