@@ -482,7 +482,7 @@ show_setup_system_menu() {
     options="$options󰒲  Disable Suspend"
   fi
 
-  if omarchy-hibernation-available; then
+  if qv-hibernation-available; then
     options="$options\n󰤁  Disable Hibernate"
   else
     options="$options\n󰤁  Enable Hibernate"
@@ -490,8 +490,8 @@ show_setup_system_menu() {
 
   case $(menu "System" "$options") in
   *Suspend*) omarchy-toggle-suspend ;;
-  *"Enable Hibernate"*) present_terminal omarchy-hibernation-setup ;;
-  *"Disable Hibernate"*) present_terminal omarchy-hibernation-remove ;;
+  *"Enable Hibernate"*) present_terminal qv-hibernation-setup ;;
+  *"Disable Hibernate"*) present_terminal qv-hibernation-remove ;;
   *) show_setup_menu ;;
   esac
 }
@@ -810,7 +810,7 @@ show_about() {
 show_system_menu() {
   local options="󱄄  Screensaver\n  Lock"
   ! omarchy-toggle-enabled suspend-off && options="$options\n󰒲  Suspend"
-  omarchy-hibernation-available && options="$options\n󰤁  Hibernate"
+  qv-hibernation-available && options="$options\n󰤁  Hibernate"
   options="$options\n󰍃  Logout\n󰜉  Restart\n󰐥  Shutdown"
 
   case $(menu "System" "$options") in

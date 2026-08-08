@@ -88,6 +88,10 @@ for login_owner in default-keyring.sh hibernation.sh; do
     ! -x $root/qvcore/boot/login/$login_owner ]] ||
     fail "native login owner mode: $login_owner"
 done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/power/hibernation/setup" --force --no-rebuild' \
+  "$root/qvcore/boot/login/hibernation.sh" ||
+  fail "fresh install hibernation native owner"
 
 for owner in \
   install-limine-snapper \

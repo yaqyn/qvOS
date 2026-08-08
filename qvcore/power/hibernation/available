@@ -1,0 +1,58 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv hibernation available" >&2
+  exit 2
+}
+
+system_root=${QVOS_HIBERNATION_SYSTEM_ROOT:-}
+testing=${QVOS_HIBERNATION_TESTING:-}
+expected_uid=0
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS hibernation test root." >&2
+    exit 2
+  }
+  expected_uid=$UID
+fi
+
+image_size_file="$system_root/sys/power/image_size"
+swaps_file="$system_root/proc/swaps"
+swap_file="$system_root/swap/swapfile"
+qvos_hook="$system_root/etc/mkinitcpio.conf.d/80-qvos-resume.conf"
+legacy_hook="$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf"
+qvos_resume="$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
+legacy_resume="$system_root/etc/limine-entry-tool.d/resume.conf"
+resume_pattern='^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$'
+
+safe_owned_file() {
+  [[ -f $1 && ! -L $1 && $(stat -c '%u' -- "$1") == "$expected_uid" ]]
+}
+
+valid_hook() {
+  safe_owned_file "$1" && [[ $(<"$1") == "HOOKS+=(resume)" ]]
+}
+
+valid_resume() {
+  safe_owned_file "$1" &&
+    [[ $(<"$1") =~ $resume_pattern ]]
+}
+
+safe_owned_file "$image_size_file" && safe_owned_file "$swaps_file" || exit 1
+image_size=$(<"$image_size_file")
+[[ $image_size =~ ^[0-9]+$ ]] || exit 1
+((image_size > 0)) || exit 1
+
+swap_size_kib=$(awk -v target="$swap_file" '
+  NR > 1 && $1 == target && $3 ~ /^[0-9]+$/ { print $3; found = 1; exit }
+  END { if (!found) exit 1 }
+' "$swaps_file") || exit 1
+[[ $swap_size_kib =~ ^[0-9]+$ ]] || exit 1
+swap_size=$((swap_size_kib * 1024))
+
+((swap_size > image_size)) &&
+  { valid_hook "$qvos_hook" || valid_hook "$legacy_hook"; } &&
+  { valid_resume "$qvos_resume" || valid_resume "$legacy_resume"; }

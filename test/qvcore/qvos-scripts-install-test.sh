@@ -507,6 +507,15 @@ for helper in profiles-set supply-lib wifi-powersave; do
   [[ $(stat -c '%a' -- "$target") == "$mode" ]] ||
     fail "root-owned AC-event helper mode: $helper"
 done
+for payload in hibernation:root keyboard-backlight:keyboard-backlight; do
+  target_name=${payload%%:*}
+  source_name=${payload#*:}
+  target="$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/power/$target_name"
+  cmp -s "$root/qvcore/power/hibernation/$source_name" "$target" ||
+    fail "root-owned hibernation helper payload: $target_name"
+  [[ $(stat -c '%a' -- "$target") == "755" ]] ||
+    fail "root-owned hibernation helper mode: $target_name"
+done
 [[ ! -e $QVOS_POWER_SYSTEM_ROOT/etc/udev/hwdb.d/61-qvos-battery-protection.hwdb ]] ||
   fail "desktop install must not enable Battery Protection"
 [[ ! -e $test_root/.local/state/qvos/battery-protection ]] ||

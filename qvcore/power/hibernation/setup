@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+hibernation_root="$QVOS_PATH/qvcore/power/hibernation"
+force=false
+no_rebuild=false
+
+while (($# > 0)); do
+  case $1 in
+  --force)
+    [[ $force == "false" ]] || {
+      echo "Duplicate hibernation option: --force" >&2
+      exit 2
+    }
+    force=true
+    ;;
+  --no-rebuild)
+    [[ $no_rebuild == "false" ]] || {
+      echo "Duplicate hibernation option: --no-rebuild" >&2
+      exit 2
+    }
+    no_rebuild=true
+    ;;
+  *)
+    echo "Usage: qv hibernation setup [--force] [--no-rebuild]" >&2
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+system_root=${QVOS_HIBERNATION_SYSTEM_ROOT:-}
+image_size_file="$system_root/sys/power/image_size"
+if [[ ! -f $image_size_file || -L $image_size_file ]]; then
+  echo "Hibernation is not supported on this system." >&2
+  exit 0
+fi
+
+if [[ $no_rebuild == "false" && -z $system_root ]] &&
+  ! command -v limine-mkinitcpio >/dev/null; then
+  echo "Skipping hibernation setup because the Limine rebuild owner is unavailable."
+  exit 0
+fi
+
+if [[ $force == "false" ]]; then
+  memory_size=$(free --human | awk '/^Mem:/ { print $2; exit }')
+  [[ -n $memory_size ]] || memory_size="the installed memory size"
+  gum confirm "Use $memory_size on the boot drive for hibernation?" || exit 130
+fi
+
+"$hibernation_root/install-root"
+root_owner="$system_root/usr/lib/qvos/power/hibernation"
+root_args=(apply)
+[[ $no_rebuild == "false" ]] || root_args+=(--no-rebuild)
+
+if [[ -n $system_root ]] || ((EUID == 0)); then
+  if "$root_owner" "${root_args[@]}"; then
+    root_status=0
+  else
+    root_status=$?
+  fi
+else
+  if sudo "$root_owner" "${root_args[@]}"; then
+    root_status=0
+  else
+    root_status=$?
+  fi
+fi
+if ((root_status == 10)); then
+  echo "Hibernation is already configured."
+  exit 0
+fi
+((root_status == 0)) || exit "$root_status"
+
+echo "Hibernation is configured."
+if [[ $force == "false" && $no_rebuild == "false" ]] &&
+  gum confirm "Reboot to activate hibernation now?"; then
+  qv-system-reboot
+fi

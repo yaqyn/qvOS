@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-source_dir="$OMARCHY_PATH/qvcore/power"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_dir="$QVOS_PATH/qvcore/power"
 runtime_dir="$HOME/.local/lib/qvos/power"
 qvos_bin="$HOME/.local/lib/qvos/bin"
 local_bin="$HOME/.local/bin"
@@ -97,6 +98,13 @@ else
 fi
 
 "$source_dir/root-install"
+if [[ -n $system_root ]]; then
+  QVOS_HIBERNATION_TESTING=1 \
+    QVOS_HIBERNATION_SYSTEM_ROOT="$system_root" \
+    "$source_dir/hibernation/install-root"
+else
+  "$source_dir/hibernation/install-root"
+fi
 
 if [[ -z $system_root ]]; then
   /usr/bin/systemctl --user daemon-reload

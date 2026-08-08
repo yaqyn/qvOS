@@ -93,7 +93,8 @@ chmod 0755 "$legacy_bin"/omarchy-system-*
   "2e11eb00125215d89cfd545af7d3974e45b6e70bc9e27d9806e145bf26b16e88" ]] ||
   fail "legacy suspend owner fixture"
 HOME="$legacy_home" \
-OMARCHY_PATH="$root" \
+QVOS_PATH="$root" \
+OMARCHY_PATH="$test_root/stale-source" \
 QVOS_POWER_TESTING=1 \
 QVOS_POWER_SYSTEM_ROOT="$test_root/legacy-system" \
   "$root/qvcore/power/install"
@@ -113,7 +114,8 @@ install -D -m 0755 /dev/stdin "$modified_command" <<'SCRIPT'
 echo "user-owned sleep wrapper"
 SCRIPT
 if HOME="$modified_home" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
+  OMARCHY_PATH="$test_root/stale-source" \
   QVOS_POWER_TESTING=1 \
   QVOS_POWER_SYSTEM_ROOT="$test_root/modified-system" \
   "$root/qvcore/power/install" >/dev/null 2>&1; then

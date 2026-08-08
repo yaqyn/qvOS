@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+hibernation_root="$QVOS_PATH/qvcore/power/hibernation"
+
+(( $# == 0 )) || {
+  echo "Usage: qv hibernation remove" >&2
+  exit 2
+}
+
+if ! "$hibernation_root/available"; then
+  echo "Hibernation is not currently available."
+fi
+gum confirm "Remove qvOS hibernation, its swap file, and boot resume settings?" ||
+  exit 130
+
+"$hibernation_root/install-root"
+system_root=${QVOS_HIBERNATION_SYSTEM_ROOT:-}
+root_owner="$system_root/usr/lib/qvos/power/hibernation"
+if [[ -n $system_root ]] || ((EUID == 0)); then
+  "$root_owner" remove
+else
+  sudo "$root_owner" remove
+fi
+
+echo "Hibernation was removed."

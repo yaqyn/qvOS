@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/power/hibernation/install-root" >&2
+  exit 2
+}
+
+source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+system_root=${QVOS_HIBERNATION_SYSTEM_ROOT:-}
+testing=${QVOS_HIBERNATION_TESTING:-}
+target_dir="$system_root/usr/lib/qvos/power"
+target_root="$target_dir/hibernation"
+target_keyboard="$target_dir/keyboard-backlight"
+expected_uid=0
+expected_gid=0
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS hibernation test root." >&2
+    exit 2
+  }
+  expected_uid=$UID
+  expected_gid=$(id -g)
+fi
+
+for source in root keyboard-backlight; do
+  [[ -f $source_dir/$source && ! -L $source_dir/$source &&
+    -x $source_dir/$source ]] || {
+    echo "Missing qvOS hibernation root source: $source_dir/$source" >&2
+    exit 1
+  }
+done
+
+payload_ready() {
+  local source=$1
+  local target=$2
+
+  [[ -f $target && ! -L $target ]] &&
+    [[ $(stat -c '%u:%g:%a' -- "$target") == \
+      "$expected_uid:$expected_gid:755" ]] &&
+    cmp -s "$source" "$target"
+}
+
+if payload_ready "$source_dir/root" "$target_root" &&
+  payload_ready "$source_dir/keyboard-backlight" "$target_keyboard"; then
+  exit 0
+fi
+
+for target in "$target_root" "$target_keyboard"; do
+  if [[ -e $target || -L $target ]]; then
+    [[ -f $target && ! -L $target ]] || {
+      echo "Refusing unsafe qvOS hibernation helper: $target" >&2
+      exit 1
+    }
+    [[ $(stat -c '%u:%g' -- "$target") == "$expected_uid:$expected_gid" ]] || {
+      echo "Refusing foreign qvOS hibernation helper: $target" >&2
+      exit 1
+    }
+  fi
+done
+
+if [[ -n $system_root ]] || ((EUID == 0)); then
+  install -D -o "$expected_uid" -g "$expected_gid" -m 0755 \
+    "$source_dir/root" "$target_root"
+  install -D -o "$expected_uid" -g "$expected_gid" -m 0755 \
+    "$source_dir/keyboard-backlight" "$target_keyboard"
+else
+  sudo /usr/bin/install -D -o root -g root -m 0755 \
+    "$source_dir/root" "$target_root"
+  sudo /usr/bin/install -D -o root -g root -m 0755 \
+    "$source_dir/keyboard-backlight" "$target_keyboard"
+fi
+
+if ! payload_ready "$source_dir/root" "$target_root" ||
+  ! payload_ready "$source_dir/keyboard-backlight" "$target_keyboard"; then
+  echo "Could not install the qvOS hibernation root helpers safely." >&2
+  exit 1
+fi

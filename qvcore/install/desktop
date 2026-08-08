@@ -68,6 +68,12 @@
     qvcore/power/battery-protection-lib
     qvcore/power/install
     qvcore/power/event-rule
+    qvcore/power/hibernation/available
+    qvcore/power/hibernation/install-root
+    qvcore/power/hibernation/keyboard-backlight
+    qvcore/power/hibernation/remove
+    qvcore/power/hibernation/root
+    qvcore/power/hibernation/setup
     qvcore/power/profile-rule
     qvcore/power/profiles-set
     qvcore/power/qvos-battery-full-charge-once.service

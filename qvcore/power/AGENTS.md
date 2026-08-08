@@ -50,6 +50,31 @@ runtime directory. Test roots require
 and automatic-suspend runtime links resolve to one copied power owner; retain
 exact `omarchy-*` links only for external and saved-session compatibility.
 
+## Hibernation
+
+`qvcore/power/hibernation/` singularly owns support detection, the Btrfs swap
+file, fstab entry, mkinitcpio resume hook, Limine drop-ins, and the keyboard
+backlight sleep helper. Public `qv-hibernation-*` commands own metadata; their
+Omarchy names are metadata-free compatibility adapters. Fresh install invokes
+the native setup owner directly before Limine performs its one rebuild.
+
+Keep confirmation and reboot choice unprivileged. Install and verify the
+mutation helper and keyboard payload under `/usr/lib/qvos/power/`, then run
+only that root-owned helper through sudo. The helper must serialize changes,
+accept only Btrfs and a validated resume device and offset, stage system-file
+changes atomically, and restore the prior boot policy if rebuilding fails. Use
+only `/etc/limine-entry-tool.d/80-qvos-*.conf`; remove an old duplicate line
+from `/etc/default/limine` only when it exactly matches a validated managed
+drop-in. Never execute a home checkout from a boot, sleep, or package hook.
+
+Removal may delete `/swap/swapfile` and its subvolume only after explicit user
+confirmation, exact ownership checks, successful boot-policy removal and
+rebuild, and proof that the subvolume contains no unrelated data. Historical
+Omarchy resume and sleep files are migration inputs only and may be removed
+only when their complete content matches the known generated form. Fixture
+roots and tool overrides require `QVOS_HIBERNATION_TESTING=1` and caller-owned
+paths beneath one `/tmp` system root.
+
 ## Battery protection contract
 
 - Keep Battery Protection in qvCORE. It must remain complete without optional

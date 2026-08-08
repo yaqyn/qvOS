@@ -25,10 +25,13 @@ native migration domain.
 install Plymouth without an early image rebuild, install the SDDM theme,
 session, Wayland compositor config, autologin compatibility, and PAM policy,
 then configure Limine and Snapper after the native keyring and hibernation
-leaves in `qvcore/boot/login/`. Keep the internal `omarchy` session, theme, and UKI identifiers as
-upgrade ABI until a separately verified migration can rename installed state;
-they must never leak as visible product branding. Use the shared atomic theme
-sync owner for install and refresh so a failed copy restores the prior theme.
+leaves in `qvcore/boot/login/`. The hibernation leaf calls the native power
+owner with `--no-rebuild`, so the later Limine package step remains the only
+fresh-install UKI rebuild. Keep the internal `omarchy` session, theme, and UKI
+identifiers as upgrade ABI until a separately verified migration can rename
+installed state; they must never leak as visible product branding. Use the
+shared atomic theme sync owner for install and refresh so a failed copy restores
+the prior theme.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed

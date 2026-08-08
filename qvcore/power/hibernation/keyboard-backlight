@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 2 )) || exit 0
+[[ $1 == "pre" && $2 == "hibernate" ]] || exit 0
+
+shopt -s nullglob
+for candidate in /sys/class/leds/*kbd_backlight*; do
+  [[ -d $candidate && ! -L $candidate ]] || continue
+  device=${candidate##*/}
+  [[ $device =~ ^[A-Za-z0-9._:+-]+$ ]] || continue
+  /usr/bin/brightnessctl -d "$device" set 0 >/dev/null 2>&1 || true
+  break
+done

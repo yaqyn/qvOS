@@ -1,0 +1,2 @@
+# Historical hibernation payload replaced by a root-owned native helper.
+default/systemd/system-sleep/keyboard-backlight

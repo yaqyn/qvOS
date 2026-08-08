@@ -1,0 +1,573 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+PATH=/usr/bin:/bin
+
+action=${1:-}
+shift || true
+no_rebuild=false
+case $action in
+apply)
+  case ${1:-} in
+  "") ;;
+  --no-rebuild)
+    no_rebuild=true
+    shift
+    ;;
+  *)
+    echo "Usage: hibernation <apply [--no-rebuild]|remove>" >&2
+    exit 2
+    ;;
+  esac
+  ;;
+remove)
+  ;;
+*)
+  echo "Usage: hibernation <apply [--no-rebuild]|remove>" >&2
+  exit 2
+  ;;
+esac
+(($# == 0)) || {
+  echo "Usage: hibernation <apply [--no-rebuild]|remove>" >&2
+  exit 2
+}
+
+system_root=${QVOS_HIBERNATION_SYSTEM_ROOT:-}
+testing=${QVOS_HIBERNATION_TESTING:-}
+test_bin=${QVOS_HIBERNATION_TEST_BIN:-}
+expected_uid=0
+expected_gid=0
+self_path=$(readlink -f -- "$0")
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS hibernation test root." >&2
+    exit 2
+  }
+  [[ -n $test_bin && $test_bin == "$system_root/"* && -d $test_bin &&
+    ! -L $test_bin && $(stat -c '%u' -- "$test_bin") == "$UID" ]] || {
+    echo "Invalid qvOS hibernation test tools." >&2
+    exit 2
+  }
+  expected_uid=$UID
+  expected_gid=$(id -g)
+else
+  ((EUID == 0)) || {
+    echo "qvOS hibernation mutation must run as root." >&2
+    exit 1
+  }
+  [[ $self_path == "/usr/lib/qvos/power/hibernation" &&
+    $(stat -c '%u:%g:%a' -- "$self_path") == "0:0:755" ]] || {
+    echo "Refusing a non-system qvOS hibernation root helper." >&2
+    exit 1
+  }
+fi
+
+tool() {
+  local name=$1
+  local path="/usr/bin/$name"
+
+  [[ -z $system_root ]] || path="$test_bin/$name"
+  [[ -x $path && ! -L $path ]] || {
+    echo "Missing qvOS hibernation tool: $name" >&2
+    return 1
+  }
+  printf '%s\n' "$path"
+}
+
+btrfs=$(tool btrfs)
+chattr=$(tool chattr)
+findmnt=$(tool findmnt)
+swapon=$(tool swapon)
+swapoff=$(tool swapoff)
+limine_mkinitcpio=""
+if [[ $action == "remove" || $no_rebuild == "false" ]]; then
+  limine_mkinitcpio=$(tool limine-mkinitcpio)
+fi
+
+etc_root="$system_root/etc"
+run_root="$system_root/run"
+swap_root="$system_root/swap"
+swap_file="$swap_root/swapfile"
+image_size_file="$system_root/sys/power/image_size"
+meminfo_file="$system_root/proc/meminfo"
+swaps_file="$system_root/proc/swaps"
+fstab="$etc_root/fstab"
+limine_default="$etc_root/default/limine"
+mkinit_dir="$etc_root/mkinitcpio.conf.d"
+limine_dir="$etc_root/limine-entry-tool.d"
+qvos_hook="$mkinit_dir/80-qvos-resume.conf"
+legacy_hook="$mkinit_dir/omarchy_resume.conf"
+qvos_resume="$limine_dir/80-qvos-resume.conf"
+legacy_resume="$limine_dir/resume.conf"
+qvos_rtc="$limine_dir/80-qvos-rtc-alarm.conf"
+legacy_rtc="$limine_dir/rtc-alarm.conf"
+root_payload_dir="$system_root/usr/lib/qvos/power"
+keyboard_payload="$root_payload_dir/keyboard-backlight"
+keyboard_dir="$system_root/usr/lib/systemd/system-sleep"
+qvos_keyboard="$keyboard_dir/qvos-keyboard-backlight"
+legacy_keyboard="$keyboard_dir/keyboard-backlight"
+legacy_lid="$etc_root/systemd/logind.conf.d/lid.conf"
+legacy_sleep="$etc_root/systemd/sleep.conf.d/hibernate.conf"
+lock_file="$run_root/qvos-hibernation.lock"
+transaction_root=""
+transaction_active=false
+declare -a transaction_targets=()
+declare -a transaction_backups=()
+declare -A transaction_seen=()
+created_swap=false
+created_subvolume=false
+enabled_swap=false
+atomic_temporary=""
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+safe_file() {
+  local mode
+
+  [[ -f $1 && ! -L $1 ]] || return 1
+  [[ $(stat -c '%u:%g' -- "$1") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(stat -c '%a' -- "$1") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+ensure_directory() {
+  local path=$1
+  local parent=${path%/*}
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || {
+      echo "Refusing unsafe qvOS hibernation directory: $path" >&2
+      return 1
+    }
+    return 0
+  fi
+  safe_directory "$parent" || {
+    echo "Refusing unsafe qvOS hibernation parent: $parent" >&2
+    return 1
+  }
+  install -d -o "$expected_uid" -g "$expected_gid" -m 0755 "$path"
+}
+
+owned_line_file() {
+  local path=$1
+  local pattern=$2
+
+  [[ ! -e $path && ! -L $path ]] && return 0
+  safe_file "$path" && (($(wc -l <"$path") == 1)) &&
+    [[ $(<"$path") =~ $pattern ]]
+}
+
+validate_managed_files() {
+  local path
+  local swap_mentions
+
+  for path in "$fstab" "$limine_default"; do
+    safe_file "$path" || {
+      echo "Refusing unsafe qvOS hibernation system file: $path" >&2
+      return 1
+    }
+  done
+  owned_line_file "$qvos_hook" '^HOOKS\+\=\(resume\)$' || return 1
+  owned_line_file "$legacy_hook" '^HOOKS\+\=\(resume\)$' || return 1
+  owned_line_file "$qvos_resume" '^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$' || return 1
+  owned_line_file "$legacy_resume" '^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$' || return 1
+  owned_line_file "$qvos_rtc" '^KERNEL_CMDLINE\[default\]\+=" rtc_cmos\.use_acpi_alarm=1"$' || return 1
+  owned_line_file "$legacy_rtc" '^KERNEL_CMDLINE\[default\]\+=" rtc_cmos\.use_acpi_alarm=1"$' || return 1
+
+  [[ ! -e $qvos_keyboard && ! -L $qvos_keyboard ]] ||
+    { safe_file "$qvos_keyboard" && cmp -s "$keyboard_payload" "$qvos_keyboard"; } ||
+    return 1
+  if [[ -e $legacy_keyboard || -L $legacy_keyboard ]]; then
+    [[ -f $legacy_keyboard && ! -L $legacy_keyboard ]] || return 1
+    legacy_keyboard_hash=$(sha256sum -- "$legacy_keyboard")
+    legacy_keyboard_hash=${legacy_keyboard_hash%% *}
+    if { ! safe_file "$legacy_keyboard" ||
+      ! cmp -s "$keyboard_payload" "$legacy_keyboard"; } &&
+      [[ $legacy_keyboard_hash != \
+        "f313a81e47401f0d38b8602e5997f52c5286d5e97f74027564ddd515b3d16511" ]]; then
+      return 1
+    fi
+  fi
+  [[ ! -e $legacy_lid && ! -L $legacy_lid ]] ||
+    { safe_file "$legacy_lid" &&
+      [[ $(<"$legacy_lid") == $'[Login]\nHandleLidSwitch=suspend-then-hibernate' ]]; } ||
+    return 1
+  [[ ! -e $legacy_sleep && ! -L $legacy_sleep ]] ||
+    { safe_file "$legacy_sleep" &&
+      [[ $(<"$legacy_sleep") == $'[Sleep]\nHibernateDelaySec=90min\nSuspendEstimationSec=0' ]]; } ||
+    return 1
+
+  swap_mentions=$(awk -v file="${swap_file#"$system_root"}" '
+    index($0, file) && $0 != file " none swap defaults,pri=0 0 0" { count++ }
+    END { print count + 0 }
+  ' "$fstab")
+  ((swap_mentions == 0)) || {
+    echo "Refusing a modified hibernation swap entry in $fstab" >&2
+    return 1
+  }
+}
+
+snapshot_target() {
+  local target=$1
+  local backup=-
+
+  [[ -z ${transaction_seen[$target]:-} ]] || return 0
+  transaction_seen[$target]=1
+  if [[ -e $target || -L $target ]]; then
+    if [[ $target == "$legacy_keyboard" ]]; then
+      [[ -f $target && ! -L $target ]] || {
+        echo "Refusing unsafe hibernation transaction target: $target" >&2
+        return 1
+      }
+    elif ! safe_file "$target"; then
+      echo "Refusing unsafe hibernation transaction target: $target" >&2
+      return 1
+    fi
+    backup="$transaction_root/backup-${#transaction_targets[@]}"
+    cp -a -- "$target" "$backup"
+  fi
+  transaction_targets+=("$target")
+  transaction_backups+=("$backup")
+}
+
+rollback_files() {
+  local index
+  local target
+  local backup
+
+  for ((index = ${#transaction_targets[@]} - 1; index >= 0; index--)); do
+    target=${transaction_targets[$index]}
+    backup=${transaction_backups[$index]}
+    if [[ $backup == "-" ]]; then
+      rm -f -- "$target"
+    else
+      install -D -o "$expected_uid" -g "$expected_gid" \
+        -m "$(stat -c '%a' -- "$backup")" "$backup" "$target"
+    fi
+  done
+}
+
+cleanup_created_swap() {
+  if [[ $enabled_swap == "true" ]]; then
+    "$swapoff" "$swap_file" >/dev/null 2>&1 || true
+  fi
+  [[ $created_swap == "false" ]] || rm -f -- "$swap_file"
+  if [[ $created_subvolume == "true" ]]; then
+    "$btrfs" subvolume delete "$swap_root" >/dev/null 2>&1 || true
+  fi
+}
+
+cleanup() {
+  local status=$?
+
+  [[ -z $atomic_temporary ]] || rm -f -- "$atomic_temporary"
+  if [[ $transaction_active == "true" ]]; then
+    rollback_files || true
+    cleanup_created_swap
+  fi
+  [[ -z $transaction_root || ! -d $transaction_root ]] ||
+    rm -rf -- "$transaction_root"
+  exit "$status"
+}
+trap cleanup EXIT
+
+atomic_install() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local parent=${target%/*}
+  local temporary
+
+  ensure_directory "$parent"
+  if [[ -e $target ]] && cmp -s "$source" "$target" &&
+    [[ $(stat -c '%a' -- "$target") == "${mode#0}" ]]; then
+    return 1
+  fi
+  temporary=$(mktemp "$parent/.qvos-hibernation.XXXXXX")
+  atomic_temporary=$temporary
+  install -o "$expected_uid" -g "$expected_gid" -m "$mode" "$source" "$temporary"
+  mv -- "$temporary" "$target"
+  atomic_temporary=""
+  return 0
+}
+
+remove_if_present() {
+  local target=$1
+
+  if [[ -e $target ]]; then
+    rm -- "$target"
+    return 0
+  fi
+  return 1
+}
+
+swap_is_active() {
+  awk -v target="$swap_file" 'NR > 1 && $1 == target { found = 1 } END { exit !found }' \
+    "$swaps_file"
+}
+
+begin_transaction() {
+  local target
+
+  ensure_directory "$run_root"
+  transaction_root=$(mktemp -d "$run_root/qvos-hibernation.XXXXXX")
+  for target in \
+    "$fstab" "$limine_default" \
+    "$qvos_hook" "$legacy_hook" \
+    "$qvos_resume" "$legacy_resume" \
+    "$qvos_rtc" "$legacy_rtc" \
+    "$qvos_keyboard" "$legacy_keyboard" \
+    "$legacy_lid" "$legacy_sleep"; do
+    snapshot_target "$target"
+  done
+  transaction_active=true
+}
+
+finish_transaction() {
+  transaction_active=false
+  rm -rf -- "$transaction_root"
+  transaction_root=""
+}
+
+build_fstab_candidate() {
+  local mode=$1
+  local relative_swap=${swap_file#"$system_root"}
+  local comment="# Btrfs swapfile for system hibernation"
+  local entry="$relative_swap none swap defaults,pri=0 0 0"
+  local candidate="$transaction_root/fstab"
+
+  awk -v comment="$comment" -v entry="$entry" -v mode="$mode" '
+    $0 == comment || $0 == entry { next }
+    { lines[++count] = $0 }
+    END {
+      while (count > 0 && lines[count] == "") count--
+      for (i = 1; i <= count; i++) print lines[i]
+      if (mode == "apply") {
+        if (count > 0) print ""
+        print comment
+        print entry
+      }
+    }
+  ' "$fstab" >"$candidate"
+  printf '%s\n' "$candidate"
+}
+
+build_limine_candidate() {
+  local candidate="$transaction_root/limine-default"
+  local old_resume=""
+  local old_rtc=""
+
+  [[ ! -f $qvos_resume ]] || old_resume=$(<"$qvos_resume")
+  [[ ! -f $legacy_resume ]] || old_resume=$(<"$legacy_resume")
+  [[ ! -f $qvos_rtc ]] || old_rtc=$(<"$qvos_rtc")
+  [[ ! -f $legacy_rtc ]] || old_rtc=$(<"$legacy_rtc")
+  awk -v resume="$old_resume" -v rtc="$old_rtc" '
+    (resume != "" && $0 == resume) || (rtc != "" && $0 == rtc) { next }
+    { lines[++count] = $0 }
+    END {
+      while (count > 0 && lines[count] == "") count--
+      for (i = 1; i <= count; i++) print lines[i]
+    }
+  ' "$limine_default" >"$candidate"
+  printf '%s\n' "$candidate"
+}
+
+for directory in \
+  "${system_root:-/}" "$etc_root" "$run_root" "$root_payload_dir" "$keyboard_dir"; do
+  safe_directory "$directory" || {
+    echo "Refusing unsafe qvOS hibernation root: $directory" >&2
+    exit 1
+  }
+done
+safe_file "$keyboard_payload" && [[ -x $keyboard_payload ]] || {
+  echo "Missing root-owned qvOS keyboard-backlight payload." >&2
+  exit 1
+}
+if ! safe_file "$image_size_file" || ! safe_file "$meminfo_file" ||
+  ! safe_file "$swaps_file"; then
+  echo "Hibernation kernel information is unavailable." >&2
+  exit 1
+fi
+image_size=$(<"$image_size_file")
+[[ $image_size =~ ^[0-9]+$ ]] || {
+  echo "Invalid hibernation image size." >&2
+  exit 1
+}
+((image_size > 0)) || {
+  echo "Invalid hibernation image size." >&2
+  exit 1
+}
+exec 9>>"$lock_file"
+chmod 0600 "$lock_file"
+flock -n 9 || {
+  echo "Another qvOS hibernation change is active." >&2
+  exit 1
+}
+
+validate_managed_files || {
+  echo "Refusing modified or unsafe hibernation-owned system state." >&2
+  exit 1
+}
+begin_transaction
+
+if [[ $action == "apply" ]]; then
+  root_fstype=$("$findmnt" -n -o FSTYPE -T "$system_root/")
+  [[ $root_fstype == "btrfs" ]] || {
+    echo "qvOS hibernation requires a Btrfs root filesystem." >&2
+    exit 1
+  }
+  if [[ -e $swap_root || -L $swap_root ]]; then
+    if ! safe_directory "$swap_root" ||
+      ! "$btrfs" subvolume show "$swap_root" >/dev/null; then
+      echo "Refusing a non-Btrfs or unsafe swap directory: $swap_root" >&2
+      exit 1
+    fi
+  else
+    "$btrfs" subvolume create "$swap_root"
+    created_subvolume=true
+    "$chattr" +C "$swap_root"
+  fi
+
+  if [[ -e $swap_file || -L $swap_file ]]; then
+    safe_file "$swap_file" || {
+      echo "Refusing an unsafe hibernation swap file: $swap_file" >&2
+      exit 1
+    }
+  else
+    memory_kib=$(awk '/^MemTotal:/ && $2 ~ /^[0-9]+$/ { print $2 "k"; found = 1; exit } END { if (!found) exit 1 }' \
+      "$meminfo_file") || {
+      echo "Could not determine installed memory size." >&2
+      exit 1
+    }
+    "$btrfs" filesystem mkswapfile -s "$memory_kib" "$swap_file"
+    created_swap=true
+  fi
+
+  resume_offset=$("$btrfs" inspect-internal map-swapfile -r "$swap_file")
+  [[ $resume_offset =~ ^[1-9][0-9]*$ ]] || {
+    echo "Could not determine a valid hibernation resume offset." >&2
+    exit 1
+  }
+  resume_device=$("$findmnt" -n -o SOURCE -T "$swap_file")
+  resume_device=${resume_device%%\[*}
+  [[ $resume_device =~ ^/dev/[A-Za-z0-9._/+:-]+$ ]] || {
+    echo "Could not determine a valid hibernation resume device." >&2
+    exit 1
+  }
+
+  if ! swap_is_active; then
+    "$swapon" -p 0 "$swap_file"
+    enabled_swap=true
+  fi
+  swap_size_kib=$(awk -v target="$swap_file" '
+    NR > 1 && $1 == target && $3 ~ /^[0-9]+$/ { print $3; found = 1; exit }
+    END { if (!found) exit 1 }
+  ' "$swaps_file") || {
+    echo "The hibernation swap file did not become active." >&2
+    exit 1
+  }
+  ((swap_size_kib * 1024 > image_size)) || {
+    echo "The hibernation swap file is smaller than the kernel image limit." >&2
+    exit 1
+  }
+
+  printf 'HOOKS+=(resume)\n' >"$transaction_root/mkinit"
+  printf 'KERNEL_CMDLINE[default]+=" resume=%s resume_offset=%s"\n' \
+    "$resume_device" "$resume_offset" >"$transaction_root/resume"
+  printf 'KERNEL_CMDLINE[default]+=" rtc_cmos.use_acpi_alarm=1"\n' \
+    >"$transaction_root/rtc"
+  fstab_candidate=$(build_fstab_candidate apply)
+  limine_candidate=$(build_limine_candidate)
+  changed=false
+  atomic_install "$fstab_candidate" "$fstab" 0644 && changed=true || true
+  atomic_install "$limine_candidate" "$limine_default" 0644 && changed=true || true
+  atomic_install "$transaction_root/mkinit" "$qvos_hook" 0644 && changed=true || true
+  atomic_install "$transaction_root/resume" "$qvos_resume" 0644 && changed=true || true
+  atomic_install "$keyboard_payload" "$qvos_keyboard" 0755 && changed=true || true
+
+  if grep -Fq '[s2idle]' "$system_root/sys/power/mem_sleep" 2>/dev/null; then
+    atomic_install "$transaction_root/rtc" "$qvos_rtc" 0644 && changed=true || true
+  else
+    remove_if_present "$qvos_rtc" && changed=true || true
+  fi
+  for legacy in \
+    "$legacy_hook" "$legacy_resume" "$legacy_rtc" "$legacy_keyboard" \
+    "$legacy_lid" "$legacy_sleep"; do
+    remove_if_present "$legacy" && changed=true || true
+  done
+
+  if [[ $changed == "false" ]]; then
+    finish_transaction
+    exit 10
+  fi
+  if [[ $no_rebuild == "false" ]] && ! "$limine_mkinitcpio"; then
+    rollback_files
+    transaction_active=false
+    "$limine_mkinitcpio" >/dev/null 2>&1 || true
+    cleanup_created_swap
+    echo "Hibernation configuration failed; restored the previous boot policy." >&2
+    exit 1
+  fi
+  finish_transaction
+  exit 0
+fi
+
+fstab_candidate=$(build_fstab_candidate remove)
+limine_candidate=$(build_limine_candidate)
+changed=false
+atomic_install "$fstab_candidate" "$fstab" 0644 && changed=true || true
+atomic_install "$limine_candidate" "$limine_default" 0644 && changed=true || true
+for managed in \
+  "$qvos_hook" "$legacy_hook" \
+  "$qvos_resume" "$legacy_resume" \
+  "$qvos_rtc" "$legacy_rtc" \
+  "$qvos_keyboard" "$legacy_keyboard" \
+  "$legacy_lid" "$legacy_sleep"; do
+  remove_if_present "$managed" && changed=true || true
+done
+
+if [[ $changed == "true" ]] && ! "$limine_mkinitcpio"; then
+  rollback_files
+  transaction_active=false
+  "$limine_mkinitcpio" >/dev/null 2>&1 || true
+  echo "Hibernation removal failed; restored the previous boot policy." >&2
+  exit 1
+fi
+finish_transaction
+
+if [[ -e $swap_root || -L $swap_root ]]; then
+  if ! safe_directory "$swap_root" ||
+    ! "$btrfs" subvolume show "$swap_root" >/dev/null; then
+    echo "Preserving a non-Btrfs or unsafe swap directory: $swap_root" >&2
+    exit 1
+  fi
+  unexpected=$(find -P "$swap_root" -mindepth 1 -maxdepth 1 ! -path "$swap_file" -print -quit)
+  [[ -z $unexpected ]] || {
+    echo "Preserving hibernation storage with unrelated content: $unexpected" >&2
+    exit 1
+  }
+  if swap_is_active; then
+    "$swapoff" "$swap_file"
+  fi
+  if [[ -e $swap_file || -L $swap_file ]]; then
+    safe_file "$swap_file" || {
+      echo "Preserving an unsafe hibernation swap file: $swap_file" >&2
+      exit 1
+    }
+    rm -- "$swap_file"
+  fi
+  "$btrfs" subvolume delete "$swap_root"
+fi

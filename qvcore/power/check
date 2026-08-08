@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown\nbin/omarchy-wifi-powersave'
+expected=$'bin/omarchy-ac-present\nbin/omarchy-battery-capacity\nbin/omarchy-battery-present\nbin/omarchy-battery-remaining\nbin/omarchy-battery-remaining-time\nbin/omarchy-battery-status\nbin/omarchy-hibernation-available\nbin/omarchy-hibernation-remove\nbin/omarchy-hibernation-setup\nbin/omarchy-powerprofiles-init\nbin/omarchy-powerprofiles-list\nbin/omarchy-powerprofiles-set\nbin/omarchy-system-reboot\nbin/omarchy-system-shutdown\nbin/omarchy-wifi-powersave'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native power route inventory"
 
@@ -21,6 +21,9 @@ declare -A route_owners=(
   [battery-remaining]=battery-info
   [battery-remaining-time]=battery-info
   [battery-status]=battery-info
+  [hibernation-available]=hibernation/available
+  [hibernation-remove]=hibernation/remove
+  [hibernation-setup]=hibernation/setup
   [powerprofiles-init]=profiles-init
   [powerprofiles-list]=profiles-list
   [powerprofiles-set]=profiles-set
@@ -67,7 +70,9 @@ for route in "${!route_owners[@]}"; do
 done
 
 [[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
-for owner in event-rule profile-rule root-install wifi-rule; do
+for owner in event-rule profile-rule root-install wifi-rule \
+  hibernation/available hibernation/install-root hibernation/remove \
+  hibernation/root hibernation/setup; do
   [[ -x $root/qvcore/power/$owner ]] || fail "power event owner mode: $owner"
 done
 # shellcheck disable=SC2016
@@ -99,7 +104,7 @@ if rg -n '\.local/share/(qvos|omarchy).*(profiles|wifi-powersave)' \
   "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
   fail "installer retains a user-writable root event command"
 fi
-if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|wifi-powersave)' \
+if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|hibernation-|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|wifi-powersave)' \
   "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
@@ -108,6 +113,10 @@ if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|rem
   --glob '!**/power/profile-rule' --glob '!**/power/install' \
   --glob '!**/config/migrate-runtime-root'; then
   fail "native qvOS source still calls a power compatibility command"
+fi
+if rg -n 'omarchy-hibernation-' \
+  "$root/bin/omarchy-menu" "$root/qvcore/tui/task/actions.psv"; then
+  fail "active qvOS interface calls hibernation compatibility"
 fi
 event_compatibility=$(
   rg -o 'omarchy-(powerprofiles-set|wifi-powersave)' \
@@ -120,5 +129,20 @@ for owner in profile-rule wifi-rule; do
     "$root/qvcore/migrations/1786205077.sh" ||
     fail "root-owned AC-event migration omits $owner"
 done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/power/hibernation/setup" --force' \
+  "$root/qvcore/migrations/1786216856.sh" ||
+  fail "native hibernation migration owner"
+# shellcheck disable=SC2016
+grep -Fq '"${system_root:-/}" "$etc_root" "$run_root"' \
+  "$root/qvcore/power/hibernation/root" ||
+  fail "production hibernation root validation"
+
+retired_manifest="$root/qvcore/power/retired-paths"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "default/systemd/system-sleep/keyboard-backlight" ]] ||
+  fail "retired hibernation payload inventory"
+[[ ! -e $root/default/systemd/system-sleep/keyboard-backlight ]] ||
+  fail "retired hibernation payload remains"
 
 printf 'ok - qvOS owns power telemetry, profiles, sleep guards, and system power\n'
