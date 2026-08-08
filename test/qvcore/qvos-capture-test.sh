@@ -75,10 +75,11 @@ cat >"$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
 case ${1:-} in
 monitors)
-  cat <<'JSON'
+  dpms=${MOCK_DPMS_STATUS:-true}
+  cat <<JSON
 [
-  {"name":"DP-1","x":0,"y":0,"width":1280,"height":720,"scale":1,"transform":0,"focused":false,"activeWorkspace":{"id":2}},
-  {"name":"eDP-1","x":-1080,"y":0,"width":1920,"height":1080,"scale":1,"transform":0,"focused":true,"activeWorkspace":{"id":1}}
+  {"name":"DP-1","x":0,"y":0,"width":1280,"height":720,"scale":1,"transform":0,"focused":false,"dpmsStatus":true,"activeWorkspace":{"id":2}},
+  {"name":"eDP-1","x":-1080,"y":0,"width":1920,"height":1080,"scale":1,"transform":0,"focused":true,"dpmsStatus":$dpms,"activeWorkspace":{"id":1}}
 ]
 JSON
   ;;
@@ -208,6 +209,17 @@ saved=${output#Saved screenshot: }
 grep -Fq -- '-g -1080\,0\ 1920x1080' "$test_log/grim" ||
   fail "fullscreen uses focused monitor"
 pass "fullscreen screenshot uses the focused monitor and private output"
+
+export MOCK_DPMS_STATUS=false
+before=$(find "$QVOS_SCREENSHOT_DIR" -maxdepth 1 -type f | wc -l)
+set +e
+$screenshot fullscreen save >/dev/null 2>&1
+status=$?
+set -e
+after=$(find "$QVOS_SCREENSHOT_DIR" -maxdepth 1 -type f | wc -l)
+[[ $status == "1" && $after == "$before" ]] || fail "powered-off screenshot refusal"
+unset MOCK_DPMS_STATUS
+pass "powered-off focused outputs fail before requesting a compositor frame"
 
 $screenshot fullscreen save >/dev/null
 (( $(find "$QVOS_SCREENSHOT_DIR" -maxdepth 1 -type f -name 'screenshot-*.png' | wc -l) == 2 )) ||

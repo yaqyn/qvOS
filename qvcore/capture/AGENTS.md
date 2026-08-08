@@ -17,7 +17,8 @@ qv routes.
   `/tmp` state.
 - Freeze the screen until a selection has been captured, return cancellation
   as 130, support negative monitor coordinates and transformed outputs, and
-  use the focused monitor for fullscreen capture.
+  use the focused monitor for fullscreen capture. Refuse a powered-off focused
+  output and bound compositor frame requests so DPMS cannot hang Capture.
 - Validate options, tools, OCR languages, output directories, webcam devices,
   and media before mutation. Bound OCR output and debug logs. Test-only process
   matching requires an unprivileged temporary HOME and runtime.

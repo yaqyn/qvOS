@@ -67,7 +67,7 @@ else
   status=$?
   exit "$status"
 fi
-if ! grim -g "$CAPTURE_SELECTION" "$image"; then
+if ! timeout --foreground 15s grim -g "$CAPTURE_SELECTION" "$image"; then
   capture_end_freeze
   echo "Unable to capture the OCR region." >&2
   exit 1

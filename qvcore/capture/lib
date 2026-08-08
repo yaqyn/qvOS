@@ -202,7 +202,9 @@ capture_focused_monitor_geometry() {
       else
         "\($x),\($y) \($width)x\($height)"
       end;
-    .[] | select(.focused == true) | geometry
+    .[] |
+      select(.focused == true and .dpmsStatus != false) |
+      geometry
   ' <<<"$monitors"
 }
 
@@ -213,8 +215,14 @@ capture_rectangles() {
 
   monitors=$(hyprctl monitors -j) || return 1
   clients=$(hyprctl clients -j) || return 1
-  workspace=$(jq -er '.[] | select(.focused == true) | .activeWorkspace.id' \
-    <<<"$monitors") || return 1
+  workspace=$(jq -er '
+    .[] |
+      select(.focused == true and .dpmsStatus != false) |
+      .activeWorkspace.id
+  ' <<<"$monitors") || {
+    echo "The focused monitor is unavailable or powered off." >&2
+    return 1
+  }
   jq -er --argjson workspace "$workspace" '
     def geometry:
       .x as $x | .y as $y |
@@ -265,7 +273,10 @@ capture_select_geometry() {
   case $mode in
   fullscreen)
     capture_require_commands hyprctl jq
-    selection=$(capture_focused_monitor_geometry) || return 1
+    selection=$(capture_focused_monitor_geometry) || {
+      echo "The focused monitor is unavailable or powered off." >&2
+      return 1
+    }
     [[ -n $selection ]] || return 1
     CAPTURE_SELECTION=$selection
     return
@@ -371,7 +382,9 @@ capture_monitor_for_geometry() {
       else
         "\($x),\($y) \($width)x\($height)"
       end;
-    .[] | select(geometry == $geometry) | .name
+    .[] |
+      select(.dpmsStatus != false and geometry == $geometry) |
+      .name
   ' <<<"$monitors" | head -n 1
 }
 

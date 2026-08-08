@@ -68,7 +68,7 @@ esac
   exit 2
 }
 
-capture_require_commands grim
+capture_require_commands grim timeout
 [[ $processing != "copy" ]] || capture_require_commands wl-copy
 
 if capture_select_geometry "$mode"; then
@@ -80,7 +80,8 @@ fi
 
 if [[ $processing == "copy" ]]; then
   set +e
-  grim -g "$CAPTURE_SELECTION" - | wl-copy --type image/png
+  timeout --foreground 15s grim -g "$CAPTURE_SELECTION" - |
+    wl-copy --type image/png
   status=$?
   set -e
   capture_end_freeze
@@ -94,7 +95,7 @@ stem="screenshot-$(date +'%Y-%m-%d_%H-%M-%S')"
 desired=$(capture_next_output_path "$output_dir" png "$stem")
 temporary=$(mktemp -- "$output_dir/.qvos-screenshot.XXXXXX.png")
 chmod 0600 "$temporary"
-if ! grim -g "$CAPTURE_SELECTION" "$temporary"; then
+if ! timeout --foreground 15s grim -g "$CAPTURE_SELECTION" "$temporary"; then
   capture_end_freeze
   echo "Unable to capture the selected region." >&2
   exit 1

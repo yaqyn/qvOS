@@ -70,7 +70,8 @@ grep -Fq '$(stat -c '\''%a'\'' "$CAPTURE_STATE_FILE") == "600"' \
 # shellcheck disable=SC2016
 grep -Fq 'capture_process_start "$pid"' "$root/qvcore/capture/lib" ||
   fail "recording process-instance identity"
-grep -Fq 'select(.focused == true) | geometry' "$root/qvcore/capture/lib" ||
+grep -Fq 'select(.focused == true and .dpmsStatus != false)' \
+  "$root/qvcore/capture/lib" ||
   fail "focused fullscreen selection"
 grep -Fq 'return 130' "$root/qvcore/capture/lib" ||
   fail "Capture cancellation status"
