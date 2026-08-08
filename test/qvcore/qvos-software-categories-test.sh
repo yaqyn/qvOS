@@ -39,7 +39,7 @@ export XDG_RUNTIME_DIR="$test_root/runtime"
 install -d "$XDG_RUNTIME_DIR"
 # shellcheck source=/dev/null
 source "$root/qvcore/menu/extension.sh"
-omarchy-launch-walker() { :; }
+qv-launch-walker() { :; }
 
 show_install_service_menu
 [[ $(<"$XDG_RUNTIME_DIR/qvos-menu-view") == "software:services" ]] ||

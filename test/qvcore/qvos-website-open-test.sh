@@ -23,7 +23,7 @@ fail() {
 
 install -d "$test_bin"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
 #!/bin/bash
 
 case ",${QVOS_TEST_COMMANDS:-}," in
@@ -32,7 +32,7 @@ case ",${QVOS_TEST_COMMANDS:-}," in
 esac
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-menu-input" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-menu-input" <<'SCRIPT'
 #!/bin/bash
 
 printf '%s\n' "${QVOS_TEST_URL_INPUT:-}"
@@ -101,7 +101,7 @@ assert_launch "example.com/callback?utm_source=test#access_token=abc" "https://w
 assert_launch "example.com/authorize?client_id=abc&utm_source=test" "https://www.example.com/authorize?client_id=abc&utm_source=test" "authorization links bypass cleaning"
 pass "tracking cleanup preserves functional and sensitive links"
 
-QVOS_TEST_COMMANDS="omarchy-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="  www.youtube.com  " run_launcher
+QVOS_TEST_COMMANDS="qv-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="  www.youtube.com  " run_launcher
 [[ "$(<"$launch_log")" == "https://www.youtube.com" ]] || fail "prompted URL launch"
 pass "the keybinding prompt launches the selected website as an Omarchy web app"
 
@@ -125,7 +125,7 @@ assert_rejected "$oversized_label.com" "oversized hostname labels are rejected"
 pass "strict input and URL validation rejects unsafe forms"
 
 rm -f "$launch_log"
-QVOS_TEST_COMMANDS="omarchy-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="" run_launcher
+QVOS_TEST_COMMANDS="qv-menu-input,omarchy-launch-webapp" QVOS_TEST_URL_INPUT="" run_launcher
 [[ ! -e $launch_log ]] || fail "empty prompt launch"
 pass "an empty prompt exits without launching"
 

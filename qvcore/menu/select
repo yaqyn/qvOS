@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if (( $# < 2 )); then
+  echo "Usage: qv menu select <prompt> <option>... [-- walker args...]" >&2
+  exit 2
+fi
+
+prompt="$1"
+shift
+
+options=()
+walker_args=()
+
+while (( $# > 0 )); do
+  if [[ $1 == "--" ]]; then
+    shift
+    walker_args=("$@")
+    break
+  fi
+
+  options+=("$1")
+  shift
+done
+
+if (( ${#options[@]} == 0 )); then
+  echo "Usage: qv menu select <prompt> <option>... [-- walker args...]" >&2
+  exit 2
+fi
+
+[[ ! $prompt =~ [[:cntrl:]] ]] || {
+  echo "Invalid menu prompt" >&2
+  exit 2
+}
+for option in "${options[@]}"; do
+  [[ -n $option && ! $option =~ [[:cntrl:]] ]] || {
+    echo "Invalid menu option" >&2
+    exit 2
+  }
+done
+
+printf '%s\n' "${options[@]}" |
+  qv-launch-walker --dmenu --width 295 --minheight 1 --maxheight 300 \
+    -p "$prompt…" "${walker_args[@]}" 2>/dev/null

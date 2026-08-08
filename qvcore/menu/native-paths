@@ -1,2 +1,7 @@
 # Inherited paths promoted to native qvOS menu ownership.
+bin/omarchy-launch-walker
+bin/omarchy-menu-file
+bin/omarchy-menu-input
+bin/omarchy-menu-keybindings
+bin/omarchy-menu-select
 config/walker/config.toml

@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Launch Walker with its Elephant provider available
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/menu/launch-walker" "$@"

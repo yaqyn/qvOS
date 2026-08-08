@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -euo pipefail
+
+prompt="${1:-Input}"
+if (( $# > 0 )); then
+  shift
+fi
+
+[[ ! $prompt =~ [[:cntrl:]] ]] || {
+  echo "Invalid menu prompt" >&2
+  exit 2
+}
+
+qv-launch-walker --dmenu --inputonly --width 295 --minheight 1 \
+  --maxheight 1 -p "$prompt…" "$@" 2>/dev/null

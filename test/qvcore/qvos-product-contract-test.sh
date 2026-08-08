@@ -235,7 +235,7 @@ grep -Fqx 'share||Share|More · Share|localsend,send|Send|menu:share' \
   "$root/qvcore/menu/concepts.psv" ||
   fail "LocalSend concept stays independent from qvCORE"
 if rg -q -i 'qvcore share|qvcore/core/share' \
-  "$root/bin/omarchy-qvos-share" \
+  "$root/bin/qv-share" \
   "$root/qvcore/install" \
   "$root/qvcore/menu" \
   "$root/qvcore/share"; then
@@ -895,7 +895,7 @@ for retired_duplicate in \
   [[ ! -e $root/$retired_duplicate ]] ||
     fail "duplicated Omarchy implementation remains: $retired_duplicate"
 done
-pass "debug, capture notifications, and inherited launcher providers stay Omarchy-owned"
+pass "debug and capture notifications retain their current owners without duplication"
 [[ ! -e $root/qvcore/launcher ]] ||
   fail "redundant qvOS launcher domain"
 if rg -q 'qvcore/launcher' "$root/qvcore" "$root/bin"; then
@@ -931,12 +931,12 @@ install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 exit 1
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "localsend" && ${QVOS_TEST_LOCALSEND:-0} == "1" ]]
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-missing" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-missing" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "localsend" && ${QVOS_TEST_LOCALSEND:-0} != "1" ]]
 SCRIPT
@@ -951,7 +951,7 @@ install -m 0755 /dev/stdin "$test_bin/omarchy-refresh-config" <<'SCRIPT'
 exit 0
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-walker" <<'SCRIPT'
 #!/bin/bash
 {
   printf '%s\n' "$*"
@@ -1002,7 +1002,7 @@ share_output=$(
   QVOS_TEST_LOCALSEND=0 \
     OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-qvos-share" clipboard 2>&1
+    "$root/bin/qv-share" clipboard 2>&1
 )
 share_status=$?
 set -e

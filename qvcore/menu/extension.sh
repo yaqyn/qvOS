@@ -66,7 +66,7 @@ set_qvos_menu_view() {
 show_main_menu() {
   set_qvos_menu_mode menu
   set_qvos_menu_view home
-  omarchy-launch-walker \
+  qv-launch-walker \
     --theme qvos-menu \
     --set qvos-menu \
     --width 560 \
@@ -137,7 +137,7 @@ show_software_menu() {
   [[ -z $group ]] || view="software:$group"
   set_qvos_menu_mode menu
   set_qvos_menu_view "$view"
-  omarchy-launch-walker \
+  qv-launch-walker \
     --theme qvos-menu \
     --set qvos-menu \
     --width 560 \
@@ -431,7 +431,7 @@ show_concept_menu() {
 
 show_trigger_menu() {
   local options="󰔛  Reminder\n  Capture\n󰧸  Transcode"
-  omarchy-cmd-present localsend && options="$options\n  Share"
+  qv-cmd-present localsend && options="$options\n  Share"
   options="$options\n󰔎  Toggle\n  Hardware"
 
   case $(menu "Trigger" "$options") in
@@ -446,16 +446,16 @@ show_trigger_menu() {
 }
 
 show_share_menu() {
-  if omarchy-cmd-missing localsend; then
+  if qv-cmd-missing localsend; then
     notify-send "LocalSend is not installed" -t 2000
     back_to show_trigger_menu
     return
   fi
 
   case $(menu "Share" "  Clipboard\n  File \n  Folder") in
-  *Clipboard*) omarchy-qvos-share clipboard ;;
-  *File*) terminal bash -c "omarchy-qvos-share file" ;;
-  *Folder*) terminal bash -c "omarchy-qvos-share folder" ;;
+  *Clipboard*) qv-share clipboard ;;
+  *File*) terminal qv-share file ;;
+  *Folder*) terminal qv-share folder ;;
   *) back_to show_trigger_menu ;;
   esac
 }
@@ -463,7 +463,7 @@ show_share_menu() {
 show_style_menu() {
   case $(menu "Style" "󰸌  Theme\n󰟵  Unlock\n  Font\n  Background\n  Hyprland\n󱄄  Screensaver\n  About") in
   *Theme*) show_theme_menu ;;
-  *Unlock*) omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400 ;;
+  *Unlock*) qv-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400 ;;
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
   *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
@@ -612,7 +612,7 @@ go_to_menu() {
   software*) show_software_menu ;;
   *apps*)
     set_qvos_menu_mode apps
-    omarchy-launch-walker \
+    qv-launch-walker \
       --theme qvos-menu \
       --set qvos-menu \
       --width 560 \

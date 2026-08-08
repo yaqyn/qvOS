@@ -101,6 +101,8 @@ rewrite_literals \
   'omarchy-brightness-keyboard' 'qv-brightness-keyboard' \
   'omarchy-hyprland-monitor-internal-mirror' 'qv-hyprland-monitor-internal-mirror' \
   'omarchy-hyprland-monitor-internal' 'qv-hyprland-monitor-internal' \
+  'omarchy-launch-walker' 'qv-launch-walker' \
+  'omarchy-menu-keybindings' 'qv-menu-keybindings' \
   'omarchy-reminder clear' 'qv-reminder clear' \
   'omarchy-reminder show' 'qv-reminder show' \
   'omarchy-swayosd-client' 'qv-swayosd-client' \

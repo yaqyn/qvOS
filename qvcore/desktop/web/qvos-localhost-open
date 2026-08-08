@@ -13,8 +13,8 @@ notify_error() {
 cmd_present() {
   local command_name="$1"
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$command_name"
+  if command -v qv-cmd-present >/dev/null 2>&1; then
+    qv-cmd-present "$command_name"
   else
     command -v "$command_name" >/dev/null 2>&1
   fi
@@ -28,12 +28,12 @@ fi
 port="${1:-}"
 
 if [[ -z $port ]]; then
-  if ! cmd_present omarchy-menu-input; then
+  if ! cmd_present qv-menu-input; then
     notify_error "Port prompt is unavailable"
     exit 1
   fi
 
-  port="$(omarchy-menu-input "Localhost port" --width 360)"
+  port="$(qv-menu-input "Localhost port" --width 360)"
 fi
 
 port="${port//[[:space:]]/}"

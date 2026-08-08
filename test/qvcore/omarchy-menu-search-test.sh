@@ -648,7 +648,7 @@ install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 exit 1
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-launch-walker" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-walker" <<'SCRIPT'
 #!/bin/bash
 case $* in
 *"--set qvos-menu"*)

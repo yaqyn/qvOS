@@ -88,6 +88,12 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   `~/.local/lib/qvos/tui` payload. Menu state may come from the active
   Omarchy owner, but no route may pair that owner with launch, task, or
   cancellation adapters from the live checkout.
+- `qvcore/menu/{launch-walker,file,input,select,keybindings}` owns native
+  Walker helpers. `qv-launch-walker` and `qv-menu-*` are the public commands;
+  matching Omarchy names are metadata-free compatibility adapters. Validate
+  prompts, choices, search directories, formats, monitor data, and arguments
+  before handing them to Walker. Active qvOS config and owners use only the
+  native routes.
 
 ## Change workflow
 

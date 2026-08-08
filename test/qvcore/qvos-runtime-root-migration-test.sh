@@ -47,6 +47,8 @@ bindld = , XF86TouchpadToggle, Toggle touchpad, exec, omarchy-toggle-touchpad
 bindld = , XF86TouchscreenToggle, Toggle touchscreen, exec, omarchy-toggle-touchscreen
 bindd = SUPER CTRL ALT, R, Clear reminders, exec, omarchy-reminder clear
 bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, omarchy-reminder show
+bindd = SUPER CTRL, V, Clipboard manager, exec, omarchy-launch-walker -m clipboard
+bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hypridle.conf" <<'CONFIG'
 exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
@@ -100,7 +102,11 @@ for command in 'qv-reminder clear' 'qv-reminder show'; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted reminder route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|hyprland-monitor-internal|reminder|swayosd|toggle-touchpad|toggle-touchscreen)' \
+for command in qv-launch-walker qv-menu-keybindings; do
+  grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
+    fail "promoted menu route was not migrated: $command"
+done
+if rg -q 'omarchy-(audio|brightness|hyprland-monitor-internal|launch-walker|menu-keybindings|reminder|swayosd|toggle-touchpad|toggle-touchscreen)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi

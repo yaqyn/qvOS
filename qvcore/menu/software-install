@@ -50,9 +50,9 @@ lm-studio)
   omarchy-pkg-add lmstudio-bin
   ;;
 ollama)
-  if omarchy-cmd-present nvidia-smi; then
+  if qv-cmd-present nvidia-smi; then
     package=ollama-cuda
-  elif omarchy-cmd-present rocminfo; then
+  elif qv-cmd-present rocminfo; then
     package=ollama-rocm
   else
     package=ollama

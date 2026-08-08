@@ -16,8 +16,8 @@ notify_error() {
 cmd_present() {
   local command_name="$1"
 
-  if command -v omarchy-cmd-present >/dev/null 2>&1; then
-    omarchy-cmd-present "$command_name"
+  if command -v qv-cmd-present >/dev/null 2>&1; then
+    qv-cmd-present "$command_name"
   else
     command -v "$command_name" >/dev/null 2>&1
   fi
@@ -228,12 +228,12 @@ fi
 url="${1:-}"
 
 if [[ -z $url ]]; then
-  if ! cmd_present omarchy-menu-input; then
+  if ! cmd_present qv-menu-input; then
     notify_error "Website prompt is unavailable"
     exit 1
   fi
 
-  url="$(omarchy-menu-input "Website or link" --width 520)"
+  url="$(qv-menu-input "Website or link" --width 520)"
 fi
 
 url="${url#"${url%%[![:space:]]*}"}"

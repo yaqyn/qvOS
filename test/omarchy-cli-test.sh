@@ -106,14 +106,11 @@ assert_output_contains "partial hardware prefix renders matching commands" "$out
 assert_output_contains "partial hardware prefix includes nested match" "$output" "omarchy hw asus zenbook ux5406aa"
 
 output=$("$CLI" menu --help)
-assert_output_contains "menu group includes share fallback route" "$output" "omarchy menu share"
+assert_output_contains "menu group includes native input route" "$output" "omarchy menu input"
 
 output=$("$CLI" share)
 assert_output_contains "bare required-arg alias renders CLI help" "$output" "Usage:"
 assert_output_contains "bare share help uses canonical route" "$output" "omarchy share <clipboard|file|folder> [path...]"
-
-output=$("$CLI" menu share)
-assert_output_contains "bare required-arg filename route renders CLI help" "$output" "omarchy share <clipboard|file|folder> [path...]"
 
 set +e
 output=$("$CLI" branch set 2>&1)

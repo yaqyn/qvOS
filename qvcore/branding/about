@@ -7,7 +7,7 @@ branding_file="$HOME/.config/omarchy/branding/about.txt"
 
 case "${1:-}" in
 image)
-  image=$(omarchy-menu-file "Logo image" "$HOME" "svg png")
+  image=$(qv-menu-file "Logo image" "$HOME" "svg png")
   if [[ -n $image ]] &&
     omarchy-transcode-ascii \
       "$image" \

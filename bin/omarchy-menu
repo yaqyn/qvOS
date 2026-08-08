@@ -40,7 +40,7 @@ menu() {
     fi
   fi
 
-  echo -e "$options" | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p "$prompt…" "${args[@]}" 2>/dev/null
+  echo -e "$options" | qv-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p "$prompt…" "${args[@]}" 2>/dev/null
 }
 
 terminal() {
@@ -78,7 +78,7 @@ aur_install_and_launch() {
 
 show_learn_menu() {
   case $(menu "Learn" "  Keybindings\n  qvOS Source\n  Hyprland\n󰣇  Arch\n  Neovim\n󱆃  Bash") in
-  *Keybindings*) omarchy-menu-keybindings ;;
+  *Keybindings*) qv-menu-keybindings ;;
   *"qvOS Source"*) omarchy-launch-webapp "https://github.com/Yaqyn-qvOS/qvOS" ;;
   *Hyprland*) omarchy-launch-webapp "https://wiki.hypr.land/" ;;
   *Arch*) omarchy-launch-webapp "https://wiki.archlinux.org/title/Main_page" ;;
@@ -111,7 +111,7 @@ show_reminder_menu() {
 
 show_custom_reminder_input() {
   local minutes
-  minutes=$(omarchy-menu-input "Remind in minutes")
+  minutes=$(qv-menu-input "Remind in minutes")
 
   if [[ $minutes =~ ^[0-9]+$ ]] && ((minutes > 0)); then
     show_reminder_message_input "$minutes"
@@ -126,7 +126,7 @@ show_custom_reminder_input() {
 show_reminder_message_input() {
   local minutes="$1"
   local message
-  message=$(omarchy-menu-input "Reminder message")
+  message=$(qv-menu-input "Reminder message")
 
   if [[ -n $message ]]; then
     omarchy-reminder "$minutes" "$message"
@@ -195,9 +195,9 @@ show_screenrecord_menu() {
 
 show_share_menu() {
   case $(menu "Share" "  Clipboard\n  File \n  Folder") in
-  *Clipboard*) omarchy-menu-share clipboard ;;
-  *File*) terminal bash -c "omarchy-menu-share file" ;;
-  *Folder*) terminal bash -c "omarchy-menu-share folder" ;;
+  *Clipboard*) qv-share clipboard ;;
+  *File*) terminal qv-share file ;;
+  *Folder*) terminal qv-share folder ;;
   *) back_to show_trigger_menu ;;
   esac
 }
@@ -232,7 +232,7 @@ show_hardware_menu() {
     options="$options\n󰟸  Touchpad"
   fi
 
-  if omarchy-hw-dell-xps-haptic-touchpad && omarchy-cmd-present dell-xps-touchpad-haptics; then
+  if omarchy-hw-dell-xps-haptic-touchpad && qv-cmd-present dell-xps-touchpad-haptics; then
     options="$options\n󰌌  Touchpad Haptics"
   fi
 
@@ -267,7 +267,7 @@ show_hardware_touchpad_haptics_menu() {
 show_style_menu() {
   case $(menu "Style" "󰸌  Theme\n󰟵  Unlock\n  Font\n  Background\n  Hyprland\n󱄄  Screensaver\n  About") in
   *Theme*) show_theme_menu ;;
-  *Unlock*) omarchy-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400 ;;
+  *Unlock*) qv-launch-walker -m menus:omarchyunlocks --width 800 --minheight 400 ;;
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
   *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
@@ -296,11 +296,11 @@ show_screensaver_menu() {
 }
 
 show_theme_menu() {
-  omarchy-launch-walker -m menus:omarchythemes --width 800 --minheight 400
+  qv-launch-walker -m menus:omarchythemes --width 800 --minheight 400
 }
 
 show_background_menu() {
-  omarchy-launch-walker -m menus:omarchyBackgroundSelector --width 800 --minheight 400
+  qv-launch-walker -m menus:omarchyBackgroundSelector --width 800 --minheight 400
 }
 
 show_font_menu() {
@@ -401,10 +401,10 @@ show_setup_default_browser_menu() {
 
 show_setup_default_terminal_menu() {
   local options=""
-  omarchy-cmd-present alacritty && options="$options  Alacritty"
-  omarchy-cmd-present foot && options="${options:+$options\n}  Foot"
-  omarchy-cmd-present ghostty && options="${options:+$options\n}  Ghostty"
-  omarchy-cmd-present kitty && options="${options:+$options\n}  Kitty"
+  qv-cmd-present alacritty && options="$options  Alacritty"
+  qv-cmd-present foot && options="${options:+$options\n}  Foot"
+  qv-cmd-present ghostty && options="${options:+$options\n}  Ghostty"
+  qv-cmd-present kitty && options="${options:+$options\n}  Kitty"
 
   local current=""
   case "$(qv-default-terminal)" in
@@ -425,14 +425,14 @@ show_setup_default_terminal_menu() {
 
 show_setup_default_editor_menu() {
   local options=""
-  omarchy-cmd-present nvim && options="$options  Neovim"
-  omarchy-cmd-present code && options="${options:+$options\n}  VSCode"
-  omarchy-cmd-present cursor && options="${options:+$options\n}  Cursor"
-  omarchy-cmd-present zeditor && options="${options:+$options\n}  Zed"
-  omarchy-cmd-present sublime_text && options="${options:+$options\n}  Sublime Text"
-  omarchy-cmd-present helix && options="${options:+$options\n}  Helix"
-  omarchy-cmd-present vim && options="${options:+$options\n}  Vim"
-  omarchy-cmd-present emacs && options="${options:+$options\n}  Emacs"
+  qv-cmd-present nvim && options="$options  Neovim"
+  qv-cmd-present code && options="${options:+$options\n}  VSCode"
+  qv-cmd-present cursor && options="${options:+$options\n}  Cursor"
+  qv-cmd-present zeditor && options="${options:+$options\n}  Zed"
+  qv-cmd-present sublime_text && options="${options:+$options\n}  Sublime Text"
+  qv-cmd-present helix && options="${options:+$options\n}  Helix"
+  qv-cmd-present vim && options="${options:+$options\n}  Vim"
+  qv-cmd-present emacs && options="${options:+$options\n}  Emacs"
 
   local current=""
   case "$(qv-default-editor)" in
@@ -564,8 +564,8 @@ show_install_terminal_menu() {
 
 show_install_ai_menu() {
   ollama_pkg=$(
-    (omarchy-cmd-present nvidia-smi && echo ollama-cuda) ||
-      (omarchy-cmd-present rocminfo && echo ollama-rocm) ||
+    (qv-cmd-present nvidia-smi && echo ollama-cuda) ||
+      (qv-cmd-present rocminfo && echo ollama-rocm) ||
       echo ollama
   )
 

@@ -1,0 +1,88 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/menu/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'bin/omarchy-launch-walker\nbin/omarchy-menu-file\nbin/omarchy-menu-input\nbin/omarchy-menu-keybindings\nbin/omarchy-menu-select\nconfig/walker/config.toml'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
+  fail "native menu inventory"
+
+declare -A owners=(
+  [launch-walker]=launch-walker
+  [menu-file]=file
+  [menu-input]=input
+  [menu-keybindings]=keybindings
+  [menu-select]=select
+)
+for command in "${!owners[@]}"; do
+  owner=${owners[$command]}
+  native="$root/bin/qv-$command"
+  compatibility="$root/bin/omarchy-$command"
+  [[ -x $root/qvcore/menu/$owner && -x $native && -x $compatibility ]] ||
+    fail "menu owner or adapter mode: $command"
+  rg -q '^# qv:summary=' "$native" || fail "native menu metadata: $command"
+  ! rg -q '^# (qv|omarchy):' "$compatibility" ||
+    fail "compatibility menu metadata: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/menu/$owner\" \"\$@\"" "$native" ||
+    fail "native menu adapter owner: $command"
+  # shellcheck disable=SC2016
+  grep -Fqx "exec \"\$QVOS_PATH/qvcore/menu/$owner\" \"\$@\"" \
+    "$compatibility" || fail "compatibility menu adapter owner: $command"
+done
+
+if rg -n 'omarchy-(launch-walker|menu-(file|input|keybindings|select|share)|qvos-share)' \
+  "$root/bin/omarchy-menu" \
+  "$root/config/hypr/bindings.conf" \
+  "$root/default/mako/core.ini" \
+  "$root/qvcore/branding" \
+  "$root/qvcore/desktop" \
+  "$root/qvcore/menu" \
+  "$root/qvcore/thunar" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/native-paths'; then
+  fail "active qvOS consumer uses a menu or Share compatibility route"
+fi
+
+for frontend in qv omarchy; do
+  for route in \
+    'launch walker|qv-launch-walker' \
+    'menu file|qv-menu-file' \
+    'menu input|qv-menu-input' \
+    'menu keybindings|qv-menu-keybindings' \
+    'menu select|qv-menu-select' \
+    'share|qv-share'; do
+    name=${route%%|*}
+    binary=${route#*|}
+    "$root/bin/$frontend" commands --json | jq -e \
+      --arg route "$frontend $name" --arg binary "$binary" '
+        [.commands[] | select(.route == $route and .binary == $binary)] |
+        length == 1
+      ' >/dev/null || fail "$frontend $name native route"
+  done
+done
+
+[[ -x $root/bin/qv-share && -x $root/bin/omarchy-share ]] ||
+  fail "Share adapter mode"
+! rg -q '^# (qv|omarchy):' "$root/bin/omarchy-share" ||
+  fail "Share compatibility metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/share/share" "$@"' \
+  "$root/bin/qv-share" || fail "native Share adapter owner"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/share/share" "$@"' \
+  "$root/bin/omarchy-share" || fail "compatibility Share adapter owner"
+
+grep -Fq "'omarchy-launch-walker' 'qv-launch-walker'" \
+  "$root/qvcore/config/migrate-runtime-root" || fail "Walker config migration"
+grep -Fq "'omarchy-menu-keybindings' 'qv-menu-keybindings'" \
+  "$root/qvcore/config/migrate-runtime-root" || fail "keybinding config migration"
+
+printf 'ok - qvOS menu helpers, Walker, and Share have singular native owners\n'

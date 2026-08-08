@@ -22,7 +22,7 @@ fail() {
 install -d "$test_home/.config/omarchy/branding" "$test_bin"
 : >"$event_log"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-menu-file" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-menu-file" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "${QVOS_TEST_IMAGE:-}"
 SCRIPT

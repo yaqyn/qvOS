@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# qv:summary=Share clipboard, files, or folders with LocalSend
+# qv:args=<clipboard|file|folder> [path...]
+# qv:examples=qv share clipboard | qv share file ~/Downloads/example.txt
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/qvcore/share/share" "$@"

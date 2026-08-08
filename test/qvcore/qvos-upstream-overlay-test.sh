@@ -297,7 +297,7 @@ public_adapters=(
   bin/omarchy-qvcore-remove
   bin/omarchy-qvos-refresh-waybar
   bin/omarchy-qvos-setup-dns
-  bin/omarchy-qvos-share
+  bin/omarchy-share
   bin/omarchy-show-failed
   bin/omarchy-system-inhibit-sleep
   bin/omarchy-system-suspend-if-safe

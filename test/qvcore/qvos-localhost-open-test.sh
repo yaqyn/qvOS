@@ -23,7 +23,7 @@ fail() {
 
 install -d "$test_bin"
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-cmd-present" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
 #!/bin/bash
 
 case ",${QVOS_TEST_COMMANDS:-}," in
@@ -32,7 +32,7 @@ case ",${QVOS_TEST_COMMANDS:-}," in
 esac
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/omarchy-menu-input" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-menu-input" <<'SCRIPT'
 #!/bin/bash
 
 printf '%s\n' "${QVOS_TEST_PORT_INPUT:-}"
@@ -66,7 +66,7 @@ QVOS_TEST_COMMANDS="brave-origin-beta" run_launcher 4173
 [[ "$(<"$launch_log")" == "-- brave-origin-beta --app=http://localhost:4173" ]] || fail "Brave Origin web-app fallback"
 pass "Brave Origin web-app mode is used when Chromium is unavailable"
 
-QVOS_TEST_COMMANDS="omarchy-menu-input,chromium" QVOS_TEST_PORT_INPUT="5173" run_launcher
+QVOS_TEST_COMMANDS="qv-menu-input,chromium" QVOS_TEST_PORT_INPUT="5173" run_launcher
 [[ "$(<"$launch_log")" == "-- chromium --app=http://localhost:5173" ]] || fail "prompted port launch"
 pass "the keybinding prompt launches the selected port"
 
