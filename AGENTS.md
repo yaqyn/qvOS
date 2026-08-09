@@ -133,6 +133,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `hypr/qv` overlay are retired and must remain absent
 - `qvcore/config/files/waybar/` owns one complete native Waybar config and
   style; `default/waybar/` and the former merge overlay are retired
+- `qvcore/config/files/` owns XCompose and WirePlumber policy;
+  `default/xcompose` and `default/wireplumber/` are retired
 - `qvcore/screensaver/` owns every installed terminal screensaver profile;
   inherited terminal-specific screensaver defaults are retired
 - `qvcore/browser/` owns browser policy and the local Copy URL extension;
@@ -157,6 +159,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `omarchy-system-*` names remain external compatibility adapters only
 - `qvcore/boot/snapper-root.conf` owns the pre-update recovery policy installed
   by the Limine/Snapper boot owner; `default/snapper/` is retired
+- `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
+  `default/udev/` is retired
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes

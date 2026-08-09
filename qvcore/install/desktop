@@ -65,10 +65,14 @@
     qvcore/install/post-update-hook
     qvcore/config/migrate-runtime-root
     qvcore/config/retired-hypr-layer.psv
+    qvcore/config/files/xcompose
+    qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf
+    qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf
     qvcore/branding/install
     qvcore/branding/lib
     qvcore/branding/terminal-art.txt
     qvcore/hooks/reconcile
+    qvcore/hardware/framework16-qmk-hid.rules
     qvcore/config/toggle-state
     qvcore/config/user-services
     qvcore/controls/notification/mako-core.ini

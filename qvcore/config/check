@@ -20,6 +20,10 @@ fail() {
   fail "inherited Hyprland base remains"
 [[ ! -e $root/config && ! -L $root/config ]] ||
   fail "retired top-level config source remains"
+[[ ! -e $root/default/wireplumber && ! -L $root/default/wireplumber ]] ||
+  fail "inherited WirePlumber defaults remain"
+[[ ! -e $root/default/xcompose && ! -L $root/default/xcompose ]] ||
+  fail "inherited XCompose default remains"
 [[ ! -e $root/qvcore/config/files/hypr/qv.conf &&
   ! -L $root/qvcore/config/files/hypr/qv.conf &&
   ! -e $root/qvcore/config/files/hypr/qv &&
@@ -40,6 +44,14 @@ fail() {
 [[ -f $root/qvcore/config/files/hypr/hypridle.conf &&
   ! -L $root/qvcore/config/files/hypr/hypridle.conf ]] ||
   fail "specialized native Hypridle source is unavailable"
+for source_path in \
+  xcompose \
+  wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf \
+  wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf; do
+  [[ -f $root/qvcore/config/files/$source_path &&
+    ! -L $root/qvcore/config/files/$source_path ]] ||
+    fail "native desktop config source is unavailable: $source_path"
+done
 [[ $(<"$root/qvcore/config/files/autostart/org.fcitx.Fcitx5.desktop") == \
   $'[Desktop Entry]\nType=Application\nName=Fcitx 5\nHidden=true' ]] ||
   fail "Fcitx autostart suppressor is not a valid desktop entry"
@@ -50,7 +62,7 @@ grep -Fqx '<?xml version="1.0" encoding="UTF-8"?>' \
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select' ]] ||
   fail "native config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  $'config/\ndefault/hypr/' ]] ||
+  $'config/\ndefault/hypr/\ndefault/wireplumber/\ndefault/xcompose' ]] ||
   fail "retired config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_hypr_manifest") == \
   $'qv.conf|51609b3bfb93e29350f57a527176b08c3c322d02b2d5b7cb8b583437a9849d0e\nqv/looknfeel.conf|200b286673249f4b340ba8b77b68718e7a1bc5a531e287d041618c1af8867f3a\nqv/windows.conf|588592b7f9bb36d46c963d80ab54bf01fbc79b0f2fd38cd75f4644c6f0d91a91' ]] ||
@@ -70,6 +82,21 @@ if rg -n --glob '!**/AGENTS.md' --glob '!**/check' \
   "$root/qvcore/config" "$root/qvcore/install"; then
   fail "alternate or retired config source selection remains"
 fi
+for installer_path in \
+  config/xcompose.sh \
+  config/hardware/asus/fix-audio-mixer.sh \
+  config/hardware/bluetooth.sh; do
+  if rg -n 'QVOS_PATH[^[:space:]]*default/(wireplumber|xcompose)' \
+    "$root/qvcore/install/$installer_path"; then
+    fail "desktop config installer reads a retired source: $installer_path"
+  fi
+done
+grep -Fq 'qvcore/config/files/xcompose' \
+  "$root/qvcore/install/config/xcompose.sh" ||
+  fail "XCompose installer bypasses its native source"
+[[ $(grep -Fc 'local/share/qvos/default/xcompose' \
+  "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
+  fail "XCompose installer has an unexpected inherited path surface"
 
 [[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"

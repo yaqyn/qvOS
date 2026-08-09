@@ -20,7 +20,13 @@ Hybrid-GPU detection requires both Integrated and Hybrid in a successful
 to one NVIDIA display controller plus one non-NVIDIA display controller; two
 arbitrary display devices are not sufficient for the NVIDIA-only switch owner.
 
-List every promoted inherited detector in `native-paths`, sorted and unique.
+The Framework 16 QMK HID rule lives only at
+`qvcore/hardware/framework16-qmk-hid.rules`; `default/udev/` is retired. Its
+fresh-install leaf must reject symbolic-link destinations before privileged
+installation and preserve any existing administrator-owned rule.
+
+List every promoted inherited detector in `native-paths` and removed policy
+prefix in `retired-paths`, sorted and unique.
 Run `qvcore/hardware/check`, `test/qvcore/qvos-hardware-test.sh`, affected
 install/config/software suites, CLI and upstream-overlay checks, Bash syntax
 and ShellCheck, then the full qvOS suite. Live validation is read-only.

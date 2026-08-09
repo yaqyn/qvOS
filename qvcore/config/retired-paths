@@ -1,3 +1,5 @@
 # Inherited config paths intentionally absent from qvOS.
 config/
 default/hypr/
+default/wireplumber/
+default/xcompose

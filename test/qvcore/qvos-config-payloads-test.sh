@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+test_root=$(mktemp -d)
+fixture="$test_root/source"
+test_home="$test_root/home"
+test_bin="$test_root/bin"
+action_log="$test_root/actions.log"
+trap 'rm -rf -- "$test_root"' EXIT
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+install -d \
+  "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d" \
+  "$fixture/qvcore/hardware" \
+  "$test_bin" \
+  "$test_home"
+install -m 0644 \
+  "$root/qvcore/config/files/xcompose" \
+  "$fixture/qvcore/config/files/xcompose"
+install -m 0644 \
+  "$root/qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf" \
+  "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf"
+install -m 0644 \
+  "$root/qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf" \
+  "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf"
+install -m 0644 \
+  "$root/qvcore/hardware/framework16-qmk-hid.rules" \
+  "$fixture/qvcore/hardware/framework16-qmk-hid.rules"
+
+install -m 0755 /dev/stdin "$test_bin/qv-hw-asus-rog" <<'STUB'
+#!/bin/bash
+exit 0
+STUB
+install -m 0755 /dev/stdin "$test_bin/qv-hw-framework16" <<'STUB'
+#!/bin/bash
+exit 0
+STUB
+install -m 0755 /dev/stdin "$test_bin/aplay" <<'STUB'
+#!/bin/bash
+exit 0
+STUB
+install -m 0755 /dev/stdin "$test_bin/amixer" <<'STUB'
+#!/bin/bash
+printf 'amixer:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+STUB
+install -m 0755 /dev/stdin "$test_bin/sudo" <<'STUB'
+#!/bin/bash
+printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+if [[ ${1:-} == "test" && ${2:-} == "-L" ]]; then
+  [[ ${QVOS_TEST_RULE_SYMLINK:-0} == "1" ]]
+  exit
+fi
+if [[ ${1:-} == "test" && ${2:-} == "-e" ]]; then
+  if [[ ${3:-} == *.qvos-new ]]; then
+    exit 1
+  fi
+  exit 1
+fi
+exit 0
+STUB
+: >"$action_log"
+
+run_leaf() {
+  HOME="$test_home" \
+    QVOS_PATH="$fixture" \
+    QVOS_USER_NAME='Abdulrahman "Q" Yaqyn' \
+    QVOS_USER_EMAIL='Yaqyn\\test@pm.me' \
+    QVOS_TEST_ACTION_LOG="$action_log" \
+    PATH="$test_bin:/usr/bin" \
+    bash -c 'set -euo pipefail; source "$1"' _ "$1"
+}
+
+xcompose_leaf="$root/qvcore/install/config/xcompose.sh"
+run_leaf "$xcompose_leaf"
+xcompose="$test_home/.XCompose"
+grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
+  "$xcompose" || fail "native XCompose include"
+grep -Fqx '<Multi_key> <space> <n> : "Abdulrahman \"Q\" Yaqyn"' \
+  "$xcompose" || fail "escaped XCompose name"
+grep -Fqx '<Multi_key> <space> <e> : "Yaqyn\\\\test@pm.me"' \
+  "$xcompose" || fail "escaped XCompose email"
+[[ $(stat -c '%a' "$xcompose") == "644" ]] || fail "XCompose mode"
+
+sed -i 's#qvcore/config/files/xcompose#default/xcompose#' "$xcompose"
+run_leaf "$xcompose_leaf"
+grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
+  "$xcompose" || fail "exact inherited XCompose migration"
+
+printf '%s\n' \
+  'include "%H/.local/share/qvos/default/xcompose"' \
+  '# custom composition' >"$xcompose"
+run_leaf "$xcompose_leaf" >/dev/null
+grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
+  "$xcompose" || fail "custom XCompose include migration"
+grep -Fqx '# custom composition' "$xcompose" ||
+  fail "custom XCompose content preservation"
+mapfile -t xcompose_backups < <(
+  find "$test_home" -maxdepth 1 -type f -name '.XCompose.qvos-backup.*' -print
+)
+((${#xcompose_backups[@]} == 1)) || fail "custom XCompose migration backup"
+grep -Fqx 'include "%H/.local/share/qvos/default/xcompose"' \
+  "${xcompose_backups[0]}" || fail "custom XCompose backup content"
+[[ $(stat -c '%a' "${xcompose_backups[0]}") == "600" ]] ||
+  fail "custom XCompose backup mode"
+
+printf 'custom XCompose\n' >"$xcompose"
+run_leaf "$xcompose_leaf" >/dev/null
+grep -Fqx 'custom XCompose' "$xcompose" || fail "custom XCompose preservation"
+
+xcompose_external="$test_root/xcompose-external"
+printf 'external\n' >"$xcompose_external"
+rm -- "$xcompose"
+ln -s "$xcompose_external" "$xcompose"
+if run_leaf "$xcompose_leaf" >/dev/null 2>&1; then
+  fail "XCompose symbolic-link rejection"
+fi
+grep -Fqx 'external' "$xcompose_external" || fail "XCompose link target mutation"
+
+rm -f -- "$xcompose"
+bluetooth_leaf="$root/qvcore/install/config/hardware/bluetooth.sh"
+HOME="$test_home" \
+  QVOS_PATH="$fixture" \
+  bash -c '
+    set -euo pipefail
+    chrootable_systemctl_enable() { :; }
+    source "$1"
+  ' _ "$bluetooth_leaf"
+bluetooth_policy="$test_home/.config/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf"
+cmp -s \
+  "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf" \
+  "$bluetooth_policy" || fail "Bluetooth audio policy install"
+printf 'custom Bluetooth policy\n' >"$bluetooth_policy"
+HOME="$test_home" QVOS_PATH="$fixture" bash -c '
+  set -euo pipefail
+  chrootable_systemctl_enable() { :; }
+  source "$1"
+' _ "$bluetooth_leaf" >/dev/null
+grep -Fqx 'custom Bluetooth policy' "$bluetooth_policy" ||
+  fail "custom Bluetooth audio policy preservation"
+
+rm -- "$bluetooth_policy"
+bluetooth_external="$test_root/bluetooth-external"
+printf 'external\n' >"$bluetooth_external"
+ln -s "$bluetooth_external" "$bluetooth_policy"
+if HOME="$test_home" QVOS_PATH="$fixture" bash -c '
+  set -euo pipefail
+  chrootable_systemctl_enable() { :; }
+  source "$1"
+' _ "$bluetooth_leaf" >/dev/null 2>&1; then
+  fail "Bluetooth audio policy symbolic-link rejection"
+fi
+grep -Fqx 'external' "$bluetooth_external" ||
+  fail "Bluetooth audio policy link target mutation"
+
+rm -- "$bluetooth_policy"
+asus_leaf="$root/qvcore/install/config/hardware/asus/fix-audio-mixer.sh"
+HOME="$test_home" \
+  QVOS_PATH="$fixture" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  bash -c 'set -euo pipefail; source "$1"' _ "$asus_leaf"
+asus_policy="$test_home/.config/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf"
+cmp -s \
+  "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf" \
+  "$asus_policy" || fail "ASUS audio policy install"
+
+qmk_leaf="$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
+HOME="$test_home" \
+  QVOS_PATH="$fixture" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  bash -c 'set -euo pipefail; source "$1"' _ "$qmk_leaf"
+grep -Fqx \
+  "sudo:install -D -o root -g root -m 0644 $fixture/qvcore/hardware/framework16-qmk-hid.rules /etc/udev/rules.d/50-framework16-qmk-hid.rules.qvos-new" \
+  "$action_log" || fail "Framework HID native policy install"
+grep -Fqx \
+  'sudo:mv -Tn /etc/udev/rules.d/50-framework16-qmk-hid.rules.qvos-new /etc/udev/rules.d/50-framework16-qmk-hid.rules' \
+  "$action_log" || fail "Framework HID no-clobber publication"
+grep -Fqx 'sudo:udevadm control --reload-rules' "$action_log" ||
+  fail "Framework HID rule reload"
+grep -Fqx 'sudo:udevadm trigger' "$action_log" ||
+  fail "Framework HID device trigger"
+
+: >"$action_log"
+if QVOS_TEST_RULE_SYMLINK=1 \
+  HOME="$test_home" \
+  QVOS_PATH="$fixture" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  bash -c 'set -euo pipefail; source "$1"' _ "$qmk_leaf" \
+  >/dev/null 2>&1; then
+  fail "Framework HID symbolic-link rejection"
+fi
+if grep -Fq 'sudo:install ' "$action_log"; then
+  fail "Framework HID symbolic-link mutation"
+fi
+
+"$root/qvcore/config/check"
+"$root/qvcore/hardware/check"
+printf 'ok - native desktop configuration payloads are preserving and link-safe\n'

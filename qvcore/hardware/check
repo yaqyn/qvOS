@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/hardware/native-paths"
 owner="$root/qvcore/hardware/detect"
+retired_manifest="$root/qvcore/hardware/retired-paths"
 
 fail() {
   printf 'qvOS hardware check: %s\n' "$1" >&2
@@ -14,6 +15,25 @@ expected=$'bin/omarchy-hw-asus-expertbook-b9406\nbin/omarchy-hw-asus-rog\nbin/om
 native_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
 [[ $native_paths == "$expected" ]] || fail "native detector inventory is incomplete or unordered"
 [[ -x $owner && ! -L $owner ]] || fail "native detector owner is unavailable or unsafe"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  'default/udev/' ]] || fail "retired hardware-policy inventory"
+[[ ! -e $root/default/udev && ! -L $root/default/udev ]] ||
+  fail "inherited udev policy remains"
+[[ -f $root/qvcore/hardware/framework16-qmk-hid.rules &&
+  ! -L $root/qvcore/hardware/framework16-qmk-hid.rules ]] ||
+  fail "native Framework HID policy source"
+framework_installer="$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
+grep -Fq 'qvcore/hardware/framework16-qmk-hid.rules' "$framework_installer" ||
+  fail "Framework HID installer bypasses its native source"
+# shellcheck disable=SC2016
+grep -Fq 'sudo test -L "$rule"' "$framework_installer" ||
+  fail "Framework HID installer does not reject symbolic-link targets"
+# shellcheck disable=SC2016
+grep -Fq 'sudo mv -Tn "$candidate" "$rule"' "$framework_installer" ||
+  fail "Framework HID installer does not publish without clobbering"
+if rg -n 'default/udev|sudo cp ' "$framework_installer"; then
+  fail "Framework HID installer retains an inherited or unsafe copy path"
+fi
 
 while IFS= read -r inherited_path; do
   route=${inherited_path##*/omarchy-hw-}
