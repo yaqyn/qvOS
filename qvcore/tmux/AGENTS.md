@@ -9,9 +9,10 @@ privately under `~/.config/qvos/tmux`, transient state lives under
 feature lock. Preserve exact panes, commands, working directories, focus, and
 geometry; never replay saved commands when attaching to an existing session.
 
-`config/tmux/tmux.conf` is the singular default. `qvcore/tmux/refresh` rejects
-arguments, restores it through `qvcore/config/refresh`, and reloads the server
-through the native desktop restart owner only after the file succeeds.
+`qvcore/config/files/tmux/tmux.conf` is the singular default.
+`qvcore/tmux/refresh` rejects arguments, restores it through
+`qvcore/config/refresh`, and reloads the server through the native desktop
+restart owner only after the file succeeds.
 `qv-refresh-tmux` owns command metadata; `omarchy-refresh-tmux` is a
 metadata-free compatibility adapter. Native menus and TUI actions call qv.
 

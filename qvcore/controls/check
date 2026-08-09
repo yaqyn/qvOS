@@ -52,7 +52,7 @@ for inherited_path in "${native_paths[@]}"; do
 done
 
 if rg -n 'omarchy-(audio|brightness|notification|swayosd)-|omarchy-toggle-notification-silencing' \
-  "$root/qvcore" "$root/config" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/README.md' \
   --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv' \

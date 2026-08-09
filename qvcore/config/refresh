@@ -2,11 +2,6 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-source_scope=default
-if [[ ${1:-} == "--owned" ]]; then
-  source_scope=owned
-  shift
-fi
 if (($# != 1)); then
   printf 'Usage: qv refresh config <config-path>\n' >&2
   exit 2
@@ -19,11 +14,7 @@ config_path=$1
   exit 2
 }
 
-if [[ $source_scope == "owned" ]]; then
-  source_root="$QVOS_PATH/qvcore/config/files"
-else
-  source_root="$QVOS_PATH/config"
-fi
+source_root="$QVOS_PATH/qvcore/config/files"
 source_file="$source_root/$config_path"
 target_file="$HOME/.config/$config_path"
 target_dir=${target_file%/*}

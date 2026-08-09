@@ -275,8 +275,8 @@ native_config_steps=$(
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
   fail "native configuration stage changed reviewed capability order or coverage"
 for walker_source in \
-  config/autostart/walker.desktop \
-  config/systemd/user/app-walker@autostart.service.d/restart.conf; do
+  qvcore/config/files/autostart/walker.desktop \
+  qvcore/config/files/systemd/user/app-walker@autostart.service.d/restart.conf; do
   [[ -f $root/$walker_source && ! -L $root/$walker_source ]] ||
     fail "native Walker startup source is missing: $walker_source"
 done

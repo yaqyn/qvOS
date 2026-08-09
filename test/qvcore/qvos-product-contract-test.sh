@@ -36,7 +36,7 @@ if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|
   --glob '!qvcore/install/cleanup-obsolete' \
   --glob '!qvcore/shell/install' \
   "$root/bin" \
-  "$root/config" \
+  "$root/qvcore/config/files" \
   "$root/development" \
   "$root/qvcore" \
   "$root/services"; then
@@ -101,23 +101,22 @@ done
 editor_env=$(bash -c 'source "$1"; printf "%s\n%s\n%s\n" "$EDITOR" "$VISUAL" "$SUDO_EDITOR"' _ "$root/qvcore/config/files/uwsm/default")
 [[ $editor_env == $'nvim\nnvim\nnvim' ]] || fail "editor environment contract"
 
-terminal_desktop=$(grep -vE '^($|#)' "$root/config/xdg-terminals.list" | head -n 1)
+terminal_desktop=$(grep -vE '^($|#)' "$root/qvcore/config/files/xdg-terminals.list" | head -n 1)
 [[ $terminal_desktop == "Alacritty.desktop" ]] || fail "terminal default contract"
 
 refresh_home="$test_root/refresh-home"
 refresh_source="$test_root/refresh-source"
 refresh_fail_bin="$test_root/refresh-fail-bin"
 install -d \
-  "$refresh_source/config/qvos" \
   "$refresh_source/qvcore/config/files/qvos" \
   "$refresh_home/.config/qvos" \
   "$refresh_fail_bin"
-printf 'staged source\n' >"$refresh_source/config/qvos/path.conf"
+printf 'native source\n' >"$refresh_source/qvcore/config/files/qvos/path.conf"
 printf 'owned source\n' >"$refresh_source/qvcore/config/files/qvos/owned.conf"
 printf 'personal config\n' >"$refresh_home/.config/qvos/path.conf"
 HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/path.conf
-[[ $(<"$refresh_home/.config/qvos/path.conf") == "staged source" ]] ||
+[[ $(<"$refresh_home/.config/qvos/path.conf") == "native source" ]] ||
   fail "QVOS_PATH config refresh"
 refresh_backup=$(
   find "$refresh_home/.config/qvos" \
@@ -143,9 +142,13 @@ HOME="$refresh_home" QVOS_PATH="$refresh_source" \
     wc -l
 ) == "$refresh_backup_count" ]] || fail "idempotent config refresh backup"
 HOME="$refresh_home" QVOS_PATH="$refresh_source" \
-  "$root/qvcore/config/refresh" --owned qvos/owned.conf
+  "$root/qvcore/config/refresh" qvos/owned.conf
 [[ $(<"$refresh_home/.config/qvos/owned.conf") == "owned source" ]] ||
-  fail "specialized qvOS config refresh"
+  fail "singular native qvOS config refresh"
+if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
+  "$root/qvcore/config/refresh" --owned qvos/owned.conf >/dev/null 2>&1; then
+  fail "retired config source selector accepted"
+fi
 invalid_refresh_paths=(
   ../outside
   /absolute
@@ -157,7 +160,7 @@ for invalid_path in "${invalid_refresh_paths[@]}"; do
     fail "unsafe config path accepted: $invalid_path"
   fi
 done
-ln -s path.conf "$refresh_source/config/qvos/linked.conf"
+ln -s path.conf "$refresh_source/qvcore/config/files/qvos/linked.conf"
 if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/linked.conf >/dev/null 2>&1; then
   fail "linked config source accepted"
@@ -168,7 +171,7 @@ install -m 0755 /dev/stdin "$refresh_fail_bin/install" <<'INSTALL'
 exit 1
 INSTALL
 printf 'current config\n' >"$refresh_home/.config/qvos/path.conf"
-printf 'future source\n' >"$refresh_source/config/qvos/path.conf"
+printf 'future source\n' >"$refresh_source/qvcore/config/files/qvos/path.conf"
 refresh_backup_count=$(
   find "$refresh_home/.config/qvos" \
     -maxdepth 1 \
@@ -395,11 +398,11 @@ if grep -Fq '' "$root/qvcore/menu/routes"; then
 fi
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qvcore/menu/routes" \
-  "$root/config/hypr/bindings.conf" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/qvcore/waybar/overrides.jsonc"; then
   fail "retired qvOS feature menu"
 fi
-grep -Fq '`config/hypr/bindings.conf` is the single authoritative qvOS binding source.' \
+grep -Fq '`qvcore/config/files/hypr/bindings.conf` is the single authoritative qvOS' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"
 grep -Fq 'There is no inherited binding layer and no qvOS binding overlay.' \
@@ -522,8 +525,8 @@ grep -Fq -- '--app-id=org.qvos.terminal' "$root/qvcore/presentation/run" ||
   fail "native terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qvcore/presentation/run" ||
   fail "qvOS terminal title"
-grep -Fq 'Description=qvOS Battery Monitor Check' "$root/config/systemd/user/qvos-battery-monitor.service" || fail "qvOS battery service label"
-grep -Fq 'Description=qvOS Battery Monitor Timer' "$root/config/systemd/user/qvos-battery-monitor.timer" || fail "qvOS battery timer label"
+grep -Fq 'Description=qvOS Battery Monitor Check' "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" || fail "qvOS battery service label"
+grep -Fq 'Description=qvOS Battery Monitor Timer' "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.timer" || fail "qvOS battery timer label"
 grep -Fq 'too small for qvOS layout' "$root/qvcore/tui/iso_config.go" || fail "qvOS installer layout error"
 [[ ! -e $root/qvcore/tui/bin/qvos-apply ]] ||
   fail "unsupported qvOS apply action"

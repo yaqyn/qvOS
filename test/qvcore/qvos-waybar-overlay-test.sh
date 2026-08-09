@@ -30,10 +30,10 @@ PATH="$test_bin:$PATH" HOME="$test_root" QVOS_PATH="$root" \
   bash "$root/qvcore/waybar/refresh"
 [[ -f $test_root/waybar-restarted ]] || fail "Waybar restart"
 
-source_config="$root/config/waybar/config.jsonc"
+source_config="$root/qvcore/config/files/waybar/config.jsonc"
 live_config="$test_root/.config/waybar/config.jsonc"
 
-cmp -s "$root/config/waybar/style.css" "$test_root/.config/waybar/style.css" || fail "upstream Waybar style"
+cmp -s "$root/qvcore/config/files/waybar/style.css" "$test_root/.config/waybar/style.css" || fail "upstream Waybar style"
 workspace_style=$(sed -n '/^window#waybar #workspaces button {/,/^}/p' "$root/qvcore/theme/yaqyn/waybar.css")
 grep -Fq '  color: @foreground;' <<<"$workspace_style" || fail "normal workspace foreground"
 grep -Fq '  opacity: 0.55;' <<<"$workspace_style" || fail "normal workspace opacity"
@@ -99,10 +99,11 @@ cmp -s \
     | .["modules-right"] |= map(if . == "group/prayer-clock" then "clock" else . end)
   ' "$live_config") || fail "narrow qvOS Waybar overlay"
 
-no_clock_root="$test_root/omarchy-without-clock"
-no_clock_config="$no_clock_root/config/waybar/config.jsonc"
+no_clock_root="$test_root/qvos-without-clock"
+no_clock_config="$no_clock_root/qvcore/config/files/waybar/config.jsonc"
 no_clock_home="$test_root/no-clock-home"
-install -D -m 0644 "$root/config/waybar/style.css" "$no_clock_root/config/waybar/style.css"
+install -D -m 0644 "$root/qvcore/config/files/waybar/style.css" \
+  "$no_clock_root/qvcore/config/files/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$no_clock_root/qvcore/waybar/overrides.jsonc"
 install -D -m 0755 "$root/qvcore/config/refresh" \
@@ -144,10 +145,11 @@ cmp -s \
     | .["modules-center"] |= map(select(. != "group/prayer-clock"))
   ' "$no_clock_live") || fail "narrow fallback changes"
 
-sparse_root="$test_root/omarchy-sparse-layout"
-sparse_config="$sparse_root/config/waybar/config.jsonc"
+sparse_root="$test_root/qvos-sparse-layout"
+sparse_config="$sparse_root/qvcore/config/files/waybar/config.jsonc"
 sparse_home="$test_root/sparse-home"
-install -D -m 0644 "$root/config/waybar/style.css" "$sparse_root/config/waybar/style.css"
+install -D -m 0644 "$root/qvcore/config/files/waybar/style.css" \
+  "$sparse_root/qvcore/config/files/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$sparse_root/qvcore/waybar/overrides.jsonc"
 install -D -m 0755 "$root/qvcore/config/refresh" \
@@ -182,16 +184,17 @@ custom_backup="$(find "$custom_home/.config/waybar" -maxdepth 1 -name 'config.js
 [[ -n $custom_backup ]] || fail "changed Waybar config backup"
 jq -e '."personal-setting" == true' "$custom_backup" >/dev/null || fail "Waybar backup contents"
 
-invalid_root="$test_root/omarchy-invalid-config"
+invalid_root="$test_root/qvos-invalid-config"
 invalid_home="$test_root/invalid-home"
 invalid_live="$invalid_home/.config/waybar/config.jsonc"
-install -D -m 0644 "$root/config/waybar/style.css" "$invalid_root/config/waybar/style.css"
+install -D -m 0644 "$root/qvcore/config/files/waybar/style.css" \
+  "$invalid_root/qvcore/config/files/waybar/style.css"
 install -D -m 0644 "$root/qvcore/waybar/overrides.jsonc" \
   "$invalid_root/qvcore/waybar/overrides.jsonc"
 install -D -m 0755 "$root/qvcore/config/refresh" \
   "$invalid_root/qvcore/config/refresh"
 install -D -m 0644 "$source_config" "$invalid_live"
-printf '[]\n' >"$invalid_root/config/waybar/config.jsonc"
+printf '[]\n' >"$invalid_root/qvcore/config/files/waybar/config.jsonc"
 if PATH="$test_bin:$PATH" HOME="$invalid_home" QVOS_PATH="$invalid_root" \
   bash "$root/qvcore/waybar/refresh" >/dev/null 2>&1; then
   fail "invalid Waybar config rejection"

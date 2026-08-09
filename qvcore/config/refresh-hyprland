@@ -5,8 +5,8 @@ QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
 export QVOS_PATH OMARCHY_PATH
 
-# qvos:contract=config/hypr/bindings.conf
-# qvos:contract=config/hypr/hyprland.conf
+# qvos:contract=qvcore/config/files/hypr/bindings.conf
+# qvos:contract=qvcore/config/files/hypr/hyprland.conf
 # qvos:contract=qvcore/config/files/hypr/input.conf
 # qvos:contract=qvcore/config/files/hypr/qv.conf
 # qvos:contract=qvcore/config/files/hypr/qv/looknfeel.conf
@@ -15,26 +15,18 @@ export QVOS_PATH OMARCHY_PATH
 "$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 
 config_owner="$QVOS_PATH/qvcore/config/refresh"
-default_config_paths=(
+config_paths=(
   hypr/autostart.conf
   hypr/bindings.conf
   hypr/looknfeel.conf
   hypr/hyprland.conf
   hypr/monitors.conf
-)
-config_paths=(
   hypr/input.conf
   hypr/qv.conf
   hypr/qv/looknfeel.conf
   hypr/qv/windows.conf
 )
 
-for config_path in "${default_config_paths[@]}"; do
-  [[ -f $QVOS_PATH/config/$config_path ]] || {
-    printf 'Missing qvOS config source: %s\n' "$config_path" >&2
-    exit 1
-  }
-done
 for config_path in "${config_paths[@]}"; do
   [[ -f $QVOS_PATH/qvcore/config/files/$config_path ]] || {
     printf 'Missing qvOS Hyprland config source: %s\n' "$config_path" >&2
@@ -42,11 +34,8 @@ for config_path in "${config_paths[@]}"; do
   }
 done
 
-for config_path in "${default_config_paths[@]}"; do
-  "$config_owner" "$config_path"
-done
 for config_path in "${config_paths[@]}"; do
-  "$config_owner" --owned "$config_path"
+  "$config_owner" "$config_path"
 done
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect"

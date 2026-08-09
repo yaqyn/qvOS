@@ -61,7 +61,7 @@ run_detector() {
     "$root/qvcore/config/monitor-autodetect"
 }
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 [
   {
@@ -92,7 +92,7 @@ grep -Fqx 'monitor=,preferred,auto,auto' "$monitor_config" ||
 [[ $(grep -c '^reload$' "$hyprctl_log") == 2 ]] ||
   fail "display detection did not validate both reloads"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 [
   {
@@ -109,7 +109,7 @@ run_detector >/dev/null
 grep -Fqx 'env = GDK_SCALE,1.6' "$monitor_config" ||
   fail "focused external display scale fallback"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 sed -i \
   -e 's/^env = GDK_SCALE,2$/env = GDK_SCALE,1/' \
   -e 's/^monitor=,preferred,auto,auto$/monitor=DP-1,2560x1440@144,0x0,1/' \
@@ -124,7 +124,7 @@ cmp -s "$test_root/custom-before.conf" "$monitor_config" ||
 [[ ! -s $hyprctl_log ]] ||
   fail "custom layout unnecessarily queried Hyprland"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 printf '%s\n' 'monitor=DP-2,disable' >>"$monitor_config"
 cp "$monitor_config" "$test_root/mixed-before.conf"
 : >"$hyprctl_log"
@@ -136,7 +136,7 @@ cmp -s "$test_root/mixed-before.conf" "$monitor_config" ||
 [[ ! -s $hyprctl_log ]] ||
   fail "mixed custom layout unnecessarily queried Hyprland"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 cp "$monitor_config" "$test_root/error-before.conf"
 : >"$hyprctl_log"
 if output=$(
@@ -151,7 +151,7 @@ grep -Fq \
   <<<"$output" ||
   fail "invalid restored configuration diagnostic"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 cp "$monitor_config" "$test_root/reload-before.conf"
 : >"$hyprctl_log"
 if output=$(
@@ -168,7 +168,7 @@ grep -Fq \
   <<<"$output" ||
   fail "detected-scale reload failure diagnostic"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 cp "$monitor_config" "$test_root/validation-before.conf"
 : >"$hyprctl_log"
 if output=$(
@@ -216,7 +216,7 @@ cmp -s \
   "$test_home/.config/hypr/qv.conf" ||
   fail "complete Hyprland restore lost the qvOS config layer"
 
-install -m 0644 "$root/config/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 : >"$hyprctl_log"
 if output=$(
   HOME="$test_home" \
@@ -236,7 +236,7 @@ grep -Fq \
   fail "complete restore failure diagnostic"
 
 external_monitor_config="$test_root/external-monitors.conf"
-install -m 0644 "$root/config/hypr/monitors.conf" "$external_monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$external_monitor_config"
 cp "$external_monitor_config" "$test_root/external-before.conf"
 rm "$monitor_config"
 ln -s "$external_monitor_config" "$monitor_config"

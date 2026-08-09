@@ -3,7 +3,8 @@
 Read this file completely when changing qvOS-owned Hyprland bindings, config
 refresh reconciliation, or installed desktop configuration.
 
-`config/hypr/bindings.conf` is the single authoritative qvOS binding source.
+`qvcore/config/files/hypr/bindings.conf` is the single authoritative qvOS
+binding source.
 There is no inherited binding layer and no qvOS binding overlay.
 
 Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
@@ -41,8 +42,8 @@ moves.
   the updated qvOS-only inventory.
 
 `qvcore/config/refresh` is the singular atomic file-restoration transaction.
-Its default source is `config/`; the internal `--owned` mode reads specialized
-files from `qvcore/config/files/`. Validate a bounded relative path, reject
+It reads only `qvcore/config/files/`; the alternate top-level source and
+`--owned` selector are retired. Validate a bounded relative path, reject
 linked or escaping sources and non-file targets, skip exact matches, stage in
 the destination directory, preserve a unique backup, and restore that backup
 if publication fails. `qv-refresh-config` owns metadata and
@@ -55,26 +56,24 @@ invalid.
 `qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.
 Its native command carries metadata and its matching Omarchy command is a
 metadata-free compatibility adapter. The owner preflights the monitor
-destination, installs native `config/hypr/` defaults through the shared refresh
-transaction, reconciles the specialized qvOS sources under
-`qvcore/config/files/hypr/`, detects the current display scale, then detects the
-keyboard layout. Never copy an inherited file immediately before replacing the
-same destination with a specialized owner. Put only look, window, input, and
-future specialized config in the `qvcore/` sublayer. Reconcile after refresh
+destination, restores every Hyprland default through the shared transaction
+from the singular `qvcore/config/files/hypr/` source, detects the current
+display scale, then detects the keyboard layout. Never restore a second
+inherited source immediately before the native owner. Reconcile after refresh
 and verify tracked and installed config.
 
 Hypridle, Hyprlock, Hyprsunset, and SwayOSD each have one small refresh owner
 here. Hypridle is a specialized native source under `qvcore/config/files/`;
-its former top-level duplicate is retired. The other sources remain under
-`config/`. Each owner rejects arguments, delegates file restoration to
+its former top-level duplicate is retired. Every source lives under the same
+native tree. Each owner rejects arguments, delegates file restoration to
 `qvcore/config/refresh`, and invokes the native desktop restart owner only after
 every file succeeds. Public `qv-refresh-*` commands carry metadata; matching
 `omarchy-refresh-*` files are compatibility only. Native menus and TUI actions
 always call the qv route.
 
-Promoted defaults under `config/` are native qvOS sources and must not be
-duplicated under `qvcore/config/files/`. qvOS-managed user units use `qvos-*`
-filenames under `config/systemd/user/` and execute one native owner under
+All installed defaults are native qvOS sources under `qvcore/config/files/`.
+qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
+subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those units, preserves the
 enabled and active state of exact inherited units, disables their old names,
 and archives safe old files privately. First run and every post-update desktop
@@ -85,7 +84,7 @@ Only manage the user systemd instance when `HOME` is the active account home.
 Cross-home fixtures may deploy files but must never contact the real manager;
 the test override accepts only an executable temporary `systemctl` fixture.
 
-`config/fastfetch/config.jsonc` is the singular native Fastfetch source. It
+`qvcore/config/files/fastfetch/config.jsonc` is the singular native Fastfetch source. It
 reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to
 `qvcore/branding/install`. The former specialized Fastfetch copy and legacy
 ANSI asset are retired; runtime-root migration rewrites only their exact source

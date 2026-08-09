@@ -13,8 +13,8 @@ config_paths=(
   swayosd/style.css
 )
 for config_path in "${config_paths[@]}"; do
-  [[ -f $QVOS_PATH/config/$config_path &&
-    ! -L $QVOS_PATH/config/$config_path ]] || {
+  [[ -f $QVOS_PATH/qvcore/config/files/$config_path &&
+    ! -L $QVOS_PATH/qvcore/config/files/$config_path ]] || {
     printf 'Missing qvOS config source: %s\n' "$config_path" >&2
     exit 1
   }

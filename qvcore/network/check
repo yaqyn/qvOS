@@ -31,7 +31,7 @@ done
 [[ ! -e $root/bin/omarchy-qvos-setup-dns ]] ||
   fail "obsolete qvOS-in-Omarchy DNS namespace"
 if rg -n 'omarchy-(qvos-)?setup-dns' \
-  "$root/qvcore" "$root/config" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls a DNS compatibility route"

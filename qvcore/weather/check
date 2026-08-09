@@ -34,7 +34,7 @@ for command in icon status; do
 done
 
 if rg -n 'omarchy-weather-(icon|status)' \
-  "$root/config/waybar/config.jsonc" "$root/default/waybar/weather.sh"; then
+  "$root/qvcore/config/files/waybar/config.jsonc" "$root/default/waybar/weather.sh"; then
   fail "Waybar uses a weather compatibility route"
 fi
 grep -Fq -- '--connect-timeout 2 --max-time 4' "$root/qvcore/weather/lib" ||

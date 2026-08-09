@@ -57,7 +57,7 @@ if rg -n 'present_terminal "[^"]+[[:space:]][^"]+"' \
   fail "menu presentation retains a shell-like argv string"
 fi
 if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed))' \
-  "$root/config/waybar/config.jsonc" \
+  "$root/qvcore/config/files/waybar/config.jsonc" \
   "$root/default/elephant/omarchy_unlocks.lua" \
   "$root/default/mako/core.ini" \
   "$root/qvcore" \

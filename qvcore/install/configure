@@ -3,11 +3,9 @@
 (
   set -euo pipefail
 
-  config_source="$QVOS_PATH/qvcore/config/files"
   monitor_owner="$QVOS_PATH/qvcore/config/monitor-autodetect"
 
   for source_path in \
-    "$config_source" \
     "$monitor_owner" \
     "$QVOS_PATH/qvcore/shell/install"; do
     if [[ ! -e $source_path ]]; then
@@ -16,8 +14,6 @@
     fi
   done
 
-  mkdir -p "$HOME/.config"
-  cp -a "$config_source/." "$HOME/.config/"
   # shellcheck disable=SC1091
   source "$QVOS_PATH/qvcore/install/config/mimetypes"
   # shellcheck source=qvcore/install/desktop

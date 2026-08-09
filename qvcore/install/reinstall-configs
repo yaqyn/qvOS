@@ -25,7 +25,7 @@ fi
 
 echo "Resetting qvOS-managed configs"
 install -d -- "$HOME/.config"
-cp -a "$QVOS_PATH/config/." "$HOME/.config/"
+cp -a "$QVOS_PATH/qvcore/config/files/." "$HOME/.config/"
 cp "$QVOS_PATH/default/bashrc" "$HOME/.bashrc"
 printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
 

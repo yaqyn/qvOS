@@ -29,9 +29,10 @@ foreign or unbounded files, archive conflicts under the private
 `~/.config/omarchy/branding` tree. `--reset-defaults` is an explicit operation
 and backs up different qvOS content before replacement.
 
-`config/fastfetch/config.jsonc` is the one installed Fastfetch source and reads
-the native About file. Never restore `qvcore/config/files/fastfetch`, the former
-ANSI overlay, top-level `icon.txt`/`logo.txt`, or qvcore copies of those assets.
+`qvcore/config/files/fastfetch/config.jsonc` is the one installed Fastfetch
+source and reads the native About file. Never restore a second config layer,
+the former ANSI overlay, top-level `icon.txt`/`logo.txt`, or duplicate qvcore
+copies of those assets.
 
 Public `qv-branding-*`, `qv-show-logo`, and `qv-refresh-fastfetch` adapters carry
 metadata; exact `omarchy-*` names are metadata-free compatibility only. The

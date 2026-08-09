@@ -37,7 +37,7 @@ done
 if rg -n 'omarchy-transcode(-ascii)?' \
   "$root/qvcore/menu/base" \
   "$root/qvcore/menu/routes" \
-  "$root/config/hypr/bindings.conf" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/default/bash/fns/transcoding" \
   "$root/qvcore/branding" \
   "$root/qvcore/menu" \

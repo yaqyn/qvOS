@@ -89,12 +89,12 @@ for asset in "$root"/qvcore/branding/assets/*.svg; do
   fi
 done
 
-[[ ! -e $root/qvcore/config/files/fastfetch ]] ||
-  fail "duplicate Fastfetch branding overlay remains"
+[[ -f $root/qvcore/config/files/fastfetch/config.jsonc ]] ||
+  fail "native Fastfetch config source is unavailable"
 [[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
   fail "legacy branding config source remains"
 grep -Fq '"source": "~/.config/qvos/branding/about.txt"' \
-  "$root/config/fastfetch/config.jsonc" ||
+  "$root/qvcore/config/files/fastfetch/config.jsonc" ||
   fail "Fastfetch bypasses native qvOS branding state"
 
 for frontend in qv omarchy; do
@@ -130,10 +130,10 @@ identity_paths=(
   bin/omarchy-update-available
   bin/qv-windows-vm
   boot.sh
-  config/fastfetch/config.jsonc
-  config/systemd/user/qvos-battery-monitor.service
-  config/systemd/user/qvos-battery-monitor.timer
-  config/waybar/config.jsonc
+  qvcore/config/files/fastfetch/config.jsonc
+  qvcore/config/files/systemd/user/qvos-battery-monitor.service
+  qvcore/config/files/systemd/user/qvos-battery-monitor.timer
+  qvcore/config/files/waybar/config.jsonc
   default/chromium/extensions/copy-url/manifest.json
   default/elephant/omarchy_background_selector.lua
   default/elephant/omarchy_themes.lua
@@ -180,7 +180,7 @@ grep -Fq 'Name=qvOS (Hyprland uwsm)' \
   "$root/qvcore/boot/wayland-sessions/omarchy.desktop" ||
   fail "qvOS session label"
 grep -Fq 'Description=qvOS Battery Monitor Check' \
-  "$root/config/systemd/user/qvos-battery-monitor.service" ||
+  "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
   fail "qvOS battery service label"
 
 printf 'ok - qvOS singularly owns visible identity, terminal art, and branding state\n'

@@ -6,5 +6,3 @@ bin/omarchy-menu-input
 bin/omarchy-menu-keybindings
 bin/omarchy-menu-select
 bin/omarchy-refresh-walker
-config/omarchy/extensions/menu.sh
-config/walker/config.toml

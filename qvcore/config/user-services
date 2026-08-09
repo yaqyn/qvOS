@@ -2,7 +2,7 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-source_root="$QVOS_PATH/config/systemd/user"
+source_root="$QVOS_PATH/qvcore/config/files/systemd/user"
 unit_root="$HOME/.config/systemd/user"
 backup_root="$HOME/.local/state/qvos/backups/pre-native-user-services"
 backup_parent=${backup_root%/*}

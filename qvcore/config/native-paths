@@ -17,9 +17,6 @@ bin/omarchy-toggle-enabled
 bin/omarchy-toggle-touchpad
 bin/omarchy-toggle-touchscreen
 bin/omarchy-tz-select
-config/hypr/bindings.conf
-config/hypr/hyprland.conf
-config/uwsm/env
 default/bash/envs
 default/bash/rc
 default/bashrc

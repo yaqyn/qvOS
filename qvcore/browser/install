@@ -26,7 +26,7 @@ announce_browser_installed() {
 
 copy_chromium_flags() {
   install -D -m 0644 \
-    "$QVOS_PATH/config/chromium-flags.conf" \
+    "$QVOS_PATH/qvcore/config/files/chromium-flags.conf" \
     "$1"
 }
 

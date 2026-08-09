@@ -126,13 +126,12 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 # Config Structure
 
-- `config/` and `default/` remain reviewed sources only for domains not yet
-  promoted
-- `qvcore/config/files/` owns specialized native installed sources; Hypridle
-  lives only there and its former top-level duplicate remains retired
-- `config/fastfetch/config.jsonc` is the singular Fastfetch source and reads
-  private terminal art from `~/.config/qvos/branding`; never restore a
-  `qvcore/config/files/fastfetch` overlay or active Omarchy branding state
+- `qvcore/config/files/` is the singular source for installed user config;
+  `config/` is retired and must remain absent
+- `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
+  source and reads private terminal art from `~/.config/qvos/branding`; never
+  restore a second config layer or active Omarchy branding state
+- `default/` remains reviewed source only for domains not yet promoted
 - `qvcore/branding/` owns the qvOS vector masters, the user-approved terminal
   art, its private install/migration lifecycle, and branding commands; the
   graphical wordmark and terminal composition are intentionally distinct
@@ -181,7 +180,7 @@ qv refresh config hypr/hyprlock.conf
 ```
 
 This copies the selected source from
-`~/.local/share/qvos/config/hypr/hyprlock.conf` to
+`~/.local/share/qvos/qvcore/config/files/hypr/hyprlock.conf` to
 `~/.config/hypr/hyprlock.conf` with a backup.
 
 # Migrations
@@ -230,9 +229,9 @@ Every qvOS change must leave one traceable lifecycle.
   implementation-sized inherited departure in the nearest `native-paths`
   manifest under `qvcore/`, `development/`, or `services/`.
 - The complete installer is native under `qvcore/install/` and
-  `qvcore/boot/login/`; the top-level `install/` tree is retired. Keep remaining
-  config sources separate until their domain is promoted and reconcile them
-  after native install, refresh, migration, or update paths. Installed source
+  `qvcore/boot/login/`; the top-level `install/` tree is retired. Keep the
+  singular native config source reconciled after install, refresh, migration,
+  and update paths. Installed source
   is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` compatibility
   link, and keep runtime payloads under `~/.local/lib/qvos`.
 - New persistent state is feature-owned and private under

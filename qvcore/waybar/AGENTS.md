@@ -3,10 +3,11 @@
 Read this file completely when changing the Waybar configuration overlay,
 runtime modules, refresh lifecycle, task routes, or post-update reconciliation.
 
-`qvcore/waybar/refresh` singularly merges the reviewed inherited Waybar source
-with `overrides.jsonc`. `qv-refresh-waybar` is the native command;
-`omarchy-refresh-waybar` is a metadata-free compatibility adapter. Native qvOS
-menus, TUI catalogs, hooks, and installed configuration use only qv routes.
+`qvcore/waybar/refresh` singularly merges the reviewed native Waybar base under
+`qvcore/config/files/` with `overrides.jsonc`. `qv-refresh-waybar` is the native
+command; `omarchy-refresh-waybar` is a metadata-free compatibility adapter.
+Native qvOS menus, TUI catalogs, hooks, and installed configuration use only qv
+routes.
 
 `qvcore/waybar/toggle` owns visibility and the private `waybar-off` startup
 flag as one rollback-aware action. Stop Waybar through the shared exact-process

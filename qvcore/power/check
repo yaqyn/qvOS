@@ -106,7 +106,7 @@ if rg -n '\.local/share/(qvos|omarchy).*(profiles|wifi-powersave)' \
   fail "installer retains a user-writable root event command"
 fi
 if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|hibernation-|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|toggle-suspend|wifi-powersave)' \
-  "$root/qvcore" "$root/config" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
   --glob '!**/check' --glob '!**/omarchy/extensions/menu.sh' \

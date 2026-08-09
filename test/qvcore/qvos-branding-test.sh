@@ -40,7 +40,7 @@ run_owner() {
 }
 
 run_owner "$root/qvcore/branding/refresh-fastfetch"
-cmp -s "$root/config/fastfetch/config.jsonc" \
+cmp -s "$root/qvcore/config/files/fastfetch/config.jsonc" \
   "$test_home/.config/fastfetch/config.jsonc" ||
   fail "native Fastfetch refresh"
 if run_owner "$root/qvcore/branding/refresh-fastfetch" unexpected \

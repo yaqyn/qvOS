@@ -37,7 +37,7 @@ while IFS= read -r inherited_path; do
 done <<<"$native_paths"
 
 remaining_compatibility=$(
-  rg --no-filename -o 'omarchy-hw-[a-z0-9-]+' "$root/qvcore" "$root/config" \
+  rg --no-filename -o 'omarchy-hw-[a-z0-9-]+' "$root/qvcore" "$root/qvcore/config/files" \
     --glob '!**/hardware/**' --glob '!**/AGENTS.md' \
     --glob '!**/config/migrate-runtime-root' \
     --glob '!**/owner-contracts.psv' | sort -u || true

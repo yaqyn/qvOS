@@ -2,10 +2,10 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-waybar_source="$QVOS_PATH/config/waybar/config.jsonc"
+waybar_source="$QVOS_PATH/qvcore/config/files/waybar/config.jsonc"
 qvos_overrides="$QVOS_PATH/qvcore/waybar/overrides.jsonc"
 waybar_config="$HOME/.config/waybar/config.jsonc"
-waybar_style_source="$QVOS_PATH/config/waybar/style.css"
+waybar_style_source="$QVOS_PATH/qvcore/config/files/waybar/style.css"
 waybar_style="$HOME/.config/waybar/style.css"
 mode=${1:---reset}
 merged_config=$(mktemp)

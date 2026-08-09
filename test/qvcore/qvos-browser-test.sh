@@ -17,9 +17,9 @@ fail() {
 install -d \
   "$test_home/.config/environment.d" \
   "$fixture/bin" \
-  "$fixture/config" \
   "$fixture/default/firefox" \
   "$fixture/qvcore/browser" \
+  "$fixture/qvcore/config/files" \
   "$test_bin"
 install -m 0755 "$root/bin/omarchy-install-browser" "$fixture/bin/"
 install -m 0755 "$root/bin/omarchy-refresh-chromium" "$fixture/bin/"
@@ -33,7 +33,8 @@ install -m 0755 "$root/qvcore/browser/refresh-chromium" "$fixture/qvcore/browser
 install -m 0755 "$root/qvcore/browser/remove" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/retire-google-oauth" "$fixture/qvcore/browser/"
 install -D -m 0755 "$root/qvcore/config/refresh" "$fixture/qvcore/config/refresh"
-printf '%s\n' '--enable-features=UseOzonePlatform' >"$fixture/config/chromium-flags.conf"
+printf '%s\n' '--enable-features=UseOzonePlatform' \
+  >"$fixture/qvcore/config/files/chromium-flags.conf"
 printf '%s\n' '{"policies":{}}' >"$fixture/default/firefox/policies.json"
 touch "$action_log"
 
@@ -147,7 +148,7 @@ unlink -- "$chromium_flags"
 printf '%s\n' "${inherited_oauth_flags[@]}" '--preserve-in-backup' \
   >"$chromium_flags"
 run_browser "$fixture/bin/qv-refresh-chromium" >/dev/null
-cmp -s "$fixture/config/chromium-flags.conf" "$chromium_flags" ||
+cmp -s "$fixture/qvcore/config/files/chromium-flags.conf" "$chromium_flags" ||
   fail "native Chromium refresh"
 if rg -q '^--oauth2-client-(id|secret)=' "$test_home/.config"; then
   fail "Chromium refresh retained inherited OAuth credentials in a backup"
@@ -164,7 +165,7 @@ grep -Fqx 'aur-add:google-chrome' "$action_log" || fail "Chrome package owner"
 grep -Fqx 'policy:/etc/opt/chrome/policies/managed' "$action_log" ||
   fail "Chrome policy owner"
 cmp -s \
-  "$fixture/config/chromium-flags.conf" \
+  "$fixture/qvcore/config/files/chromium-flags.conf" \
   "$test_home/.config/chrome-flags.conf" ||
   fail "Chrome flag installation"
 

@@ -28,7 +28,7 @@ rg -q '^# qv:summary=' "$root/bin/qv-reminder" ||
   fail "compatibility reminder metadata"
 
 if rg -n 'omarchy-reminder' \
-  "$root/config/hypr/bindings.conf" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/default/omarchy-skill/SKILL.md" \
   "$root/qvcore/menu/elephant/qvos_menu.lua"; then
   fail "native reminder consumer uses the compatibility route"

@@ -47,8 +47,8 @@ done
 if rg -n 'omarchy-capture-(screenrecording|screenshot|text-extraction)' \
   "$root/qvcore/menu/base" \
   "$root/qvcore/menu/routes" \
-  "$root/config/hypr/bindings.conf" \
-  "$root/config/waybar/config.jsonc" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
+  "$root/qvcore/config/files/waybar/config.jsonc" \
   "$root/qvcore/menu/elephant/qvos_menu.lua"; then
   fail "active qvOS consumer uses Capture compatibility"
 fi
@@ -57,7 +57,7 @@ fi
   fail "retired recording indicator implementation remains"
 # shellcheck disable=SC2016
 grep -Fq '"exec": "$QVOS_PATH/qvcore/capture/status"' \
-  "$root/config/waybar/config.jsonc" || fail "native recording indicator owner"
+  "$root/qvcore/config/files/waybar/config.jsonc" || fail "native recording indicator owner"
 if rg -n '/tmp/omarchy|pkill .*gpu-screen-recorder|pgrep .*gpu-screen-recorder|pkill .*WebcamOverlay' \
   "$root/qvcore/capture" --glob '!AGENTS.md' --glob '!check'; then
   fail "Capture owner retains shared state or broad process control"

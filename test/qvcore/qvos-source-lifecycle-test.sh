@@ -251,11 +251,11 @@ pass "source migration repairs only verified and conflict-free roots"
 config_source="$test_root/config-source"
 config_home="$test_root/config-home"
 install -d \
-  "$config_source/config/example" \
   "$config_source/default" \
+  "$config_source/qvcore/config/files/example" \
   "$config_source/qvcore/install/config" \
   "$config_home"
-printf 'configured\n' >"$config_source/config/example/value"
+printf 'configured\n' >"$config_source/qvcore/config/files/example/value"
 printf 'bashrc\n' >"$config_source/default/bashrc"
 install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"

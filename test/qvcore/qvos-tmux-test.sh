@@ -55,8 +55,8 @@ grep -Fq 'Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`' \
 refresh_home="$test_root/refresh-home"
 refresh_source="$test_root/refresh-source"
 refresh_log="$test_root/refresh-log"
-install -D -m 0644 "$root/config/tmux/tmux.conf" \
-  "$refresh_source/config/tmux/tmux.conf"
+install -D -m 0644 "$root/qvcore/config/files/tmux/tmux.conf" \
+  "$refresh_source/qvcore/config/files/tmux/tmux.conf"
 install -D -m 0755 "$root/qvcore/config/refresh" \
   "$refresh_source/qvcore/config/refresh"
 install -D -m 0755 "$root/qvcore/tmux/refresh" \
@@ -74,7 +74,7 @@ HOME="$refresh_home" \
   QVOS_PATH="$refresh_source" \
   QVOS_TEST_REFRESH_LOG="$refresh_log" \
   "$refresh_source/qvcore/tmux/refresh"
-cmp -s "$root/config/tmux/tmux.conf" \
+cmp -s "$root/qvcore/config/files/tmux/tmux.conf" \
   "$refresh_home/.config/tmux/tmux.conf" || fail "Tmux config refresh"
 grep -Fqx 'reload' "$refresh_log" || fail "Tmux reload after refresh"
 refresh_backup=$(

@@ -20,16 +20,23 @@ validation for both direct web-app launches and the website normalizer.
 and exact legacy-launcher migration. Fresh qvOS carries no preinstalled Web
 Apps, fixed web-service shortcuts, protocol handlers, or service-specific
 assets. Keep only the generic website keybinding and the on-demand installer.
-Never overwrite an existing desktop entry, accept an arbitrary Exec string, fetch an icon without
-explicit input, or remove a desktop file or icon without proving its bounded
-qvOS Web App ownership. Keep compatibility adapters thin and metadata-free.
+Never overwrite an existing desktop entry, accept an arbitrary Exec string,
+fetch an icon without explicit input, or remove a desktop file or icon without
+proving its bounded qvOS Web App ownership. Keep compatibility adapters thin
+and metadata-free.
 `qvcore/desktop/applications/` singularly owns the fixed base desktop entries,
 intentional package-menu suppressors, and the imv icon. Its installer validates
 the complete source and destination set before mutation, serializes refreshes,
 publishes atomically with rollback, and removes only exact retired qvOS Typora
-and duplicate-imv artifacts. Preserve modified files and links. Never put a
-Web App, optional application, service URL, or Windows-owned icon in this
-payload; optional Web Apps exist only after an explicit user install.
+and duplicate-imv artifacts. Every suppressor remains a standards-valid
+`Desktop Entry` with `Type`, `Name`, and `Hidden`; do not rely on a permissive
+menu parser. Record the last installed hashes in the private, atomic
+`~/.local/state/qvos/desktop/applications.psv` manifest; replace only matching
+prior qvOS content, upgrade explicitly recognized legacy payload, and fail
+before publication on modified, foreign, malformed, or linked state. Do not
+rewrite an exact payload. Never put a Web App, optional application, service
+URL, or Windows-owned icon in this payload; optional Web Apps exist only after
+an explicit user install.
 `qvcore/desktop/session/` owns lock, logout, wake, the delayed logout worker,
 and session-scoped Idle Lock and Nightlight toggles. Use the shared exact-process
 helper for Hypridle, validate one bounded Hyprsunset temperature before changing

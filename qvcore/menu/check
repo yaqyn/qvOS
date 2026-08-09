@@ -10,7 +10,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-launch-walker\nbin/omarchy-menu\nbin/omarchy-menu-file\nbin/omarchy-menu-input\nbin/omarchy-menu-keybindings\nbin/omarchy-menu-select\nbin/omarchy-refresh-walker\nconfig/omarchy/extensions/menu.sh\nconfig/walker/config.toml'
+expected=$'bin/omarchy-launch-walker\nbin/omarchy-menu\nbin/omarchy-menu-file\nbin/omarchy-menu-input\nbin/omarchy-menu-keybindings\nbin/omarchy-menu-select\nbin/omarchy-refresh-walker'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native menu inventory"
 
@@ -44,7 +44,7 @@ done
 
 if rg -n 'omarchy-(launch-walker|menu-(file|input|keybindings|select|share)|qvos-share|refresh-walker)' \
   "$root/bin/omarchy-menu" \
-  "$root/config/hypr/bindings.conf" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/default/mako/core.ini" \
   "$root/qvcore/branding" \
   "$root/qvcore/desktop" \
@@ -130,8 +130,8 @@ if rg -n 'install_qvos_menu|menu_extension_ready' \
   fail "retired generated menu overlay remains active"
 fi
 if rg -n 'omarchy-menu' \
-  "$root/config/hypr/bindings.conf" \
-  "$root/config/waybar/config.jsonc" \
+  "$root/qvcore/config/files/hypr/bindings.conf" \
+  "$root/qvcore/config/files/waybar/config.jsonc" \
   "$root/qvcore/menu/elephant/qvos_menu.lua" \
   "$root/qvcore/waybar/overrides.jsonc"; then
   fail "active desktop surface uses the menu compatibility route"

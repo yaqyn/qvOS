@@ -10,5 +10,5 @@ if (($# != 0)); then
   exit 2
 fi
 
-"$QVOS_PATH/qvcore/config/refresh" --owned hypr/hypridle.conf
+"$QVOS_PATH/qvcore/config/refresh" hypr/hypridle.conf
 "$QVOS_PATH/qvcore/desktop/restart/hypridle"

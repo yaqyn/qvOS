@@ -24,7 +24,7 @@ pass() {
 
 install -d \
   "$source_root/bin" \
-  "$source_root/config" \
+  "$source_root/qvcore/config/files" \
   "$source_root/default/foot" \
   "$source_root/qvcore/desktop/applications" \
   "$source_root/qvcore/defaults" \
@@ -32,10 +32,10 @@ install -d \
   "$source_root/qvcore/theme" \
   "$test_bin" \
   "$package_dir"
-cp -a "$root/config/alacritty" "$source_root/config/"
-cp -a "$root/config/foot" "$source_root/config/"
-cp -a "$root/config/ghostty" "$source_root/config/"
-cp -a "$root/config/kitty" "$source_root/config/"
+cp -a "$root/qvcore/config/files/alacritty" "$source_root/qvcore/config/files/"
+cp -a "$root/qvcore/config/files/foot" "$source_root/qvcore/config/files/"
+cp -a "$root/qvcore/config/files/ghostty" "$source_root/qvcore/config/files/"
+cp -a "$root/qvcore/config/files/kitty" "$source_root/qvcore/config/files/"
 install -m 0644 "$root/qvcore/desktop/applications/Alacritty.desktop" \
   "$source_root/qvcore/desktop/applications/Alacritty.desktop"
 install -m 0644 "$root/default/foot/foot.desktop" \
@@ -114,7 +114,7 @@ export HOME="$terminal_home"
 [[ ! -e $package_log && ! -e $HOME/.config/alacritty ]] ||
   fail "terminal preflight mutated the fixture"
 "$source_root/qvcore/software/terminal-install" alacritty >/dev/null
-cmp -s "$root/config/alacritty/alacritty.toml" \
+cmp -s "$root/qvcore/config/files/alacritty/alacritty.toml" \
   "$HOME/.config/alacritty/alacritty.toml" || fail "Alacritty default config"
 cmp -s "$root/qvcore/desktop/applications/Alacritty.desktop" \
   "$HOME/.local/share/applications/Alacritty.desktop" ||

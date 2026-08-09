@@ -6,15 +6,23 @@ source_root="$QVOS_PATH/qvcore/desktop/applications"
 application_dir="$HOME/.local/share/applications"
 icon_dir="$HOME/.local/share/icons/hicolor/48x48/apps"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/desktop"
+managed_state="$state_dir/applications.psv"
 transaction_dir=
-published=0
+state_stage=
 rollback_failed=false
+legacy_hidden_hash="a0260e7f35579a73f77e257e9e3795abd8b33119a17b931ca6016a07036e1670"
 
 declare -a sources=()
 declare -a destinations=()
+declare -a identifiers=()
+declare -a source_hashes=()
+declare -a publish_indices=()
+declare -a published_indices=()
 declare -a stages=()
 declare -a backups=()
 declare -a existed=()
+declare -A expected_identifiers=()
+declare -A previous_hashes=()
 
 fail() {
   printf 'qvOS application install: %s\n' "$1" >&2
@@ -89,16 +97,22 @@ cleanup() {
   for stage in "${stages[@]:-}"; do
     [[ -z $stage || (! -e $stage && ! -L $stage) ]] || rm -f -- "$stage"
   done
+  [[ -z $state_stage || (! -e $state_stage && ! -L $state_stage) ]] ||
+    rm -f -- "$state_stage"
   [[ -z $transaction_dir || ! -d $transaction_dir ]] || rm -rf -- "$transaction_dir"
 }
 trap cleanup EXIT
 
 rollback() {
   local index
+  local published_index
   local destination
   local restore
 
-  for ((index = published - 1; index >= 0; index--)); do
+  for ((published_index = ${#published_indices[@]} - 1;
+    published_index >= 0;
+    published_index--)); do
+    index=${published_indices[$published_index]}
     destination=${destinations[$index]}
     if [[ ! -f $destination || -L $destination || ! -O $destination ]] ||
       ! cmp -s -- "${sources[$index]}" "$destination"; then
@@ -124,6 +138,30 @@ rollback() {
   done
 }
 
+load_managed_state() {
+  local extra
+  local hash
+  local identifier
+
+  [[ -e $managed_state || -L $managed_state ]] || return 0
+  [[ -f $managed_state && ! -L $managed_state && -O $managed_state &&
+    $(stat -c '%a' -- "$managed_state") == "600" ]] ||
+    fail "unsafe managed state: $managed_state"
+
+  while IFS='|' read -r identifier hash extra || [[ -n $identifier ]]; do
+    [[ -z $identifier || $identifier == \#* ]] && continue
+    [[ -n ${expected_identifiers[$identifier]:-} &&
+      $hash =~ ^[0-9a-f]{64}$ &&
+      -z ${extra:-} &&
+      -z ${previous_hashes[$identifier]:-} ]] ||
+      fail "invalid managed state: $managed_state"
+    previous_hashes["$identifier"]=$hash
+  done <"$managed_state"
+
+  ((${#previous_hashes[@]} == ${#identifiers[@]})) ||
+    fail "incomplete managed state: $managed_state"
+}
+
 (( $# == 0 )) || {
   echo "Usage: qvcore/desktop/applications/install" >&2
   exit 2
@@ -132,6 +170,7 @@ rollback() {
 while IFS= read -r source; do
   sources+=("$source")
   destinations+=("$application_dir/${source##*/}")
+  identifiers+=("applications/${source##*/}")
 done < <(
   printf '%s\n' \
     "$source_root/Alacritty.desktop" \
@@ -141,13 +180,22 @@ done < <(
 )
 sources+=("$source_root/icons/imv.png")
 destinations+=("$icon_dir/imv.png")
+identifiers+=("icons/imv.png")
 
-(( ${#sources[@]} == 38 )) || fail "fixed payload inventory changed"
-for source in "${sources[@]}"; do
+(( ${#sources[@]} == 38 &&
+  ${#destinations[@]} == ${#sources[@]} &&
+  ${#identifiers[@]} == ${#sources[@]} )) ||
+  fail "fixed payload inventory changed"
+for ((index = 0; index < ${#sources[@]}; index++)); do
+  source=${sources[$index]}
   require_safe_source "$source"
   if rg -qi '(https?://|--app=|-(launch-webapp|webapp-handler))' "$source"; then
     fail "bundled Web App content is forbidden: $source"
   fi
+  source_hashes+=("$(sha256sum -- "$source" | cut -d' ' -f1)")
+  [[ -z ${expected_identifiers[${identifiers[$index]}]:-} ]] ||
+    fail "duplicate payload identity: ${identifiers[$index]}"
+  expected_identifiers["${identifiers[$index]}"]=1
 done
 require_safe_directory_chain "$application_dir"
 require_safe_directory_chain "$icon_dir"
@@ -155,6 +203,7 @@ require_safe_directory_chain "$state_dir"
 for destination in "${destinations[@]}"; do
   require_safe_target "$destination"
 done
+require_safe_target "$managed_state"
 
 ensure_directory "$application_dir" 0755
 ensure_directory "$icon_dir" 0755
@@ -165,9 +214,32 @@ exec 8>"$state_dir/applications.lock"
 chmod 0600 "$state_dir/applications.lock"
 flock 8
 
+load_managed_state
+for ((index = 0; index < ${#sources[@]}; index++)); do
+  destination=${destinations[$index]}
+  [[ -e $destination ]] || {
+    publish_indices+=("$index")
+    continue
+  }
+
+  current_hash=$(sha256sum -- "$destination" | cut -d' ' -f1)
+  if [[ $current_hash == "${source_hashes[$index]}" &&
+    $(stat -c '%a' -- "$destination") == "644" ]]; then
+    continue
+  fi
+  if [[ $current_hash == "${source_hashes[$index]}" ||
+    ${previous_hashes[${identifiers[$index]}]:-} == "$current_hash" ||
+    (${sources[$index]} == "$source_root/hidden/"* &&
+      $current_hash == "$legacy_hidden_hash") ]]; then
+    publish_indices+=("$index")
+    continue
+  fi
+  fail "destination is modified or foreign: $destination"
+done
+
 transaction_dir=$(mktemp -d "$state_dir/applications.XXXXXX")
 chmod 0700 "$transaction_dir"
-for ((index = 0; index < ${#sources[@]}; index++)); do
+for index in "${publish_indices[@]}"; do
   destination=${destinations[$index]}
   stage=$(mktemp "${destination%/*}/.qvos-application.XXXXXX")
   install -m 0644 -- "${sources[$index]}" "$stage"
@@ -183,7 +255,16 @@ for ((index = 0; index < ${#sources[@]}; index++)); do
   fi
 done
 
-for ((index = 0; index < ${#sources[@]}; index++)); do
+state_stage=$(mktemp "$state_dir/.applications.psv.XXXXXX")
+chmod 0600 "$state_stage"
+{
+  printf '# qvOS fixed application payload v1\n'
+  for ((index = 0; index < ${#identifiers[@]}; index++)); do
+    printf '%s|%s\n' "${identifiers[$index]}" "${source_hashes[$index]}"
+  done
+} >"$state_stage"
+
+for index in "${publish_indices[@]}"; do
   if ! mv -Tf -- "${stages[$index]}" "${destinations[$index]}"; then
     rollback
     [[ $rollback_failed == "false" ]] ||
@@ -191,8 +272,20 @@ for ((index = 0; index < ${#sources[@]}; index++)); do
     fail "publication failed; the prior payload was restored"
   fi
   stages[index]=""
-  ((published += 1))
+  published_indices+=("$index")
 done
+
+if [[ -f $managed_state ]] && cmp -s -- "$state_stage" "$managed_state"; then
+  rm -f -- "$state_stage"
+  state_stage=""
+elif ! mv -Tf -- "$state_stage" "$managed_state"; then
+  rollback
+  [[ $rollback_failed == "false" ]] ||
+    fail "state publication failed and payload rollback was incomplete"
+  fail "state publication failed; the prior payload was restored"
+else
+  state_stage=""
+fi
 
 retire_exact \
   "$application_dir/typora.desktop" \

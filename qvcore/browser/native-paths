@@ -2,4 +2,3 @@
 bin/omarchy-install-browser
 bin/omarchy-refresh-chromium
 bin/omarchy-remove-browser
-config/chromium-flags.conf

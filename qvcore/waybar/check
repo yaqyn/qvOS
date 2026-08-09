@@ -69,11 +69,11 @@ for obsolete in \
     fail "obsolete qvOS-in-Omarchy route: $obsolete"
 done
 if rg -n 'omarchy-(launch-qvos-task|qvos-refresh-waybar)' \
-  "$root/qvcore" "$root/config" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls a retired Waybar or task route"
 fi
-if rg -n 'omarchy-toggle-waybar' "$root/qvcore" "$root/config" \
+if rg -n 'omarchy-toggle-waybar' "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls the Waybar-toggle compatibility route"

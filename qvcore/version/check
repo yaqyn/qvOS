@@ -45,7 +45,7 @@ for frontend in qv omarchy; do
   ' >/dev/null || fail "$frontend version route does not prefer the native catalog"
 done
 
-config="$root/config/fastfetch/config.jsonc"
+config="$root/qvcore/config/files/fastfetch/config.jsonc"
 rg -q 'qv-version' "$config" || fail "Fastfetch omits native version reporting"
 if rg -n 'omarchy-version' "$config"; then
   fail "Fastfetch calls a version compatibility route"

@@ -123,9 +123,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   Walker, and Elephant config. Preflight every source before the first backup,
   restore through `qvcore/config/refresh`, then reconcile the menu once. The
   native command is `qv-refresh-walker`; its Omarchy name is compatibility
-  only. Fresh install receives startup files from `config/` and never creates
-  a Pacman hook that executes a user-writable checkout. qvOS update-log analysis
-  records a private Walker restart marker after Walker or Elephant changes.
+  only. Fresh install receives startup files from `qvcore/config/files/` and
+  never creates a Pacman hook that executes a user-writable checkout. qvOS
+  update-log analysis records a private Walker restart marker after Walker or
+  Elephant changes.
 - `retire-pacman-hook` removes only the exact historical qvOS/Omarchy Walker
   hook schema and preserves links, foreign ownership, and modified content.
   Its system-root override is test-only and must remain confined to a

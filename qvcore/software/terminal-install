@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/desktop/applications/Alacritty.desktop
-# qvos:contract=config/alacritty
-# qvos:contract=config/foot
-# qvos:contract=config/ghostty
-# qvos:contract=config/kitty
+# qvos:contract=qvcore/config/files/alacritty
+# qvos:contract=qvcore/config/files/foot
+# qvos:contract=qvcore/config/files/ghostty
+# qvos:contract=qvcore/config/files/kitty
 # qvos:contract=default/foot/foot.desktop
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
@@ -66,7 +66,7 @@ kitty)
   ;;
 esac
 
-config_source="$QVOS_PATH/config/$package"
+config_source="$QVOS_PATH/qvcore/config/files/$package"
 config_target="$HOME/.config/$package"
 desktop_target="$HOME/.local/share/applications/$desktop_id"
 

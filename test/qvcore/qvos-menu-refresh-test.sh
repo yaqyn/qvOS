@@ -69,7 +69,7 @@ for config_path in "${config_paths[@]}"; do
   grep -Fqx "custom $config_path" "${backups[0]}" ||
     fail "Walker backup content: $config_path"
   if [[ $config_path != "walker/config.toml" ]]; then
-    cmp -s "$root/config/$config_path" "$target" ||
+    cmp -s "$root/qvcore/config/files/$config_path" "$target" ||
       fail "restored Walker config: $config_path"
   fi
 done
@@ -87,22 +87,23 @@ printf 'ok - Walker refresh preflights, backs up, restores, and reconciles once\
 incomplete="$test_root/incomplete"
 incomplete_home="$test_root/incomplete-home"
 install -d \
-  "$incomplete/qvcore" \
-  "$incomplete/config/autostart" \
-  "$incomplete/config/elephant" \
-  "$incomplete/config/systemd/user/app-walker@autostart.service.d" \
-  "$incomplete/config/walker" \
+  "$incomplete/qvcore/config/files/autostart" \
+  "$incomplete/qvcore/config/files/elephant" \
+  "$incomplete/qvcore/config/files/systemd/user/app-walker@autostart.service.d" \
+  "$incomplete/qvcore/config/files/walker" \
   "$incomplete_home/.config/walker"
 ln -s "$root/qvcore/menu" "$incomplete/qvcore/menu"
-ln -s "$root/qvcore/config" "$incomplete/qvcore/config"
 ln -s "$root/qvcore/tui" "$incomplete/qvcore/tui"
 ln -s "$root/default" "$incomplete/default"
+install -m 0755 "$root/qvcore/config/refresh" \
+  "$incomplete/qvcore/config/refresh"
 for config_path in \
   autostart/walker.desktop \
   elephant/desktopapplications.toml \
   systemd/user/app-walker@autostart.service.d/restart.conf \
   walker/config.toml; do
-  install -D -m 0644 "$root/config/$config_path" "$incomplete/config/$config_path"
+  install -D -m 0644 "$root/qvcore/config/files/$config_path" \
+    "$incomplete/qvcore/config/files/$config_path"
 done
 printf 'preserve me\n' >"$incomplete_home/.config/walker/config.toml"
 set +e

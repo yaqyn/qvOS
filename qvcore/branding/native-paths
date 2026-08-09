@@ -2,8 +2,6 @@
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
 bin/omarchy-refresh-fastfetch
-config/fastfetch/config.jsonc
-config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json
 default/omarchy-skill/SKILL.md
 test/omarchy-cli-test.sh

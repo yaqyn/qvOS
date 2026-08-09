@@ -13,9 +13,9 @@ fail() {
 expected=$'bin/omarchy-hook\nbin/omarchy-hook-install'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == "$expected" ]] ||
   fail "native hook inventory"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  "config/omarchy/hooks/" ]] || fail "retired hook-default inventory"
-[[ ! -e $root/config/omarchy/hooks && ! -L $root/config/omarchy/hooks ]] ||
+[[ -z $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") ]] ||
+  fail "retired hook-default inventory duplicates config ownership"
+[[ ! -e $root/qvcore/config/files/omarchy/hooks && ! -L $root/qvcore/config/files/omarchy/hooks ]] ||
   fail "inherited hook defaults remain"
 
 for owner in lib run install reconcile; do

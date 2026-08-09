@@ -32,8 +32,8 @@ for config_path in \
   hypr/hyprsunset.conf \
   swayosd/config.toml \
   swayosd/style.css; do
-  install -D -m 0644 "$root/config/$config_path" \
-    "$source_root/config/$config_path"
+  install -D -m 0644 "$root/qvcore/config/files/$config_path" \
+    "$source_root/qvcore/config/files/$config_path"
 done
 install -D -m 0644 "$root/qvcore/config/files/hypr/hypridle.conf" \
   "$source_root/qvcore/config/files/hypr/hypridle.conf"
@@ -62,7 +62,7 @@ for config_path in \
   hypr/hyprsunset.conf \
   swayosd/config.toml \
   swayosd/style.css; do
-  cmp -s "$root/config/$config_path" "$test_home/.config/$config_path" ||
+  cmp -s "$root/qvcore/config/files/$config_path" "$test_home/.config/$config_path" ||
     fail "refreshed config mismatch: $config_path"
 done
 cmp -s \
@@ -85,20 +85,20 @@ done
 pass "config refresh owners reject unexpected input before mutation"
 
 template_path=systemd/user/app-example@autostart.service.d/restart.conf
-install -D -m 0644 /dev/stdin "$source_root/config/$template_path" <<'CONFIG'
+install -D -m 0644 /dev/stdin "$source_root/qvcore/config/files/$template_path" <<'CONFIG'
 [Service]
 Restart=always
 CONFIG
 run_owner "$source_root/qvcore/config/refresh" "$template_path"
 cmp -s \
-  "$source_root/config/$template_path" \
+  "$source_root/qvcore/config/files/$template_path" \
   "$test_home/.config/$template_path" ||
   fail "systemd template config refresh"
 pass "config refresh accepts bounded systemd template paths"
 
 printf 'preserve before failed preflight\n' \
   >"$test_home/.config/swayosd/config.toml"
-rm "$source_root/config/swayosd/style.css"
+rm "$source_root/qvcore/config/files/swayosd/style.css"
 if run_owner "$source_root/qvcore/config/refresh-swayosd" \
   >/dev/null 2>&1; then
   fail "incomplete SwayOSD source accepted"

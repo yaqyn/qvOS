@@ -48,14 +48,14 @@ This directory contains qvOS source files managed by git. Any changes will be:
 ```
 ~/.local/share/qvos/     # READ-ONLY - NEVER EDIT (reading is OK)
 ├── bin/                    # Source scripts (symlinked to PATH)
-├── config/                 # Default config templates
+├── qvcore/config/files/    # Default config templates
 ├── default/                # System defaults
 └── qvcore/                 # Native owners, installer, migrations, and Yaqyn
 ```
 
 **Reading `~/.local/share/qvos/` is SAFE and useful** - do it freely to:
 - Understand how qvOS commands work: `qv theme set --help` or `cat $(which qv-theme-set)`
-- See default configs before customizing: `cat ~/.local/share/qvos/config/waybar/config.jsonc`
+- See default configs before customizing: `cat ~/.local/share/qvos/qvcore/config/files/waybar/config.jsonc`
 - Inspect native owners before customizing their installed user config
 - Reference default hyprland settings: `cat ~/.local/share/qvos/default/hypr/*`
 
@@ -251,7 +251,7 @@ omarchy refresh hyprland
 
 # The refresh command:
 # 1. Backs up current config with timestamp
-# 2. Copies default from ~/.local/share/qvos/config/
+# 2. Copies the default from ~/.local/share/qvos/qvcore/config/files/
 # 3. Restarts the component
 ```
 
@@ -379,7 +379,7 @@ qv reminder clear
 ## Out of Scope
 
 This skill intentionally does not cover qvOS source development. Do not use this skill for:
-- Editing files in `~/.local/share/qvos/` (`bin/`, `config/`, `default/`, `qvcore/`, etc.)
+- Editing files in `~/.local/share/qvos/` (`bin/`, `default/`, `qvcore/`, etc.)
 - Creating or editing migrations
 - Running `omarchy dev ...` commands
 

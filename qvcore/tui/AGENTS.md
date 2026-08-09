@@ -60,6 +60,8 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   live Omarchy checkout.
 - Owner contracts recursively hash exact repository dependencies referenced
   through either the native `QVOS_PATH` or compatibility `OMARCHY_PATH` root.
+  Recognize tracked path characters including `@` so systemd instance and
+  drop-in paths are never truncated during dependency discovery.
   A namespace migration must never make a real mutation owner invisible to the
   contract generator.
 - `qvcore/tui/source-hash` is the single owner for binary source provenance.
@@ -243,6 +245,8 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   complete owner change, confirm presentation, sudo, interaction, output, and
   verification remain truthful, adapt the TUI contract when needed, then run
   `qvcore/tui/owner-contracts --write` and review the exact manifest diff.
+  Retired top-level `applications/` and `config/` roots are not valid contract
+  sources; reference their singular native qvcore owner.
 - About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
   Keep those values in its future owner contract rather than duplicating them.
 - Keep the production hub catalog limited to working actions. Give every row a

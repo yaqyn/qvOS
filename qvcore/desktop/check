@@ -156,20 +156,20 @@ if rg -n 'omarchy-(hyprland-window-close-all|system-(lock|logout|wake))' \
   "$root/qvcore/config/files" \
   "$root/qvcore/menu" \
   "$root/qvcore/power" \
-  "$root/config/hypr" \
+  "$root/qvcore/config/files/hypr" \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a session compatibility command"
 fi
 if rg -n 'omarchy-hyprland-(monitor-scaling-cycle|window-gaps-toggle|window-pop|window-single-square-aspect-toggle|window-transparency-toggle|workspace-layout-toggle)' \
   "$root/qvcore/menu" \
-  "$root/config/hypr" \
+  "$root/qvcore/config/files/hypr" \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a Hyprland-control compatibility command"
 fi
 if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus-tui|or-focus-webapp|tui|webapp|wifi)' \
   "$root/qvcore" \
-  "$root/config/hypr" \
-  "$root/config/waybar" \
+  "$root/qvcore/config/files/hypr" \
+  "$root/qvcore/config/files/waybar" \
   --glob '!**/AGENTS.md' \
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
@@ -211,6 +211,13 @@ actual_applications=$(find "$root/qvcore/desktop/applications" -maxdepth 1 \
 [[ $(find "$root/qvcore/desktop/applications/hidden" -maxdepth 1 \
   -type f -name '*.desktop' | wc -l) == 34 ]] ||
   fail "hidden desktop application inventory changed"
+for hidden_entry in "$root"/qvcore/desktop/applications/hidden/*.desktop; do
+  hidden_name=${hidden_entry##*/}
+  hidden_name=${hidden_name%.desktop}
+  [[ $(<"$hidden_entry") == \
+    $'[Desktop Entry]\nType=Application\nName='"$hidden_name"$'\nHidden=true' ]] ||
+    fail "invalid hidden desktop application entry: ${hidden_entry#"$root/"}"
+done
 [[ $(find "$root/qvcore/desktop/applications/icons" -maxdepth 1 \
   -type f -printf '%f\n') == "imv.png" ]] ||
   fail "fixed desktop icon inventory changed"
@@ -229,7 +236,7 @@ for handler in hey zoom; do
   done
 done
 if rg -n 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?://' \
-  "$root/config/hypr/bindings.conf"; then
+  "$root/qvcore/config/files/hypr/bindings.conf"; then
   fail "fresh qvOS contains fixed Web App destinations"
 fi
 grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
@@ -239,7 +246,7 @@ if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi
 if rg -n 'omarchy-toggle-(idle|nightlight)' \
-  "$root/qvcore" "$root/config" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls a desktop-toggle compatibility route"

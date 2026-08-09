@@ -227,7 +227,7 @@ for native_unit in \
   qvos-battery-monitor.service \
   qvos-battery-monitor.timer \
   qvos-recover-internal-monitor.service; do
-  cmp -s "$root/config/systemd/user/$native_unit" "$unit_root/$native_unit" ||
+  cmp -s "$root/qvcore/config/files/systemd/user/$native_unit" "$unit_root/$native_unit" ||
     fail "native user service was not deployed exactly: $native_unit"
 done
 if find "$unit_root" -maxdepth 1 -name 'omarchy-*' -print -quit | grep -q .; then
@@ -285,9 +285,9 @@ fi
   fail "user-service migration mutated before completing preflight"
 
 grep -Fq 'NoNewPrivileges=yes' \
-  "$root/config/systemd/user/qvos-battery-monitor.service" ||
+  "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
   fail "battery monitor service hardening"
 grep -Fq 'ConditionPathExists=%h/.local/state/qvos/toggles/' \
-  "$root/config/systemd/user/qvos-recover-internal-monitor.service" ||
+  "$root/qvcore/config/files/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "monitor recovery native state condition"
 printf 'ok - qvOS user services migrate atomically with native identity and preserved state\n'

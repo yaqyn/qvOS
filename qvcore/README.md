@@ -19,7 +19,7 @@ qvcore/
   browser/     Secure browser policy ownership.
   capture/     Private screenshots, OCR, and recoverable screen recording.
   cli/         Native qv command engine and Omarchy compatibility frontend.
-  config/      qvOS config sources and reconciliation after Omarchy defaults.
+  config/      Singular installed config sources and reconciliation.
   controls/    Audio, brightness, notification, and session OSD controls.
   defaults/    Browser, editor, and terminal default ownership.
   desktop/     Shared context, web, Hyprland, session, and restart owners.
@@ -198,11 +198,11 @@ inherited implementation intact and touch Omarchy paths only at the seam that
 exposes, installs, or refreshes the native owner:
 
 - `bin/` owns CLI routes and menu handoffs.
-- `config/` owns promoted qvOS defaults such as the singular binding source and
-  native `qvos-*` user units; `qvcore/config/` owns toggle templates, private
-  state migration, service reconciliation, and specialized sources that still
-  need a separate installed path. Unpromoted inherited `config/` and `default/`
-  paths remain upstream-owned.
+- `qvcore/config/files/` owns every installed user-config source;
+  `qvcore/config/` owns its atomic refresh, toggle templates, private state
+  migration, and service reconciliation. The inherited top-level `config/`
+  tree is retired. Unpromoted `default/` paths remain reviewed upstream source
+  until their complete domains move.
 - `qvcore/install/` owns the complete fresh-install implementation and
   `qvcore/boot/login/` owns its login leaves. The retired top-level `install/`
   tree must not return. Existing-system transitions live only in
