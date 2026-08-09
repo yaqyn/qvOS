@@ -401,7 +401,7 @@ validate_staged_iso() {
     echo "qvos-build staged an unexpected live-media kernel preset." >&2
     return 1
   }
-  grep -Fqx '  kernel_choice="linux"' \
+  grep -Fqx 'kernel_choice="linux"' \
     "$configs/airootfs/root/configurator" || {
     echo "qvos-build staged an unexpected fallback installer kernel." >&2
     return 1
