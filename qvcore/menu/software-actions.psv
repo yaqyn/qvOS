@@ -25,14 +25,14 @@ brave|package|brave-bin|tui|true|tui|true|qv-install-browser brave|qv-remove-bro
 brave-origin|package|brave-origin-beta-bin|tui|true|tui|true|qv-install-browser brave-origin|qv-remove-browser brave-origin
 firefox|package|firefox|tui|true|tui|true|qv-install-browser firefox|qv-remove-browser firefox
 zen|package|zen-browser-bin|tui|true|tui|true|qv-install-browser zen|qv-remove-browser zen
-steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|qvcore/menu/steam-remove
+steam|package|steam|tui|true|tui|true|qv-install-gaming-steam|qvcore/gaming/steam-remove
 retroarch|package|retroarch|tui|true|tui|true|qv-install-gaming-retroarch|qv-remove-gaming-retroarch
-minecraft|package|minecraft-launcher|tui|true|tui|true|omarchy-pkg-add minecraft-launcher|omarchy-remove-gaming-minecraft
-geforce-now|flatpak|com.nvidia.geforcenow|native|true|tui|false|omarchy-install-gaming-geforce-now|omarchy-remove-gaming-geforce-now
-xbox-cloud|file|.local/share/applications/Xbox Cloud Gaming.desktop|tui|false|tui|false|omarchy-install-gaming-xbox-cloud|omarchy-remove-gaming-xbox-cloud
+minecraft|package|minecraft-launcher|tui|true|tui|true|qv-install-gaming-minecraft|qv-remove-gaming-minecraft
+geforce-now|flatpak|com.nvidia.geforcenow|native|true|tui|false|qv-install-gaming-geforce-now|qv-remove-gaming-geforce-now
+xbox-cloud|file|.local/share/applications/Xbox Cloud Gaming.desktop|tui|false|tui|false|qv-install-gaming-xbox-cloud|qv-remove-gaming-xbox-cloud
 xbox-controller|package|xpadneo-dkms|tui|true|tui|true|qv-install-gaming-xbox-controllers --defer-reboot|qv-remove-gaming-xbox-controllers --defer-reboot
-moonlight|package|moonlight-qt|tui|true|tui|true|omarchy-install-gaming-moonlight|omarchy-remove-gaming-moonlight
-lutris|package|lutris|tui|true|tui|true|omarchy-install-gaming-lutris|omarchy-remove-gaming-lutris
-heroic|package|heroic-games-launcher-bin|tui|true|tui|true|omarchy-install-gaming-heroic|omarchy-remove-gaming-heroic
+moonlight|package|moonlight-qt|tui|true|tui|true|qv-install-gaming-moonlight|qv-remove-gaming-moonlight
+lutris|package|lutris|tui|true|tui|true|qv-install-gaming-lutris|qv-remove-gaming-lutris
+heroic|package|heroic-games-launcher-bin|tui|true|tui|true|qv-install-gaming-heroic|qv-remove-gaming-heroic
 proton|state|services/proton|native|true|tui|true|services/proton/manage install|services/proton/manage remove --yes
 devel|state|development/devel|tui|true|tui|true|development/devel/manage install|development/devel/manage remove --yes

@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/packages/add
+# qvos:contract=qvcore/packages/drop
+# qvos:contract=qvcore/packages/present
+installer_url="https://international.download.nvidia.com/GFNLinux/GeForceNOWSetup.bin"
+app_id="com.nvidia.geforcenow"
+
+(($# == 0)) || {
+  echo "Usage: qv install gaming geforce now" >&2
+  exit 2
+}
+qv-cmd-present gum curl sha256sum stat || {
+  echo "GeForce NOW setup requires Gum, curl, sha256sum, and stat." >&2
+  exit 1
+}
+
+gum confirm \
+  "Install Flatpak and execute NVIDIA's downloaded GeForce NOW Linux beta installer?" || {
+  echo "GeForce NOW installation cancelled."
+  exit
+}
+
+flatpak_preexisting=false
+qv-pkg-present flatpak && flatpak_preexisting=true
+work_dir=""
+vendor_started=false
+cleanup() {
+  local status=$?
+
+  [[ -z $work_dir || ! -d $work_dir ]] || rm -rf -- "$work_dir"
+  if ((status != 0)) && [[ $flatpak_preexisting == "false" &&
+    $vendor_started == "false" ]]; then
+    qv-pkg-drop flatpak ||
+      echo "GeForce NOW setup could not roll back the newly installed Flatpak package." >&2
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+qv-pkg-add flatpak
+umask 077
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/qvos-geforce-now.XXXXXX")
+installer="$work_dir/GeForceNOWSetup.bin"
+
+echo "Downloading the NVIDIA GeForce NOW installer..."
+curl \
+  --fail \
+  --show-error \
+  --location \
+  --proto '=https' \
+  --proto-redir '=https' \
+  --connect-timeout 15 \
+  --max-time 1800 \
+  --max-filesize 2147483648 \
+  --retry 2 \
+  --retry-all-errors \
+  --output "$installer" \
+  "$installer_url"
+[[ -f $installer && ! -L $installer && -O $installer ]] || {
+  echo "The NVIDIA installer download is not a safe regular file." >&2
+  exit 1
+}
+installer_size=$(stat -c '%s' -- "$installer")
+((1048576 <= installer_size && installer_size <= 2147483648)) || {
+  echo "The NVIDIA installer download has an unexpected size." >&2
+  exit 1
+}
+chmod 0700 "$installer"
+printf 'Downloaded NVIDIA installer SHA-256: '
+sha256sum -- "$installer" | cut -d ' ' -f 1
+
+vendor_started=true
+"$installer"
+flatpak info "$app_id" >/dev/null 2>&1 || {
+  echo "The NVIDIA installer exited without installing GeForce NOW." >&2
+  exit 1
+}
+echo "GeForce NOW is installed. Open it from qvOS Apps when ready."

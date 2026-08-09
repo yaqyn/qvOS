@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected_paths=$'bin/omarchy-install-gaming-retroarch\nbin/omarchy-install-gaming-xbox-controllers\nbin/omarchy-remove-gaming-retroarch\nbin/omarchy-remove-gaming-xbox-controllers\nbin/omarchy-toggle-hybrid-gpu'
+expected_paths=$'bin/omarchy-install-gaming-geforce-now\nbin/omarchy-install-gaming-gpu-lib32\nbin/omarchy-install-gaming-heroic\nbin/omarchy-install-gaming-lutris\nbin/omarchy-install-gaming-moonlight\nbin/omarchy-install-gaming-retroarch\nbin/omarchy-install-gaming-steam\nbin/omarchy-install-gaming-xbox-cloud\nbin/omarchy-install-gaming-xbox-controllers\nbin/omarchy-remove-gaming-geforce-now\nbin/omarchy-remove-gaming-heroic\nbin/omarchy-remove-gaming-lutris\nbin/omarchy-remove-gaming-minecraft\nbin/omarchy-remove-gaming-moonlight\nbin/omarchy-remove-gaming-retroarch\nbin/omarchy-remove-gaming-steam\nbin/omarchy-remove-gaming-xbox-cloud\nbin/omarchy-remove-gaming-xbox-controllers\nbin/omarchy-toggle-hybrid-gpu'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_paths" ]] ||
   fail "native gaming inventory"
 retired_manifest="$root/qvcore/gaming/retired-paths"
@@ -18,14 +18,40 @@ expected_retired=$'default/systemd/system-sleep/force-igpu\ndefault/systemd/syst
   "$expected_retired" ]] || fail "retired gaming inventory"
 
 declare -A owner_by_route=(
+  [install-gaming-geforce-now]=qvcore/gaming/geforce-now-install
+  [install-gaming-gpu-lib32]=qvcore/gaming/gpu-lib32
+  [install-gaming-heroic]=qvcore/gaming/app
+  [install-gaming-lutris]=qvcore/gaming/app
+  [install-gaming-moonlight]=qvcore/gaming/app
   [install-gaming-retroarch]=qvcore/gaming/retroarch-install
+  [install-gaming-steam]=qvcore/gaming/app
+  [install-gaming-xbox-cloud]=qvcore/gaming/xbox-cloud-install
   [install-gaming-xbox-controllers]=qvcore/gaming/xbox-install
+  [remove-gaming-geforce-now]=qvcore/gaming/geforce-now-remove
+  [remove-gaming-heroic]=qvcore/gaming/app
+  [remove-gaming-lutris]=qvcore/gaming/app
+  [remove-gaming-minecraft]=qvcore/gaming/app
+  [remove-gaming-moonlight]=qvcore/gaming/app
   [remove-gaming-retroarch]=qvcore/gaming/retroarch-remove
+  [remove-gaming-steam]=qvcore/gaming/app
+  [remove-gaming-xbox-cloud]=qvcore/gaming/xbox-cloud-remove
   [remove-gaming-xbox-controllers]=qvcore/gaming/xbox-remove
   [toggle-hybrid-gpu]=qvcore/gaming/hybrid-gpu-toggle
 )
+declare -A arguments_by_route=(
+  [install-gaming-heroic]='install heroic'
+  [install-gaming-lutris]='install lutris'
+  [install-gaming-moonlight]='install moonlight'
+  [install-gaming-steam]='install steam'
+  [remove-gaming-heroic]='remove heroic'
+  [remove-gaming-lutris]='remove lutris'
+  [remove-gaming-minecraft]='remove minecraft'
+  [remove-gaming-moonlight]='remove moonlight'
+  [remove-gaming-steam]='remove steam'
+)
 for route in "${!owner_by_route[@]}"; do
   owner=${owner_by_route[$route]}
+  arguments=${arguments_by_route[$route]:-}
   native_adapter="$root/bin/qv-$route"
   compatibility_adapter="$root/bin/omarchy-$route"
   [[ -x $native_adapter && -x $compatibility_adapter && -x $root/$owner ]] ||
@@ -38,12 +64,68 @@ for route in "${!owner_by_route[@]}"; do
     fail "native gaming adapter lacks metadata: $route"
   ! rg -q '^# (qv|omarchy):' "$compatibility_adapter" ||
     fail "gaming compatibility adapter duplicates metadata: $route"
+  expected_exec="exec \"\$QVOS_PATH/$owner\""
+  [[ -z $arguments ]] || expected_exec+=" $arguments"
+  expected_exec+=' "$@"'
   for adapter in "$native_adapter" "$compatibility_adapter"; do
-    # shellcheck disable=SC2016
-    grep -Fqx "exec \"\$QVOS_PATH/$owner\" \"\$@\"" "$adapter" ||
+    grep -Fqx "$expected_exec" "$adapter" ||
       fail "gaming adapter owner: $route"
   done
 done
+
+native_minecraft="$root/bin/qv-install-gaming-minecraft"
+[[ -x $native_minecraft ]] || fail "native Minecraft install adapter mode"
+rg -q '^# qv:summary=' "$native_minecraft" ||
+  fail "native Minecraft install metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/gaming/app" install minecraft "$@"' \
+  "$native_minecraft" || fail "native Minecraft install owner"
+
+for owner in \
+  app \
+  geforce-now-install \
+  geforce-now-remove \
+  gpu-lib32 \
+  steam-remove \
+  xbox-cloud-install \
+  xbox-cloud-remove; do
+  [[ -x $root/qvcore/gaming/$owner ]] || fail "gaming lifecycle owner mode: $owner"
+done
+[[ -f $root/qvcore/gaming/apps.psv && ! -x $root/qvcore/gaming/apps.psv ]] ||
+  fail "gaming app manifest mode"
+expected_apps=$'heroic|Heroic Games Launcher|heroic-games-launcher-bin|true\nlutris|Lutris|lutris|true\nminecraft|Minecraft Launcher|minecraft-launcher|false\nmoonlight|Moonlight|moonlight-qt|false\nsteam|Steam|steam|true'
+actual_apps=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+  "$root/qvcore/gaming/apps.psv")
+[[ $actual_apps == "$expected_apps" ]] || fail "gaming app package boundary"
+[[ -z $(cut -d '|' -f 1 <<<"$actual_apps" | sort | uniq -d) ]] ||
+  fail "duplicate gaming app slug"
+if rg -n 'setsid|gtk-launch|launch-(browser|webapp)|/usr/bin/lutris|wine-staging' \
+  "$root/qvcore/gaming/app" \
+  "$root/qvcore/gaming/apps.psv" \
+  "$root/qvcore/gaming/geforce-now-install" \
+  "$root/qvcore/gaming/xbox-cloud-install"; then
+  fail "optional gaming owner launches automatically or modifies shared runtime"
+fi
+if rg -n 'rm[[:space:]]+-rf|--delete-data' \
+  "$root/qvcore/gaming/app" \
+  "$root/qvcore/gaming/geforce-now-remove" \
+  "$root/qvcore/gaming/xbox-cloud-remove"; then
+  fail "normal gaming removal deletes user data"
+fi
+for curl_option in \
+  "--fail" \
+  "--proto '=https'" \
+  "--proto-redir '=https'" \
+  "--connect-timeout 15" \
+  "--max-time 1800" \
+  "--max-filesize 2147483648"; do
+  grep -Fq -- "$curl_option" "$root/qvcore/gaming/geforce-now-install" ||
+    fail "GeForce NOW download policy: $curl_option"
+done
+grep -Fq "gum confirm" "$root/qvcore/gaming/geforce-now-install" ||
+  fail "GeForce NOW explicit confirmation"
+grep -Fqx '# qvOS intentionally has no bundled webapp desktop launchers.' \
+  "$root/qvcore/install/packaging/webapps" || fail "empty bundled Web App policy"
 
 for helper in \
   hybrid-gpu-apply \
@@ -101,9 +183,10 @@ if rg -n 'omarchy-(pkg|system)-(add|drop|reboot)' \
   --glob '!native-paths'; then
   fail "native gaming owner still calls a compatibility helper"
 fi
-if rg -n 'omarchy-(install|remove)-gaming-(retroarch|xbox-controllers)|omarchy-toggle-hybrid-gpu' \
+if rg -n 'omarchy-(install|remove)-gaming-|omarchy-toggle-hybrid-gpu' \
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
+  "$root/bin/omarchy-menu" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces still call gaming compatibility routes"
 fi

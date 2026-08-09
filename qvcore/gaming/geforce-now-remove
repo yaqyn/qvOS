@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+app_id="com.nvidia.geforcenow"
+
+(($# == 0)) || {
+  echo "Usage: qv remove gaming geforce now" >&2
+  exit 2
+}
+if qv-cmd-present flatpak && flatpak info "$app_id" >/dev/null 2>&1; then
+  flatpak uninstall -y "$app_id"
+  echo "GeForce NOW was removed. Its user data was preserved."
+else
+  echo "GeForce NOW is not installed."
+fi

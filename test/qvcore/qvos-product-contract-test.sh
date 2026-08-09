@@ -366,7 +366,7 @@ remove_gaming_override=$(
   sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qvcore/menu/extension.sh"
 )
 grep -Fqx \
-  'steam|package|steam|tui|true|tui|true|omarchy-install-gaming-steam|qvcore/menu/steam-remove' \
+  'steam|package|steam|tui|true|tui|true|qv-install-gaming-steam|qvcore/gaming/steam-remove' \
   "$root/qvcore/menu/software-actions.psv" ||
   fail "Steam lifecycle bypasses its safe removal owner"
 grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||

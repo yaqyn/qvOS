@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/packages/add
+# qvos:contract=bin/qv-hw-nvidia-gsp
+# qvos:contract=bin/qv-hw-nvidia-without-gsp
+
+usage() {
+  echo "Usage: qv install gaming gpu lib32 | qvcore/gaming/gpu-lib32 --list" >&2
+  exit 2
+}
+
+case $# in
+0) list_only=false ;;
+1)
+  [[ $1 == "--list" ]] || usage
+  list_only=true
+  ;;
+*) usage ;;
+esac
+
+packages=()
+pci_inventory=""
+if qv-cmd-present lspci; then
+  pci_inventory=$(lspci 2>/dev/null || true)
+fi
+if grep -Eqi -- '(VGA|3D|Display).*(Intel)' <<<"$pci_inventory"; then
+  packages+=(lib32-vulkan-intel)
+fi
+if grep -Eqi -- \
+  '(VGA|3D|Display).*(\[AMD/ATI\]|Advanced Micro Devices|AMD Radeon|ATI Technologies)' \
+  <<<"$pci_inventory"; then
+  packages+=(lib32-vulkan-radeon)
+fi
+if qv-hw-nvidia-gsp; then
+  packages+=(lib32-nvidia-utils)
+elif qv-hw-nvidia-without-gsp; then
+  packages+=(lib32-nvidia-580xx-utils)
+fi
+
+declare -A seen=()
+unique_packages=()
+for package in "${packages[@]}"; do
+  [[ -z ${seen[$package]:-} ]] || continue
+  seen["$package"]=1
+  unique_packages+=("$package")
+done
+
+if [[ $list_only == "true" ]]; then
+  ((${#unique_packages[@]} == 0)) || printf '%s\n' "${unique_packages[@]}"
+  exit
+fi
+
+if ((${#unique_packages[@]} == 0)); then
+  echo "No additional lib32 graphics driver is required for detected hardware."
+  exit
+fi
+
+echo "Installing lib32 graphics drivers for detected hardware..."
+qv-pkg-add "${unique_packages[@]}"

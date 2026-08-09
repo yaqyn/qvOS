@@ -128,7 +128,7 @@ zoxide
 # Gaming-ready runtime.
 # Reviewed from Linutil core/tabs/system-setup/gaming-setup.sh at
 # commit 104b2ad73595 (2026-07-28). Hardware-specific Vulkan drivers
-# remain owned by the optional Steam installer.
+# remain owned by optional gaming-app installers.
 dbus
 git
 gnutls

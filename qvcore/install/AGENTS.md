@@ -145,7 +145,8 @@ changes deliberately.
   domain owner; base packages may provide only shared prerequisites such as
   `mise`.
 - Preserve the reviewed gaming-ready runtime in the marked base section.
-  Steam and hardware-specific graphics drivers remain optional owners.
+  Gaming applications and hardware-specific graphics drivers remain optional
+  owners under `qvcore/gaming/`.
 - Treat upstream package changes as capability-review input. Adopt a package
   only with a named qvOS capability and one lifecycle owner.
 - Before removing a package, trace command/config/service consumers, reverse

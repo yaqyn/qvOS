@@ -25,8 +25,8 @@ font_install_source="$menu_source_dir/font-install"
 font_install_runtime="$menu_runtime_dir/font-install"
 terminal_action_source="$menu_source_dir/terminal-action"
 terminal_action_runtime="$menu_runtime_dir/terminal-action"
-steam_remove_source="$menu_source_dir/steam-remove"
-steam_remove_runtime="$menu_runtime_dir/steam-remove"
+retired_steam_remove_runtime="$menu_runtime_dir/steam-remove"
+retired_steam_remove_hash="4435fcd69490cc49fe4079391157fe2d7347b20c9b3357d7e1ab512df091a407"
 task_catalog_source="$OMARCHY_PATH/qvcore/tui/task/actions.psv"
 task_launch_source="$OMARCHY_PATH/qvcore/tui/task/launch"
 task_run_source="$OMARCHY_PATH/qvcore/tui/task/run"
@@ -84,7 +84,6 @@ require_sources() {
     "$software_state_source"
     "$font_install_source"
     "$terminal_action_source"
-    "$steam_remove_source"
     "$task_catalog_source"
     "$task_launch_source"
     "$task_run_source"
@@ -144,10 +143,6 @@ require_sources() {
   }
   [[ -x $terminal_action_source ]] || {
     echo "qvOS terminal lifecycle owner is not executable: $terminal_action_source" >&2
-    return 1
-  }
-  [[ -x $steam_remove_source ]] || {
-    echo "qvOS Steam removal owner is not executable: $steam_remove_source" >&2
     return 1
   }
   [[ -x $task_launch_source && -x $task_run_source && -x $task_selectable_owner ]] || {
@@ -220,7 +215,7 @@ install_menu_runtime() {
 
   install -D -m 0755 "$font_install_source" "$font_install_runtime"
   install -D -m 0755 "$terminal_action_source" "$terminal_action_runtime"
-  install -D -m 0755 "$steam_remove_source" "$steam_remove_runtime"
+  retire_steam_remove_runtime
   install -D -m 0644 "$concept_source" "$concept_runtime"
   install -D -m 0644 "$software_installers_source" "$software_installers_runtime"
   install -D -m 0644 "$search_intents_source" "$search_intents_runtime"
@@ -234,6 +229,23 @@ install_menu_runtime() {
   ) && [[ $manager_home == "$HOME" ]]; then
     systemctl --user daemon-reload
   fi
+}
+
+retire_steam_remove_runtime() {
+  local installed_hash
+
+  [[ ! -e $retired_steam_remove_runtime && ! -L $retired_steam_remove_runtime ]] && return
+  if [[ ! -f $retired_steam_remove_runtime || -L $retired_steam_remove_runtime ||
+    ! -O $retired_steam_remove_runtime ]]; then
+    echo "Refusing an unsafe retired Steam runtime owner: $retired_steam_remove_runtime" >&2
+    return 1
+  fi
+  read -r installed_hash _ < <(sha256sum -- "$retired_steam_remove_runtime")
+  [[ $installed_hash == "$retired_steam_remove_hash" ]] || {
+    echo "Refusing a modified retired Steam runtime owner: $retired_steam_remove_runtime" >&2
+    return 1
+  }
+  unlink -- "$retired_steam_remove_runtime"
 }
 
 ensure_walker_config() {
@@ -437,8 +449,7 @@ menu_runtime_ready() {
     [[ -x $font_install_runtime ]] &&
     cmp -s "$terminal_action_source" "$terminal_action_runtime" &&
     [[ -x $terminal_action_runtime ]] &&
-    cmp -s "$steam_remove_source" "$steam_remove_runtime" &&
-    [[ -x $steam_remove_runtime ]] &&
+    [[ ! -e $retired_steam_remove_runtime && ! -L $retired_steam_remove_runtime ]] &&
     cmp -s "$concept_source" "$concept_runtime" &&
     cmp -s "$software_installers_source" "$software_installers_runtime" &&
     cmp -s "$search_intents_source" "$search_intents_runtime" &&

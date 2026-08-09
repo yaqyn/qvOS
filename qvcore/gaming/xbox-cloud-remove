@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=bin/qv-webapp-remove
+(($# == 0)) || {
+  echo "Usage: qv remove gaming xbox cloud" >&2
+  exit 2
+}
+
+qv-webapp-remove "Xbox Cloud Gaming"

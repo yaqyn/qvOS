@@ -4,6 +4,29 @@ Read this file completely when changing qvOS gaming packages, controller
 drivers, RetroArch configuration, gaming install/removal owners, or their TUI
 lifecycle.
 
+- `qvcore/gaming/apps.psv` is the singular package boundary for Heroic, Lutris,
+  Minecraft, Moonlight, and Steam. `qvcore/gaming/app` installs or removes only
+  those declared packages. Captured installs never launch an application, and
+  normal removal always preserves configuration, credentials, caches, saves,
+  and game libraries. Steam's separately scoped TUI owner may delete only its
+  four exact local data directories after preflighting them as owned real
+  directories; the default scope preserves them.
+- `qvcore/gaming/gpu-lib32` is the singular optional 32-bit graphics-driver
+  selector. App installs combine its detected packages with the app in one
+  qvOS package transaction. Keep hardware inspection read-only and fixture it;
+  never install or remove gaming packages during source verification.
+- Xbox Cloud Gaming remains a user-invoked optional Web App owner. It delegates
+  to the native Web App lifecycle, uses no downloaded icon, and never launches
+  automatically. Fresh install and application refresh must keep the bundled
+  Web App inventory empty. Optional installers are not preinstalled apps.
+- GeForce NOW remains an interactive opt-in vendor installer. Require explicit
+  confirmation before package/download execution, HTTPS-only curl policy, a
+  private temporary directory with cleanup, regular-file ownership and size
+  validation, and a verified Flatpak result. Do not claim a vendor checksum,
+  auto-launch a browser, or delete its user data during normal removal.
+- qvOS base owns Wine and the shared gaming runtime. The Lutris owner installs
+  only Lutris plus detected graphics support; never install a conflicting Wine
+  variant, duplicate base dependencies, or modify package-managed executables.
 - `qvcore/gaming/retroarch.packages` is the singular RetroArch package inventory.
   Both owners resolve it through `qvcore/gaming/retroarch-packages`; never duplicate
   package lists. Normal uninstall removes packages only and preserves config,
@@ -35,7 +58,8 @@ copies. Never execute a user-writable checkout from system sleep or systemd.
 Use fixture roots for all mutations; source verification must never install the
 package, change the live GPU, enable `supergfxd`, or reboot.
 
-Run `qvcore/gaming/check`, Bash syntax, ShellCheck, focused gaming/software/TUI
-tests, `qvcore/tui/owner-contracts --check`, and the full qvOS suite. Use
-fixtures for package, module, GPU-policy, and data-lifecycle checks; do not
-mutate live drivers or install/remove gaming packages for source verification.
+Run `qvcore/gaming/check`, Bash syntax, ShellCheck, focused gaming, Web App,
+software, and TUI tests, `qvcore/tui/owner-contracts --check`, and the full qvOS
+suite. Use fixtures for packages, downloads, Web Apps, modules, GPU policy, and
+data lifecycles; do not download vendor installers, mutate live drivers, or
+install/remove gaming packages for source verification.

@@ -36,6 +36,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   selector seam: route them only through `qv-webapp-install`, the shared
   searchable selector, and `qv-webapp-remove`. Inventory and mutation remain
   singularly owned by `qvcore/desktop/webapp`.
+- Optional fixed Web App installers may delegate to that same native lifecycle,
+  but fresh qvOS and application refresh keep the bundled Web App inventory
+  empty. An installer row is not authorization to pre-create its desktop entry.
 - Do not expose a generic TUI-shortcut installer. The qvOS TUI is the product
   interface, not an arbitrary-command desktop-wrapper lifecycle; terminal tools
   remain accessible through their ordinary CLI or dedicated owner.

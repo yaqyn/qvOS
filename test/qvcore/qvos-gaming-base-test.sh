@@ -65,4 +65,4 @@ if grep -Eq '^(steam|lib32-jack2|lib32-gst-plugins-base-libs|lib32-vulkan-(intel
   <<<"$actual_gaming_packages"; then
   fail "gaming base crosses the Steam or hardware-specific ownership boundary"
 fi
-pass "Steam and hardware-specific GPU drivers remain optional"
+pass "gaming applications and hardware-specific GPU drivers remain optional"

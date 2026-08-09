@@ -1,6 +1,20 @@
 # Inherited gaming paths promoted to native qvOS ownership.
+bin/omarchy-install-gaming-geforce-now
+bin/omarchy-install-gaming-gpu-lib32
+bin/omarchy-install-gaming-heroic
+bin/omarchy-install-gaming-lutris
+bin/omarchy-install-gaming-moonlight
 bin/omarchy-install-gaming-retroarch
+bin/omarchy-install-gaming-steam
+bin/omarchy-install-gaming-xbox-cloud
 bin/omarchy-install-gaming-xbox-controllers
+bin/omarchy-remove-gaming-geforce-now
+bin/omarchy-remove-gaming-heroic
+bin/omarchy-remove-gaming-lutris
+bin/omarchy-remove-gaming-minecraft
+bin/omarchy-remove-gaming-moonlight
 bin/omarchy-remove-gaming-retroarch
+bin/omarchy-remove-gaming-steam
+bin/omarchy-remove-gaming-xbox-cloud
 bin/omarchy-remove-gaming-xbox-controllers
 bin/omarchy-toggle-hybrid-gpu

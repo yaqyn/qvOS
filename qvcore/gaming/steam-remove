@@ -1,0 +1,73 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/gaming/app
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+keep_choice="Keep Game Libraries"
+remove_choice="Remove Local Game Libraries"
+
+usage() {
+  echo "Usage: qvcore/gaming/steam-remove --list | -- <removal-scope>" >&2
+  exit 2
+}
+
+preflight_data_paths() {
+  local canonical_path
+  local home_root
+  local path
+
+  home_root=$(realpath -e -- "$HOME") || {
+    echo "Steam removal could not resolve the home directory safely." >&2
+    return 1
+  }
+  for path in "$@"; do
+    [[ ! -e $path && ! -L $path ]] && continue
+    if [[ -L $path || ! -d $path || ! -O $path ]]; then
+      echo "Refusing unsafe or foreign Steam data path: $path" >&2
+      return 1
+    fi
+    canonical_path=$(realpath -e -- "$path") || {
+      echo "Refusing unresolved Steam data path: $path" >&2
+      return 1
+    }
+    [[ $canonical_path == "$home_root/"* ]] || {
+      echo "Refusing Steam data outside the physical home directory: $path" >&2
+      return 1
+    }
+  done
+}
+
+case ${1:-} in
+--list)
+  (($# == 1)) || usage
+  printf '%s\n' "$keep_choice" "$remove_choice"
+  ;;
+--)
+  (($# == 2)) || usage
+  case $2 in
+  "$keep_choice")
+    "$QVOS_PATH/qvcore/gaming/app" remove steam
+    ;;
+  "$remove_choice")
+    data_paths=(
+      "$HOME/.steam"
+      "$HOME/.local/share/Steam"
+      "$HOME/.config/steam"
+      "$HOME/.cache/steam"
+    )
+    preflight_data_paths "${data_paths[@]}" || exit 1
+    "$QVOS_PATH/qvcore/gaming/app" remove steam
+    for path in "${data_paths[@]}"; do
+      preflight_data_paths "$path" || exit 1
+      [[ ! -d $path || -L $path ]] || rm -rf -- "$path"
+    done
+    echo "Steam's local libraries, settings, and caches were removed."
+    ;;
+  *)
+    echo "Unknown Steam removal scope: $2" >&2
+    exit 2
+    ;;
+  esac
+  ;;
+*) usage ;;
+esac

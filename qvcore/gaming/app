@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/gaming/apps.psv
+# qvos:contract=qvcore/gaming/gpu-lib32
+# qvos:contract=qvcore/packages/add
+# qvos:contract=qvcore/packages/drop
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+manifest="$QVOS_PATH/qvcore/gaming/apps.psv"
+
+usage() {
+  echo "Usage: qvcore/gaming/app <install|remove> <app>" >&2
+  exit 2
+}
+
+(($# == 2)) || usage
+operation=$1
+slug=$2
+[[ $operation == "install" || $operation == "remove" ]] || usage
+[[ $slug =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || usage
+
+record=$(awk -F '|' -v slug="$slug" '
+  $0 !~ /^#/ && NF {
+    if (NF != 4 || $1 !~ /^[a-z0-9]+(-[a-z0-9]+)*$/ ||
+        $2 == "" || $3 !~ /^[a-z0-9@._+:-]+( [a-z0-9@._+:-]+)*$/ ||
+        $4 !~ /^(true|false)$/) exit 2
+    if ($1 == slug) {
+      if (found) exit 3
+      print
+      found = 1
+    }
+  }
+  END { if (!found) exit 1 }
+' "$manifest") || {
+  echo "Unknown or invalid qvOS gaming app: $slug" >&2
+  exit 2
+}
+IFS='|' read -r _ title package_list graphics <<<"$record"
+read -r -a packages <<<"$package_list"
+
+case $operation in
+install)
+  if [[ $graphics == "true" ]]; then
+    graphics_output=$("$QVOS_PATH/qvcore/gaming/gpu-lib32" --list)
+    if [[ -n $graphics_output ]]; then
+      mapfile -t graphics_packages <<<"$graphics_output"
+      packages+=("${graphics_packages[@]}")
+    fi
+  fi
+  printf 'Installing %s...\n' "$title"
+  qv-pkg-add "${packages[@]}"
+  printf '\n%s is installed. Open it from qvOS Apps when ready.\n' "$title"
+  ;;
+remove)
+  qv-pkg-drop "${packages[@]}"
+  printf '\n%s was removed. User data, settings, and game libraries were preserved.\n' \
+    "$title"
+  ;;
+esac

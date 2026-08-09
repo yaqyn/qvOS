@@ -1,0 +1,6 @@
+# slug|title|packages|lib32 graphics
+heroic|Heroic Games Launcher|heroic-games-launcher-bin|true
+lutris|Lutris|lutris|true
+minecraft|Minecraft Launcher|minecraft-launcher|false
+moonlight|Moonlight|moonlight-qt|false
+steam|Steam|steam|true

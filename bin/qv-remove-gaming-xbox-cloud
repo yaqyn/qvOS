@@ -1,4 +1,6 @@
 #!/bin/bash
 
+# qv:summary=Remove the optional Xbox Cloud Gaming Web App
+
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 exec "$QVOS_PATH/qvcore/gaming/xbox-cloud-remove" "$@"

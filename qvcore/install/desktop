@@ -81,7 +81,6 @@
     qvcore/menu/software-installer-state
     qvcore/menu/software-installers.psv
     qvcore/menu/software-state
-    qvcore/menu/steam-remove
     qvcore/menu/terminal-action
     qvcore/menu/wait-for-elephant
     qvcore/menu/walker-elephant-ready.conf
