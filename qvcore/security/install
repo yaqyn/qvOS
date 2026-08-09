@@ -1,10 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-source_file="$OMARCHY_PATH/qvcore/security/60-qvos-security.conf"
-dev_share_helper_source="$OMARCHY_PATH/qvcore/security/dev-share-firewall"
-retire_passwordless_source="$OMARCHY_PATH/qvcore/security/retire-passwordless-sudo"
-auth_policy_source="$OMARCHY_PATH/qvcore/security/auth-policy"
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_file="$QVOS_PATH/qvcore/security/60-qvos-security.conf"
+dev_share_helper_source="$QVOS_PATH/qvcore/security/dev-share-firewall"
+retire_passwordless_source="$QVOS_PATH/qvcore/security/retire-passwordless-sudo"
+auth_policy_source="$QVOS_PATH/qvcore/security/auth-policy"
 system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
 target_file="$system_root/etc/sysctl.d/60-qvos-security.conf"
 pacman_config="$system_root/etc/pacman.conf"
@@ -99,7 +100,7 @@ if [[ ! -f $pacman_config ]]; then
   echo "Missing pacman configuration: $pacman_config" >&2
   exit 1
 fi
-"$OMARCHY_PATH/qvcore/security/boot-mount" --check
+"$QVOS_PATH/qvcore/security/boot-mount" --check
 
 read -r \
   omarchy_sections \
@@ -253,7 +254,7 @@ if [[ -d $system_install_tree ]]; then
   fi
 fi
 
-"$OMARCHY_PATH/qvcore/security/boot-mount"
+"$QVOS_PATH/qvcore/security/boot-mount"
 
 if [[ -z $system_root ]]; then
   if ((docker_changed)) &&

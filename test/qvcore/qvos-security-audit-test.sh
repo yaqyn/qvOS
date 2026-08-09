@@ -35,6 +35,9 @@ fail() {
   -x $retire_passwordless && -x $auth_owner && -x $auth_policy &&
   -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
+if rg -n 'OMARCHY_PATH' "$root/qvcore/security" --glob '!AGENTS.md'; then
+  fail "native security owner accepts the compatibility source root"
+fi
 grep -Fq 'qvcore/security/AGENTS.md' "$root/AGENTS.md" \
   || fail "root security workflow route"
 grep -Fq 'The Lynis hardening index is evidence, not a target.' \
@@ -114,12 +117,17 @@ retire_root="$test_root/retire-root"
 retire_sudoers="$retire_root/etc/sudoers.d"
 install -d "$retire_sudoers"
 legacy_rule="$retire_sudoers/99-omarchy-nopasswd-fixture"
+legacy_timezone_rule="$retire_sudoers/omarchy-tzupdate"
 printf 'fixture ALL=(ALL) NOPASSWD: ALL\n' >"$legacy_rule"
-chmod 0440 "$legacy_rule"
+printf '%s\n' \
+  '%wheel ALL=(root) NOPASSWD: /usr/bin/tzupdate, /usr/bin/timedatectl' \
+  >"$legacy_timezone_rule"
+chmod 0440 "$legacy_rule" "$legacy_timezone_rule"
 QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$retire_root" \
   "$retire_passwordless"
-[[ ! -e $legacy_rule && ! -L $legacy_rule ]] ||
+[[ ! -e $legacy_rule && ! -L $legacy_rule &&
+  ! -e $legacy_timezone_rule && ! -L $legacy_timezone_rule ]] ||
   fail "exact legacy passwordless sudo rule was not retired"
 
 printf 'fixture ALL=(ALL) NOPASSWD: /usr/bin/true\n' >"$legacy_rule"
@@ -132,6 +140,18 @@ fi
 [[ -f $legacy_rule ]] ||
   fail "modified legacy passwordless sudo rule was removed"
 rm -f -- "$legacy_rule"
+
+printf 'fixture ALL=(ALL) NOPASSWD: ALL\n' >"$legacy_rule"
+printf 'custom timezone privilege\n' >"$legacy_timezone_rule"
+chmod 0440 "$legacy_rule" "$legacy_timezone_rule"
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$retire_root" \
+  "$retire_passwordless" >/dev/null 2>&1; then
+  fail "modified legacy timezone rule was accepted"
+fi
+[[ -f $legacy_rule && -f $legacy_timezone_rule ]] ||
+  fail "passwordless retirement mutated before complete preflight"
+rm -f -- "$legacy_rule" "$legacy_timezone_rule"
 
 unsafe_sudoers="$test_root/unsafe-sudoers"
 mv "$retire_sudoers" "$unsafe_sudoers"
@@ -425,7 +445,7 @@ offline_output=$(
   OMARCHY_CHROOT_INSTALL=1 \
     QVOS_SECURITY_TESTING=1 \
     QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
-    OMARCHY_PATH="$root" \
+    QVOS_PATH="$root" \
     "$installer"
 )
 grep -Fq 'Deferring qvOS security until the final Pacman configuration' \
@@ -439,7 +459,7 @@ cmp -s "$test_root/offline-pacman-original.conf" \
 
 if QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer" >/dev/null 2>&1; then
   fail "offline Pacman policy accepted outside the ISO chroot"
 fi
@@ -449,7 +469,7 @@ printf 'Server = file:///tmp/untrusted/\n' \
 if OMARCHY_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer" >/dev/null 2>&1; then
   fail "ambiguous ISO offline mirror accepted"
 fi
@@ -467,7 +487,7 @@ cp "$root/qvcore/packages/provider/omarchy/pacman-rc.conf" \
 OMARCHY_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer"
 [[ $(awk '
   /^\[omarchy\]$/ { in_omarchy = 1; next }
@@ -489,7 +509,7 @@ Server = https://pkgs.omarchy.org/stable/$arch
 PACMAN
 if QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$ambiguous_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer" >/dev/null 2>&1; then
   fail "ambiguous Omarchy repository policy accepted"
 fi
@@ -557,7 +577,7 @@ chmod 0440 "$security_legacy_rule"
 security_pacman_before=$(sha256sum "$security_system_root/etc/pacman.conf")
 if QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer" >/dev/null 2>&1; then
   fail "security install accepted a modified legacy passwordless rule"
 fi
@@ -573,7 +593,7 @@ printf 'fixture ALL=(ALL) NOPASSWD: ALL\n' >"$security_legacy_rule"
 chmod 0440 "$security_legacy_rule"
 QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer"
 [[ ! -e $security_legacy_rule && ! -L $security_legacy_rule ]] ||
   fail "security install did not retire the exact legacy passwordless rule"
@@ -592,7 +612,7 @@ managed_security_files=(
 security_state_before=$(stat -c '%n|%u:%g:%a|%i|%y' "${managed_security_files[@]}")
 QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   "$installer"
 [[ $(stat -c '%n|%u:%g:%a|%i|%y' "${managed_security_files[@]}") == \
   "$security_state_before" ]] ||

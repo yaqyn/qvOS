@@ -1,0 +1,249 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+system_root=${QVOS_INSTALL_SYSTEM_ROOT:-}
+testing=${QVOS_INSTALL_SYSTEM_TESTING:-}
+sysctl_command=${QVOS_INSTALL_SYSCTL:-/usr/bin/sysctl}
+expected_uid=0
+expected_gid=0
+installed_created=false
+active_staging=
+
+fail() {
+  printf 'qvOS system tuning: %s\n' "$1" >&2
+  exit 1
+}
+
+usage() {
+  echo "Usage: qvcore/install/system-tuning <all|nofile|file-watchers>" >&2
+  exit 2
+}
+
+case ${1:-} in
+all | nofile | file-watchers) operation=$1 ;;
+*) usage ;;
+esac
+(( $# == 1 )) || usage
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+if [[ $sysctl_command != "/usr/bin/sysctl" ]]; then
+  [[ $testing == "1" && $sysctl_command == /tmp/* &&
+    -f $sysctl_command && -x $sysctl_command && ! -L $sysctl_command ]] ||
+    fail "the sysctl override is unavailable or unsafe"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+cleanup_staging() {
+  [[ -z $active_staging ]] || as_root /usr/bin/rm -f -- "$active_staging" || true
+}
+trap cleanup_staging EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+root_exists() {
+  local path=$1
+
+  as_root /usr/bin/test -e "$path" || as_root /usr/bin/test -L "$path"
+}
+
+directory_is_safe() {
+  local path=$1
+  local mode
+
+  as_root /usr/bin/test -d "$path" || return 1
+  as_root /usr/bin/test ! -L "$path" || return 1
+  [[ $(as_root /usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(as_root /usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_directory() {
+  local path=$1
+  local parent
+
+  if root_exists "$path"; then
+    directory_is_safe "$path" ||
+      fail "unsafe managed directory: $path"
+    return
+  fi
+  parent=${path%/*}
+  [[ -n $parent ]] || parent=/
+  ensure_directory "$parent"
+  as_root /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" \
+    -m 0755 -- "$path"
+}
+
+source_is_safe() {
+  local source=$1
+
+  [[ -f $source && ! -L $source ]]
+}
+
+file_matches() {
+  local source=$1
+  local target=$2
+  local mode=$3
+
+  as_root /usr/bin/test -f "$target" || return 1
+  as_root /usr/bin/test ! -L "$target" || return 1
+  [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$target") == \
+    "$expected_uid:$expected_gid:${mode#0}" ]] || return 1
+  as_root /usr/bin/cmp -s -- "$source" "$target"
+}
+
+legacy_is_safe_or_absent() {
+  local source=$1
+  local legacy=$2
+  local mode=$3
+
+  root_exists "$legacy" || return 0
+  if file_matches "$source" "$legacy" "$mode"; then
+    return 0
+  fi
+  printf 'Preserving modified or unsafe legacy system tuning: %s\n' \
+    "$legacy" >&2
+  return 1
+}
+
+install_managed() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local parent=${target%/*}
+  local basename=${target##*/}
+  local staging=
+
+  installed_created=false
+  source_is_safe "$source" || fail "unsafe managed source: $source"
+  if root_exists "$target"; then
+    if ! file_matches "$source" "$target" "$mode"; then
+      printf 'Refusing modified or unsafe qvOS system tuning: %s\n' \
+        "$target" >&2
+      return 1
+    fi
+    return
+  fi
+
+  ensure_directory "$parent"
+  staging=$(as_root /usr/bin/mktemp --tmpdir="$parent" \
+    ".${basename}.qvos.XXXXXX") || {
+    printf 'Could not stage qvOS system tuning: %s\n' "$target" >&2
+    return 1
+  }
+  active_staging=$staging
+  if ! as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" \
+    -m "$mode" -- "$source" "$staging" ||
+    ! as_root /usr/bin/mv -f -- "$staging" "$target"; then
+    as_root /usr/bin/rm -f -- "$staging" || true
+    active_staging=
+    printf 'Could not install qvOS system tuning: %s\n' "$target" >&2
+    return 1
+  fi
+  active_staging=
+  installed_created=true
+}
+
+remove_created() {
+  local source=$1
+  local target=$2
+  local mode=$3
+
+  file_matches "$source" "$target" "$mode" || return 0
+  as_root /usr/bin/rm -f -- "$target"
+}
+
+retire_legacy() {
+  local source=$1
+  local legacy=$2
+  local mode=$3
+
+  root_exists "$legacy" || return 0
+  file_matches "$source" "$legacy" "$mode" || return 0
+  as_root /usr/bin/rm -f -- "$legacy"
+}
+
+install_nofile() {
+  local source="$QVOS_PATH/qvcore/install/system/nofile.conf"
+  local system_target="$system_root/etc/systemd/system.conf.d/99-qvos-nofile.conf"
+  local user_target="$system_root/etc/systemd/user.conf.d/99-qvos-nofile.conf"
+  local legacy_system="$system_root/etc/systemd/system.conf.d/99-omarchy-nofile.conf"
+  local legacy_user="$system_root/etc/systemd/user.conf.d/99-omarchy-nofile.conf"
+  local system_created=false
+  local user_created=false
+
+  legacy_is_safe_or_absent "$source" "$legacy_system" 0644 || return 0
+  legacy_is_safe_or_absent "$source" "$legacy_user" 0644 || return 0
+
+  ensure_directory "${system_target%/*}"
+  ensure_directory "${user_target%/*}"
+  install_managed "$source" "$system_target" 0644 ||
+    fail "could not install the native system NOFILE policy"
+  system_created=$installed_created
+  if ! install_managed "$source" "$user_target" 0644; then
+    [[ $system_created == "false" ]] ||
+      remove_created "$source" "$system_target" 0644
+    fail "could not install the native user NOFILE policy"
+  fi
+  user_created=$installed_created
+  if ! file_matches "$source" "$system_target" 0644 ||
+    ! file_matches "$source" "$user_target" 0644; then
+    [[ $user_created == "false" ]] || remove_created "$source" "$user_target" 0644
+    [[ $system_created == "false" ]] || remove_created "$source" "$system_target" 0644
+    return 1
+  fi
+
+  retire_legacy "$source" "$legacy_system" 0644
+  retire_legacy "$source" "$legacy_user" 0644
+}
+
+install_file_watchers() {
+  local source="$QVOS_PATH/qvcore/install/system/file-watchers.conf"
+  local target="$system_root/etc/sysctl.d/90-qvos-file-watchers.conf"
+  local legacy="$system_root/etc/sysctl.d/90-omarchy-file-watchers.conf"
+  local target_created=false
+
+  legacy_is_safe_or_absent "$source" "$legacy" 0644 || return 0
+  ensure_directory "${target%/*}"
+  install_managed "$source" "$target" 0644 ||
+    fail "could not install the native file-watcher policy"
+  target_created=$installed_created
+  if ! as_root "$sysctl_command" -q -p "$target"; then
+    [[ $target_created == "false" ]] || remove_created "$source" "$target" 0644
+    fail "could not apply the native file-watcher policy"
+  fi
+  retire_legacy "$source" "$legacy" 0644
+}
+
+case $operation in
+all)
+  install_nofile
+  install_file_watchers
+  ;;
+nofile) install_nofile ;;
+file-watchers) install_file_watchers ;;
+esac

@@ -88,6 +88,14 @@ grep -Fqx '"$QVOS_PATH/qvcore/config/assistant/install"' \
 grep -Fqx '"$QVOS_PATH/qvcore/boot/migrate-identity"' \
   "$root/qvcore/migrations/1786276491.sh" ||
   fail "native boot-identity migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/install/system-tuning" all' \
+  "$root/qvcore/migrations/1786280697.sh" ||
+  fail "native system-tuning migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/security/install"' \
+  "$root/qvcore/migrations/1786280698.sh" ||
+  fail "passwordless timezone retirement migration"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

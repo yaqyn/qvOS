@@ -57,9 +57,12 @@ automatically expiring.
 
 qvOS does not expose broad passwordless sudo. The inherited timed toggle was
 unsafe across reboot because its `/etc/sudoers.d` rule outlived its transient
-timer. `retire-passwordless-sudo` removes only its exact root-owned legacy rule
-and refuses modified lookalikes; package workflows use their scoped native
-credential refresh helper instead.
+timer. The inherited wheel-wide timezone rule was also unnecessary because the
+native timezone flow already requests sudo normally. `retire-passwordless-sudo`
+preflights every candidate, removes only exact root-owned legacy rules as one
+bounded transaction, and refuses modified lookalikes; package workflows use
+their scoped native credential refresh helper instead. Native security owners
+resolve source only through `QVOS_PATH`.
 The inherited `sudo-reset` route is also retired: it interpolated account state
 into a root shell command and depended on a separately usable root password.
 Authentication lockout recovery belongs to an explicit recovery environment,

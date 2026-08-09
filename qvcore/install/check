@@ -19,7 +19,8 @@ for owner in \
   reinstall-configs \
   reinstall-packages \
   reinstall-source \
-  retire-inherited-system-policy; do
+  retire-inherited-system-policy \
+  system-tuning; do
   [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
 done
 
@@ -150,6 +151,19 @@ fi
 for retired_leaf in gpg.sh fast-shutdown.sh unmount-fuse.sh; do
   [[ ! -e $root/qvcore/install/config/$retired_leaf ]] ||
     fail "retired installer policy leaf remains: $retired_leaf"
+done
+[[ ! -e $root/qvcore/install/config/timezones.sh ]] ||
+  fail "retired passwordless timezone policy owner remains"
+if rg -n '99-omarchy-nofile|90-omarchy-file-watchers|omarchy-tzupdate' \
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check' \
+  --glob '!system-tuning'; then
+  fail "fresh install creates a retired system-policy identity"
+fi
+for tuning_source in \
+  qvcore/install/system/nofile.conf \
+  qvcore/install/system/file-watchers.conf; do
+  [[ -f $root/$tuning_source && ! -L $root/$tuning_source ]] ||
+    fail "native system-tuning source: $tuning_source"
 done
 [[ ! -e $root/qvcore/install/config/hardware/apple/fix-t2.sh ]] ||
   fail "retired unsigned T2 configuration owner remains"

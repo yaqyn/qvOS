@@ -73,6 +73,13 @@ helpers, and never select a source through inherited environment. Never restore
 the retired top-level `install/` tree or route an install lifecycle through the
 source-root compatibility link.
 
+`qvcore/install/system-tuning` singularly owns the NOFILE and inotify defaults
+under native `qvos` filenames. It installs tracked sources atomically, applies
+only the owned sysctl file, and retires exact legacy files only after native
+readback. Preserve modified or unsafe legacy policy without creating a
+conflicting native override. Fresh install never grants wheel-wide passwordless
+timezone commands; the security owner retires that exact predecessor.
+
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,
 `QVOS_ONLINE_INSTALL`, `/var/tmp/qvos-install-completed`, and the exact
