@@ -556,6 +556,9 @@ grep -Fq -- '--title=qvOS' "$root/qvcore/presentation/run" ||
 grep -Fq 'Description=qvOS Battery Monitor Check' "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" || fail "qvOS battery service label"
 grep -Fq 'Description=qvOS Battery Monitor Timer' "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.timer" || fail "qvOS battery timer label"
 grep -Fq 'too small for qvOS layout' "$root/qvcore/tui/iso_config.go" || fail "qvOS installer layout error"
+if rg -n '\bomarchy[A-Z]' "$root/qvcore/tui/iso_config.go"; then
+  fail "qvOS installer retains an inherited private schema identity"
+fi
 [[ ! -e $root/qvcore/tui/bin/qvos-apply ]] ||
   fail "unsupported qvOS apply action"
 if rg -q '"APPLY"|qvos-apply|QVOS_INSTALL_SCRIPT' "$root/qvcore/tui"; then

@@ -50,19 +50,19 @@ func (cfg isoInstallerConfig) normalized() isoInstallerConfig {
 	return cfg
 }
 
-func writeOmarchyInstallerFiles(dir string, cfg isoInstallerConfig) error {
+func writeISOInstallerFiles(dir string, cfg isoInstallerConfig) error {
 	cfg = cfg.normalized()
 
 	if err := validateISOInstallerConfig(cfg); err != nil {
 		return err
 	}
 
-	credentials, err := buildOmarchyCredentials(cfg)
+	credentials, err := buildISOCredentials(cfg)
 	if err != nil {
 		return err
 	}
 
-	configuration, err := buildOmarchyUserConfiguration(cfg)
+	configuration, err := buildISOUserConfiguration(cfg)
 	if err != nil {
 		return err
 	}
@@ -128,12 +128,12 @@ func validISOHostname(hostname string) bool {
 	return isoHostnamePattern.MatchString(hostname)
 }
 
-func buildOmarchyCredentials(cfg isoInstallerConfig) ([]byte, error) {
+func buildISOCredentials(cfg isoInstallerConfig) ([]byte, error) {
 	cfg = cfg.normalized()
 
-	credentials := omarchyCredentials{
+	credentials := isoCredentials{
 		RootEncPassword: cfg.PasswordHash,
-		Users: []omarchyCredentialUser{
+		Users: []isoCredentialUser{
 			{
 				EncPassword: cfg.PasswordHash,
 				Groups:      []string{},
@@ -149,23 +149,23 @@ func buildOmarchyCredentials(cfg isoInstallerConfig) ([]byte, error) {
 	return marshalInstallerJSON(credentials)
 }
 
-func buildOmarchyUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
+func buildISOUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 	cfg = cfg.normalized()
 
-	layout, err := buildOmarchyDiskLayout(cfg.Disk, cfg.DiskSizeBytes)
+	layout, err := buildISODiskLayout(cfg.Disk, cfg.DiskSizeBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	diskConfig := omarchyDiskConfig{
-		BtrfsOptions: omarchyBtrfsOptions{
-			SnapshotConfig: omarchySnapshotConfig{Type: "Snapper"},
+	diskConfig := isoDiskConfig{
+		BtrfsOptions: isoBtrfsOptions{
+			SnapshotConfig: isoSnapshotConfig{Type: "Snapper"},
 		},
 		ConfigType:          "default_layout",
-		DeviceModifications: []omarchyDeviceModification{layout.DeviceModification},
+		DeviceModifications: []isoDeviceModification{layout.DeviceModification},
 	}
 	if cfg.EncryptInstallation {
-		diskConfig.DiskEncryption = &omarchyDiskEncryption{
+		diskConfig.DiskEncryption = &isoDiskEncryption{
 			EncryptionType:     "luks",
 			LVMVolumes:         []string{},
 			IterTime:           2000,
@@ -174,31 +174,31 @@ func buildOmarchyUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 		}
 	}
 
-	configuration := omarchyUserConfiguration{
+	configuration := isoUserConfiguration{
 		AppConfig:           nil,
 		ArchinstallLanguage: "English",
 		AuthConfig:          map[string]string{},
-		AudioConfig:         omarchyAudioConfig{Audio: "pipewire"},
+		AudioConfig:         isoAudioConfig{Audio: "pipewire"},
 		Bootloader:          "Limine",
 		CustomCommands:      []string{},
 		DiskConfig:          diskConfig,
 		Hostname:            cfg.Hostname,
 		Kernels:             []string{cfg.Kernel},
-		NetworkConfig:       omarchyNetworkConfig{Type: "iso"},
+		NetworkConfig:       isoNetworkConfig{Type: "iso"},
 		NTP:                 true,
 		ParallelDownloads:   8,
 		Script:              nil,
 		Services:            []string{},
 		Swap:                true,
 		Timezone:            cfg.Timezone,
-		LocaleConfig: omarchyLocaleConfig{
+		LocaleConfig: isoLocaleConfig{
 			KeyboardLayout: cfg.Keyboard,
 			SystemEncoding: "UTF-8",
 			SystemLanguage: "en_US.UTF-8",
 		},
-		MirrorConfig: omarchyMirrorConfig{
+		MirrorConfig: isoMirrorConfig{
 			CustomRepositories: []string{},
-			CustomServers: []omarchyMirrorServer{
+			CustomServers: []isoMirrorServer{
 				{URL: "https://mirror.omarchy.org/$repo/os/$arch"},
 				{URL: "https://mirror.rackspace.com/archlinux/$repo/os/$arch"},
 				{URL: "https://geo.mirror.pkgbuild.com/$repo/os/$arch"},
@@ -212,7 +212,7 @@ func buildOmarchyUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 			"omarchy-keyring",
 			"snapper",
 		},
-		ProfileConfig: omarchyProfileConfig{
+		ProfileConfig: isoProfileConfig{
 			GFXDriver: nil,
 			Greeter:   nil,
 			Profile:   map[string]string{},
@@ -223,11 +223,11 @@ func buildOmarchyUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 	return marshalInstallerJSON(configuration)
 }
 
-type omarchyDiskLayout struct {
-	DeviceModification omarchyDeviceModification
+type isoDiskLayout struct {
+	DeviceModification isoDeviceModification
 }
 
-func buildOmarchyDiskLayout(disk string, diskSizeBytes int64) (omarchyDiskLayout, error) {
+func buildISODiskLayout(disk string, diskSizeBytes int64) (isoDiskLayout, error) {
 	const (
 		mib              int64 = 1024 * 1024
 		gib                    = mib * 1024
@@ -240,28 +240,28 @@ func buildOmarchyDiskLayout(disk string, diskSizeBytes int64) (omarchyDiskLayout
 	mainStart := bootStart + bootSize
 	mainSize := diskSizeRounded - mainStart - gptBackupReserve
 	if mainSize <= 0 {
-		return omarchyDiskLayout{}, fmt.Errorf("disk %s is too small for qvOS layout", disk)
+		return isoDiskLayout{}, fmt.Errorf("disk %s is too small for qvOS layout", disk)
 	}
 
-	return omarchyDiskLayout{
-		DeviceModification: omarchyDeviceModification{
+	return isoDiskLayout{
+		DeviceModification: isoDeviceModification{
 			Device: disk,
-			Partitions: []omarchyPartition{
+			Partitions: []isoPartition{
 				{
-					Btrfs:        []omarchyBtrfsSubvolume{},
+					Btrfs:        []isoBtrfsSubvolume{},
 					DevPath:      nil,
 					Flags:        []string{"boot", "esp"},
 					FSType:       "fat32",
 					MountOptions: []string{},
 					Mountpoint:   stringPtr("/boot"),
 					ObjectID:     isoInstallerBootPartitionID,
-					Size:         omarchyPartitionSize{SectorSize: omarchySectorSize{Unit: "B", Value: 512}, Unit: "B", Value: bootSize},
-					Start:        omarchyPartitionSize{SectorSize: omarchySectorSize{Unit: "B", Value: 512}, Unit: "B", Value: bootStart},
+					Size:         isoPartitionSize{SectorSize: isoSectorSize{Unit: "B", Value: 512}, Unit: "B", Value: bootSize},
+					Start:        isoPartitionSize{SectorSize: isoSectorSize{Unit: "B", Value: 512}, Unit: "B", Value: bootStart},
 					Status:       "create",
 					Type:         "primary",
 				},
 				{
-					Btrfs: []omarchyBtrfsSubvolume{
+					Btrfs: []isoBtrfsSubvolume{
 						{Mountpoint: "/", Name: "@"},
 						{Mountpoint: "/home", Name: "@home"},
 						{Mountpoint: "/var/log", Name: "@log"},
@@ -273,8 +273,8 @@ func buildOmarchyDiskLayout(disk string, diskSizeBytes int64) (omarchyDiskLayout
 					MountOptions: []string{"compress=zstd"},
 					Mountpoint:   nil,
 					ObjectID:     isoInstallerMainPartitionID,
-					Size:         omarchyPartitionSize{SectorSize: omarchySectorSize{Unit: "B", Value: 512}, Unit: "B", Value: mainSize},
-					Start:        omarchyPartitionSize{SectorSize: omarchySectorSize{Unit: "B", Value: 512}, Unit: "B", Value: mainStart},
+					Size:         isoPartitionSize{SectorSize: isoSectorSize{Unit: "B", Value: 512}, Unit: "B", Value: mainSize},
+					Start:        isoPartitionSize{SectorSize: isoSectorSize{Unit: "B", Value: 512}, Unit: "B", Value: mainStart},
 					Status:       "create",
 					Type:         "primary",
 				},
@@ -321,126 +321,126 @@ func hashISOInstallerPassword(password []rune) (string, error) {
 	return hash, nil
 }
 
-type omarchyCredentials struct {
-	EncryptionPassword *string                 `json:"encryption_password,omitempty"`
-	RootEncPassword    string                  `json:"root_enc_password"`
-	Users              []omarchyCredentialUser `json:"users"`
+type isoCredentials struct {
+	EncryptionPassword *string             `json:"encryption_password,omitempty"`
+	RootEncPassword    string              `json:"root_enc_password"`
+	Users              []isoCredentialUser `json:"users"`
 }
 
-type omarchyCredentialUser struct {
+type isoCredentialUser struct {
 	EncPassword string   `json:"enc_password"`
 	Groups      []string `json:"groups"`
 	Sudo        bool     `json:"sudo"`
 	Username    string   `json:"username"`
 }
 
-type omarchyUserConfiguration struct {
-	AppConfig           *string              `json:"app_config"`
-	ArchinstallLanguage string               `json:"archinstall-language"`
-	AuthConfig          map[string]string    `json:"auth_config"`
-	AudioConfig         omarchyAudioConfig   `json:"audio_config"`
-	Bootloader          string               `json:"bootloader"`
-	CustomCommands      []string             `json:"custom_commands"`
-	DiskConfig          omarchyDiskConfig    `json:"disk_config"`
-	Hostname            string               `json:"hostname"`
-	Kernels             []string             `json:"kernels"`
-	NetworkConfig       omarchyNetworkConfig `json:"network_config"`
-	NTP                 bool                 `json:"ntp"`
-	ParallelDownloads   int                  `json:"parallel_downloads"`
-	Script              *string              `json:"script"`
-	Services            []string             `json:"services"`
-	Swap                bool                 `json:"swap"`
-	Timezone            string               `json:"timezone"`
-	LocaleConfig        omarchyLocaleConfig  `json:"locale_config"`
-	MirrorConfig        omarchyMirrorConfig  `json:"mirror_config"`
-	Packages            []string             `json:"packages"`
-	ProfileConfig       omarchyProfileConfig `json:"profile_config"`
-	Version             string               `json:"version"`
+type isoUserConfiguration struct {
+	AppConfig           *string           `json:"app_config"`
+	ArchinstallLanguage string            `json:"archinstall-language"`
+	AuthConfig          map[string]string `json:"auth_config"`
+	AudioConfig         isoAudioConfig    `json:"audio_config"`
+	Bootloader          string            `json:"bootloader"`
+	CustomCommands      []string          `json:"custom_commands"`
+	DiskConfig          isoDiskConfig     `json:"disk_config"`
+	Hostname            string            `json:"hostname"`
+	Kernels             []string          `json:"kernels"`
+	NetworkConfig       isoNetworkConfig  `json:"network_config"`
+	NTP                 bool              `json:"ntp"`
+	ParallelDownloads   int               `json:"parallel_downloads"`
+	Script              *string           `json:"script"`
+	Services            []string          `json:"services"`
+	Swap                bool              `json:"swap"`
+	Timezone            string            `json:"timezone"`
+	LocaleConfig        isoLocaleConfig   `json:"locale_config"`
+	MirrorConfig        isoMirrorConfig   `json:"mirror_config"`
+	Packages            []string          `json:"packages"`
+	ProfileConfig       isoProfileConfig  `json:"profile_config"`
+	Version             string            `json:"version"`
 }
 
-type omarchyAudioConfig struct {
+type isoAudioConfig struct {
 	Audio string `json:"audio"`
 }
 
-type omarchyNetworkConfig struct {
+type isoNetworkConfig struct {
 	Type string `json:"type"`
 }
 
-type omarchyLocaleConfig struct {
+type isoLocaleConfig struct {
 	KeyboardLayout string `json:"kb_layout"`
 	SystemEncoding string `json:"sys_enc"`
 	SystemLanguage string `json:"sys_lang"`
 }
 
-type omarchyMirrorConfig struct {
-	CustomRepositories   []string              `json:"custom_repositories"`
-	CustomServers        []omarchyMirrorServer `json:"custom_servers"`
-	MirrorRegions        map[string]string     `json:"mirror_regions"`
-	OptionalRepositories []string              `json:"optional_repositories"`
+type isoMirrorConfig struct {
+	CustomRepositories   []string          `json:"custom_repositories"`
+	CustomServers        []isoMirrorServer `json:"custom_servers"`
+	MirrorRegions        map[string]string `json:"mirror_regions"`
+	OptionalRepositories []string          `json:"optional_repositories"`
 }
 
-type omarchyMirrorServer struct {
+type isoMirrorServer struct {
 	URL string `json:"url"`
 }
 
-type omarchyProfileConfig struct {
+type isoProfileConfig struct {
 	GFXDriver *string           `json:"gfx_driver"`
 	Greeter   *string           `json:"greeter"`
 	Profile   map[string]string `json:"profile"`
 }
 
-type omarchyDiskConfig struct {
-	BtrfsOptions        omarchyBtrfsOptions         `json:"btrfs_options"`
-	ConfigType          string                      `json:"config_type"`
-	DeviceModifications []omarchyDeviceModification `json:"device_modifications"`
-	DiskEncryption      *omarchyDiskEncryption      `json:"disk_encryption,omitempty"`
+type isoDiskConfig struct {
+	BtrfsOptions        isoBtrfsOptions         `json:"btrfs_options"`
+	ConfigType          string                  `json:"config_type"`
+	DeviceModifications []isoDeviceModification `json:"device_modifications"`
+	DiskEncryption      *isoDiskEncryption      `json:"disk_encryption,omitempty"`
 }
 
-type omarchyBtrfsOptions struct {
-	SnapshotConfig omarchySnapshotConfig `json:"snapshot_config"`
+type isoBtrfsOptions struct {
+	SnapshotConfig isoSnapshotConfig `json:"snapshot_config"`
 }
 
-type omarchySnapshotConfig struct {
+type isoSnapshotConfig struct {
 	Type string `json:"type"`
 }
 
-type omarchyDeviceModification struct {
-	Device     string             `json:"device"`
-	Partitions []omarchyPartition `json:"partitions"`
-	Wipe       bool               `json:"wipe"`
+type isoDeviceModification struct {
+	Device     string         `json:"device"`
+	Partitions []isoPartition `json:"partitions"`
+	Wipe       bool           `json:"wipe"`
 }
 
-type omarchyPartition struct {
-	Btrfs        []omarchyBtrfsSubvolume `json:"btrfs"`
-	DevPath      *string                 `json:"dev_path"`
-	Flags        []string                `json:"flags"`
-	FSType       string                  `json:"fs_type"`
-	MountOptions []string                `json:"mount_options"`
-	Mountpoint   *string                 `json:"mountpoint"`
-	ObjectID     string                  `json:"obj_id"`
-	Size         omarchyPartitionSize    `json:"size"`
-	Start        omarchyPartitionSize    `json:"start"`
-	Status       string                  `json:"status"`
-	Type         string                  `json:"type"`
+type isoPartition struct {
+	Btrfs        []isoBtrfsSubvolume `json:"btrfs"`
+	DevPath      *string             `json:"dev_path"`
+	Flags        []string            `json:"flags"`
+	FSType       string              `json:"fs_type"`
+	MountOptions []string            `json:"mount_options"`
+	Mountpoint   *string             `json:"mountpoint"`
+	ObjectID     string              `json:"obj_id"`
+	Size         isoPartitionSize    `json:"size"`
+	Start        isoPartitionSize    `json:"start"`
+	Status       string              `json:"status"`
+	Type         string              `json:"type"`
 }
 
-type omarchyBtrfsSubvolume struct {
+type isoBtrfsSubvolume struct {
 	Mountpoint string `json:"mountpoint"`
 	Name       string `json:"name"`
 }
 
-type omarchyPartitionSize struct {
-	SectorSize omarchySectorSize `json:"sector_size"`
-	Unit       string            `json:"unit"`
-	Value      int64             `json:"value"`
+type isoPartitionSize struct {
+	SectorSize isoSectorSize `json:"sector_size"`
+	Unit       string        `json:"unit"`
+	Value      int64         `json:"value"`
 }
 
-type omarchySectorSize struct {
+type isoSectorSize struct {
 	Unit  string `json:"unit"`
 	Value int64  `json:"value"`
 }
 
-type omarchyDiskEncryption struct {
+type isoDiskEncryption struct {
 	EncryptionType     string   `json:"encryption_type"`
 	LVMVolumes         []string `json:"lvm_volumes"`
 	IterTime           int      `json:"iter_time"`

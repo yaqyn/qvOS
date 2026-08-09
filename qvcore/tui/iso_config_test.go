@@ -14,7 +14,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func TestWriteOmarchyInstallerFilesMatchesISOContract(t *testing.T) {
+func TestWriteISOInstallerFilesMatchesContract(t *testing.T) {
 	dir := t.TempDir()
 	cfg := isoInstallerConfig{
 		Keyboard:            "us",
@@ -31,8 +31,8 @@ func TestWriteOmarchyInstallerFilesMatchesISOContract(t *testing.T) {
 		Kernel:              "linux",
 	}
 
-	if err := writeOmarchyInstallerFiles(dir, cfg); err != nil {
-		t.Fatalf("writeOmarchyInstallerFiles() error = %v", err)
+	if err := writeISOInstallerFiles(dir, cfg); err != nil {
+		t.Fatalf("writeISOInstallerFiles() error = %v", err)
 	}
 
 	assertFileEquals(t, filepath.Join(dir, "user_full_name.txt"), "qvOS User\n")
@@ -100,10 +100,10 @@ func TestValidateISOInstallerConfigRequiresEncryption(t *testing.T) {
 	}
 }
 
-func TestBuildOmarchyDiskLayoutUsesQvOSProductName(t *testing.T) {
-	_, err := buildOmarchyDiskLayout("/dev/sda", 1024*1024*1024)
+func TestBuildISODiskLayoutUsesQvOSProductName(t *testing.T) {
+	_, err := buildISODiskLayout("/dev/sda", 1024*1024*1024)
 	if err == nil || err.Error() != "disk /dev/sda is too small for qvOS layout" {
-		t.Fatalf("buildOmarchyDiskLayout() error = %v, want qvOS layout error", err)
+		t.Fatalf("buildISODiskLayout() error = %v, want qvOS layout error", err)
 	}
 }
 
@@ -1570,28 +1570,28 @@ func assertFileMode(t *testing.T, path string, want os.FileMode) {
 	}
 }
 
-func readCredentials(t *testing.T, path string) omarchyCredentials {
+func readCredentials(t *testing.T, path string) isoCredentials {
 	t.Helper()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out omarchyCredentials
+	var out isoCredentials
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatalf("decode %s: %v", path, err)
 	}
 	return out
 }
 
-func readConfiguration(t *testing.T, path string) omarchyUserConfiguration {
+func readConfiguration(t *testing.T, path string) isoUserConfiguration {
 	t.Helper()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out omarchyUserConfiguration
+	var out isoUserConfiguration
 	if err := json.Unmarshal(data, &out); err != nil {
 		t.Fatalf("decode %s: %v", path, err)
 	}

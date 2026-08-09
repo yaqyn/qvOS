@@ -852,7 +852,7 @@ func writeISOInstallerOutputCmd(cfg isoInstallerConfig, password []rune) tea.Cmd
 		cfg.Password = string(password)
 		cfg.PasswordHash = hash
 		cfg.Kernel = "linux"
-		return isoInstallerDoneMsg{err: writeOmarchyInstallerFiles(".", cfg)}
+		return isoInstallerDoneMsg{err: writeISOInstallerFiles(".", cfg)}
 	}
 }
 
