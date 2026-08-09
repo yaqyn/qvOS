@@ -534,6 +534,10 @@ cmp -s \
   "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/dev-share-firewall" ||
   fail "LAN preview root helper payload"
 cmp -s \
+  "$root/qvcore/security/retire-passwordless-sudo" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/retire-passwordless-sudo" ||
+  fail "passwordless-sudo retirement root helper payload"
+cmp -s \
   "$root/qvcore/network/dns-policy" \
   "$QVOS_NETWORK_SYSTEM_ROOT/usr/lib/qvos/network/dns-policy" ||
   fail "DNS policy root helper payload"

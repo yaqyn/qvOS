@@ -29,6 +29,10 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
   no-op, uses arrays rather than `xargs`, and refreshes the locate database only
   when its owner is installed. Do not hide repository-listing or package-manager
   failures as cancellation.
+- Interactive Pacman and AUR selection source the bounded native
+  `sudo-keepalive` helper, start it only after validated selection, and stop its
+  exact child on every exit. Never restore a public or inherited keepalive
+  command or let a package picker leave a credential-refresh process behind.
 - `qvcore/packages/configure` owns an explicit reset to Stable. It backs up the
   current Pacman files, installs the credited provider configuration, invokes
   the existing security owner before synchronizing packages, and restores both

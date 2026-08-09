@@ -34,8 +34,10 @@ targets=()
 for package in "${packages[@]}"; do
   targets+=("aur/$package")
 done
-# shellcheck source=bin/omarchy-sudo-keepalive disable=SC1091
-source "$QVOS_PATH/bin/omarchy-sudo-keepalive"
+# shellcheck source=qvcore/packages/sudo-keepalive disable=SC1091
+source "$QVOS_PATH/qvcore/packages/sudo-keepalive"
+qvos_sudo_keepalive_start
+trap qvos_sudo_keepalive_stop EXIT
 yay -S --noconfirm --needed -- "${targets[@]}"
 command -v updatedb >/dev/null 2>&1 && sudo updatedb
 qv-show-done

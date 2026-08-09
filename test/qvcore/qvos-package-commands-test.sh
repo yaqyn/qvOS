@@ -82,6 +82,13 @@ install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 set -euo pipefail
 
 printf 'sudo:<%s>\n' "$*" >>"$QVOS_TEST_PACKAGE_LOG"
+case ${1:-} in
+-v) exit 0 ;;
+-n)
+  [[ ${2:-} == "true" && $# == 2 ]] || exit 2
+  exit 0
+  ;;
+esac
 exec "$@"
 SCRIPT
 
@@ -120,6 +127,35 @@ install -m 0755 /dev/stdin "$test_bin/fzf" <<'SCRIPT'
 #!/bin/bash
 exit 130
 SCRIPT
+
+# shellcheck source=qvcore/packages/sudo-keepalive disable=SC1091
+source "$root/qvcore/packages/sudo-keepalive"
+QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \
+  qvos_sudo_keepalive_start
+keepalive_pid=$QVOS_SUDO_KEEPALIVE_PID
+[[ $keepalive_pid =~ ^[1-9][0-9]*$ ]] ||
+  fail "native sudo keepalive did not record its child"
+kill -0 "$keepalive_pid" 2>/dev/null ||
+  fail "native sudo keepalive child is not running"
+keepalive_sleep_pid=
+for _ in {1..100}; do
+  keepalive_sleep_pid=$(pgrep -P "$keepalive_pid" sleep || true)
+  [[ $keepalive_sleep_pid =~ ^[1-9][0-9]*$ ]] && break
+done
+[[ $keepalive_sleep_pid =~ ^[1-9][0-9]*$ ]] ||
+  fail "native sudo keepalive sleep child is not running"
+qvos_sudo_keepalive_stop
+[[ -z $QVOS_SUDO_KEEPALIVE_PID ]] ||
+  fail "native sudo keepalive retained its child state"
+if kill -0 "$keepalive_pid" 2>/dev/null; then
+  fail "native sudo keepalive left its child running"
+fi
+if kill -0 "$keepalive_sleep_pid" 2>/dev/null; then
+  fail "native sudo keepalive orphaned its sleep child"
+fi
+grep -Fqx 'sudo:<-v>' "$log" ||
+  fail "native sudo keepalive did not acquire one credential"
+printf 'ok - package sudo refresh has explicit bounded ownership\n'
 
 if run_package add >/dev/null 2>&1; then
   fail "empty package installation was accepted"

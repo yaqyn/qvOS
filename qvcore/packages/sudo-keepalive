@@ -1,0 +1,38 @@
+#!/bin/bash
+
+QVOS_SUDO_KEEPALIVE_PID=""
+
+qvos_sudo_keepalive_start() {
+  [[ -z $QVOS_SUDO_KEEPALIVE_PID ]] || return 0
+
+  sudo -v
+  (
+    keepalive_sleep_pid=""
+    # Invoked by the EXIT trap below.
+    # shellcheck disable=SC2329
+    cleanup_keepalive_sleep() {
+      [[ $keepalive_sleep_pid =~ ^[1-9][0-9]*$ ]] || return 0
+      kill "$keepalive_sleep_pid" 2>/dev/null || true
+      wait "$keepalive_sleep_pid" 2>/dev/null || true
+    }
+    trap cleanup_keepalive_sleep EXIT
+    trap 'exit 0' TERM INT
+
+    while sudo -n true; do
+      sleep 50 &
+      keepalive_sleep_pid=$!
+      wait "$keepalive_sleep_pid"
+      keepalive_sleep_pid=""
+    done
+  ) 2>/dev/null &
+  QVOS_SUDO_KEEPALIVE_PID=$!
+}
+
+qvos_sudo_keepalive_stop() {
+  local keepalive_pid=${QVOS_SUDO_KEEPALIVE_PID:-}
+
+  [[ $keepalive_pid =~ ^[1-9][0-9]*$ ]] || return 0
+  kill "$keepalive_pid" 2>/dev/null || true
+  wait "$keepalive_pid" 2>/dev/null || true
+  QVOS_SUDO_KEEPALIVE_PID=""
+}

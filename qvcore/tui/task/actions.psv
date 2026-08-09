@@ -19,7 +19,6 @@ fingerprint-setup|Fingerprint Authentication|Enroll and verify a fingerprint for
 fingerprint-remove|Fingerprint Authentication|Remove fingerprint authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fingerprint
 fido2-setup|FIDO2 Authentication|Register and verify a hardware security key|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fido2
 fido2-remove|FIDO2 Authentication|Remove FIDO2 authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fido2
-passwordless-sudo|Passwordless Sudo|Confirm a temporary high-risk passwordless sudo window|3|mutation|native|true|Configure|Configuring|Configured|omarchy-sudo-passwordless
 direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|mutation|native|true|Configure|Configuring|Configured|qv-config-direct-boot
 hybrid-gpu|Hybrid GPU|Confirm a supported GPU mode change and system reboot|3|mutation|native|true|Configure|Configuring|Configured|qv-toggle-hybrid-gpu
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|mutation|native|true|Enable|Enabling|Enabled|qv-hibernation-setup

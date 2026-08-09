@@ -121,6 +121,7 @@
     qvcore/security/dev-share
     qvcore/security/dev-share-firewall
     qvcore/security/install
+    qvcore/security/retire-passwordless-sudo
     qvcore/shell/aliases
     qvcore/shell/install
     qvcore/thunar/actions.sh

@@ -52,6 +52,12 @@ mail, analytics, wildcard addresses, public addresses, or more than two ports.
 Keep its firewall rule runtime-only, subnet-scoped, process-bound, and
 automatically expiring.
 
+qvOS does not expose broad passwordless sudo. The inherited timed toggle was
+unsafe across reboot because its `/etc/sudoers.d` rule outlived its transient
+timer. `retire-passwordless-sudo` removes only its exact root-owned legacy rule
+and refuses modified lookalikes; package workflows use their scoped native
+credential refresh helper instead.
+
 `qv-dev-share` is the only metadata-bearing LAN-preview adapter. The former
 `omarchy-qvos-dev-share` qvOS-in-Omarchy namespace is retired and must remain
 absent; `omarchy-dev-share` is its metadata-free matching compatibility

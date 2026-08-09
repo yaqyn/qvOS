@@ -35,7 +35,6 @@ firmware||Firmware|Settings · System|fwupd,upgrade|Update|present:qv-update-
 password||Password|Settings · Security|user,login,luks,encryption|User|present:passwd|Drive Encryption|present:qv-drive-password
 fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
 fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2
-passwordless-sudo|󰟵|Passwordless Sudo|Settings · Security|sudo,password,security|Configure|present:omarchy-sudo-passwordless
 share||Share|More · Share|localsend,send|Send|menu:share
 ruby-on-rails|󰫏|Ruby on Rails|Settings · Software · Development|ruby,rails
 devel|󰵮|Devel|Settings · Software · Development|codex,workbench,tools,developer workstation

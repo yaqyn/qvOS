@@ -51,6 +51,18 @@ for owner in update-aur update-keyring remove-orphans update-system; do
   [[ -x $root/qvcore/packages/$owner ]] ||
     fail "native package-update owner mode: $owner"
 done
+sudo_keepalive="$root/qvcore/packages/sudo-keepalive"
+[[ -x $sudo_keepalive ]] || fail "native package sudo refresh owner mode"
+for picker in install aur-install; do
+  # This intentionally matches the literal runtime source expression.
+  # shellcheck disable=SC2016
+  grep -Fq 'source "$QVOS_PATH/qvcore/packages/sudo-keepalive"' \
+    "$root/qvcore/packages/$picker" ||
+    fail "package $picker does not source native sudo refresh"
+  grep -Fq 'trap qvos_sudo_keepalive_stop EXIT' \
+    "$root/qvcore/packages/$picker" ||
+    fail "package $picker does not bound sudo refresh lifetime"
+done
 retired_manifest="$root/qvcore/packages/retired-paths"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u

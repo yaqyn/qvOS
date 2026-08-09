@@ -9,6 +9,7 @@ installer="$root/qvcore/security/install"
 boot_mount="$root/qvcore/security/boot-mount"
 dev_share="$root/qvcore/security/dev-share"
 dev_share_helper="$root/qvcore/security/dev-share-firewall"
+retire_passwordless="$root/qvcore/security/retire-passwordless-sudo"
 debug_owner="$root/qvcore/security/debug"
 debug_adapter="$root/bin/qv-debug"
 debug_compatibility="$root/bin/omarchy-debug"
@@ -29,6 +30,7 @@ fail() {
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
 [[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper &&
+  -x $retire_passwordless &&
   -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
 grep -Fq 'qvcore/security/AGENTS.md' "$root/AGENTS.md" \
@@ -53,6 +55,51 @@ if rg -q 'omarchy-upload-log|Upload log for support' \
     rg -q 'omarchy-upload-log|Upload log for support'; then
   fail "retired diagnostic upload remains in install or ISO lifecycle"
 fi
+[[ ! -e $root/bin/omarchy-sudo-passwordless ]] ||
+  fail "reboot-unsafe passwordless sudo command remains"
+if rg -q 'passwordless-sudo|Passwordless Sudo|omarchy-sudo-passwordless' \
+  "$root/qvcore/menu/concepts.psv" \
+  "$root/qvcore/tui/task/actions.psv" \
+  "$root/bin/omarchy-menu"; then
+  fail "broad passwordless sudo remains user-accessible"
+fi
+grep -Fqx 'bin/omarchy-sudo-passwordless' \
+  "$root/qvcore/security/retired-paths" ||
+  fail "passwordless sudo retirement inventory"
+
+retire_root="$test_root/retire-root"
+retire_sudoers="$retire_root/etc/sudoers.d"
+install -d "$retire_sudoers"
+legacy_rule="$retire_sudoers/99-omarchy-nopasswd-fixture"
+printf 'fixture ALL=(ALL) NOPASSWD: ALL\n' >"$legacy_rule"
+chmod 0440 "$legacy_rule"
+QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$retire_root" \
+  "$retire_passwordless"
+[[ ! -e $legacy_rule && ! -L $legacy_rule ]] ||
+  fail "exact legacy passwordless sudo rule was not retired"
+
+printf 'fixture ALL=(ALL) NOPASSWD: /usr/bin/true\n' >"$legacy_rule"
+chmod 0440 "$legacy_rule"
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$retire_root" \
+  "$retire_passwordless" >/dev/null 2>&1; then
+  fail "modified legacy passwordless sudo rule was accepted"
+fi
+[[ -f $legacy_rule ]] ||
+  fail "modified legacy passwordless sudo rule was removed"
+rm -f -- "$legacy_rule"
+
+unsafe_sudoers="$test_root/unsafe-sudoers"
+mv "$retire_sudoers" "$unsafe_sudoers"
+ln -s "$unsafe_sudoers" "$retire_sudoers"
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$retire_root" \
+  "$retire_passwordless" >/dev/null 2>&1; then
+  fail "linked sudoers directory was accepted"
+fi
+unlink -- "$retire_sudoers"
+mv "$unsafe_sudoers" "$retire_sudoers"
 (( $(wc -l <"$debug_adapter") <= 12 )) ||
   fail "native debug adapter contains implementation"
 (( $(wc -l <"$debug_compatibility") <= 5 )) ||
@@ -446,16 +493,41 @@ install -m 0777 /dev/null \
 ln -s \
   "$system_install_tree/cache/test-package/dist/program.js" \
   "$system_install_tree/global/node_modules/test-package/program-link"
+security_sudoers="$security_system_root/etc/sudoers.d"
+install -d "$security_sudoers"
+security_legacy_rule="$security_sudoers/99-omarchy-nopasswd-fixture"
+printf 'fixture ALL=(ALL) NOPASSWD: /usr/bin/true\n' >"$security_legacy_rule"
+chmod 0440 "$security_legacy_rule"
+security_pacman_before=$(sha256sum "$security_system_root/etc/pacman.conf")
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
+  OMARCHY_PATH="$root" \
+  "$installer" >/dev/null 2>&1; then
+  fail "security install accepted a modified legacy passwordless rule"
+fi
+[[ -f $security_legacy_rule ]] ||
+  fail "security install removed a modified legacy passwordless rule"
+[[ $(sha256sum "$security_system_root/etc/pacman.conf") == \
+  "$security_pacman_before" ]] ||
+  fail "legacy-rule refusal partially changed package trust policy"
+[[ ! -e $security_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
+  fail "legacy-rule refusal partially installed the security baseline"
+chmod 0640 "$security_legacy_rule"
+printf 'fixture ALL=(ALL) NOPASSWD: ALL\n' >"$security_legacy_rule"
+chmod 0440 "$security_legacy_rule"
 QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$security_system_root" \
   OMARCHY_PATH="$root" \
   "$installer"
+[[ ! -e $security_legacy_rule && ! -L $security_legacy_rule ]] ||
+  fail "security install did not retire the exact legacy passwordless rule"
 managed_security_files=(
   "$security_system_root/etc/docker/daemon.json"
   "$security_system_root/etc/fstab"
   "$security_system_root/etc/pacman.conf"
   "$security_system_root/etc/sysctl.d/60-qvos-security.conf"
   "$security_system_root/usr/lib/qvos/dev-share-firewall"
+  "$security_system_root/usr/lib/qvos/retire-passwordless-sudo"
   "$system_install_tree/cache/test-package/dist/program.js"
   "$system_install_tree/global/node_modules/test-package/private.js"
   "$system_install_tree/global/node_modules/test-package/program.js"
@@ -478,6 +550,11 @@ cmp -s "$dev_share_helper" "$installed_dev_share_helper" \
   || fail "LAN preview root helper system install"
 [[ $(stat -c '%a' "$installed_dev_share_helper") == "755" ]] \
   || fail "LAN preview root helper mode"
+installed_retire_passwordless="$security_system_root/usr/lib/qvos/retire-passwordless-sudo"
+cmp -s "$retire_passwordless" "$installed_retire_passwordless" \
+  || fail "passwordless-sudo retirement helper system install"
+[[ $(stat -c '%a' "$installed_retire_passwordless") == "755" ]] \
+  || fail "passwordless-sudo retirement helper mode"
 [[ $(awk '
   /^\[omarchy\]$/ { in_omarchy = 1; next }
   /^\[/ { in_omarchy = 0 }
