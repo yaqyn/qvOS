@@ -76,7 +76,7 @@ for frontend in qv omarchy; do
   done
 done
 
-expected_retired=$'default/walker/restart.conf\ndefault/walker/walker.desktop'
+expected_retired=$'default/elephant/\ndefault/walker/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
   "$expected_retired" ]] || fail "retired Walker source inventory"
 while IFS= read -r path; do
@@ -84,6 +84,35 @@ while IFS= read -r path; do
   [[ ! -e $root/$path && ! -L $root/$path ]] ||
     fail "retired Walker source remains: $path"
 done <"$retired_manifest"
+
+declare -A provider_names=(
+  [qvos_background_selector.lua]=qvosBackgroundSelector
+  [qvos_menu.lua]=qvosMenu
+  [qvos_themes.lua]=qvosThemes
+  [qvos_unlocks.lua]=qvosUnlocks
+)
+for provider in "${!provider_names[@]}"; do
+  provider_source="$root/qvcore/menu/elephant/$provider"
+  [[ -f $provider_source && ! -L $provider_source ]] ||
+    fail "native Elephant provider: $provider"
+  grep -Fqx "Name = \"${provider_names[$provider]}\"" "$provider_source" ||
+    fail "native Elephant identity: $provider"
+done
+for theme_source in layout.xml style.css; do
+  [[ -f $root/qvcore/menu/walker-theme/$theme_source &&
+    ! -L $root/qvcore/menu/walker-theme/$theme_source ]] ||
+    fail "native Walker theme source: $theme_source"
+done
+grep -Fqx 'theme = "qvos-menu"                                                        # theme to use' \
+  "$root/qvcore/config/files/walker/config.toml" ||
+  fail "native Walker default theme"
+if rg -n 'menus:omarchy|default/(elephant|walker)|omarchy-restart-walker' \
+  "$root/qvcore/menu/base" \
+  "$root/qvcore/menu/routes" \
+  "$root/qvcore/menu/concepts.psv" \
+  "$root/qvcore/config/files/walker/config.toml"; then
+  fail "active menu source retains an inherited provider or Walker default"
+fi
 
 [[ -x $root/qvcore/menu/retire-pacman-hook ]] ||
   fail "retired Walker hook cleanup owner mode"

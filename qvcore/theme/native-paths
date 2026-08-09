@@ -20,8 +20,5 @@ bin/omarchy-theme-set-obsidian
 bin/omarchy-theme-set-templates
 bin/omarchy-theme-set-vscode
 bin/omarchy-theme-update
-default/elephant/omarchy_background_selector.lua
-default/elephant/omarchy_themes.lua
-default/elephant/omarchy_unlocks.lua
 default/themed/mako.ini.tpl
 default/themed/obsidian.css.tpl

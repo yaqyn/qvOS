@@ -514,13 +514,12 @@ grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart qvOS components"' \
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
   "$root/qvcore/cli/qv" || fail "qvOS toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
-grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/omarchy_unlocks.lua" || fail "qvOS unlock provider label"
-grep -Fq 'local qvos_path = os.getenv("QVOS_PATH")' \
-  "$root/qvcore/menu/elephant/omarchy_unlocks.lua" ||
-  fail "qvOS unlock provider native source environment"
-grep -Fq 'dofile(qvos_path .. "/default/elephant/omarchy_unlocks.lua")' \
-  "$root/qvcore/menu/elephant/omarchy_unlocks.lua" ||
-  fail "qvOS unlock provider source ownership"
+grep -Fq 'Name = "qvosUnlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
+  fail "qvOS unlock provider identity"
+grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
+  fail "qvOS unlock provider label"
+! rg -q 'dofile|default/elephant' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
+  fail "qvOS unlock provider retains inherited source ownership"
 grep -Fq -- '--app-id=org.qvos.terminal' "$root/qvcore/presentation/run" ||
   fail "native terminal app ID"
 grep -Fq -- '--title=qvOS' "$root/qvcore/presentation/run" ||
@@ -942,7 +941,8 @@ for retired_duplicate in \
   qvcore/diagnostics/debug \
   qvcore/share/notification \
   qvcore/menu/elephant/omarchy_background_selector.lua \
-  qvcore/menu/elephant/omarchy_themes.lua; do
+  qvcore/menu/elephant/omarchy_themes.lua \
+  qvcore/menu/elephant/omarchy_unlocks.lua; do
   [[ ! -e $root/$retired_duplicate ]] ||
     fail "duplicated Omarchy implementation remains: $retired_duplicate"
 done
@@ -1168,11 +1168,11 @@ if grep -Fqx 'Tokyo Night' <<<"$theme_list"; then
 fi
 pass "Yaqyn is the only bundled theme while compatible user themes remain available"
 
-HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   lua - "$root" <<'LUA' || fail "qvOS Style entries"
 local root = arg[1]
 
-dofile(root .. "/default/elephant/omarchy_themes.lua")
+dofile(root .. "/qvcore/menu/elephant/qvos_themes.lua")
 local themes = GetEntries()
 assert(#themes == 2)
 local yaqyn_theme
@@ -1188,8 +1188,9 @@ assert(custom_theme)
 assert(custom_theme.Preview:match("/%.config/omarchy/themes/custom/preview%.png$"))
 assert(custom_theme.Actions.activate == "qv-theme-set 'custom'")
 
-dofile(root .. "/qvcore/menu/elephant/omarchy_unlocks.lua")
+dofile(root .. "/qvcore/menu/elephant/qvos_unlocks.lua")
 local unlocks = GetEntries()
+assert(#unlocks == 2)
 local yaqyn_unlock
 local custom_unlock
 for _, unlock in ipairs(unlocks) do

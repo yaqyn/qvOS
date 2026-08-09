@@ -121,7 +121,7 @@ fi
 
 if rg -n \
   'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))([^[:alnum:]_-]|$)' \
-  "$root/qvcore" "$root/qvcore/config/files" "$root/default/elephant" \
+  "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!AGENTS.md' --glob '!check' --glob '!native-paths' \
   --glob '!owner-contracts.psv' --glob '!migrate-runtime-root'; then
   fail "native qvOS surface calls a theme compatibility route"
@@ -190,9 +190,9 @@ grep -Fq 'present:qvcore/tui/task/selectable-owner theme-remove' "$root/qvcore/m
   fail "custom theme removal is not reachable"
 grep -Fq 'present:qv-theme-update' "$root/qvcore/menu/concepts.psv" ||
   fail "custom theme updates are not reachable"
-grep -Fq 'activate = "qv-theme-set "' "$root/default/elephant/omarchy_themes.lua" ||
+grep -Fq 'activate = "qv-theme-set "' "$root/qvcore/menu/elephant/qvos_themes.lua" ||
   fail "theme provider bypasses the native qvOS command"
-grep -Fq 'qv-plymouth-set-by-theme' "$root/default/elephant/omarchy_unlocks.lua" ||
+grep -Fq 'qv-plymouth-set-by-theme' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
   fail "unlock provider bypasses the native qvOS command"
 # shellcheck disable=SC2016
 grep -Fq 'current_theme=$(<"$theme_name_path")' "$root/qvcore/install/post-update-hook" ||

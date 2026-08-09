@@ -1,7 +1,7 @@
 --
 -- Dynamic qvOS Theme Menu for Elephant/Walker
 --
-Name = "omarchythemes"
+Name = "qvosThemes"
 NamePretty = "qvOS Themes"
 HideFromProviderlist = true
 
@@ -22,8 +22,8 @@ end
 -- Get the first background supplied by the theme.
 local function first_image_in_dir(dir)
   local handle = io.popen(
-    "find " .. shell_escape(dir)
-      .. " -maxdepth 1 -type f -print 2>/dev/null | sort | head -n 1"
+    "/usr/bin/find " .. shell_escape(dir)
+      .. " -maxdepth 1 -type f \\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.gif' -o -name '*.bmp' -o -name '*.webp' \\) -print 2>/dev/null | /usr/bin/sort | /usr/bin/head -n 1"
   )
   if handle then
     local file = handle:read("*l")
@@ -47,10 +47,12 @@ end
 -- The main function elephant will call
 function GetEntries()
   local entries = {}
-  local user_theme_dir = os.getenv("HOME") .. "/.config/omarchy/themes"
+  local home = os.getenv("HOME")
+  if not home or home == "" then return entries end
+  local user_theme_dir = home .. "/.config/omarchy/themes"
   local handle = io.popen(
-    "find -L " .. shell_escape(user_theme_dir)
-      .. " -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort"
+    "/usr/bin/find -L " .. shell_escape(user_theme_dir)
+      .. " -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | /usr/bin/sort"
   )
   if not handle then return entries end
 

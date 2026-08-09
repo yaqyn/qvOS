@@ -314,18 +314,24 @@ if [[ -f $test_root/.config/omarchy/extensions/menu.sh ]] &&
 fi
 pass "fresh qvOS uses the native menu without a generated overlay"
 
-runtime_provider="$test_root/.local/lib/qvos/menu/elephant/omarchy_unlocks.lua"
-cmp -s "$root/qvcore/menu/elephant/omarchy_unlocks.lua" "$runtime_provider" ||
-  fail "qvOS unlock provider runtime"
-[[ $(readlink "$test_root/.config/elephant/menus/omarchy_unlocks.lua") == "$runtime_provider" ]] ||
-  fail "qvOS unlock provider runtime link"
-for provider in omarchy_background_selector.lua omarchy_themes.lua; do
-  [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$root/default/elephant/$provider" ]] ||
-    fail "$provider inherited provider link"
+for provider in \
+  qvos_background_selector.lua \
+  qvos_menu.lua \
+  qvos_themes.lua \
+  qvos_unlocks.lua; do
+  runtime_provider="$test_root/.local/lib/qvos/menu/elephant/$provider"
+  cmp -s "$root/qvcore/menu/elephant/$provider" "$runtime_provider" ||
+    fail "$provider native runtime"
+  [[ $(readlink "$test_root/.config/elephant/menus/$provider") == "$runtime_provider" ]] ||
+    fail "$provider native runtime link"
 done
-[[ $(find "$test_root/.local/lib/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'omarchy_unlocks.lua\nqvos_menu.lua' ]] ||
+[[ $(find "$test_root/.local/lib/qvos/menu/elephant" -maxdepth 1 -type f -printf '%f\n' | sort) == $'qvos_background_selector.lua\nqvos_menu.lua\nqvos_themes.lua\nqvos_unlocks.lua' ]] ||
   fail "qvOS menu provider runtime inventory"
-pass "menu uses original Omarchy providers plus qvOS deltas"
+if find "$test_root/.config/elephant/menus" -maxdepth 1 \
+  -name 'omarchy_*.lua' -print -quit | grep -q .; then
+  fail "retired Elephant provider link"
+fi
+pass "menu uses only native qvOS providers"
 
 HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/hooks/reconcile" --check >/dev/null ||

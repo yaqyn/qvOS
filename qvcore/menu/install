@@ -2,8 +2,7 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-menu_source_dir="$OMARCHY_PATH/qvcore/menu"
+menu_source_dir="$QVOS_PATH/qvcore/menu"
 base_source="$menu_source_dir/base"
 routes_source="$menu_source_dir/routes"
 menu_owner="$menu_source_dir/menu"
@@ -13,7 +12,6 @@ legacy_qvos_target_path="$extension_dir/qvos-menu.sh"
 # Exact generated overlay installed before the native menu promotion.
 legacy_qvos_target_hash="bbe35b8874f031d6118492ac08f0f19814aa272a4c6c72364a477e1062b95405"
 provider_source_dir="$menu_source_dir/elephant"
-omarchy_provider_source_dir="$OMARCHY_PATH/default/elephant"
 menu_runtime_dir="$HOME/.local/lib/qvos/menu"
 provider_runtime_dir="$menu_runtime_dir/elephant"
 provider_menu_dir="$HOME/.config/elephant/menus"
@@ -33,12 +31,12 @@ retired_steam_remove_runtime="$menu_runtime_dir/steam-remove"
 retired_steam_remove_hash="4435fcd69490cc49fe4079391157fe2d7347b20c9b3357d7e1ab512df091a407"
 retired_entities_runtime="$menu_runtime_dir/entities.psv"
 retired_entities_hash="80bee250c5d8334cc89c9a026d60684de014daeeadc35f7610565ae7c80a2c80"
-task_catalog_source="$OMARCHY_PATH/qvcore/tui/task/actions.psv"
-task_launch_source="$OMARCHY_PATH/qvcore/tui/task/launch"
-task_run_source="$OMARCHY_PATH/qvcore/tui/task/run"
-task_selectable_owner="$OMARCHY_PATH/qvcore/tui/task/selectable-owner"
-task_selection_source="$OMARCHY_PATH/qvcore/tui/task/selections.psv"
-success_guidance_source="$OMARCHY_PATH/qvcore/tui/success-guidance.psv"
+task_catalog_source="$QVOS_PATH/qvcore/tui/task/actions.psv"
+task_launch_source="$QVOS_PATH/qvcore/tui/task/launch"
+task_run_source="$QVOS_PATH/qvcore/tui/task/run"
+task_selectable_owner="$QVOS_PATH/qvcore/tui/task/selectable-owner"
+task_selection_source="$QVOS_PATH/qvcore/tui/task/selections.psv"
+success_guidance_source="$QVOS_PATH/qvcore/tui/success-guidance.psv"
 search_intents_source="$menu_source_dir/search-intents.psv"
 search_intents_runtime="$menu_runtime_dir/search-intents.psv"
 elephant_ready_source="$menu_source_dir/wait-for-elephant"
@@ -60,19 +58,21 @@ elephant_calc_source="$QVOS_PATH/qvcore/config/files/elephant/calc.toml"
 elephant_desktop_source="$QVOS_PATH/qvcore/config/files/elephant/desktopapplications.toml"
 walker_theme_name="qvos-menu"
 legacy_walker_theme_name="qvos-omarchy-menu"
-walker_theme_source="$OMARCHY_PATH/default/walker/themes/omarchy-default"
+walker_theme_source="$menu_source_dir/walker-theme"
 walker_theme_target="$HOME/.config/walker/themes/qvos-menu"
 legacy_walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
-walker_theme_import='@import "../../../omarchy/current/theme/walker.css";'
 walker_subtext_source="$menu_source_dir/walker-subtext.css"
 providers=(
-  omarchy_unlocks.lua
+  qvos_background_selector.lua
+  qvos_themes.lua
+  qvos_unlocks.lua
   qvos_menu.lua
 )
-legacy_qvos_provider=qvos_omarchy_menu.lua
-omarchy_providers=(
+retired_providers=(
   omarchy_background_selector.lua
   omarchy_themes.lua
+  omarchy_unlocks.lua
+  qvos_omarchy_menu.lua
 )
 # shellcheck disable=SC2016
 legacy_source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
@@ -117,10 +117,6 @@ require_sources() {
   for provider in "${providers[@]}"; do
     required_sources+=("$provider_source_dir/$provider")
   done
-  for provider in "${omarchy_providers[@]}"; do
-    required_sources+=("$omarchy_provider_source_dir/$provider")
-  done
-
   for required_source in "${required_sources[@]}"; do
     if [[ ! -f $required_source ]]; then
       echo "Missing qvOS menu source: $required_source" >&2
@@ -128,9 +124,9 @@ require_sources() {
     fi
   done
 
-  if ! head -n 1 "$walker_theme_source/style.css" |
-    grep -Fq '.config/omarchy/current/theme/walker.css'; then
-    echo "The upstream Walker theme changed; the qvOS menu theme needs review." >&2
+  if [[ $(head -n 1 "$walker_theme_source/style.css") != \
+    '@import "../../../omarchy/current/theme/walker.css";' ]]; then
+    echo "The qvOS Walker theme import is invalid." >&2
     return 1
   fi
   [[ -x $software_state_source ]] || {
@@ -158,6 +154,47 @@ require_sources() {
     return 1
   }
 
+}
+
+validate_user_directory() {
+  local directory=$1
+  local label=$2
+
+  [[ -e $directory || -L $directory ]] || return 0
+  [[ -d $directory && ! -L $directory && -O $directory ]] || {
+    echo "Refusing unsafe $label directory: $directory" >&2
+    return 1
+  }
+}
+
+validate_menu_paths() {
+  local directory
+
+  for directory in \
+    "$HOME/.config" \
+    "$HOME/.config/elephant" \
+    "$provider_menu_dir" \
+    "$HOME/.config/walker" \
+    "$HOME/.config/walker/themes" \
+    "$walker_theme_target" \
+    "$legacy_walker_theme_target" \
+    "$HOME/.local" \
+    "$HOME/.local/lib" \
+    "$HOME/.local/lib/qvos" \
+    "$menu_runtime_dir" \
+    "$provider_runtime_dir" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/menu-backups"; do
+    validate_user_directory "$directory" "qvOS menu" || return
+  done
+
+  if [[ -e $walker_config || -L $walker_config ]]; then
+    [[ -f $walker_config && ! -L $walker_config && -O $walker_config ]] || {
+      echo "Refusing unsafe Walker configuration: $walker_config" >&2
+      return 1
+    }
+  fi
 }
 
 validate_generated_overlay_cleanup() {
@@ -211,22 +248,65 @@ retire_generated_menu_overlay() {
   fi
 }
 
-install_menu_providers() {
-  local provider
-  local runtime_provider
-  local legacy_provider_link="$provider_menu_dir/$legacy_qvos_provider"
-  local legacy_provider_target="$provider_runtime_dir/$legacy_qvos_provider"
+retired_provider_target_allowed() {
+  local provider=$1
+  local target=$2
 
-  if [[ -L $legacy_provider_link ]]; then
-    [[ $(readlink "$legacy_provider_link") == "$legacy_provider_target" ]] || {
-      echo "Refusing a foreign legacy qvOS menu provider link: $legacy_provider_link" >&2
+  case $provider in
+  omarchy_background_selector.lua | omarchy_themes.lua)
+    [[ $target == "$QVOS_PATH/default/elephant/$provider" ||
+      $target == "$HOME/.local/share/omarchy/default/elephant/$provider" ]]
+    ;;
+  omarchy_unlocks.lua | qvos_omarchy_menu.lua)
+    [[ $target == "$provider_runtime_dir/$provider" ]]
+    ;;
+  *) return 1 ;;
+  esac
+}
+
+validate_retired_provider_links() {
+  local provider
+  local provider_link
+  local target
+
+  for provider in "${retired_providers[@]}"; do
+    provider_link="$provider_menu_dir/$provider"
+    [[ -e $provider_link || -L $provider_link ]] || continue
+    [[ -L $provider_link ]] || {
+      echo "Refusing a foreign retired menu provider: $provider_link" >&2
       return 1
     }
-  elif [[ -e $legacy_provider_link ]]; then
-    echo "Refusing a foreign legacy qvOS menu provider: $legacy_provider_link" >&2
-    return 1
-  fi
+    target=$(readlink -- "$provider_link")
+    retired_provider_target_allowed "$provider" "$target" || {
+      echo "Refusing a foreign retired menu provider link: $provider_link" >&2
+      return 1
+    }
+  done
+}
 
+validate_native_provider_links() {
+  local provider
+  local provider_link
+
+  for provider in "${providers[@]}"; do
+    provider_link="$provider_menu_dir/$provider"
+    [[ -e $provider_link || -L $provider_link ]] || continue
+    [[ -L $provider_link &&
+      $(readlink -- "$provider_link") == "$provider_runtime_dir/$provider" ]] || {
+      echo "Refusing a foreign qvOS menu provider: $provider_link" >&2
+      return 1
+    }
+  done
+}
+
+install_menu_providers() {
+  local provider
+  local provider_link
+  local runtime_provider
+
+  validate_menu_paths
+  validate_retired_provider_links
+  validate_native_provider_links
   rm -rf -- "$provider_runtime_dir"
   install -d "$provider_runtime_dir" "$provider_menu_dir"
 
@@ -235,12 +315,10 @@ install_menu_providers() {
     install -m 0644 "$provider_source_dir/$provider" "$runtime_provider"
     ln -sfn "$runtime_provider" "$provider_menu_dir/$provider"
   done
-  for provider in "${omarchy_providers[@]}"; do
-    ln -sfn \
-      "$omarchy_provider_source_dir/$provider" \
-      "$provider_menu_dir/$provider"
+  for provider in "${retired_providers[@]}"; do
+    provider_link="$provider_menu_dir/$provider"
+    [[ ! -L $provider_link ]] || unlink -- "$provider_link"
   done
-  [[ ! -L $legacy_provider_link ]] || unlink -- "$legacy_provider_link"
 }
 
 install_menu_runtime() {
@@ -388,20 +466,9 @@ walker_config_theme() {
   sed -n 's/^theme = "\([^"]*\)".*/\1/p' "$walker_config" | head -n 1
 }
 
-install_default_walker_theme() {
-  local current_theme
+reconcile_walker_defaults() {
   local temporary_path
 
-  current_theme=$(walker_config_theme)
-  case $current_theme in
-  "$walker_theme_name") return ;;
-  "$legacy_walker_theme_name" | "omarchy-default") ;;
-  *)
-    return
-    ;;
-  esac
-
-  backup_walker_config
   temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
   awk \
     -v legacy="theme = \"$legacy_walker_theme_name\"" \
@@ -409,38 +476,79 @@ install_default_walker_theme() {
     -v new="theme = \"$walker_theme_name\"" '
       index($0, legacy) == 1 { sub(legacy, new) }
       index($0, upstream) == 1 { sub(upstream, new) }
+      $0 == "command = \"omarchy-restart-walker\"" {
+        $0 = "command = \"qv-restart-walker\""
+      }
+      $0 == "additional_theme_location = \"~/.local/share/omarchy/default/walker/themes/\"" { next }
+      $0 == "additional_theme_location = \"~/.local/share/qvos/default/walker/themes/\"" { next }
       { print }
     ' "$walker_config" >"$temporary_path"
+
+  if cmp -s "$walker_config" "$temporary_path"; then
+    unlink -- "$temporary_path"
+    return
+  fi
+
+  backup_walker_config
   chmod --reference="$walker_config" "$temporary_path"
   mv "$temporary_path" "$walker_config"
 }
 
 generated_theme_style() {
-  printf '%s\n' "$walker_theme_import"
-  tail -n +2 "$walker_theme_source/style.css"
+  cat "$walker_theme_source/style.css"
   printf '\n\n/* qvOS menu breadcrumbs */\n'
   cat "$walker_subtext_source"
 }
 
 install_menu_theme() {
+  local backup_root="$HOME/.local/state/qvos/menu-backups"
+  local previous_theme=""
   local temporary_theme
 
+  validate_menu_paths
   install -d "$(dirname -- "$walker_theme_target")"
   temporary_theme=$(mktemp -d "$(dirname -- "$walker_theme_target")/.qvos-menu.XXXXXX")
   cp -a "$walker_theme_source/." "$temporary_theme/"
   generated_theme_style >"$temporary_theme/style.css"
   chmod --reference="$walker_theme_source/style.css" "$temporary_theme/style.css"
 
+  if menu_theme_matches "$walker_theme_target"; then
+    rm -rf -- "$temporary_theme"
+    return
+  fi
+  if [[ -d $walker_theme_target ]]; then
+    install -d -m 0700 "$backup_root"
+    previous_theme=$(mktemp -d "$backup_root/qvos-menu.XXXXXX")
+    if ! cp -a "$walker_theme_target/." "$previous_theme/"; then
+      rm -rf -- "$temporary_theme" "$previous_theme"
+      return 1
+    fi
+    chmod 0700 "$previous_theme"
+    printf 'Backed up the previous qvOS Walker theme: %s\n' "$previous_theme"
+  fi
   rm -rf -- "$walker_theme_target"
-  mv "$temporary_theme" "$walker_theme_target"
+  if ! mv "$temporary_theme" "$walker_theme_target"; then
+    rm -rf -- "$temporary_theme"
+    if [[ -n $previous_theme && -d $previous_theme ]]; then
+      mv "$previous_theme" "$walker_theme_target" || true
+    fi
+    return 1
+  fi
 }
 
 cleanup_legacy_menu_theme() {
+  validate_menu_paths
   [[ $(walker_config_theme) != "$legacy_walker_theme_name" ]] || {
     echo "Refusing to remove the active legacy qvOS menu theme." >&2
     return 1
   }
-  rm -rf -- "$legacy_walker_theme_target"
+  [[ -e $legacy_walker_theme_target || -L $legacy_walker_theme_target ]] ||
+    return 0
+  if menu_theme_matches "$legacy_walker_theme_target"; then
+    rm -rf -- "$legacy_walker_theme_target"
+  else
+    echo "Preserving a modified retired qvOS Walker theme: $legacy_walker_theme_target" >&2
+  fi
 }
 
 reload_active_menu_services() {
@@ -480,9 +588,6 @@ menu_providers_ready() {
   local provider
   local runtime_provider
 
-  [[ ! -e $provider_menu_dir/$legacy_qvos_provider &&
-    ! -L $provider_menu_dir/$legacy_qvos_provider ]] || return 1
-
   for provider in "${providers[@]}"; do
     runtime_provider="$provider_runtime_dir/$provider"
     if [[ ! -f $runtime_provider || -L $runtime_provider ]] ||
@@ -492,12 +597,18 @@ menu_providers_ready() {
       return 1
     fi
   done
-  for provider in "${omarchy_providers[@]}"; do
-    if [[ ! -L $provider_menu_dir/$provider ]] ||
-      [[ $(readlink "$provider_menu_dir/$provider") != "$omarchy_provider_source_dir/$provider" ]]; then
-      return 1
-    fi
+  for provider in "${retired_providers[@]}"; do
+    [[ ! -e $provider_menu_dir/$provider &&
+      ! -L $provider_menu_dir/$provider ]] || return 1
   done
+}
+
+walker_config_native() {
+  [[ $(walker_config_theme) != "omarchy-default" &&
+    $(walker_config_theme) != "$legacy_walker_theme_name" ]] &&
+    ! grep -Fqx 'command = "omarchy-restart-walker"' "$walker_config" &&
+    ! grep -Fqx 'additional_theme_location = "~/.local/share/omarchy/default/walker/themes/"' "$walker_config" &&
+    ! grep -Fqx 'additional_theme_location = "~/.local/share/qvos/default/walker/themes/"' "$walker_config"
 }
 
 menu_runtime_ready() {
@@ -515,36 +626,48 @@ menu_runtime_ready() {
     cmp -s "$walker_ready_source" "$walker_ready_target"
 }
 
-menu_theme_ready() {
+menu_theme_matches() {
+  local target=$1
   local source_inventory
   local target_inventory
   local source_file
   local relative_path
 
-  [[ -d $walker_theme_target && ! -L $walker_theme_target ]] || return 1
-  [[ ! -e $legacy_walker_theme_target && ! -L $legacy_walker_theme_target ]] || return 1
+  [[ -d $target && ! -L $target ]] || return 1
 
   source_inventory=$(
     find "$walker_theme_source" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
   )
   target_inventory=$(
-    find "$walker_theme_target" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
+    find "$target" -mindepth 1 -printf '%y\t%m\t%P\t%l\n' | sort
   )
   [[ $source_inventory == "$target_inventory" ]] || return 1
 
   while IFS= read -r -d '' source_file; do
     relative_path=${source_file#"$walker_theme_source/"}
     [[ $relative_path == "style.css" ]] && continue
-    cmp -s "$source_file" "$walker_theme_target/$relative_path" || return 1
+    cmp -s "$source_file" "$target/$relative_path" || return 1
   done < <(find "$walker_theme_source" -type f -print0)
 
-  cmp -s <(generated_theme_style) "$walker_theme_target/style.css"
+  cmp -s <(generated_theme_style) "$target/style.css"
+}
+
+menu_theme_ready() {
+  menu_theme_matches "$walker_theme_target" || return 1
+  if [[ -e $legacy_walker_theme_target || -L $legacy_walker_theme_target ]] &&
+    menu_theme_matches "$legacy_walker_theme_target"; then
+    return 1
+  fi
+  return 0
 }
 
 case $mode in
 --preflight)
   require_sources
   validate_generated_overlay_cleanup
+  validate_menu_paths
+  validate_retired_provider_links
+  validate_native_provider_links
   ;;
 --status)
   require_sources >/dev/null 2>&1 &&
@@ -553,13 +676,15 @@ case $mode in
     menu_providers_ready &&
     menu_runtime_ready &&
     cmp -s <(provider_set_block) "$provider_set_source" &&
-    [[ $(walker_config_theme) != "omarchy-default" &&
-      $(walker_config_theme) != "$legacy_walker_theme_name" ]] &&
+    walker_config_native &&
     menu_theme_ready
   ;;
 --install)
   require_sources
   validate_generated_overlay_cleanup
+  validate_menu_paths
+  validate_retired_provider_links
+  validate_native_provider_links
   install -d "$extension_dir"
   retire_generated_menu_overlay
   ensure_walker_config
@@ -567,7 +692,7 @@ case $mode in
   install_menu_providers
   install_provider_set
   install_menu_theme
-  install_default_walker_theme
+  reconcile_walker_defaults
   cleanup_legacy_menu_theme
   reload_active_menu_services
   ;;

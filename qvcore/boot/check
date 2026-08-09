@@ -70,7 +70,7 @@ done
 
 if rg -q '(OMARCHY_PATH[^\"]*|local/share/omarchy/)default/(limine|plymouth|sddm(/hyprland\.conf|/omarchy)|wayland-sessions/omarchy)|install/login/(all|limine-snapper|plymouth|sddm)\.sh' \
   "$root/bin" "$root/qvcore/boot" \
-  "$root/default/elephant/omarchy_unlocks.lua" \
+  "$root/qvcore/menu/elephant/qvos_unlocks.lua" \
   --glob '!check' --glob '!retired-paths'; then
   fail "active boot lifecycle still reads a retired inherited payload"
 fi
@@ -140,7 +140,7 @@ if rg -n \
   'omarchy-(config-direct-boot|plymouth-(preview|reset)|refresh-(limine|plymouth|sddm))|exec omarchy-plymouth-set([[:space:]]|$)' \
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
-  "$root/default/elephant/omarchy_unlocks.lua" \
+  "$root/qvcore/menu/elephant/qvos_unlocks.lua" \
   "$root/qvcore/theme/apply-plymouth" \
   "$root/qvcore/install/reinstall-configs" \
   --glob '!owner-contracts.psv'; then

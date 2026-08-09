@@ -141,7 +141,9 @@ if rg -n 'omarchy-restart-' \
   --glob '!**/README.md' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
-  --glob '!**/desktop/check'; then
+  --glob '!**/desktop/check' \
+  --glob '!**/menu/check' \
+  --glob '!**/menu/install'; then
   fail "native qvOS source still calls a restart compatibility command"
 fi
 if rg -n 'omarchy-hyprland-monitor-focused' \

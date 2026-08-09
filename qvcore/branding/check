@@ -145,9 +145,9 @@ identity_paths=(
   qvcore/config/files/systemd/user/qvos-battery-monitor.timer
   qvcore/config/files/waybar/config.jsonc
   qvcore/browser/extensions/copy-url/manifest.json
-  default/elephant/omarchy_background_selector.lua
-  default/elephant/omarchy_themes.lua
-  default/elephant/omarchy_unlocks.lua
+  qvcore/menu/elephant/qvos_background_selector.lua
+  qvcore/menu/elephant/qvos_themes.lua
+  qvcore/menu/elephant/qvos_unlocks.lua
   default/omarchy-skill/SKILL.md
   qvcore/install/first-run/welcome.sh
   qvcore/install/config/hardware/apple/fix-suspend-nvme.sh

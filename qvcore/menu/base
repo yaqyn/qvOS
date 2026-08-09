@@ -267,11 +267,11 @@ show_screensaver_menu() {
 }
 
 show_theme_menu() {
-  qv-launch-walker -m menus:omarchythemes --width 800 --minheight 400
+  qv-launch-walker -m menus:qvosThemes --width 800 --minheight 400
 }
 
 show_background_menu() {
-  qv-launch-walker -m menus:omarchyBackgroundSelector --width 800 --minheight 400
+  qv-launch-walker -m menus:qvosBackgroundSelector --width 800 --minheight 400
 }
 
 show_font_menu() {

@@ -72,7 +72,9 @@
     qvcore/config/toggle-state
     qvcore/config/user-services
     qvcore/menu/concepts.psv
-    qvcore/menu/elephant/omarchy_unlocks.lua
+    qvcore/menu/elephant/qvos_background_selector.lua
+    qvcore/menu/elephant/qvos_themes.lua
+    qvcore/menu/elephant/qvos_unlocks.lua
     qvcore/menu/elephant/qvos_menu.lua
     qvcore/menu/base
     qvcore/menu/menu
@@ -90,6 +92,8 @@
     qvcore/menu/walker-elephant-ready.conf
     qvcore/menu/walker-provider-set.toml
     qvcore/menu/walker-subtext.css
+    qvcore/menu/walker-theme/layout.xml
+    qvcore/menu/walker-theme/style.css
     qvcore/network/dns-policy
     qvcore/network/install
     qvcore/network/setup-dns

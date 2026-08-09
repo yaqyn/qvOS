@@ -82,6 +82,26 @@ HOME="$test_root" \
   fail "retired menu catalog residue"
 [[ $(<"$systemctl_log") == $'--user restart elephant.service\n--user restart app-walker@autostart.service' ]] ||
   fail "active menu service reload"
+
+printf '\n/* personal Walker theme adjustment */\n' >> \
+  "$test_root/.config/walker/themes/qvos-menu/style.css"
+HOME="$test_root" \
+  QVOS_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  "$root/qvcore/menu/install" --install >/dev/null
+walker_backup=$(rg -l 'personal Walker theme adjustment' \
+  "$test_root/.local/state/qvos/menu-backups"/qvos-menu.*/style.css \
+  | head -n 1 || true)
+if [[ -z $walker_backup ]]; then
+  fail "modified Walker theme backup"
+fi
+[[ $(stat -c '%a' "$test_root/.local/state/qvos/menu-backups") == "700" &&
+  $(stat -c '%a' "${walker_backup%/*}") == "700" ]] ||
+  fail "private Walker theme backup mode"
+! rg -q 'personal Walker theme adjustment' \
+  "$test_root/.config/walker/themes/qvos-menu/style.css" ||
+  fail "Walker theme convergence"
 python3 - "$test_root/.config/walker/config.toml" <<'PY'
 import pathlib
 import sys
@@ -130,10 +150,46 @@ legacy_runtime="$test_root/.local/lib/qvos/menu/elephant/qvos_omarchy_menu.lua"
 legacy_link="$test_root/.config/elephant/menus/qvos_omarchy_menu.lua"
 install -m 0644 "$root/qvcore/menu/elephant/qvos_menu.lua" "$legacy_runtime"
 ln -s "$legacy_runtime" "$legacy_link"
+foreign_provider="$test_root/.config/elephant/menus/omarchy_background_selector.lua"
+ln -s "$test_root/foreign-provider.lua" "$foreign_provider"
+if HOME="$test_root" \
+  QVOS_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/menu/install" --preflight >/dev/null 2>&1; then
+  fail "foreign retired Elephant provider was accepted"
+fi
+[[ $(readlink "$foreign_provider") == "$test_root/foreign-provider.lua" ]] ||
+  fail "foreign retired Elephant provider preservation"
+unlink -- "$foreign_provider"
+foreign_native_provider="$test_root/.config/elephant/menus/qvos_themes.lua"
+unlink -- "$foreign_native_provider"
+printf '%s\n' 'foreign provider' >"$foreign_native_provider"
+if HOME="$test_root" \
+  QVOS_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/menu/install" --preflight >/dev/null 2>&1; then
+  fail "foreign native Elephant provider was accepted"
+fi
+grep -Fqx 'foreign provider' "$foreign_native_provider" ||
+  fail "foreign native Elephant provider preservation"
+unlink -- "$foreign_native_provider"
+ln -s "$test_root/.local/lib/qvos/menu/elephant/qvos_themes.lua" \
+  "$foreign_native_provider"
+for provider in omarchy_background_selector.lua omarchy_themes.lua; do
+  ln -s "$root/default/elephant/$provider" \
+    "$test_root/.config/elephant/menus/$provider"
+done
+legacy_unlock_runtime="$test_root/.local/lib/qvos/menu/elephant/omarchy_unlocks.lua"
+install -m 0644 "$root/qvcore/menu/elephant/qvos_unlocks.lua" \
+  "$legacy_unlock_runtime"
+ln -s "$legacy_unlock_runtime" \
+  "$test_root/.config/elephant/menus/omarchy_unlocks.lua"
 sed -i \
   -e 's/qvos-menu/qvos-omarchy-menu/g' \
   -e 's/qvosMenu/qvosOmarchyMenu/g' \
   -e 's/# qvOS menu provider set/# qvOS Omarchy menu provider set/g' \
+  -e 's/command = "qv-restart-walker"/command = "omarchy-restart-walker"/' \
+  -e '/^theme = /a additional_theme_location = "~/.local/share/omarchy/default/walker/themes/"' \
   "$test_root/.config/walker/config.toml"
 mv \
   "$test_root/.config/walker/themes/qvos-menu" \
@@ -154,11 +210,15 @@ if [[ -e $legacy_runtime || -e $legacy_link || -L $legacy_link ||
   -e $test_root/.config/walker/themes/qvos-omarchy-menu ]]; then
   fail "legacy native qvOS menu namespace cleanup"
 fi
-if rg -q 'qvos-omarchy-menu|qvosOmarchyMenu|qvOS Omarchy menu provider' \
+if find "$test_root/.config/elephant/menus" -maxdepth 1 \
+  -name 'omarchy_*.lua' -print -quit | grep -q .; then
+  fail "legacy Elephant provider cleanup"
+fi
+if rg -q 'qvos-omarchy-menu|qvosOmarchyMenu|qvOS Omarchy menu provider|omarchy-restart-walker|default/walker/themes' \
   "$test_root/.config/walker/config.toml"; then
   fail "legacy native qvOS menu configuration cleanup"
 fi
-pass "native qvOS menu identifiers migrate without duplicate runtime residue"
+pass "native qvOS menu identifiers migrate without duplicate or inherited residue"
 
 menu_provider="$root/qvcore/menu/elephant/qvos_menu.lua"
 home_entries=$(
@@ -626,9 +686,9 @@ alias_count == 1 && empty_count == 1)) ||
 pass "the same query returns installed apps or menu concepts by mode"
 
 cmp -s \
-  "$root/default/walker/themes/omarchy-default/layout.xml" \
+  "$root/qvcore/menu/walker-theme/layout.xml" \
   "$test_root/.config/walker/themes/qvos-menu/layout.xml" ||
-  fail "menu theme inherits Walker layout"
+  fail "menu theme installs the native Walker layout"
 [[ $(head -n 1 "$test_root/.config/walker/themes/qvos-menu/style.css") == '@import "../../../omarchy/current/theme/walker.css";' ]] ||
   fail "menu theme import path"
 grep -Fq 'font-size: 12px;' \
@@ -641,8 +701,8 @@ grep -Fq 'opacity: 0;' \
   "$root/qvcore/menu/walker-subtext.css" ||
   fail "transient Elephant hint suppression"
 if grep -Fq 'font-size: 12px;' \
-  "$root/default/walker/themes/omarchy-default/style.css"; then
-  fail "qvOS menu typography drifted into inherited Walker source"
+  "$root/qvcore/menu/walker-theme/style.css"; then
+  fail "generated menu typography drifted into the base Walker source"
 fi
 pass "qvOS theme keeps breadcrumbs and hides transient provider noise"
 

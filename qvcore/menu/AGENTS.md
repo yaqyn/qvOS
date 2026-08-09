@@ -88,8 +88,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   not add an embedded terminal or terminal mode to the menu.
 - Keep qvOS actions in their normal product menus. Do not maintain a parallel
   qvOS feature submenu.
-- Keep qvOS Elephant provider deltas under `qvcore/menu/elephant/`. Install them
-  through `qvcore/menu/install` and link inherited providers from Omarchy source.
+- Keep every qvOS Elephant provider under `qvcore/menu/elephant/` and the Walker
+  layout/style source under `qvcore/menu/walker-theme/`. Install only generated
+  runtime copies through `qvcore/menu/install`; never link a provider or theme
+  back to an inherited source tree. Native provider identities use `qvos*`.
 - `qvcore/menu/menu` is the singular menu orchestrator. It sources `base` and
   `routes` exactly once, then loads the user-owned
   `~/.config/omarchy/extensions/menu.sh` compatibility ABI last so personal
@@ -105,6 +107,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
   remove only their exact owned block, link, and theme while preserving foreign
   files and user-selected themes.
+- Exact legacy provider links, the inherited Walker source hint, and the
+  `omarchy-restart-walker` emergency route are migration input only. Remove or
+  rewrite them during menu reconciliation while preserving foreign links,
+  providers, custom themes, and unrelated Walker configuration.
 - The menu runtime under `~/.local/lib/qvos/menu` is generated payload, not
   user configuration. Retire obsolete payload files only when their exact
   reviewed hash matches; refuse links, foreign ownership, and modified
