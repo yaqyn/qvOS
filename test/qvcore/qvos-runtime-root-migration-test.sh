@@ -5,8 +5,6 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root=$(mktemp -d)
 test_home="$test_root/home"
-test_bin="$test_root/bin"
-systemctl_log="$test_root/systemctl.log"
 owner="$root/qvcore/config/migrate-runtime-root"
 
 cleanup() {
@@ -20,16 +18,21 @@ fail() {
 }
 
 install -d \
-  "$test_bin" \
   "$test_home/.config/Thunar" \
   "$test_home/.config/fastfetch" \
   "$test_home/.config/hypr" \
   "$test_home/.config/uwsm" \
   "$test_home/.config/waybar"
-install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
-#!/bin/bash
-printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
-SCRIPT
+
+install -m 0644 /dev/stdin "$test_home/.config/hypr/hyprland.conf" <<'CONFIG'
+# Keep this custom Hyprland line.
+source = ~/.local/share/omarchy/default/hypr/autostart.conf
+source = ~/.local/share/qvos/default/hypr/envs.conf
+source = ~/.local/share/omarchy/default/hypr/looknfeel.conf
+source = ~/.local/share/qvos/default/hypr/input.conf
+source = ~/.local/share/omarchy/default/hypr/windows.conf
+source = ~/.config/hypr/qv.conf
+CONFIG
 
 install -m 0644 /dev/stdin "$test_home/.config/hypr/bindings.conf" <<'CONFIG'
 exec = ~/.local/share/qvos/desktop/context/tool
@@ -100,8 +103,7 @@ export OMARCHY_SCREENSHOT_DIR="$HOME/Pictures/Private"
 export OMARCHY_SCREENRECORD_DIR="$HOME/Videos/Private"
 CONFIG
 HOME="$test_home" \
-  PATH="$test_bin:/usr/bin" \
-  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="/usr/bin" \
   "$owner" >/dev/null
 
 grep -Fq '.local/lib/qvos/desktop/' "$test_home/.config/hypr/bindings.conf" ||
@@ -110,8 +112,24 @@ grep -Fq '.local/lib/qvos/thunar/' "$test_home/.config/hypr/bindings.conf" ||
   fail "Thunar runtime migration"
 grep -Fq '.local/lib/qvos/tmux/' "$test_home/.config/hypr/bindings.conf" ||
   fail "tmux runtime migration"
-grep -Fq '.local/share/qvos/default/' "$test_home/.config/hypr/bindings.conf" ||
-  fail "source-root path preservation"
+grep -Fq 'source = ~/.config/hypr/input.conf' \
+  "$test_home/.config/hypr/bindings.conf" ||
+  fail "retired input source migration"
+for source_path in autostart envs looknfeel windows; do
+  grep -Fq "source = ~/.local/share/qvos/qvcore/config/base/hypr/$source_path.conf" \
+    "$test_home/.config/hypr/hyprland.conf" ||
+    fail "native Hyprland base migration: $source_path"
+done
+grep -Fqx 'source = ~/.config/hypr/input.conf' \
+  "$test_home/.config/hypr/hyprland.conf" ||
+  fail "native Hyprland input migration"
+grep -Fqx '# Keep this custom Hyprland line.' \
+  "$test_home/.config/hypr/hyprland.conf" ||
+  fail "custom Hyprland content preservation"
+if rg -q 'default/hypr|source = ~/.config/hypr/qv\.conf' \
+  "$test_home/.config/hypr/hyprland.conf"; then
+  fail "retired Hyprland base or stock overlay remains"
+fi
 for command in \
   qv-audio-input-mute \
   qv-audio-output-switch \
@@ -247,21 +265,33 @@ grep -Fqx 'export QVOS_SCREENRECORD_DIR="$HOME/Videos/Private"' \
   "$test_home/.config/uwsm/default" || fail "recording environment migration"
 grep -Fqx '# Keep this user comment.' "$test_home/.config/uwsm/default" ||
   fail "Capture environment custom content preservation"
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "7" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "8" ]] ||
   fail "changed config backup count"
-[[ $(<"$systemctl_log") == "--user daemon-reload" ]] ||
-  fail "user service reload"
 
 state_before=$(find "$test_home/.config" -type f -printf '%P|%m|%i|%T@\n' | sort)
 HOME="$test_home" \
-  PATH="$test_bin:/usr/bin" \
-  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="/usr/bin" \
   "$owner" >/dev/null
 [[ $(find "$test_home/.config" -type f -printf '%P|%m|%i|%T@\n' | sort) == \
   "$state_before" ]] ||
   fail "idempotent config migration"
-[[ $(wc -l <"$systemctl_log") == "1" ]] ||
-  fail "idempotent service reload"
+
+custom_home="$test_root/custom-home"
+install -d "$custom_home/.config/hypr"
+install -m 0644 /dev/stdin "$custom_home/.config/hypr/hyprland.conf" <<'CONFIG'
+source = ~/.config/hypr/qv.conf
+CONFIG
+install -m 0644 /dev/stdin "$custom_home/.config/hypr/qv.conf" <<'CONFIG'
+# User-owned qvOS compatibility layer.
+source = ~/.config/hypr/custom.conf
+CONFIG
+HOME="$custom_home" PATH="/usr/bin" "$owner" >/dev/null 2>&1
+grep -Fqx 'source = ~/.config/hypr/qv.conf' \
+  "$custom_home/.config/hypr/hyprland.conf" ||
+  fail "custom qvOS compatibility source preservation"
+grep -Fqx 'source = ~/.config/hypr/custom.conf' \
+  "$custom_home/.config/hypr/qv.conf" ||
+  fail "custom qvOS compatibility payload preservation"
 
 unsafe_home="$test_root/unsafe-home"
 external_config="$test_root/external-bindings"
@@ -269,12 +299,28 @@ install -d "$unsafe_home/.config/hypr"
 printf 'foreign\n' >"$external_config"
 ln -s "$external_config" "$unsafe_home/.config/hypr/bindings.conf"
 if HOME="$unsafe_home" \
-  PATH="$test_bin:/usr/bin" \
-  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="/usr/bin" \
   "$owner" >/dev/null 2>&1; then
   fail "symbolic-link config accepted"
 fi
 [[ $(<"$external_config") == "foreign" ]] ||
   fail "symbolic-link config preservation"
+
+linked_parent_home="$test_root/linked-parent-home"
+linked_parent_config="$test_root/linked-parent-config"
+install -d "$linked_parent_home" "$linked_parent_config/hypr"
+install -m 0644 /dev/stdin \
+  "$linked_parent_config/hypr/bindings.conf" <<'CONFIG'
+exec = omarchy-launch-browser
+CONFIG
+ln -s "$linked_parent_config" "$linked_parent_home/.config"
+if HOME="$linked_parent_home" \
+  PATH="/usr/bin" \
+  "$owner" >/dev/null 2>&1; then
+  fail "symbolic-link config parent accepted"
+fi
+grep -Fqx 'exec = omarchy-launch-browser' \
+  "$linked_parent_config/hypr/bindings.conf" ||
+  fail "symbolic-link config parent preservation"
 
 printf 'ok - source and runtime config roots migrate once without losing user state\n'

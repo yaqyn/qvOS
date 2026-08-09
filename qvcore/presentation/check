@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-launch-floating-terminal-with-presentation\nbin/omarchy-show-done\ndefault/hypr/apps/system.conf'
+expected=$'bin/omarchy-launch-floating-terminal-with-presentation\nbin/omarchy-show-done'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native presentation inventory"
 
@@ -67,9 +67,11 @@ if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed)
   --glob '!**/native-paths'; then
   fail "active qvOS consumer uses presentation compatibility"
 fi
-grep -Fq 'org.qvos.terminal' "$root/default/hypr/apps/system.conf" ||
+grep -Fq 'org\.qvos\.(bluetui|impala|wiremix|btop|terminal)' \
+  "$root/qvcore/config/base/hypr/windows.conf" ||
   fail "native result terminal does not float"
-! rg -qi 'match:class .*\bzoom\b' "$root/default/hypr/apps/system.conf" ||
+! rg -qi 'match:class .*\bzoom\b' \
+  "$root/qvcore/config/base/hypr/windows.conf" ||
   fail "retired service-specific application rule remains"
 grep -Fq "'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation'" \
   "$root/qvcore/config/migrate-runtime-root" || fail "presentation config migration"

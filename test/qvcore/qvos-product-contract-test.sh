@@ -402,10 +402,10 @@ if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qvcore/waybar/overrides.jsonc"; then
   fail "retired qvOS feature menu"
 fi
-grep -Fq '`qvcore/config/files/hypr/bindings.conf` is the single authoritative qvOS' \
+grep -Fq '`qvcore/config/base/hypr/` is the singular source-side Hyprland base.' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"
-grep -Fq 'There is no inherited binding layer and no qvOS binding overlay.' \
+grep -Fq 'There is no inherited base, fragment fan-out, binding layer, or qvOS overlay.' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS singular binding ownership instruction"
 grep -Fq '`qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.' \
@@ -473,13 +473,13 @@ fi
 grep -Fq 'qv-launch-update' "$root/qvcore/theme/yaqyn/mako.ini" ||
   fail "qvOS update notification TUI route"
 grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/files/hypr/qv/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.conf" ||
   fail "qvOS TUI floating window contract"
 grep -Fqx 'windowrule = size 1024 509, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/files/hypr/qv/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.conf" ||
   fail "qvOS TUI default window size"
 grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/files/hypr/qv/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.conf" ||
   fail "qvOS TUI centered window contract"
 grep -Fqx 'exec "$QVOS_PATH/qvcore/install/first-run/run" "$@"' \
   "$root/bin/omarchy-first-run" ||

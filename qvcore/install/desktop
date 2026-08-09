@@ -63,6 +63,8 @@
     qvcore/install/cleanup-obsolete
     qvcore/install/migrate-structure
     qvcore/install/post-update-hook
+    qvcore/config/migrate-runtime-root
+    qvcore/config/retired-hypr-layer.psv
     qvcore/branding/install
     qvcore/branding/lib
     qvcore/branding/terminal-art.txt
@@ -197,6 +199,7 @@
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"
 
+  "$QVOS_PATH/qvcore/config/migrate-runtime-root"
   "$QVOS_PATH/qvcore/install/cleanup-obsolete"
   "$QVOS_PATH/qvcore/windows/reconcile"
 

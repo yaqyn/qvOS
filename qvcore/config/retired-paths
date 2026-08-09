@@ -1,8 +1,3 @@
 # Inherited config paths intentionally absent from qvOS.
 config/
-default/hypr/apps/telegram.conf
-default/hypr/apps/typora.conf
-default/hypr/bindings.conf
-default/hypr/bindings/
-default/hypr/plain-bindings.conf
-default/hypr/toggles/
+default/hypr/

@@ -69,15 +69,19 @@ rewrite_active_config() {
       apps:'source = ~/.local/share/omarchy/default/hypr/apps/telegram.conf')
       continue
       ;;
+    apps:'source = ~/.local/share/qvos/default/hypr/apps/browser.conf' | \
+      apps:'source = ~/.local/share/omarchy/default/hypr/apps/browser.conf')
+      continue
+      ;;
     browser:'windowrule = tag -chromium-based-browser, match:class (chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)' | \
       browser:'windowrule = tag -default-opacity, match:class (chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)')
       continue
       ;;
     system:'windowrule = tag -default-opacity, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$')
-      line='windowrule = tag -default-opacity, match:class ^(vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$'
+      line='windowrule = tag -default-opacity, match:class ^(mpv|imv)$'
       ;;
     system:'windowrule = opacity 1 1, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$')
-      line='windowrule = opacity 1 1, match:class ^(vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$'
+      line='windowrule = opacity 1 1, match:class ^(mpv|imv)$'
       ;;
     esac
     printf '%s\n' "$line"

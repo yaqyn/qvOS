@@ -65,8 +65,8 @@ Focused-monitor scaling must preserve the monitor's exact placement, update
 only a singular generic adaptive rule, publish that config atomically, and roll
 the live scale back when persistence fails. Custom monitor layouts remain
 untouched. Monitor-event recovery calls the native config owners directly;
-`default/hypr/autostart.conf` retains only the metadata-free monitor-watch
-compatibility command until that inherited source is promoted. Never exercise
+`qvcore/config/base/hypr/autostart.conf` calls the native monitor-watch route.
+Never exercise
 window, workspace, or display mutations on the live desktop merely to test a
 route.
 

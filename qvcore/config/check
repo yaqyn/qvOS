@@ -4,24 +4,33 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 bindings="$root/qvcore/config/files/hypr/bindings.conf"
 hyprland="$root/qvcore/config/files/hypr/hyprland.conf"
+base="$root/qvcore/config/base/hypr"
+autostart="$base/autostart.conf"
+windows="$base/windows.conf"
 native_manifest="$root/qvcore/config/native-paths"
 retired_manifest="$root/qvcore/config/retired-paths"
+retired_hypr_manifest="$root/qvcore/config/retired-hypr-layer.psv"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
 
-[[ ! -e $root/default/hypr/bindings ]] || fail "inherited binding directory remains"
-[[ ! -e $root/default/hypr/bindings.conf ]] || fail "inherited binding loader remains"
-[[ ! -e $root/default/hypr/plain-bindings.conf ]] || fail "alternate inherited binding map remains"
+[[ ! -e $root/default/hypr && ! -L $root/default/hypr ]] ||
+  fail "inherited Hyprland base remains"
 [[ ! -e $root/config && ! -L $root/config ]] ||
   fail "retired top-level config source remains"
-[[ ! -e $root/qvcore/config/files/hypr/qv/bindings.conf ]] ||
-  fail "qvOS binding overlay remains"
+[[ ! -e $root/qvcore/config/files/hypr/qv.conf &&
+  ! -L $root/qvcore/config/files/hypr/qv.conf &&
+  ! -e $root/qvcore/config/files/hypr/qv &&
+  ! -L $root/qvcore/config/files/hypr/qv ]] ||
+  fail "retired qvOS Hyprland overlay remains"
 [[ -f $root/qvcore/config/files/hypr/bindings.conf &&
   ! -L $root/qvcore/config/files/hypr/bindings.conf ]] ||
   fail "native qvOS binding source is unavailable"
+[[ $(find "$base" -maxdepth 1 -type f -printf '%f\n' | sort) == \
+  $'autostart.conf\nenvs.conf\nlooknfeel.conf\nwindows.conf' ]] ||
+  fail "native Hyprland base inventory changed"
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.service ]] ||
   fail "inherited battery monitor service remains"
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
@@ -38,17 +47,18 @@ grep -Fqx '<?xml version="1.0" encoding="UTF-8"?>' \
   "$root/qvcore/config/files/xfce4/xfconf/xfce-perchannel-xml/thunar.xml" ||
   fail "Thunar settings do not use the supported XML version"
 
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select\ndefault/hypr/apps.conf\ndefault/hypr/apps/browser.conf\ndefault/hypr/windows.conf' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select' ]] ||
   fail "native config inventory changed"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'config/\ndefault/hypr/apps/telegram.conf\ndefault/hypr/apps/typora.conf\ndefault/hypr/bindings.conf\ndefault/hypr/bindings/\ndefault/hypr/plain-bindings.conf\ndefault/hypr/toggles/' ]] ||
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  $'config/\ndefault/hypr/' ]] ||
   fail "retired config inventory changed"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_hypr_manifest") == \
+  $'qv.conf|51609b3bfb93e29350f57a527176b08c3c322d02b2d5b7cb8b583437a9849d0e\nqv/looknfeel.conf|200b286673249f4b340ba8b77b68718e7a1bc5a531e287d041618c1af8867f3a\nqv/windows.conf|588592b7f9bb36d46c963d80ab54bf01fbc79b0f2fd38cd75f4644c6f0d91a91' ]] ||
+  fail "retired Hyprland payload policy changed"
 
 [[ ! -e $root/qvcore/config/files/Typora && ! -L $root/qvcore/config/files/Typora ]] ||
   fail "retired Typora configuration source remains"
-[[ ! -e $root/default/hypr/apps/typora.conf &&
-  ! -L $root/default/hypr/apps/typora.conf ]] ||
-  fail "retired Typora window-rule source remains"
-! rg -qi 'typora' "$root/default/hypr/apps.conf" ||
+! rg -qi 'typora' "$windows" ||
   fail "fresh Hyprland configuration still loads Typora"
 
 # shellcheck disable=SC2016
@@ -63,8 +73,16 @@ fi
 
 [[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"
-if rg -q 'default/hypr/bindings|qvcore/bindings\.conf' "$hyprland" "$root/qvcore/config/files/hypr/qv.conf"; then
-  fail "retired binding layer remains sourced"
+for source_path in autostart envs looknfeel windows; do
+  grep -Fqx \
+    "source = ~/.local/share/qvos/qvcore/config/base/hypr/$source_path.conf" \
+    "$hyprland" || fail "native Hyprland base source: $source_path"
+done
+grep -Fqx 'source = ~/.config/hypr/input.conf' "$hyprland" ||
+  fail "native user input source"
+if rg -q 'default/hypr|qvcore/bindings\.conf|~/.config/hypr/qv(\.conf|/)' \
+  "$hyprland"; then
+  fail "retired Hyprland source or overlay remains active"
 fi
 if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
   fail "native binding source still contains overlay unbinds"
@@ -73,9 +91,18 @@ if rg -q 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?
   "$bindings"; then
   fail "fresh qvOS bindings contain fixed web-service destinations"
 fi
-if rg -qi 'chrome-(youtube\.com|app\.zoom\.us)|match:class .*\bzoom\b' \
-  "$root/default/hypr/apps/browser.conf"; then
+if rg -qi 'https?://|youtube|discord|match:class .*\bzoom\b|Nautilus|davinci|jetbrains|1password|org\.omarchy\.(bluetui|impala|wiremix|btop|terminal|bash)' \
+  "$windows"; then
   fail "retired service-specific window rules remain"
+fi
+grep -Fqx 'windowrule = tag +floating-window, match:class ^org\.qvos\.(bluetui|impala|wiremix|btop|terminal)$' \
+  "$windows" || fail "native terminal application identities"
+for command in qv-toggle-enabled qv-powerprofiles-init qv-hyprland-monitor-watch; do
+  grep -Fq "$command" "$autostart" ||
+    fail "native autostart route: $command"
+done
+if rg -n 'exec-once = .*omarchy-' "$autostart"; then
+  fail "native autostart calls a compatibility command"
 fi
 
 duplicate_bindings=$(

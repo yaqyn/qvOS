@@ -239,9 +239,9 @@ if rg -n 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?
   "$root/qvcore/config/files/hypr/bindings.conf"; then
   fail "fresh qvOS contains fixed Web App destinations"
 fi
-grep -Fqx 'exec-once = uwsm-app -- omarchy-hyprland-monitor-watch' \
-  "$root/default/hypr/autostart.conf" ||
-  fail "inherited autostart no longer uses the retained monitor-watch compatibility seam"
+grep -Fqx 'exec-once = uwsm-app -- qv-hyprland-monitor-watch' \
+  "$root/qvcore/config/base/hypr/autostart.conf" ||
+  fail "native autostart bypasses the monitor-watch owner"
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi

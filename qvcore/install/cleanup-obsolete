@@ -1,6 +1,59 @@
 #!/bin/bash
 set -euo pipefail
 
+install_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+retired_hypr_manifest="$install_dir/../config/retired-hypr-layer.psv"
+
+cleanup_retired_hypr_config() {
+  local expected_hash=$1
+  local relative=$2
+  local config_root="$HOME/.config/hypr"
+  local hyprland="$config_root/hyprland.conf"
+  local installed_hash
+  local target="$config_root/$relative"
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] || return 0
+  [[ -d $HOME/.config && ! -L $HOME/.config && -O $HOME/.config ]] ||
+    return 0
+  [[ -d $config_root && ! -L $config_root && -O $config_root ]] ||
+    return 0
+  if [[ -e $hyprland || -L $hyprland ]]; then
+    [[ -f $hyprland && ! -L $hyprland && -O $hyprland ]] || return 0
+    ! grep -Fqx 'source = ~/.config/hypr/qv.conf' "$hyprland" || return 0
+  fi
+  if [[ $relative == */* ]]; then
+    [[ -d $config_root/qv && ! -L $config_root/qv && -O $config_root/qv ]] ||
+      return 0
+  fi
+  [[ -f $target && ! -L $target && -O $target ]] || return 0
+  installed_hash=$(sha256sum -- "$target")
+  installed_hash=${installed_hash%% *}
+  [[ $installed_hash == "$expected_hash" ]] || return 0
+  rm -f -- "$target"
+}
+
+[[ -f $retired_hypr_manifest && ! -L $retired_hypr_manifest ]] || {
+  echo "Missing qvOS retired Hyprland manifest: $retired_hypr_manifest" >&2
+  exit 1
+}
+while IFS='|' read -r retired_path retired_hash retired_extra; do
+  [[ -n $retired_path && $retired_path != \#* ]] || continue
+  [[ -z ${retired_extra:-} &&
+    $retired_path =~ ^qv(\.conf|/[a-z]+\.conf)$ &&
+    $retired_hash =~ ^[0-9a-f]{64}$ ]] || {
+    echo "Invalid qvOS retired Hyprland manifest row: $retired_path" >&2
+    exit 1
+  }
+  cleanup_retired_hypr_config "$retired_hash" "$retired_path"
+done <"$retired_hypr_manifest"
+if [[ -d $HOME && ! -L $HOME && -O $HOME &&
+  -d $HOME/.config && ! -L $HOME/.config && -O $HOME/.config &&
+  -d $HOME/.config/hypr && ! -L $HOME/.config/hypr && -O $HOME/.config/hypr &&
+  -d $HOME/.config/hypr/qv && ! -L $HOME/.config/hypr/qv &&
+  -O $HOME/.config/hypr/qv ]]; then
+  rmdir -- "$HOME/.config/hypr/qv" 2>/dev/null || true
+fi
+
 cleanup_retired_nautilus_extension() {
   local expected_hash=$1
   local extension_name=$2

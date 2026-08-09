@@ -38,6 +38,13 @@ retired.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
+This includes the former installed `hypr/qv` overlay after its exact source
+line migrates into the singular native base. Both migration and cleanup consume
+`qvcore/config/retired-hypr-layer.psv` as the single known-payload policy;
+modified overlay files remain as preserved user compatibility state. Every
+desktop and post-update reconciliation runs the native config migration
+immediately before cleanup, and cleanup refuses an overlay that is still
+actively sourced.
 Retired Nautilus extensions are removed only when their source hash matches the
 known inherited payload; remove their matching bytecode only in that same
 verified cleanup and leave every modified or unrelated extension intact.

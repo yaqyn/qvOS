@@ -252,6 +252,9 @@ grep -Fq 'https://user.example' "$test_home/.config/hypr/bindings.conf" ||
   fail "custom Web App binding preservation"
 ! rg -q 'telegram\.conf' "$test_home/.config/hypr/apps.conf" ||
   fail "retired Telegram rule source"
+! rg -q 'default/hypr/apps/(browser|telegram)\.conf' \
+  "$test_home/.config/hypr/apps.conf" ||
+  fail "retired application rule sources"
 ! rg -qi 'youtube|zoom' "$test_home/.config/hypr/apps/browser.conf" ||
   fail "retired browser service rules"
 ! rg -q 'match:class .*\bzoom\b' "$test_home/.config/hypr/apps/system.conf" ||

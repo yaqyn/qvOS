@@ -232,9 +232,25 @@ fi
 
 if rg -n \
   'omarchy-(first-run|refresh-applications|reinstall(-configs|-git|-pkgs)?)([^[:alnum:]_-]|$)' \
-  "$root/qvcore/install" "$root/default/hypr/autostart.conf" \
+  "$root/qvcore/install" "$root/qvcore/config/base/hypr/autostart.conf" \
   --glob '!AGENTS.md' --glob '!check' --glob '!native-paths'; then
   fail "native install lifecycle calls a compatibility route"
 fi
+
+for reconciler in \
+  "$root/qvcore/install/desktop" \
+  "$root/qvcore/install/post-update-hook"; do
+  # These are literal source lines, not variable references.
+  # shellcheck disable=SC2016
+  migration_line=$(grep -nF '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
+    "$reconciler" | tail -n 1 | cut -d: -f1)
+  # shellcheck disable=SC2016
+  cleanup_line=$(grep -nF '"$QVOS_PATH/qvcore/install/cleanup-obsolete"' \
+    "$reconciler" | tail -n 1 | cut -d: -f1)
+  [[ -n $migration_line && -n $cleanup_line ]] ||
+    fail "config migration and cleanup wiring: ${reconciler#"$root/"}"
+  ((migration_line < cleanup_line)) ||
+    fail "config cleanup runs before migration: ${reconciler#"$root/"}"
+done
 
 printf 'ok - qvOS owns the complete install and reinstall lifecycle\n'

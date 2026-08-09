@@ -8,9 +8,7 @@ export QVOS_PATH OMARCHY_PATH
 # qvos:contract=qvcore/config/files/hypr/bindings.conf
 # qvos:contract=qvcore/config/files/hypr/hyprland.conf
 # qvos:contract=qvcore/config/files/hypr/input.conf
-# qvos:contract=qvcore/config/files/hypr/qv.conf
-# qvos:contract=qvcore/config/files/hypr/qv/looknfeel.conf
-# qvos:contract=qvcore/config/files/hypr/qv/windows.conf
+# qvos:contract=qvcore/config/base/hypr
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 
@@ -22,9 +20,6 @@ config_paths=(
   hypr/hyprland.conf
   hypr/monitors.conf
   hypr/input.conf
-  hypr/qv.conf
-  hypr/qv/looknfeel.conf
-  hypr/qv/windows.conf
 )
 
 for config_path in "${config_paths[@]}"; do

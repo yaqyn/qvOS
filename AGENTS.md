@@ -128,6 +128,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 - `qvcore/config/files/` is the singular source for installed user config;
   `config/` is retired and must remain absent
+- `qvcore/config/base/hypr/` owns the source-side session, environment,
+  appearance, and window defaults; `default/hypr/` and the former installed
+  `hypr/qv` overlay are retired and must remain absent
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state
@@ -144,8 +147,7 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `omarchy-system-*` names remain external compatibility adapters only
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
-  menus call `qv-hyprland-*`, while the inherited autostart source alone keeps
-  the exact monitor-watch compatibility seam until that source is promoted
+  native autostart call only `qv-hyprland-*` routes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
 - desktop application, browser, web-app, and terminal launching belongs to

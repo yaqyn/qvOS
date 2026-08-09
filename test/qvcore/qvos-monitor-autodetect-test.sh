@@ -212,9 +212,12 @@ grep -Fqx 'env = GDK_SCALE,1' "$monitor_config" ||
 grep -Fqx 'monitor=,preferred,auto,auto' "$monitor_config" ||
   fail "complete Hyprland restore lost adaptive monitor selection"
 cmp -s \
-  "$root/qvcore/config/files/hypr/qv.conf" \
-  "$test_home/.config/hypr/qv.conf" ||
-  fail "complete Hyprland restore lost the qvOS config layer"
+  "$root/qvcore/config/files/hypr/hyprland.conf" \
+  "$test_home/.config/hypr/hyprland.conf" ||
+  fail "complete Hyprland restore lost the native qvOS base"
+[[ ! -e $test_home/.config/hypr/qv.conf &&
+  ! -e $test_home/.config/hypr/qv ]] ||
+  fail "complete Hyprland restore recreated the retired qvOS overlay"
 
 install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 : >"$hyprctl_log"

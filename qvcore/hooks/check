@@ -56,7 +56,7 @@ if rg -n 'omarchy-hook|\.config/omarchy/hooks' \
   "$root/qvcore/menu/font-install" \
   "$root/qvcore/theme/set" \
   "$root/qvcore/update/perform" \
-  "$root/default/hypr/autostart.conf"; then
+  "$root/qvcore/config/base/hypr/autostart.conf"; then
   fail "native source still consumes the inherited hook route or root"
 fi
 for owner in \

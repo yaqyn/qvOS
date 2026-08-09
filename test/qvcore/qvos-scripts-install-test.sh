@@ -80,6 +80,17 @@ HOME="$unsafe_cleanup_home" "$root/qvcore/install/cleanup-obsolete"
   fail "linked Nautilus root preservation"
 pass "retired extension cleanup refuses a linked Nautilus root"
 
+modified_hypr_home="$test_root/modified-hypr-home"
+install -d "$modified_hypr_home/.config/hypr/qv"
+printf '# personal qvOS layer\n' >"$modified_hypr_home/.config/hypr/qv.conf"
+printf '# personal qvOS windows\n' \
+  >"$modified_hypr_home/.config/hypr/qv/windows.conf"
+HOME="$modified_hypr_home" "$root/qvcore/install/cleanup-obsolete"
+[[ -f $modified_hypr_home/.config/hypr/qv.conf &&
+  -f $modified_hypr_home/.config/hypr/qv/windows.conf ]] ||
+  fail "modified qvOS Hyprland layer preservation"
+pass "modified Hyprland compatibility state is never deleted"
+
 partial_root="$test_root/partial-source"
 partial_home="$test_root/partial-home"
 install -d \
@@ -406,6 +417,61 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/services/proton"
 install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
+install -d "$test_root/.config/hypr/qv"
+install -m 0644 /dev/stdin "$test_root/.config/hypr/qv.conf" <<'CONFIG'
+# qvOS specialized Hyprland configuration.
+# Core bindings now live directly in ~/.config/hypr/bindings.conf.
+
+source = ~/.config/hypr/qv/looknfeel.conf
+source = ~/.config/hypr/qv/windows.conf
+CONFIG
+install -m 0644 /dev/stdin \
+  "$test_root/.config/hypr/qv/looknfeel.conf" <<'CONFIG'
+# qvOS appearance overrides.
+
+misc {
+  # Apps that request attention should mark their workspace urgent instead of
+  # pulling focus away from the current workspace.
+  focus_on_activate = false
+}
+CONFIG
+install -m 0644 /dev/stdin \
+  "$test_root/.config/hypr/qv/windows.conf" <<'CONFIG'
+# qvOS window and layer rules.
+
+# Keep qvOS TUI windows on the shared wide floating stage.
+windowrule = float on, match:class ^org\.qvos\.tui$
+windowrule = size 1024 509, match:class ^org\.qvos\.tui$
+windowrule = center on, match:class ^org\.qvos\.tui$
+
+# Keep the tmux manager compact and separate from attached tmux sessions.
+windowrule = float on, match:class ^org\.qvos\.tmux-manager$
+windowrule = size 900 620, match:class ^org\.qvos\.tmux-manager$
+windowrule = center on, match:class ^org\.qvos\.tmux-manager$
+
+# qvOS screensaver owns the screen while active.
+windowrule = fullscreen on, match:class org.omarchy.screensaver
+windowrule = float on, match:class org.omarchy.screensaver
+windowrule = animation slide, match:class org.omarchy.screensaver
+
+# Steam and Steam-launched games live on workspace G.
+windowrule = workspace name:G silent, match:class ^([Ss]team|steamwebhelper|steam_app_[0-9]+)$
+
+# Keep Thunar dialogs and file-operation popups detached from tiled folder windows.
+windowrule = float on, match:class ^thunar$, match:modal 1
+windowrule = center on, match:class ^thunar$, match:modal 1
+windowrule = float on, match:class ^thunar$, match:title ^(File Operation Progress|Confirm to replace files|.*(Rename|Copy|Move|Delete).*)$
+windowrule = center on, match:class ^thunar$, match:title ^(File Operation Progress|Confirm to replace files|.*(Rename|Copy|Move|Delete).*)$
+CONFIG
+install -m 0644 /dev/stdin \
+  "$test_root/.config/hypr/hyprland.conf" <<'CONFIG'
+source = ~/.config/hypr/qv.conf
+CONFIG
+HOME="$test_root" "$root/qvcore/install/cleanup-obsolete"
+[[ -f $test_root/.config/hypr/qv.conf &&
+  -f $test_root/.config/hypr/qv/looknfeel.conf &&
+  -f $test_root/.config/hypr/qv/windows.conf ]] ||
+  fail "actively sourced stock Hyprland layer preservation"
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 [[ $(find "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos" \
@@ -418,6 +484,9 @@ grep -Fq 'Exec=/usr/bin/custom-file-manager' \
 grep -Fq 'Environment=USER_CUSTOM=1' \
   "$test_root/.config/systemd/user/thunar.service" ||
   fail "custom Thunar service preservation"
+[[ ! -e $test_root/.config/hypr/qv.conf &&
+  ! -e $test_root/.config/hypr/qv ]] ||
+  fail "exact retired qvOS Hyprland layer cleanup"
 [[ ! -e $test_root/.local/lib/qvos/tui/.qvos-tui.STALE1 ]] ||
   fail "stale TUI build cleanup"
 [[ -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||

@@ -3,9 +3,11 @@
 Read this file completely when changing qvOS-owned Hyprland bindings, config
 refresh reconciliation, or installed desktop configuration.
 
-`qvcore/config/files/hypr/bindings.conf` is the single authoritative qvOS
-binding source.
-There is no inherited binding layer and no qvOS binding overlay.
+`qvcore/config/base/hypr/` is the singular source-side Hyprland base. It owns
+session autostart, environment, appearance, and all default window rules in
+four readable files. `qvcore/config/files/hypr/` owns installed user-editable
+configuration, including the single authoritative binding and input sources.
+There is no inherited base, fragment fan-out, binding layer, or qvOS overlay.
 
 Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
 private-browser, localhost, and prompted-website access; users may install and
@@ -14,11 +16,9 @@ Fresh config also omits Typora: it is neither base-owned nor offered by a qvOS
 installer. Preserve existing user Typora configuration, but never restore its
 retired bundled themes, desktop seed, or window rule.
 
-Promoted desktop bindings call `qv-toggle-*` routes. Matching
+Promoted desktop bindings and native autostart call `qv-*` routes. Matching
 `omarchy-toggle-*` commands exist only as metadata-free saved-config
-compatibility adapters after their feature owner is promoted; retained
-inherited config may keep that compatibility ABI until its complete domain
-moves.
+compatibility adapters after their feature owner is promoted.
 
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
@@ -57,10 +57,11 @@ invalid.
 Its native command carries metadata and its matching Omarchy command is a
 metadata-free compatibility adapter. The owner preflights the monitor
 destination, restores every Hyprland default through the shared transaction
-from the singular `qvcore/config/files/hypr/` source, detects the current
-display scale, then detects the keyboard layout. Never restore a second
-inherited source immediately before the native owner. Reconcile after refresh
-and verify tracked and installed config.
+from the singular `qvcore/config/files/hypr/` installed source. The restored
+main file loads only `qvcore/config/base/hypr/`, the external-theme ABI, and
+user configuration before detecting display scale and keyboard layout. Never
+restore a second source or overlay. Reconcile after refresh and verify tracked
+and installed config.
 
 Hypridle, Hyprlock, Hyprsunset, and SwayOSD each have one small refresh owner
 here. Hypridle is a specialized native source under `qvcore/config/files/`;
@@ -113,7 +114,12 @@ alignment, and the full qvOS suite.
 and promoted command literals in named active configs. Back up each changed
 regular user-owned file, preserve all other content, refuse links and foreign
 ownership, and remain a no-op after success. Keep its inherited migration stub
-thin and its implementation native.
+thin and its implementation native. It rewrites the former Hyprland base to
+`qvcore/config/base/hypr/`, folds input into the installed user source, and
+retires the former `hypr/qv` source line only when every present payload is an
+exact known qvOS file listed in `retired-hypr-layer.psv`. Preserve modified
+compatibility layers. Cleanup consumes the same manifest; never duplicate its
+hash policy. No migrated file requires a systemd daemon reload.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM
@@ -138,10 +144,10 @@ only after the system change succeeds.
 login and explicit Hyprland restore. Let Hyprland choose preferred modes,
 automatic placement, and PPI-based per-monitor scale. Synchronize the global
 toolkit scale from the internal display, then the focused or first active
-display. Only touch Omarchy's generic `,preferred,auto,auto` catch-all; preserve
+display. Only touch the generic `,preferred,auto,auto` catch-all; preserve
 every explicit custom monitor layout. Reload Hyprland and require no config
-errors after detection. Preflight an explicit restore before Omarchy overwrites
+errors after detection. Preflight an explicit restore before qvOS overwrites
 the monitor file, reject symbolic-link destinations, stop the complete restore
 on any owner failure, and restore the pre-edit adaptive config if applying its
-detected scale fails. Omarchy's explicit restore keeps the user's original
+detected scale fails. The explicit restore keeps the user's original
 monitor file in its normal timestamped backup.
