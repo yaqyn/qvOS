@@ -218,6 +218,14 @@
   "$QVOS_PATH/qvcore/branding/install"
   "$QVOS_PATH/qvcore/config/assistant/install"
   "$QVOS_PATH/qvcore/config/neovim"
+  if { [[ -e $HOME/.config/helix/config.toml ||
+    -L $HOME/.config/helix/config.toml ||
+    -e $HOME/.config/helix/themes ||
+    -L $HOME/.config/helix/themes ]]; } && qv-pkg-present helix; then
+    if ! "$QVOS_PATH/qvcore/software/helix-install" --reconcile; then
+      echo "qvOS preserved the current Helix configuration because it could not be reconciled." >&2
+    fi
+  fi
 
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"

@@ -51,7 +51,12 @@ themes_dir="$test_root/.config/qvos/themes"
 legacy_themes_dir="$test_root/.config/omarchy/themes"
 external_theme="$test_root/external/linked"
 test_bin="$test_root/bin"
-install -d "$legacy_themes_dir" "$test_bin" "$(dirname -- "$external_theme")"
+install -d \
+  "$legacy_themes_dir" \
+  "$test_bin" \
+  "$(dirname -- "$external_theme")" \
+  "$test_root/.config/btop/themes" \
+  "$test_root/.config/mako"
 cp -a "$root/qvcore/theme/yaqyn" "$legacy_themes_dir/personal"
 cp -a "$root/qvcore/theme/yaqyn" "$external_theme"
 printf 'personal\n' >"$legacy_themes_dir/personal/marker"
@@ -61,6 +66,10 @@ printf 'old yaqyn\n' >"$legacy_themes_dir/yaqyn/marker"
 ln -s "$external_theme" "$legacy_themes_dir/linked"
 ln -s "$root/themes/tokyo-night" "$legacy_themes_dir/tokyo-night"
 ln -s "$test_root/missing-theme" "$legacy_themes_dir/broken"
+ln -s "$test_root/.config/omarchy/current/theme/btop.theme" \
+  "$test_root/.config/btop/themes/current.theme"
+ln -s "$test_root/.config/omarchy/current/theme/mako.ini" \
+  "$test_root/.config/mako/config"
 
 HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/install" >/dev/null
 for migrated_entry in themes current backgrounds themed; do
@@ -77,9 +86,30 @@ HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/migrate-config-root"
 [[ ! -e $themes_dir/tokyo-night && ! -L $themes_dir/tokyo-night ]] ||
   fail "retired stock theme link cleanup"
 [[ -L $themes_dir/broken ]] || fail "unrelated broken theme link preservation"
+[[ $(readlink -- "$test_root/.config/btop/themes/current.theme") == \
+  "$test_root/.config/qvos/current/theme/btop.theme" ]] ||
+  fail "native btop theme integration"
+[[ $(readlink -- "$test_root/.config/mako/config") == \
+  "$test_root/.config/qvos/current/theme/mako.ini" ]] ||
+  fail "native Mako theme integration"
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
 pass "legacy theme state migrates once into native qvOS ownership"
+
+custom_integration_home="$test_root/custom-integration-home"
+custom_integration_target="$test_root/custom-integration-target"
+install -d "$custom_integration_home/.config/btop/themes"
+printf 'custom integration\n' >"$custom_integration_target"
+ln -s "$custom_integration_target" \
+  "$custom_integration_home/.config/btop/themes/current.theme"
+HOME="$custom_integration_home" QVOS_PATH="$root" \
+  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1
+[[ -L $custom_integration_home/.config/btop/themes/current.theme &&
+  $(readlink -- "$custom_integration_home/.config/btop/themes/current.theme") == \
+    "$custom_integration_target" &&
+  $(<"$custom_integration_target") == "custom integration" ]] ||
+  fail "custom application-theme integration preservation"
+pass "theme migration preserves custom application integrations"
 
 theme_list=$(HOME="$test_root" QVOS_PATH="$root" "$root/bin/qv-theme-list")
 [[ $theme_list == $'Linked\nPersonal\nYaqyn' ]] || fail "Yaqyn and custom theme list"

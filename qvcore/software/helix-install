@@ -10,6 +10,7 @@ theme_dir="$HOME/.config/helix/themes"
 theme_source="$HOME/.config/qvos/current/theme/helix.toml"
 theme_link="$theme_dir/qvos.toml"
 legacy_link="$theme_dir/omarchy.toml"
+legacy_theme_source="$HOME/.config/omarchy/current/theme/helix.toml"
 expected_config='theme = "qvos"'
 legacy_config='theme = "omarchy"'
 theme_link_created=0
@@ -31,8 +32,10 @@ trap cleanup EXIT
 
 if (($# == 1)) && [[ $1 == "--check" ]]; then
   mode=check
+elif (($# == 1)) && [[ $1 == "--reconcile" ]]; then
+  mode=reconcile
 elif (($# != 0)); then
-  echo "Usage: qv install helix" >&2
+  echo "Usage: qv install helix [--check]" >&2
   exit 2
 fi
 
@@ -53,10 +56,12 @@ elif [[ ! -e $config_file && ! -L $config_file ]]; then
   qvos_defaults_check_target "$config_file"
 fi
 
-[[ $mode == "install" ]] || exit 0
+[[ $mode != "check" ]] || exit 0
 
-echo "Installing Helix..."
-qv-pkg-add helix
+if [[ $mode == "install" ]]; then
+  echo "Installing Helix..."
+  qv-pkg-add helix
+fi
 
 if [[ ! -f $theme_source || -L $theme_source ]]; then
   "$QVOS_PATH/qvcore/theme/refresh"
@@ -83,12 +88,16 @@ else
   echo "Preserving existing Helix configuration."
 fi
 
-if [[ -L $legacy_link && $(readlink -- "$legacy_link") == "$theme_source" ]] &&
+if [[ -L $legacy_link ]] &&
+  [[ $(readlink -- "$legacy_link") == "$theme_source" ||
+    $(readlink -- "$legacy_link") == "$legacy_theme_source" ]] &&
   [[ -f $config_file && ! -L $config_file ]] &&
   [[ $(awk 'END { print NR }' "$config_file") == "1" ]] &&
   [[ $(<"$config_file") == "$expected_config" ]]; then
   rm -f -- "$legacy_link"
 fi
 
-echo "Helix is installed with the current qvOS theme."
+if [[ $mode == "install" ]]; then
+  echo "Helix is installed with the current qvOS theme."
+fi
 trap - EXIT

@@ -202,6 +202,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   overrides remain under `~/.config/qvos/themed/`
 - `~/.config/qvos` owns active theme state; matching `~/.config/omarchy`
   theme paths are migration compatibility links only
+- btop, Mako, and an installed Helix consume the native current-theme tree;
+  migration rewrites only exact inherited links and the exact Helix seed while
+  preserving custom application configuration
 - `qvcore/desktop/applications/` owns fixed desktop entries, package-menu
   suppressors, and the imv icon; the inherited top-level `applications/` tree
   is retired

@@ -5,6 +5,11 @@ config_root="$HOME/.config"
 legacy_root="$config_root/omarchy"
 native_root="$config_root/qvos"
 managed_entries=(themes current backgrounds themed)
+integration_specs=(
+  "$HOME/.config/btop/themes/current.theme|$HOME/.config/qvos/current/theme/btop.theme|$HOME/.config/omarchy/current/theme/btop.theme"
+  "$HOME/.config/mako/config|$HOME/.config/qvos/current/theme/mako.ini|$HOME/.config/omarchy/current/theme/mako.ini"
+)
+integration_actions=()
 
 fail() {
   printf 'Could not migrate qvOS theme state: %s\n' "$1" >&2
@@ -17,6 +22,35 @@ validate_owned_directory() {
 
   [[ -d $path && ! -L $path && -O $path ]] ||
     fail "$label is not a real user-owned directory: $path"
+}
+
+validate_link_parent() {
+  local path=$1
+  local current
+
+  current=$(dirname -- "$path")
+  while [[ $current != "$HOME" ]]; do
+    if [[ -e $current || -L $current ]]; then
+      validate_owned_directory "a managed theme-integration parent" "$current"
+    fi
+    current=$(dirname -- "$current")
+  done
+}
+
+publish_link() {
+  local target=$1
+  local source=$2
+  local parent
+  local candidate
+
+  parent=$(dirname -- "$target")
+  install -d -m 0755 "$parent"
+  candidate=$(mktemp "$parent/.qvos-theme-link.XXXXXX")
+  rm -f -- "$candidate"
+  if ! ln -s -- "$source" "$candidate" || ! mv -Tf -- "$candidate" "$target"; then
+    rm -f -- "$candidate"
+    fail "could not publish the native theme-integration link: $target"
+  fi
 }
 
 validate_owned_directory "the home directory" "$HOME"
@@ -48,6 +82,26 @@ for entry in "${managed_entries[@]}"; do
   fi
 done
 
+# Preflight exact application-theme links before changing theme state. Foreign
+# files and links are user configuration and remain untouched.
+for spec in "${integration_specs[@]}"; do
+  IFS='|' read -r target source legacy_source <<<"$spec"
+  action=preserve
+  if [[ -L $target ]]; then
+    link_target=$(readlink -- "$target")
+    if [[ $link_target == "$source" ]]; then
+      action=none
+    elif [[ $link_target == "$legacy_source" ]]; then
+      validate_link_parent "$target"
+      action=replace
+    fi
+  elif [[ ! -e $target ]]; then
+    validate_link_parent "$target"
+    action=create
+  fi
+  integration_actions+=("$action")
+done
+
 if [[ ! -e $config_root && ! -L $config_root ]]; then
   install -d -m 0755 "$config_root"
 fi
@@ -72,4 +126,15 @@ for entry in "${managed_entries[@]}"; do
   if [[ ! -e $legacy_path && ! -L $legacy_path ]]; then
     ln -s "$expected_link" "$legacy_path"
   fi
+done
+
+
+for index in "${!integration_specs[@]}"; do
+  IFS='|' read -r target source _ <<<"${integration_specs[$index]}"
+  case ${integration_actions[$index]} in
+  create | replace) publish_link "$target" "$source" ;;
+  preserve)
+    printf 'Preserving custom theme integration: %s\n' "$target" >&2
+    ;;
+  esac
 done

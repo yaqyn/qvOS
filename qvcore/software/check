@@ -109,8 +109,14 @@ if rg -n 'omazed|setsid|gtk-launch|xdg-terminals\.list[[:space:]]*<<|alias[[:spa
   "$root/qvcore/software/zed-install"; then
   fail "editor or terminal owner retains duplicate state, shell, or launch behavior"
 fi
-grep -Fqx 'qv-pkg-add helix' "$root/qvcore/software/helix-install" ||
+grep -Fq 'qv-pkg-add helix' "$root/qvcore/software/helix-install" ||
   fail "Helix package boundary"
+# shellcheck disable=SC2016
+grep -Fq '[[ $1 == "--reconcile" ]]' "$root/qvcore/software/helix-install" ||
+  fail "Helix configuration lacks a package-free reconciliation mode"
+grep -Fq 'qvcore/software/helix-install" --reconcile' \
+  "$root/qvcore/install/desktop" ||
+  fail "desktop reconciliation bypasses installed Helix configuration"
 grep -Fqx 'qv-pkg-add zed' "$root/qvcore/software/zed-install" ||
   fail "Zed package boundary"
 grep -Fq 'qvcore/theme/set-zed' "$root/qvcore/software/zed-install" ||

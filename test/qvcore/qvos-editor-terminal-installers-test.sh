@@ -178,6 +178,27 @@ before_packages=$(wc -l <"$package_log")
 [[ ! -e $HOME/.bashrc ]] || fail "Helix installer edited Bash configuration"
 pass "Helix migrates only its exact legacy seed and never edits the shell"
 
+reconcile_helix_home="$test_root/reconcile-helix-home"
+prepare_theme "$reconcile_helix_home"
+install -d "$reconcile_helix_home/.config/helix/themes"
+printf 'theme = "omarchy"\n' >"$reconcile_helix_home/.config/helix/config.toml"
+ln -s "$reconcile_helix_home/.config/omarchy/current/theme/helix.toml" \
+  "$reconcile_helix_home/.config/helix/themes/omarchy.toml"
+before_packages=$(wc -l <"$package_log")
+HOME="$reconcile_helix_home" \
+  "$source_root/qvcore/software/helix-install" --reconcile
+[[ $(wc -l <"$package_log") == "$before_packages" ]] ||
+  fail "Helix reconciliation installed a package"
+[[ $(<"$reconcile_helix_home/.config/helix/config.toml") == 'theme = "qvos"' ]] ||
+  fail "Helix package-free configuration migration"
+[[ $(readlink -- "$reconcile_helix_home/.config/helix/themes/qvos.toml") == \
+  "$reconcile_helix_home/.config/qvos/current/theme/helix.toml" ]] ||
+  fail "Helix package-free native theme link"
+[[ ! -e $reconcile_helix_home/.config/helix/themes/omarchy.toml &&
+  ! -L $reconcile_helix_home/.config/helix/themes/omarchy.toml ]] ||
+  fail "Helix package-free legacy link cleanup"
+pass "Helix configuration reconciles without touching packages"
+
 custom_helix_home="$test_root/custom-helix-home"
 prepare_theme "$custom_helix_home"
 install -d "$custom_helix_home/.config/helix/themes"

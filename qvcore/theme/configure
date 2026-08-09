@@ -11,11 +11,3 @@ sudo chmod 0644 /etc/chromium/policies/managed/color.json
 
 "$QVOS_PATH/qvcore/theme/install"
 qv-theme-set "Yaqyn"
-
-mkdir -p "$HOME/.config/btop/themes" "$HOME/.config/mako"
-ln -snf \
-  "$HOME/.config/qvos/current/theme/btop.theme" \
-  "$HOME/.config/btop/themes/current.theme"
-ln -snf \
-  "$HOME/.config/qvos/current/theme/mako.ini" \
-  "$HOME/.config/mako/config"

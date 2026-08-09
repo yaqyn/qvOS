@@ -36,6 +36,9 @@ theme's editor code or downloading theme plugins.
 - Every install and post-update path runs the config-root migration before
   reading or writing theme state. Native owners and installed configs use only
   `~/.config/qvos`; the old paths are compatibility links, never fallbacks.
+- The same migration safely creates missing btop and Mako theme links and
+  rewrites only their exact inherited targets. Preserve every custom file or
+  link; fresh configuration must not duplicate or force those mutations.
 - `qvcore/theme/configure` is the single fresh-install owner. The inherited install
   stage delegates to it; qvOS install code must not repeat its mutations.
 - Theme list, set, install, remove, update, and appearance providers read only
