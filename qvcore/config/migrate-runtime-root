@@ -68,6 +68,20 @@ rewrite_literals() {
     printf '%s\n' "$line"
   done <"$target" >"$temporary"
 
+  if [[ $target == "$hyprland" ]]; then
+    filtered=$(mktemp "$(dirname -- "$target")/.qvos-runtime-root.XXXXXX")
+    awk '
+      $0 == "source = ~/.config/hypr/input.conf" {
+        if (input_source_seen) {
+          next
+        }
+        input_source_seen = 1
+      }
+      { print }
+    ' "$temporary" >"$filtered"
+    mv -f -- "$filtered" "$temporary"
+  fi
+
   if [[ $target == "$uwsm_env" ]]; then
     filtered=$(mktemp "$(dirname -- "$target")/.qvos-runtime-root.XXXXXX")
     awk '

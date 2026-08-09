@@ -32,6 +32,7 @@ source = ~/.local/share/omarchy/default/hypr/looknfeel.conf
 source = ~/.local/share/qvos/default/hypr/input.conf
 source = ~/.local/share/omarchy/default/hypr/windows.conf
 source = ~/.config/hypr/qv.conf
+source = ~/.config/hypr/input.conf
 CONFIG
 
 install -m 0644 /dev/stdin "$test_home/.config/hypr/bindings.conf" <<'CONFIG'
@@ -120,9 +121,9 @@ for source_path in autostart envs looknfeel windows; do
     "$test_home/.config/hypr/hyprland.conf" ||
     fail "native Hyprland base migration: $source_path"
 done
-grep -Fqx 'source = ~/.config/hypr/input.conf' \
-  "$test_home/.config/hypr/hyprland.conf" ||
-  fail "native Hyprland input migration"
+[[ $(grep -Fxc 'source = ~/.config/hypr/input.conf' \
+  "$test_home/.config/hypr/hyprland.conf") == "1" ]] ||
+  fail "native Hyprland input migration is singular"
 grep -Fqx '# Keep this custom Hyprland line.' \
   "$test_home/.config/hypr/hyprland.conf" ||
   fail "custom Hyprland content preservation"

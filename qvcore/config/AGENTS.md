@@ -118,8 +118,9 @@ thin and its implementation native. It rewrites the former Hyprland base to
 `qvcore/config/base/hypr/`, folds input into the installed user source, and
 retires the former `hypr/qv` source line only when every present payload is an
 exact known qvOS file listed in `retired-hypr-layer.psv`. Preserve modified
-compatibility layers. Cleanup consumes the same manifest; never duplicate its
-hash policy. No migrated file requires a systemd daemon reload.
+compatibility layers, and collapse duplicate exact native input source lines
+created by older layered configs. Cleanup consumes the same manifest; never
+duplicate its hash policy. No migrated file requires a systemd daemon reload.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM
