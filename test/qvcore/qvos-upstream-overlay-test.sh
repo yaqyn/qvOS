@@ -268,6 +268,12 @@ upstream_config_steps=$(
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
         ;;
+      '$OMARCHY_INSTALL/config/hardware/asus/fix-z13-touchpad.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad'
+        ;;
+      '$OMARCHY_INSTALL/config/hardware/apple/fix-suspend-nvme.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend'
+        ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
         ;;
       *)
@@ -328,6 +334,14 @@ done <<<"$native_config_steps"
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
   "$root/qvcore/install/config/run" ||
   fail "native configuration stage omits the corrected ASUS B9406 touchpad owner"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad"' \
+  "$root/qvcore/install/config/run" ||
+  fail "native configuration stage omits the ASUS Z13 touchpad owner"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend"' \
+  "$root/qvcore/install/config/run" ||
+  fail "native configuration stage omits the Apple NVMe suspend owner"
 pass "fresh installation owns every reviewed configuration capability natively"
 
 public_adapters=(

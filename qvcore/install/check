@@ -165,6 +165,33 @@ for tuning_source in \
   [[ -f $root/$tuning_source && ! -L $root/$tuning_source ]] ||
     fail "native system-tuning source: $tuning_source"
 done
+[[ -x $root/qvcore/install/hardware/identity ]] ||
+  fail "native hardware identity owner mode"
+for hardware_source in \
+  qvcore/install/hardware/asus/z13-touchpad \
+  qvcore/install/hardware/asus/z13-touchpad.rules \
+  qvcore/install/hardware/apple/nvme-suspend \
+  qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service; do
+  [[ -f $root/$hardware_source && ! -L $root/$hardware_source ]] ||
+    fail "native hardware identity source: $hardware_source"
+done
+for retired_hardware_leaf in \
+  qvcore/install/config/hardware/asus/fix-z13-touchpad.sh \
+  qvcore/install/config/hardware/apple/fix-suspend-nvme.sh; do
+  [[ ! -e $root/$retired_hardware_leaf ]] ||
+    fail "retired hardware identity leaf remains: $retired_hardware_leaf"
+done
+if rg -n '99-omarchy-asus-z13-touchpad|omarchy-nvme-suspend-fix' \
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check' \
+  --glob '!identity'; then
+  fail "fresh install creates a retired hardware-policy identity"
+fi
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad"' \
+  "$root/qvcore/install/config/run" || fail "native ASUS Z13 install stage"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend"' \
+  "$root/qvcore/install/config/run" || fail "native Apple NVMe install stage"
 [[ ! -e $root/qvcore/install/config/hardware/apple/fix-t2.sh ]] ||
   fail "retired unsigned T2 configuration owner remains"
 if rg -n 'arch-mact2|linux-t2|apple-t2|t2fanrd|tiny-dfr|vulkan-asahi' \

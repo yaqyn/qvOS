@@ -150,7 +150,7 @@ identity_paths=(
   qvcore/menu/elephant/qvos_unlocks.lua
   qvcore/config/assistant/qvos/SKILL.md
   qvcore/install/first-run/welcome.sh
-  qvcore/install/config/hardware/apple/fix-suspend-nvme.sh
+  qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service
   qvcore/install/helpers/logging.sh
   qvcore/install/helpers/presentation.sh
   qvcore/install/preflight/guard.sh
