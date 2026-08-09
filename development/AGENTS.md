@@ -1,7 +1,8 @@
 # qvOS Development Workflow
 
-Read this file completely when changing Devel, its package or direct-tool
-inventory, Codex workbench integration, enrollment state, or Software routing.
+Read this file completely when changing Devel, local development services,
+their package or direct-tool inventory, Codex workbench integration, enrollment
+or credential state, containers, or Software routing.
 
 `development/devel/` owns the optional Devel workstation formerly named
 qvDEV. Devel appears under Development and is not part of an optional qvCORE
@@ -26,6 +27,18 @@ bundle. qvOS and qvCORE remain complete without it.
 - Removal preserves projects, credentials, personal files, configuration, and
   base software. Do not infer enrollment from package presence.
 
-Run Bash syntax, ShellCheck, the focused Devel, direct-tool, menu, TUI
-owner-contract, product-contract, and full qvOS suites. Do not install or
-remove the live workstation solely for source verification.
+`development/docker-dbs/` owns opt-in local database containers. Offer one
+database per invocation, bind every published port to `127.0.0.1`, use unique
+qvOS names and labels, generate strong credentials into owner-only state under
+`~/.local/state/qvos/development/docker-dbs`, and retain persistent data across
+reruns. Never adopt unlabeled containers or volumes, print a credential, put a
+secret in Docker command arguments, restore empty/trust/default passwords, or
+describe these containers as production deployments. Redis uses a private
+owner-validated configuration and runs as the desktop UID so neither its data
+nor password needs public permissions.
+
+Run `development/docker-dbs/check` when its owner changes, then Bash syntax,
+ShellCheck, the focused Devel, Docker DB, direct-tool, menu, TUI owner-contract,
+product-contract, upstream-overlay, and full qvOS suites. Do not install or
+remove the live workstation or start a live database solely for source
+verification.

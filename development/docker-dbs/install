@@ -1,0 +1,353 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=development/docker-dbs/databases.psv
+
+component_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+catalog="$component_dir/databases.psv"
+state_root="$HOME/.local/state/qvos/development/docker-dbs"
+owner_label="development/docker-dbs"
+temporary=""
+volume_created=false
+container_created=false
+volume=""
+
+usage() {
+  echo "Usage: qv install docker-dbs [mysql|postgresql|redis|mongodb|mariadb|mssql]" >&2
+}
+
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  [[ -z $temporary ]] || rm -f -- "$temporary"
+  if (( status != 0 )) && [[ $volume_created == "true" &&
+    $container_created == "false" && -n $volume ]]; then
+    sudo docker volume rm "$volume" >/dev/null 2>&1 || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+prepare_private_directory() {
+  local path=$1
+  local canonical
+  local home_canonical=$2
+
+  [[ ! -L $path ]] || {
+    echo "Refusing symbolic-link Docker DB state: $path" >&2
+    return 1
+  }
+  if [[ -e $path ]]; then
+    [[ -d $path && -O $path ]] || {
+      echo "Refusing unsafe or foreign Docker DB state: $path" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 "$path"
+  fi
+  canonical=$(realpath -e -- "$path") || return 1
+  [[ $canonical == "$home_canonical/"* ]] || {
+    echo "Refusing Docker DB state outside the physical home directory." >&2
+    return 1
+  }
+}
+
+prepare_state() {
+  local home_canonical
+  local path
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] || {
+    echo "Refusing an unsafe Docker DB home directory." >&2
+    return 1
+  }
+  home_canonical=$(realpath -e -- "$HOME") || return 1
+  for path in \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/development" \
+    "$state_root"; do
+    prepare_private_directory "$path" "$home_canonical" || return
+  done
+  chmod 0700 \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/development" \
+    "$state_root"
+}
+
+validate_private_file() {
+  local path=$1
+
+  [[ -f $path && ! -L $path && -O $path ]] &&
+    [[ $(stat -c '%a' -- "$path") == "600" ]]
+}
+
+generate_credentials() {
+  local random
+
+  [[ ! -e $credentials_file && ! -L $credentials_file ]] || return 0
+  random=$(openssl rand -hex 24)
+  [[ $random =~ ^[0-9a-f]{48}$ ]] || {
+    echo "Could not generate a strong Docker DB credential." >&2
+    return 1
+  }
+  temporary=$(mktemp "$db_state/.credentials.env.XXXXXXXX")
+  chmod 0600 "$temporary"
+  case $slug in
+  mysql)
+    printf 'MYSQL_ROOT_PASSWORD=%s\nMYSQL_DATABASE=qvos\n' "$random" >"$temporary"
+    ;;
+  postgresql)
+    printf 'POSTGRES_USER=qvos_admin\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=qvos\n' \
+      "$random" >"$temporary"
+    ;;
+  redis)
+    printf 'REDIS_PASSWORD=%s\n' "$random" >"$temporary"
+    ;;
+  mongodb)
+    printf 'MONGO_INITDB_ROOT_USERNAME=qvos_admin\nMONGO_INITDB_ROOT_PASSWORD=%s\n' \
+      "$random" >"$temporary"
+    ;;
+  mariadb)
+    printf 'MARIADB_ROOT_PASSWORD=%s\nMARIADB_DATABASE=qvos\n' "$random" >"$temporary"
+    ;;
+  mssql)
+    printf 'ACCEPT_EULA=Y\nMSSQL_PID=Developer\nMSSQL_SA_PASSWORD=Qv!%s9Z\n' \
+      "${random:0:36}" >"$temporary"
+    ;;
+  esac
+  mv -- "$temporary" "$credentials_file"
+  temporary=""
+}
+
+validate_credentials() {
+  local -a lines=()
+
+  validate_private_file "$credentials_file" || {
+    echo "Refusing unsafe Docker DB credentials: $credentials_file" >&2
+    return 1
+  }
+  mapfile -t lines <"$credentials_file"
+  case $slug in
+  mysql)
+    ((${#lines[@]} == 2)) &&
+      [[ ${lines[0]} =~ ^MYSQL_ROOT_PASSWORD=[0-9a-f]{48}$ ]] &&
+      [[ ${lines[1]} == "MYSQL_DATABASE=qvos" ]]
+    ;;
+  postgresql)
+    ((${#lines[@]} == 3)) &&
+      [[ ${lines[0]} == "POSTGRES_USER=qvos_admin" ]] &&
+      [[ ${lines[1]} =~ ^POSTGRES_PASSWORD=[0-9a-f]{48}$ ]] &&
+      [[ ${lines[2]} == "POSTGRES_DB=qvos" ]]
+    ;;
+  redis)
+    ((${#lines[@]} == 1)) &&
+      [[ ${lines[0]} =~ ^REDIS_PASSWORD=[0-9a-f]{48}$ ]]
+    ;;
+  mongodb)
+    ((${#lines[@]} == 2)) &&
+      [[ ${lines[0]} == "MONGO_INITDB_ROOT_USERNAME=qvos_admin" ]] &&
+      [[ ${lines[1]} =~ ^MONGO_INITDB_ROOT_PASSWORD=[0-9a-f]{48}$ ]]
+    ;;
+  mariadb)
+    ((${#lines[@]} == 2)) &&
+      [[ ${lines[0]} =~ ^MARIADB_ROOT_PASSWORD=[0-9a-f]{48}$ ]] &&
+      [[ ${lines[1]} == "MARIADB_DATABASE=qvos" ]]
+    ;;
+  mssql)
+    ((${#lines[@]} == 3)) &&
+      [[ ${lines[0]} == "ACCEPT_EULA=Y" ]] &&
+      [[ ${lines[1]} == "MSSQL_PID=Developer" ]] &&
+      [[ ${lines[2]} =~ ^MSSQL_SA_PASSWORD=Qv![0-9a-f]{36}9Z$ ]]
+    ;;
+  esac || {
+    echo "Refusing modified Docker DB credentials: $credentials_file" >&2
+    return 1
+  }
+}
+
+prepare_redis_config() {
+  local password
+
+  redis_config="$db_state/redis.conf"
+  if [[ ! -e $redis_config && ! -L $redis_config ]]; then
+    password=$(<"$credentials_file")
+    password=${password#REDIS_PASSWORD=}
+    temporary=$(mktemp "$db_state/.redis.conf.XXXXXXXX")
+    chmod 0600 "$temporary"
+    printf 'protected-mode yes\nport 6379\nappendonly yes\nrequirepass %s\n' \
+      "$password" >"$temporary"
+    mv -- "$temporary" "$redis_config"
+    temporary=""
+  fi
+  validate_private_file "$redis_config" || {
+    echo "Refusing unsafe Redis configuration: $redis_config" >&2
+    return 1
+  }
+  password=$(<"$credentials_file")
+  password=${password#REDIS_PASSWORD=}
+  if ! { [[ $(wc -l <"$redis_config") == 4 ]] &&
+    grep -Fqx 'protected-mode yes' "$redis_config" &&
+    grep -Fqx 'port 6379' "$redis_config" &&
+    grep -Fqx 'appendonly yes' "$redis_config" &&
+    grep -Fqx "requirepass $password" "$redis_config"; }; then
+    echo "Refusing modified Redis configuration: $redis_config" >&2
+    return 1
+  fi
+}
+
+select_database() {
+  local selection
+
+  case $# in
+  0)
+    qv-cmd-present gum || {
+      echo "Docker DB selection requires Gum." >&2
+      exit 1
+    }
+    if ! selection=$(awk -F '|' '$1 !~ /^#/ { print $2 }' "$catalog" |
+      gum choose --header "Select a local development database"); then
+      exit 130
+    fi
+    slug=$(awk -F '|' -v selected="$selection" \
+      '$1 !~ /^#/ && $2 == selected { print $1; exit }' "$catalog")
+    ;;
+  1) slug=$1 ;;
+  *) usage; exit 2 ;;
+  esac
+  [[ $slug =~ ^(mysql|postgresql|redis|mongodb|mariadb|mssql)$ ]] || {
+    usage
+    exit 2
+  }
+}
+
+[[ -f $catalog && ! -L $catalog ]] || {
+  echo "Missing Docker DB catalog." >&2
+  exit 1
+}
+select_database "$@"
+record=$(awk -F '|' -v selected="$slug" \
+  '$1 !~ /^#/ && NF == 8 && $1 == selected { print; exit }' "$catalog")
+[[ -n $record ]] || {
+  echo "Missing Docker DB definition: $slug" >&2
+  exit 1
+}
+IFS='|' read -r \
+  _ label image container host_port container_port volume data_target <<<"$record"
+
+qv-cmd-present docker openssl flock realpath stat || {
+  echo "Docker DB installation requires Docker, OpenSSL, and qvOS base tools." >&2
+  exit 1
+}
+prepare_state
+lock_file="$state_root/install.lock"
+if [[ ! -e $lock_file && ! -L $lock_file ]]; then
+  install -m 0600 /dev/null "$lock_file"
+fi
+validate_private_file "$lock_file" || {
+  echo "Refusing an unsafe Docker DB lock." >&2
+  exit 1
+}
+exec {lock_fd}>>"$lock_file"
+flock -n "$lock_fd" || {
+  echo "Another Docker DB installation is already running." >&2
+  exit 1
+}
+
+sudo docker info >/dev/null
+db_state="$state_root/$slug"
+prepare_private_directory "$db_state" "$(realpath -e -- "$HOME")"
+chmod 0700 "$db_state"
+credentials_file="$db_state/credentials.env"
+
+container_metadata=$(sudo docker container inspect --format \
+  '{{ index .Config.Labels "org.qvos.owner" }}|{{ index .Config.Labels "org.qvos.database" }}|{{ index .Config.Labels "org.qvos.image" }}|{{ index .Config.Labels "org.qvos.host-port" }}' \
+  "$container" 2>/dev/null || true)
+expected_metadata="$owner_label|$slug|$image|$host_port"
+if [[ -n $container_metadata ]]; then
+  [[ $container_metadata == "$expected_metadata" ]] || {
+    echo "Refusing to adopt the existing foreign container: $container" >&2
+    exit 1
+  }
+  [[ -e $credentials_file && ! -L $credentials_file ]] || {
+    echo "The managed $label container has no trustworthy qvOS credentials." >&2
+    exit 1
+  }
+  validate_credentials
+  sudo docker start "$container" >/dev/null
+  [[ $(sudo docker container inspect --format '{{.State.Running}}' "$container") == "true" ]] || {
+    echo "The managed $label container did not start." >&2
+    exit 1
+  }
+  printf '%s is running on 127.0.0.1:%s.\n' "$label" "$host_port"
+  printf 'Credentials: %s\n' "$credentials_file"
+  exit 0
+fi
+
+generate_credentials
+validate_credentials
+
+if [[ $slug == "redis" ]]; then
+  prepare_redis_config
+  redis_data="$db_state/data"
+  prepare_private_directory "$redis_data" "$(realpath -e -- "$HOME")"
+  chmod 0700 "$redis_data"
+else
+  if sudo docker volume inspect "$volume" >/dev/null 2>&1; then
+    volume_metadata=$(sudo docker volume inspect --format \
+      '{{ index .Labels "org.qvos.owner" }}|{{ index .Labels "org.qvos.database" }}' \
+      "$volume")
+    [[ $volume_metadata == "$owner_label|$slug" ]] || {
+      echo "Refusing to adopt the existing foreign volume: $volume" >&2
+      exit 1
+    }
+  else
+    sudo docker volume create \
+      --label "org.qvos.owner=$owner_label" \
+      --label "org.qvos.database=$slug" \
+      "$volume" >/dev/null
+    volume_created=true
+  fi
+fi
+
+docker_args=(
+  docker run -d
+  --pull missing
+  --restart unless-stopped
+  --name "$container"
+  --label "org.qvos.owner=$owner_label"
+  --label "org.qvos.database=$slug"
+  --label "org.qvos.image=$image"
+  --label "org.qvos.host-port=$host_port"
+  --publish "127.0.0.1:$host_port:$container_port"
+)
+if [[ $slug == "redis" ]]; then
+  docker_args+=(
+    --user "$(id -u):$(id -g)"
+    --mount "type=bind,source=$redis_data,target=$data_target"
+    --mount "type=bind,source=$redis_config,target=/usr/local/etc/redis/redis.conf,readonly"
+    "$image"
+    redis-server /usr/local/etc/redis/redis.conf
+  )
+else
+  docker_args+=(
+    --env-file "$credentials_file"
+    --volume "$volume:$data_target"
+    "$image"
+  )
+fi
+
+sudo "${docker_args[@]}" >/dev/null
+container_created=true
+[[ $(sudo docker container inspect --format '{{.State.Running}}' "$container") == "true" ]] || {
+  echo "The $label container was created but did not remain running; inspect its Docker logs." >&2
+  exit 1
+}
+
+printf '%s is running for local development on 127.0.0.1:%s.\n' \
+  "$label" "$host_port"
+printf 'Credentials: %s\n' "$credentials_file"
+echo "This local development container is not a production deployment."

@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+owner="$root/development/docker-dbs/install"
+catalog="$root/development/docker-dbs/databases.psv"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+expected=$'# slug|label|image|container|host port|container port|volume|data target\nmysql|MySQL|mysql:8.4|qvos-db-mysql|3306|3306|qvos-db-mysql-data|/var/lib/mysql\npostgresql|PostgreSQL|postgres:18|qvos-db-postgresql|5432|5432|qvos-db-postgresql-data|/var/lib/postgresql\nredis|Redis|redis:7|qvos-db-redis|6379|6379|-|/data\nmongodb|MongoDB|mongo:noble|qvos-db-mongodb|27017|27017|qvos-db-mongodb-data|/data/db\nmariadb|MariaDB|mariadb:11.8|qvos-db-mariadb|3307|3306|qvos-db-mariadb-data|/var/lib/mysql\nmssql|MSSQL|mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04|qvos-db-mssql|1433|1433|qvos-db-mssql-data|/var/opt/mssql'
+[[ $(<"$catalog") == "$expected" ]] || fail "Docker DB catalog"
+
+native="$root/bin/qv-install-docker-dbs"
+compatibility="$root/bin/omarchy-install-docker-dbs"
+[[ -x $owner && -x $native && -x $compatibility ]] ||
+  fail "Docker DB owner and adapter modes"
+rg -q '^# qv:summary=' "$native" || fail "Docker DB native metadata"
+! rg -q '^# (qv|omarchy):' "$compatibility" ||
+  fail "Docker DB compatibility metadata"
+for adapter in "$native" "$compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/development/docker-dbs/install" "$@"' "$adapter" ||
+    fail "Docker DB adapter owner"
+done
+
+grep -Fqx 'bin/omarchy-install-docker-dbs' "$root/development/native-paths" ||
+  fail "Docker DB native-path inventory"
+grep -Fq '|qv-install-docker-dbs' "$root/qvcore/menu/software-installers.psv" ||
+  fail "Docker DB native menu route"
+if rg -n \
+  'ALLOW_EMPTY|HOST_AUTH_METHOD=trust|admin123|@dmin123|MYSQL_ROOT_PASSWORD=$|MARIADB_ROOT_PASSWORD=$|--publish[[:space:]]+"?0\.0\.0\.0|omarchy-' \
+  "$owner" "$catalog"; then
+  fail "Docker DB owner retains insecure credentials, exposure, or compatibility"
+fi
+# These are intentional literal source contracts.
+# shellcheck disable=SC2016
+for required in \
+  '127.0.0.1:$host_port:$container_port' \
+  '--env-file "$credentials_file"' \
+  'org.qvos.owner=$owner_label' \
+  'credentials.env' \
+  'chmod 0700' \
+  'chmod 0600'; do
+  grep -Fq -- "$required" "$owner" || fail "Docker DB safety contract: $required"
+done
+
+printf 'ok - Docker DBs are private, credentialed, persistent, and loopback-only\n'

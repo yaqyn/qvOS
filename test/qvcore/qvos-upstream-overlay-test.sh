@@ -34,10 +34,12 @@ for path in "${inherited_seams[@]}"; do
 done
 
 mapfile -t native_manifests < <(
-  find "$root/qvcore" -mindepth 2 -maxdepth 2 -type f -name native-paths | sort
+  find "$root/qvcore" "$root/development" "$root/services" \
+    -type f -name native-paths | sort
 )
 mapfile -t retired_manifests < <(
-  find "$root/qvcore" -mindepth 2 -maxdepth 2 -type f -name retired-paths | sort
+  find "$root/qvcore" "$root/development" "$root/services" \
+    -type f -name retired-paths | sort
 )
 
 native_paths=()

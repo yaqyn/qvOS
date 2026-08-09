@@ -1,0 +1,7 @@
+# slug|label|image|container|host port|container port|volume|data target
+mysql|MySQL|mysql:8.4|qvos-db-mysql|3306|3306|qvos-db-mysql-data|/var/lib/mysql
+postgresql|PostgreSQL|postgres:18|qvos-db-postgresql|5432|5432|qvos-db-postgresql-data|/var/lib/postgresql
+redis|Redis|redis:7|qvos-db-redis|6379|6379|-|/data
+mongodb|MongoDB|mongo:noble|qvos-db-mongodb|27017|27017|qvos-db-mongodb-data|/data/db
+mariadb|MariaDB|mariadb:11.8|qvos-db-mariadb|3307|3306|qvos-db-mariadb-data|/var/lib/mysql
+mssql|MSSQL|mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04|qvos-db-mssql|1433|1433|qvos-db-mssql-data|/var/opt/mssql

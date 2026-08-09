@@ -213,7 +213,9 @@ Every qvOS change must leave one traceable lifecycle.
   until its domain is promoted. Then port selected capability into one owner
   under `qvcore/<domain>/` or `qvcore/<feature>/` and remove the inherited
   implementation, overlay, adapter, fallback, and stale state together. qvOS
-  tests live under `test/` and mirror their owner boundary.
+  tests live under `test/` and mirror their owner boundary. Record every
+  implementation-sized inherited departure in the nearest `native-paths`
+  manifest under `qvcore/`, `development/`, or `services/`.
 - The complete installer is native under `qvcore/install/` and
   `qvcore/boot/login/`; the top-level `install/` tree is retired. Keep remaining
   config sources separate until their domain is promoted and reconcile them
