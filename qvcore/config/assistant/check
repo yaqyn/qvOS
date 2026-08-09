@@ -25,8 +25,8 @@ grep -Fq 'Use the native `qv` frontend.' "$skill" ||
 if rg -n '(^|`)omarchy[[:space:]]|name:[[:space:]]+omarchy' "$skill"; then
   fail "qvOS skill exposes an Omarchy command or identity"
 fi
-grep -Fq '.config/omarchy/current/theme/light.mode' \
-  "$owner/pi-system-theme.ts" || fail "compatible Pi theme-state ABI"
+grep -Fq '.config/qvos/current/theme/light.mode' \
+  "$owner/pi-system-theme.ts" || fail "native Pi theme-state owner"
 grep -Fq 'function qvosPiTheme' "$owner/pi-system-theme.ts" ||
   fail "native Pi theme identity"
 if rg -n 'function omarchy|Omarchy theme' "$owner/pi-system-theme.ts"; then

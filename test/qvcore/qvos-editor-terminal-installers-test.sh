@@ -94,11 +94,11 @@ export QVOS_TEST_BIN="$test_bin"
 prepare_theme() {
   local home=$1
 
-  install -d "$home/.config/omarchy/current/theme"
+  install -d "$home/.config/qvos/current/theme"
   install -m 0644 "$root/qvcore/theme/yaqyn/colors.toml" \
-    "$home/.config/omarchy/current/theme/colors.toml"
+    "$home/.config/qvos/current/theme/colors.toml"
   install -m 0644 /dev/stdin \
-    "$home/.config/omarchy/current/theme/helix.toml" <<'HELIX'
+    "$home/.config/qvos/current/theme/helix.toml" <<'HELIX'
 "ui.background" = { bg = "background" }
 [palette]
 background = "#080808"
@@ -159,7 +159,7 @@ helix_home="$test_root/helix-home"
 prepare_theme "$helix_home"
 install -d "$helix_home/.config/helix/themes"
 printf 'theme = "omarchy"\n' >"$helix_home/.config/helix/config.toml"
-ln -s "$helix_home/.config/omarchy/current/theme/helix.toml" \
+ln -s "$helix_home/.config/qvos/current/theme/helix.toml" \
   "$helix_home/.config/helix/themes/omarchy.toml"
 export HOME="$helix_home"
 before_packages=$(wc -l <"$package_log")
@@ -170,7 +170,7 @@ before_packages=$(wc -l <"$package_log")
 [[ $(<"$HOME/.config/helix/config.toml") == 'theme = "qvos"' ]] ||
   fail "Helix legacy config migration"
 [[ $(readlink -- "$HOME/.config/helix/themes/qvos.toml") == \
-  "$HOME/.config/omarchy/current/theme/helix.toml" ]] ||
+  "$HOME/.config/qvos/current/theme/helix.toml" ]] ||
   fail "Helix qvOS theme link"
 [[ ! -e $HOME/.config/helix/themes/omarchy.toml &&
   ! -L $HOME/.config/helix/themes/omarchy.toml ]] ||
@@ -182,7 +182,7 @@ custom_helix_home="$test_root/custom-helix-home"
 prepare_theme "$custom_helix_home"
 install -d "$custom_helix_home/.config/helix/themes"
 printf 'theme = "custom"\n' >"$custom_helix_home/.config/helix/config.toml"
-ln -s "$custom_helix_home/.config/omarchy/current/theme/helix.toml" \
+ln -s "$custom_helix_home/.config/qvos/current/theme/helix.toml" \
   "$custom_helix_home/.config/helix/themes/omarchy.toml"
 HOME="$custom_helix_home" "$source_root/qvcore/software/helix-install" >/dev/null
 [[ $(<"$custom_helix_home/.config/helix/config.toml") == 'theme = "custom"' ]] ||

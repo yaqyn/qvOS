@@ -5,8 +5,8 @@ description: >
   configuration. Use for Hyprland, Waybar, Walker, terminal, Mako, wallpaper,
   theme, font, monitor, window-rule, keybinding, night-light, idle, lock-screen,
   screenshot, recording, reminder, workspace, display, and user-facing qv
-  command work. Covers user configuration under ~/.config and the compatible
-  theme ABI under ~/.config/omarchy. Excludes qvOS source development under
+  command work. Covers user configuration and native theme state under
+  ~/.config/qvos. Excludes qvOS source development under
   ~/.local/share/qvos and repository development checkouts.
 ---
 
@@ -21,8 +21,9 @@ Customize an installed qvOS system without modifying its tracked source.
 - Edit user state under `~/.config`, `~/.local/state/qvos`, or another
   feature-documented user path.
 - Keep custom automation under `~/.config/qvos/hooks`.
-- Keep compatible themes under `~/.config/omarchy/themes`. This path is qvOS's
-  documented external-theme ABI.
+- Keep compatible themes under `~/.config/qvos/themes`. qvOS accepts the
+  compatible external-theme format there without giving another system
+  ownership of state.
 - Read the current file, its source owner, and nearby patterns before editing.
 - Preserve user changes and create a backup before a manual replacement.
 - Ask before resetting configuration, replacing an occupied binding, removing
@@ -73,7 +74,7 @@ Common routes:
 | Walker | `~/.config/walker` | `qvcore/config/files/walker` |
 | Mako | `~/.config/mako` | `qvcore/controls/notification` |
 | Terminals | `~/.config/<terminal>` | `qvcore/config/files/<terminal>` |
-| Themes | `~/.config/omarchy/themes` | `qvcore/theme` |
+| Themes | `~/.config/qvos/themes` | `qvcore/theme` |
 | Hooks | `~/.config/qvos/hooks` | `qvcore/hooks` |
 
 Resolve source paths beneath `~/.local/share/qvos` only for inspection.
@@ -157,9 +158,9 @@ and check configuration errors.
 Yaqyn is the only bundled qvOS theme. Create a custom theme by copying it:
 
 ```bash
-mkdir -p ~/.config/omarchy/themes/my-theme
-cp -a ~/.config/omarchy/themes/yaqyn/. \
-  ~/.config/omarchy/themes/my-theme/
+mkdir -p ~/.config/qvos/themes/my-theme
+cp -a ~/.config/qvos/themes/yaqyn/. \
+  ~/.config/qvos/themes/my-theme/
 qv theme set my-theme
 ```
 

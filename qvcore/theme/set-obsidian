@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CURRENT_THEME_DIR="$HOME/.config/omarchy/current/theme"
+CURRENT_THEME_DIR="$HOME/.config/qvos/current/theme"
 
 [[ -f $CURRENT_THEME_DIR/obsidian.css ]] || exit 0
 [[ -f $HOME/.config/obsidian/obsidian.json ]] || exit 0

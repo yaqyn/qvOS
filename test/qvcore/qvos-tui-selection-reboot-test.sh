@@ -19,8 +19,8 @@ fail() {
 
 install -d \
   "$test_home/.config" \
-  "$test_home/.config/omarchy/themes/Alpha" \
-  "$test_home/.config/omarchy/themes/Zeta" \
+  "$test_home/.config/qvos/themes/Alpha" \
+  "$test_home/.config/qvos/themes/Zeta" \
   "$test_home/.local/share/applications/icons" \
   "$test_bin"
 touch "$action_log"
@@ -174,7 +174,7 @@ theme_options=$(run_owner "$root/qvcore/tui/task/selectable-owner" theme-remove 
 [[ $theme_options == $'Alpha\nZeta' ]] ||
   fail "Extra Theme selection inventory"
 run_owner "$root/qvcore/tui/task/selectable-owner" theme-remove -- Alpha
-[[ ! -e $test_home/.config/omarchy/themes/Alpha ]] ||
+[[ ! -e $test_home/.config/qvos/themes/Alpha ]] ||
   fail "Extra Theme selected delegation"
 
 install -m 0644 /dev/stdin "$test_home/.local/share/applications/My Web.desktop" <<'DESKTOP'

@@ -8,7 +8,7 @@ if (($# != 1)); then
 fi
 
 BACKGROUND=$(realpath -e -- "$1")
-CURRENT_BACKGROUND_LINK="$HOME/.config/omarchy/current/background"
+CURRENT_BACKGROUND_LINK="$HOME/.config/qvos/current/background"
 
 if [[ ! -f "$BACKGROUND" ]]; then
   echo "File does not exist: $BACKGROUND" >&2

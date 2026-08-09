@@ -21,6 +21,7 @@ for owner in \
   install \
   install-external \
   list \
+  migrate-config-root \
   name \
   refresh \
   remove \
@@ -153,6 +154,14 @@ if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2
   fail "native theme owner dereferences the compatibility source root"
 fi
+if rg -n '\.config/omarchy/(themes|current|backgrounds|themed)|omarchy/current/theme' \
+  "$root/qvcore" \
+  --glob '!**/AGENTS.md' \
+  --glob '!**/check' \
+  --glob '!**/config/migrate-runtime-root' \
+  --glob '!**/theme/migrate-config-root'; then
+  fail "native qvOS owner retains the compatibility theme-state root"
+fi
 if rg -n 'OMARCHY_THEME_' "$root/qvcore/theme" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "native theme owner accepts an inherited runtime environment"
@@ -182,6 +191,21 @@ grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/install-external" ||
   fail "Git theme installation bypasses payload validation"
 grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses payload validation"
+grep -Fq 'managed_entries=(themes current backgrounds themed)' \
+  "$root/qvcore/theme/migrate-config-root" ||
+  fail "native theme compatibility-link inventory"
+# shellcheck disable=SC2016
+grep -Fq 'expected_link="../qvos/$entry"' \
+  "$root/qvcore/theme/migrate-config-root" ||
+  fail "native theme compatibility-link target"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
+  "$root/qvcore/theme/install" ||
+  fail "theme install bypasses config-root migration"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
+  "$root/qvcore/install/post-update-hook" ||
+  fail "post-update bypasses config-root migration"
 grep -Fq 'source_dir/templates' "$root/qvcore/theme/set-templates" ||
   fail "theme renderer bypasses the native template owner"
 if rg -n 'default/themed' "$root/qvcore/theme/set-templates"; then

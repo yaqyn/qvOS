@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-themes_dir="$HOME/.config/omarchy/themes"
+themes_dir="$HOME/.config/qvos/themes"
 [[ -d $themes_dir ]] || exit 0
 
 find -L "$themes_dir" \

@@ -9,7 +9,7 @@ if (($# > 1)); then
   exit 2
 fi
 
-THEMES_DIR="$HOME/.config/omarchy/themes"
+THEMES_DIR="$HOME/.config/qvos/themes"
 
 if [[ -z ${1:-} ]]; then
   mapfile -t extra_themes < <(
@@ -46,8 +46,8 @@ if [[ ! -e $THEME_PATH && ! -L $THEME_PATH ]]; then
   exit 1
 fi
 
-if [[ -f $HOME/.config/omarchy/current/theme.name ]] &&
-  [[ $(<"$HOME/.config/omarchy/current/theme.name") == "$THEME_NAME" ]]; then
+if [[ -f $HOME/.config/qvos/current/theme.name ]] &&
+  [[ $(<"$HOME/.config/qvos/current/theme.name") == "$THEME_NAME" ]]; then
   QVOS_THEME_SKIP_BACKGROUND=1 qv-theme-set "Yaqyn"
 fi
 

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-VS_CODE_THEME="$HOME/.config/omarchy/current/theme/vscode.json"
+VS_CODE_THEME="$HOME/.config/qvos/current/theme/vscode.json"
 
 set_theme() {
   local editor_cmd="$1"

@@ -58,7 +58,7 @@ Its native command carries metadata and its matching Omarchy command is a
 metadata-free compatibility adapter. The owner preflights the monitor
 destination, restores every Hyprland default through the shared transaction
 from the singular `qvcore/config/files/hypr/` installed source. The restored
-main file loads only `qvcore/config/base/hypr/`, the external-theme ABI, and
+main file loads only `qvcore/config/base/hypr/`, the native qvOS theme, and
 user configuration before detecting display scale and keyboard layout. Never
 restore a second source or overlay. Reconcile after refresh and verify tracked
 and installed config.
@@ -131,6 +131,11 @@ exact known qvOS file listed in `retired-hypr-layer.psv`. Preserve modified
 compatibility layers, and collapse duplicate exact native input source lines
 created by older layered configs. Cleanup consumes the same manifest; never
 duplicate its hash policy. No migrated file requires a systemd daemon reload.
+It also rewrites exact active terminal, lock-screen, preview-picker, SwayOSD,
+and Waybar theme references from `.config/omarchy/current` to the native
+`.config/qvos/current` owner, using the same adjacent-backup and idempotence
+contract. Theme-directory movement and compatibility links remain exclusively
+owned by `qvcore/theme/migrate-config-root`.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM

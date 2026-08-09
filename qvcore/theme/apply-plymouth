@@ -12,12 +12,12 @@ if [[ $# -ne 1 ]]; then
   exit 2
 fi
 
-themes_dir="$HOME/.config/omarchy/themes"
+themes_dir="$HOME/.config/qvos/themes"
 theme=$("$QVOS_PATH/qvcore/theme/name" --resolve "$themes_dir" "$1")
 theme_dir="$themes_dir/$theme"
 
 if [[ ! -d $theme_dir ]]; then
-  echo "Theme '$theme' does not exist in $HOME/.config/omarchy/themes" >&2
+  echo "Theme '$theme' does not exist in $HOME/.config/qvos/themes" >&2
   exit 1
 fi
 if [[ ! -f $theme_dir/colors.toml || ! -f $theme_dir/unlock.png ]]; then

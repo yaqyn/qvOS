@@ -1,8 +1,7 @@
 /**
  * Sync Pi's light/dark theme with the active qvOS theme.
  *
- * qvOS retains ~/.config/omarchy/current/theme as its documented external-theme
- * compatibility ABI.
+ * qvOS owns active theme state under ~/.config/qvos/current/theme.
  */
 
 import { existsSync } from "node:fs";
@@ -11,7 +10,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const home = process.env.HOME;
 const lightModePath = home
-  ? join(home, ".config/omarchy/current/theme/light.mode")
+  ? join(home, ".config/qvos/current/theme/light.mode")
   : null;
 
 function qvosPiTheme(): "light" | "dark" {

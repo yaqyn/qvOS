@@ -3,16 +3,16 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-THEMES_DIR="$HOME/.config/omarchy/themes"
-THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
+THEMES_DIR="$HOME/.config/qvos/themes"
+THEME_NAME_PATH="$HOME/.config/qvos/current/theme.name"
 [[ -f $THEME_NAME_PATH ]] || {
   echo "No current qvOS theme is selected." >&2
   exit 1
 }
 THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$THEMES_DIR" "$(<"$THEME_NAME_PATH")")
-THEME_BACKGROUNDS_PATH="$HOME/.config/omarchy/current/theme/backgrounds/"
-USER_BACKGROUNDS_PATH="$HOME/.config/omarchy/backgrounds/$THEME_NAME/"
-CURRENT_BACKGROUND_LINK="$HOME/.config/omarchy/current/background"
+THEME_BACKGROUNDS_PATH="$HOME/.config/qvos/current/theme/backgrounds/"
+USER_BACKGROUNDS_PATH="$HOME/.config/qvos/backgrounds/$THEME_NAME/"
+CURRENT_BACKGROUND_LINK="$HOME/.config/qvos/current/background"
 
 mkdir -p -- "$USER_BACKGROUNDS_PATH" "$(dirname -- "$CURRENT_BACKGROUND_LINK")"
 

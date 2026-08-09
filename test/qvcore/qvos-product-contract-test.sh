@@ -1031,7 +1031,7 @@ pass "qvOS-owned test entrypoints are executable"
 install -d \
   "$test_bin" \
   "$test_root/.config/omarchy/extensions" \
-  "$test_root/.config/omarchy/themes"
+  "$test_root/.config/qvos/themes"
 
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
@@ -1204,12 +1204,12 @@ set -e
 pass "direct LocalSend route fails clearly when unavailable"
 
 install -d \
-  "$test_root/.config/omarchy/themes/yaqyn" \
+  "$test_root/.config/qvos/themes/yaqyn" \
   "$test_root/custom-theme"
-printf 'personal theme\n' >"$test_root/.config/omarchy/themes/yaqyn/personal-marker"
+printf 'personal theme\n' >"$test_root/.config/qvos/themes/yaqyn/personal-marker"
 cp -a "$root/qvcore/theme/yaqyn/." "$test_root/custom-theme/"
 touch "$test_root/custom-theme/preview-unlock.png"
-ln -s "$test_root/custom-theme" "$test_root/.config/omarchy/themes/custom"
+ln -s "$test_root/custom-theme" "$test_root/.config/qvos/themes/custom"
 HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/theme/install" >/dev/null
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/personal-marker" >/dev/null ||
@@ -1237,10 +1237,10 @@ for _, theme in ipairs(themes) do
   if theme.Text == "Custom  " then custom_theme = theme end
 end
 assert(yaqyn_theme)
-assert(yaqyn_theme.Preview:match("/%.config/omarchy/themes/yaqyn/preview%.png$"))
+assert(yaqyn_theme.Preview:match("/%.config/qvos/themes/yaqyn/preview%.png$"))
 assert(yaqyn_theme.Actions.activate == "qv-theme-set 'yaqyn'")
 assert(custom_theme)
-assert(custom_theme.Preview:match("/%.config/omarchy/themes/custom/preview%.png$"))
+assert(custom_theme.Preview:match("/%.config/qvos/themes/custom/preview%.png$"))
 assert(custom_theme.Actions.activate == "qv-theme-set 'custom'")
 
 dofile(root .. "/qvcore/menu/elephant/qvos_unlocks.lua")
@@ -1259,7 +1259,7 @@ assert(
     == "qv-launch-floating-terminal-with-presentation qv-plymouth-reset"
 )
 assert(custom_unlock)
-assert(custom_unlock.Preview:match("/%.config/omarchy/themes/custom/preview%-unlock%.png$"))
+assert(custom_unlock.Preview:match("/%.config/qvos/themes/custom/preview%-unlock%.png$"))
 LUA
 pass "dynamic Style catalogs expose Yaqyn and compatible user themes only"
 

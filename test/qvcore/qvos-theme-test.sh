@@ -10,23 +10,66 @@ fail() {
   exit 1
 }
 
+pass() {
+  printf 'ok - %s\n' "$1"
+}
+
 "$root/qvcore/theme/check"
 
-themes_dir="$test_root/.config/omarchy/themes"
+conflict_home="$test_root/conflict-home"
+install -d \
+  "$conflict_home/.config/omarchy/themes/personal" \
+  "$conflict_home/.config/qvos/themes/personal"
+printf 'legacy\n' >"$conflict_home/.config/omarchy/themes/personal/marker"
+printf 'native\n' >"$conflict_home/.config/qvos/themes/personal/marker"
+if HOME="$conflict_home" QVOS_PATH="$root" \
+  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1; then
+  fail "conflicting theme-root migration"
+fi
+[[ $(<"$conflict_home/.config/omarchy/themes/personal/marker") == "legacy" &&
+  $(<"$conflict_home/.config/qvos/themes/personal/marker") == "native" &&
+  ! -L $conflict_home/.config/omarchy/themes ]] ||
+  fail "conflicting theme-root preservation"
+pass "conflicting native and compatibility theme state is preserved"
+
+linked_root_home="$test_root/linked-root-home"
+linked_root_target="$test_root/linked-root-target"
+install -d "$linked_root_home/.config/omarchy" "$linked_root_target"
+printf 'external\n' >"$linked_root_target/marker"
+ln -s "$linked_root_target" "$linked_root_home/.config/omarchy/themes"
+if HOME="$linked_root_home" QVOS_PATH="$root" \
+  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1; then
+  fail "linked theme-root migration"
+fi
+[[ -L $linked_root_home/.config/omarchy/themes &&
+  $(<"$linked_root_target/marker") == "external" &&
+  ! -e $linked_root_home/.config/qvos ]] ||
+  fail "linked theme-root preservation"
+pass "unrecognized compatibility-root links are preserved"
+
+themes_dir="$test_root/.config/qvos/themes"
+legacy_themes_dir="$test_root/.config/omarchy/themes"
 external_theme="$test_root/external/linked"
 test_bin="$test_root/bin"
-install -d "$themes_dir" "$test_bin" "$(dirname -- "$external_theme")"
-cp -a "$root/qvcore/theme/yaqyn" "$themes_dir/personal"
+install -d "$legacy_themes_dir" "$test_bin" "$(dirname -- "$external_theme")"
+cp -a "$root/qvcore/theme/yaqyn" "$legacy_themes_dir/personal"
 cp -a "$root/qvcore/theme/yaqyn" "$external_theme"
-printf 'personal\n' >"$themes_dir/personal/marker"
+printf 'personal\n' >"$legacy_themes_dir/personal/marker"
 printf 'linked\n' >"$external_theme/marker"
-mkdir -p "$themes_dir/yaqyn"
-printf 'old yaqyn\n' >"$themes_dir/yaqyn/marker"
-ln -s "$external_theme" "$themes_dir/linked"
-ln -s "$root/themes/tokyo-night" "$themes_dir/tokyo-night"
-ln -s "$test_root/missing-theme" "$themes_dir/broken"
+mkdir -p "$legacy_themes_dir/yaqyn"
+printf 'old yaqyn\n' >"$legacy_themes_dir/yaqyn/marker"
+ln -s "$external_theme" "$legacy_themes_dir/linked"
+ln -s "$root/themes/tokyo-night" "$legacy_themes_dir/tokyo-night"
+ln -s "$test_root/missing-theme" "$legacy_themes_dir/broken"
 
 HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/install" >/dev/null
+for migrated_entry in themes current backgrounds themed; do
+  compatibility_path="$test_root/.config/omarchy/$migrated_entry"
+  [[ -L $compatibility_path &&
+    $(readlink -- "$compatibility_path") == "../qvos/$migrated_entry" ]] ||
+    fail "native theme compatibility link: $migrated_entry"
+done
+HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/migrate-config-root"
 [[ -L $themes_dir/yaqyn ]] || fail "Yaqyn runtime link"
 [[ -f $themes_dir/personal/marker ]] || fail "personal theme data preservation"
 [[ -L $themes_dir/linked && -f $themes_dir/linked/marker ]] ||
@@ -36,6 +79,7 @@ HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/install" >/dev/null
 [[ -L $themes_dir/broken ]] || fail "unrelated broken theme link preservation"
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
+pass "legacy theme state migrates once into native qvOS ownership"
 
 theme_list=$(HOME="$test_root" QVOS_PATH="$root" "$root/bin/qv-theme-list")
 [[ $theme_list == $'Linked\nPersonal\nYaqyn' ]] || fail "Yaqyn and custom theme list"
@@ -105,9 +149,9 @@ theme_set_output=$(
     "$root/bin/qv-theme-set" "Personal" 2>&1
 ) || fail "custom theme selection command"
 [[ -z $theme_set_output ]] || fail "custom theme selection emitted warnings"
-[[ $(<"$test_root/.config/omarchy/current/theme.name") == "personal" ]] ||
+[[ $(<"$test_root/.config/qvos/current/theme.name") == "personal" ]] ||
   fail "custom theme selection"
-[[ $(<"$test_root/.config/omarchy/current/theme/marker") == "personal" ]] ||
+[[ $(<"$test_root/.config/qvos/current/theme/marker") == "personal" ]] ||
   fail "custom theme rendering"
 
 theme_set_output=$(
@@ -119,7 +163,7 @@ theme_set_output=$(
     "$root/bin/qv-theme-set" "Linked" 2>&1
 ) || fail "linked theme selection command"
 [[ -z $theme_set_output ]] || fail "linked theme selection emitted warnings"
-[[ $(<"$test_root/.config/omarchy/current/theme/marker") == "linked" ]] ||
+[[ $(<"$test_root/.config/qvos/current/theme/marker") == "linked" ]] ||
   fail "linked compatible theme rendering"
 
 set +e
@@ -137,7 +181,7 @@ HOME="$test_root" QVOS_PATH="$root" QVOS_THEME_SKIP_INTEGRATIONS=1 \
   PATH="$test_bin:/usr/bin" "$root/bin/qv-theme-remove" "Linked"
 [[ ! -L $themes_dir/linked ]] || fail "linked theme removal"
 [[ -f $external_theme/marker ]] || fail "external linked theme target preservation"
-[[ $(<"$test_root/.config/omarchy/current/theme.name") == "yaqyn" ]] ||
+[[ $(<"$test_root/.config/qvos/current/theme.name") == "yaqyn" ]] ||
   fail "active custom theme fallback"
 
 policy_root="$test_root/browser-policies"
@@ -227,7 +271,7 @@ HOME="$test_root" \
   "$root/bin/qv-theme-install" \
   'https://themes.example/omarchy-remote-theme.git' >/dev/null
 [[ -d $themes_dir/remote/.git ]] || fail "Git-managed custom theme source"
-[[ ! -e $test_root/.config/omarchy/current/theme/.git ]] ||
+[[ ! -e $test_root/.config/qvos/current/theme/.git ]] ||
   fail "rendered theme excludes Git metadata"
 
 previous_remote_head=$(git -C "$themes_dir/remote" rev-parse HEAD)
@@ -271,7 +315,7 @@ set -e
 vault="$test_root/vault"
 mkdir -p "$vault/.obsidian/themes/Omarchy" "$test_root/.config/obsidian"
 printf 'preserve\n' >"$vault/.obsidian/themes/Omarchy/marker"
-printf 'body {}\n' >"$test_root/.config/omarchy/current/theme/obsidian.css"
+printf 'body {}\n' >"$test_root/.config/qvos/current/theme/obsidian.css"
 jq -n --arg vault "$vault" '{vaults: {test: {path: $vault}}}' \
   >"$test_root/.config/obsidian/obsidian.json"
 HOME="$test_root" QVOS_PATH="$root" \
@@ -297,17 +341,17 @@ install -D -m 0755 /dev/stdin "$background_fixture/qvcore/desktop/open" <<'OPEN'
 printf '%s\n' "$1" >"$QVOS_TEST_BACKGROUND_OPEN_LOG"
 OPEN
 mkdir -p \
-  "$background_home/.config/omarchy/current" \
-  "$background_home/.config/omarchy/themes/yaqyn"
-printf 'yaqyn\n' >"$background_home/.config/omarchy/current/theme.name"
+  "$background_home/.config/qvos/current" \
+  "$background_home/.config/qvos/themes/yaqyn"
+printf 'yaqyn\n' >"$background_home/.config/qvos/current/theme.name"
 HOME="$background_home" \
   QVOS_PATH="$background_fixture" \
   QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
   "$background_fixture/bin/qv-theme-bg-install"
-expected_background="$background_home/.config/omarchy/backgrounds/yaqyn"
+expected_background="$background_home/.config/qvos/backgrounds/yaqyn"
 [[ -d $expected_background && $(<"$background_log") == "$expected_background" ]] ||
   fail "validated current-theme background directory"
-printf '../escape\n' >"$background_home/.config/omarchy/current/theme.name"
+printf '../escape\n' >"$background_home/.config/qvos/current/theme.name"
 if HOME="$background_home" \
   QVOS_PATH="$background_fixture" \
   QVOS_TEST_BACKGROUND_OPEN_LOG="$background_log" \
@@ -320,9 +364,9 @@ fi
 editor_home="$test_root/editor-home"
 editor_bin="$test_root/editor-bin"
 editor_log="$test_root/editor.log"
-mkdir -p "$editor_home/.config/omarchy/current/theme" "$editor_bin"
+mkdir -p "$editor_home/.config/qvos/current/theme" "$editor_bin"
 cp "$root/qvcore/theme/yaqyn/vscode.json" \
-  "$editor_home/.config/omarchy/current/theme/vscode.json"
+  "$editor_home/.config/qvos/current/theme/vscode.json"
 install -m 0755 /dev/stdin "$editor_bin/qv-cmd-present" <<'COMMAND'
 #!/bin/bash
 [[ $1 == "code" ]]

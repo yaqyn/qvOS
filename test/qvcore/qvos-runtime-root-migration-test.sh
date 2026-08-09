@@ -19,8 +19,14 @@ fail() {
 
 install -d \
   "$test_home/.config/Thunar" \
+  "$test_home/.config/alacritty" \
   "$test_home/.config/fastfetch" \
+  "$test_home/.config/foot" \
+  "$test_home/.config/ghostty" \
   "$test_home/.config/hypr" \
+  "$test_home/.config/hyprland-preview-share-picker" \
+  "$test_home/.config/kitty" \
+  "$test_home/.config/swayosd" \
   "$test_home/.config/uwsm" \
   "$test_home/.config/waybar"
 
@@ -31,8 +37,36 @@ source = ~/.local/share/qvos/default/hypr/envs.conf
 source = ~/.local/share/omarchy/default/hypr/looknfeel.conf
 source = ~/.local/share/qvos/default/hypr/input.conf
 source = ~/.local/share/omarchy/default/hypr/windows.conf
+source = ~/.config/omarchy/current/theme/hyprland.conf
 source = ~/.config/hypr/qv.conf
 source = ~/.config/hypr/input.conf
+CONFIG
+
+install -m 0644 /dev/stdin "$test_home/.config/hypr/hyprlock.conf" <<'CONFIG'
+source = ~/.config/omarchy/current/theme/hyprlock.conf
+path = ~/.config/omarchy/current/background
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/alacritty/alacritty.toml" <<'CONFIG'
+general.import = [ "~/.config/omarchy/current/theme/alacritty.toml" ]
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/foot/foot.ini" <<'CONFIG'
+include=~/.config/omarchy/current/theme/foot.ini
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/ghostty/config" <<'CONFIG'
+config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+CONFIG
+install -m 0644 /dev/stdin \
+  "$test_home/.config/hyprland-preview-share-picker/config.yaml" <<'CONFIG'
+stylesheets: ["../omarchy/current/theme/hyprland-preview-share-picker.css"]
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/kitty/kitty.conf" <<'CONFIG'
+include ~/.config/omarchy/current/theme/kitty.conf
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/swayosd/style.css" <<'CONFIG'
+@import "../omarchy/current/theme/swayosd.css";
+CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/waybar/style.css" <<'CONFIG'
+@import "../omarchy/current/theme/waybar.css";
 CONFIG
 
 install -m 0644 /dev/stdin "$test_home/.config/hypr/bindings.conf" <<'CONFIG'
@@ -127,6 +161,22 @@ done
 grep -Fqx '# Keep this custom Hyprland line.' \
   "$test_home/.config/hypr/hyprland.conf" ||
   fail "custom Hyprland content preservation"
+for theme_config in \
+  "$test_home/.config/alacritty/alacritty.toml" \
+  "$test_home/.config/foot/foot.ini" \
+  "$test_home/.config/ghostty/config" \
+  "$test_home/.config/hypr/hyprland.conf" \
+  "$test_home/.config/hypr/hyprlock.conf" \
+  "$test_home/.config/hyprland-preview-share-picker/config.yaml" \
+  "$test_home/.config/kitty/kitty.conf" \
+  "$test_home/.config/swayosd/style.css" \
+  "$test_home/.config/waybar/style.css"; do
+  if rg -q 'omarchy/current|\.config/omarchy/current' "$theme_config"; then
+    fail "compatibility theme state remains in ${theme_config#"$test_home/"}"
+  fi
+  rg -q 'qvos/current|\.config/qvos/current' "$theme_config" ||
+    fail "native theme state missing from ${theme_config#"$test_home/"}"
+done
 if rg -q 'default/hypr|source = ~/.config/hypr/qv\.conf' \
   "$test_home/.config/hypr/hyprland.conf"; then
   fail "retired Hyprland base or stock overlay remains"
@@ -280,7 +330,7 @@ grep -Fqx 'export QVOS_SCREENRECORD_DIR="$HOME/Videos/Private"' \
   "$test_home/.config/uwsm/default" || fail "recording environment migration"
 grep -Fqx '# Keep this user comment.' "$test_home/.config/uwsm/default" ||
   fail "Capture environment custom content preservation"
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "8" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "16" ]] ||
   fail "changed config backup count"
 
 state_before=$(find "$test_home/.config" -type f -printf '%P|%m|%i|%T@\n' | sort)

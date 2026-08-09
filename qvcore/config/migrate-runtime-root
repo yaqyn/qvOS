@@ -189,6 +189,7 @@ hyprland_rewrites=(
   '~/.local/share/omarchy/default/hypr/input.conf' '~/.config/hypr/input.conf'
   '~/.local/share/qvos/default/hypr/windows.conf' '~/.local/share/qvos/qvcore/config/base/hypr/windows.conf'
   '~/.local/share/omarchy/default/hypr/windows.conf' '~/.local/share/qvos/qvcore/config/base/hypr/windows.conf'
+  '~/.config/omarchy/current' '~/.config/qvos/current'
 )
 if [[ $retire_qv_source == "true" ]]; then
   hyprland_rewrites+=('source = ~/.config/hypr/qv.conf' '')
@@ -304,6 +305,20 @@ rewrite_literals \
 rewrite_literals \
   "$HOME/.config/Thunar/uca.xml" \
   '.local/share/qvos/thunar/' '.local/lib/qvos/thunar/'
+for theme_config in \
+  "$HOME/.config/alacritty/alacritty.toml" \
+  "$HOME/.config/foot/foot.ini" \
+  "$HOME/.config/ghostty/config" \
+  "$HOME/.config/hypr/hyprlock.conf" \
+  "$HOME/.config/hyprland-preview-share-picker/config.yaml" \
+  "$HOME/.config/kitty/kitty.conf" \
+  "$HOME/.config/swayosd/style.css" \
+  "$HOME/.config/waybar/style.css"; do
+  rewrite_literals \
+    "$theme_config" \
+    '.config/omarchy/current' '.config/qvos/current' \
+    '../omarchy/current' '../qvos/current'
+done
 # shellcheck disable=SC2016
 rewrite_literals \
   "$uwsm_env" \

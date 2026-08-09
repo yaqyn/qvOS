@@ -3,8 +3,8 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 mode=apply
-colors_file="$HOME/.config/omarchy/current/theme/colors.toml"
-light_marker="$HOME/.config/omarchy/current/theme/light.mode"
+colors_file="$HOME/.config/qvos/current/theme/colors.toml"
+light_marker="$HOME/.config/qvos/current/theme/light.mode"
 theme_file="$HOME/.config/zed/themes/qvos.json"
 settings_file="$HOME/.config/zed/settings.json"
 

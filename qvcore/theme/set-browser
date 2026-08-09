@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CHROMIUM_THEME="$HOME/.config/omarchy/current/theme/chromium.theme"
+CHROMIUM_THEME="$HOME/.config/qvos/current/theme/chromium.theme"
 testing=${QVOS_THEME_TESTING:-}
 policy_root=${QVOS_THEME_BROWSER_POLICY_ROOT:-}
 

@@ -13,11 +13,11 @@ skip_integrations=${QVOS_THEME_SKIP_INTEGRATIONS:-0}
   echo "QVOS_THEME_SKIP_INTEGRATIONS must be 0 or 1." >&2
   exit 2
 }
-CURRENT_THEME_PATH="$HOME/.config/omarchy/current/theme"
-NEXT_THEME_PATH="$HOME/.config/omarchy/current/next-theme"
-PREVIOUS_THEME_PATH="$HOME/.config/omarchy/current/previous-theme"
-THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
-USER_THEMES_PATH="$HOME/.config/omarchy/themes"
+CURRENT_THEME_PATH="$HOME/.config/qvos/current/theme"
+NEXT_THEME_PATH="$HOME/.config/qvos/current/next-theme"
+PREVIOUS_THEME_PATH="$HOME/.config/qvos/current/previous-theme"
+THEME_NAME_PATH="$HOME/.config/qvos/current/theme.name"
+USER_THEMES_PATH="$HOME/.config/qvos/themes"
 name_candidate=""
 
 THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$USER_THEMES_PATH" "$1")

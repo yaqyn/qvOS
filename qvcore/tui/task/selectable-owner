@@ -12,8 +12,8 @@ usage() {
 }
 
 list_extra_themes() {
-  [[ -d $HOME/.config/omarchy/themes ]] || return 0
-  find "$HOME/.config/omarchy/themes" \
+  [[ -d $HOME/.config/qvos/themes ]] || return 0
+  find "$HOME/.config/qvos/themes" \
     -mindepth 1 \
     -maxdepth 1 \
     \( -type d -o -type l \) \

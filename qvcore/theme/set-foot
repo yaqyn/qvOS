@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-foot_theme="$HOME/.config/omarchy/current/theme/foot.ini"
+foot_theme="$HOME/.config/qvos/current/theme/foot.ini"
 
 if [[ ! -f $foot_theme ]] || ! pgrep -x foot >/dev/null; then
   exit 0

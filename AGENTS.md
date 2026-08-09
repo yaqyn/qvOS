@@ -196,7 +196,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   bounded, terminal-safe, and upload-free, with sudo limited to optional dmesg
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
 - `qvcore/theme/templates/` owns built-in color templates; compatible user
-  overrides remain under `~/.config/omarchy/themed/`
+  overrides remain under `~/.config/qvos/themed/`
+- `~/.config/qvos` owns active theme state; matching `~/.config/omarchy`
+  theme paths are migration compatibility links only
 - `qvcore/desktop/applications/` owns fixed desktop entries, package-menu
   suppressors, and the imv icon; the inherited top-level `applications/` tree
   is retired

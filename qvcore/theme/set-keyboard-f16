@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-FRAMEWORK16_THEME="$HOME/.config/omarchy/current/theme/keyboard.rgb"
+FRAMEWORK16_THEME="$HOME/.config/qvos/current/theme/keyboard.rgb"
 
 if qv-cmd-present qmk_hid && [[ -f $FRAMEWORK16_THEME ]]; then
   hex=$(<"$FRAMEWORK16_THEME")

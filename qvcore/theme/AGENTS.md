@@ -6,14 +6,18 @@ theme paths.
 
 qvOS has one bundled product theme: `qvcore/theme/yaqyn/`. Users may copy Yaqyn,
 install a compatible Omarchy-format Git theme, or link a compatible theme into
-`~/.config/omarchy/themes/`. Keep one renderer for bundled and user themes; do
+`~/.config/qvos/themes/`. Keep one renderer for bundled and user themes; do
 not restore the inherited source catalog or a second rendering system.
 The bundled background and preview are identical copies of the user-approved
 centered qvOS wordmark artwork. Keep graphical wallpaper assets here; terminal
 art remains independently owned by `qvcore/branding/terminal-art.txt`.
 
-The `~/.config/omarchy/{themes,current,backgrounds,themed}` namespace is a
-documented external-theme compatibility ABI, not an inherited source owner.
+The `~/.config/qvos/{themes,current,backgrounds,themed}` namespace owns all
+theme data and active state. `qvcore/theme/migrate-config-root` moves each safe
+legacy directory atomically after a complete conflict preflight, then leaves
+only relative `~/.config/omarchy/` compatibility links. Preserve conflicts and
+unrecognized links without partial migration. Omarchy-format describes the
+accepted theme payload, never qvOS state ownership.
 Native commands are `qv-theme-*` and `qv-plymouth-set-by-theme`; matching
 `omarchy-*` files are metadata-free compatibility adapters only. Implement
 behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
@@ -25,6 +29,9 @@ publish each generated file atomically inside the staged theme.
 - `qvcore/theme/install` owns the source-independent runtime and removes only
   inherited stock-theme symlinks. Preserve real user directories, external
   links, and backups. It owns and may replace only the Yaqyn runtime link.
+- Every install and post-update path runs the config-root migration before
+  reading or writing theme state. Native owners and installed configs use only
+  `~/.config/qvos`; the old paths are compatibility links, never fallbacks.
 - `qvcore/theme/configure` is the single fresh-install owner. The inherited install
   stage delegates to it; qvOS install code must not repeat its mutations.
 - Theme list, set, install, remove, update, and appearance providers read only

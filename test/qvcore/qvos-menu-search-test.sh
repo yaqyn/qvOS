@@ -680,7 +680,7 @@ cmp -s \
   "$root/qvcore/menu/walker-theme/layout.xml" \
   "$test_root/.config/walker/themes/qvos-menu/layout.xml" ||
   fail "menu theme installs the native Walker layout"
-[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-menu/style.css") == '@import "../../../omarchy/current/theme/walker.css";' ]] ||
+[[ $(head -n 1 "$test_root/.config/walker/themes/qvos-menu/style.css") == '@import "../../../qvos/current/theme/walker.css";' ]] ||
   fail "menu theme import path"
 grep -Fq 'font-size: 12px;' \
   "$test_root/.config/walker/themes/qvos-menu/style.css" ||

@@ -5,8 +5,9 @@ theme integration, or their migration and reconciliation lifecycle.
 
 `qvos/SKILL.md` is the singular end-user customization skill. Its name and
 examples use qvOS and native `qv` commands. It may mention
-`~/.config/omarchy/{themes,current}` only as the documented external-theme ABI;
-never restore an Omarchy product skill or user-facing Omarchy commands.
+the compatible Omarchy theme format, but native theme state lives only under
+`~/.config/qvos`; never restore an Omarchy product skill, state path, or
+user-facing Omarchy command.
 
 `install` preflights every assistant directory and managed target before
 mutation, installs exact `qvos` skill links, and copies the qvOS Pi theme owner

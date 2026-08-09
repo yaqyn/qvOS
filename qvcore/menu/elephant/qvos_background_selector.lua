@@ -28,7 +28,7 @@ function GetEntries()
   if not home or home == "" then return entries end
 
   -- Read current theme name
-  local theme_name_file = io.open(home .. "/.config/omarchy/current/theme.name", "r")
+  local theme_name_file = io.open(home .. "/.config/qvos/current/theme.name", "r")
   local theme_name = theme_name_file and theme_name_file:read("*l") or nil
   if theme_name_file then
     theme_name_file:close()
@@ -36,10 +36,10 @@ function GetEntries()
 
   -- Directories to search
   local dirs = {
-    home .. "/.config/omarchy/current/theme/backgrounds",
+    home .. "/.config/qvos/current/theme/backgrounds",
   }
   if theme_name then
-    table.insert(dirs, home .. "/.config/omarchy/backgrounds/" .. theme_name)
+    table.insert(dirs, home .. "/.config/qvos/backgrounds/" .. theme_name)
   end
 
   -- Track added files to avoid duplicates

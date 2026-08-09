@@ -49,7 +49,7 @@ function GetEntries()
   local entries = {}
   local home = os.getenv("HOME")
   if not home or home == "" then return entries end
-  local user_theme_dir = home .. "/.config/omarchy/themes"
+  local user_theme_dir = home .. "/.config/qvos/themes"
   local handle = io.popen(
     "/usr/bin/find -L " .. shell_escape(user_theme_dir)
       .. " -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | /usr/bin/sort"

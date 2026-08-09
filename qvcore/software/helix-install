@@ -7,7 +7,7 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 mode=install
 config_file="$HOME/.config/helix/config.toml"
 theme_dir="$HOME/.config/helix/themes"
-theme_source="$HOME/.config/omarchy/current/theme/helix.toml"
+theme_source="$HOME/.config/qvos/current/theme/helix.toml"
 theme_link="$theme_dir/qvos.toml"
 legacy_link="$theme_dir/omarchy.toml"
 expected_config='theme = "qvos"'

@@ -28,7 +28,7 @@ function GetEntries()
   local entries = {}
   local home = os.getenv("HOME")
   if not home or home == "" then return entries end
-  local user_themes_dir = home .. "/.config/omarchy/themes"
+  local user_themes_dir = home .. "/.config/qvos/themes"
   local qvos_path = os.getenv("QVOS_PATH")
   if not qvos_path or qvos_path == "" then
     qvos_path = home .. "/.local/share/qvos"

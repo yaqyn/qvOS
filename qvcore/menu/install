@@ -125,7 +125,7 @@ require_sources() {
   done
 
   if [[ $(head -n 1 "$walker_theme_source/style.css") != \
-    '@import "../../../omarchy/current/theme/walker.css";' ]]; then
+    '@import "../../../qvos/current/theme/walker.css";' ]]; then
     echo "The qvOS Walker theme import is invalid." >&2
     return 1
   fi

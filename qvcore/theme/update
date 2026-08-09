@@ -3,8 +3,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-themes_dir="$HOME/.config/omarchy/themes"
-current_name_path="$HOME/.config/omarchy/current/theme.name"
+themes_dir="$HOME/.config/qvos/themes"
+current_name_path="$HOME/.config/qvos/current/theme.name"
 current_name=""
 managed=0
 updated=0

@@ -6,7 +6,7 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 mode=install
 theme_owner="$QVOS_PATH/qvcore/theme/set-zed"
-colors_file="$HOME/.config/omarchy/current/theme/colors.toml"
+colors_file="$HOME/.config/qvos/current/theme/colors.toml"
 
 if (($# == 1)) && [[ $1 == "--check" ]]; then
   mode=check

@@ -1,0 +1,75 @@
+#!/bin/bash
+set -euo pipefail
+
+config_root="$HOME/.config"
+legacy_root="$config_root/omarchy"
+native_root="$config_root/qvos"
+managed_entries=(themes current backgrounds themed)
+
+fail() {
+  printf 'Could not migrate qvOS theme state: %s\n' "$1" >&2
+  exit 1
+}
+
+validate_owned_directory() {
+  local label=$1
+  local path=$2
+
+  [[ -d $path && ! -L $path && -O $path ]] ||
+    fail "$label is not a real user-owned directory: $path"
+}
+
+validate_owned_directory "the home directory" "$HOME"
+if [[ -e $config_root || -L $config_root ]]; then
+  validate_owned_directory "the configuration root" "$config_root"
+fi
+if [[ -e $legacy_root || -L $legacy_root ]]; then
+  validate_owned_directory "the compatibility root" "$legacy_root"
+fi
+if [[ -e $native_root || -L $native_root ]]; then
+  validate_owned_directory "the native root" "$native_root"
+fi
+
+for entry in "${managed_entries[@]}"; do
+  legacy_path="$legacy_root/$entry"
+  native_path="$native_root/$entry"
+  expected_link="../qvos/$entry"
+
+  if [[ -e $native_path || -L $native_path ]]; then
+    validate_owned_directory "the native $entry path" "$native_path"
+  fi
+  if [[ -L $legacy_path ]]; then
+    [[ $(readlink -- "$legacy_path") == "$expected_link" ]] ||
+      fail "the compatibility $entry path is an unrecognized link: $legacy_path"
+  elif [[ -e $legacy_path ]]; then
+    validate_owned_directory "the compatibility $entry path" "$legacy_path"
+    [[ ! -e $native_path && ! -L $native_path ]] ||
+      fail "both native and compatibility $entry directories contain state"
+  fi
+done
+
+if [[ ! -e $config_root && ! -L $config_root ]]; then
+  install -d -m 0755 "$config_root"
+fi
+if [[ ! -e $native_root && ! -L $native_root ]]; then
+  install -d -m 0700 "$native_root"
+fi
+if [[ ! -e $legacy_root && ! -L $legacy_root ]]; then
+  install -d -m 0755 "$legacy_root"
+fi
+
+for entry in "${managed_entries[@]}"; do
+  legacy_path="$legacy_root/$entry"
+  native_path="$native_root/$entry"
+  expected_link="../qvos/$entry"
+
+  if [[ -d $legacy_path && ! -L $legacy_path ]]; then
+    mv -- "$legacy_path" "$native_path"
+  fi
+  if [[ ! -e $native_path && ! -L $native_path ]]; then
+    install -d -m 0755 "$native_path"
+  fi
+  if [[ ! -e $legacy_path && ! -L $legacy_path ]]; then
+    ln -s "$expected_link" "$legacy_path"
+  fi
+done
