@@ -1,60 +1,119 @@
 #!/bin/bash
-
 set -euo pipefail
 
+script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
+source_dir=$(cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd)
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-TEMPLATES_DIR="$QVOS_PATH/default/themed"
-USER_TEMPLATES_DIR="$HOME/.config/omarchy/themed"
-NEXT_THEME_DIR="$HOME/.config/omarchy/current/next-theme"
-COLORS_FILE="$NEXT_THEME_DIR/colors.toml"
+templates_dir="$source_dir/templates"
+user_templates_dir="$HOME/.config/omarchy/themed"
+next_theme_dir="$HOME/.config/omarchy/current/next-theme"
+colors_file="$next_theme_dir/colors.toml"
+render_dir=""
+templates=()
+rendered_names=()
+declare -A planned_outputs=()
 
-# Convert hex color to decimal RGB (e.g., "#1e1e2e" -> "30,30,46")
-hex_to_rgb() {
-  local hex="${1#\#}"
-  printf "%d,%d,%d" "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+fail() {
+  printf 'qvOS theme templates: %s\n' "$1" >&2
+  exit 1
 }
 
-# Only generate dynamic templates for themes with a colors.toml definition
-if [[ -f $COLORS_FILE ]]; then
-  sed_script=$(mktemp)
-  output_candidate=""
-  validated_colors=""
+cleanup() {
+  [[ -z $render_dir || ! -e $render_dir ]] ||
+    /usr/bin/rm -rf -- "$render_dir"
+}
+trap cleanup EXIT
 
-  cleanup() {
-    [[ -z $output_candidate ]] || rm -f -- "$output_candidate"
-    rm -f -- "$sed_script"
-  }
-  trap cleanup EXIT
-
-  validated_colors=$("$QVOS_PATH/qvcore/theme/validate" --colors "$COLORS_FILE")
-  while IFS=$'\t' read -r key value; do
-    printf 's|{{ %s }}|%s|g\n' "$key" "$value"            # {{ key }} -> value
-    printf 's|{{ %s_strip }}|%s|g\n' "$key" "${value#\#}" # {{ key_strip }} -> value without leading #
-    rgb=$(hex_to_rgb "$value")
-    printf 's|{{ %s_rgb }}|%s|g\n' "$key" "$rgb"
-  done <<<"$validated_colors" >"$sed_script"
-
-  shopt -s nullglob
-
-  # Process user templates first, then built-in templates (user overrides built-in)
-  for tpl in "$USER_TEMPLATES_DIR"/*.tpl "$TEMPLATES_DIR"/*.tpl; do
-    filename=$(basename "$tpl" .tpl)
-    output_path="$NEXT_THEME_DIR/$filename"
-
-    # Don't overwrite configs already exists in the output directory (copied from theme specific folder)
-    if [[ ! -f $output_path ]]; then
-      output_candidate=$(mktemp "$NEXT_THEME_DIR/.${filename}.XXXXXX")
-      sed -f "$sed_script" "$tpl" >"$output_candidate"
-      if grep -Eq '\{\{ [a-z][a-z0-9_]*(_strip|_rgb)? \}\}' "$output_candidate"; then
-        echo "Theme template has unresolved color placeholders: $tpl" >&2
-        exit 1
-      fi
-      chmod 0644 "$output_candidate"
-      mv -- "$output_candidate" "$output_path"
-      output_candidate=""
-    fi
-  done
-
-  trap - EXIT
-  cleanup
+[[ $(/usr/bin/realpath -m -- "$QVOS_PATH/qvcore/theme") == "$source_dir" ]] ||
+  fail "QVOS_PATH does not match this theme owner"
+[[ -d $templates_dir && ! -L $templates_dir ]] ||
+  fail "the built-in template source is unavailable or unsafe"
+[[ -d $next_theme_dir && ! -L $next_theme_dir && -O $next_theme_dir ]] ||
+  fail "the staged theme directory is unavailable or unsafe"
+[[ -f $colors_file && ! -L $colors_file && -O $colors_file ]] ||
+  fail "the staged color palette is unavailable or unsafe"
+if [[ -e $user_templates_dir || -L $user_templates_dir ]]; then
+  [[ -d $user_templates_dir && ! -L $user_templates_dir &&
+    -O $user_templates_dir ]] || fail "the user template directory is unsafe"
 fi
+
+append_templates() {
+  local directory=$1
+  local require_owner=$2
+  local filename
+  local template
+
+  [[ -d $directory ]] || return 0
+  shopt -s nullglob
+  for template in "$directory"/*.tpl; do
+    [[ -f $template && ! -L $template ]] ||
+      fail "template is not a regular file: $template"
+    if [[ $require_owner == "true" && ! -O $template ]]; then
+      fail "user template has foreign ownership: $template"
+    fi
+    filename=${template##*/}
+    filename=${filename%.tpl}
+    [[ $filename =~ ^[a-z0-9][a-z0-9._-]{0,127}$ ]] ||
+      fail "template has an invalid output name: $template"
+    templates+=("$template")
+  done
+  shopt -u nullglob
+}
+
+# User templates deliberately take precedence when their output name matches a
+# built-in template.
+append_templates "$user_templates_dir" true
+append_templates "$templates_dir" false
+(( ${#templates[@]} > 0 )) || fail "no built-in theme templates were found"
+
+hex_to_rgb() {
+  local hex=${1#\#}
+
+  printf '%d,%d,%d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+
+render_dir=$(/usr/bin/mktemp -d "$next_theme_dir/.qvos-template-stage.XXXXXX")
+sed_script="$render_dir/.colors.sed"
+validated_colors=$("$source_dir/validate" --colors "$colors_file")
+while IFS=$'\t' read -r key value; do
+  printf 's|{{ %s }}|%s|g\n' "$key" "$value"
+  printf 's|{{ %s_strip }}|%s|g\n' "$key" "${value#\#}"
+  rgb=$(hex_to_rgb "$value")
+  printf 's|{{ %s_rgb }}|%s|g\n' "$key" "$rgb"
+done <<<"$validated_colors" >"$sed_script"
+
+for template in "${templates[@]}"; do
+  filename=${template##*/}
+  filename=${filename%.tpl}
+  output_path="$next_theme_dir/$filename"
+
+  if [[ -e $output_path || -L $output_path ]]; then
+    [[ -f $output_path && ! -L $output_path ]] ||
+      fail "refusing a non-file template output: $output_path"
+    continue
+  fi
+  # The first template for an output wins, so a user template overrides the
+  # matching built-in without creating a second owner.
+  [[ -z ${planned_outputs[$filename]:-} ]] || continue
+  planned_outputs[$filename]=1
+  output_candidate="$render_dir/$filename"
+  /usr/bin/sed -f "$sed_script" "$template" >"$output_candidate"
+  if /usr/bin/grep -Eq \
+    '\{\{ [a-z][a-z0-9_]*(_strip|_rgb)? \}\}' "$output_candidate"; then
+    fail "template has unresolved color placeholders: $template"
+  fi
+  /usr/bin/chmod 0644 "$output_candidate"
+  rendered_names+=("$filename")
+done
+
+# Nothing reaches the candidate theme until every selected template rendered
+# cleanly. Each leaf then lands by an atomic rename on the same filesystem.
+for filename in "${rendered_names[@]}"; do
+  output_path="$next_theme_dir/$filename"
+  [[ ! -e $output_path && ! -L $output_path ]] ||
+    fail "template output changed during rendering: $output_path"
+  /usr/bin/mv -- "$render_dir/$filename" "$output_path"
+done
+
+trap - EXIT
+cleanup

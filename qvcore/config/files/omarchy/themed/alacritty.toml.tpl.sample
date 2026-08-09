@@ -9,10 +9,9 @@
 #   2. Customize it as needed
 #   3. Change your theme to apply the template
 #
-# User templates in ~/.config/omarchy/themed/ take priority over the built-in
-# templates in the Omarchy default/themed/ directory. This lets you override
-# any built-in template or create templates for applications not included
-# by default.
+# User templates in ~/.config/omarchy/themed/ take priority over qvOS templates
+# under qvcore/theme/templates/. This lets you override a built-in template or
+# create templates for applications that qvOS does not include by default.
 #
 # AVAILABLE VARIABLES:
 #   {{ background }}            - Main background color (e.g., "#1a1b26")

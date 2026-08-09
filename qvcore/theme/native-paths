@@ -20,5 +20,3 @@ bin/omarchy-theme-set-obsidian
 bin/omarchy-theme-set-templates
 bin/omarchy-theme-set-vscode
 bin/omarchy-theme-update
-default/themed/mako.ini.tpl
-default/themed/obsidian.css.tpl

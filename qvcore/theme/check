@@ -85,8 +85,40 @@ for route in "${!route_owners[@]}"; do
 done
 
 [[ ! -e $root/themes ]] || fail "inherited theme catalog remains"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "themes/" ]] ||
-  fail "retired theme inventory is broader than the inherited catalog"
+[[ ! -e $root/default/themed ]] || fail "inherited template source remains"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $'default/themed/\nthemes/' ]] ||
+  fail "retired theme inventory differs from the reviewed source paths"
+
+expected_templates=$(
+  printf '%s\n' \
+    alacritty.toml.tpl \
+    btop.theme.tpl \
+    chromium.theme.tpl \
+    foot.ini.tpl \
+    ghostty.conf.tpl \
+    gum.env.conf.tpl \
+    helix.toml.tpl \
+    hyprland-preview-share-picker.css.tpl \
+    hyprland.conf.tpl \
+    hyprlock.conf.tpl \
+    keyboard.rgb.tpl \
+    kitty.conf.tpl \
+    mako.ini.tpl \
+    obsidian.css.tpl \
+    swayosd.css.tpl \
+    walker.css.tpl \
+    waybar.css.tpl
+)
+actual_templates=$(
+  find "$root/qvcore/theme/templates" -mindepth 1 -maxdepth 1 \
+    -type f -printf '%f\n' | sort
+)
+[[ $actual_templates == "$expected_templates" ]] ||
+  fail "native template inventory differs from the reviewed built-ins"
+while IFS= read -r template; do
+  [[ -f $template && ! -L $template ]] ||
+    fail "native template is not a regular file: ${template#"$root/"}"
+done < <(find "$root/qvcore/theme/templates" -mindepth 1 -maxdepth 1 -print)
 
 yaqyn_background="$root/qvcore/theme/yaqyn/backgrounds/yaqyn.png"
 yaqyn_preview="$root/qvcore/theme/yaqyn/preview.png"
@@ -100,7 +132,7 @@ cmp -s "$yaqyn_background" "$yaqyn_preview" ||
 mako_include='include=~/.local/share/qvos/qvcore/controls/notification/mako-core.ini'
 grep -Fqx "$mako_include" "$root/qvcore/theme/yaqyn/mako.ini" ||
   fail "Yaqyn bypasses the native Mako policy"
-grep -Fqx "$mako_include" "$root/default/themed/mako.ini.tpl" ||
+grep -Fqx "$mako_include" "$root/qvcore/theme/templates/mako.ini.tpl" ||
   fail "compatible themes bypass the native Mako policy"
 
 for inventory in "$native_manifest" "$retired_manifest"; do
@@ -149,6 +181,11 @@ grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/install-external" ||
   fail "Git theme installation bypasses payload validation"
 grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses payload validation"
+grep -Fq 'source_dir/templates' "$root/qvcore/theme/set-templates" ||
+  fail "theme renderer bypasses the native template owner"
+if rg -n 'default/themed' "$root/qvcore/theme/set-templates"; then
+  fail "theme renderer retains the inherited template source"
+fi
 grep -Fq 'cannot be replaced by a theme repository' "$root/qvcore/theme/install-external" ||
   fail "Yaqyn install protection"
 grep -Fq 'cannot be removed' "$root/qvcore/theme/remove" ||
@@ -205,7 +242,7 @@ grep -Fq 'current_theme=$(<"$theme_name_path")' "$root/qvcore/install/post-updat
   fail "post-update does not preserve the selected custom theme"
 if rg -n 'Omarchy' \
   "$root/qvcore/theme/set-obsidian" \
-  "$root/default/themed/obsidian.css.tpl"; then
+  "$root/qvcore/theme/templates/obsidian.css.tpl"; then
   fail "Obsidian theme still exposes inherited branding"
 fi
 

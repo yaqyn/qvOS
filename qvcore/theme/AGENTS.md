@@ -17,6 +17,10 @@ documented external-theme compatibility ABI, not an inherited source owner.
 Native commands are `qv-theme-*` and `qv-plymouth-set-by-theme`; matching
 `omarchy-*` files are metadata-free compatibility adapters only. Implement
 behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
+Built-in color templates live only under `qvcore/theme/templates/`;
+`default/themed/` is retired. Preflight every built-in and user template before
+rendering, keep user overrides first, reject unsafe paths and output names, and
+publish each generated file atomically inside the staged theme.
 
 - `qvcore/theme/install` owns the source-independent runtime and removes only
   inherited stock-theme symlinks. Preserve real user directories, external

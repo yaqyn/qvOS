@@ -181,7 +181,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - local debug inventory belongs to `qvcore/security/debug`; it remains private,
   bounded, terminal-safe, and upload-free, with sudo limited to optional dmesg
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
-- `default/themed/*.tpl` remains the compatible custom-theme template format
+- `qvcore/theme/templates/` owns built-in color templates; compatible user
+  overrides remain under `~/.config/omarchy/themed/`
 - `qvcore/desktop/applications/` owns fixed desktop entries, package-menu
   suppressors, and the imv icon; the inherited top-level `applications/` tree
   is retired
