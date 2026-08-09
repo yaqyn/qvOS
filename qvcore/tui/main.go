@@ -1663,6 +1663,7 @@ const (
 
 const (
 	ownedProcessStopGrace = 5 * time.Second
+	ownedProcessReapGrace = time.Second
 	cancelProbeTimeout    = 3 * time.Second
 	cancelRollbackTimeout = 20 * time.Second
 )
@@ -2278,7 +2279,10 @@ func runRootScriptStream(
 	}()
 	err = cmd.Wait()
 	if ctx.Err() != nil {
-		_ = killOwnedProcessGroup(processID)
+		if killErr := killOwnedProcessGroup(processID); killErr != nil ||
+			!waitOwnedProcessGroupStopped(processID, ownedProcessReapGrace) {
+			managerObservation.markUnreliable()
+		}
 	}
 	var outputFailure error
 	select {
@@ -2454,6 +2458,10 @@ func (observation *managerObservationState) observe(processGroup int) {
 	}
 }
 
+func (observation *managerObservationState) markUnreliable() {
+	observation.reliable.Store(false)
+}
+
 func (observation *managerObservationState) pacmanEvidence() managerEvidence {
 	return managerEvidence{
 		owned:    observation.ownedPacman.Load(),
@@ -2520,6 +2528,26 @@ func killOwnedProcessGroup(processID int) error {
 		return err
 	}
 	return nil
+}
+
+func waitOwnedProcessGroupStopped(processID int, timeout time.Duration) bool {
+	if processID <= 0 {
+		return false
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		running, reliable := processGroupRunning(processID)
+		if !reliable {
+			return false
+		}
+		if !running {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func probeCanceledAction(script string, env []string, dir string) cancelProbe {

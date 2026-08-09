@@ -2480,6 +2480,47 @@ func processGroupHasLiveMembers(t *testing.T, processGroup int) bool {
 	return false
 }
 
+func TestOwnedProcessGroupWaitsForRunningMembersAndIgnoresZombies(t *testing.T) {
+	previousProcRoot := procRoot
+	t.Cleanup(func() { procRoot = previousProcRoot })
+	procRoot = t.TempDir()
+
+	const processGroup = 8123
+	processDir := filepath.Join(procRoot, strconv.Itoa(processGroup))
+	if err := os.Mkdir(processDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	statPath := filepath.Join(processDir, "stat")
+	if err := os.WriteFile(statPath, []byte("8123 (pacman) R 1 8123\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	removed := make(chan struct{})
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		_ = os.RemoveAll(processDir)
+		close(removed)
+	}()
+	started := time.Now()
+	if !waitOwnedProcessGroupStopped(processGroup, time.Second) {
+		t.Fatal("running process group was not observed stopping")
+	}
+	<-removed
+	if elapsed := time.Since(started); elapsed < 40*time.Millisecond {
+		t.Fatalf("process-group wait returned before the running member stopped: %s", elapsed)
+	}
+
+	if err := os.Mkdir(processDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(statPath, []byte("8123 (pacman) Z 1 8123\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !waitOwnedProcessGroupStopped(processGroup, time.Second) {
+		t.Fatal("zombie process prevented the process group from settling")
+	}
+}
+
 func TestCanceledGenericActionProbesItsDeclaredResult(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	script := filepath.Join(t.TempDir(), "action")

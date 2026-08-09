@@ -106,6 +106,13 @@ type managerProcessScan struct {
 	reliable      bool
 }
 
+type procProcessStat struct {
+	name   string
+	state  byte
+	parent int
+	group  int
+}
+
 func pathExistsOrUnknown(path string) bool {
 	_, err := os.Lstat(path)
 	return err == nil || !errors.Is(err, os.ErrNotExist)
@@ -579,35 +586,41 @@ func walkProcProcesses(visit func(pid, parent, group int, names, arguments []str
 	return reliable
 }
 
+func processGroupRunning(processGroup int) (bool, bool) {
+	if processGroup <= 0 {
+		return false, false
+	}
+	entries, err := os.ReadDir(procRoot)
+	if err != nil {
+		return false, false
+	}
+	for _, entry := range entries {
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil {
+			continue
+		}
+		process, exists, reliable := readProcProcessStat(pid)
+		if !reliable {
+			return false, false
+		}
+		if exists && process.group == processGroup && process.state != 'Z' {
+			return true, true
+		}
+	}
+	return false, true
+}
+
 func procProcessIdentity(pid int) (int, int, []string, []string, bool) {
 	processDir := filepath.Join(procRoot, strconv.Itoa(pid))
-	stat, err := os.ReadFile(filepath.Join(processDir, "stat"))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return 0, 0, nil, nil, true
-		}
+	process, exists, reliable := readProcProcessStat(pid)
+	if !reliable {
 		return 0, 0, nil, nil, false
 	}
-	statText := string(stat)
-	openParen := strings.IndexByte(statText, '(')
-	closeParen := strings.LastIndexByte(statText, ')')
-	if openParen < 0 || closeParen <= openParen {
-		return 0, 0, nil, nil, false
-	}
-	fields := strings.Fields(statText[closeParen+1:])
-	if len(fields) < 3 {
-		return 0, 0, nil, nil, false
-	}
-	parent, err := strconv.Atoi(fields[1])
-	if err != nil {
-		return 0, 0, nil, nil, false
-	}
-	group, err := strconv.Atoi(fields[2])
-	if err != nil {
-		return 0, 0, nil, nil, false
+	if !exists {
+		return 0, 0, nil, nil, true
 	}
 
-	names := []string{statText[openParen+1 : closeParen]}
+	names := []string{process.name}
 	var arguments []string
 	cmdline, err := os.ReadFile(filepath.Join(processDir, "cmdline"))
 	if err == nil {
@@ -623,7 +636,41 @@ func procProcessIdentity(pid int) (int, int, []string, []string, bool) {
 			}
 		}
 	}
-	return parent, group, names, arguments, true
+	return process.parent, process.group, names, arguments, true
+}
+
+func readProcProcessStat(pid int) (procProcessStat, bool, bool) {
+	stat, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "stat"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return procProcessStat{}, false, true
+		}
+		return procProcessStat{}, false, false
+	}
+	statText := string(stat)
+	openParen := strings.IndexByte(statText, '(')
+	closeParen := strings.LastIndexByte(statText, ')')
+	if openParen < 0 || closeParen <= openParen {
+		return procProcessStat{}, true, false
+	}
+	fields := strings.Fields(statText[closeParen+1:])
+	if len(fields) < 3 || len(fields[0]) != 1 {
+		return procProcessStat{}, true, false
+	}
+	parent, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return procProcessStat{}, true, false
+	}
+	group, err := strconv.Atoi(fields[2])
+	if err != nil {
+		return procProcessStat{}, true, false
+	}
+	return procProcessStat{
+		name:   statText[openParen+1 : closeParen],
+		state:  fields[0][0],
+		parent: parent,
+		group:  group,
+	}, true, true
 }
 
 func cleanupCanceledPacmanLock(existedBefore bool, evidence managerEvidence) cancelCleanup {
