@@ -23,6 +23,9 @@ Proton is currently the only qvOS-owned Service.
 - Install only missing pieces and reuse compatible software. Uninstall only an
   enrolled Service and preserve cloud data, profiles, credentials, sessions,
   personal files, and unrelated software.
+- Services resolve packages and commands only through native `qv-pkg-*` and
+  `qv-cmd-*` helpers. Compatibility command names are external ABI, never an
+  internal dependency.
 - Keep Proton direct tools in the singular direct-tool registry. Updates may
   update an installed tool but must never enroll Proton or initialize an
   authenticated CLI.

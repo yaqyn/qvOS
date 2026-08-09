@@ -134,29 +134,29 @@ remove) rm -f "$target"; printf 'direct-remove\t%s\n' "$tool_id" >>"$QVOS_TEST_L
 esac
 SCRIPT
 
-for name in omarchy-cmd-present omarchy-cmd-missing omarchy-pkg-add \
-  omarchy-pkg-drop pacman systemctl sudo ss protonmail-bridge-core protonvpn \
+for name in qv-cmd-present qv-cmd-missing qv-pkg-add \
+  qv-pkg-drop pacman systemctl sudo ss protonmail-bridge-core protonvpn \
   gio gum; do
   install -m 0755 /dev/stdin "$test_bin/$name" <<'SCRIPT'
 #!/bin/bash
 case ${0##*/} in
-omarchy-cmd-present)
+qv-cmd-present)
   case $1 in
   protonmail-bridge-core) [[ -f $QVOS_TEST_PACKAGES/protonmail-bridge-core ]] ;;
   protonvpn) [[ -f $QVOS_TEST_PACKAGES/proton-vpn-cli ]] ;;
   *) command -v "$1" >/dev/null 2>&1 ;;
   esac
   ;;
-omarchy-cmd-missing)
-  ! omarchy-cmd-present "$1"
+qv-cmd-missing)
+  ! qv-cmd-present "$1"
   ;;
-omarchy-pkg-add)
+qv-pkg-add)
   for package in "$@"; do
     install -m 0644 /dev/null "$QVOS_TEST_PACKAGES/$package"
     printf 'package-add\t%s\n' "$package" >>"$QVOS_TEST_LOG"
   done
   ;;
-omarchy-pkg-drop)
+qv-pkg-drop)
   for package in "$@"; do
     rm -f "$QVOS_TEST_PACKAGES/$package"
     printf 'package-drop\t%s\n' "$package" >>"$QVOS_TEST_LOG"

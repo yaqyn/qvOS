@@ -58,11 +58,10 @@ install -m 0755 /dev/stdin "$test_bin/qv-restart-walker" <<'SCRIPT'
 printf 'restart-walker\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 ln -s qv-restart-walker "$test_bin/omarchy-restart-walker"
-install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-add" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-pkg-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
-ln -s omarchy-pkg-add "$test_bin/qv-pkg-add"
 install -m 0755 /dev/stdin "$test_bin/omarchy-pkg-aur-add" <<'SCRIPT'
 #!/bin/bash
 printf 'pkg-aur-add:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"

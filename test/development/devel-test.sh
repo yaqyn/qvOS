@@ -58,26 +58,26 @@ remove)
 esac
 SCRIPT
 
-for name in omarchy-pkg-present omarchy-pkg-missing omarchy-pkg-add \
-  omarchy-pkg-drop omarchy-cmd-present pacman gum; do
+for name in qv-pkg-present qv-pkg-missing qv-pkg-add \
+  qv-pkg-drop qv-cmd-present pacman gum; do
   install -m 0755 /dev/stdin "$test_bin/$name" <<'SCRIPT'
 #!/bin/bash
 case ${0##*/} in
-omarchy-pkg-present) [[ -f $QVOS_TEST_PACKAGES/$1 ]] ;;
-omarchy-pkg-missing) [[ ! -f $QVOS_TEST_PACKAGES/$1 ]] ;;
-omarchy-pkg-add)
+qv-pkg-present) [[ -f $QVOS_TEST_PACKAGES/$1 ]] ;;
+qv-pkg-missing) [[ ! -f $QVOS_TEST_PACKAGES/$1 ]] ;;
+qv-pkg-add)
   for package in "$@"; do
     install -m 0644 /dev/null "$QVOS_TEST_PACKAGES/$package"
     printf 'package-add\t%s\n' "$package" >>"$QVOS_TEST_LOG"
   done
   ;;
-omarchy-pkg-drop)
+qv-pkg-drop)
   for package in "$@"; do
     rm -f "$QVOS_TEST_PACKAGES/$package"
     printf 'package-drop\t%s\n' "$package" >>"$QVOS_TEST_LOG"
   done
   ;;
-omarchy-cmd-present) exit 0 ;;
+qv-cmd-present) exit 0 ;;
 pacman | gum) exit 0 ;;
 esac
 SCRIPT

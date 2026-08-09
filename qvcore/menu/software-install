@@ -27,26 +27,26 @@ fi
 
 case $slug in
 bitwarden)
-  omarchy-pkg-add bitwarden bitwarden-cli
+  qv-pkg-add bitwarden bitwarden-cli
   launch_desktop bitwarden
   ;;
 cursor)
-  omarchy-pkg-add cursor-bin
+  qv-pkg-add cursor-bin
   launch_desktop cursor
   ;;
 sublime-text)
-  omarchy-pkg-add sublime-text-4
+  qv-pkg-add sublime-text-4
   launch_desktop sublime_text
   ;;
 vim)
-  omarchy-pkg-add vim
+  qv-pkg-add vim
   ;;
 emacs)
-  omarchy-pkg-add emacs-wayland
+  qv-pkg-add emacs-wayland
   systemctl --user enable --now emacs.service
   ;;
 lm-studio)
-  omarchy-pkg-add lmstudio-bin
+  qv-pkg-add lmstudio-bin
   ;;
 ollama)
   if qv-cmd-present nvidia-smi; then
@@ -56,10 +56,10 @@ ollama)
   else
     package=ollama
   fi
-  omarchy-pkg-add "$package"
+  qv-pkg-add "$package"
   ;;
 crush)
-  omarchy-pkg-add crush-bin
+  qv-pkg-add crush-bin
   ;;
 *)
   usage

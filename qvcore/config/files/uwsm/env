@@ -9,4 +9,4 @@ export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin
 source ~/.config/uwsm/default
 
 # Activate mise if present on the system
-omarchy-cmd-present mise && eval "$(mise activate bash --shims)"
+qv-cmd-present mise && eval "$(mise activate bash --shims)"

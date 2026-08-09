@@ -22,6 +22,9 @@ bundle. qvOS and qvCORE remain complete without it.
 - Devel owns its package manifest, `devel` direct-tool scope, and Codex
   workbench integration. Codex itself remains base-owned and must survive
   Devel removal.
+- Devel resolves packages and commands only through native `qv-pkg-*` and
+  `qv-cmd-*` helpers. Compatibility command names are external ABI, never an
+  internal dependency.
 - Wrangler, Convex, Playwright dependencies, and browser assets remain
   project-local. Devel owns only the official global Playwright CLI.
 - Removal preserves projects, credentials, personal files, configuration, and

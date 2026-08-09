@@ -77,11 +77,11 @@ drive_cli_installed() {
 }
 
 bridge_cli_installed() {
-  omarchy-cmd-present protonmail-bridge-core
+  qv-cmd-present protonmail-bridge-core
 }
 
 account_cli_is_installed() {
-  omarchy-cmd-present protonvpn
+  qv-cmd-present protonvpn
 }
 
 status_label() {
@@ -187,7 +187,7 @@ preflight_removal() {
     fi
   done
   if ((${#removal_packages[@]} > 0)); then
-    for command in omarchy-pkg-drop sudo; do
+    for command in qv-pkg-drop sudo; do
       if ! command -v "$command" >/dev/null 2>&1; then
         echo "Proton removal requires: $command" >&2
         return 1
@@ -285,7 +285,7 @@ remove_local_proton() {
     echo "Preserved customized Proton Codex integration: $codex_skill_dir"
   fi
   if ((${#removal_packages[@]} > 0)); then
-    omarchy-pkg-drop "${removal_packages[@]}"
+    qv-pkg-drop "${removal_packages[@]}"
   fi
   "$direct_tool" remove pass-cli
   "$direct_tool" remove proton-drive
@@ -886,11 +886,11 @@ system_changes_needed=0
 inventory_components
 
 for dependency in curl jq openssl; do
-  if omarchy-cmd-missing "$dependency"; then
+  if qv-cmd-missing "$dependency"; then
     dependency_packages+=("$dependency")
   fi
 done
-if omarchy-cmd-missing ss; then
+if qv-cmd-missing ss; then
   dependency_packages+=("iproute2")
 fi
 
@@ -908,15 +908,15 @@ if ((system_changes_needed)); then
 fi
 
 if ((${#dependency_packages[@]} > 0)); then
-  omarchy-pkg-add "${dependency_packages[@]}"
+  qv-pkg-add "${dependency_packages[@]}"
 fi
 
 if ((bridge_installed == 0)); then
-  omarchy-pkg-add protonmail-bridge-core
+  qv-pkg-add protonmail-bridge-core
 fi
 
 if ((account_cli_installed == 0)); then
-  omarchy-pkg-add proton-vpn-cli
+  qv-pkg-add proton-vpn-cli
 fi
 
 if ((pass_installed == 0)); then

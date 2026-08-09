@@ -191,7 +191,7 @@ install/removal owner:
    configuration, reboot choices, and owner-controlled destructive
    confirmations `native`.
 5. Determine sudo per operation by tracing the complete owner path, including
-   transitive helpers such as `omarchy-pkg-add` and `omarchy-pkg-drop`; do not
+   transitive helpers such as `qv-pkg-add` and `qv-pkg-drop`; do not
    trust missing top-level command metadata as proof that sudo is unnecessary.
 6. Update the catalog, action registry, probes, selectors, intents, tests,
    runtime payload, and stale residue as one adaptation. Retire a stale row
