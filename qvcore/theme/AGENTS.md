@@ -38,6 +38,10 @@ behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
   source code or terminal control sequences. Never install an editor extension
   declared by an external theme. The explicit VS Code installer may install only
   the bundled, version-checked Yaqyn VSIX.
+- `set-zed` derives one schema-valid local `qvos.json` from validated colors,
+  updates only that qvOS-owned payload, seeds settings only when absent, and is
+  inert when Zed is not installed. Do not restore Omazed, its hooks, logs,
+  state, parser, or automatic application launch.
 - Browser theme policy directories remain root-owned and non-writable. Their
   exact `color.json` leaf is desktop-user-owned. Preflight every installed
   browser before a bounded in-place update, verify readback, and restore every

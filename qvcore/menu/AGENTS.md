@@ -64,7 +64,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 - Terminals are a second deliberate managed exception. Route Alacritty, Foot,
   Ghostty, and Kitty through `action/terminal-launch` from every menu surface.
   `qvcore/menu/terminal-action` reports `available`, `installed`, or `active`,
-  delegates missing installs to `omarchy-install-terminal`, and delegates an
+  delegates missing installs to `qv-install-terminal`, and delegates an
   installed non-default choice to `qv-default-terminal`. Never present
   Install for an installed terminal or request sudo merely to make it default.
   The active terminal opens direct `Already default` information.

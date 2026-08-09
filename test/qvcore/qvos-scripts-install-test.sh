@@ -211,6 +211,7 @@ for retired_extension in localsend transcode; do
 done
 install -m 0644 /dev/stdin "$test_root/.bashrc" <<'BASHRC'
 source "$HOME/.local/share/qvos/shell/aliases"
+alias hx="helix"
 BASHRC
 install -m 0644 /dev/stdin \
   "$test_root/.local/share/applications/thunar.desktop" <<EOF
@@ -640,6 +641,11 @@ if grep -Fqx 'source "$HOME/.local/share/qvos/shell/aliases"' \
   "$test_root/.bashrc"; then
   fail "obsolete runtime shell source line"
 fi
+if grep -Fqx 'alias hx="helix"' "$test_root/.bashrc"; then
+  fail "obsolete Helix alias remains in Bash configuration"
+fi
+grep -Fqx 'alias hx=helix' "$test_root/.local/lib/qvos/shell/aliases" ||
+  fail "runtime Helix alias"
 compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
   fail "Bash configuration backup"
 pass "Bash loads the source-independent qvOS shell overlay"

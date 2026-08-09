@@ -15,6 +15,9 @@ are metadata-free compatibility adapters only.
 - Editor and terminal configuration rejects links, foreign ownership, unsafe
   file types, and linked path components. Replace user files atomically in the
   same directory, preserve existing modes, and keep unrelated UWSM content.
+- Reuse `qvos_defaults_check_target` for mutation-free path preflight and
+  `qvos_defaults_atomic_write` for the eventual file transaction. Preflight
+  must reject the same unsafe target that mutation would reject.
 - Missing read-only state is empty, not fabricated. A malformed or unsafe
   existing file is an error. Notifications are best-effort and never convert
   a verified settings change into failure.

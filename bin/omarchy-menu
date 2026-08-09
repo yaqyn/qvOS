@@ -65,7 +65,7 @@ install_and_launch() {
 }
 
 install_terminal() {
-  present_terminal "omarchy-install-terminal $1"
+  present_terminal "qv-install-terminal $1"
 }
 
 aur_install() {
@@ -527,10 +527,10 @@ show_install_browser_menu() {
 
 show_install_service_menu() {
   case $(menu "Install" "  Dropbox\n  Tailscale\n󱇱  NordVPN [AUR]\n󰏖  ONCE\n󰟵  Bitwarden") in
-  *Dropbox*) present_terminal omarchy-install-dropbox ;;
-  *Tailscale*) present_terminal omarchy-install-tailscale ;;
-  *NordVPN*) present_terminal omarchy-install-nordvpn ;;
-  *ONCE*) present_terminal omarchy-install-once ;;
+  *Dropbox*) present_terminal qv-install-dropbox ;;
+  *Tailscale*) present_terminal qv-install-tailscale ;;
+  *NordVPN*) present_terminal qv-install-nordvpn ;;
+  *ONCE*) present_terminal qv-install-once ;;
   *Bitwarden*) install_and_launch "Bitwarden" "bitwarden bitwarden-cli" "bitwarden" ;;
   *) show_install_menu ;;
   esac
@@ -538,11 +538,11 @@ show_install_service_menu() {
 
 show_install_editor_menu() {
   case $(menu "Install" "  VSCode\n  Cursor\n  Zed\n  Sublime Text\n  Helix\n  Vim\n  Emacs") in
-  *VSCode*) present_terminal omarchy-install-vscode ;;
+  *VSCode*) present_terminal qv-install-vscode ;;
   *Cursor*) install_and_launch "Cursor" "cursor-bin" "cursor" ;;
-  *Zed*) present_terminal omarchy-install-zed ;;
+  *Zed*) present_terminal qv-install-zed ;;
   *Sublime*) install_and_launch "Sublime Text" "sublime-text-4" "sublime_text" ;;
-  *Helix*) present_terminal omarchy-install-helix ;;
+  *Helix*) present_terminal qv-install-helix ;;
   *Vim*) install "Vim" "vim" ;;
   *Emacs*) install "Emacs" "emacs-wayland" && systemctl --user enable --now emacs.service ;;
   *) show_install_menu ;;
@@ -567,7 +567,7 @@ show_install_ai_menu() {
   )
 
   case $(menu "Install" "  Dictation\n󱚤  LM Studio\n󱚤  Ollama\n󱚤  Crush") in
-  *Dictation*) present_terminal omarchy-voxtype-install ;;
+  *Dictation*) present_terminal qv-voxtype-install ;;
   *Studio*) install "LM Studio" "lmstudio-bin" ;;
   *Ollama*) install "Ollama" "$ollama_pkg" ;;
   *Crush*) install "Crush" "crush-bin" ;;
@@ -652,7 +652,7 @@ show_remove_menu() {
   *Development*) show_remove_development_menu ;;
   *Theme*) present_terminal omarchy-theme-remove ;;
   *Browser*) show_remove_browser_menu ;;
-  *Dictation*) present_terminal omarchy-voxtype-remove ;;
+  *Dictation*) present_terminal qv-voxtype-remove ;;
   *Gaming*) show_remove_gaming_menu ;;
   *Windows*) present_terminal "omarchy-windows-vm remove" ;;
   *Security*) show_remove_security_menu ;;

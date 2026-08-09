@@ -19,6 +19,7 @@ fail() {
   fail "tracked owner manifest drift"
 
 install -d \
+  "$fixture/applications" \
   "$fixture/bin" \
   "$fixture/qvcore/demo" \
   "$fixture/qvcore/demo/assets" \
@@ -48,9 +49,14 @@ exec "$OMARCHY_PATH/qvcore/demo/owner" "$@"
 OWNER
 install -m 0755 /dev/stdin "$fixture/qvcore/demo/owner" <<'DOMAIN'
 #!/bin/bash
+# qvos:contract=applications/demo.desktop
 # qvos:contract=qvcore/demo/assets
 exec "$OMARCHY_PATH/qvcore/demo/readback"
 DOMAIN
+install -m 0644 /dev/stdin "$fixture/applications/demo.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=Demo
+DESKTOP
 install -m 0644 /dev/stdin "$fixture/qvcore/demo/assets/message.txt" <<'ASSET'
 Ready
 ASSET
@@ -76,7 +82,7 @@ QVOS_OWNER_CONTRACT_ROOT="$fixture" \
   fail "generated owner manifest check"
 
 grep -Eq \
-  '^omarchy test owner inspect\|task:test-task\|bin/omarchy-test-owner@[0-9a-f]{64},qvcore/demo/assets/message.txt@[0-9a-f]{64},qvcore/demo/owner@[0-9a-f]{64},qvcore/demo/readback@[0-9a-f]{64}$' \
+  '^omarchy test owner inspect\|task:test-task\|applications/demo.desktop@[0-9a-f]{64},bin/omarchy-test-owner@[0-9a-f]{64},qvcore/demo/assets/message.txt@[0-9a-f]{64},qvcore/demo/owner@[0-9a-f]{64},qvcore/demo/readback@[0-9a-f]{64}$' \
   "$fixture/qvcore/tui/owner-contracts.psv" ||
   fail "thin adapter and recursive qvOS dependencies are all contracted"
 grep -Fq 'passwd|task:password|external@-' \

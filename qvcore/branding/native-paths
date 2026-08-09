@@ -1,9 +1,6 @@
 # Inherited paths promoted to native qvOS ownership for product branding.
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
-bin/omarchy-install-helix
-bin/omarchy-install-terminal
-bin/omarchy-install-zed
 bin/omarchy-menu
 bin/omarchy-refresh-fastfetch
 bin/omarchy-windows-vm

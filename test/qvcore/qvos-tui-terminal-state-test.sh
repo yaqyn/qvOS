@@ -81,10 +81,16 @@ SCRIPT
 cp -- \
   "$test_omarchy/bin/omarchy-default-terminal" \
   "$test_omarchy/bin/qv-default-terminal"
-install -m 0755 /dev/stdin "$test_omarchy/bin/omarchy-install-terminal" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_omarchy/bin/qv-install-terminal" <<'SCRIPT'
 #!/bin/bash
+mode=install
+if [[ ${1:-} == "--check" ]]; then
+  mode=check
+  shift
+fi
 slug=${1:-}
 [[ $slug == "alacritty" || $slug == "foot" || $slug == "ghostty" || $slug == "kitty" ]] || exit 2
+[[ $mode == "install" ]] || exit 0
 touch "$QVOS_TEST_PACKAGE_DIR/$slug"
 if [[ ! -e $HOME/.config/$slug ]]; then
   install -d "$HOME/.config/$slug"
@@ -94,10 +100,11 @@ case $slug in
 alacritty) printf 'Alacritty desktop\n' >"$HOME/.local/share/applications/Alacritty.desktop" ;;
 foot) printf 'Foot desktop\n' >"$HOME/.local/share/applications/foot.desktop" ;;
 esac
-"$OMARCHY_PATH/bin/omarchy-default-terminal" "$slug"
+"$OMARCHY_PATH/bin/qv-default-terminal" "$slug"
 SCRIPT
 
 export HOME="$test_home"
+export QVOS_PATH="$test_omarchy"
 export OMARCHY_PATH="$test_omarchy"
 export PATH="$test_bin:/usr/bin"
 export QVOS_TEST_PACKAGE_DIR="$package_dir"

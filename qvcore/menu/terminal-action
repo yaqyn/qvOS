@@ -7,7 +7,7 @@ slug=${1:-}
 action=${2:-}
 action_state=${3:-}
 default_owner="$QVOS_PATH/bin/qv-default-terminal"
-install_owner="$OMARCHY_PATH/bin/omarchy-install-terminal"
+install_owner="$QVOS_PATH/bin/qv-install-terminal"
 default_file="$HOME/.config/xdg-terminals.list"
 desktop_file=""
 
@@ -53,6 +53,7 @@ check_owner() {
     echo "The qvOS terminal owners are unavailable." >&2
     return 1
   }
+  "$install_owner" --check "$slug"
   for path in "${managed_files[@]}"; do
     if [[ -L $path || (-e $path && ! -f $path) ]]; then
       echo "Cannot safely manage terminal settings: $path" >&2

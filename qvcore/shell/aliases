@@ -3,3 +3,4 @@
 unalias c cx ic ix icx qv 2>/dev/null || true
 
 alias cy='codex -s danger-full-access -a never'
+alias hx=helix

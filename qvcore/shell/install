@@ -11,6 +11,7 @@ staged_bashrc=""
 runtime_source='source "$HOME/.local/lib/qvos/shell/aliases"'
 # shellcheck disable=SC2016
 legacy_runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
+legacy_helix_alias='alias hx="helix"'
 
 cleanup() {
   [[ -z $staged_bashrc ]] || rm -f -- "$staged_bashrc"
@@ -46,10 +47,15 @@ else
   install -m 0644 /dev/null "$bashrc"
 fi
 
-if grep -Fqx "$legacy_runtime_source" "$bashrc"; then
+if grep -Fqx "$legacy_runtime_source" "$bashrc" ||
+  grep -Fqx "$legacy_helix_alias" "$bashrc"; then
   backup_bashrc
   staged_bashrc=$(mktemp "$(dirname -- "$bashrc")/.bashrc.XXXXXX")
-  awk -v legacy="$legacy_runtime_source" '$0 != legacy' "$bashrc" >"$staged_bashrc"
+  awk \
+    -v legacy_source="$legacy_runtime_source" \
+    -v legacy_helix="$legacy_helix_alias" \
+    '$0 != legacy_source && $0 != legacy_helix' \
+    "$bashrc" >"$staged_bashrc"
   chmod --reference="$bashrc" "$staged_bashrc"
   mv -f -- "$staged_bashrc" "$bashrc"
   staged_bashrc=""

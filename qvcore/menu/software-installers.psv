@@ -7,9 +7,9 @@ bitwarden|󰟵|Bitwarden|Settings · Software · Services|password,vault|tui|tru
 docker-db||Docker DB|Settings · Software · Development|database,container|native|true|none|-|Choose a secured local development database|qv-install-docker-dbs
 vscode||VSCode|Settings · Software · Editor|code,ide|tui|true|package|visual-studio-code-bin|Install VS Code and apply qvOS defaults|qv-install-vscode
 cursor||Cursor|Settings · Software · Editor|code,ide,ai|tui|true|package|cursor-bin|Install Cursor|qvcore/menu/software-install cursor --no-launch
-zed||Zed|Settings · Software · Editor|code,ide|tui|true|package|zed|Install Zed and apply the current theme|omarchy-install-zed
+zed||Zed|Settings · Software · Editor|code,ide|tui|true|package|zed|Install Zed and apply the current theme|qv-install-zed
 sublime-text||Sublime Text|Settings · Software · Editor|code,ide|tui|true|package|sublime-text-4|Install Sublime Text|qvcore/menu/software-install sublime-text --no-launch
-helix||Helix|Settings · Software · Editor|code,terminal|tui|true|package|helix|Install Helix and apply the current theme|omarchy-install-helix
+helix||Helix|Settings · Software · Editor|code,terminal|tui|true|package|helix|Install Helix and apply the current theme|qv-install-helix
 vim||Vim|Settings · Software · Editor|code,terminal|tui|true|package|vim|Install Vim|qvcore/menu/software-install vim --no-launch
 emacs||Emacs|Settings · Software · Editor|code,ide|tui|true|package|emacs-wayland|Install Emacs and enable its user service|qvcore/menu/software-install emacs --no-launch
 font-cascadia-mono||Cascadia Mono|Settings · Appearance · Font|font,nerd font|tui|true|package|ttf-cascadia-mono-nerd|Install Cascadia Mono and make it the system monospace font|qvcore/menu/font-install cascadia-mono

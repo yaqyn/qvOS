@@ -134,7 +134,7 @@ run_integration "Mako" qv-restart-mako
 run_integration "Helix" qv-restart-helix
 
 # Change app-specific themes
-for integration in foot gnome browser vscode obsidian keyboard; do
+for integration in foot gnome browser vscode obsidian keyboard zed; do
   run_integration "$integration integration" \
     "$QVOS_PATH/qvcore/theme/set-$integration"
 done

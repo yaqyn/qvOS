@@ -4,7 +4,8 @@ Read this file completely when changing qvOS-owned optional software install or
 removal owners, their package boundaries, local configuration, services,
 downloads, launches, or reboot handoff.
 
-- Native routes include `qv install dropbox/nordvpn/once/tailscale/vscode` and
+- Native routes include
+  `qv install dropbox/helix/nordvpn/once/tailscale/terminal/vscode/zed` and
   `qv voxtype config/install/model/remove/status`. Public inherited names are
   metadata-free adapters only. Put mutation in one `qvcore/software/` owner
   and keep state, presentation, sudo, and probe fields truthful in menu, TUI,
@@ -18,6 +19,13 @@ downloads, launches, or reboot handoff.
 - Preserve existing user configuration. Install defaults only when their exact
   destination is absent; application-specific theme owners may update only
   their declared theme fields.
+- Terminal installation delegates default selection to `qv-default-terminal`,
+  copies only a missing approved config and desktop entry, and never writes the
+  XDG terminal preference itself. Helix tracks the rendered theme through the
+  `qvos` theme name; its `hx` alias belongs to the qvOS shell overlay, not the
+  installer. Zed installs only `zed`, delegates its generated local theme to
+  `qvcore/theme/set-zed`, preserves existing settings, and never restores the
+  retired Omazed helper or launches the editor.
 - Stop and remove exact service units before final daemon reload, but retain
   configuration and downloaded data for reinstall. Notifications and desktop
   refreshes after verified installation are best-effort.

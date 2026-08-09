@@ -1,0 +1,94 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/theme/refresh
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+mode=install
+config_file="$HOME/.config/helix/config.toml"
+theme_dir="$HOME/.config/helix/themes"
+theme_source="$HOME/.config/omarchy/current/theme/helix.toml"
+theme_link="$theme_dir/qvos.toml"
+legacy_link="$theme_dir/omarchy.toml"
+expected_config='theme = "qvos"'
+legacy_config='theme = "omarchy"'
+theme_link_created=0
+
+# shellcheck source=qvcore/defaults/lib
+source "$QVOS_PATH/qvcore/defaults/lib"
+
+cleanup() {
+  local status=$?
+
+  if ((status != 0 && theme_link_created)) &&
+    [[ -L $theme_link && $(readlink -- "$theme_link") == "$theme_source" ]]; then
+    rm -f -- "$theme_link"
+  fi
+  trap - EXIT
+  exit "$status"
+}
+trap cleanup EXIT
+
+if (($# == 1)) && [[ $1 == "--check" ]]; then
+  mode=check
+elif (($# != 0)); then
+  echo "Usage: qv install helix" >&2
+  exit 2
+fi
+
+if [[ ! -e $theme_link && ! -L $theme_link ]]; then
+  qvos_defaults_check_target "$theme_link"
+elif [[ ! -L $theme_link || $(readlink -- "$theme_link") != "$theme_source" ]]; then
+  echo "Preserving conflicting Helix qvOS theme entry: $theme_link" >&2
+  exit 1
+fi
+
+migrate_config=0
+if [[ -f $config_file && ! -L $config_file ]] &&
+  [[ $(awk 'END { print NR }' "$config_file") == "1" ]] &&
+  [[ $(<"$config_file") == "$legacy_config" ]]; then
+  qvos_defaults_check_target "$config_file"
+  migrate_config=1
+elif [[ ! -e $config_file && ! -L $config_file ]]; then
+  qvos_defaults_check_target "$config_file"
+fi
+
+[[ $mode == "install" ]] || exit 0
+
+echo "Installing Helix..."
+qv-pkg-add helix
+
+if [[ ! -f $theme_source || -L $theme_source ]]; then
+  "$QVOS_PATH/qvcore/theme/refresh"
+fi
+[[ -f $theme_source && ! -L $theme_source ]] || {
+  echo "The active qvOS theme did not provide helix.toml." >&2
+  exit 1
+}
+
+if [[ ! -e $theme_link && ! -L $theme_link ]]; then
+  install -d -- "$theme_dir"
+  ln -s -- "$theme_source" "$theme_link"
+  theme_link_created=1
+fi
+
+if ((migrate_config)) || [[ ! -e $config_file && ! -L $config_file ]]; then
+  config_mode=0644
+  if ((migrate_config)); then
+    config_mode=$(stat -c '%a' -- "$config_file")
+  fi
+  printf '%s\n' "$expected_config" |
+    qvos_defaults_atomic_write "$config_file" "$config_mode"
+else
+  echo "Preserving existing Helix configuration."
+fi
+
+if [[ -L $legacy_link && $(readlink -- "$legacy_link") == "$theme_source" ]] &&
+  [[ -f $config_file && ! -L $config_file ]] &&
+  [[ $(awk 'END { print NR }' "$config_file") == "1" ]] &&
+  [[ $(<"$config_file") == "$expected_config" ]]; then
+  rm -f -- "$legacy_link"
+fi
+
+echo "Helix is installed with the current qvOS theme."
+trap - EXIT

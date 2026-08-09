@@ -126,6 +126,10 @@
     qvcore/security/retire-passwordless-sudo
     qvcore/shell/aliases
     qvcore/shell/install
+    qvcore/software/helix-install
+    qvcore/software/terminal-install
+    qvcore/software/zed-install
+    qvcore/theme/set-zed
     qvcore/thunar/actions.sh
     qvcore/thunar/codex
     qvcore/thunar/install

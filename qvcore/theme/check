@@ -34,6 +34,7 @@ for owner in \
   set-obsidian \
   set-templates \
   set-vscode \
+  set-zed \
   update \
   validate; do
   [[ -x $root/qvcore/theme/$owner ]] || fail "theme owner mode: $owner"
@@ -153,6 +154,17 @@ if rg -n -- '--install-extension|int\('\''\$hex' \
   "$root/qvcore/theme/set-vscode" \
   "$root/qvcore/theme/set-keyboard-f16"; then
   fail "theme data can still install editor code or enter Python source"
+fi
+grep -Eq '^for integration in .* zed; do$' "$root/qvcore/theme/set" ||
+  fail "theme activation bypasses the native Zed integration"
+grep -Fq 'https://zed.dev/schema/themes/v0.2.0.json' \
+  "$root/qvcore/theme/set-zed" || fail "Zed theme schema"
+grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set-zed" ||
+  fail "Zed integration bypasses validated colors"
+if rg -n 'Omazed|omazed|omarchy\.json|setsid|gtk-launch' \
+  "$root/qvcore/theme/set-zed" \
+  "$root/qvcore/software/zed-install"; then
+  fail "Zed integration retains the inherited helper or launch behavior"
 fi
 if rg -q 'mktemp.*policy_dir|mv .*color\.json' "$root/qvcore/theme/set-browser"; then
   fail "browser theme policy assumes write access to its root-owned directory"

@@ -237,8 +237,9 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   external owners. The manifest fingerprints repository entrypoints and their
   static qvOS dependencies recursively. Never refresh it mechanically after
   owner drift. Declare a dependency assembled from relative or dynamic paths
-  with `# qvos:contract=qvcore/<path>` in its nearest contracted owner; directory
-  declarations include every regular payload file. After drift, inspect the
+  with `# qvos:contract=<root>/<path>` in its nearest contracted owner, using
+  only the approved repository roots recognized by the contract guard;
+  directory declarations include every regular payload file. After drift, inspect the
   complete owner change, confirm presentation, sudo, interaction, output, and
   verification remain truthful, adapt the TUI contract when needed, then run
   `qvcore/tui/owner-contracts --write` and review the exact manifest diff.
@@ -271,7 +272,7 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   current default opens direct read-only `Already default` information. Derive
   package and active state from `qvcore/menu/terminal-action`, delegate default
   selection to `qv-default-terminal` and installation to the retained terminal
-  installer once, and keep every menu route on
+  installer once through `qv-install-terminal`, and keep every menu route on
   `action/terminal-launch`. Terminal Install declares `owner-state-v1` so Stop
   restores the previous default plus files created or replaced by the owner.
 - Route a software owner through `--action` only when it is safe to consume as

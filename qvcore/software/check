@@ -9,16 +9,19 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-install-dropbox\nbin/omarchy-install-nordvpn\nbin/omarchy-install-once\nbin/omarchy-install-tailscale\nbin/omarchy-install-vscode\nbin/omarchy-voxtype-config\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-model\nbin/omarchy-voxtype-remove\nbin/omarchy-voxtype-status\ndefault/mako/core.ini'
+expected=$'bin/omarchy-install-dropbox\nbin/omarchy-install-helix\nbin/omarchy-install-nordvpn\nbin/omarchy-install-once\nbin/omarchy-install-tailscale\nbin/omarchy-install-terminal\nbin/omarchy-install-vscode\nbin/omarchy-install-zed\nbin/omarchy-voxtype-config\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-model\nbin/omarchy-voxtype-remove\nbin/omarchy-voxtype-status\ndefault/mako/core.ini'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native optional-software inventory"
 
 declare -A owner_by_route=(
   [install-dropbox]=qvcore/software/dropbox-install
+  [install-helix]=qvcore/software/helix-install
   [install-nordvpn]=qvcore/software/nordvpn-install
   [install-once]=qvcore/software/once-install
   [install-tailscale]=qvcore/software/tailscale-install
+  [install-terminal]=qvcore/software/terminal-install
   [install-vscode]=qvcore/software/vscode-install
+  [install-zed]=qvcore/software/zed-install
   [voxtype-config]=qvcore/software/voxtype-config
   [voxtype-install]=qvcore/software/voxtype-install
   [voxtype-model]=qvcore/software/voxtype-model
@@ -78,14 +81,32 @@ if rg -n 'omarchy-(pkg|cmd|system)-(add|aur-add|drop|present|reboot)' \
   --glob '!native-paths'; then
   fail "native optional-software owner calls a compatibility helper"
 fi
-if rg -n 'omarchy-(install-(dropbox|nordvpn|once|tailscale|vscode)|voxtype-(config|install|model|remove|status))' \
+if rg -n 'omarchy-(install-(dropbox|helix|nordvpn|once|tailscale|terminal|vscode|zed)|voxtype-(config|install|model|remove|status))' \
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
   "$root/qvcore/waybar" \
+  "$root/bin/omarchy-menu" \
   "$root/default/mako/core.ini" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces call optional-software compatibility routes"
 fi
+if rg -n 'omazed|setsid|gtk-launch|xdg-terminals\.list[[:space:]]*<<|alias[[:space:]]+hx' \
+  "$root/qvcore/software/helix-install" \
+  "$root/qvcore/software/terminal-install" \
+  "$root/qvcore/software/zed-install"; then
+  fail "editor or terminal owner retains duplicate state, shell, or launch behavior"
+fi
+grep -Fqx 'qv-pkg-add helix' "$root/qvcore/software/helix-install" ||
+  fail "Helix package boundary"
+grep -Fqx 'qv-pkg-add zed' "$root/qvcore/software/zed-install" ||
+  fail "Zed package boundary"
+grep -Fq 'qvcore/theme/set-zed' "$root/qvcore/software/zed-install" ||
+  fail "Zed installer bypasses its native theme owner"
+# shellcheck disable=SC2016
+grep -Fqx '"$default_owner" "$slug"' "$root/qvcore/software/terminal-install" ||
+  fail "terminal installer bypasses the qvOS default owner"
+grep -Fqx 'alias hx=helix' "$root/qvcore/shell/aliases" ||
+  fail "Helix command alias is not owned by the qvOS shell overlay"
 grep -Fq 'qv-voxtype-install' "$root/default/mako/core.ini" ||
   fail "Dictation notification does not use the native owner route"
 # shellcheck disable=SC2016

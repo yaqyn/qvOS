@@ -1,0 +1,127 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=applications/Alacritty.desktop
+# qvos:contract=config/alacritty
+# qvos:contract=config/foot
+# qvos:contract=config/ghostty
+# qvos:contract=config/kitty
+# qvos:contract=default/foot/foot.desktop
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+default_owner="$QVOS_PATH/bin/qv-default-terminal"
+mode=install
+slug=""
+package=""
+desktop_id=""
+desktop_source=""
+config_stage=""
+desktop_stage=""
+
+# shellcheck source=qvcore/defaults/lib
+source "$QVOS_PATH/qvcore/defaults/lib"
+
+usage() {
+  echo "Usage: qv install terminal <alacritty|foot|ghostty|kitty>" >&2
+}
+
+cleanup() {
+  [[ -z $config_stage ]] || rm -rf -- "$config_stage"
+  [[ -z $desktop_stage ]] || rm -f -- "$desktop_stage"
+}
+trap cleanup EXIT
+
+if (($# == 1)); then
+  slug=$1
+elif (($# == 2)) && [[ $1 == "--check" ]]; then
+  mode=check
+  slug=$2
+else
+  usage
+  exit 2
+fi
+
+case $slug in
+alacritty)
+  package=alacritty
+  desktop_id=Alacritty.desktop
+  desktop_source="$QVOS_PATH/applications/$desktop_id"
+  ;;
+foot)
+  package=foot
+  desktop_id=foot.desktop
+  desktop_source="$QVOS_PATH/default/foot/$desktop_id"
+  ;;
+ghostty)
+  package=ghostty
+  desktop_id=com.mitchellh.ghostty.desktop
+  ;;
+kitty)
+  package=kitty
+  desktop_id=kitty.desktop
+  ;;
+*)
+  usage
+  exit 2
+  ;;
+esac
+
+config_source="$QVOS_PATH/config/$package"
+config_target="$HOME/.config/$package"
+desktop_target="$HOME/.local/share/applications/$desktop_id"
+
+[[ -x $default_owner ]] || {
+  echo "Missing qvOS terminal default owner: $default_owner" >&2
+  exit 1
+}
+[[ -d $config_source && ! -L $config_source ]] || {
+  echo "Missing qvOS terminal config: $config_source" >&2
+  exit 1
+}
+if find "$config_source" -mindepth 1 \
+  \( -type l -o \( ! -type d ! -type f \) \) -print -quit | grep -q .; then
+  echo "Unsafe qvOS terminal config: $config_source" >&2
+  exit 1
+fi
+if [[ ! -e $config_target && ! -L $config_target ]]; then
+  qvos_defaults_check_target "$config_target/.qvos-install-check"
+fi
+if [[ -n $desktop_source ]]; then
+  [[ -f $desktop_source && ! -L $desktop_source ]] || {
+    echo "Missing qvOS terminal desktop entry: $desktop_source" >&2
+    exit 1
+  }
+  qvos_defaults_check_target "$desktop_target"
+fi
+"$default_owner" >/dev/null
+
+[[ $mode == "install" ]] || exit 0
+
+echo "Installing $package..."
+qv-pkg-add "$package"
+
+if [[ ! -e $config_target && ! -L $config_target ]]; then
+  install -d -- "$(dirname -- "$config_target")"
+  config_stage=$(mktemp -d "$(dirname -- "$config_target")/.qvos-$package.XXXXXX")
+  cp -a "$config_source/." "$config_stage/"
+  mv -Tn -- "$config_stage" "$config_target"
+  [[ ! -d $config_stage ]] || rm -rf -- "$config_stage"
+  config_stage=""
+else
+  echo "Preserving existing $package configuration."
+fi
+
+if [[ -n $desktop_source && ! -e $desktop_target && ! -L $desktop_target ]]; then
+  install -d -- "$(dirname -- "$desktop_target")"
+  desktop_stage=$(mktemp "$(dirname -- "$desktop_target")/.qvos-terminal.XXXXXX")
+  install -m 0644 "$desktop_source" "$desktop_stage"
+  mv -Tn -- "$desktop_stage" "$desktop_target"
+  [[ ! -e $desktop_stage ]] || rm -f -- "$desktop_stage"
+  desktop_stage=""
+elif [[ -n $desktop_source ]]; then
+  echo "Preserving existing $desktop_id."
+fi
+
+"$default_owner" "$slug"
+echo "$package is installed and is now the default terminal."
+trap - EXIT

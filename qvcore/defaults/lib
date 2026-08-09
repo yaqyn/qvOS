@@ -1,6 +1,6 @@
 #!/bin/bash
 
-qvos_defaults_validate_target() {
+qvos_defaults_check_target() {
   local target=$1
   local current
   local parent
@@ -36,7 +36,15 @@ qvos_defaults_validate_target() {
     echo "qvOS defaults: refusing unsafe parent: $existing" >&2
     return 1
   }
+}
 
+qvos_defaults_validate_target() {
+  local target=$1
+  local parent
+
+  qvos_defaults_check_target "$target" || return
+
+  parent=$(dirname -- "$target")
   mkdir -p -- "$parent"
   [[ -d $parent && ! -L $parent && -O $parent ]] || {
     echo "qvOS defaults: could not establish a safe parent: $parent" >&2

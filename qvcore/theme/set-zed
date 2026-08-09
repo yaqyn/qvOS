@@ -1,0 +1,139 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+mode=apply
+colors_file="$HOME/.config/omarchy/current/theme/colors.toml"
+light_marker="$HOME/.config/omarchy/current/theme/light.mode"
+theme_file="$HOME/.config/zed/themes/qvos.json"
+settings_file="$HOME/.config/zed/settings.json"
+
+# shellcheck source=qvcore/defaults/lib
+source "$QVOS_PATH/qvcore/defaults/lib"
+
+if (($# == 1)) && [[ $1 == "--check" ]]; then
+  mode=check
+elif (($# != 0)); then
+  echo "Usage: qvcore/theme/set-zed [--check]" >&2
+  exit 2
+fi
+
+qvos_defaults_check_target "$theme_file"
+if [[ ! -e $settings_file && ! -L $settings_file ]]; then
+  qvos_defaults_check_target "$settings_file"
+fi
+
+generate_theme() {
+  local appearance=dark
+  local palette
+  local palette_json
+
+  [[ -f $colors_file && ! -L $colors_file ]] || {
+    echo "The active qvOS theme has no safe colors.toml." >&2
+    return 1
+  }
+  palette=$("$QVOS_PATH/qvcore/theme/validate" --colors "$colors_file")
+  palette_json=$(jq -Rn '
+    [inputs | split("\t") | {key: .[0], value: .[1]}] | from_entries
+  ' <<<"$palette")
+  [[ ! -f $light_marker ]] || appearance=light
+
+  jq -n --arg appearance "$appearance" --argjson p "$palette_json" '
+    {
+      "$schema": "https://zed.dev/schema/themes/v0.2.0.json",
+      name: "qvOS",
+      author: "Abdulrahman M. Yaqyn",
+      themes: [{
+        name: "qvOS",
+        appearance: $appearance,
+        style: {
+          background: $p.background,
+          foreground: $p.foreground,
+          border: $p.color0,
+          "border.variant": $p.color8,
+          "border.focused": $p.accent,
+          "border.selected": $p.accent,
+          "surface.background": $p.background,
+          "elevated_surface.background": $p.color0,
+          "element.background": $p.background,
+          "element.hover": $p.color0,
+          "element.active": $p.selection_background,
+          "element.selected": $p.color0,
+          text: $p.foreground,
+          "text.muted": $p.color8,
+          "text.accent": $p.accent,
+          icon: $p.foreground,
+          "icon.muted": $p.color8,
+          "icon.accent": $p.accent,
+          "status_bar.background": $p.color0,
+          "title_bar.background": $p.color0,
+          "toolbar.background": $p.background,
+          "tab_bar.background": $p.color0,
+          "tab.inactive_background": $p.color0,
+          "tab.active_background": $p.background,
+          "panel.background": $p.color0,
+          "panel.focused_border": $p.accent,
+          "pane.focused_border": $p.accent,
+          "editor.foreground": $p.foreground,
+          "editor.background": $p.background,
+          "editor.gutter.background": $p.background,
+          "editor.active_line.background": $p.color0,
+          "editor.highlighted_line.background": $p.color0,
+          "editor.line_number": $p.color8,
+          "editor.active_line_number": $p.foreground,
+          "editor.invisible": $p.color8,
+          "editor.wrap_guide": $p.color0,
+          "editor.active_wrap_guide": $p.color8,
+          "terminal.background": $p.background,
+          "terminal.foreground": $p.foreground,
+          "terminal.bright_foreground": $p.color15,
+          "terminal.dim_foreground": $p.color8,
+          "terminal.ansi.black": $p.color0,
+          "terminal.ansi.red": $p.color1,
+          "terminal.ansi.green": $p.color2,
+          "terminal.ansi.yellow": $p.color3,
+          "terminal.ansi.blue": $p.color4,
+          "terminal.ansi.magenta": $p.color5,
+          "terminal.ansi.cyan": $p.color6,
+          "terminal.ansi.white": $p.color7,
+          "terminal.ansi.bright_black": $p.color8,
+          "terminal.ansi.bright_red": $p.color9,
+          "terminal.ansi.bright_green": $p.color10,
+          "terminal.ansi.bright_yellow": $p.color11,
+          "terminal.ansi.bright_blue": $p.color12,
+          "terminal.ansi.bright_magenta": $p.color13,
+          "terminal.ansi.bright_cyan": $p.color14,
+          "terminal.ansi.bright_white": $p.color15,
+          syntax: {
+            comment: {color: $p.color8, font_style: "italic"},
+            constant: {color: $p.color3},
+            function: {color: $p.color4},
+            keyword: {color: $p.color5},
+            operator: {color: $p.color6},
+            string: {color: $p.color2},
+            type: {color: $p.color3},
+            variable: {color: $p.foreground}
+          }
+        }
+      }]
+    }
+  '
+}
+
+if [[ $mode == "check" ]]; then
+  [[ ! -e $colors_file && ! -L $colors_file ]] || generate_theme >/dev/null
+  exit 0
+fi
+
+qv-cmd-present zeditor || exit 0
+generate_theme | qvos_defaults_atomic_write "$theme_file" 0644
+
+if [[ ! -e $settings_file && ! -L $settings_file ]]; then
+  qvos_defaults_atomic_write "$settings_file" 0644 <<'SETTINGS'
+{
+  "theme": "qvOS"
+}
+SETTINGS
+else
+  echo "Preserving existing Zed settings."
+fi

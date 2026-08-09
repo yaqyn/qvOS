@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/theme/set-zed
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+mode=install
+theme_owner="$QVOS_PATH/qvcore/theme/set-zed"
+colors_file="$HOME/.config/omarchy/current/theme/colors.toml"
+
+if (($# == 1)) && [[ $1 == "--check" ]]; then
+  mode=check
+elif (($# != 0)); then
+  echo "Usage: qv install zed" >&2
+  exit 2
+fi
+
+[[ -x $theme_owner ]] || {
+  echo "Missing qvOS Zed theme owner: $theme_owner" >&2
+  exit 1
+}
+"$theme_owner" --check
+
+[[ $mode == "install" ]] || exit 0
+
+echo "Installing Zed..."
+qv-pkg-add zed
+if [[ ! -f $colors_file || -L $colors_file ]]; then
+  "$QVOS_PATH/qvcore/theme/refresh"
+fi
+"$theme_owner"
+echo "Zed is installed with qvOS theme support. Open it from the app launcher."
