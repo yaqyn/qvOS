@@ -55,7 +55,12 @@ case ${1:-} in
   done
   sort -u -o "$QVOS_TEST_PACKAGE_STATE" "$QVOS_TEST_PACKAGE_STATE"
   ;;
--Rns)
+-D)
+  printf 'database' >>"$QVOS_TEST_PACKAGE_LOG"
+  printf ':<%s>' "$@" >>"$QVOS_TEST_PACKAGE_LOG"
+  printf '\n' >>"$QVOS_TEST_PACKAGE_LOG"
+  ;;
+-R | -Rns)
   printf 'remove' >>"$QVOS_TEST_PACKAGE_LOG"
   printf ':<%s>' "$@" >>"$QVOS_TEST_PACKAGE_LOG"
   printf '\n' >>"$QVOS_TEST_PACKAGE_LOG"
@@ -232,3 +237,65 @@ HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
 "$root/bin/qv" pkg add --help | grep -F 'qv-pkg-add' >/dev/null ||
   fail "native package catalog binary"
 printf 'ok - native and compatibility package routes share one owner\n'
+
+package_migration="$root/qvcore/migrations/1786297116.sh"
+printf '%s\n' \
+  elephant \
+  elephant-bluetooth \
+  elephant-calc \
+  elephant-clipboard \
+  elephant-desktopapplications \
+  elephant-files \
+  elephant-menus \
+  elephant-providerlist \
+  elephant-runner \
+  elephant-symbols \
+  elephant-todo \
+  elephant-unicode \
+  elephant-websearch \
+  omarchy-nvim \
+  omarchy-walker >"$state"
+: >"$log"
+
+if QVOS_TEST_FAIL_INSTALL=1 \
+  HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
+  QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \
+  bash -euo pipefail "$package_migration" >/dev/null 2>&1; then
+  fail "provider app migration ignored replacement installation failure"
+fi
+for package in omarchy-nvim omarchy-walker elephant-bluetooth \
+  elephant-runner elephant-todo elephant-unicode; do
+  grep -Fxq -- "$package" "$state" ||
+    fail "provider app migration removed a package after install failure"
+done
+if grep -q '^remove:' "$log"; then
+  fail "provider app migration removed packages before replacements"
+fi
+
+HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
+  QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \
+  bash -euo pipefail "$package_migration" >/dev/null
+for package in walker elephant elephant-calc elephant-clipboard \
+  elephant-desktopapplications elephant-files elephant-menus \
+  elephant-providerlist elephant-symbols elephant-websearch; do
+  grep -Fxq -- "$package" "$state" ||
+    fail "official package replacement is missing: $package"
+done
+for package in omarchy-nvim omarchy-walker elephant-bluetooth \
+  elephant-runner elephant-todo elephant-unicode; do
+  ! grep -Fxq -- "$package" "$state" ||
+    fail "retired provider package remains: $package"
+done
+grep -Fqx \
+  'remove:<-R>:<--noconfirm>:<-->:<omarchy-nvim>:<omarchy-walker>:<elephant-bluetooth>:<elephant-runner>:<elephant-todo>:<elephant-unicode>' \
+  "$log" || fail "provider app migration removal is not exact"
+if grep -q 'remove:<-Rns' "$log"; then
+  fail "provider app migration used recursive package removal"
+fi
+package_snapshot=$(sha256sum "$state")
+HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
+  QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \
+  bash -euo pipefail "$package_migration" >/dev/null
+[[ $(sha256sum "$state") == "$package_snapshot" ]] ||
+  fail "provider app package migration is not idempotent"
+printf 'ok - provider app bundles migrate safely to explicit official packages\n'

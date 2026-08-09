@@ -23,7 +23,8 @@ Tests for an exact retired runtime must use its pinned historical source, not
 copy the evolving active owner and broaden a cleanup allowlist to fit it.
 
 Use `qv dev add migration` to create a numeric `0644` source. Migration files
-are sourced as Bash data: no shebang, first line is a concise `echo`, use
+run in a fresh Bash process with `errexit`, unset-variable checks, and pipeline
+failure enabled: they have no shebang, start with a concise `echo`, use
 `$QVOS_PATH`, and keep all mutation idempotent and preservation-safe. The
 inherited public commands are metadata-only adapters and never own state.
 

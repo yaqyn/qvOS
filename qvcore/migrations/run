@@ -186,7 +186,7 @@ for file in "${migrations[@]}"; do
   [[ -e $marker ]] && continue
 
   printf 'Running qvOS migration: %s\n' "${name%.sh}"
-  if env QVOS_PATH="$QVOS_PATH" bash "$file"; then
+  if env QVOS_PATH="$QVOS_PATH" bash -euo pipefail "$file"; then
     :
   else
     migration_status=$?

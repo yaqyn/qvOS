@@ -61,6 +61,10 @@ done
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
   fail "update pipeline does not call the native migration owner"
 # shellcheck disable=SC2016
+grep -Fqx '  if env QVOS_PATH="$QVOS_PATH" bash -euo pipefail "$file"; then' \
+  "$root/qvcore/migrations/run" ||
+  fail "migration runner does not enforce strict Bash execution"
+# shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
   "$root/qvcore/install/preflight/migrations.sh" ||
   fail "fresh-install migration seeding"
@@ -100,6 +104,13 @@ grep -Fqx '"$QVOS_PATH/qvcore/security/install"' \
 grep -Fqx '"$QVOS_PATH/qvcore/install/hardware/identity" migrate' \
   "$root/qvcore/migrations/1786280699.sh" ||
   fail "native installed hardware-identity migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/packages/add" "${official_packages[@]}"' \
+  "$root/qvcore/migrations/1786297116.sh" ||
+  fail "official application package migration"
+if rg -q 'pacman -R(ns|s)' "$root/qvcore/migrations/1786297116.sh"; then
+  fail "application package migration uses recursive removal"
+fi
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

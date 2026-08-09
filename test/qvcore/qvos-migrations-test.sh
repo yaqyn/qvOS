@@ -426,6 +426,33 @@ HOME="$failure_home" \
   fail "failed migration did not retry in order"
 printf 'ok - failures stop without skip state and retry in order\n'
 
+strict_root="$test_root/strict-source"
+strict_home="$test_root/strict-home"
+strict_log="$test_root/strict.log"
+install -d "$strict_root/qvcore/migrations"
+make_home "$strict_home"
+install -m 0644 /dev/stdin "$strict_root/qvcore/migrations/250.sh" <<'SCRIPT'
+printf 'before\n' >>"$QVOS_TEST_MIGRATION_LOG"
+false
+printf 'after\n' >>"$QVOS_TEST_MIGRATION_LOG"
+SCRIPT
+set +e
+strict_output=$(HOME="$strict_home" \
+  XDG_RUNTIME_DIR="$strict_home/run" \
+  QVOS_PATH="$strict_root" \
+  QVOS_TEST_MIGRATION_LOG="$strict_log" \
+  "$runner" 2>&1)
+strict_status=$?
+set -e
+((strict_status != 0)) || fail "intermediate migration failure was masked"
+[[ $(<"$strict_log") == "before" ]] ||
+  fail "migration continued after an intermediate failure"
+[[ ! -e $strict_home/.local/state/qvos/migrations/250.sh ]] ||
+  fail "masked migration failure was marked current"
+grep -Fq 'migration 250 failed; correct the error and retry' \
+  <<<"$strict_output" || fail "intermediate migration failure was unclear"
+printf 'ok - migration strict mode prevents masked partial failures\n'
+
 unsafe_home="$test_root/unsafe-home"
 outside="$test_root/outside"
 make_home "$unsafe_home"
