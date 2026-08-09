@@ -126,7 +126,7 @@ Services and Development integrations never change qvOS base readiness.
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
   base-owned system Python and mise, creates no global mise Python, and cannot
-  remove Omarchy Codex. It also owns the official global Playwright CLI;
+  remove base-owned Codex. It also owns the official global Playwright CLI;
   Wrangler, Convex, Playwright dependencies, and Playwright browser assets
   remain project-local. Install checks every inventory entry and installs only
   what is missing before verifying the complete stack.
@@ -197,11 +197,12 @@ action for Omarchy's base package, and preserves optional integration payloads
 without reinstalling them. Proton and Devel install and remove their own
 actions.
 
-## Native transition boundary
+## Native ownership boundary
 
-Promoted base domains live in `qvcore/`. Until a domain is promoted, keep its
-inherited implementation intact and touch Omarchy paths only at the seam that
-exposes, installs, or refreshes the native owner:
+All active base domains live in `qvcore/`. If qvsync identifies a future
+upstream capability that qvOS does not yet own, keep that upstream
+implementation untouched until the complete domain is deliberately promoted;
+change Omarchy paths only at the audited compatibility seam:
 
 - `bin/` owns CLI routes and menu handoffs.
 - `qvcore/config/files/` owns every installed user-config source;

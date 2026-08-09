@@ -54,7 +54,7 @@ replace its judgment.
   `git diff --check`.
 - Before runtime checks, back up and apply changed user config, then install
   desktop payloads with
-  `OMARCHY_PATH=$PWD bash -c 'source qvcore/install/desktop'`. Preserve optional
+  `QVOS_PATH=$PWD bash -c 'source qvcore/install/desktop'`. Preserve optional
   Services and Development integrations without reinstalling them,
   verify the direct-tool
   runtime and hook, confirm the live checkout is clean, and run the relevant

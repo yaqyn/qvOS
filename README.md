@@ -27,8 +27,8 @@ compat/       Narrow migration adapters for supported legacy qvOS states.
 test/         Tests split along the same ownership boundaries.
 ```
 
-The installed source checkout is `~/.local/share/qvos`. During the native
-transition, `~/.local/share/omarchy` is only an exact relative compatibility
+The installed source checkout is `~/.local/share/qvos`.
+`~/.local/share/omarchy` is retained only as an exact relative compatibility
 link to that canonical checkout. Generated and checked runtime payloads live
 separately under `~/.local/lib/qvos` so the Git source stays clean.
 
