@@ -22,6 +22,7 @@ declare -A owner_by_route=(
   [install-gaming-gpu-lib32]=qvcore/gaming/gpu-lib32
   [install-gaming-heroic]=qvcore/gaming/app
   [install-gaming-lutris]=qvcore/gaming/app
+  [install-gaming-minecraft]=qvcore/gaming/app
   [install-gaming-moonlight]=qvcore/gaming/app
   [install-gaming-retroarch]=qvcore/gaming/retroarch-install
   [install-gaming-steam]=qvcore/gaming/app
@@ -41,6 +42,7 @@ declare -A owner_by_route=(
 declare -A arguments_by_route=(
   [install-gaming-heroic]='install heroic'
   [install-gaming-lutris]='install lutris'
+  [install-gaming-minecraft]='install minecraft'
   [install-gaming-moonlight]='install moonlight'
   [install-gaming-steam]='install steam'
   [remove-gaming-heroic]='remove heroic'
@@ -72,14 +74,6 @@ for route in "${!owner_by_route[@]}"; do
       fail "gaming adapter owner: $route"
   done
 done
-
-native_minecraft="$root/bin/qv-install-gaming-minecraft"
-[[ -x $native_minecraft ]] || fail "native Minecraft install adapter mode"
-rg -q '^# qv:summary=' "$native_minecraft" ||
-  fail "native Minecraft install metadata"
-# shellcheck disable=SC2016
-grep -Fqx 'exec "$QVOS_PATH/qvcore/gaming/app" install minecraft "$@"' \
-  "$native_minecraft" || fail "native Minecraft install owner"
 
 for owner in \
   app \

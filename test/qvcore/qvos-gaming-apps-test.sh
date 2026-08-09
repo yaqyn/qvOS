@@ -93,6 +93,8 @@ run_gaming "$root/bin/qv-install-gaming-minecraft" >/dev/null
 run_gaming "$root/bin/omarchy-remove-gaming-minecraft" >/dev/null
 [[ $(<"$action_log") == $'add\tminecraft-launcher\ndrop\tminecraft-launcher' ]] ||
   fail "Minecraft native lifecycle"
+[[ -x $root/bin/omarchy-install-gaming-minecraft ]] ||
+  fail "Minecraft compatibility install adapter"
 
 QVOS_TEST_PCI_INVENTORY='03:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Navi'
 QVOS_TEST_NVIDIA=legacy
