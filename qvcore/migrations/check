@@ -111,6 +111,14 @@ grep -Fqx '"$QVOS_PATH/qvcore/packages/add" "${official_packages[@]}"' \
 if rg -q 'pacman -R(ns|s)' "$root/qvcore/migrations/1786297116.sh"; then
   fail "application package migration uses recursive removal"
 fi
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/boot/install-limine-snapper"' \
+  "$root/qvcore/migrations/1786298208.sh" ||
+  fail "historical mkinitcpio identity migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
+  "$root/qvcore/migrations/1786299191.sh" ||
+  fail "DPMS input-wake migration"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

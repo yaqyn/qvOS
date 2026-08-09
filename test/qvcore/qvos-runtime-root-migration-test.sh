@@ -41,6 +41,12 @@ source = ~/.config/omarchy/current/theme/hyprland.conf
 source = ~/.config/hypr/qv.conf
 source = ~/.config/hypr/input.conf
 CONFIG
+install -m 0644 /dev/stdin "$test_home/.config/hypr/input.conf" <<'CONFIG'
+# Preserve custom input settings.
+input {
+  kb_layout = us,ara
+}
+CONFIG
 
 install -m 0644 /dev/stdin "$test_home/.config/hypr/hyprlock.conf" <<'CONFIG'
 source = ~/.config/omarchy/current/theme/hyprlock.conf
@@ -161,6 +167,12 @@ done
 grep -Fqx '# Keep this custom Hyprland line.' \
   "$test_home/.config/hypr/hyprland.conf" ||
   fail "custom Hyprland content preservation"
+for wake_option in key_press_enables_dpms mouse_move_enables_dpms; do
+  grep -Fqx "  $wake_option = true" "$test_home/.config/hypr/input.conf" ||
+    fail "native DPMS wake migration: $wake_option"
+done
+grep -Fqx '  kb_layout = us,ara' "$test_home/.config/hypr/input.conf" ||
+  fail "custom input setting preservation"
 for theme_config in \
   "$test_home/.config/alacritty/alacritty.toml" \
   "$test_home/.config/foot/foot.ini" \
@@ -330,7 +342,7 @@ grep -Fqx 'export QVOS_SCREENRECORD_DIR="$HOME/Videos/Private"' \
   "$test_home/.config/uwsm/default" || fail "recording environment migration"
 grep -Fqx '# Keep this user comment.' "$test_home/.config/uwsm/default" ||
   fail "Capture environment custom content preservation"
-[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "16" ]] ||
+[[ $(find "$test_home/.config" -type f -name '*.bak.*' | wc -l) == "17" ]] ||
   fail "changed config backup count"
 
 state_before=$(find "$test_home/.config" -type f -printf '%P|%m|%i|%T@\n' | sort)
@@ -350,6 +362,12 @@ install -m 0644 /dev/stdin "$custom_home/.config/hypr/qv.conf" <<'CONFIG'
 # User-owned qvOS compatibility layer.
 source = ~/.config/hypr/custom.conf
 CONFIG
+install -m 0644 /dev/stdin "$custom_home/.config/hypr/input.conf" <<'CONFIG'
+misc {
+  key_press_enables_dpms = false
+  mouse_move_enables_dpms = false
+}
+CONFIG
 HOME="$custom_home" PATH="/usr/bin" "$owner" >/dev/null 2>&1
 grep -Fqx 'source = ~/.config/hypr/qv.conf' \
   "$custom_home/.config/hypr/hyprland.conf" ||
@@ -357,6 +375,16 @@ grep -Fqx 'source = ~/.config/hypr/qv.conf' \
 grep -Fqx 'source = ~/.config/hypr/custom.conf' \
   "$custom_home/.config/hypr/qv.conf" ||
   fail "custom qvOS compatibility payload preservation"
+grep -Fqx '  key_press_enables_dpms = false' \
+  "$custom_home/.config/hypr/input.conf" ||
+  fail "explicit keyboard DPMS wake preference preservation"
+grep -Fqx '  mouse_move_enables_dpms = false' \
+  "$custom_home/.config/hypr/input.conf" ||
+  fail "explicit mouse DPMS wake preference preservation"
+if find "$custom_home/.config/hypr" -maxdepth 1 -type f \
+  -name 'input.conf.bak.*' -print -quit | grep -q .; then
+  fail "unchanged input config backup"
+fi
 
 unsafe_home="$test_root/unsafe-home"
 external_config="$test_root/external-bindings"

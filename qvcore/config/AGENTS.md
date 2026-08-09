@@ -142,6 +142,9 @@ exact known qvOS file listed in `retired-hypr-layer.psv`. Preserve modified
 compatibility layers, and collapse duplicate exact native input source lines
 created by older layered configs. Cleanup consumes the same manifest; never
 duplicate its hash policy. No migrated file requires a systemd daemon reload.
+Existing input configs missing a DPMS wake preference receive only the missing
+keyboard or pointer default so either device can wake a dark display. Preserve
+every explicit true or false value and all other custom input settings.
 It also rewrites exact active terminal, lock-screen, preview-picker, SwayOSD,
 and Waybar theme references from `.config/omarchy/current` to the native
 `.config/qvos/current` owner, using the same adjacent-backup and idempotence

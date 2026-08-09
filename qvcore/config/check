@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 bindings="$root/qvcore/config/files/hypr/bindings.conf"
 hyprland="$root/qvcore/config/files/hypr/hyprland.conf"
+input="$root/qvcore/config/files/hypr/input.conf"
 base="$root/qvcore/config/base/hypr"
 autostart="$base/autostart.conf"
 windows="$base/windows.conf"
@@ -117,6 +118,10 @@ for source_path in autostart envs looknfeel windows; do
 done
 grep -Fqx 'source = ~/.config/hypr/input.conf' "$hyprland" ||
   fail "native user input source"
+for wake_option in key_press_enables_dpms mouse_move_enables_dpms; do
+  grep -Fqx "  $wake_option = true" "$input" ||
+    fail "native input DPMS wake default: $wake_option"
+done
 if rg -q 'default/hypr|qvcore/bindings\.conf|~/.config/hypr/qv(\.conf|/)' \
   "$hyprland"; then
   fail "retired Hyprland source or overlay remains active"

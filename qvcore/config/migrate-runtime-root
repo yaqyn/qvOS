@@ -7,6 +7,7 @@ temporary=""
 changed_files=0
 uwsm_env="$HOME/.config/uwsm/env"
 hyprland="$HOME/.config/hypr/hyprland.conf"
+hypr_input="$HOME/.config/hypr/input.conf"
 retire_qv_source=false
 
 cleanup() {
@@ -43,6 +44,8 @@ rewrite_literals() {
   local filtered
   local index
   local line
+  local key_wake_missing=false
+  local mouse_wake_missing=false
 
   [[ ! -e $target && ! -L $target ]] && return 0
   validate_target_parent "$target" || {
@@ -53,7 +56,7 @@ rewrite_literals() {
     echo "Refusing unsafe qvOS runtime-root config: $target" >&2
     return 1
   }
-  (($# > 0 && $# % 2 == 0)) || return 2
+  (($# % 2 == 0)) || return 2
   while (($# > 0)); do
     old_literals+=("$1")
     new_literals+=("$2")
@@ -115,6 +118,27 @@ rewrite_literals() {
       }
     ' "$temporary" >"$filtered"
     mv -f -- "$filtered" "$temporary"
+  fi
+
+  if [[ $target == "$hypr_input" ]]; then
+    grep -Eq '^[[:space:]]*key_press_enables_dpms[[:space:]]*=' "$temporary" ||
+      key_wake_missing=true
+    grep -Eq '^[[:space:]]*mouse_move_enables_dpms[[:space:]]*=' "$temporary" ||
+      mouse_wake_missing=true
+    if [[ $key_wake_missing == "true" || $mouse_wake_missing == "true" ]]; then
+      filtered=$(mktemp "$(dirname -- "$target")/.qvos-runtime-root.XXXXXX")
+      {
+        command cat -- "$temporary"
+        [[ ! -s $temporary ]] || printf '\n'
+        printf 'misc {\n'
+        [[ $key_wake_missing != "true" ]] ||
+          printf '  key_press_enables_dpms = true\n'
+        [[ $mouse_wake_missing != "true" ]] ||
+          printf '  mouse_move_enables_dpms = true\n'
+        printf '}\n'
+      } >"$filtered"
+      mv -f -- "$filtered" "$temporary"
+    fi
   fi
 
   chmod --reference="$target" "$temporary"
@@ -195,6 +219,7 @@ if [[ $retire_qv_source == "true" ]]; then
   hyprland_rewrites+=('source = ~/.config/hypr/qv.conf' '')
 fi
 rewrite_literals "$hyprland" "${hyprland_rewrites[@]}"
+rewrite_literals "$hypr_input"
 
 # These are literal Hyprland config values, not shell paths.
 # shellcheck disable=SC2088
