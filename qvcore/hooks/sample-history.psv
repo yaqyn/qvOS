@@ -1,0 +1,6 @@
+# relative-path|accepted-historical-sha256
+battery-low.d/play-warning-sound.sample|9623f5534cd52f76a51cfbb4e8a0699a550bf7f0f5f2ff54a1c78534d907fdf1
+font-set.d/show-font-notification.sample|d28090fd796b02fa799dcf7160e46ce9fc8d7a17b476ef87639d0b83a347dc37
+post-boot.d/weather.sample|fe37567a09046f1e4fcff9a9c74e4a036270cdf6da73dcc5cd3aa617f9a7c2ba
+post-update.d/show-update-notification.sample|7995adc93a0ac6cd1afcd7ed9ac6d0ff058751ce4df4594aa78855603a613815
+theme-set.d/show-theme-notification.sample|b9d6754d95057bdb2f37595fd2f40055872118cb2f442bdc7b0b900317bac332

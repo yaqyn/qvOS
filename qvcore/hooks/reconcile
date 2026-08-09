@@ -14,13 +14,32 @@ source "$QVOS_PATH/qvcore/hooks/lib"
 
 defaults_root="$QVOS_PATH/qvcore/hooks/defaults"
 obsolete_catalog="$QVOS_PATH/qvcore/hooks/obsolete-managed.psv"
+sample_history_catalog="$QVOS_PATH/qvcore/hooks/sample-history.psv"
 autostart="$HOME/.config/hypr/autostart.conf"
 declare -a obsolete_targets=()
+declare -A historical_sample_hashes=()
 
-[[ -d $defaults_root && ! -L $defaults_root && -f $obsolete_catalog ]] || {
+[[ -d $defaults_root && ! -L $defaults_root &&
+  -f $obsolete_catalog && ! -L $obsolete_catalog &&
+  -f $sample_history_catalog && ! -L $sample_history_catalog ]] || {
   qvos_hooks_error "reconciliation source is incomplete"
   exit 1
 }
+
+sample_hash_pattern='^[0-9a-f]{64}( [0-9a-f]{64})*$'
+while IFS='|' read -r relative accepted extra; do
+  [[ -z $relative || $relative == \#* ]] && continue
+  [[ -n $accepted && -z ${extra:-} &&
+    $relative =~ ^[a-z0-9][a-z0-9-]*\.d/[a-z0-9][a-z0-9._-]*\.sample$ &&
+    $relative != *..* && $accepted =~ $sample_hash_pattern &&
+    -f $defaults_root/$relative && ! -L $defaults_root/$relative &&
+    -z ${historical_sample_hashes[$relative]+present} ]] || {
+    qvos_hooks_error "invalid hook-sample history row: $relative"
+    exit 1
+  }
+  historical_sample_hashes[$relative]=$accepted
+done <"$sample_history_catalog"
+
 qvos_hooks_validate_managed_path "$qvos_hooks_root"
 qvos_hooks_validate_managed_path "$qvos_hooks_legacy_root"
 
@@ -104,6 +123,7 @@ fi
 
 qvos_hooks_validate_tree "$qvos_hooks_root"
 while IFS= read -r -d '' sample; do
+  accepted_hashes=""
   relative=${sample#"$defaults_root/"}
   target="$qvos_hooks_root/$relative"
   qvos_hooks_validate_managed_path "$target"
@@ -112,6 +132,18 @@ while IFS= read -r -d '' sample; do
       qvos_hooks_error "unsafe sample destination: $target"
       exit 1
     }
+    if ! cmp -s "$sample" "$target"; then
+      target_hash=$(sha256sum -- "$target")
+      target_hash=${target_hash%% *}
+      accepted_hashes=${historical_sample_hashes[$relative]:-}
+      if [[ " $accepted_hashes " == *" $target_hash "* ]]; then
+        if [[ $mode == "--check" ]]; then
+          qvos_hooks_error "historical qvOS hook sample remains: $target"
+          exit 1
+        fi
+        qvos_hooks_atomic_replace "$sample" "$target" 0600
+      fi
+    fi
   elif [[ $mode == "--check" ]]; then
     qvos_hooks_error "missing qvOS hook sample: $target"
     exit 1

@@ -78,6 +78,63 @@ done
 run_reconcile --check >/dev/null
 printf 'ok - legacy custom hooks migrate without retaining qvOS system-job copies\n'
 
+sample_upgrade_home="$test_root/sample-upgrade-home"
+sample_upgrade_root="$sample_upgrade_home/.config/qvos/hooks"
+declare -A historical_samples=(
+  [battery-low.d/play-warning-sound.sample]=battery-low.d/play-warning-sound.sample
+  [font-set.d/show-font-notification.sample]=font-set.d/show-font-notification.sample
+  [post-boot.d/weather.sample]=post-boot.d/weather.sample
+  [post-update.d/show-update-notification.sample]=post-update.d/show-update-notification.sample
+  [theme-set.d/show-theme-notification.sample]=theme-set.d/show-theme-notification.sample
+)
+for sample in "${!historical_samples[@]}"; do
+  install -d "$sample_upgrade_root/${sample%/*}"
+  git -C "$root" show \
+    "a87058b4^:config/omarchy/hooks/${historical_samples[$sample]}" \
+    >"$sample_upgrade_root/$sample"
+  chmod 0600 "$sample_upgrade_root/$sample"
+done
+for old_sample in battery-low font-set post-update theme-set; do
+  git -C "$root" show \
+    "74a3797c:config/omarchy/hooks/$old_sample.sample" \
+    >"$sample_upgrade_root/$old_sample.sample"
+  chmod 0600 "$sample_upgrade_root/$old_sample.sample"
+done
+HOME="$sample_upgrade_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" >/dev/null
+for sample in "${!historical_samples[@]}"; do
+  cmp -s "$root/qvcore/hooks/defaults/$sample" \
+    "$sample_upgrade_root/$sample" ||
+    fail "historical hook sample upgrade: $sample"
+  [[ $(stat -c '%a' "$sample_upgrade_root/$sample") == "600" ]] ||
+    fail "upgraded hook sample mode: $sample"
+done
+for old_sample in battery-low font-set post-update theme-set; do
+  [[ ! -e $sample_upgrade_root/$old_sample.sample &&
+    ! -L $sample_upgrade_root/$old_sample.sample ]] ||
+    fail "retired top-level hook sample: $old_sample"
+done
+HOME="$sample_upgrade_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" --check >/dev/null
+printf 'ok - exact historical hook samples converge on native qvOS guidance\n'
+
+modified_sample_home="$test_root/modified-sample-home"
+modified_sample_root="$modified_sample_home/.config/qvos/hooks"
+install -d "$modified_sample_root/battery-low.d"
+printf 'custom nested sample\n' \
+  >"$modified_sample_root/battery-low.d/play-warning-sound.sample"
+printf 'custom retired sample\n' >"$modified_sample_root/post-update.sample"
+HOME="$modified_sample_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" >/dev/null
+grep -Fqx 'custom nested sample' \
+  "$modified_sample_root/battery-low.d/play-warning-sound.sample" ||
+  fail "modified nested hook sample preservation"
+grep -Fqx 'custom retired sample' "$modified_sample_root/post-update.sample" ||
+  fail "modified retired hook sample preservation"
+HOME="$modified_sample_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" --check >/dev/null
+printf 'ok - modified hook samples remain user-owned and inert\n'
+
 retired_main_home="$test_root/retired-main-home"
 retired_main="$retired_main_home/.config/qvos/hooks/post-update"
 install -d "${retired_main%/*}"

@@ -100,3 +100,24 @@ qvos_hooks_atomic_copy() {
   fi
   rm -f -- "$temporary"
 }
+
+qvos_hooks_atomic_replace() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local parent
+  local temporary
+
+  parent=$(dirname -- "$target")
+  [[ -d $parent && ! -L $parent && -O $parent ]] || {
+    qvos_hooks_error "unsafe hook target directory: $parent"
+    return 1
+  }
+  temporary=$(mktemp "$parent/.qvos-hook.XXXXXX") || return
+  if ! install -m "$mode" -- "$source" "$temporary" ||
+    ! mv -T -- "$temporary" "$target"; then
+    rm -f -- "$temporary"
+    qvos_hooks_error "could not replace hook sample atomically: $target"
+    return 1
+  fi
+}

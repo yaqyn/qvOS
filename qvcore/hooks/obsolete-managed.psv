@@ -1,5 +1,9 @@
 # relative-path|native-owner|accepted-historical-sha256|mismatch-policy
+battery-low.sample|qvcore/hooks/defaults/battery-low.d/play-warning-sound.sample|ea6017681d7e69fa1b354f7c0e47bd0c273849a486b77319be04fba60f4d55ed|preserve
+font-set.sample|qvcore/hooks/defaults/font-set.d/show-font-notification.sample|36101adbfbca59033d02abb726513dd883946f839ba38c6f50231609e3f92784 af20a3b64b90fdd676057420c7c79cc63369c1dfd71afa36f50ce2e7eb6c9de9|preserve
 post-update|qvcore/install/post-update-hook|51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc|preserve
 post-update.d/qvos-base|qvcore/install/post-update-hook|9ad1aa99b80b15b72d9345e83b3570dffdeda65ffccdf36b61dde4f7ea596c92|fail
 post-update.d/qvos-direct-tools|qvcore/direct/post-update-hook|-|fail
 post-update.d/qvos-waybar-overrides|qvcore/waybar/post-update-hook|-|fail
+post-update.sample|qvcore/hooks/defaults/post-update.d/show-update-notification.sample|55fdb5753d013f924b8258aad5cde9ed040f58d9df0a85faad6cb6dd70586b70 82f9b3ea5788d00dc82920b9acb999eb4d8e3c9630cd663fb1c91bce3aef2523|preserve
+theme-set.sample|qvcore/hooks/defaults/theme-set.d/show-theme-notification.sample|85de7c0a6f12ae796663c409ad198d15d20d254a1444db66e0680ab7326f826e 5e2bc06f9150a407c6f352038ee4b8a59014895cbd98452d8645df43435821e7|preserve
