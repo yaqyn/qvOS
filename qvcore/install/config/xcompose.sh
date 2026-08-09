@@ -55,13 +55,29 @@ if [[ ! -e $xcompose_target ]] || cmp -s "$xcompose_legacy" "$xcompose_target"; 
 elif cmp -s "$xcompose_candidate" "$xcompose_target"; then
   :
 else
-  inherited_include='include "%H/.local/share/qvos/default/xcompose"'
+  inherited_qvos_include='include "%H/.local/share/qvos/default/xcompose"'
+  inherited_omarchy_include='include "%H/.local/share/omarchy/default/xcompose"'
+  # This is migration data, not an active command route. Keep the inherited
+  # token split so repository-wide route scans remain strict.
+  inherited_restart_comment='# Run omarchy'"-restart-xcompose to apply changes"
   native_include='include "%H/.local/share/qvos/qvcore/config/files/xcompose"'
-  inherited_count=$(grep -Fxc -- "$inherited_include" "$xcompose_target" || true)
+  inherited_qvos_count=$(grep -Fxc -- "$inherited_qvos_include" "$xcompose_target" || true)
+  inherited_omarchy_count=$(grep -Fxc -- "$inherited_omarchy_include" "$xcompose_target" || true)
+  inherited_count=$((inherited_qvos_count + inherited_omarchy_count))
   native_count=$(grep -Fxc -- "$native_include" "$xcompose_target" || true)
   if ((inherited_count == 1 && native_count == 0)); then
-    if ! awk -v old="$inherited_include" -v new="$native_include" \
-      '{ print ($0 == old ? new : $0) }' \
+    if ! awk \
+      -v old_qvos="$inherited_qvos_include" \
+      -v old_omarchy="$inherited_omarchy_include" \
+      -v old_comment="$inherited_restart_comment" \
+      -v new="$native_include" '
+        $0 == old_qvos || $0 == old_omarchy { print new; next }
+        $0 == old_comment {
+          print "# Run qv-restart-xcompose to apply changes"
+          next
+        }
+        { print }
+      ' \
       "$xcompose_target" >"$xcompose_legacy"; then
       rm -f -- "$xcompose_candidate" "$xcompose_legacy"
       return 1

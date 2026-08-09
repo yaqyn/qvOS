@@ -78,9 +78,10 @@ under `qvcore/shell/`; never restore it as a second config source here.
 XCompose and WirePlumber policy live in this tree; their inherited
 `default/xcompose` and `default/wireplumber/` sources are retired. Rerunning
 installation may replace only a missing or exact prior qvOS-generated file.
-In a customized XCompose file, migrate one exact inherited include with a
-private adjacent backup; reject ambiguous includes. Preserve other customized
-regular files and reject symbolic-link targets.
+In a customized XCompose file, migrate one exact inherited `qvos` or original
+`omarchy` source include with a private adjacent backup; reject ambiguous
+includes. Preserve other customized regular files and reject symbolic-link
+targets.
 qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
 subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those units, preserves the

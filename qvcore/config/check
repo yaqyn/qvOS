@@ -97,6 +97,9 @@ grep -Fq 'qvcore/config/files/xcompose' \
 [[ $(grep -Fc 'local/share/qvos/default/xcompose' \
   "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
   fail "XCompose installer has an unexpected inherited path surface"
+[[ $(grep -Fc 'local/share/omarchy/default/xcompose' \
+  "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
+  fail "XCompose installer omits the original installed-root migration"
 
 [[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"

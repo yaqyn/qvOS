@@ -108,6 +108,23 @@ grep -Fqx 'include "%H/.local/share/qvos/default/xcompose"' \
 [[ $(stat -c '%a' "${xcompose_backups[0]}") == "600" ]] ||
   fail "custom XCompose backup mode"
 
+printf '%s\n' \
+  '# Run omarchy-restart-xcompose to apply changes' \
+  'include "%H/.local/share/omarchy/default/xcompose"' \
+  '# older custom composition' >"$xcompose"
+run_leaf "$xcompose_leaf" >/dev/null
+grep -Fqx '# Run qv-restart-xcompose to apply changes' "$xcompose" ||
+  fail "original XCompose restart-comment migration"
+grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
+  "$xcompose" || fail "original installed-root XCompose migration"
+grep -Fqx '# older custom composition' "$xcompose" ||
+  fail "original XCompose custom-content preservation"
+mapfile -t xcompose_backups < <(
+  find "$test_home" -maxdepth 1 -type f -name '.XCompose.qvos-backup.*' -print
+)
+((${#xcompose_backups[@]} == 2)) ||
+  fail "original installed-root XCompose backup"
+
 printf 'custom XCompose\n' >"$xcompose"
 run_leaf "$xcompose_leaf" >/dev/null
 grep -Fqx 'custom XCompose' "$xcompose" || fail "custom XCompose preservation"
