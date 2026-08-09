@@ -709,9 +709,14 @@ grep -Fq 'for attempt in 1 2 3' "$iso_builder" ||
 grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \
   "$iso_builder" ||
   fail "qvOS ISO HTTP/1.1 package transport"
-grep -Fq -- '--retry 5 --retry-all-errors' \
+grep -Fq -- '--retry 5 --retry-connrefused --retry-delay 2' \
   "$iso_builder" ||
   fail "qvOS ISO bounded curl retries"
+if grep -F 'XferCommand =' "$iso_builder" | grep -Fq -- '--retry-all-errors'; then
+  fail "qvOS ISO retries permanent package transport failures"
+fi
+grep -Fq 'chmod 0755 "$offline_db_dir"' "$iso_builder" ||
+  fail "qvOS ISO package database sandbox traversal"
 grep -Fq 'qvcore/install/packaging/resolve' "$iso_builder" ||
   fail "qvOS ISO package resolution"
 grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \

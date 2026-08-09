@@ -70,7 +70,7 @@ if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
 fi
 sed -i \
   -e "s|^Include = /etc/pacman.d/mirrorlist$|Include = $online_mirrorlist|" \
-  -e '/^\[options\]/a XferCommand = /usr/bin/curl --http1.1 --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output %o --url %u' \
+  -e '/^\[options\]/a XferCommand = /usr/bin/curl --http1.1 --fail --location --retry 5 --retry-connrefused --retry-delay 2 --output %o --url %u' \
   "$online_pacman_config"
 
 # Install omarchy-keyring under the same signed provider policy used below.
@@ -223,6 +223,10 @@ package_cache_dir="/var/cache/pacman/pkg"
 offline_db_dir=$(mktemp -d /tmp/offlinedb.XXXXXX)
 rm -rf "$offline_mirror_dir"
 mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
+# Pacman downloads as its unprivileged DownloadUser. The randomized root holds
+# public repository metadata only, so allow traversal while retaining root
+# ownership and write control.
+chmod 0755 "$offline_db_dir"
 
 echo "qvOS ISO progress: resolving package set"
 download_offline_packages() {
