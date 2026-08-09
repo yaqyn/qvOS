@@ -123,6 +123,31 @@ cmp -s \
   "$legacy_apps/avahi-discover.desktop" ||
   fail "legacy managed suppressor upgrade"
 
+sparse_home="$test_root/sparse-home"
+sparse_apps="$sparse_home/.local/share/applications"
+sparse_icons="$sparse_home/.local/share/icons/hicolor/48x48/apps"
+install -d "$sparse_apps" "$sparse_icons"
+while IFS= read -r source; do
+  install -m 0644 "$source" "$sparse_apps/${source##*/}"
+done < <(
+  printf '%s\n' \
+    "$root/qvcore/desktop/applications/Alacritty.desktop" \
+    "$root/qvcore/desktop/applications/imv.desktop" \
+    "$root/qvcore/desktop/applications/mpv.desktop"
+  find "$root/qvcore/desktop/applications/hidden" -maxdepth 1 \
+    -type f -name '*.desktop' -print | sort
+)
+install -m 0644 "$root/qvcore/desktop/applications/icons/imv.png" \
+  "$sparse_icons/imv.png"
+printf '[Desktop Entry]\nHidden=true\n' >"$sparse_apps/avahi-discover.desktop"
+run_owner "$sparse_home"
+cmp -s \
+  "$root/qvcore/desktop/applications/hidden/avahi-discover.desktop" \
+  "$sparse_apps/avahi-discover.desktop" ||
+  fail "sparse managed suppressor upgrade"
+[[ -f $sparse_home/.local/state/qvos/desktop/applications.psv ]] ||
+  fail "sparse fixed-payload state"
+
 modified_home="$test_root/modified-home"
 install -d "$modified_home"
 run_owner "$modified_home"

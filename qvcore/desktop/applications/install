@@ -243,15 +243,15 @@ for index in "${publish_indices[@]}"; do
   destination=${destinations[$index]}
   stage=$(mktemp "${destination%/*}/.qvos-application.XXXXXX")
   install -m 0644 -- "${sources[$index]}" "$stage"
-  stages+=("$stage")
+  stages[index]=$stage
   if [[ -e $destination ]]; then
     backup="$transaction_dir/$index"
     cp -p -- "$destination" "$backup"
-    backups+=("$backup")
-    existed+=(true)
+    backups[index]=$backup
+    existed[index]=true
   else
-    backups+=("")
-    existed+=(false)
+    backups[index]=""
+    existed[index]=false
   fi
 done
 
