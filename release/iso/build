@@ -274,7 +274,7 @@ validate_qvos_source() {
     echo "qvos-build staged qvOS source is missing qvcore/boot/login/" >&2
     missing=true
   fi
-  if [[ ! -x $target/qvcore/boot/install ]]; then
+  if [[ ! -f $target/qvcore/boot/install || -L $target/qvcore/boot/install ]]; then
     echo "qvos-build staged qvOS source is missing its native boot installer" >&2
     missing=true
   fi
