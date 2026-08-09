@@ -155,6 +155,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/desktop/session/` owns native lock, logout, and wake behavior;
   qvOS config and menus call its `qv-system-*` routes, while exact
   `omarchy-system-*` names remain external compatibility adapters only
+- `qvcore/boot/snapper-root.conf` owns the pre-update recovery policy installed
+  by the Limine/Snapper boot owner; `default/snapper/` is retired
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes

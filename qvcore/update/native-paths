@@ -4,4 +4,3 @@ bin/omarchy-update
 bin/omarchy-update-available
 bin/omarchy-update-firmware
 bin/omarchy-update-time
-default/snapper/root

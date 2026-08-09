@@ -188,7 +188,7 @@ install_limine() {
   snapper_config=$(qvos_boot_path /etc/snapper/configs/root)
   qvos_boot_install_file \
     0644 \
-    "$QVOS_PATH/default/snapper/root" \
+    "$QVOS_PATH/qvcore/boot/snapper-root.conf" \
     "$snapper_config"
 
   # Full qgroup accounting makes snapshot deletion and package updates slower.

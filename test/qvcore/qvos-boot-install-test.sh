@@ -252,7 +252,7 @@ if grep -q '^limine-update' "$action_log"; then
   fail "Limine rebuilt images after package hooks produced entries"
 fi
 cmp -s \
-  "$root/default/snapper/root" \
+  "$root/qvcore/boot/snapper-root.conf" \
   "$system_root/etc/snapper/configs/root" ||
   fail "Snapper root-only policy install"
 for hook in 90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook; do

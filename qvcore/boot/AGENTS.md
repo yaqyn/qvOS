@@ -37,7 +37,8 @@ The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed
 substitution, restore disabled mkinitcpio hooks on every exit, and rebuild UKIs
 only when installed entries prove the package hooks did not. Preserve the
-root-only Snapper policy and disabled btrfs quotas. Fixture roots are test-only:
+root-only Snapper policy from `qvcore/boot/snapper-root.conf` and disabled
+btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
 require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
 non-writable permissions before redirecting any system path.
 

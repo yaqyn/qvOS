@@ -22,6 +22,7 @@ expected_native_routes=(
 expected_retired=(
   default/limine/
   default/plymouth/
+  default/snapper/
   default/sddm/hyprland.conf
   default/sddm/omarchy/
   default/wayland-sessions/omarchy.desktop
@@ -106,6 +107,12 @@ grep -Fq 'qvcore/boot/limine/default.conf' \
   "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine defaults owner"
 grep -Fq 'qvcore/boot/limine/limine.conf' \
   "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine config owner"
+[[ -f $root/qvcore/boot/snapper-root.conf &&
+  ! -L $root/qvcore/boot/snapper-root.conf ]] ||
+  fail "native Snapper policy source"
+grep -Fq 'qvcore/boot/snapper-root.conf' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "fresh Snapper policy owner"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" plymouth' \
   "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"

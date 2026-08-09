@@ -1,6 +1,7 @@
 # Superseded inherited boot payloads retired in favor of qvcore/boot.
 default/limine/
 default/plymouth/
+default/snapper/
 default/sddm/hyprland.conf
 default/sddm/omarchy/
 default/wayland-sessions/omarchy.desktop
