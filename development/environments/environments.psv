@@ -1,0 +1,19 @@
+# id|label|ordered components
+ruby|Ruby on Rails|package:libyaml,mise:ruby@latest,feature:rails
+go|Go|mise:go@latest
+php|PHP|package:php,package:composer,package:php-sqlite
+python|Python|mise:python@latest,mise:uv@latest
+elixir|Elixir|mise:erlang@latest,mise:elixir@latest
+zig|Zig|mise:zig@latest,mise:zls@latest
+rust|Rust|mise:rust@latest
+java|Java|mise:java@latest
+dotnet|.NET|mise:dotnet@latest
+ocaml|OCaml|mise:opam@latest,feature:opam-qvos,opam:ocaml-lsp-server,opam:odoc,opam:ocamlformat,opam:utop
+clojure|Clojure|package:rlwrap,mise:clojure@latest
+scala|Scala|mise:java@latest,mise:scala@latest,mise:scala-cli@latest
+node|Node.js|mise:node@lts
+bun|Bun|mise:bun@latest
+deno|Deno|mise:deno@latest
+laravel|Laravel|package:php,package:composer,package:php-sqlite,mise:node@lts,feature:laravel,link:laravel
+symfony|Symfony|package:php,package:composer,package:php-sqlite,package:symfony-cli
+phoenix|Phoenix|mise:erlang@latest,mise:elixir@latest,feature:phoenix

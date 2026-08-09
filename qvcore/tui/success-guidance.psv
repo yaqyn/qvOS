@@ -10,6 +10,7 @@ zig|install|Open a new terminal and run: zig version
 rust|install|Open a new terminal and run: rustc --version
 java|install|Open a new terminal and run: java --version
 dotnet|install|Open a new terminal and run: dotnet --info
+ocaml|install|Open a new terminal and run: opam exec --switch=qvos -- ocamlformat --version
 clojure|install|Open a new terminal and run: clj
 scala|install|Open a new terminal and run: scala-cli
 node|install|Open a new terminal and run: node --version

@@ -37,8 +37,30 @@ describe these containers as production deployments. Redis uses a private
 owner-validated configuration and runs as the desktop UID so neither its data
 nor password needs public permissions.
 
-Run `development/docker-dbs/check` when its owner changes, then Bash syntax,
+`development/environments/` owns the optional language and framework
+installers. Its manifest is the single supported inventory; public `qv`
+commands and metadata-free Omarchy adapters delegate to one manager.
+
+- Record enrollment only after every declared component verifies. Keep exact
+  private markers and the shared qvOS-created component registry under
+  `~/.local/state/qvos/development/environments`; serialize all changes.
+- Install runtimes through Mise and packages through qvOS package helpers.
+  Never pipe remote scripts into a shell, edit global PHP configuration,
+  overwrite shell startup files, or infer qvOS ownership from presence.
+- Removal may touch only registry-owned components no longer required by
+  another enrolled environment, the base, or enrolled Devel. Preserve
+  projects, configuration, caches, pre-existing tools, modified command paths,
+  and the qvOS OPAM switch; never recursively delete a language home.
+- Record new ownership before mutation and retain a private transaction until
+  verification. A failure or retry cleans only that transaction. Keep the
+  declared dependency order for install and reverse it for removal.
+- Captured menu actions use enrollment-state probes. Request sudo only for
+  environments that can add or remove system packages; Mise-only lifecycles
+  remain unprivileged.
+
+Run the focused environment suite for language lifecycle changes and
+`development/docker-dbs/check` when its owner changes, then Bash syntax,
 ShellCheck, the focused Devel, Docker DB, direct-tool, menu, TUI owner-contract,
 product-contract, upstream-overlay, and full qvOS suites. Do not install or
-remove the live workstation or start a live database solely for source
-verification.
+remove a live environment or workstation, or start a live database, solely for
+source verification.

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Install a supported development environment
+# qv:args=<ruby|node|bun|deno|go|laravel|symfony|php|python|elixir|phoenix|rust|java|zig|ocaml|dotnet|clojure|scala>
+# qv:examples=qv install dev-env ruby | qv install dev-env node
+# qv:requires-sudo=true
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+exec "$QVOS_PATH/development/environments/manage" install "$@"

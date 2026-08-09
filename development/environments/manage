@@ -1,0 +1,709 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=development/environments/environments.psv
+# qvos:contract=development/devel/packages.tsv
+# qvos:contract=qvcore/direct/manifest.tsv
+# qvos:contract=qvcore/install/packaging/base.packages
+# qvos:contract=qvcore/packages/add
+# qvos:contract=qvcore/packages/drop
+# qvos:contract=qvcore/packages/present
+
+component_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source_root="$(cd -- "$component_dir/../.." && pwd)"
+manifest="$component_dir/environments.psv"
+state_base="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/development"
+state_root="$state_base/environments"
+devel_state="$state_base/devel"
+registry="$state_root/owned.psv"
+lock_file="$state_root/.lock"
+environment_id=""
+environment_label=""
+component_specs=""
+marker=""
+pending=""
+transaction=""
+install_active=0
+
+usage() {
+  echo "Usage: development/environments/manage <install|remove> <environment>" >&2
+}
+
+run_bounded() {
+  local duration=$1
+  shift
+
+  timeout --foreground --kill-after=10s "$duration" "$@"
+}
+
+validate_manifest() {
+  awk -F '|' '
+    /^#/ || NF == 0 { next }
+    NF != 3 || $1 !~ /^[a-z][a-z0-9-]*$/ || $2 == "" || $3 == "" {
+      invalid = 1
+      next
+    }
+    seen[$1]++ { invalid = 1 }
+    {
+      count = split($3, components, ",")
+      for (item_index = 1; item_index <= count; item_index++) {
+        if (components[item_index] !~ /^(package|mise|feature|opam|link):[a-zA-Z0-9@._+-]+$/) {
+          invalid = 1
+        }
+        if (seen_component[$1 SUBSEP components[item_index]]++) { invalid = 1 }
+      }
+    }
+    END { exit invalid }
+  ' "$manifest"
+}
+
+load_environment() {
+  local wanted=$1
+  local extra
+
+  while IFS='|' read -r \
+    environment_id environment_label component_specs extra; do
+    [[ -n $environment_id && $environment_id != "#"* ]] || continue
+    [[ $environment_id == "$wanted" ]] || continue
+    [[ -z ${extra:-} ]] || return 1
+    return 0
+  done <"$manifest"
+
+  return 1
+}
+
+validate_private_file() {
+  local path=$1
+
+  [[ -f $path && ! -L $path && -O $path ]] || return 1
+  (( (8#$(stat -c '%a' -- "$path") & 8#077) == 0 ))
+}
+
+validate_component_file() {
+  local path=$1
+
+  validate_private_file "$path" || return 1
+  awk -F '|' '
+    NF != 2 { invalid = 1; next }
+    $1 !~ /^(package|mise|feature|opam|link)$/ { invalid = 1 }
+    $2 !~ /^[a-zA-Z0-9@._+-]+$/ { invalid = 1 }
+    seen[$0]++ { invalid = 1 }
+    END { exit invalid }
+  ' "$path"
+}
+
+validate_owner_sources() {
+  local path
+
+  for path in \
+    "$source_root/development/devel/packages.tsv" \
+    "$source_root/qvcore/direct/manifest.tsv" \
+    "$source_root/qvcore/install/packaging/base.packages"; do
+    [[ -f $path && ! -L $path ]] || {
+      echo "Refusing an unsafe development ownership source: $path" >&2
+      return 1
+    }
+  done
+}
+
+ensure_state_directories() {
+  if [[ -e $state_base || -L $state_base ]]; then
+    [[ -d $state_base && ! -L $state_base && -O $state_base ]] || {
+      echo "Refusing unsafe qvOS Development state: $state_base" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 -- "$state_base"
+  fi
+  chmod 0700 -- "$state_base"
+
+  if [[ -e $state_root || -L $state_root ]]; then
+    [[ -d $state_root && ! -L $state_root && -O $state_root ]] || {
+      echo "Refusing unsafe environment state: $state_root" >&2
+      return 1
+    }
+  else
+    install -d -m 0700 -- "$state_root"
+  fi
+  chmod 0700 -- "$state_root"
+
+  if [[ -e $lock_file || -L $lock_file ]]; then
+    validate_private_file "$lock_file" || {
+      echo "Refusing unsafe environment lock: $lock_file" >&2
+      return 1
+    }
+  fi
+}
+
+ensure_registry() {
+  if [[ -e $registry || -L $registry ]]; then
+    validate_component_file "$registry" || {
+      echo "Refusing unsafe environment ownership registry: $registry" >&2
+      return 1
+    }
+  else
+    install -m 0600 /dev/null "$registry"
+  fi
+}
+
+registry_has() {
+  local kind=$1
+  local value=$2
+
+  grep -Fqx -- "$kind|$value" "$registry"
+}
+
+registry_add() {
+  local kind=$1
+  local value=$2
+  local next
+
+  registry_has "$kind" "$value" && return
+  next=$(mktemp "$state_root/.owned.XXXXXX")
+  {
+    printf '%s|%s\n' "$kind" "$value"
+    cat "$registry"
+  } | sort -u >"$next"
+  chmod 0600 -- "$next"
+  mv -f -- "$next" "$registry"
+}
+
+registry_remove() {
+  local kind=$1
+  local value=$2
+  local next
+
+  registry_has "$kind" "$value" || return
+  next=$(mktemp "$state_root/.owned.XXXXXX")
+  awk -F '|' -v kind="$kind" -v value="$value" \
+    '$1 != kind || $2 != value' "$registry" >"$next"
+  chmod 0600 -- "$next"
+  mv -f -- "$next" "$registry"
+}
+
+component_array() {
+  local output_name=$1
+  local -n output=$output_name
+
+  # shellcheck disable=SC2034
+  IFS=',' read -r -a output <<<"$component_specs"
+}
+
+component_parts() {
+  local spec=$1
+  local kind_name=$2
+  local value_name=$3
+  local -n kind_output=$kind_name
+  local -n value_output=$value_name
+
+  # shellcheck disable=SC2034
+  kind_output=${spec%%:*}
+  # shellcheck disable=SC2034
+  value_output=${spec#*:}
+}
+
+mise_parts() {
+  local source=$1
+  local tool_name=$2
+  local request_name=$3
+  local -n tool_output=$tool_name
+  local -n request_output=$request_name
+
+  # shellcheck disable=SC2034
+  tool_output=${source%@*}
+  # shellcheck disable=SC2034
+  request_output=${source##*@}
+}
+
+package_present() {
+  qv-pkg-present "$1"
+}
+
+mise_present() {
+  local source=$1
+  local tool
+  local inventory
+
+  command -v mise >/dev/null 2>&1 || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  tool=${source%@*}
+  inventory=$(run_bounded 30s mise ls --global "$tool" --json 2>/dev/null) ||
+    return 1
+  jq -e 'any(.[]; .installed == true and .active == true)' \
+    <<<"$inventory" >/dev/null
+}
+
+mise_requested_present() {
+  local source=$1
+  local tool
+  local request
+  local inventory
+
+  command -v mise >/dev/null 2>&1 || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  mise_parts "$source" tool request
+  inventory=$(run_bounded 30s mise ls --global "$tool" --json 2>/dev/null) ||
+    return 1
+  jq -e --arg request "$request" '
+    any(.[]; .requested_version == $request and .installed == true and .active == true)
+  ' <<<"$inventory" >/dev/null
+}
+
+feature_present() {
+  local feature=$1
+
+  case $feature in
+  rails)
+    run_bounded 30s mise exec -- \
+      gem list --installed --exact rails >/dev/null 2>&1
+    ;;
+  laravel)
+    run_bounded 30s composer global show --no-interaction \
+      laravel/installer >/dev/null 2>&1
+    ;;
+  phoenix)
+    run_bounded 30s mise exec -- mix archive 2>/dev/null |
+      grep -Eq '(^|[[:space:]])phx_new([[:space:]-]|$)'
+    ;;
+  opam-qvos)
+    run_bounded 30s mise exec -- opam switch list --short 2>/dev/null |
+      grep -Fqx qvos
+    ;;
+  *) return 2 ;;
+  esac
+}
+
+opam_present() {
+  local package=$1
+
+  feature_present opam-qvos || return 1
+  run_bounded 30s mise exec -- \
+    opam list --switch=qvos --installed --short "$package" 2>/dev/null |
+    grep -Fqx "$package"
+}
+
+composer_laravel_bin() {
+  local bin_dir
+  local candidate
+  local resolved
+
+  bin_dir=$(run_bounded 30s composer global config bin-dir --absolute --quiet)
+  candidate="$bin_dir/laravel"
+  [[ -f $candidate && ! -L $candidate && -x $candidate ]] || return 1
+  resolved=$(readlink -f -- "$candidate")
+  [[ $resolved == "$HOME/"* ]] || return 1
+  printf '%s\n' "$resolved"
+}
+
+link_present() {
+  local link_name=$1
+  local target="$HOME/.local/bin/$link_name"
+  local expected
+
+  [[ $link_name == "laravel" ]] || return 2
+  if [[ -e $target || -L $target ]]; then
+    [[ -x $target ]] || return 1
+    if [[ -L $target ]]; then
+      expected=$(composer_laravel_bin) || return 1
+      [[ $(readlink -f -- "$target") == "$expected" ]]
+    else
+      [[ -f $target && -O $target ]]
+    fi
+  else
+    return 1
+  fi
+}
+
+component_present() {
+  local kind=$1
+  local value=$2
+
+  case $kind in
+  package) package_present "$value" ;;
+  mise) mise_present "$value" ;;
+  feature) feature_present "$value" ;;
+  opam) opam_present "$value" ;;
+  link) link_present "$value" ;;
+  esac
+}
+
+install_feature() {
+  local feature=$1
+
+  case $feature in
+  rails)
+    run_bounded 1800s mise exec -- \
+      gem install rails --no-document
+    ;;
+  laravel)
+    run_bounded 1800s composer global require \
+      --no-interaction --no-progress laravel/installer
+    ;;
+  phoenix)
+    run_bounded 1800s mise exec -- mix local.hex --force
+    run_bounded 1800s mise exec -- mix local.rebar --force
+    run_bounded 1800s mise exec -- \
+      mix archive.install hex phx_new --force
+    ;;
+  opam-qvos)
+    run_bounded 1800s mise exec -- opam init --yes --bare
+    run_bounded 1800s mise exec -- \
+      opam switch create qvos --yes
+    ;;
+  esac
+}
+
+install_link() {
+  local link_name=$1
+  local expected
+  local target="$HOME/.local/bin/$link_name"
+
+  [[ $link_name == "laravel" ]] || return 2
+  expected=$(composer_laravel_bin) || {
+    echo "Laravel installed without a safe Composer command path." >&2
+    return 1
+  }
+  if [[ -e $HOME/.local/bin || -L $HOME/.local/bin ]]; then
+    [[ -d $HOME/.local/bin && ! -L $HOME/.local/bin && -O $HOME/.local/bin ]] || {
+      echo "Refusing unsafe local command directory: $HOME/.local/bin" >&2
+      return 1
+    }
+  else
+    install -d -m 0755 -- "$HOME/.local/bin"
+  fi
+  [[ ! -e $target && ! -L $target ]] || return 1
+  ln -s -- "$expected" "$target"
+}
+
+install_component() {
+  local kind=$1
+  local value=$2
+
+  case $kind in
+  package) qv-pkg-add "$value" ;;
+  mise) run_bounded 1800s mise use --global --yes "$value" ;;
+  feature) install_feature "$value" ;;
+  opam)
+    run_bounded 1800s mise exec -- \
+      opam install --switch=qvos --yes "$value"
+    ;;
+  link) install_link "$value" ;;
+  esac
+}
+
+remove_feature() {
+  local feature=$1
+
+  feature_present "$feature" || return 0
+  case $feature in
+  rails)
+    run_bounded 600s mise exec -- \
+      gem uninstall rails --all --executables --ignore-dependencies
+    ;;
+  laravel)
+    run_bounded 600s composer global remove \
+      --no-interaction --no-progress laravel/installer
+    ;;
+  phoenix)
+    run_bounded 600s mise exec -- \
+      mix archive.uninstall phx_new --force
+    ;;
+  opam-qvos)
+    echo "Preserved the qvos OPAM switch and user project data."
+    return 0
+    ;;
+  esac
+  ! feature_present "$feature"
+}
+
+remove_opam_package() {
+  local package=$1
+
+  opam_present "$package" || return 0
+  run_bounded 600s mise exec -- \
+    opam remove --switch=qvos --yes "$package"
+  ! opam_present "$package"
+}
+
+remove_link() {
+  local link_name=$1
+  local target="$HOME/.local/bin/$link_name"
+  local expected
+
+  [[ $link_name == "laravel" ]] || return 2
+  [[ -e $target || -L $target ]] || return 0
+  if [[ ! -L $target ]]; then
+    echo "Preserved the externally managed Laravel command: $target" >&2
+    return 0
+  fi
+  expected=$(composer_laravel_bin 2>/dev/null || true)
+  if [[ -z $expected || $(readlink -f -- "$target" 2>/dev/null || true) != "$expected" ]]; then
+    echo "Preserved the changed Laravel command link: $target" >&2
+    return 0
+  fi
+  unlink -- "$target"
+}
+
+remove_component() {
+  local kind=$1
+  local value=$2
+
+  case $kind in
+  package)
+    package_present "$value" || return 0
+    command -v pacman >/dev/null 2>&1 || {
+      echo "Package removal requires pacman." >&2
+      return 1
+    }
+    pacman -Rns --print -- "$value" >/dev/null
+    qv-pkg-drop "$value"
+    ! package_present "$value"
+    ;;
+  mise)
+    if ! mise_requested_present "$value"; then
+      mise_present "$value" &&
+        echo "Preserved the changed Mise selection: ${value%@*}" >&2
+      return 0
+    fi
+    run_bounded 600s mise unuse --global --yes "$value"
+    ! mise_requested_present "$value"
+    ;;
+  feature) remove_feature "$value" ;;
+  opam) remove_opam_package "$value" ;;
+  link) remove_link "$value" ;;
+  esac
+}
+
+append_transaction() {
+  local kind=$1
+  local value=$2
+
+  grep -Fqx -- "$kind|$value" "$transaction" ||
+    printf '%s|%s\n' "$kind" "$value" >>"$transaction"
+}
+
+recover_transaction() {
+  local recovery_failed=0
+  local kind
+  local value
+
+  [[ -e $transaction || -L $transaction ]] || return 0
+  validate_component_file "$transaction" || {
+    echo "Refusing unsafe interrupted environment transaction: $transaction" >&2
+    return 1
+  }
+
+  while IFS='|' read -r kind value; do
+    registry_has "$kind" "$value" || continue
+    if remove_component "$kind" "$value"; then
+      registry_remove "$kind" "$value"
+    else
+      recovery_failed=1
+    fi
+  done < <(tac "$transaction")
+
+  if ((recovery_failed)); then
+    echo "Could not fully clean the interrupted $environment_label installation." >&2
+    return 1
+  fi
+  unlink -- "$transaction"
+  if [[ -e $pending || -L $pending ]]; then
+    validate_component_file "$pending" || return 1
+    unlink -- "$pending"
+  fi
+}
+
+finish() {
+  local status=$?
+
+  trap - EXIT INT TERM HUP
+  if ((status != 0 && install_active)); then
+    if ! recover_transaction; then
+      echo "Retry the same installation to resume its safe cleanup." >&2
+    fi
+  fi
+  exit "$status"
+}
+trap finish EXIT
+
+prepare_install() {
+  local components=()
+  local spec
+  local kind
+  local value
+  local pending_next
+
+  if [[ -e $transaction || -L $transaction ]]; then
+    recover_transaction
+  elif [[ -e $pending || -L $pending ]]; then
+    validate_component_file "$pending" || {
+      echo "Refusing unsafe interrupted environment state: $pending" >&2
+      return 1
+    }
+    unlink -- "$pending"
+  fi
+
+  pending_next=$(mktemp "$state_root/.${environment_id}.pending.XXXXXX")
+  component_array components
+  for spec in "${components[@]}"; do
+    component_parts "$spec" kind value
+    printf '%s|%s\n' "$kind" "$value" >>"$pending_next"
+  done
+  chmod 0600 -- "$pending_next"
+  mv -f -- "$pending_next" "$pending"
+  install -m 0600 /dev/null "$transaction"
+}
+
+install_environment() {
+  local components=()
+  local spec
+  local kind
+  local value
+
+  prepare_install
+  install_active=1
+  component_array components
+  for spec in "${components[@]}"; do
+    component_parts "$spec" kind value
+    if component_present "$kind" "$value"; then
+      continue
+    fi
+    if ! registry_has "$kind" "$value"; then
+      append_transaction "$kind" "$value"
+      registry_add "$kind" "$value"
+    fi
+    install_component "$kind" "$value"
+    component_present "$kind" "$value" || {
+      echo "$environment_label component did not verify: $kind:$value" >&2
+      return 1
+    }
+  done
+
+  mv -f -- "$pending" "$marker"
+  unlink -- "$transaction"
+  install_active=0
+  echo "$environment_label is installed and enrolled."
+}
+
+marker_safe() {
+  local path=$1
+
+  validate_component_file "$path" || {
+    echo "Refusing unsafe environment enrollment: $path" >&2
+    return 1
+  }
+}
+
+component_required_elsewhere() {
+  local kind=$1
+  local value=$2
+  local other_id
+  local other_marker
+
+  while IFS='|' read -r other_id _ _; do
+    [[ -n $other_id && $other_id != "#"* && $other_id != "$environment_id" ]] ||
+      continue
+    other_marker="$state_root/$other_id"
+    [[ -e $other_marker || -L $other_marker ]] || continue
+    marker_safe "$other_marker" || return 2
+    grep -Fqx -- "$kind|$value" "$other_marker" && return 0
+  done <"$manifest"
+  return 1
+}
+
+component_has_other_owner() {
+  local kind=$1
+  local value=$2
+
+  if [[ $kind == "package" ]] &&
+    grep -Fqx -- "$value" "$source_root/qvcore/install/packaging/base.packages"; then
+    return 0
+  fi
+  [[ -f $devel_state && ! -L $devel_state && -O $devel_state ]] || return 1
+  if [[ $kind == "package" ]]; then
+    awk -F '\t' -v package="$value" \
+      '$1 !~ /^#/ && $2 == package { found = 1 } END { exit !found }' \
+      "$source_root/development/devel/packages.tsv"
+  elif [[ $kind == "mise" ]]; then
+    awk -F '\t' -v source="$value" '
+      $1 !~ /^#/ && $2 == "devel" && $4 == "mise" && $6 == source {
+        found = 1
+      }
+      END { exit !found }
+    ' "$source_root/qvcore/direct/manifest.tsv"
+  else
+    return 1
+  fi
+}
+
+remove_environment() {
+  local kind
+  local required_status
+  local value
+
+  if [[ ! -e $marker && ! -L $marker ]]; then
+    if [[ -e $transaction || -L $transaction ]]; then
+      recover_transaction
+      echo "Cleaned the interrupted $environment_label installation."
+    else
+      echo "$environment_label is not enrolled; nothing was changed."
+    fi
+    return
+  fi
+  marker_safe "$marker"
+
+  while IFS='|' read -r kind value; do
+    registry_has "$kind" "$value" || continue
+    if component_required_elsewhere "$kind" "$value"; then
+      continue
+    else
+      required_status=$?
+      ((required_status == 1)) || return "$required_status"
+    fi
+    if component_has_other_owner "$kind" "$value"; then
+      registry_remove "$kind" "$value"
+      continue
+    fi
+    remove_component "$kind" "$value"
+    registry_remove "$kind" "$value"
+  done < <(tac "$marker")
+
+  unlink -- "$marker"
+  echo "Removed the qvOS-owned $environment_label components."
+  echo "Projects, configuration, caches, and pre-existing tools were preserved."
+}
+
+if (($# != 2)); then
+  usage
+  exit 2
+fi
+action=$1
+requested_environment=$2
+[[ $action == "install" || $action == "remove" ]] || {
+  usage
+  exit 2
+}
+if [[ ! -f $manifest || -L $manifest ]] || ! validate_manifest; then
+  echo "The qvOS environment inventory is missing or invalid: $manifest" >&2
+  exit 1
+fi
+load_environment "$requested_environment" || {
+  echo "Unknown qvOS development environment: $requested_environment" >&2
+  exit 2
+}
+
+validate_owner_sources
+ensure_state_directories
+marker="$state_root/$environment_id"
+pending="$state_root/.$environment_id.pending"
+transaction="$state_root/.$environment_id.transaction"
+exec 9>>"$lock_file"
+chmod 0600 -- "$lock_file"
+flock 9
+ensure_registry
+
+if [[ $action == "install" ]]; then
+  install_environment
+else
+  remove_environment
+fi
