@@ -1,0 +1,3 @@
+# Inherited GPU payload paths replaced by root-owned qvOS gaming policy.
+default/systemd/system-sleep/force-igpu
+default/systemd/system/supergfxd.service.d/delay-start.conf

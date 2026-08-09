@@ -36,6 +36,7 @@ STUB
 install -m 0755 /dev/stdin "$test_bin/supergfxctl" <<'STUB'
 #!/bin/bash
 [[ ${1:-} == "-s" && $# == 1 ]] || exit 2
+[[ ${QVOS_TEST_SUPERGFX_STATUS:-0} == "0" ]] || exit "$QVOS_TEST_SUPERGFX_STATUS"
 printf '%s\n' "${QVOS_TEST_SUPERGFX:-}"
 STUB
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'STUB'
@@ -54,6 +55,7 @@ run_detect() {
   QVOS_TEST_COMMANDS="${QVOS_TEST_COMMANDS:-lspci,hyprctl,jq}" \
   QVOS_TEST_LSPCI="${QVOS_TEST_LSPCI:-}" \
   QVOS_TEST_SUPERGFX="${QVOS_TEST_SUPERGFX:-}" \
+  QVOS_TEST_SUPERGFX_STATUS="${QVOS_TEST_SUPERGFX_STATUS:-0}" \
   QVOS_TEST_HYPR_JSON="$hypr_json" \
     "$owner" "$@"
 }
@@ -115,9 +117,22 @@ printf 'Surface Laptop\n' >"$fixture/sys/class/dmi/id/product_family"
 run_detect surface || fail "Surface detector"
 
 QVOS_TEST_COMMANDS='lspci,hyprctl,jq,supergfxctl' \
-QVOS_TEST_SUPERGFX='Hybrid' run_detect hybrid-gpu || fail "supergfx hybrid detector"
+QVOS_TEST_SUPERGFX='[Integrated, Hybrid]' run_detect hybrid-gpu ||
+  fail "supergfx hybrid detector"
+if QVOS_TEST_COMMANDS='lspci,hyprctl,jq,supergfxctl' \
+  QVOS_TEST_SUPERGFX='[Hybrid]' run_detect hybrid-gpu >/dev/null 2>&1; then
+  fail "single-mode supergfx inventory reported Hybrid GPU support"
+fi
 QVOS_TEST_LSPCI=$'00:02.0 VGA compatible controller: Intel\n01:00.0 3D controller: NVIDIA' \
   run_detect hybrid-gpu || fail "PCI hybrid detector"
+if QVOS_TEST_LSPCI=$'00:02.0 VGA compatible controller: Intel\n01:00.0 3D controller: AMD' \
+  run_detect hybrid-gpu >/dev/null 2>&1; then
+  fail "dual non-NVIDIA display controllers reported supergfx support"
+fi
+QVOS_TEST_COMMANDS='lspci,hyprctl,jq,supergfxctl' \
+QVOS_TEST_SUPERGFX_STATUS=1 \
+QVOS_TEST_LSPCI=$'00:02.0 VGA compatible controller: Intel\n01:00.0 3D controller: NVIDIA' \
+  run_detect hybrid-gpu || fail "PCI fallback after unavailable supergfx daemon"
 
 printf 'vendor_id : GenuineIntel\n' >"$fixture/proc/cpuinfo"
 run_detect intel || fail "Intel CPU detector"

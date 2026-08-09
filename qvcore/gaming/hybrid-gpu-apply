@@ -1,0 +1,359 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+PATH=/usr/bin:/bin
+
+action=${1:-}
+case $action in
+hybrid | integrated) ;;
+*)
+  echo "Usage: hybrid-gpu/apply <hybrid|integrated>" >&2
+  exit 2
+  ;;
+esac
+(($# == 1)) || {
+  echo "Usage: hybrid-gpu/apply <hybrid|integrated>" >&2
+  exit 2
+}
+
+system_root=${QVOS_HYBRID_GPU_SYSTEM_ROOT:-}
+testing=${QVOS_HYBRID_GPU_TESTING:-}
+test_systemctl=${QVOS_HYBRID_GPU_TEST_SYSTEMCTL:-}
+expected_uid=0
+expected_gid=0
+self_path=$(readlink -f -- "$0")
+payload_dir=$(dirname -- "$self_path")
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS Hybrid GPU test root." >&2
+    exit 2
+  }
+  [[ -n $test_systemctl && $test_systemctl == "$system_root/"* &&
+    -x $test_systemctl && ! -L $test_systemctl ]] || {
+    echo "Invalid qvOS Hybrid GPU test systemctl." >&2
+    exit 2
+  }
+  expected_uid=$UID
+  expected_gid=$(id -g)
+  systemctl=$test_systemctl
+else
+  ((EUID == 0)) || {
+    echo "qvOS Hybrid GPU mutation must run as root." >&2
+    exit 1
+  }
+  [[ $self_path == "/usr/lib/qvos/gaming/hybrid-gpu/apply" ]] || {
+    echo "Refusing a non-system qvOS Hybrid GPU helper." >&2
+    exit 1
+  }
+  systemctl=/usr/bin/systemctl
+fi
+
+default_config="$payload_dir/default.json"
+delay_payload="$payload_dir/delay-start.conf"
+sleep_payload="$payload_dir/force-igpu"
+declare -A payload_modes=(
+  ["$self_path"]=755
+  ["$default_config"]=644
+  ["$delay_payload"]=644
+  ["$sleep_payload"]=755
+)
+for payload in "${!payload_modes[@]}"; do
+  [[ -f $payload && ! -L $payload ]] || {
+    echo "Missing qvOS Hybrid GPU payload: $payload" >&2
+    exit 1
+  }
+  [[ $(stat -c '%u:%g:%a' -- "$payload") == \
+    "$expected_uid:$expected_gid:${payload_modes[$payload]}" ]] || {
+    echo "Unsafe qvOS Hybrid GPU payload: $payload" >&2
+    exit 1
+  }
+done
+jq -e 'type == "object" and (.mode == "Hybrid") and (.vfio_enable == true)' \
+  "$default_config" >/dev/null || {
+  echo "Invalid qvOS Hybrid GPU default configuration." >&2
+  exit 1
+}
+
+etc_root="$system_root/etc"
+run_root="$system_root/run"
+config_file="$etc_root/supergfxd.conf"
+sleep_dir="$system_root/usr/lib/systemd/system-sleep"
+sleep_file="$sleep_dir/qvos-hybrid-gpu"
+legacy_sleep="$sleep_dir/force-igpu"
+service_root="$etc_root/systemd/system"
+delay_dir="$service_root/supergfxd.service.d"
+delay_file="$delay_dir/80-qvos-integrated-delay.conf"
+legacy_delay="$delay_dir/delay-start.conf"
+lock_file="$run_root/qvos-hybrid-gpu.lock"
+transaction_root=""
+transaction_active=false
+temporary=""
+prior_enabled=false
+enabled_changed=false
+declare -a transaction_targets=()
+declare -a transaction_backups=()
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+safe_file() {
+  local path=$1
+  local mode
+
+  [[ -f $path && ! -L $path ]] || return 1
+  [[ $(stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+ensure_directory() {
+  local path=$1
+  local parent=${path%/*}
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || {
+      echo "Refusing unsafe qvOS Hybrid GPU directory: $path" >&2
+      return 1
+    }
+    return 0
+  fi
+  safe_directory "$parent" || {
+    echo "Refusing unsafe qvOS Hybrid GPU parent: $parent" >&2
+    return 1
+  }
+  install -d -o "$expected_uid" -g "$expected_gid" -m 0755 "$path"
+}
+
+validate_managed_target() {
+  local target=$1
+  local expected=$2
+
+  [[ ! -e $target && ! -L $target ]] && return 0
+  safe_file "$target" && cmp -s "$expected" "$target"
+}
+
+validate_legacy_target() {
+  local target=$1
+  local expected=$2
+  local inherited_hash=$3
+  local target_hash
+
+  [[ ! -e $target && ! -L $target ]] && return 0
+  safe_file "$target" || return 1
+  cmp -s "$expected" "$target" && return 0
+  target_hash=$(sha256sum -- "$target")
+  [[ ${target_hash%% *} == "$inherited_hash" ]]
+}
+
+validate_targets() {
+  if [[ -e $config_file || -L $config_file ]]; then
+    if ! safe_file "$config_file" ||
+      ! jq -e 'type == "object"' "$config_file" >/dev/null; then
+      echo "Refusing unsafe or malformed Hybrid GPU config: $config_file" >&2
+      return 1
+    fi
+  fi
+  validate_managed_target "$sleep_file" "$sleep_payload" || {
+    echo "Refusing modified qvOS Hybrid GPU sleep policy: $sleep_file" >&2
+    return 1
+  }
+  validate_legacy_target \
+    "$legacy_sleep" \
+    "$sleep_payload" \
+    d604e7c4903829563e45fc52188fc5602c3f1bc66e247f0a2cc0a974ed6e57db || {
+    echo "Refusing modified inherited Hybrid GPU sleep policy: $legacy_sleep" >&2
+    return 1
+  }
+  validate_managed_target "$delay_file" "$delay_payload" || {
+    echo "Refusing modified qvOS Hybrid GPU service policy: $delay_file" >&2
+    return 1
+  }
+  validate_legacy_target \
+    "$legacy_delay" \
+    "$delay_payload" \
+    29e4646cf5dcbeacd12eb82e8beac3a9aa61a44ec43c3c91be9e1f3005065c61 || {
+    echo "Refusing modified inherited Hybrid GPU service policy: $legacy_delay" >&2
+    return 1
+  }
+}
+
+snapshot_targets() {
+  local target
+  local backup
+
+  transaction_root=$(mktemp -d "$run_root/qvos-hybrid-gpu.XXXXXX")
+  chmod 0700 "$transaction_root"
+  for target in \
+    "$config_file" \
+    "$sleep_file" \
+    "$legacy_sleep" \
+    "$delay_file" \
+    "$legacy_delay"; do
+    backup=-
+    if [[ -e $target || -L $target ]]; then
+      backup="$transaction_root/backup-${#transaction_targets[@]}"
+      cp -a -- "$target" "$backup"
+    fi
+    transaction_targets+=("$target")
+    transaction_backups+=("$backup")
+  done
+  transaction_active=true
+}
+
+rollback_files() {
+  local index
+  local target
+  local backup
+
+  for ((index = ${#transaction_targets[@]} - 1; index >= 0; index--)); do
+    target=${transaction_targets[$index]}
+    backup=${transaction_backups[$index]}
+    if [[ $backup == "-" ]]; then
+      rm -f -- "$target"
+    else
+      install -D -o "$expected_uid" -g "$expected_gid" \
+        -m "$(stat -c '%a' -- "$backup")" "$backup" "$target"
+    fi
+  done
+}
+
+cleanup() {
+  local status=$?
+
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+  if [[ $transaction_active == "true" ]]; then
+    rollback_files || echo "Could not fully roll back Hybrid GPU files." >&2
+    "$systemctl" daemon-reload >/dev/null 2>&1 ||
+      echo "Could not reload systemd after Hybrid GPU rollback." >&2
+    if [[ $enabled_changed == "true" ]]; then
+      "$systemctl" disable supergfxd.service >/dev/null 2>&1 ||
+        echo "Could not restore the disabled supergfxd state." >&2
+    fi
+  fi
+  [[ -z $transaction_root || ! -d $transaction_root ]] ||
+    rm -rf -- "$transaction_root"
+  exit "$status"
+}
+trap cleanup EXIT
+
+atomic_install() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local parent=${target%/*}
+
+  temporary=$(mktemp "$parent/.qvos-hybrid-gpu.XXXXXX")
+  install -o "$expected_uid" -g "$expected_gid" -m "$mode" \
+    "$source" "$temporary"
+  mv -f -- "$temporary" "$target"
+  temporary=""
+}
+
+remove_managed() {
+  local target=$1
+
+  [[ ! -e $target ]] || rm -- "$target"
+}
+
+write_config() {
+  local source=$config_file
+  local jq_filter='.mode = "Hybrid"'
+
+  [[ -e $source ]] || source=$default_config
+  if [[ $action == "integrated" ]]; then
+    jq_filter='.mode = "Integrated" | .vfio_enable = true'
+  fi
+  temporary=$(mktemp "$etc_root/.qvos-supergfxd.XXXXXX")
+  jq "$jq_filter" "$source" >"$temporary"
+  chmod 0644 "$temporary"
+  chown "$expected_uid:$expected_gid" "$temporary"
+  mv -f -- "$temporary" "$config_file"
+  temporary=""
+}
+
+target_is_ready() {
+  local expected_mode=Hybrid
+
+  [[ $action != "integrated" ]] || expected_mode=Integrated
+  safe_file "$config_file" || return 1
+  [[ $(jq -r '.mode // empty' "$config_file") == "$expected_mode" ]] ||
+    return 1
+  if [[ $action == "integrated" ]]; then
+    jq -e '.vfio_enable == true' "$config_file" >/dev/null || return 1
+    cmp -s "$sleep_payload" "$sleep_file" || return 1
+    cmp -s "$delay_payload" "$delay_file" || return 1
+  else
+    [[ ! -e $sleep_file && ! -L $sleep_file &&
+      ! -e $delay_file && ! -L $delay_file ]] || return 1
+  fi
+  [[ ! -e $legacy_sleep && ! -L $legacy_sleep &&
+    ! -e $legacy_delay && ! -L $legacy_delay ]] || return 1
+  "$systemctl" is-enabled --quiet supergfxd.service
+}
+
+ensure_directory "$run_root"
+if [[ -e $lock_file || -L $lock_file ]]; then
+  safe_file "$lock_file" || {
+    echo "Refusing unsafe qvOS Hybrid GPU lock: $lock_file" >&2
+    exit 1
+  }
+else
+  install -o "$expected_uid" -g "$expected_gid" -m 0600 /dev/null "$lock_file"
+fi
+exec {lock_fd}<>"$lock_file"
+flock -x "$lock_fd"
+
+ensure_directory "$etc_root"
+if [[ $action == "integrated" ]]; then
+  ensure_directory "$system_root/usr"
+  ensure_directory "$system_root/usr/lib"
+  ensure_directory "$system_root/usr/lib/systemd"
+  ensure_directory "$sleep_dir"
+  ensure_directory "$etc_root/systemd"
+  ensure_directory "$service_root"
+  ensure_directory "$delay_dir"
+fi
+validate_targets
+
+if target_is_ready; then
+  exit 10
+fi
+if "$systemctl" is-enabled --quiet supergfxd.service; then
+  prior_enabled=true
+fi
+
+snapshot_targets
+write_config
+if [[ $action == "integrated" ]]; then
+  atomic_install "$sleep_payload" "$sleep_file" 0755
+  atomic_install "$delay_payload" "$delay_file" 0644
+else
+  remove_managed "$sleep_file"
+  remove_managed "$delay_file"
+fi
+remove_managed "$legacy_sleep"
+remove_managed "$legacy_delay"
+
+"$systemctl" daemon-reload
+"$systemctl" enable supergfxd.service
+[[ $prior_enabled == "true" ]] || enabled_changed=true
+target_is_ready || {
+  echo "Hybrid GPU policy did not match its requested state." >&2
+  exit 1
+}
+
+transaction_active=false
+rm -rf -- "$transaction_root"
+transaction_root=""

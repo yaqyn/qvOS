@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Use the Vfio to Integrated transition after sleep so supported NVIDIA hybrid
+# laptops do not wake with their dedicated GPU powered unexpectedly.
+case ${1:-} in
+pre)
+  if [[ ${2:-} == "hibernate" ]]; then
+    /usr/bin/supergfxctl -m Vfio
+    /usr/bin/sleep 1
+  fi
+  ;;
+post)
+  /usr/bin/sleep 4
+  /usr/bin/supergfxctl -m Vfio
+  /usr/bin/sleep 1
+  /usr/bin/supergfxctl -m Integrated
+  ;;
+esac

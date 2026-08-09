@@ -9,15 +9,20 @@ fail() {
   exit 1
 }
 
-expected_paths=$'bin/omarchy-install-gaming-retroarch\nbin/omarchy-install-gaming-xbox-controllers\nbin/omarchy-remove-gaming-retroarch\nbin/omarchy-remove-gaming-xbox-controllers'
+expected_paths=$'bin/omarchy-install-gaming-retroarch\nbin/omarchy-install-gaming-xbox-controllers\nbin/omarchy-remove-gaming-retroarch\nbin/omarchy-remove-gaming-xbox-controllers\nbin/omarchy-toggle-hybrid-gpu'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_paths" ]] ||
   fail "native gaming inventory"
+retired_manifest="$root/qvcore/gaming/retired-paths"
+expected_retired=$'default/systemd/system-sleep/force-igpu\ndefault/systemd/system/supergfxd.service.d/delay-start.conf'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "$expected_retired" ]] || fail "retired gaming inventory"
 
 declare -A owner_by_route=(
   [install-gaming-retroarch]=qvcore/gaming/retroarch-install
   [install-gaming-xbox-controllers]=qvcore/gaming/xbox-install
   [remove-gaming-retroarch]=qvcore/gaming/retroarch-remove
   [remove-gaming-xbox-controllers]=qvcore/gaming/xbox-remove
+  [toggle-hybrid-gpu]=qvcore/gaming/hybrid-gpu-toggle
 )
 for route in "${!owner_by_route[@]}"; do
   owner=${owner_by_route[$route]}
@@ -39,6 +44,29 @@ for route in "${!owner_by_route[@]}"; do
       fail "gaming adapter owner: $route"
   done
 done
+
+for helper in \
+  hybrid-gpu-apply \
+  hybrid-gpu-force-igpu \
+  hybrid-gpu-install-root \
+  hybrid-gpu-toggle; do
+  [[ -x $root/qvcore/gaming/$helper ]] ||
+    fail "Hybrid GPU owner mode: $helper"
+done
+for payload in hybrid-gpu-default.json hybrid-gpu-delay.conf; do
+  [[ -f $root/qvcore/gaming/$payload && ! -x $root/qvcore/gaming/$payload ]] ||
+    fail "Hybrid GPU payload mode: $payload"
+done
+for retired in \
+  default/systemd/system-sleep/force-igpu \
+  default/systemd/system/supergfxd.service.d/delay-start.conf; do
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired Hybrid GPU source remains: $retired"
+done
+if rg -n 'sudo (tee|sed|cp|rm)|rm[[:space:]]+-rf[[:space:]]+/(etc|usr)' \
+  "$root/qvcore/gaming/hybrid-gpu-"*; then
+  fail "Hybrid GPU owner contains an unsafe direct root mutation"
+fi
 
 install_packages=$(QVOS_PATH="$root" "$root/qvcore/gaming/retroarch-packages")
 [[ -z $(printf '%s\n' "$install_packages" | sort | uniq -d) ]] ||
@@ -73,11 +101,11 @@ if rg -n 'omarchy-(pkg|system)-(add|drop|reboot)' \
   --glob '!native-paths'; then
   fail "native gaming owner still calls a compatibility helper"
 fi
-if rg -n 'omarchy-(install|remove)-gaming-(retroarch|xbox-controllers)' \
+if rg -n 'omarchy-(install|remove)-gaming-(retroarch|xbox-controllers)|omarchy-toggle-hybrid-gpu' \
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces still call gaming compatibility routes"
 fi
 
-printf 'ok - gaming owners preserve user data and exact driver state\n'
+printf 'ok - gaming owners preserve user data and transactional driver state\n'

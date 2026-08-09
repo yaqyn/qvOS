@@ -1,0 +1,86 @@
+#!/bin/bash
+set -euo pipefail
+
+# qvos:contract=qvcore/gaming/hybrid-gpu-install-root
+# qvos:contract=qvcore/gaming/hybrid-gpu-apply
+# qvos:contract=qvcore/gaming/hybrid-gpu-default.json
+# qvos:contract=qvcore/gaming/hybrid-gpu-delay.conf
+# qvos:contract=qvcore/gaming/hybrid-gpu-force-igpu
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+(($# == 0)) || {
+  echo "Usage: qv toggle hybrid gpu" >&2
+  exit 2
+}
+
+if ! qv-hw-hybrid-gpu; then
+  echo "Hybrid GPU switching requires a supported NVIDIA dGPU and integrated GPU." >&2
+  exit 1
+fi
+
+system_root=${QVOS_HYBRID_GPU_SYSTEM_ROOT:-}
+config_file="$system_root/etc/supergfxd.conf"
+install_root="$QVOS_PATH/qvcore/gaming/hybrid-gpu-install-root"
+root_owner="$system_root/usr/lib/qvos/gaming/hybrid-gpu/apply"
+target_mode=""
+prompt=""
+
+run_root_owner() {
+  local mode=$1
+  local status
+
+  "$install_root"
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    "$root_owner" "$mode" && return
+    status=$?
+  else
+    sudo -- "$root_owner" "$mode" && return
+    status=$?
+  fi
+  ((status == 10)) || return "$status"
+}
+
+if qv-pkg-missing supergfxctl; then
+  gum confirm \
+    "Install Hybrid GPU support in Hybrid mode and reboot?" || exit 130
+  qv-pkg-add supergfxctl
+  run_root_owner hybrid
+  echo "Hybrid GPU support is configured in Hybrid mode."
+  qv-system-reboot
+  exit 0
+fi
+
+pending_mode=$(supergfxctl -P 2>/dev/null || true)
+if [[ -n $pending_mode && $pending_mode != "None" ]]; then
+  printf 'A Hybrid GPU change to %s is already pending; reboot before changing it again.\n' \
+    "$pending_mode" >&2
+  exit 1
+fi
+
+gpu_mode=$(supergfxctl -g 2>/dev/null || true)
+if [[ -z $gpu_mode && -f $config_file && ! -L $config_file ]]; then
+  gpu_mode=$(jq -r '.mode // empty' "$config_file" 2>/dev/null || true)
+fi
+case $gpu_mode in
+Integrated)
+  target_mode=hybrid
+  prompt="Enable the dedicated GPU in Hybrid mode and reboot?"
+  ;;
+Hybrid)
+  target_mode=integrated
+  prompt="Use only the integrated GPU and reboot?"
+  ;;
+"")
+  target_mode=hybrid
+  prompt="Initialize Hybrid GPU support in Hybrid mode and reboot?"
+  ;;
+*)
+  printf 'Refusing to replace the current Hybrid GPU mode: %s\n' "$gpu_mode" >&2
+  exit 1
+  ;;
+esac
+
+gum confirm "$prompt" || exit 130
+run_root_owner "$target_mode"
+printf 'Hybrid GPU mode is configured for %s after reboot.\n' \
+  "${target_mode^}"
+qv-system-reboot

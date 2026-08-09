@@ -15,6 +15,10 @@ from unavailable hardware. Never mutate hardware, load modules, start
 services, or infer a capability from a malformed command response. Test
 hardware through `QVOS_HARDWARE_TESTING=1` and an absolute, non-linked
 `QVOS_HARDWARE_FIXTURE_ROOT`; no other source-root override is supported.
+Hybrid-GPU detection requires both Integrated and Hybrid in a successful
+`supergfxctl` capability response. If its daemon is unavailable, fall back only
+to one NVIDIA display controller plus one non-NVIDIA display controller; two
+arbitrary display devices are not sufficient for the NVIDIA-only switch owner.
 
 List every promoted inherited detector in `native-paths`, sorted and unique.
 Run `qvcore/hardware/check`, `test/qvcore/qvos-hardware-test.sh`, affected

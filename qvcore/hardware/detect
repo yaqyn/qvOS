@@ -99,6 +99,34 @@ nvidia_match() {
   return 1
 }
 
+hybrid_gpu() {
+  local supported_modes
+  local line
+  local normalized
+  local has_nvidia=false
+  local has_integrated=false
+
+  if qv-cmd-present supergfxctl; then
+    supported_modes=$(supergfxctl -s 2>/dev/null || true)
+    if [[ -n $supported_modes ]]; then
+      grep -Fqw -- 'Hybrid' <<<"$supported_modes" &&
+        grep -Fqw -- 'Integrated' <<<"$supported_modes"
+      return
+    fi
+  fi
+
+  while IFS= read -r line; do
+    normalized=${line,,}
+    [[ $normalized =~ (vga|3d|display) ]] || continue
+    if [[ $normalized == *"nvidia"* ]]; then
+      has_nvidia=true
+    else
+      has_integrated=true
+    fi
+  done < <(pci_output || true)
+  [[ $has_nvidia == "true" && $has_integrated == "true" ]]
+}
+
 external_monitors() {
   local status
   local connector
@@ -198,12 +226,7 @@ framework16)
   ;;
 hybrid-gpu)
   require_no_arguments "$@"
-  if qv-cmd-present supergfxctl; then
-    supergfxctl -s 2>/dev/null | grep -Fqw -- 'Hybrid'
-  else
-    count=$(pci_output | grep -ciE 'vga|3d|display' || true)
-    ((count >= 2))
-  fi
+  hybrid_gpu
   ;;
 intel)
   require_no_arguments "$@"

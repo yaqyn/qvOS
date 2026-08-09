@@ -224,7 +224,7 @@ show_toggle_menu() {
 show_hardware_menu() {
   local options="󰛧  Laptop Display\n 󰍹  Mirror Display"
 
-  if omarchy-hw-hybrid-gpu; then
+  if qv-hw-hybrid-gpu; then
     options="$options\n  Hybrid GPU"
   fi
 
@@ -246,7 +246,7 @@ show_hardware_menu() {
   *Haptics*) show_hardware_touchpad_haptics_menu ;;
   *Touchpad*) omarchy-toggle-touchpad ;;
   *Touchscreen*) omarchy-toggle-touchscreen ;;
-  *"Hybrid GPU"*) present_terminal omarchy-toggle-hybrid-gpu ;;
+  *"Hybrid GPU"*) present_terminal qv-toggle-hybrid-gpu ;;
   *) back_to show_trigger_menu ;;
   esac
 }
