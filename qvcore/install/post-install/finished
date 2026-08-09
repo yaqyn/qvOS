@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 install_log=${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}
 completion_marker=${QVOS_INSTALL_COMPLETION_MARKER:-/var/tmp/qvos-install-completed}
 tui="${QVOS_TUI_BIN:-}"
@@ -10,11 +9,37 @@ if [[ -z $tui ]]; then
   tui=$(command -v qvos-tui || true)
 fi
 
-remove_upstream_installer_sudoers() {
-  # The reviewed ISO builder creates this temporary compatibility policy.
-  if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
-    sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
-  fi
+remove_installer_sudoers() {
+  local actual
+  local expected
+  local policy
+
+  [[ -n ${USER:-} && $USER =~ ^[[:alnum:]_.@-]+$ ]] || {
+    echo "qvOS install: cannot validate the temporary installer policy user" >&2
+    return 1
+  }
+  printf -v expected \
+    '%s\n' \
+    'root ALL=(ALL:ALL) NOPASSWD: ALL' \
+    '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' \
+    "$USER ALL=(ALL:ALL) NOPASSWD: ALL"
+  expected=${expected%$'\n'}
+
+  for policy in \
+    /etc/sudoers.d/99-qvos-installer \
+    /etc/sudoers.d/99-omarchy-installer; do
+    sudo test -e "$policy" || sudo test -L "$policy" || continue
+    if sudo test -L "$policy" || ! sudo test -f "$policy"; then
+      printf 'qvOS install: unsafe installer policy: %s\n' "$policy" >&2
+      return 1
+    fi
+    actual=$(sudo cat -- "$policy") || return 1
+    [[ $actual == "$expected" ]] || {
+      printf 'qvOS install: modified installer policy: %s\n' "$policy" >&2
+      return 1
+    }
+    sudo rm -f -- "$policy" &>/dev/null
+  done
 }
 
 echo_in_style() {
@@ -34,7 +59,7 @@ mark_install_complete() {
 
 if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $tui && -x $tui ]]; then
   QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
-  remove_upstream_installer_sudoers
+  remove_installer_sudoers
   mark_install_complete
   exit 0
 fi
@@ -65,7 +90,7 @@ else
   echo_in_style "Finished installing"
 fi
 
-remove_upstream_installer_sudoers
+remove_installer_sudoers
 
 if ! gum confirm \
   --padding "0 0 0 $((${PADDING_LEFT:-0} + 32))" \

@@ -162,6 +162,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `omarchy-system-*` names remain external compatibility adapters only
 - `qvcore/boot/snapper-root.conf` owns the pre-update recovery policy installed
   by the Limine/Snapper boot owner; `default/snapper/` is retired
+- active boot presentation uses native `qvos` Plymouth, SDDM, session,
+  mkinitcpio, and UKI identities; exact `omarchy` boot artifacts are accepted
+  only as preservation-safe migration input and are removed after replacement
+  verification
 - `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
   `default/udev/` is retired
 - `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook;
@@ -271,6 +275,9 @@ Every qvOS change must leave one traceable lifecycle.
   through its native owner. The generic state compatibility route accepts only
   reviewed reboot and service-restart markers; it never recreates an active
   Omarchy state root.
+- Native installed identities use `qvos` or `qvOS`. An `omarchy` name remains
+  only at a documented compatibility frontend, exact installed-source link,
+  truthful upstream input, or credited package-provider boundary.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.

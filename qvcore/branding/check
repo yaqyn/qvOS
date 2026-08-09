@@ -156,10 +156,10 @@ identity_paths=(
   qvcore/install/preflight/guard.sh
   qvcore/boot/limine/default.conf
   qvcore/boot/limine/limine.conf
-  qvcore/boot/plymouth/omarchy.plymouth
-  qvcore/boot/plymouth/omarchy.script
+  qvcore/boot/plymouth/qvos.plymouth
+  qvcore/boot/plymouth/qvos.script
   qvcore/boot/sddm/metadata.desktop
-  qvcore/boot/wayland-sessions/omarchy.desktop
+  qvcore/boot/wayland-sessions/qvos.desktop
   qvcore/install/helpers/errors
   qvcore/presentation/run
   qvcore/update/qvos-update
@@ -187,7 +187,7 @@ grep -Fqx 'NamePretty = "qvOS"' \
 grep -Fq '"qvOS Source"' "$root/qvcore/menu/elephant/qvos_menu.lua" ||
   fail "qvOS learning destination"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' \
-  "$root/qvcore/boot/wayland-sessions/omarchy.desktop" ||
+  "$root/qvcore/boot/wayland-sessions/qvos.desktop" ||
   fail "qvOS session label"
 grep -Fq 'Description=qvOS Battery Monitor Check' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||

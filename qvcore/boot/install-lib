@@ -115,3 +115,25 @@ qvos_boot_read_file() {
   qvos_boot_require_regular "$path" || return 1
   sudo cat -- "$path"
 }
+
+qvos_boot_remove_file_if_content() {
+  local path=$1
+  shift
+  local actual
+  local expected
+
+  qvos_boot_root_exists "$path" || return 0
+  if sudo test -L "$path" || ! sudo test -f "$path"; then
+    echo "Preserving modified or unsafe legacy boot artifact: $path" >&2
+    return 0
+  fi
+  actual=$(sudo cat -- "$path") || return 1
+  for expected in "$@"; do
+    if [[ $actual == "$expected" ]]; then
+      sudo rm -f -- "$path"
+      return
+    fi
+  done
+
+  echo "Preserving modified or unsafe legacy boot artifact: $path" >&2
+}

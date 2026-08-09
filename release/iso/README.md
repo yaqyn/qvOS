@@ -83,8 +83,10 @@ the previous one.
   together.
 - Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
   menu. All displayed product, entry, publisher, and application names must say
-  `qvOS`; inherited internal compatibility identifiers may remain lowercase
-  `omarchy` only when they are not shown as branding.
+  `qvOS`. Confirm the live and installed Plymouth, SDDM, session, hostname, and
+  UKI identities use `qvos` or `qvOS`; `omarchy` may remain only in truthful
+  package-provider inputs, upstream environment contracts, and the exact
+  installed-source compatibility link.
 - Inspect the rendered Syslinux splash and menu palette. Its background is
   exact black, its artwork and text are neutral grayscale, and no inherited
   Arch blue or red accent remains in this bootloader path.

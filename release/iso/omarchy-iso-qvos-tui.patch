@@ -1,5 +1,5 @@
 diff --git builder/build-iso.sh builder/build-iso.sh
-index 3680a8c..3ac752c 100755
+index 3680a8c..d780e4d 100755
 --- builder/build-iso.sh
 +++ builder/build-iso.sh
 @@ -4,20 +4,52 @@ set -e
@@ -26,7 +26,7 @@ index 3680a8c..3ac752c 100755
  
 -# Install omarchy-keyring for package verification during build
 -pacman --config /configs/pacman-online-${OMARCHY_MIRROR}.conf --noconfirm -Sy omarchy-keyring
-+# Resolve the exact signed qvOS provider inputs before the first Omarchy package.
++# Resolve the exact signed qvOS provider inputs before the first provider package.
 +qvos_source=/qvos
 +provider_output=$(OMARCHY_CHROOT_INSTALL=1 \
 +  "$qvos_source/qvcore/packages/provider-files" "$OMARCHY_MIRROR")
@@ -109,13 +109,13 @@ index 3680a8c..3ac752c 100755
 -# Make log uploader available in the ISO too
 -mkdir -p "$build_cache_dir/airootfs/usr/local/bin/"
 -cp "$build_cache_dir/airootfs/root/omarchy/bin/omarchy-upload-log" "$build_cache_dir/airootfs/usr/local/bin/omarchy-upload-log"
--
++# Copy the native qvOS Plymouth theme to the ISO.
++mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/qvos"
++cp -r "$build_cache_dir/airootfs/root/qvos/qvcore/boot/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/qvos/"
+ 
 -# Copy the Omarchy Plymouth theme to the ISO
-+# Copy the qvOS Plymouth theme to the ISO
- mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
+-mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy"
 -cp -r "$build_cache_dir/airootfs/root/omarchy/default/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy/"
-+cp -r "$build_cache_dir/airootfs/root/qvos/qvcore/boot/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/omarchy/"
-+
 +# Replace inherited Arch artwork with the qvOS grayscale BIOS boot splash.
 +cp "$build_cache_dir/airootfs/root/qvos/release/iso/syslinux-splash.png" \
 +  "$build_cache_dir/syslinux/splash.png"
@@ -277,8 +277,19 @@ index c40726e..8e85205 100644
 -archiso_image="/boot/initramfs-linux-t2.img"
 -
 +archiso_image="/boot/initramfs-linux.img"
+diff --git configs/airootfs/etc/plymouth/plymouthd.conf configs/airootfs/etc/plymouth/plymouthd.conf
+index fbdb629..72f19e8 100644
+--- configs/airootfs/etc/plymouth/plymouthd.conf
++++ configs/airootfs/etc/plymouth/plymouthd.conf
+@@ -1,3 +1,3 @@
+ [Daemon]
+-Theme=omarchy
+-ShowDelay=0
+\ No newline at end of file
++Theme=qvos
++ShowDelay=0
 diff --git configs/airootfs/root/.automated_script.sh configs/airootfs/root/.automated_script.sh
-index 7566803..45d49fc 100644
+index 7566803..068980c 100644
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
 @@ -1,68 +1,125 @@
@@ -446,7 +457,7 @@ index 7566803..45d49fc 100644
  
      # Set default foreground and background
      echo -en "\033[0m"
-@@ -164,14 +221,14 @@ install_base_system() {
+@@ -164,32 +221,32 @@ install_base_system() {
    cp /etc/pacman.conf /mnt/etc/pacman.conf
  
    # Mount the offline mirror so it's accessible in the chroot
@@ -462,11 +473,14 @@ index 7566803..45d49fc 100644
 -  # No need to ask for sudo during the installation (omarchy itself responsible for removing after install)
 +  # qvOS removes this temporary installer policy before allowing reboot.
    mkdir -p /mnt/etc/sudoers.d
-   cat >/mnt/etc/sudoers.d/99-omarchy-installer <<EOF
+-  cat >/mnt/etc/sudoers.d/99-omarchy-installer <<EOF
++  cat >/mnt/etc/sudoers.d/99-qvos-installer <<EOF
  root ALL=(ALL:ALL) NOPASSWD: ALL
-@@ -180,16 +237,16 @@ $OMARCHY_USER ALL=(ALL:ALL) NOPASSWD: ALL
+ %wheel ALL=(ALL:ALL) NOPASSWD: ALL
+ $OMARCHY_USER ALL=(ALL:ALL) NOPASSWD: ALL
  EOF
-   chmod 440 /mnt/etc/sudoers.d/99-omarchy-installer
+-  chmod 440 /mnt/etc/sudoers.d/99-omarchy-installer
++  chmod 440 /mnt/etc/sudoers.d/99-qvos-installer
  
 -  # Copy the local omarchy repo to the user's home directory
 -  mkdir -p /mnt/home/$OMARCHY_USER/.local/share/
@@ -488,7 +502,34 @@ index 7566803..45d49fc 100644
  }
  
  configure_login_for_unencrypted_install() {
-@@ -227,8 +284,8 @@ EOF
+@@ -201,14 +258,11 @@ configure_login_for_unencrypted_install() {
+   # before reaching the desktop. Omarchy's normal encrypted path may autologin
+   # because the disk password was already entered at boot.
+   #
+-  # Keep the Omarchy SDDM theme and seed SDDM's last user/session state so
+-  # first boot looks like the SDDM screen shown after logging out of Omarchy.
++  # Keep the native qvOS SDDM theme and seed the last user/session state so
++  # first boot looks like the qvOS SDDM screen shown after logging out.
+   mkdir -p /mnt/etc/sddm.conf.d
+   rm -f /mnt/etc/sddm.conf.d/autologin.conf
+-  cat >/mnt/etc/sddm.conf.d/99-omarchy-login.conf <<EOF
+-[Theme]
+-Current=omarchy
+-
++  cat >/mnt/etc/sddm.conf.d/99-qvos-login.conf <<EOF
+ [Users]
+ RememberLastUser=true
+ RememberLastSession=true
+@@ -217,7 +271,7 @@ EOF
+   mkdir -p /mnt/var/lib/sddm
+   cat >/mnt/var/lib/sddm/state.conf <<EOF
+ [Last]
+-Session=omarchy.desktop
++Session=qvos.desktop
+ User=$OMARCHY_USER
+ EOF
+ 
+@@ -227,8 +281,8 @@ EOF
  }
  
  chroot_bash() {
@@ -499,7 +540,7 @@ index 7566803..45d49fc 100644
      env OMARCHY_CHROOT_INSTALL=1 \
      OMARCHY_USER_NAME="$(<user_full_name.txt)" \
      OMARCHY_USER_EMAIL="$(<user_email_address.txt)" \
-@@ -239,8 +296,8 @@ chroot_bash() {
+@@ -239,8 +293,8 @@ chroot_bash() {
  }
  
  if [[ $(tty) == "/dev/tty1" ]]; then
@@ -511,7 +552,7 @@ index 7566803..45d49fc 100644
 +  install_qvos
  fi
 diff --git configs/airootfs/root/configurator configs/airootfs/root/configurator
-index 93bccbd..b86b51d 100644
+index 93bccbd..c28c1b7 100644
 --- configs/airootfs/root/configurator
 +++ configs/airootfs/root/configurator
 @@ -1,7 +1,8 @@
@@ -525,6 +566,30 @@ index 93bccbd..b86b51d 100644
  
  # Ensure tzupdate is available for guessing timezone
  command -v tzupdate >/dev/null || sudo pacman -Sy --noconfirm tzupdate
+@@ -128,12 +129,12 @@ user_form() {
+   email_address=$(gum input --placeholder "Used for git authentication (hit return to skip)" --prompt.foreground="#845DF9" --prompt "Email address> ")
+ 
+   while true; do
+-    hostname=$(gum input --placeholder "Letters, digits, and dashes (or return for 'omarchy')" --prompt.foreground="#845DF9" --prompt "Hostname> ")
++    hostname=$(gum input --placeholder "Letters, digits, and dashes (or return for 'qvOS')" --prompt.foreground="#845DF9" --prompt "Hostname> ")
+ 
+     if [[ "$hostname" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]]; then
+       break
+     elif [[ -z $hostname ]]; then
+-      hostname="omarchy"
++      hostname="qvOS"
+       break
+     else
+       notice "Hostname must be 1-63 letters, digits, or dashes, and cannot start or end with a dash" 1
+@@ -235,7 +236,7 @@ get_root_disk() {
+ }
+ 
+ disk_form() {
+-  step "Let's select where to install Omarchy..."
++  step "Let's select where to install qvOS..."
+ 
+   # Don't offer the install media as an option (Arch ISO mounts it here)
+   local boot_source
 @@ -357,12 +358,8 @@ boot_partition_size=$((2 * gib))
  main_partition_start=$((boot_partition_size + boot_partition_start))
  main_partition_size=$((disk_size_in_mib - main_partition_start - gpt_backup_reserve))

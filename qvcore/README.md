@@ -171,9 +171,11 @@ and generated residue, update every consumer, and guard both the new identity
 and cleanup path in focused tests. The installed source is now canonical at
 `~/.local/share/qvos`; the exact relative `omarchy -> qvos` link is its only
 source-root compatibility seam. Generated runtime payloads live under
-`~/.local/lib/qvos`, never inside the checkout. Boot, config, and remaining
-upstream ABI names stay unchanged until their complete lifecycles can move
-safely together.
+`~/.local/lib/qvos`, never inside the checkout. Boot presentation now uses
+native `qvos` Plymouth, SDDM, session, mkinitcpio, and UKI identities; exact
+legacy boot artifacts are accepted only as preservation-safe migration input.
+Remaining upstream ABI names stay unchanged until their complete lifecycles
+can move safely together.
 
 Update and restart intent lives privately under `~/.local/state/qvos/update`.
 The native state owner accepts only reboot and validated service-restart

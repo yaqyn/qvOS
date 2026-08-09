@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
@@ -32,15 +32,107 @@ usage() {
   exit 2
 }
 
+retire_legacy_theme() {
+  local kind=$1
+  local legacy_target
+  local source_file
+  local source_name
+  local target_name
+  local actual
+  local expected
+  local index
+  local normalized
+  local -a actual_names=()
+  local -a expected_names=()
+
+  legacy_target=$(qvos_boot_path "/usr/share/$kind/themes/omarchy")
+  qvos_boot_root_exists "$legacy_target" || return 0
+  if sudo test -L "$legacy_target" || ! sudo test -d "$legacy_target"; then
+    echo "Preserving modified or unsafe legacy boot theme: $legacy_target" >&2
+    return 0
+  fi
+  if [[ -n $(sudo find "$legacy_target" -mindepth 1 -maxdepth 1 ! -type f -print -quit) ]]; then
+    echo "Preserving modified or unsafe legacy boot theme: $legacy_target" >&2
+    return 0
+  fi
+
+  mapfile -d '' -t actual_names < <(
+    sudo find "$legacy_target" -mindepth 1 -maxdepth 1 -type f -printf '%f\0' |
+      sort -z
+  )
+  for source_file in "${payloads[@]}"; do
+    source_name=${source_file##*/}
+    case $source_name in
+    qvos.plymouth) target_name=omarchy.plymouth ;;
+    qvos.script) target_name=omarchy.script ;;
+    *) target_name=$source_name ;;
+    esac
+    expected_names+=("$target_name")
+  done
+  mapfile -t expected_names < <(printf '%s\n' "${expected_names[@]}" | sort)
+  if (( ${#actual_names[@]} != ${#expected_names[@]} )); then
+    echo "Preserving modified legacy boot theme: $legacy_target" >&2
+    return 0
+  fi
+  for index in "${!expected_names[@]}"; do
+    if [[ ${actual_names[$index]} != "${expected_names[$index]}" ]]; then
+      echo "Preserving modified legacy boot theme: $legacy_target" >&2
+      return 0
+    fi
+  done
+
+  for source_file in "${payloads[@]}"; do
+    source_name=${source_file##*/}
+    case $source_name in
+    qvos.plymouth)
+      target_name=omarchy.plymouth
+      expected=$(sed \
+        -e 's#/themes/qvos#/themes/omarchy#g' \
+        -e 's/qvos\.script/omarchy.script/g' \
+        "$source_file")
+      actual=$(qvos_boot_read_file "$legacy_target/$target_name") || return 1
+      [[ $actual == "$expected" ]] || {
+        echo "Preserving modified legacy boot theme: $legacy_target" >&2
+        return 0
+      }
+      ;;
+    qvos.script)
+      target_name=omarchy.script
+      expected=$(<"$source_file")
+      actual=$(qvos_boot_read_file "$legacy_target/$target_name") || return 1
+      case ${actual%%$'\n'*} in
+      '# qvOS Plymouth Theme Script' | '# Omarchy Plymouth Theme Script' | '# qvOS Plymouth theme script')
+        normalized="# qvOS Plymouth theme script"$'\n'"${actual#*$'\n'}"
+        ;;
+      *) normalized=$actual ;;
+      esac
+      [[ $normalized == "$expected" ]] || {
+        echo "Preserving modified legacy boot theme: $legacy_target" >&2
+        return 0
+      }
+      ;;
+    *)
+      target_name=$source_name
+      if ! sudo cmp -s -- "$source_file" "$legacy_target/$target_name"; then
+        echo "Preserving modified legacy boot theme: $legacy_target" >&2
+        return 0
+      fi
+      ;;
+    esac
+  done
+
+  sudo rm -rf -- "$legacy_target"
+}
+
 (( $# == 1 )) || usage
 case $1 in
 plymouth)
   source_dir="$QVOS_PATH/qvcore/boot/plymouth"
-  target=$(qvos_boot_path /usr/share/plymouth/themes/omarchy)
+  target=$(qvos_boot_path /usr/share/plymouth/themes/qvos)
   ;;
 sddm)
   source_dir="$QVOS_PATH/qvcore/boot/sddm"
-  target=$(qvos_boot_path /usr/share/sddm/themes/omarchy)
+  target=$(qvos_boot_path /usr/share/sddm/themes/qvos)
   ;;
 *) usage ;;
 esac
@@ -94,7 +186,27 @@ if ! sudo mv -- "$staging" "$target"; then
 fi
 staging=
 
+case $1 in
+plymouth)
+  sudo plymouth-set-default-theme qvos
+  ;;
+sddm)
+  qvos_boot_install_text \
+    0644 \
+    "$(qvos_boot_path /etc/sddm.conf.d/qvos.conf)" \
+    $'[Theme]\nCurrent=qvos\n'
+  qvos_boot_remove_file_if_content \
+    "$(qvos_boot_path /etc/sddm.conf.d/zz-omarchy.conf)" \
+    $'[Theme]\nCurrent=omarchy'
+  qvos_boot_remove_file_if_content \
+    "$(qvos_boot_path /etc/sddm.conf.d/zz-qvos-sddm.conf)" \
+    $'[Theme]\nCurrent=qvos'
+  ;;
+esac
+
 if [[ -n $backup ]]; then
   sudo rm -rf -- "$backup"
   backup=
 fi
+
+retire_legacy_theme "$1"

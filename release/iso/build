@@ -358,6 +358,40 @@ validate_staged_iso() {
     echo "qvos-build staged a retired internal source or cache path." >&2
     return 1
   fi
+  if rg -n \
+    '/themes/omarchy|Theme=omarchy|Current=omarchy|Session=omarchy(\.desktop)?|99-omarchy-(login|installer)|hostname="omarchy"|install Omarchy' \
+    "$builder" \
+    "$configs/airootfs/etc/plymouth/plymouthd.conf" \
+    "$installer" \
+    "$configurator"; then
+    echo "qvos-build staged a retired internal boot or installer identity." >&2
+    return 1
+  fi
+  grep -Fq '/usr/share/plymouth/themes/qvos' "$builder" || {
+    echo "qvos-build staged Plymouth outside the native qvOS theme path." >&2
+    return 1
+  }
+  grep -Fqx 'Theme=qvos' \
+    "$configs/airootfs/etc/plymouth/plymouthd.conf" || {
+    echo "qvos-build staged a non-native Plymouth theme selection." >&2
+    return 1
+  }
+  grep -Fq '/etc/sudoers.d/99-qvos-installer' "$installer" || {
+    echo "qvos-build staged a non-native temporary installer policy." >&2
+    return 1
+  }
+  grep -Fq '/etc/sddm.conf.d/99-qvos-login.conf' "$installer" || {
+    echo "qvos-build staged a non-native SDDM login policy." >&2
+    return 1
+  }
+  if rg -n '^Current=' "$installer"; then
+    echo "qvos-build staged duplicate SDDM theme ownership in the ISO layer." >&2
+    return 1
+  fi
+  grep -Fqx 'Session=qvos.desktop' "$installer" || {
+    echo "qvos-build staged a non-native SDDM session selection." >&2
+    return 1
+  }
   grep -Fq 'package_file.sig' "$builder" || {
     echo "qvos-build staged an offline mirror that does not retain package signatures." >&2
     return 1

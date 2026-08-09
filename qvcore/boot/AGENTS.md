@@ -27,11 +27,13 @@ session, Wayland compositor config, autologin compatibility, and PAM policy,
 then configure Limine and Snapper after the native keyring and hibernation
 leaves in `qvcore/boot/login/`. The hibernation leaf calls the native power
 owner with `--no-rebuild`, so the later Limine package step remains the only
-fresh-install UKI rebuild. Keep the internal `omarchy` session, theme, and UKI
-identifiers as upgrade ABI until a separately verified migration can rename
-installed state; they must never leak as visible product branding. Use the
-shared atomic theme sync owner for install and refresh so a failed copy restores
-the prior theme.
+fresh-install UKI rebuild. Active Plymouth, SDDM, session, mkinitcpio, and UKI
+identifiers use `qvos`. Legacy `omarchy` boot artifacts are migration input
+only: create and verify the native replacement first, remove an old theme or
+config only when its complete content is recognized, and preserve modified or
+unsafe artifacts with a warning. The shared atomic theme sync owner installs
+the new payload, switches its Plymouth or SDDM selector, and only then retires
+recognized legacy content; a failed copy restores the prior native theme.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed
@@ -41,6 +43,13 @@ root-only Snapper policy from `qvcore/boot/snapper-root.conf` and disabled
 btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
 require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
 non-writable permissions before redirecting any system path.
+
+`qvcore/boot/migrate-identity` is the singular existing-system convergence
+owner and is called by its numeric native migration. It reuses the fresh-install
+owners in their normal order so Plymouth selects `qvos` before the one Limine
+rebuild. A qvOS UKI must exist as a regular file before generated legacy UKIs
+are removed. Keep the old EFI label only as exact removal detection in the
+direct-boot owner; never select an old UKI when creating a new entry.
 
 - Keep the Limine screen center-only on exact black: explicit empty branding,
   hidden interface help, no wallpaper, and no custom font or renderer fork.

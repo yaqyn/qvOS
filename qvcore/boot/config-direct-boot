@@ -52,7 +52,7 @@ if [[ -n $existing_entry ]]; then
 else
   mapfile -d '' -t uki_files < <(
     sudo find /boot/EFI/Linux/ -maxdepth 1 -type f \
-      -name "omarchy*.efi" -printf "%f\0" 2>/dev/null |
+      -name "qvos*.efi" -printf "%f\0" 2>/dev/null |
       sort -z
   )
   uki_file=${uki_files[0]:-}

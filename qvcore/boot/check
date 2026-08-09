@@ -100,6 +100,7 @@ for owner in \
   install-sddm \
   install-sddm-session \
   install-sddm-wayland \
+  migrate-identity \
   sync-theme; do
   [[ -x $root/qvcore/boot/$owner ]] || fail "native boot install owner mode: $owner"
 done
@@ -116,13 +117,17 @@ grep -Fq 'qvcore/boot/snapper-root.conf' \
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" plymouth' \
   "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"
+grep -Fq 'plymouth-set-default-theme qvos' \
+  "$root/qvcore/boot/sync-theme" || fail "native Plymouth selector owner"
 if rg -q 'mkinitcpio' "$root/qvcore/boot/install-plymouth"; then
   fail "fresh Plymouth stage performs a redundant image rebuild"
 fi
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" sddm' \
   "$root/qvcore/boot/install-sddm" || fail "fresh SDDM theme owner"
-grep -Fq 'qvcore/boot/wayland-sessions/omarchy.desktop' \
+grep -Fq '/etc/sddm.conf.d/qvos.conf' \
+  "$root/qvcore/boot/sync-theme" || fail "native SDDM selector owner"
+grep -Fq 'qvcore/boot/wayland-sessions/qvos.desktop' \
   "$root/qvcore/boot/install-sddm-session" || fail "fresh Wayland session owner"
 grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
@@ -142,6 +147,26 @@ compatibility_path_refs=$(
 if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2
   fail "native boot owner dereferences the compatibility source root"
+fi
+grep -Fqx 'CUSTOM_UKI_NAME="qvos"' "$root/qvcore/boot/limine/default.conf" ||
+  fail "native qvOS UKI identity"
+[[ -f $root/qvcore/boot/plymouth/qvos.plymouth &&
+  -f $root/qvcore/boot/plymouth/qvos.script &&
+  ! -e $root/qvcore/boot/plymouth/omarchy.plymouth &&
+  ! -e $root/qvcore/boot/plymouth/omarchy.script ]] ||
+  fail "native qvOS Plymouth identity"
+[[ -f $root/qvcore/boot/wayland-sessions/qvos.desktop &&
+  ! -e $root/qvcore/boot/wayland-sessions/omarchy.desktop ]] ||
+  fail "native qvOS session identity"
+grep -Fq '/etc/mkinitcpio.conf.d/qvos_hooks.conf' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "native qvOS mkinitcpio identity"
+grep -Fq -- '-name "qvos*.efi"' "$root/qvcore/boot/config-direct-boot" ||
+  fail "native qvOS direct-boot UKI selection"
+if rg -n \
+  'CUSTOM_UKI_NAME="omarchy"|plymouth-set-default-theme omarchy|-name "omarchy\*\.efi"' \
+  "$root/qvcore/boot" --glob '!AGENTS.md' --glob '!check'; then
+  fail "active boot identity still selects Omarchy"
 fi
 if rg -n \
   'omarchy-(config-direct-boot|plymouth-(preview|reset)|refresh-(limine|plymouth|sddm))|exec omarchy-plymouth-set([[:space:]]|$)' \

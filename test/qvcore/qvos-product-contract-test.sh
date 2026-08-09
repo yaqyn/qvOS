@@ -526,7 +526,7 @@ grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart qvOS components"' \
   "$root/qvcore/cli/qv" || fail "qvOS restart help"
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
   "$root/qvcore/cli/qv" || fail "qvOS toggle help"
-grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/omarchy.desktop" || fail "qvOS login session label"
+grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/qvos.desktop" || fail "qvOS login session label"
 grep -Fq 'Name = "qvosUnlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
   fail "qvOS unlock provider identity"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
@@ -958,7 +958,7 @@ grep -Fq '(qvOS|Omarchy)([[:space:]]|$)' "$root/qvcore/boot/config-direct-boot" 
 grep -Fq -- '--label "qvOS"' "$root/qvcore/boot/config-direct-boot" || fail "qvOS EFI label"
 grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qvcore/boot/limine/default.conf" || fail "qvOS Limine OS name"
 grep -Fxq 'interface_branding:' "$root/qvcore/boot/limine/limine.conf" || fail "qvOS Limine empty header"
-grep -Fq -- '-name "omarchy*.efi"' "$root/qvcore/boot/config-direct-boot" || fail "inherited Omarchy UKI filename"
+grep -Fq -- '-name "qvos*.efi"' "$root/qvcore/boot/config-direct-boot" || fail "native qvOS UKI filename"
 for retired_switcher in \
   bin/omarchy-branch-set \
   bin/omarchy-channel-set \
@@ -970,7 +970,7 @@ if rg -q 'omarchy-(branch-set|channel-set|update-branch)|Update channel' \
   "$root/bin/omarchy" "$root/qvcore/menu"; then
   fail "unsupported installed source channel route"
 fi
-pass "visible system branding is qvOS while compatibility internals remain stable"
+pass "visible and boot identities are native while reviewed upstream interfaces remain explicit"
 
 for retired_duplicate in \
   qvcore/diagnostics/debug \
@@ -1043,7 +1043,9 @@ install -m 0755 /dev/stdin "$test_bin/qv-launch-walker" <<'SCRIPT'
 #!/bin/bash
 {
   printf '%s\n' "$*"
-  cat
+  if [[ " $* " == *' --dmenu '* ]]; then
+    cat
+  fi
 } >>"$QVOS_TEST_MENU_LOG"
 SCRIPT
 
@@ -1272,15 +1274,15 @@ grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/issues' \
   "$root/qvcore/install/helpers/errors" || fail "qvOS installer support route"
 [[ ! -e $root/qvcore/install/helpers/error-title ]] ||
   fail "duplicate installer error title"
-grep -qx 'Name=Yaqyn' "$root/qvcore/boot/plymouth/omarchy.plymouth" || fail "Plymouth theme identity"
+grep -qx 'Name=Yaqyn' "$root/qvcore/boot/plymouth/qvos.plymouth" || fail "Plymouth theme identity"
 grep -qx 'ConsoleLogBackgroundColor=0x1a1b26' \
-  "$root/qvcore/boot/plymouth/omarchy.plymouth" ||
+  "$root/qvcore/boot/plymouth/qvos.plymouth" ||
   fail "Plymouth promoted live console background"
 grep -qx 'Window.SetBackgroundTopColor(0.035, 0.035, 0.035);' \
-  "$root/qvcore/boot/plymouth/omarchy.script" ||
+  "$root/qvcore/boot/plymouth/qvos.script" ||
   fail "Plymouth promoted live top background"
 grep -qx 'Window.SetBackgroundBottomColor(0.035, 0.035, 0.035);' \
-  "$root/qvcore/boot/plymouth/omarchy.script" ||
+  "$root/qvcore/boot/plymouth/qvos.script" ||
   fail "Plymouth promoted live bottom background"
 command -v magick >/dev/null 2>&1 || fail "Plymouth asset color verifier"
 [[ $(magick "$root/qvcore/boot/plymouth/bullet.png" -depth 8 -format '%[hex:p{7,7}]' info:) == "505050FF" ]] ||

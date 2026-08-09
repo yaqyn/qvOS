@@ -152,8 +152,9 @@ while IFS= read -r -d '' entry; do
   fi
 done < <(
   find "$resolved_theme" \
+    -mindepth 1 \
     \( -path "$resolved_theme/.git" -type d -prune \) -o \
-    -mindepth 1 -print0
+    -print0
 )
 
 colors_file="$resolved_theme/colors.toml"

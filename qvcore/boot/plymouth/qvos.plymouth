@@ -4,8 +4,8 @@ Description=Yaqyn unlock and boot screen.
 ModuleName=script
 
 [script]
-ImageDir=/usr/share/plymouth/themes/omarchy
-ScriptFile=/usr/share/plymouth/themes/omarchy/omarchy.script
+ImageDir=/usr/share/plymouth/themes/qvos
+ScriptFile=/usr/share/plymouth/themes/qvos/qvos.script
 ConsoleLogBackgroundColor=0x1a1b26
 MonospaceFont=Cantarell 11
 Font=Cantarell 11

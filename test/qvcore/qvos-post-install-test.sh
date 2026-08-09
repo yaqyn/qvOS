@@ -8,6 +8,7 @@ test_install="$test_qvos/qvcore/install"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 completion_marker="$test_root/install-completed"
+sudoers_root="$test_root/sudoers.d"
 
 cleanup() {
   rm -rf -- "$test_root"
@@ -76,10 +77,29 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 #!/bin/bash
 printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
-if [[ ${1:-} == "test" ]]; then
-  exit 1
-fi
-exit 0
+
+map_policy() {
+  local path=$1
+
+  [[ $path == /etc/sudoers.d/* ]] || return 1
+  printf '%s/%s\n' "$QVOS_TEST_SUDOERS_ROOT" "${path##*/}"
+}
+
+case ${1:-} in
+test)
+  mapped=$(map_policy "${3:-}") || exit 1
+  test "$2" "$mapped"
+  ;;
+cat)
+  mapped=$(map_policy "${3:-}") || exit 1
+  cat -- "$mapped"
+  ;;
+rm)
+  mapped=$(map_policy "${4:-}") || exit 1
+  rm -f -- "$mapped"
+  ;;
+*) exit 0 ;;
+esac
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
@@ -88,7 +108,10 @@ exit "${QVOS_TEST_GUM_STATUS:-1}"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/tte" <<'SCRIPT'
 #!/bin/bash
-input=$(cat)
+input=
+if [[ " $* " != *' -i '* ]]; then
+  input=$(cat)
+fi
 printf 'tte:%s:%s\n' "$*" "$input" >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/clear" <<'SCRIPT'
@@ -102,15 +125,28 @@ run_finished() {
     QVOS_INSTALL_LOG_FILE="$test_root/install.log" \
     QVOS_INSTALL_COMPLETION_MARKER="$completion_marker" \
     QVOS_TEST_EVENT_LOG="$event_log" \
+    QVOS_TEST_SUDOERS_ROOT="$sudoers_root" \
+    USER="$(id -un)" \
     PATH="$test_bin:/usr/bin" \
     "$test_qvos/qvcore/install/post-install/finished"
 }
 
+install -d "$sudoers_root"
+for policy in 99-qvos-installer 99-omarchy-installer; do
+  printf '%s\n' \
+    'root ALL=(ALL:ALL) NOPASSWD: ALL' \
+    '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' \
+    "$(id -un) ALL=(ALL:ALL) NOPASSWD: ALL" \
+    >"$sudoers_root/$policy"
+done
 : >"$event_log"
 OMARCHY_CHROOT_INSTALL=1 \
 QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null
 [[ -f $completion_marker ]] || fail "ISO completion marker"
+[[ ! -e $sudoers_root/99-qvos-installer &&
+  ! -e $sudoers_root/99-omarchy-installer ]] ||
+  fail "ISO temporary installer policy cleanup"
 grep -Fqx 'tui:1:--iso-finished' "$event_log" ||
   fail "ISO finished TUI"
 if grep -Fq 'gum:' "$event_log"; then
@@ -158,5 +194,16 @@ if OMARCHY_CHROOT_INSTALL=1 \
 fi
 [[ ! -e $symlink_target ]] ||
   fail "ISO completion followed a symbolic-link marker"
+
+rm -f -- "$completion_marker"
+printf 'modified\n' >"$sudoers_root/99-qvos-installer"
+if OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_TUI_BIN="$test_bin/qvos-tui" \
+  run_finished >/dev/null 2>&1; then
+  fail "modified ISO installer policy was accepted"
+fi
+[[ ! -e $completion_marker &&
+  $(<"$sudoers_root/99-qvos-installer") == "modified" ]] ||
+  fail "modified ISO installer policy did not fail closed"
 
 printf 'ok - qvOS singularly owns post-install order and both finished paths\n'

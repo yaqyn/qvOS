@@ -1,19 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 (( $# == 0 )) || {
   echo "Usage: qv refresh limine" >&2
   exit 2
 }
 
-machine_id=$(</etc/machine-id)
-extra_uki="/boot/EFI/Linux/${machine_id}_linux.efi"
-if sudo test -f /boot/EFI/Linux/omarchy_linux.efi && sudo test -f "$extra_uki"; then
-  echo "Cleanup extra UKI"
-  sudo rm -f -- "$extra_uki"
-fi
 echo "Resetting limine config"
 
 if sudo test -f /boot/limine.conf; then
@@ -26,4 +20,25 @@ sudo install -m 0644 \
   /boot/limine.conf
 
 sudo limine-update
+if [[ -d /sys/firmware/efi ]]; then
+  qvos_uki=/boot/EFI/Linux/qvos_linux.efi
+  if sudo test -L "$qvos_uki" || ! sudo test -f "$qvos_uki" ||
+    ! sudo test -s "$qvos_uki"; then
+    echo "Error: failed to create the qvOS UKI at $qvos_uki" >&2
+    exit 1
+  fi
+
+  machine_id=$(</etc/machine-id)
+  for legacy_uki in \
+    /boot/EFI/Linux/omarchy_linux.efi \
+    "/boot/EFI/Linux/${machine_id}_linux.efi"; do
+    if sudo test -e "$legacy_uki" || sudo test -L "$legacy_uki"; then
+      if sudo test -L "$legacy_uki" || ! sudo test -f "$legacy_uki"; then
+        echo "Preserving modified or unsafe legacy UKI: $legacy_uki" >&2
+      else
+        sudo rm -f -- "$legacy_uki"
+      fi
+    fi
+  done
+fi
 sudo limine-snapper-sync

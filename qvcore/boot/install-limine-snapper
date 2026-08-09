@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
@@ -83,19 +83,26 @@ install_limine() {
   local efi=false
   local efi_output
   local hooks_config
+  local legacy_hooks_config
+  local legacy_uki
   local limine_config=
+  local qvos_hooks_content
+  local qvos_uki
   local snapper_config
   local snapper_configs
   local thunderbolt_config
   local -a candidates
   local -a dropins=()
 
-  hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/omarchy_hooks.conf)
+  qvos_hooks_content=$'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
+  hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/qvos_hooks.conf)
+  legacy_hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/omarchy_hooks.conf)
   thunderbolt_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/thunderbolt_module.conf)
   qvos_boot_install_text \
     0644 \
     "$hooks_config" \
-    $'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
+    "$qvos_hooks_content"
+  qvos_boot_remove_file_if_content "$legacy_hooks_config" "${qvos_hooks_content%$'\n'}"
   qvos_boot_install_text \
     0644 \
     "$thunderbolt_config" \
@@ -204,14 +211,33 @@ install_limine() {
 
   restore_mkinitcpio_hooks
 
+  qvos_uki=$(qvos_boot_path /boot/EFI/Linux/qvos_linux.efi)
   # Package hooks normally build the UKI and entries once. Rebuild only if the
-  # installed config proves that did not happen.
-  if ! sudo grep -q '^/+' "$boot_config"; then
+  # installed artifacts prove that did not happen.
+  if ! sudo grep -q '^/+' "$boot_config" ||
+    [[ $efi == "true" ]] &&
+      { ! qvos_boot_root_exists "$qvos_uki" || ! sudo test -s "$qvos_uki"; }; then
     sudo limine-update
   fi
   if ! sudo grep -q '^/+' "$boot_config"; then
     echo "Error: failed to add boot entries to $boot_config" >&2
     return 1
+  fi
+  if [[ $efi == "true" ]]; then
+    if ! qvos_boot_root_exists "$qvos_uki" ||
+      ! qvos_boot_require_regular "$qvos_uki" || ! sudo test -s "$qvos_uki"; then
+      echo "Error: failed to create the qvOS UKI at $qvos_uki" >&2
+      return 1
+    fi
+
+    legacy_uki=$(qvos_boot_path /boot/EFI/Linux/omarchy_linux.efi)
+    if qvos_boot_root_exists "$legacy_uki"; then
+      if sudo test -L "$legacy_uki" || ! sudo test -f "$legacy_uki"; then
+        echo "Preserving modified or unsafe legacy UKI: $legacy_uki" >&2
+      else
+        sudo rm -f -- "$legacy_uki"
+      fi
+    fi
   fi
 
   if [[ $efi == "true" ]] && command -v efibootmgr &>/dev/null; then

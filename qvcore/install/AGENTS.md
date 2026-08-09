@@ -75,10 +75,10 @@ source-root compatibility link.
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,
 `QVOS_ONLINE_INSTALL`, `/var/tmp/qvos-install-completed`, and the exact
-`99-qvos-installer-reboot` temporary policy. The reviewed ISO builder's
-`OMARCHY_CHROOT_INSTALL` and temporary `99-omarchy-installer` policy remain
-upstream compatibility inputs only; consume or remove them at that boundary
-without extending their names into qvOS-owned state.
+`99-qvos-installer` and `99-qvos-installer-reboot` temporary policies. The
+reviewed ISO builder's `OMARCHY_CHROOT_INSTALL` remains an upstream environment
+input only. The finished owner removes the native temporary policy and its
+exact legacy predecessor without extending either into persistent state.
 
 `qvcore/install/post-install/run` singularly owns the ordered post-install stage.
 Stop the install log before handing control to the finished presentation, and

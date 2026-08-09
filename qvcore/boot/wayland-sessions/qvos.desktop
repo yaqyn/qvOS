@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=qvOS (Hyprland uwsm)
-Comment=qvOS Hyprland session managed by uwsm
+Comment=qvOS Hyprland session managed by UWSM
 Exec=uwsm start -g -1 -e -D Hyprland hyprland.desktop
 TryExec=uwsm
 Type=Application

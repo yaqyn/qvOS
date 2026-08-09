@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 # Configure the Plymouth boot theme with a custom background color, text color, and logo.
 # Stages the change in a temp dir, then commits the staged files to /usr/share and
@@ -36,7 +36,7 @@ bg_r=$(awk -v n=$((16#${bg_hex:0:2})) 'BEGIN{printf "%.3f", n/255}')
 bg_g=$(awk -v n=$((16#${bg_hex:2:2})) 'BEGIN{printf "%.3f", n/255}')
 bg_b=$(awk -v n=$((16#${bg_hex:4:2})) 'BEGIN{printf "%.3f", n/255}')
 
-theme_dir="/usr/share/plymouth/themes/omarchy"
+theme_dir="/usr/share/plymouth/themes/qvos"
 staging_dir=$(mktemp -d)
 trap 'rm -rf "$staging_dir"' EXIT
 
@@ -46,14 +46,14 @@ cp "$logo_path" "$staging_dir/logo.png"
 sed -i \
   -e "s/^Window.SetBackgroundTopColor.*/Window.SetBackgroundTopColor($bg_r, $bg_g, $bg_b);/" \
   -e "s/^Window.SetBackgroundBottomColor.*/Window.SetBackgroundBottomColor($bg_r, $bg_g, $bg_b);/" \
-  "$staging_dir/omarchy.script"
+  "$staging_dir/qvos.script"
 
 for asset in bullet.png entry.png lock.png progress_bar.png; do
   magick "$staging_dir/$asset" -channel RGB +level-colors "#$text_hex,#$text_hex" "$staging_dir/$asset"
 done
 
 sudo cp -a "$staging_dir/." "$theme_dir/"
-sudo plymouth-set-default-theme omarchy
+sudo plymouth-set-default-theme qvos
 
 if qv-cmd-present limine-mkinitcpio; then
   sudo limine-mkinitcpio
@@ -62,7 +62,7 @@ else
 fi
 
 # Sync the SDDM login screen with the same colors and logo.
-sddm_dir="/usr/share/sddm/themes/omarchy"
+sddm_dir="/usr/share/sddm/themes/qvos"
 sddm_template="$QVOS_PATH/qvcore/boot/sddm/Main.qml"
 
 sed \

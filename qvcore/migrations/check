@@ -84,6 +84,10 @@ grep -Fqx '"$QVOS_PATH/qvcore/install/retire-inherited-system-policy"' \
 grep -Fqx '"$QVOS_PATH/qvcore/config/assistant/install"' \
   "$root/qvcore/migrations/1786270317.sh" ||
   fail "native assistant integration migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/boot/migrate-identity"' \
+  "$root/qvcore/migrations/1786276491.sh" ||
+  fail "native boot-identity migration"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

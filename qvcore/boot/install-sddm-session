@@ -1,20 +1,79 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}}
+QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
-session_target=$(qvos_boot_path /usr/local/share/wayland-sessions/omarchy.desktop)
+rewrite_sddm_identity_file() {
+  local target=$1
+  local current
+  local updated
+
+  qvos_boot_root_exists "$target" || return 0
+  current=$(qvos_boot_read_file "$target") || return 1
+  updated=$(
+    awk '
+      $0 == "Session=omarchy" || $0 == "Session=hyprland-uwsm" {
+        print "Session=qvos"
+        next
+      }
+      $0 == "Current=omarchy" {
+        print "Current=qvos"
+        next
+      }
+      $0 == "Session=omarchy.desktop" {
+        print "Session=qvos.desktop"
+        next
+      }
+      { print }
+    ' <<<"$current"
+  )
+  [[ $updated == "$current" ]] ||
+    qvos_boot_install_text 0644 "$target" "$updated"$'\n'
+}
+
+session_source="$QVOS_PATH/qvcore/boot/wayland-sessions/qvos.desktop"
+session_target=$(qvos_boot_path /usr/local/share/wayland-sessions/qvos.desktop)
 qvos_boot_install_file \
   0644 \
-  "$QVOS_PATH/qvcore/boot/wayland-sessions/omarchy.desktop" \
+  "$session_source" \
   "$session_target"
 
 autologin_config=$(qvos_boot_path /etc/sddm.conf.d/autologin.conf)
-if qvos_boot_root_exists "$autologin_config"; then
-  qvos_boot_require_regular "$autologin_config"
-  sudo sed -i \
-    's/^Session=hyprland-uwsm$/Session=omarchy/' \
-    "$autologin_config"
+rewrite_sddm_identity_file "$autologin_config"
+rewrite_sddm_identity_file "$(qvos_boot_path /var/lib/sddm/state.conf)"
+
+legacy_session=$(qvos_boot_path /usr/local/share/wayland-sessions/omarchy.desktop)
+qvos_session_content=$(<"$session_source")
+legacy_qvos_content=${qvos_session_content/UWSM/uwsm}
+legacy_omarchy_content=${legacy_qvos_content//qvOS/Omarchy}
+qvos_boot_remove_file_if_content \
+  "$legacy_session" \
+  "$qvos_session_content" \
+  "$legacy_qvos_content" \
+  "$legacy_omarchy_content"
+
+legacy_login=$(qvos_boot_path /etc/sddm.conf.d/99-omarchy-login.conf)
+qvos_login=$(qvos_boot_path /etc/sddm.conf.d/99-qvos-login.conf)
+legacy_login_content=$'[Theme]\nCurrent=omarchy\n\n[Users]\nRememberLastUser=true\nRememberLastSession=true'
+qvos_login_content=$'[Users]\nRememberLastUser=true\nRememberLastSession=true\n'
+if qvos_boot_root_exists "$legacy_login"; then
+  if [[ $(qvos_boot_read_file "$legacy_login") == "$legacy_login_content" ]]; then
+    retire_legacy_login=true
+    if qvos_boot_root_exists "$qvos_login"; then
+      if ! qvos_boot_require_regular "$qvos_login"; then
+        retire_legacy_login=false
+      fi
+    else
+      qvos_boot_install_text 0644 "$qvos_login" "$qvos_login_content"
+    fi
+    if [[ $retire_legacy_login == "true" ]]; then
+      qvos_boot_remove_file_if_content "$legacy_login" "$legacy_login_content"
+    else
+      echo "Preserving legacy SDDM login state until its native target is safe" >&2
+    fi
+  else
+    echo "Preserving modified or unsafe legacy boot artifact: $legacy_login" >&2
+  fi
 fi

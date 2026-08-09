@@ -65,7 +65,8 @@ a thin adapter to this owner.
   with neutral grayscale; only the installer TUI uses sparse qvOS red accents.
   Plymouth uses the canonical promoted live theme from
   `qvcore/boot/plymouth` with its graphite `#090909` graphical background and
-  exact promoted assets; never stage the inherited Omarchy Plymouth payload.
+  exact promoted assets under the native `qvos` theme identity; never stage the
+  inherited Omarchy Plymouth payload or select its retired theme name.
   Replace the inherited Arch Syslinux splash from
   `release/iso/syslinux-splash.png`, and verify every rendered boot/install pixel.
 - Preserve the boot setup, progress, and finale contract in `qvcore/tui/AGENTS.md`;
@@ -74,9 +75,11 @@ a thin adapter to this owner.
   milestone progress, single replacing log view, dim estimate/Help footer, and
   quiet finale in the live TTY.
 - Every user-visible live-media boot label, installed Limine label, volume
-  label, publisher, and application name says `qvOS`. Keep inherited lowercase
-  internal paths, command names, package names, and UKI filenames unchanged
-  when they are compatibility identifiers rather than displayed branding.
+  label, publisher, and application name says `qvOS`. Fresh images also use
+  native `qvos` host, Plymouth, SDDM, session, and UKI identifiers. Keep only
+  truthful upstream environment contracts, provider package names and URLs,
+  and the exact installed-source compatibility link; never recreate a retired
+  internal boot identity.
 - Progress renderers have one terminal owner at a time. Stop and wait for the
   live-media base-system TUI before entering the target PID namespace; start
   target-install progress inside that namespace, and stop and wait for it
