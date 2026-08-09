@@ -49,6 +49,9 @@ upstream manifest.
 
 Run `qvcore/branding/check`, `qvcore/config/check`, Bash syntax and ShellCheck,
 the branding, Fastfetch/runtime-root, screensaver, installer, CLI, menu, and
-product tests, then the full qvOS suite. After live alignment, run the branding
-owner, reconcile Fastfetch, verify permissions and residue, render Fastfetch,
-and inspect a fullscreen screenshot when the visible result changes.
+product tests, then the full qvOS suite. The branding check enforces upstream
+manifests when the development-only `upstream/master` ref is available and
+must remain usable in an installed source checkout without that ref. After live
+alignment, run the branding owner, reconcile Fastfetch, verify permissions and
+residue, render Fastfetch, and inspect a fullscreen screenshot when the visible
+result changes.

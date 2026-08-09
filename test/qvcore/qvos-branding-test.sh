@@ -21,6 +21,12 @@ fail() {
 
 "$root/qvcore/branding/check"
 
+portable_root="$test_root/portable-source"
+install -d "$portable_root"
+tar --exclude=.git -C "$root" -cf - . | tar -C "$portable_root" -xf -
+"$portable_root/qvcore/branding/check" >/dev/null ||
+  fail "installed-source branding check without upstream Git refs"
+
 install -d "$test_home/.config/omarchy/branding" "$test_bin"
 printf '\033[31mlegacy ANSI\033[0m\n' \
   >"$test_home/.config/omarchy/branding/about-fastfetch.ansi"
