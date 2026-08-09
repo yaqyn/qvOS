@@ -54,6 +54,32 @@ if [[ -d $HOME && ! -L $HOME && -O $HOME &&
   rmdir -- "$HOME/.config/hypr/qv" 2>/dev/null || true
 fi
 
+cleanup_retired_logo_font() {
+  local command_present="$install_dir/../cli/command-present"
+  local expected_hash=e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966
+  local font_dir="$HOME/.local/share/fonts"
+  local installed_hash
+  local target="$font_dir/omarchy.ttf"
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] || return 0
+  [[ -d $HOME/.local && ! -L $HOME/.local && -O $HOME/.local ]] || return 0
+  [[ -d $HOME/.local/share && ! -L $HOME/.local/share &&
+    -O $HOME/.local/share ]] || return 0
+  [[ -d $font_dir && ! -L $font_dir && -O $font_dir ]] || return 0
+  [[ -f $target && ! -L $target && -O $target ]] || return 0
+  installed_hash=$(sha256sum -- "$target")
+  installed_hash=${installed_hash%% *}
+  [[ $installed_hash == "$expected_hash" ]] || return 0
+
+  rm -f -- "$target"
+  if "$command_present" fc-cache &&
+    ! fc-cache -f -- "$font_dir" >/dev/null; then
+    printf 'Warning: removed the retired qvOS logo font, but could not refresh the font cache.\n' >&2
+  fi
+}
+
+cleanup_retired_logo_font
+
 cleanup_retired_nautilus_extension() {
   local expected_hash=$1
   local extension_name=$2

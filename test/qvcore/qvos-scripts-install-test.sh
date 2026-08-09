@@ -65,6 +65,43 @@ else
   fail "retired Nautilus fixture source"
 fi
 
+retired_font_hash=e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966
+[[ $(git -C "$root" show "$retired_source_ref:config/omarchy.ttf" | sha256sum) == \
+  "$retired_font_hash  -" ]] || fail "retired Waybar logo-font fixture"
+
+exact_font_home="$test_root/exact-font-home"
+install -d "$exact_font_home/.local/share/fonts"
+git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
+  install -m 0644 /dev/stdin "$exact_font_home/.local/share/fonts/omarchy.ttf"
+HOME="$exact_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
+  "$root/qvcore/install/cleanup-obsolete"
+[[ ! -e $exact_font_home/.local/share/fonts/omarchy.ttf ]] ||
+  fail "exact retired Waybar logo-font cleanup"
+pass "exact retired Waybar logo font is removed"
+
+modified_font_home="$test_root/modified-font-home"
+install -d "$modified_font_home/.local/share/fonts"
+git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
+  install -m 0644 /dev/stdin "$modified_font_home/.local/share/fonts/omarchy.ttf"
+printf 'user modification\n' >>"$modified_font_home/.local/share/fonts/omarchy.ttf"
+HOME="$modified_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
+  "$root/qvcore/install/cleanup-obsolete"
+[[ -f $modified_font_home/.local/share/fonts/omarchy.ttf ]] ||
+  fail "modified Waybar logo-font preservation"
+pass "modified retired Waybar logo font is preserved"
+
+linked_font_home="$test_root/linked-font-home"
+linked_font_target="$test_root/linked-font-target.ttf"
+install -d "$linked_font_home/.local/share/fonts"
+git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
+  install -m 0644 /dev/stdin "$linked_font_target"
+ln -s "$linked_font_target" "$linked_font_home/.local/share/fonts/omarchy.ttf"
+HOME="$linked_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
+  "$root/qvcore/install/cleanup-obsolete"
+[[ -L $linked_font_home/.local/share/fonts/omarchy.ttf &&
+  -f $linked_font_target ]] || fail "linked Waybar logo-font preservation"
+pass "linked retired Waybar logo font is preserved"
+
 unsafe_cleanup_home="$test_root/unsafe-cleanup-home"
 unsafe_nautilus_target="$test_root/foreign-nautilus"
 install -d \

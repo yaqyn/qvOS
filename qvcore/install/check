@@ -264,6 +264,18 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/webapps"' \
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/npx"' \
   "$root/qvcore/install/packaging/all.sh" || fail "native npx stage"
+for retired_font_owner in \
+  qvcore/config/files/omarchy.ttf \
+  qvcore/install/packaging/fonts.sh; do
+  [[ ! -e $root/$retired_font_owner && ! -L $root/$retired_font_owner ]] ||
+    fail "retired Waybar logo-font owner remains: $retired_font_owner"
+done
+! rg -q 'packaging/fonts\.sh|config/files/omarchy\.ttf' \
+  "$root/qvcore/install/packaging/all.sh" ||
+  fail "fresh install retains the retired Waybar logo font"
+grep -Fq 'e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966' \
+  "$root/qvcore/install/cleanup-obsolete" ||
+  fail "retired Waybar logo-font cleanup hash"
 for package_stage in preflight/pacman.sh post-install/pacman.sh; do
   grep -Fq 'qvcore/packages/provider-files' \
     "$root/qvcore/install/$package_stage" ||
