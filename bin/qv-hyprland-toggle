@@ -3,5 +3,5 @@
 # qv:summary=Toggle a managed Hyprland configuration flag
 # qv:args=[--enabled-notification <text>] [--disabled-notification <text>] <flag-name>
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/config/hyprland-toggle" "$@"

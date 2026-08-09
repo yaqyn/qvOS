@@ -145,7 +145,6 @@ run_software() {
   HOME="$test_home" \
     USER=qv \
     QVOS_PATH="$fixture" \
-    OMARCHY_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     "$@"
@@ -237,7 +236,6 @@ follow_pid_file="$test_root/voxtype-follow.pid"
 HOME="$test_home" \
   USER=qv \
   QVOS_PATH="$fixture" \
-  OMARCHY_PATH="$fixture" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   QVOS_TEST_VOXTYPE_FOLLOW=1 \

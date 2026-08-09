@@ -78,14 +78,11 @@ fi
 grep -Fq 'id -nG "$USER"' "$root/qvcore/software/nordvpn-install" ||
   fail "NordVPN owner does not detect active group access"
 compatibility_path_refs=$(
-  # This intentionally matches the literal compatibility fallback expression.
-  # shellcheck disable=SC2016
   rg -n 'OMARCHY_PATH' \
     "$root/qvcore/software" \
     --glob '!AGENTS.md' \
     --glob '!check' \
-    --glob '!native-paths' |
-    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' || true
+    --glob '!native-paths' || true
 )
 if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2

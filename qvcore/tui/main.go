@@ -4294,8 +4294,8 @@ func findRootScript(action actionMode) (string, error) {
 			candidates = append(candidates, filepath.Join(filepath.Dir(realExe), scriptName))
 		}
 	}
-	if sourcePath := omarchySourcePath(); sourcePath != "" {
-		candidates = append(candidates, filepath.Join(sourcePath, "qv", "tui", scriptName))
+	if sourcePath := qvosSourcePath(); sourcePath != "" {
+		candidates = append(candidates, filepath.Join(sourcePath, "qvcore", "tui", scriptName))
 	}
 
 	seen := make(map[string]bool)

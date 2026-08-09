@@ -5,8 +5,7 @@
   set -euo pipefail
 
   QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-  OMARCHY_PATH=$QVOS_PATH
-  export QVOS_PATH OMARCHY_PATH
+  export QVOS_PATH
 
   mkdir -p "$HOME/.local/lib/qvos"
 

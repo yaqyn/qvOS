@@ -7,7 +7,7 @@ if [[ $mode != "--apply" && $mode != "--check" ]] || (($# > 1)); then
   exit 2
 fi
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 # shellcheck source=qvcore/hooks/lib
 # shellcheck disable=SC1091
 source "$QVOS_PATH/qvcore/hooks/lib"

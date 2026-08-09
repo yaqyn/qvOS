@@ -43,14 +43,14 @@ test-installer|x|Test|Settings|test|tui|true|package|test|Install test|qvcore/me
 INSTALLERS
 install -m 0755 /dev/stdin "$fixture/bin/omarchy-test-owner" <<'OWNER'
 #!/bin/bash
-OMARCHY_PATH=${OMARCHY_PATH:?}
-exec "$OMARCHY_PATH/qvcore/demo/owner" "$@"
+QVOS_PATH=${QVOS_PATH:?}
+exec "$QVOS_PATH/qvcore/demo/owner" "$@"
 OWNER
 install -m 0755 /dev/stdin "$fixture/qvcore/demo/owner" <<'DOMAIN'
 #!/bin/bash
 # qvos:contract=qvcore/demo/demo.desktop
 # qvos:contract=qvcore/demo/assets
-exec "$OMARCHY_PATH/qvcore/demo/readback"
+exec "$QVOS_PATH/qvcore/demo/readback"
 DOMAIN
 install -m 0644 /dev/stdin "$fixture/qvcore/demo/demo.desktop" <<'DESKTOP'
 [Desktop Entry]

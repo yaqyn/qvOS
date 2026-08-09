@@ -6,7 +6,7 @@ set -euo pipefail
   exit 2
 }
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 # shellcheck source=qvcore/reminder/lib
 # shellcheck disable=SC1091
 source "$QVOS_PATH/qvcore/reminder/lib"

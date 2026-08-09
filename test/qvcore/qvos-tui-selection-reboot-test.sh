@@ -101,7 +101,6 @@ run_owner() {
   HOME="$test_home" \
     USER=qv \
     QVOS_PATH="$root" \
-    OMARCHY_PATH="$root" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     PATH="$test_bin:/usr/bin" \
     "$@"

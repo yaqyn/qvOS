@@ -67,7 +67,7 @@ touch "$action_log"
 
 run_retroarch() {
   HOME="$test_home" \
-    OMARCHY_PATH="$fixture" \
+    QVOS_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     "$@"

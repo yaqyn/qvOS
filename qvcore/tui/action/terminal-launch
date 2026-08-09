@@ -1,12 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=qvcore/tui/owner-resolver
 source "$tui_root/owner-resolver"
-catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
+catalog="$QVOS_PATH/qvcore/menu/software-installers.psv"
 tui_launch="$tui_root/launch"
 slug=${1:-}
 

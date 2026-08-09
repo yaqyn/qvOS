@@ -5,7 +5,7 @@ set -euo pipefail
 # qvos:contract=qvcore/gaming/gpu-lib32
 # qvos:contract=qvcore/packages/add
 # qvos:contract=qvcore/packages/drop
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 manifest="$QVOS_PATH/qvcore/gaming/apps.psv"
 
 usage() {

@@ -3,5 +3,5 @@
 # qv:summary=Remove a user-installed theme
 # qv:args=[theme-name]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/theme/remove" "$@"

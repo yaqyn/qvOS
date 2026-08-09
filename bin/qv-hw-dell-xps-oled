@@ -2,5 +2,5 @@
 
 # qv:summary=Detect Dell XPS systems with an LG OLED panel and Panther Lake GPU
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/hardware/detect" dell-xps-oled "$@"

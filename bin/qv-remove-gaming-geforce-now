@@ -2,5 +2,5 @@
 
 # qv:summary=Remove GeForce NOW while preserving its user data
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/gaming/geforce-now-remove" "$@"

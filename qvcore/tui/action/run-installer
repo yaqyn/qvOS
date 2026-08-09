@@ -1,16 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 tui_root=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
 # shellcheck source=qvcore/tui/owner-resolver
 source "$tui_root/owner-resolver"
 # shellcheck source=qvcore/tui/action/rollback-owner
 source "$tui_root/action/rollback-owner"
-catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
+catalog="$QVOS_PATH/qvcore/menu/software-installers.psv"
 rollback_catalog="$tui_root/action/rollbacks.psv"
-state_owner="$OMARCHY_PATH/qvcore/menu/software-installer-state"
+state_owner="$QVOS_PATH/qvcore/menu/software-installer-state"
 slug=${QVOS_ACTION_SLUG:-}
 operation=${QVOS_ACTION_OPERATION:-}
 rollback_protocol=${QVOS_ACTION_ROLLBACK:-}

@@ -4,7 +4,7 @@ set -euo pipefail
 # qvos:install-summary=Configure a private Windows VM without starting its download
 # qvos:uninstall-summary=Remove Windows VM configuration while keeping its virtual disk
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 source "$QVOS_PATH/qvcore/windows/lib"
 operation=${1:-}
 [[ -n $operation ]] && shift

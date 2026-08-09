@@ -119,9 +119,9 @@ while IFS= read -r inherited_path; do
     fail "restart compatibility adapter duplicates metadata: $stem"
   for adapter in "$native_adapter" "$compatibility_adapter"; do
     # shellcheck disable=SC2016
-    grep -Fqx 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' \
+    grep -Fqx 'QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}' \
       "$adapter" ||
-      fail "restart adapter lacks the source-root compatibility boundary: $stem"
+      fail "restart adapter lacks the native source-root boundary: $stem"
     grep -Fqx "exec \"\$QVOS_PATH/qvcore/desktop/restart/$stem\" \"\$@\"" \
       "$adapter" ||
       fail "restart adapter does not delegate directly: $stem"

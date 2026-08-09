@@ -56,7 +56,6 @@ fingerprint|present:omarchy-setup-security-fingerprint
 ENTITIES
 if HOME="$test_root" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
   "$root/qvcore/menu/install" --install >/dev/null 2>&1; then
@@ -68,13 +67,11 @@ rm -f -- "$retired_entities"
 
 HOME="$test_root" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
   "$root/qvcore/menu/install" --install
 HOME="$test_root" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/menu/install" --status ||
   fail "installed menu status"
@@ -196,13 +193,11 @@ mv \
   "$test_root/.config/walker/themes/qvos-omarchy-menu"
 HOME="$test_root" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
   "$root/qvcore/menu/install" --install
 HOME="$test_root" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/menu/install" --status ||
   fail "migrated menu status"
@@ -222,7 +217,7 @@ pass "native qvOS menu identifiers migrate without duplicate or inherited residu
 
 menu_provider="$root/qvcore/menu/elephant/qvos_menu.lua"
 home_entries=$(
-  QVOS_PATH="$test_root/missing" OMARCHY_PATH="$test_root/missing" \
+  QVOS_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" \
     lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
@@ -241,7 +236,6 @@ pass "empty search stays focused on four real destinations"
 
 search_audit=$(
   HOME="$test_root" QVOS_PATH="$test_root/missing" \
-    OMARCHY_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
 local entries = GetEntries("all")
@@ -345,7 +339,7 @@ read -r search_count concept_count go_matches proton_matches style_matches theme
 pass "typed search presents every concept exactly once"
 
 install_only_route_audit=$(
-  HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+  HOME="$test_root" QVOS_PATH="$root" \
     XDG_RUNTIME_DIR="$test_root" \
     lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
@@ -372,7 +366,6 @@ pass "install-only Software leaves use their audited qvOS action route"
 
 software_action_audit=$(
   HOME="$test_root" QVOS_PATH="$test_root/missing" \
-    OMARCHY_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" "$root" <<'LUA'
 local real_popen = io.popen
 io.popen = function(command)
@@ -451,7 +444,6 @@ pass "software rows expose only names and delegate lifecycle to the TUI"
 
 intent_audit=$(
   HOME="$test_root" QVOS_PATH="$test_root/missing" \
-    OMARCHY_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 dofile(arg[1])
 
@@ -585,7 +577,6 @@ pass "owner-local AGENTS keeps the compact menu contract durable across qvsync"
 
 apps_audit=$(
   HOME="$test_root" QVOS_PATH="$test_root/missing" \
-    OMARCHY_PATH="$test_root/missing" \
     XDG_RUNTIME_DIR="$test_root" lua - "$menu_provider" <<'LUA'
 local responses = {
   first = {
@@ -787,7 +778,7 @@ awk -F '|' -v wanted="$1" '
     exit
   }
   END { exit !found }
-' "$OMARCHY_PATH/qvcore/tui/task/actions.psv" >"$QVOS_TEST_PRESENTATION_LOG"
+' "$QVOS_PATH/qvcore/tui/task/actions.psv" >"$QVOS_TEST_PRESENTATION_LOG"
 SCRIPT
 
 for command_name in \
@@ -818,7 +809,6 @@ run_menu() {
     HOME="$test_root" \
     XDG_RUNTIME_DIR="$test_root" \
     QVOS_PATH="$root" \
-    OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
     "$root/bin/qv-menu" "$@"
 }
@@ -859,7 +849,7 @@ run_menu concept:development
   fail "Development concept has a redundant action sheet"
 
 single_action_routes=$(
-  HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" bash -s -- \
+  HOME="$test_root" QVOS_PATH="$root" bash -s -- \
     "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 

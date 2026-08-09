@@ -2,5 +2,5 @@
 
 # qv:summary=Recover the internal display when no external display is connected
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/config/recover-internal-monitor" "$@"

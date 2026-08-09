@@ -3,5 +3,5 @@
 # qv:summary=Toggle a window as a floating pinned pop-out
 # qv:args=[width height [x y]]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/hyprland/window-pop" "$@"

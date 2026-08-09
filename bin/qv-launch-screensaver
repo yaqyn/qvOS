@@ -3,5 +3,5 @@
 # qv:summary=Launch the qvOS screensaver
 # qv:args=[force]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/screensaver/qvos-launch-screensaver" "$@"

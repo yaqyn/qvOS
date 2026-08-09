@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 editor_file=${QVOS_DEFAULTS_EDITOR_FILE:-$HOME/.config/uwsm/default}
 
 # shellcheck source=qvcore/defaults/lib

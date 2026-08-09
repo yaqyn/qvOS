@@ -31,6 +31,22 @@ if rg -q '/home/qv(/|$)' "$root/release/iso" "$root/qvcore/tui"; then
 fi
 pass "ISO-owned source excludes development-machine home paths"
 
+compatibility_source_refs=$(
+  rg -n 'OMARCHY_PATH' "$root/qvcore" "$root/bin" \
+    --glob '!**/AGENTS.md' \
+    --glob '!**/README.md' \
+    --glob '!**/check' \
+    --glob '!*_test.go' \
+    --glob '!**/config/migrate-runtime-root' \
+    --glob '!**/config/files/uwsm/env' \
+    --glob '!**/shell/files/envs' || true
+)
+if [[ -n $compatibility_source_refs ]]; then
+  printf '%s\n' "$compatibility_source_refs" >&2
+  fail "native qvCORE owner accepts the compatibility source root"
+fi
+pass "native qvCORE source resolution uses QVOS_PATH only"
+
 if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
   --glob '!qvcore/config/migrate-runtime-root' \
   --glob '!qvcore/install/cleanup-obsolete' \
@@ -1089,7 +1105,7 @@ cp -a \
 git -C "$root" show \
   e4e308a7d53263e0270e398364315e9acd66a926:qvcore/menu/extension.sh \
   >"$test_root/.config/omarchy/extensions/qvos-menu.sh"
-HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/menu/install" --install
 grep -Fqx 'show_about() { printf "personal menu\n"; }' \
   "$test_root/.config/omarchy/extensions/menu.sh" ||
@@ -1175,7 +1191,6 @@ set +e
 share_output=$(
   QVOS_TEST_LOCALSEND=0 \
     QVOS_PATH="$root" \
-    OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
     "$root/bin/qv-share" clipboard 2>&1
 )
@@ -1192,7 +1207,7 @@ printf 'personal theme\n' >"$test_root/.config/omarchy/themes/yaqyn/personal-mar
 cp -a "$root/qvcore/theme/yaqyn/." "$test_root/custom-theme/"
 touch "$test_root/custom-theme/preview-unlock.png"
 ln -s "$test_root/custom-theme" "$test_root/.config/omarchy/themes/custom"
-HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
+HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/theme/install" >/dev/null
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/personal-marker" >/dev/null ||
   fail "personal Yaqyn theme backup"

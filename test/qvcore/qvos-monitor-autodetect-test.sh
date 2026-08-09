@@ -202,7 +202,6 @@ MONITORS
 : >"$hyprctl_log"
 HOME="$test_home" \
 QVOS_PATH="$root" \
-OMARCHY_PATH="$root" \
 PATH="$test_bin:/usr/bin" \
 QVOS_MONITOR_TEST_JSON="$monitor_json" \
 QVOS_MONITOR_TEST_LOG="$hyprctl_log" \
@@ -224,7 +223,6 @@ install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
 if output=$(
   HOME="$test_home" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_MONITOR_TEST_JSON="$monitor_json" \
   QVOS_MONITOR_TEST_LOG="$hyprctl_log" \
@@ -247,7 +245,6 @@ ln -s "$external_monitor_config" "$monitor_config"
 if output=$(
   HOME="$test_home" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_MONITOR_TEST_JSON="$monitor_json" \
   QVOS_MONITOR_TEST_LOG="$hyprctl_log" \

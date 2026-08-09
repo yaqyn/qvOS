@@ -92,7 +92,6 @@ run_browser() {
   HOME="$test_home" \
     XDG_CONFIG_HOME="$test_home/.config" \
     QVOS_PATH="$fixture" \
-    OMARCHY_PATH="$fixture" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     "$@"

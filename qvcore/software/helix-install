@@ -3,7 +3,7 @@ set -euo pipefail
 
 # qvos:contract=qvcore/theme/refresh
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 mode=install
 config_file="$HOME/.config/helix/config.toml"
 theme_dir="$HOME/.config/helix/themes"

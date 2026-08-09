@@ -3,5 +3,5 @@
 # qv:summary=Return success when any named package is missing
 # qv:args=<packages...>
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/packages/missing" "$@"

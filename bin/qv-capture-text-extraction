@@ -7,5 +7,5 @@
 # qv:examples=qv capture ocr | qv capture ocr --langs=eng+ara
 # qv:aliases=qv capture text extraction | qv ocr
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/capture/ocr" "$@"

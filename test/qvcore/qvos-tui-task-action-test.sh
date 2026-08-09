@@ -128,7 +128,7 @@ esac
 TIMEDATECTL
 
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_TASK_TEST_CAPTURE="$capture" \
   QVOS_TASK_TEST_OWNER_LOG="$owner_log" \
@@ -142,7 +142,7 @@ HOME="$test_home" \
   fail "information task received irrelevant success guidance"
 
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_TASK_TEST_CAPTURE="$capture" \
   "$source_root/qvcore/tui/task/launch" mutation-test
@@ -150,7 +150,7 @@ HOME="$test_home" \
   fail "mutation task lost its optional success guidance"
 
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_ACTION_SLUG=information-test \
   QVOS_ACTION_OPERATION=task \
@@ -159,7 +159,7 @@ HOME="$test_home" \
 
 task_output=$(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=information-test \
     QVOS_ACTION_OPERATION=task \
@@ -172,7 +172,7 @@ task_output=$(
   fail "information task runner did not delegate exactly once"
 [[ $(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=mutation-test \
     QVOS_ACTION_OPERATION=task \
@@ -184,7 +184,7 @@ task_output=$(
 
 mutation_output=$(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=mutation-test \
     QVOS_ACTION_OPERATION=task \
@@ -198,7 +198,7 @@ mutation_output=$(
 
 presented_output=$(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=presented-test \
     QVOS_ACTION_OPERATION=task \
@@ -212,7 +212,7 @@ presented_output=$(
 
 selection_options=$(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=selection-test \
     QVOS_ACTION_OPERATION=task \
@@ -221,7 +221,7 @@ selection_options=$(
 [[ $selection_options == $'Alpha\nBeta\nGamma' ]] ||
   fail "task selection options did not come from the owner"
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_ACTION_SLUG=selection-test \
   QVOS_ACTION_OPERATION=task \
@@ -231,7 +231,7 @@ HOME="$test_home" \
 [[ $(tail -n 1 "$owner_log") == "selected:Beta Gamma" ]] ||
   fail "task runner did not validate and delegate selected owner arguments"
 if HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_ACTION_SLUG=selection-test \
   QVOS_ACTION_OPERATION=task \
@@ -264,7 +264,7 @@ set -e
 
 critical_output=$(
   HOME="$test_home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:$PATH" \
     QVOS_ACTION_SLUG=critical-test \
     QVOS_ACTION_OPERATION=task \
@@ -275,7 +275,7 @@ critical_output=$(
   fail "three-ring task lost its guarded progress milestones"
 
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_TASK_TEST_CAPTURE="$capture" \
   "$source_root/qvcore/tui/task/launch" firmware-test
@@ -283,7 +283,7 @@ HOME="$test_home" \
   fail "native task lost its owner argument boundaries"
 
 HOME="$test_home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:$PATH" \
   QVOS_TASK_TEST_CAPTURE="$capture" \
   "$source_root/qvcore/tui/task/launch" selection-test

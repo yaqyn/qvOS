@@ -3,5 +3,5 @@
 # qv:summary=Check whether the focused monitor is an Apple display
 # qv:hidden=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/hyprland/focused-monitor-apple" "$@"

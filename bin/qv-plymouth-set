@@ -5,5 +5,5 @@
 # qv:examples=qv plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
 # qv:requires-sudo=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/boot/plymouth-set" "$@"

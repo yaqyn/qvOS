@@ -2,5 +2,5 @@
 
 # qv:summary=Remove all qvOS Web App launchers
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/webapp/remove" --all "$@"

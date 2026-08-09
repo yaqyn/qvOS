@@ -90,7 +90,6 @@ SCRIPT
 
 export HOME="$test_home"
 export QVOS_PATH="$root"
-export OMARCHY_PATH="$root"
 export PATH="$test_bin:/usr/bin"
 export XDG_RUNTIME_DIR="$test_root/runtime"
 export QVOS_TEST_FONT_CONFIGS="$config_manifest"

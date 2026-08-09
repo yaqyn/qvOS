@@ -5,5 +5,5 @@
 # qv:examples=qv screenrecord | qv capture screenrecording --with-desktop-audio | qv capture screenrecording --status
 # qv:aliases=qv screenrecord
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/capture/screenrecord" "$@"

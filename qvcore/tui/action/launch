@@ -1,20 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 tui_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=qvcore/tui/owner-resolver disable=SC1091
 source "$tui_root/owner-resolver"
-catalog="$OMARCHY_PATH/qvcore/menu/software-actions.psv"
-installer_catalog="$OMARCHY_PATH/qvcore/menu/software-installers.psv"
+catalog="$QVOS_PATH/qvcore/menu/software-actions.psv"
+installer_catalog="$QVOS_PATH/qvcore/menu/software-installers.psv"
 guidance_catalog="$tui_root/success-guidance.psv"
 rollback_catalog="$tui_root/action/rollbacks.psv"
 choice_catalog="$tui_root/action/choices.psv"
 form_catalog="$tui_root/action/forms.psv"
 post_action_catalog="$tui_root/action/post-actions.psv"
 concepts="$HOME/.local/lib/qvos/menu/concepts.psv"
-state_owner="$OMARCHY_PATH/qvcore/menu/software-state"
+state_owner="$QVOS_PATH/qvcore/menu/software-state"
 tui_launch="$tui_root/launch"
 mode=stateful
 if [[ ${1:-} == "--installer" ]]; then
@@ -133,8 +132,8 @@ owner_metadata() {
   owner_route=${metadata_args[0]}
   if [[ -x $owner_route ]]; then
     owner_path=$owner_route
-  elif [[ -x $OMARCHY_PATH/bin/$owner_route ]]; then
-    owner_path="$OMARCHY_PATH/bin/$owner_route"
+  elif [[ -x $QVOS_PATH/bin/$owner_route ]]; then
+    owner_path="$QVOS_PATH/bin/$owner_route"
   else
     owner_path=$(command -v "$owner_route") || return 1
   fi

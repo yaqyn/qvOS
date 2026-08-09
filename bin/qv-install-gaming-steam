@@ -3,5 +3,5 @@
 # qv:summary=Install Steam with detected graphics drivers
 # qv:requires-sudo=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/gaming/app" install steam "$@"

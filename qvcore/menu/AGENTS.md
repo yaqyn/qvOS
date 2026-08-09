@@ -116,9 +116,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   reviewed hash matches; refuse links, foreign ownership, and modified
   lookalikes so cleanup cannot erase an administrator's evidence.
 - Launch every TUI-backed menu action through the checked
-  `~/.local/lib/qvos/tui` payload. Menu state may come from the active
-  Omarchy owner, but no route may pair that owner with launch, task, or
-  cancellation adapters from the live checkout.
+  `~/.local/lib/qvos/tui` payload. Menu state may come from its delegated
+  owner, but every repository owner resolves only through `QVOS_PATH`; no
+  route may pair an owner with launch, task, or cancellation adapters from a
+  different checkout.
 - `qvcore/menu/{menu,launch-walker,file,input,select,keybindings}` owns native
   Walker helpers. `qv-launch-walker` and `qv-menu-*` are the public commands;
   matching Omarchy names are metadata-free compatibility adapters. Validate

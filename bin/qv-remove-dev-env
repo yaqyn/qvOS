@@ -5,5 +5,5 @@
 # qv:examples=qv remove dev-env ruby | qv remove dev-env node
 # qv:requires-sudo=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/development/environments/manage" remove "$@"

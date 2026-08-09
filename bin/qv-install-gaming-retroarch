@@ -2,5 +2,5 @@
 
 # qv:summary=Install RetroArch with the qvOS libretro core set
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/gaming/retroarch-install" "$@"

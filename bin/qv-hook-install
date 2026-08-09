@@ -6,5 +6,5 @@
 # qv:args=<event> <file>
 # qv:examples=qv hook install post-update ~/my-hook
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/hooks/install" "$@"

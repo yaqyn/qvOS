@@ -100,12 +100,11 @@ case $slug in
 alacritty) printf 'Alacritty desktop\n' >"$HOME/.local/share/applications/Alacritty.desktop" ;;
 foot) printf 'Foot desktop\n' >"$HOME/.local/share/applications/foot.desktop" ;;
 esac
-"$OMARCHY_PATH/bin/qv-default-terminal" "$slug"
+"$QVOS_PATH/bin/qv-default-terminal" "$slug"
 SCRIPT
 
 export HOME="$test_home"
 export QVOS_PATH="$test_omarchy"
-export OMARCHY_PATH="$test_omarchy"
 export PATH="$test_bin:/usr/bin"
 export QVOS_TEST_PACKAGE_DIR="$package_dir"
 

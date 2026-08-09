@@ -3,5 +3,5 @@
 # qv:summary=Toggle idle locking for this desktop session
 # qv:examples=qv toggle idle
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/session/toggle-idle" "$@"

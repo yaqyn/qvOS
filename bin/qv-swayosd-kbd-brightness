@@ -3,5 +3,5 @@
 # qv:summary=Show keyboard brightness on the focused monitor
 # qv:args=<0-100>
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/controls/osd/keyboard-brightness" "$@"

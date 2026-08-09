@@ -3366,11 +3366,11 @@ func TestTUIEnvironmentPreservesBrandedColor(t *testing.T) {
 func TestBuildActionFindsInstalledTUIDomainOwner(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("OMARCHY_PATH", "")
+	t.Setenv("QVOS_PATH", "")
 	t.Setenv("QVOS_BUILD_SCRIPT", "")
 	t.Chdir(t.TempDir())
 
-	script := filepath.Join(home, ".local", "share", "omarchy", "qv", "tui", "bin", "qvos-build")
+	script := filepath.Join(home, ".local", "share", "qvos", "qvcore", "tui", "bin", "qvos-build")
 	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -3384,6 +3384,29 @@ func TestBuildActionFindsInstalledTUIDomainOwner(t *testing.T) {
 	}
 	if got != script {
 		t.Fatalf("build script = %q, want %q", got, script)
+	}
+}
+
+func TestBuildActionIgnoresCompatibilitySourceRoot(t *testing.T) {
+	home := t.TempDir()
+	qvosRoot := filepath.Join(t.TempDir(), "qvos-source")
+	omarchyRoot := filepath.Join(t.TempDir(), "omarchy-source")
+	t.Setenv("HOME", home)
+	t.Setenv("QVOS_PATH", qvosRoot)
+	t.Setenv("OMARCHY_PATH", omarchyRoot)
+	t.Setenv("QVOS_BUILD_SCRIPT", "")
+	t.Chdir(t.TempDir())
+
+	legacyScript := filepath.Join(omarchyRoot, "qvcore", "tui", "bin", "qvos-build")
+	if err := os.MkdirAll(filepath.Dir(legacyScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacyScript, []byte("#!/bin/bash\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := findBuildScript(); err == nil {
+		t.Fatal("build script discovery accepted OMARCHY_PATH as source authority")
 	}
 }
 

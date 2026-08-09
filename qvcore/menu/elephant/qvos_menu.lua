@@ -17,9 +17,6 @@ end
 
 local function qvos_source()
   local source = os.getenv("QVOS_PATH")
-  if not source or source == "" then
-    source = os.getenv("OMARCHY_PATH")
-  end
   if source and source ~= "" then
     return source
   end

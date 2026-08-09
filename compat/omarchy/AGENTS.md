@@ -15,6 +15,9 @@ or behavior that supports an older qvOS installation or external caller.
 - Compatibility may translate old names into current qvOS owners; it must not
   duplicate their implementation, expose a new product category, or become a
   dependency of a fresh qvOS installation.
+- Compatibility command names resolve owners only through `QVOS_PATH`. Keep the
+  installed `omarchy -> qvos` path link for callers that use an old absolute
+  path, but never accept `OMARCHY_PATH` as source authority.
 - Preserve only routes needed by an installed or released state. Reject unknown
   inputs, keep removal explicit, and test both delegation and retired inputs.
 - Remove a compatibility route together with its old state support once no

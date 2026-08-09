@@ -6,7 +6,9 @@ route metadata, compatibility dispatch, or user-facing command help.
 `qvcore/cli/qv` is the single command-discovery and dispatch engine. `bin/qv`
 is the primary qvOS entry point; `bin/omarchy` is a thin compatibility adapter
 for inherited commands and upstream tooling. Both adapters invoke the same
-engine and command directory without duplicating route behavior.
+engine and command directory without duplicating route behavior. Every public
+adapter resolves source only through `QVOS_PATH`; an inherited command name
+never grants `OMARCHY_PATH` source authority.
 
 Promoted commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
 that native route for both frontends and ignores its matching `omarchy-*` file

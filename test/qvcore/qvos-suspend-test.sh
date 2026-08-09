@@ -115,7 +115,7 @@ run_guard() {
     QVOS_TEST_INHIBITORS="${QVOS_TEST_INHIBITORS:-[]}" \
     XDG_RUNTIME_DIR="$test_root/runtime" \
     HOME="$test_root" \
-    OMARCHY_PATH="$root" \
+    QVOS_PATH="$root" \
     PATH="$test_bin:/usr/bin" \
     "$guard" "$@"
 }
@@ -174,7 +174,7 @@ pass "an eligible session requests suspend"
 : >"$command_log"
 QVOS_TEST_COMMAND_LOG="$command_log" \
   QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$inhibitor" -- printf 'protected\n' >/dev/null
 grep -Fq -- '--why=Codex\ session\ is\ active' "$command_log" ||

@@ -3,5 +3,5 @@
 # qv:summary=Restore qvOS Limine presentation and rebuild generated entries
 # qv:requires-sudo=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/boot/refresh-limine" "$@"

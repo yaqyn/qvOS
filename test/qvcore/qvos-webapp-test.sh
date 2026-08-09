@@ -77,7 +77,6 @@ SCRIPT
 run_owner() {
   HOME="$test_home" \
     QVOS_PATH="$root" \
-    OMARCHY_PATH="$root" \
     QVOS_TEST_EVENT_LOG="$event_log" \
     QVOS_TEST_MIME_STATE="$mime_state" \
     PATH="$test_bin:/usr/bin" \

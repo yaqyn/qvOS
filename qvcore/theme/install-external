@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 
 if (($# > 1)); then
   echo "Usage: qv-theme-install [git-repo-url]" >&2

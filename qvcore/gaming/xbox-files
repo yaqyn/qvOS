@@ -2,7 +2,7 @@
 set -euo pipefail
 
 operation=${1:-}
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 manifest="$QVOS_PATH/qvcore/gaming/xbox-files.psv"
 [[ $operation == "check" || $operation == "write" || $operation == "remove" ]] || {
   echo "Usage: qvcore/gaming/xbox-files <check|write|remove>" >&2

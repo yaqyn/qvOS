@@ -135,14 +135,11 @@ grep -Fq "pam_gnome_keyring\\.so/d" \
   "$root/qvcore/boot/install-sddm" || fail "SDDM keyring compatibility"
 
 compatibility_path_refs=$(
-  # This intentionally matches the literal compatibility fallback expression.
-  # shellcheck disable=SC2016
   rg -n 'OMARCHY_PATH' \
     "$root/qvcore/boot" \
     --glob '!AGENTS.md' \
     --glob '!check' \
-    --glob '!native-paths' |
-    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-' || true
+    --glob '!native-paths' || true
 )
 if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2

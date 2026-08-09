@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
 source_dir=$(cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd)
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 expected_source="$QVOS_PATH/qvcore/config/assistant"
 skill_source="$source_dir/qvos"
 pi_source="$source_dir/pi-system-theme.ts"

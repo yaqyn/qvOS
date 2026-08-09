@@ -4,7 +4,7 @@ set -euo pipefail
 # qvos:contract=qvcore/network/dns-policy
 # qvos:contract=qvcore/network/install
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 policy_helper=/usr/lib/qvos/network/dns-policy
 policy_install="$QVOS_PATH/qvcore/network/install"
 networkctl_command=/usr/bin/networkctl

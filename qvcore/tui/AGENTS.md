@@ -51,15 +51,16 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   the shared `Preparing`/`Preparing.`/`Preparing..`/`Preparing...` animation;
   never flash internal preflight, authorization, or startup status text.
 - Put runnable snapshots under the user runtime directory, never inside the
-  Omarchy checkout, and stop active children when a TUI window exits.
+  qvOS source checkout, and stop active children when a TUI window exits.
 - Install the binary, launchers, action/task/update adapters, task catalogs,
   presenters, and success guidance as one checked payload under
   `~/.local/lib/qvos/tui`. Every desktop launch route uses that payload;
-  runtime adapters may resolve delegated owners from `OMARCHY_PATH`, but never
+  runtime adapters may resolve delegated owners from `QVOS_PATH`, but never
   mix a current binary with presentation or cancellation adapters from the
-  live Omarchy checkout.
+  live qvOS checkout.
 - Owner contracts recursively hash exact repository dependencies referenced
-  through either the native `QVOS_PATH` or compatibility `OMARCHY_PATH` root.
+  through the native `QVOS_PATH` root. The compatibility environment is not a
+  source authority.
   Recognize tracked path characters including `@` so systemd instance and
   drop-in paths are never truncated during dependency discovery.
   A namespace migration must never make a real mutation owner invisible to the
@@ -288,8 +289,8 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   a noninteractive contract; never fake input inside the TUI. A captured owner
   with an optional native prompt must receive its explicit noninteractive flag
   in the catalog and have a regression test that rejects the prompt path.
-  Resolve repository `qvcore/` and `omarchy-*` owners from the active
-  `OMARCHY_PATH` before `PATH`, so development source and installed owners
+  Resolve repository `qvcore/` and compatibility command owners from the active
+  `QVOS_PATH` before `PATH`, so development source and installed owners
   cannot be mixed. Run each captured owner in its own process group while
   retaining the TUI terminal session, so its already-authorized sudo ticket
   remains valid. Prepend the captured-command guard that rejects interactive

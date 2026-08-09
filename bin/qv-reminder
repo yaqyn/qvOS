@@ -4,5 +4,5 @@
 # qv:args=<minutes> [message] | show | clear
 # qv:examples=qv reminder 15 "Pickup Jack" | qv reminder show | qv reminder clear
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/reminder/run" "$@"

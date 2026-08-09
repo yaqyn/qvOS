@@ -3,5 +3,5 @@
 # qv:summary=Apply the current theme to supported keyboards
 # qv:hidden=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/theme/set-keyboard" "$@"

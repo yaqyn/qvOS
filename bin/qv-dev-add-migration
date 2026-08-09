@@ -3,5 +3,5 @@
 # qv:summary=Create a native qvOS migration
 # qv:args=[--no-edit]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/migrations/add" "$@"

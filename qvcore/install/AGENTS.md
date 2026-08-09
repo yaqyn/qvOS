@@ -16,10 +16,10 @@ Relocate the prior copied runtime tree atomically to `~/.local/lib/qvos` before
 claiming the source root; never merge runtime payloads into the Git checkout.
 Deploy desktop helpers only from `qvcore/desktop/runtime-paths`; source policy,
 checks, inventories, and source-only owners must never leak into the runtime.
-The desktop owner must resolve `QVOS_PATH` once, bind the inherited
-`OMARCHY_PATH` alias to that exact checkout, and export both before reading or
-running any feature owner. Never allow stale inherited environment to mix
-payloads from two source checkouts.
+The desktop owner must resolve and export `QVOS_PATH` once before reading or
+running any feature owner. Native install orchestration never propagates
+`OMARCHY_PATH`; a stale compatibility environment must not select or mix
+payloads from another source checkout.
 Windows owners run from the installed source and have no duplicate runtime tree.
 Desktop reconciliation invokes their absent-safe identity owner so validated
 existing configuration converges on the native command and container without

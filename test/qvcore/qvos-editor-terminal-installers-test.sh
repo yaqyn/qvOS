@@ -86,7 +86,6 @@ exit 0
 SCRIPT
 
 export QVOS_PATH="$source_root"
-export OMARCHY_PATH="$source_root"
 export PATH="$test_bin:/usr/bin"
 export QVOS_TEST_PACKAGE_LOG="$package_log"
 export QVOS_TEST_PACKAGE_DIR="$package_dir"

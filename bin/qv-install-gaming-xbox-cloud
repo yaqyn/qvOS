@@ -2,5 +2,5 @@
 
 # qv:summary=Install Xbox Cloud Gaming as an optional Web App
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/gaming/xbox-cloud-install" "$@"

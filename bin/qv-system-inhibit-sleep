@@ -3,5 +3,5 @@
 # qv:summary=Run a command while preventing system sleep
 # qv:args=-- <command> [arguments...]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/power/inhibit-sleep" "$@"

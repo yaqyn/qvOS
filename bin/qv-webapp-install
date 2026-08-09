@@ -3,5 +3,5 @@
 # qv:summary=Create a safe desktop launcher for a Web App
 # qv:args=[name url icon]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/webapp/install" "$@"

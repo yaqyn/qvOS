@@ -3,7 +3,7 @@ set -euo pipefail
 
 # qvos:contract=qvcore/theme/yaqyn/vscode/extension
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 extension_dir="$QVOS_PATH/qvcore/theme/yaqyn/vscode/extension"
 extension_version=$(jq -er '.version | select(type == "string")' "$extension_dir/package.json")
 [[ $extension_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {

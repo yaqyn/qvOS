@@ -1,9 +1,8 @@
 #!/bin/bash
 set -eo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-export QVOS_PATH OMARCHY_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+export QVOS_PATH
 
 base="$QVOS_PATH/qvcore/menu/base"
 routes="$QVOS_PATH/qvcore/menu/routes"

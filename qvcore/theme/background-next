@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 THEMES_DIR="$HOME/.config/omarchy/themes"
 THEME_NAME_PATH="$HOME/.config/omarchy/current/theme.name"
 [[ -f $THEME_NAME_PATH ]] || {

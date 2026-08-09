@@ -4,5 +4,5 @@
 # qv:args=[--path path] [input] [format] [resolution]
 # qv:examples=qv transcode | qv transcode --path ~/Downloads | qv transcode ~/Videos/demo.mov mp4 1080p
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/transcode/media" "$@"

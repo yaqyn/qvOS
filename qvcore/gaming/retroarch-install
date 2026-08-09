@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/gaming/retroarch.packages
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 (( $# == 0 )) || {
   echo "Usage: qv install gaming retroarch" >&2
   exit 2

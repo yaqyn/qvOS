@@ -3,5 +3,5 @@
 # qv:summary=Control or recover internal-display mirroring
 # qv:args=<on|off|toggle|recover>
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/config/monitor-internal-mirror" "$@"

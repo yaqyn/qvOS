@@ -27,7 +27,7 @@ qvcore/
   font/        Installed font discovery and transactional configuration.
   hooks/       Private custom automation, installation, and state migration.
   install/     Complete native qvOS installation lifecycle.
-  menu/        qvOS menus and Elephant deltas installed through Omarchy seams.
+  menu/        Native qvOS menus, search, Walker, and Elephant integration.
   migrations/  Native ordered migrations and private applied-state ownership.
   network/     qvOS DNS policy and optional WARP routing.
   packages/    Omarchy package-provider boundary and Stable configuration.
@@ -135,9 +135,10 @@ Services and Development integrations never change qvOS base readiness.
   high-impact work, two rings identify simple Software install/remove work,
   and one ring identifies ordinary safe tasks. Every action reuses one shared
   authorization, progress, log, and result flow while delegating the mutation
-  once to the existing Omarchy or qvOS owner. Information opens directly,
-  privileged work uses sudo as its only start gate, and consequential
-  unprivileged work confirms once. Allowlisted fixed tasks may collect a
+  once to a native qvOS or explicitly retained compatibility owner.
+  Information opens directly, privileged work uses sudo as its only start
+  gate, and consequential unprivileged work confirms once. Allowlisted fixed
+  tasks may collect a
   searchable owner-provided selection, and captured actions may defer a
   required reboot to the shared Reboot Now/Later result. Structured owner
   forms collect bounded configuration and secrets through a private runtime

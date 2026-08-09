@@ -3,5 +3,5 @@
 # qv:summary=Add or remove the qvOS direct EFI boot entry
 # qv:requires-sudo=true
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/boot/config-direct-boot" "$@"

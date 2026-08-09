@@ -2,5 +2,5 @@
 
 # qv:summary=Detect whether this computer has an Intel CPU
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/hardware/detect" intel "$@"

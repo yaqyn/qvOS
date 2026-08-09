@@ -24,8 +24,8 @@ func resolveUserPath(value string) (string, error) {
 	return filepath.Clean(value), nil
 }
 
-func omarchySourcePath() string {
-	if configured := strings.TrimSpace(os.Getenv("OMARCHY_PATH")); configured != "" {
+func qvosSourcePath() string {
+	if configured := strings.TrimSpace(os.Getenv("QVOS_PATH")); configured != "" {
 		if path, err := resolveUserPath(configured); err == nil {
 			return path
 		}
@@ -35,5 +35,5 @@ func omarchySourcePath() string {
 	if err != nil || home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".local", "share", "omarchy")
+	return filepath.Join(home, ".local", "share", "qvos")
 }

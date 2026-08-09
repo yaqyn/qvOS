@@ -3,5 +3,5 @@
 # qv:summary=Toggle notification do-not-disturb mode
 # qv:examples=qv toggle notification silencing
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/controls/notification/toggle-silencing" "$@"

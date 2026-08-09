@@ -1,9 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-export QVOS_PATH OMARCHY_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+export QVOS_PATH
 
 # qvos:contract=qvcore/config/files/hypr/bindings.conf
 # qvos:contract=qvcore/config/files/hypr/hyprland.conf

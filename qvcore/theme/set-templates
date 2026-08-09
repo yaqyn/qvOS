@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
 source_dir=$(cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd)
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 templates_dir="$source_dir/templates"
 user_templates_dir="$HOME/.config/omarchy/themed"
 next_theme_dir="$HOME/.config/omarchy/current/next-theme"

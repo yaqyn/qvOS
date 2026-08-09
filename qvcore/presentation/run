@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 branding_owner="$QVOS_PATH/qvcore/branding/show-logo"
 show_done_owner="$QVOS_PATH/qvcore/presentation/show-done"
 show_failed_owner="$QVOS_PATH/qvcore/presentation/show-failed"

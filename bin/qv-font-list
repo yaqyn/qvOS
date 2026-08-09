@@ -3,5 +3,5 @@
 # qv:summary=List installed monospace fonts
 # qv:examples=qv font list | qv font set "CaskaydiaMono Nerd Font"
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/font/list" "$@"

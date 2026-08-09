@@ -3,5 +3,5 @@
 # qv:summary=Focus or open a browser application window
 # qv:args=<window-pattern> <url> [browser-args...]
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/desktop/launch/or-focus-webapp" "$@"

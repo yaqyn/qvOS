@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Render the qvOS-colored TTE screensaver.
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 branding_lib="$QVOS_PATH/qvcore/branding/lib"
 close_owner="$QVOS_PATH/qvcore/screensaver/close"
 screen_text="$HOME/.config/qvos/branding/screensaver.txt"

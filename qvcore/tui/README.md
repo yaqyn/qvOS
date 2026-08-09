@@ -36,8 +36,8 @@ The TUI root owns reusable presentation and capability configuration:
 adapters, task catalogs, presenters, and success guidance under
 `~/.local/lib/qvos/tui`. Desktop routes execute that checked runtime payload,
 while adapters resolve only their delegated mutation owners from the active
-`OMARCHY_PATH`. This prevents a current binary from calling stale cancellation
-or presentation adapters in the live Omarchy checkout.
+`QVOS_PATH`. This prevents a current binary from calling stale cancellation or
+presentation adapters in the live qvOS checkout.
 
 Domain packages under `qvcore/tui/<action>/` provide copy, milestones, preflight,
 verification, and one delegation to the real owner. They do not render screens
@@ -104,7 +104,7 @@ Ctrl+C or Ctrl+Z on a guarded mutation replaces the complete TUI with the stop
 decision. The model, identity, progress, logs, terminal output, and Help remain
 hidden until Enter explicitly confirms Keep or Stop. Pressing Ctrl+C or Ctrl+Z
 again confirms Stop directly, as shown by the modal hint. Captured repository
-owners resolve from the active `OMARCHY_PATH` and use their own process group
+owners resolve from the active `QVOS_PATH` and use their own process group
 inside the TUI terminal session, preserving the sudo authorization ticket.
 Captured commands reject interactive Gum subcommands while retaining safe Gum
 formatting, so a stale or unreviewed prompt fails instead of suspending the
@@ -281,7 +281,8 @@ and guides without scattering those values through shared rendering code.
 2. Show the selected operation with the two-ring operational model.
 3. Complete non-mutating preflight. Privileged actions proceed to sudo;
    consequential unprivileged actions confirm before preflight.
-4. Delegate once to the existing Omarchy or qvOS owner and map only owned
+4. Delegate once to the native qvOS or explicitly classified compatibility
+   owner and map only owned
    milestones into progress.
 5. Verify the paired state change or install-only result probe before rendering
    success.

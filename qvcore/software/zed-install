@@ -3,7 +3,7 @@ set -euo pipefail
 
 # qvos:contract=qvcore/theme/set-zed
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 mode=install
 theme_owner="$QVOS_PATH/qvcore/theme/set-zed"
 colors_file="$HOME/.config/omarchy/current/theme/colors.toml"

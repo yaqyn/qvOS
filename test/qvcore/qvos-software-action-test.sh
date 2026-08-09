@@ -7,7 +7,6 @@ source_root="$test_root/source"
 test_bin="$test_root/bin"
 launch_log="$test_root/launch.log"
 export QVOS_PATH="$source_root"
-export OMARCHY_PATH="$source_root"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -125,7 +124,7 @@ done
 
 run_action() {
   HOME="$test_root/home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=demo \
     QVOS_ACTION_OPERATION="$1" \
@@ -134,7 +133,7 @@ run_action() {
 
 state=$(
   HOME="$test_root/home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:/usr/bin" \
     "$source_root/qvcore/menu/software-state" demo
 )
@@ -160,7 +159,7 @@ post_action_log="$test_root/post-action.log"
 post_rollback_state="$test_root/post-rollback"
 printf 'demo|install|owner-state-v1\n' >>"$source_root/qvcore/tui/action/rollbacks.psv"
 post_output=$(HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_ACTION_SLUG=demo \
   QVOS_ACTION_OPERATION=install \
@@ -175,7 +174,7 @@ post_output=$(HOME="$test_root/home" \
 grep -Fq 'Windows image download visible' <<<"$post_output" ||
   fail "post-success owner output was hidden"
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_ACTION_SLUG=demo \
   QVOS_ACTION_OPERATION=install \
@@ -199,14 +198,14 @@ run_action uninstall
 printf 'ok - software action preflight, owner delegation, and verification\n'
 
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_ACTION_SLUG=demo-installer \
   QVOS_ACTION_OPERATION=install \
   "$source_root/qvcore/tui/action/run-installer" --check
 [[ $(
   HOME="$test_root/home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=demo-installer \
     QVOS_ACTION_OPERATION=install \
@@ -215,7 +214,7 @@ HOME="$test_root/home" \
   fail "absent install-only cancellation state"
 installer_output=$(
   HOME="$test_root/home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=demo-installer \
     QVOS_ACTION_OPERATION=install \
@@ -227,7 +226,7 @@ grep -Fqx 'qvOS action: complete' <<<"$installer_output" ||
   fail "install-only action delegated to its owner"
 [[ $(
   HOME="$test_root/home" \
-    OMARCHY_PATH="$source_root" \
+    QVOS_PATH="$source_root" \
     PATH="$test_bin:/usr/bin" \
     QVOS_ACTION_SLUG=demo-installer \
     QVOS_ACTION_OPERATION=install \
@@ -235,7 +234,7 @@ grep -Fqx 'qvOS action: complete' <<<"$installer_output" ||
 ) == "target-reached" ]] ||
   fail "completed install-only cancellation state"
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   "$source_root/qvcore/menu/software-installer-state" demo-installer >/dev/null ||
   fail "install-only action real-result probe"
@@ -277,7 +276,7 @@ printf '%s\n' "$@" >"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT
 
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qvcore/tui/action/launch" --installer native-installer
@@ -286,7 +285,7 @@ HOME="$test_root/home" \
 printf 'ok - native software actions preserve executable argument boundaries\n'
 
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qvcore/tui/action/launch" demo
@@ -315,7 +314,7 @@ printf 'ok - action launcher derives the shared TUI contract from owners\n'
 
 touch "$test_root/home/.demo-installed"
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qvcore/tui/action/launch" --post-success demo
@@ -343,7 +342,7 @@ cat >>"$source_root/qvcore/tui/action/choices.psv" <<'CHOICES'
 demo|uninstall|Remove Demo|action|No Demo removal choices are available.|Remove Demo Data|Remove the Demo fixture and its data|true
 CHOICES
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qvcore/tui/action/launch" demo
@@ -365,7 +364,7 @@ printf 'ok - destructive scope is chosen inside the TUI before authorization\n'
 
 mv "$source_root/qvcore/menu/software-state" "$source_root/qvcore/menu/software-state.disabled"
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_LAUNCH_LOG="$launch_log" \
   "$source_root/qvcore/tui/action/launch" --installer demo-installer
@@ -410,7 +409,7 @@ node|mise|node|tui|true|tui|true|qvcore/menu/demo-install|demo-uninstall
 CATALOG
 mise_log="$test_root/mise.log"
 HOME="$test_root/home" \
-  OMARCHY_PATH="$source_root" \
+  QVOS_PATH="$source_root" \
   PATH="$test_bin:/usr/bin" \
   QVOS_TEST_MISE_LOG="$mise_log" \
   "$source_root/qvcore/menu/software-state" --all >/dev/null
@@ -523,7 +522,7 @@ fi
 printf 'ok - every remaining Software installer has an explicit TUI or native contract\n'
 
 fallback_sublime_route=$(
-  HOME="$test_root/home" QVOS_PATH="$root" OMARCHY_PATH="$root" bash -s -- \
+  HOME="$test_root/home" QVOS_PATH="$root" bash -s -- \
     "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"
@@ -544,7 +543,7 @@ SCRIPT
 printf 'ok - Sublime Text uses the same installer route from every menu surface\n'
 
 fallback_stateful_routes=$(
-  QVOS_PATH="$root" OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
     bash -s -- "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"

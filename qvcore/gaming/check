@@ -156,15 +156,12 @@ fi
 grep -Fqx 'xbox-controller|package|xpadneo-dkms|tui|true|tui|true|qv-install-gaming-xbox-controllers --defer-reboot|qv-remove-gaming-xbox-controllers --defer-reboot' \
   "$root/qvcore/menu/software-actions.psv" ||
   fail "Xbox controller TUI reboot deferral"
-# This intentionally matches the literal compatibility fallback expression.
-# shellcheck disable=SC2016
 compatibility_path_refs=$(
   rg -n 'OMARCHY_PATH' \
     "$root/qvcore/gaming" \
     --glob '!AGENTS.md' \
     --glob '!check' \
-    --glob '!native-paths' |
-    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' || true
+    --glob '!native-paths' || true
 )
 if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2

@@ -2,5 +2,5 @@
 
 # qv:summary=Run pending qvOS migrations
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/migrations/run" "$@"

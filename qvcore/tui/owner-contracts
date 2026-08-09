@@ -207,9 +207,9 @@ collect_source_contracts() {
   # shellcheck disable=SC2016
   mapfile -t dependencies < <(
     grep -oE \
-      '\$(QVOS_PATH|OMARCHY_PATH)/(qvcore|services|development|release|compat|bin)/[[:alnum:]_@./-]+' \
+      '\$QVOS_PATH/(qvcore|services|development|release|compat|bin)/[[:alnum:]_@./-]+' \
       "$contract_root/$source" |
-      sed -E 's#^\$(QVOS_PATH|OMARCHY_PATH)/##' |
+      sed -E 's#^\$QVOS_PATH/##' |
       sort -u
   )
   for dependency in "${dependencies[@]}"; do

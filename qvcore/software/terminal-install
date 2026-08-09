@@ -8,7 +8,7 @@ set -euo pipefail
 # qvos:contract=qvcore/config/files/kitty
 # qvos:contract=qvcore/software/foot.desktop
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 default_owner="$QVOS_PATH/bin/qv-default-terminal"
 mode=install
 slug=""
