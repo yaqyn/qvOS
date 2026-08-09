@@ -103,6 +103,13 @@ fi
 
 grep -Fq 'qvos-tui --iso-installer' "$installer" ||
   fail "release ISO bypasses the qvOS installer TUI"
+grep -Fq 'if [[ ! -x $target/qvcore/boot/install ]]; then' "$build" ||
+  fail "release ISO does not require the native qvOS boot owner"
+if rg -n \
+  '/etc/sddm\.conf\.d|/var/lib/sddm/state\.conf|^[[:space:]]*(Current|Session)=qvos(\.desktop)?$' \
+  "$installer"; then
+  fail "release ISO duplicates the native qvOS SDDM owner"
+fi
 grep -Fq 'systemctl start pacman-init.service' "$installer" ||
   fail "release ISO bypasses the Archiso keyring owner"
 if rg -n 'pacman-key --(init|populate)' "$installer"; then

@@ -274,6 +274,10 @@ validate_qvos_source() {
     echo "qvos-build staged qvOS source is missing qvcore/boot/login/" >&2
     missing=true
   fi
+  if [[ ! -x $target/qvcore/boot/install ]]; then
+    echo "qvos-build staged qvOS source is missing its native boot installer" >&2
+    missing=true
+  fi
   if [[ ! -x $target/release/iso/builder/build-iso.sh ]]; then
     echo "qvos-build staged qvOS source is missing its native image builder" >&2
     missing=true
@@ -361,18 +365,12 @@ validate_native_iso() {
     echo "qvos-build staged a non-native temporary installer policy." >&2
     return 1
   }
-  grep -Fq '/etc/sddm.conf.d/99-qvos-login.conf' "$installer" || {
-    echo "qvos-build staged a non-native SDDM login policy." >&2
-    return 1
-  }
-  if rg -n '^Current=' "$installer"; then
-    echo "qvos-build staged duplicate SDDM theme ownership in the ISO layer." >&2
+  if rg -n \
+    '/etc/sddm\.conf\.d|/var/lib/sddm/state\.conf|^[[:space:]]*(Current|Session)=qvos(\.desktop)?$' \
+    "$installer"; then
+    echo "qvos-build staged duplicate SDDM ownership in the ISO layer." >&2
     return 1
   fi
-  grep -Fqx 'Session=qvos.desktop' "$installer" || {
-    echo "qvos-build staged a non-native SDDM session selection." >&2
-    return 1
-  }
   grep -Fq 'package_file.sig' "$builder" || {
     echo "qvos-build staged an offline mirror that does not retain package signatures." >&2
     return 1
