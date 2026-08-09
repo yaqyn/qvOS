@@ -30,6 +30,9 @@ qv routes.
 - Missing clipboard, editor, notification, or post-processing tools may reduce
   convenience but must not discard an otherwise complete capture. Missing
   validation tools fail closed while preserving recoverable recording state.
+- Give the recorder a bounded ten-second startup window before cleanup. Cold
+  GPU initialization and a loaded system must not create a false failure, but
+  an exited process or missing private output after that limit still fails.
 - Capture accepts only its documented `QVOS_*` environment. Historical
   `OMARCHY_*` settings are migration input for `qvcore/config/migrate-runtime-root`,
   never runtime fallback or source authority.

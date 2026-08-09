@@ -145,6 +145,7 @@ exec "$@"
 SCRIPT
 cat >"$test_bin/gpu-screen-recorder" <<'PY'
 #!/usr/bin/python3
+import os
 import signal
 import sys
 import time
@@ -155,6 +156,7 @@ for index, argument in enumerate(sys.argv[:-1]):
         output = sys.argv[index + 1]
 if output is None:
     sys.exit(2)
+time.sleep(float(os.environ.get("MOCK_RECORDER_START_DELAY", "0")))
 with open(output, "wb") as recording:
     recording.write(b"mock-video")
 
@@ -290,7 +292,9 @@ set -e
 unset MOCK_SLURP_STATUS
 pass "OCR rejects missing languages and preserves cancellation semantics"
 
+export MOCK_RECORDER_START_DELAY=5.2
 $screenrecord >/dev/null
+unset MOCK_RECORDER_START_DELAY
 [[ -f $state && ! -L $state && $(stat -c '%a' "$state") == "600" ]] ||
   fail "private screen-recording state"
 [[ $($screenrecord --status) == "active" ]] || fail "active recording status"

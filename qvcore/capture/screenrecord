@@ -478,13 +478,13 @@ start_recording() {
   owned_recorder_pid=$!
 
   while capture_process_matches "$owned_recorder_pid" gpu-screen-recorder &&
-    [[ ! -f $recording ]] && ((wait_count < 50)); do
+    [[ ! -f $recording ]] && ((wait_count < 100)); do
     sleep 0.1
     ((wait_count += 1))
   done
   if ! capture_process_matches "$owned_recorder_pid" gpu-screen-recorder ||
     [[ ! -f $recording || -L $recording || ! -O $recording ]]; then
-    echo "Screen recording did not start within five seconds." >&2
+    echo "Screen recording did not start within ten seconds." >&2
     return 1
   fi
   chmod 0600 "$recording"
