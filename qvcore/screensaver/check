@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/screensaver/native-paths"
+retired_manifest="$root/qvcore/screensaver/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -40,11 +41,38 @@ done
 expected_manifest=$'bin/omarchy-launch-screensaver\nbin/omarchy-screensaver\nbin/omarchy-toggle-screensaver'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_manifest" ]] ||
   fail "screensaver native inventory is incomplete or unordered"
+expected_retired=$'default/alacritty/\ndefault/ghostty/'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  "$expected_retired" ]] || fail "screensaver retired inventory"
+for retired in default/alacritty default/ghostty; do
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "inherited screensaver source remains: $retired"
+done
+for config_name in alacritty.toml foot.ini ghostty.conf; do
+  [[ -f $root/qvcore/screensaver/$config_name &&
+    ! -L $root/qvcore/screensaver/$config_name ]] ||
+    fail "native screensaver profile: $config_name"
+  grep -Fq 'qvOS screensaver terminal profile' \
+    "$root/qvcore/screensaver/$config_name" ||
+    fail "unbranded screensaver profile: $config_name"
+done
 
 grep -Fq 'qv-cmd-present tte' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
   fail "screensaver bypasses the native command helper"
 grep -Fq 'qv-hyprland-monitor-focused' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
   fail "screensaver bypasses the native monitor helper"
+# shellcheck disable=SC2016
+for runtime_profile in \
+  '"$qvos_root/screensaver/alacritty.toml"' \
+  '"$qvos_root/screensaver/foot.ini"' \
+  '"$qvos_root/screensaver/ghostty.conf"'; do
+  grep -Fq "$runtime_profile" "$root/qvcore/screensaver/qvos-launch-screensaver" ||
+    fail "launcher bypasses runtime profile: $runtime_profile"
+done
+if rg -n 'default/(alacritty|foot|ghostty)' "$root/qvcore/screensaver" \
+  --glob '!check' --glob '!retired-paths'; then
+  fail "native screensaver retains an inherited configuration dependency"
+fi
 # shellcheck disable=SC2016
 grep -Fq '"$close_owner"' "$root/qvcore/screensaver/qvos-screensaver" ||
   fail "screensaver runner bypasses the shared close owner"

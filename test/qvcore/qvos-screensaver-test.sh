@@ -171,7 +171,15 @@ pass "an existing screensaver suppresses duplicate launches"
 : >"$launch_log"
 QVOS_TEST_TERMINAL="Ghostty" run_launcher force
 grep -F -- $'ghostty\t--class=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Ghostty command"
-pass "supported terminal selection builds the expected command"
+grep -F -- "--config-file=$test_root/.local/lib/qvos/screensaver/ghostty.conf" \
+  "$launch_log" >/dev/null || fail "Ghostty runtime profile"
+
+: >"$launch_log"
+QVOS_TEST_TERMINAL="Foot" run_launcher force
+grep -F -- $'foot\t--app-id=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Foot command"
+grep -F -- "--config=$test_root/.local/lib/qvos/screensaver/foot.ini" \
+  "$launch_log" >/dev/null || fail "Foot runtime profile"
+pass "supported terminals use installed qvOS runtime profiles"
 
 : >"$launch_log"
 if QVOS_TEST_TERMINAL="unsupported" run_launcher force >/dev/null 2>&1; then

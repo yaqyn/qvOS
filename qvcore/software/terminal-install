@@ -6,7 +6,7 @@ set -euo pipefail
 # qvos:contract=qvcore/config/files/foot
 # qvos:contract=qvcore/config/files/ghostty
 # qvos:contract=qvcore/config/files/kitty
-# qvos:contract=default/foot/foot.desktop
+# qvos:contract=qvcore/software/foot.desktop
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 default_owner="$QVOS_PATH/bin/qv-default-terminal"
@@ -50,7 +50,7 @@ alacritty)
 foot)
   package=foot
   desktop_id=foot.desktop
-  desktop_source="$QVOS_PATH/default/foot/$desktop_id"
+  desktop_source="$QVOS_PATH/qvcore/software/$desktop_id"
   ;;
 ghostty)
   package=ghostty

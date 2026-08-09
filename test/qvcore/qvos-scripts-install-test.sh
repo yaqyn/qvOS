@@ -149,9 +149,41 @@ if HOME="$unsafe_screensaver_home" QVOS_PATH="$root" \
   fail "symbolic-link screensaver runtime"
 fi
 [[ -e $external_screensaver/preserve &&
-  ! -e $external_screensaver/alacritty.toml ]] ||
+  ! -e $external_screensaver/alacritty.toml &&
+  ! -e $external_screensaver/foot.ini &&
+  ! -e $external_screensaver/ghostty.conf ]] ||
   fail "symbolic-link screensaver runtime preservation"
 pass "screensaver installation refuses external runtime targets"
+
+swap_failure_home="$test_root/swap-failure-home"
+swap_failure_bin="$test_root/swap-failure-bin"
+install -d \
+  "$swap_failure_home/.local/lib/qvos/screensaver" \
+  "$swap_failure_bin"
+printf 'preserve old runtime\n' \
+  >"$swap_failure_home/.local/lib/qvos/screensaver/preserve"
+install -m 0755 /dev/stdin "$swap_failure_bin/mv" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+source_path=${2:-}
+target_path=${3:-}
+if [[ $source_path == */.screensaver.* && $target_path == */screensaver ]]; then
+  exit 1
+fi
+exec /usr/bin/mv "$@"
+SCRIPT
+if HOME="$swap_failure_home" QVOS_PATH="$root" \
+  PATH="$swap_failure_bin:/usr/bin" \
+  "$root/qvcore/screensaver/install" >/dev/null 2>&1; then
+  fail "screensaver runtime swap failure fixture"
+fi
+[[ $(<"$swap_failure_home/.local/lib/qvos/screensaver/preserve") == \
+  "preserve old runtime" ]] || fail "screensaver runtime rollback"
+[[ -z $(find "$swap_failure_home/.local/lib/qvos" -maxdepth 1 \
+  -name '.screensaver*' -print -quit) ]] ||
+  fail "screensaver runtime rollback residue"
+pass "failed screensaver replacement restores the complete prior runtime"
 
 downstream_failure_home="$test_root/downstream-failure-home"
 power_blocker="$test_root/power-blocker"
@@ -167,10 +199,12 @@ if HOME="$downstream_failure_home" \
   >"$test_root/downstream-failure.log" 2>&1; then
   fail "downstream power failure fixture"
 fi
-cmp -s \
-  "$root/qvcore/screensaver/alacritty.toml" \
-  "$downstream_failure_home/.local/lib/qvos/screensaver/alacritty.toml" ||
-  fail "downstream failure removed the screensaver config"
+for config_name in alacritty.toml foot.ini ghostty.conf; do
+  cmp -s \
+    "$root/qvcore/screensaver/$config_name" \
+    "$downstream_failure_home/.local/lib/qvos/screensaver/$config_name" ||
+    fail "downstream failure removed the screensaver config: $config_name"
+done
 for command_name in \
   qvos-launch-screensaver \
   qvos-screensaver; do
@@ -515,10 +549,14 @@ waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -print
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
-screensaver_files="$(find "$test_root/.local/lib/qvos/screensaver" -maxdepth 1 -type f -printf '%f\n')"
-[[ $screensaver_files == "alacritty.toml" ]] || fail "screensaver config inventory"
-[[ "$(stat -c '%a' "$test_root/.local/lib/qvos/screensaver/alacritty.toml")" == "644" ]] || fail "screensaver config mode"
-pass "screensaver configuration is singular and non-executable"
+screensaver_files="$(find "$test_root/.local/lib/qvos/screensaver" -maxdepth 1 -type f -printf '%f\n' | sort)"
+[[ $screensaver_files == $'alacritty.toml\nfoot.ini\nghostty.conf' ]] ||
+  fail "screensaver config inventory"
+for config_name in alacritty.toml foot.ini ghostty.conf; do
+  [[ $(stat -c '%a' "$test_root/.local/lib/qvos/screensaver/$config_name") == \
+    "644" ]] || fail "screensaver config mode: $config_name"
+done
+pass "screensaver configuration is complete and non-executable"
 
 for command_name in qvos-launch-screensaver qvos-screensaver; do
   installed_command="$test_root/.local/lib/qvos/bin/$command_name"

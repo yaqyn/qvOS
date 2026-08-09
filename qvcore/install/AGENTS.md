@@ -149,7 +149,10 @@ them; never restore an inherited manifest plus additions/exclusions model.
 empty bundled Web App owners directly, and `qv refresh applications` uses
 those same owners. Application refresh delegates the fixed desktop payload to
 `qvcore/desktop/applications/install`; it never stages a second icon tree under
-`~/.local/share/applications/icons`. The fixed wrapper owner may replace only its current output
+`~/.local/share/applications/icons`. The optional Foot launcher is owned by
+`qvcore/software/foot.desktop` and is installed only when Foot is already
+present; it never enters the fixed base inventory. The fixed wrapper owner may
+replace only its current output
 or the exact retired generated Pi/GHUI wrappers; it preserves links, modified
 files, and foreign commands. Codex is base-owned through the signed Arch
 package and must never be written through a user command path.

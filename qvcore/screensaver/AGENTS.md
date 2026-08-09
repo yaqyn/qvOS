@@ -37,11 +37,14 @@ menus and concepts use `qv-toggle-screensaver`, never its compatibility name.
   suspend. Do not restore external state from an unsupervised per-monitor
   runner.
 - `qvcore/screensaver/install` owns the complete user runtime. Stage each
-  replacement before removing stale content, and run this owner before
-  privileged desktop owners so a later sudo or system failure cannot leave the
-  screensaver config or commands missing.
+  replacement before removing stale content. Its Alacritty, Foot, and Ghostty
+  profiles live only in `qvcore/screensaver/` and are installed atomically into
+  `~/.local/lib/qvos/screensaver`; launch never reads the development checkout.
+  Run this owner before privileged desktop owners so a later sudo or system
+  failure cannot leave the screensaver config or commands missing.
 
-List promoted inherited paths in sorted `native-paths` and run
+List promoted inherited paths in sorted `native-paths`, list removed inherited
+trees in `retired-paths`, and run
 `qvcore/screensaver/check`, Bash syntax, and ShellCheck for changed scripts, then
 `test/qvcore/qvos-screensaver-test.sh` and the full qvOS shell suite when shared
 idle or install contracts change. Apply through `qvcore/install/desktop`, compare

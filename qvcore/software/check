@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/software/native-paths"
+retired_manifest="$root/qvcore/software/retired-paths"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -12,6 +13,13 @@ fail() {
 expected=$'bin/omarchy-install-dropbox\nbin/omarchy-install-helix\nbin/omarchy-install-nordvpn\nbin/omarchy-install-once\nbin/omarchy-install-tailscale\nbin/omarchy-install-terminal\nbin/omarchy-install-vscode\nbin/omarchy-install-zed\nbin/omarchy-voxtype-config\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-model\nbin/omarchy-voxtype-remove\nbin/omarchy-voxtype-status\ndefault/mako/core.ini'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native optional-software inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  'default/foot/' ]] || fail "retired optional-software inventory"
+[[ ! -e $root/default/foot && ! -L $root/default/foot ]] ||
+  fail "inherited Foot defaults remain"
+[[ -f $root/qvcore/software/foot.desktop &&
+  ! -L $root/qvcore/software/foot.desktop ]] ||
+  fail "native Foot desktop source"
 
 declare -A owner_by_route=(
   [install-dropbox]=qvcore/software/dropbox-install
@@ -104,6 +112,13 @@ grep -Fq 'qvcore/theme/set-zed' "$root/qvcore/software/zed-install" ||
 # shellcheck disable=SC2016
 grep -Fqx '"$default_owner" "$slug"' "$root/qvcore/software/terminal-install" ||
   fail "terminal installer bypasses the qvOS default owner"
+grep -Fq '# qvos:contract=qvcore/software/foot.desktop' \
+  "$root/qvcore/software/terminal-install" ||
+  fail "terminal installer bypasses the native Foot desktop source"
+if rg -n 'default/foot' "$root/qvcore/software" \
+  --glob '!check' --glob '!retired-paths'; then
+  fail "optional software retains an inherited Foot dependency"
+fi
 grep -Fqx 'alias hx=helix' "$root/qvcore/shell/aliases" ||
   fail "Helix command alias is not owned by the qvOS shell overlay"
 grep -Fq 'qv-voxtype-install' "$root/default/mako/core.ini" ||

@@ -8,6 +8,13 @@ runtime_config="$runtime_root/screensaver"
 qvos_bin="$runtime_root/bin"
 local_bin="$HOME/.local/bin"
 staged_file=""
+staged_config=""
+backup_config=""
+configs=(
+  alacritty.toml
+  foot.ini
+  ghostty.conf
+)
 commands=(
   qvos-launch-screensaver
   qvos-screensaver
@@ -20,14 +27,30 @@ aliases=(
 )
 
 cleanup() {
+  local status=$?
+
+  trap - EXIT
   [[ -z $staged_file ]] || rm -f -- "$staged_file"
+  [[ -z $staged_config ]] || rm -rf -- "$staged_config"
+  if [[ -n $backup_config ]]; then
+    if [[ ! -e $runtime_config && ! -L $runtime_config ]]; then
+      mv -- "$backup_config" "$runtime_config" || status=1
+    else
+      rm -rf -- "$backup_config"
+    fi
+  fi
+
+  return "$status"
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
 
-[[ -f $source_dir/alacritty.toml ]] || {
-  echo "Missing qvOS screensaver config." >&2
-  exit 1
-}
+for config_name in "${configs[@]}"; do
+  [[ -f $source_dir/$config_name && ! -L $source_dir/$config_name ]] || {
+    echo "Missing or unsafe qvOS screensaver config: $config_name" >&2
+    exit 1
+  }
+done
 for command_name in "${commands[@]}"; do
   [[ -x $source_dir/$command_name ]] || {
     echo "Missing qvOS screensaver command: $command_name" >&2
@@ -38,19 +61,32 @@ done
   echo "Refusing symbolic-link qvOS screensaver runtime: $runtime_config" >&2
   exit 1
 }
+[[ ! -e $runtime_config || -d $runtime_config ]] || {
+  echo "Refusing non-directory qvOS screensaver runtime: $runtime_config" >&2
+  exit 1
+}
 
-install -d "$runtime_config" "$qvos_bin" "$local_bin"
+install -d "$runtime_root" "$qvos_bin" "$local_bin"
 
-staged_file=$(mktemp "$runtime_config/.alacritty.toml.XXXXXX")
-install -m 0644 "$source_dir/alacritty.toml" "$staged_file"
-mv -f -- "$staged_file" "$runtime_config/alacritty.toml"
-staged_file=""
+staged_config=$(mktemp -d "$runtime_root/.screensaver.XXXXXX")
+for config_name in "${configs[@]}"; do
+  install -m 0644 "$source_dir/$config_name" "$staged_config/$config_name"
+done
 
-find "$runtime_config" \
-  -mindepth 1 \
-  -maxdepth 1 \
-  ! -name alacritty.toml \
-  -exec rm -rf -- {} +
+if [[ -d $runtime_config ]]; then
+  backup_config=$(mktemp -d "$runtime_root/.screensaver-backup.XXXXXX")
+  rmdir -- "$backup_config"
+  mv -- "$runtime_config" "$backup_config"
+fi
+if ! mv -- "$staged_config" "$runtime_config"; then
+  [[ -z $backup_config ]] || mv -- "$backup_config" "$runtime_config"
+  backup_config=""
+  echo "Could not replace the qvOS screensaver runtime." >&2
+  exit 1
+fi
+staged_config=""
+[[ -z $backup_config ]] || rm -rf -- "$backup_config"
+backup_config=""
 
 for command_name in "${commands[@]}"; do
   staged_file=$(mktemp "$qvos_bin/.$command_name.XXXXXX")

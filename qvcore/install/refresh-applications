@@ -13,7 +13,8 @@ application_dir="$HOME/.local/share/applications"
 
 if qv-cmd-present foot; then
   install -d -- "$application_dir"
-  cp "$QVOS_PATH/default/foot/foot.desktop" "$application_dir/"
+  install -m 0644 "$QVOS_PATH/qvcore/software/foot.desktop" \
+    "$application_dir/foot.desktop"
 fi
 
 "$QVOS_PATH/qvcore/install/packaging/webapps"

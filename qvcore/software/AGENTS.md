@@ -21,7 +21,10 @@ downloads, launches, or reboot handoff.
   their declared theme fields.
 - Terminal installation delegates default selection to `qv-default-terminal`,
   copies only a missing approved config and desktop entry, and never writes the
-  XDG terminal preference itself. Helix tracks the rendered theme through the
+  XDG terminal preference itself. The optional Foot desktop entry lives only at
+  `qvcore/software/foot.desktop`; it is not part of the fixed base application
+  inventory and application refresh installs it only when Foot is present.
+  Helix tracks the rendered theme through the
   `qvos` theme name; its `hx` alias belongs to the qvOS shell overlay, not the
   installer. Zed installs only `zed`, delegates its generated local theme to
   `qvcore/theme/set-zed`, preserves existing settings, and never restores the

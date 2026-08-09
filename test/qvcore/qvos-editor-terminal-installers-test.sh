@@ -25,7 +25,6 @@ pass() {
 install -d \
   "$source_root/bin" \
   "$source_root/qvcore/config/files" \
-  "$source_root/default/foot" \
   "$source_root/qvcore/desktop/applications" \
   "$source_root/qvcore/defaults" \
   "$source_root/qvcore/software" \
@@ -38,8 +37,8 @@ cp -a "$root/qvcore/config/files/ghostty" "$source_root/qvcore/config/files/"
 cp -a "$root/qvcore/config/files/kitty" "$source_root/qvcore/config/files/"
 install -m 0644 "$root/qvcore/desktop/applications/Alacritty.desktop" \
   "$source_root/qvcore/desktop/applications/Alacritty.desktop"
-install -m 0644 "$root/default/foot/foot.desktop" \
-  "$source_root/default/foot/foot.desktop"
+install -m 0644 "$root/qvcore/software/foot.desktop" \
+  "$source_root/qvcore/software/foot.desktop"
 install -m 0644 "$root/qvcore/defaults/lib" \
   "$source_root/qvcore/defaults/lib"
 install -m 0755 "$root/qvcore/defaults/terminal" \
@@ -129,6 +128,16 @@ printf 'custom desktop entry\n' >"$HOME/.local/share/applications/Alacritty.desk
 [[ $(<"$HOME/.local/share/applications/Alacritty.desktop") == "custom desktop entry" ]] ||
   fail "existing terminal desktop entry preservation"
 pass "terminal install delegates defaults and preserves existing user files"
+
+foot_home="$test_root/foot-home"
+install -d "$foot_home"
+HOME="$foot_home" "$source_root/qvcore/software/terminal-install" foot >/dev/null
+cmp -s "$root/qvcore/software/foot.desktop" \
+  "$foot_home/.local/share/applications/foot.desktop" ||
+  fail "Foot desktop entry"
+[[ $(HOME="$foot_home" "$source_root/bin/qv-default-terminal") == "foot" ]] ||
+  fail "Foot default selection"
+pass "Foot installs only its native optional desktop entry"
 
 unsafe_terminal_home="$test_root/unsafe-terminal-home"
 unsafe_desktop="$test_root/unsafe-desktop"

@@ -116,6 +116,8 @@
     qvcore/power/wifi-rule
     qvcore/screensaver/alacritty.toml
     qvcore/screensaver/close
+    qvcore/screensaver/foot.ini
+    qvcore/screensaver/ghostty.conf
     qvcore/screensaver/install
     qvcore/screensaver/qvos-launch-screensaver
     qvcore/screensaver/qvos-screensaver
@@ -131,6 +133,7 @@
     qvcore/shell/aliases
     qvcore/shell/install
     qvcore/software/helix-install
+    qvcore/software/foot.desktop
     qvcore/software/terminal-install
     qvcore/software/zed-install
     qvcore/theme/set-zed
