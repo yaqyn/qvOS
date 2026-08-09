@@ -4404,7 +4404,7 @@ func shouldDefaultToISOInstaller() bool {
 	if _, err := os.Stat("/run/archiso"); err != nil {
 		return false
 	}
-	for _, path := range []string{"/root/.automated_script.sh", "/root/configurator", "/root/omarchy", "/root/qvos"} {
+	for _, path := range []string{"/root/.automated_script.sh", "/root/configurator", "/root/qvos"} {
 		if _, err := os.Stat(path); err != nil {
 			return false
 		}

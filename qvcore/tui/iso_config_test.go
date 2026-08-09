@@ -1506,6 +1506,46 @@ func TestISOChoicesUseBrightnessWithoutMarkerClutter(t *testing.T) {
 	}
 }
 
+func TestISOInstallerRejectsUnverifiedT2Hardware(t *testing.T) {
+	binDir := t.TempDir()
+	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+		path := filepath.Join(binDir, commandName)
+		if err := os.WriteFile(path, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lspci := filepath.Join(binDir, "lspci")
+	if err := os.WriteFile(lspci, []byte("#!/bin/bash\nprintf '00:1f.0 106b:1801 Apple T2 Security Chip\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	err := ensureISOInstallerRuntime()
+	if err == nil || !strings.Contains(err.Error(), "not verifiably signed") {
+		t.Fatalf("T2 installer preflight error = %v", err)
+	}
+}
+
+func TestISOInstallerFailsClosedWhenPCIInspectionFails(t *testing.T) {
+	binDir := t.TempDir()
+	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+		path := filepath.Join(binDir, commandName)
+		if err := os.WriteFile(path, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lspci := filepath.Join(binDir, "lspci")
+	if err := os.WriteFile(lspci, []byte("#!/bin/bash\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	err := ensureISOInstallerRuntime()
+	if err == nil || !strings.Contains(err.Error(), "could not inspect PCI hardware") {
+		t.Fatalf("PCI inspection error = %v", err)
+	}
+}
+
 func assertFileEquals(t *testing.T, path string, want string) {
 	t.Helper()
 

@@ -335,6 +335,19 @@ pass "qvCORE is mandatory while Proton and Devel remain independent integrations
 grep -Fqx 'qmk-hid' "$root/qvcore/install/packaging/other.packages" ||
   fail "qvOS Framework 16 offline package ownership"
 grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
+for unsupported_t2_package in \
+  apple-bcm-firmware \
+  apple-t2-audio-config \
+  linux-t2 \
+  linux-t2-headers \
+  t2fanrd \
+  tiny-dfr \
+  vulkan-asahi; do
+  ! grep -Fqx "$unsupported_t2_package" "$other_packages" ||
+    fail "unsupported T2 package remains: $unsupported_t2_package"
+done
+[[ ! -e $root/qvcore/install/config/hardware/apple/fix-t2.sh ]] ||
+  fail "unsupported T2 configuration owner remains"
 pass "conditional hardware packages remain available offline"
 
 keyring_home="$test_root/keyring-home"
@@ -557,9 +570,10 @@ grep -Fq 'Never overwrite this development installation for rehearsal.' \
 grep -Fq 'After the base passes, test the Proton Service and Devel Development' \
   "$root/release/iso/README.md" ||
   fail "qvOS optional-integration release rehearsal"
-grep -Fq -- '-e "OMARCHY_INSTALLER_REF=master"' "$iso_build" ||
-  fail "qvOS ISO installer branch contract"
-grep -Fq -- '-v "$staged_qvos:/omarchy:ro"' "$iso_build" ||
+if rg -q 'OMARCHY_INSTALLER_(REPO|REF)' "$iso_build"; then
+  fail "qvOS ISO retains an unpinned product-source fallback"
+fi
+grep -Fq -- '-v "$staged_qvos:/qvos:ro"' "$iso_build" ||
   fail "qvOS ISO source overlay mount"
 if rg -q 'omarchy-pkgs|OMARCHY_ISO_REF=local|staged_pkgs|quattro' "$iso_build"; then
   fail "qvOS ISO development branch coupling"
@@ -568,7 +582,8 @@ grep -Fq 'docker_args+=(--network "$docker_network")' "$iso_build" ||
   fail "qvOS ISO explicit Docker network option"
 grep -Fq 'QVOS_ARCH_MIRROR must use HTTPS' "$iso_build" ||
   fail "qvOS ISO secure Arch mirror override"
-grep -Fq 'configure_arch_mirror "$staged_iso"' "$iso_build" ||
+grep -Fq 'QVOS_ARCH_MIRROR' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO staged Arch repository override"
 grep -Fq 'cp --reflink=auto -- "$latest_iso" "$partial_iso"' "$iso_build" ||
   fail "qvOS ISO atomic release copy"
@@ -590,10 +605,12 @@ grep -Fq 'retrying Git clone' "$iso_build" ||
 grep -Fq 'source_branch != "OS" || $source_upstream != "origin/OS"' \
   "$iso_build" ||
   fail "qvOS ISO staged update branch validation"
-grep -Fq 'DisableDownloadTimeout' "$iso_build" ||
+grep -Fq 'DisableDownloadTimeout' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO slow-link repository support"
-grep -Fq 'print "ParallelDownloads = 2"' "$iso_build" ||
-  fail "qvOS ISO bounded mirror concurrency"
+grep -Fq '/qvcore/packages/provider-files' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO provider-owned mirror concurrency"
 grep -Fq 'QVOS_ARCH_MIRROR must use HTTPS' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO builder mirror validation"
@@ -613,13 +630,13 @@ grep -Fq 'qvos_tui_source_hash=$("$qvos_tui_source/source-hash" "$qvos_tui_sourc
 grep -Fq -- '-X main.buildSourceHash=$qvos_tui_source_hash' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO TUI source provenance"
-grep -Fq 'safe.directory="$build_cache_dir/airootfs/root/omarchy"' \
+grep -Fq 'safe.directory="$build_cache_dir/airootfs/root/qvos"' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO command-scoped embedded source trust"
 grep -Fq 'config --local core.logAllRefUpdates false' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO embedded source reflog suppression"
-grep -Fq 'rm -rf -- "$build_cache_dir/airootfs/root/omarchy/.git/logs"' \
+grep -Fq 'rm -rf -- "$build_cache_dir/airootfs/root/qvos/.git/logs"' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO embedded source reflog cleanup"
 grep -Fq 'for attempt in 1 2 3' "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
@@ -630,7 +647,7 @@ grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \
 grep -Fq -- '--retry 5 --retry-all-errors' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO bounded curl retries"
-grep -Fq '/omarchy/qvcore/install/packaging/resolve' \
+grep -Fq '/qvos/qvcore/install/packaging/resolve' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO package resolution"
 grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-installer' \
@@ -641,18 +658,36 @@ grep -Fq 'QVOS_TUI_FULLSCREEN=1 qvos-tui --iso-progress' \
   fail "qvOS ISO progress fullscreen contract"
 git apply --numstat <"$root/release/iso/omarchy-iso-qvos-tui.patch" >/dev/null ||
   fail "qvOS ISO patch structure"
+grep -Fq 'package_file.sig' "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO package signature retention"
+grep -Fq 'Server = file:///var/cache/qvos/mirror/offline/' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO signed offline mirror path"
+grep -Fq 'qvOS cannot safely install on T2 Macs' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO T2 safety refusal"
+if rg -q '"/root/omarchy"' "$root/qvcore/tui"; then
+  fail "qvOS ISO TUI retains the retired embedded source root"
+fi
 for qvos_source_root_contract in \
-  '/home/$OMARCHY_USER/.local/share/qvos/install.sh' \
-  'cp -r /root/omarchy /mnt/home/$OMARCHY_USER/.local/share/qvos' \
-  'ln -s qvos /mnt/home/$OMARCHY_USER/.local/share/omarchy'; do
+  'source "$HOME/.local/share/qvos/install.sh"' \
+  'cp -r /root/qvos "/mnt/home/$OMARCHY_USER/.local/share/qvos"' \
+  'ln -s qvos "/mnt/home/$OMARCHY_USER/.local/share/omarchy"'; do
   grep -Fq "$qvos_source_root_contract" \
     "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
     fail "qvOS ISO canonical source root: $qvos_source_root_contract"
 done
-grep -Fq 'root/omarchy/qvcore/boot/plymouth/' \
+grep -Fq 'source "$QVOS_INSTALL/helpers/run"' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "qvOS ISO fallback native helper owner"
+if sed -n '/^+/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
+  grep -Fq 'helpers/all.sh'; then
+  fail "qvOS ISO activates the retired installer helper tree"
+fi
+grep -Fq 'root/qvos/qvcore/boot/plymouth/' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO live Plymouth owner"
-grep -Fq 'root/omarchy/release/iso/syslinux-splash.png' \
+grep -Fq 'root/qvos/release/iso/syslinux-splash.png' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "qvOS ISO Syslinux splash owner"
 [[ $(magick identify -format '%wx%h' "$root/release/iso/syslinux-splash.png") == "640x480" ]] ||
@@ -798,10 +833,10 @@ source_permission_output=$("$source_permissions" "$root")
 actual_executable_count=$(grep -c '^file_permissions\[' <<<"$source_permission_output")
 (( actual_executable_count == expected_executable_count )) ||
   fail "qvOS ISO tracked executable-mode count"
-grep -Fq 'file_permissions[/root/omarchy/bin/omarchy]=0:0:755' \
+grep -Fq 'file_permissions[/root/qvos/bin/omarchy]=0:0:755' \
   <<<"$source_permission_output" ||
   fail "qvOS ISO command executable mode"
-if grep -Fq 'file_permissions[/root/omarchy/README.md]' \
+if grep -Fq 'file_permissions[/root/qvos/README.md]' \
   <<<"$source_permission_output"; then
   fail "qvOS ISO non-executable source mode"
 fi

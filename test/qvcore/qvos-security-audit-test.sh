@@ -416,8 +416,8 @@ install -m 0644 /dev/stdin "$offline_system_root/etc/pacman.conf" <<'PACMAN'
 SigLevel = Required DatabaseOptional
 
 [offline]
-SigLevel = Optional TrustAll
-Server = file:///var/cache/omarchy/mirror/offline/
+SigLevel = Required DatabaseOptional
+Server = file:///var/cache/qvos/mirror/offline/
 PACMAN
 cp "$offline_system_root/etc/pacman.conf" \
   "$test_root/offline-pacman-original.conf"

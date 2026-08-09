@@ -39,6 +39,11 @@ Resolve package-provider files only through
 `qvcore/packages/provider-files`. Installed and online qvOS use Stable; Edge and
 RC are accepted only inside the reviewed ISO chroot. Provider source requires
 signed Omarchy packages before the first repository synchronization.
+Fresh install uses the signed standard Arch `linux` kernel. Never append an
+unsigned hardware repository after provider validation. T2 Macs require an
+unsigned third-party package set that qvOS does not manage, so both native and
+fallback ISO preflight must refuse them before disk selection; keep their
+repository, packages, kernel, graphics branch, and post-install fix absent.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.
@@ -151,8 +156,10 @@ explicit menu action.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for
-conditional hardware paths. `qvcore/install/packaging/resolve` validates and emits
-them; never restore an inherited manifest plus additions/exclusions model.
+conditional hardware paths that remain verifiably signed.
+`qvcore/install/packaging/resolve` validates and emits them; never restore an
+inherited manifest plus additions/exclusions model or an unsupported hardware
+stack merely to preserve upstream coverage.
 `qvcore/install/packaging/all.sh` calls the native qvOS fixed NPX-wrapper and
 empty bundled Web App owners directly, and `qv refresh applications` uses
 those same owners. Application refresh delegates the fixed desktop payload to

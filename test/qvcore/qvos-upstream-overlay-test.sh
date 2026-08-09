@@ -270,6 +270,8 @@ upstream_config_steps=$(
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
         ;;
+      '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
+        ;;
       *)
         printf '$QVOS_INSTALL/%s\n' "${step#\$OMARCHY_INSTALL/}"
         ;;

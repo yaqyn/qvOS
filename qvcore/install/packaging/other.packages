@@ -49,13 +49,6 @@ libvpl
 vpl-gpu-rt
 vulkan-intel
 vulkan-radeon
-vulkan-asahi
 linux-firmware-marvell
 dell-xps-touchpad-haptics
-apple-bcm-firmware
-apple-t2-audio-config
-linux-t2
-linux-t2-headers
-t2fanrd
-tiny-dfr
 qmk-hid

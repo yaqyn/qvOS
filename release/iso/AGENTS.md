@@ -18,6 +18,10 @@ a thin adapter to this owner.
 - Stage the selected qvOS Git ref separately and apply
   `release/iso/omarchy-iso-qvos-tui.patch` only to the temporary builder. Keep ISO
   integration under `release/iso/` and never persist qvOS edits in upstream source.
+- Mount that exact staged source read-only at `/qvos`, embed it at `/root/qvos`,
+  and resolve package-provider files from it before the first Omarchy package.
+  Never let the builder fetch a replacement product source or keep retired
+  `/root/omarchy` or `/var/cache/omarchy` internal paths.
 - Validate the embedded qvOS installer at `qvcore/install/` and login leaves at
   `qvcore/boot/login/`; never require or recreate the retired top-level
   `install/` tree for image staging.
@@ -33,6 +37,12 @@ a thin adapter to this owner.
 - Unflagged image builds use the installed qvOS Stable package channel.
   `--dev` selects Edge and `--rc` selects RC only for those explicit reviewed
   image workflows; never make a development channel the production default.
+- Require signatures for every online and offline package. Copy each detached
+  signature with its cached package and validate the patched builder for weak
+  trust, unsupported repositories, and boot-kernel drift before Docker runs.
+  The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
+  selection because qvOS does not operate a signing boundary for their required
+  third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
   release candidate starts with an empty package cache; retries inside that one
   build may preserve packages already verified during the same run.

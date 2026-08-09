@@ -34,7 +34,16 @@ all=$("$resolver" all)
 (( $(wc -l <<<"$base") > 100 )) || fail "base manifest is implausibly small"
 (( $(wc -l <<<"$other") > 40 )) || fail "hardware manifest is implausibly small"
 
-for retired_package in mariadb-libs python-poetry-core; do
+for retired_package in \
+  apple-bcm-firmware \
+  apple-t2-audio-config \
+  linux-t2 \
+  linux-t2-headers \
+  mariadb-libs \
+  python-poetry-core \
+  t2fanrd \
+  tiny-dfr \
+  vulkan-asahi; do
   if grep -Fxq "$retired_package" <<<"$all"; then
     fail "retired package remains in the native manifests: $retired_package"
   fi

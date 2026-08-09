@@ -329,44 +329,98 @@ patch_omarchy_iso() {
   patch -d "$iso_root" -p0 <"$patch_file"
 }
 
-configure_arch_mirror() {
+validate_staged_iso() {
   local iso_root="$1"
-  local config
-  local temporary
+  local boot_config
+  local provider_config
+  local builder="$iso_root/builder/build-iso.sh"
+  local configs="$iso_root/configs"
+  local configurator="$configs/airootfs/root/configurator"
+  local installer="$configs/airootfs/root/.automated_script.sh"
 
-  if [[ -z $arch_mirror ]]; then
-    return 0
+  echo "qvOS ISO progress: validating staged package trust and kernel policy"
+  if rg -n \
+    'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2|apple-t2|t2fanrd|tiny-dfr|vulkan-asahi' \
+    "$builder" "$configs"; then
+    echo "qvos-build staged an unsigned repository, unsupported kernel, or retired T2 package." >&2
+    return 1
   fi
 
-  echo "qvOS ISO progress: configuring explicit Arch mirror"
-  for config in "$iso_root"/configs/pacman-online-*.conf; do
-    [[ -f $config ]] || continue
-    temporary=$(mktemp "$config.qvos.XXXXXX")
-    awk -v mirror="$arch_mirror" '
-      /^\[(core|extra|multilib)\]$/ {
-        repo = substr($0, 2, length($0) - 2)
-        in_arch_repo = 1
-        print
-        print "Server = " mirror "/" repo "/os/$arch"
-        next
-      }
-      /^\[/ {
-        in_arch_repo = 0
-      }
-      in_arch_repo && (/^Server = / || /^Include = /) {
-        next
-      }
-      /^ParallelDownloads = / {
-        print "ParallelDownloads = 2"
-        print "DisableDownloadTimeout"
-        next
-      }
-      {
-        print
-      }
-    ' "$config" >"$temporary"
-    chmod --reference="$config" "$temporary"
-    mv -f "$temporary" "$config"
+  grep -Fq '/qvcore/packages/provider-files' "$builder" || {
+    echo "qvos-build staged a builder that bypasses qvOS package-provider validation." >&2
+    return 1
+  }
+  grep -Fqx 'qvos_source=/qvos' "$builder" || {
+    echo "qvos-build staged a builder without the pinned qvOS source mount." >&2
+    return 1
+  }
+  if rg -n '/root/omarchy|/var/cache/omarchy' "$builder" "$configs"; then
+    echo "qvos-build staged a retired internal source or cache path." >&2
+    return 1
+  fi
+  grep -Fq 'package_file.sig' "$builder" || {
+    echo "qvos-build staged an offline mirror that does not retain package signatures." >&2
+    return 1
+  }
+  grep -Fqx 'SigLevel = Required DatabaseOptional' \
+    "$configs/pacman-offline.conf" || {
+    echo "qvos-build staged an offline repository without required package signatures." >&2
+    return 1
+  }
+  grep -Fqx 'Server = file:///var/cache/qvos/mirror/offline/' \
+    "$configs/pacman-offline.conf" || {
+    echo "qvos-build staged an unexpected offline repository path." >&2
+    return 1
+  }
+  for provider_config in "$configs"/pacman-online-*.conf; do
+    grep -Fqx 'SigLevel = Required DatabaseOptional' "$provider_config" || {
+      echo "qvos-build staged a provider without required package signatures: $provider_config" >&2
+      return 1
+    }
+  done
+  # shellcheck disable=SC2016
+  grep -Fqx '  export QVOS_INSTALL="$QVOS_PATH/qvcore/install"' "$installer" || {
+    echo "qvos-build staged an installer without the native qvOS install owner." >&2
+    return 1
+  }
+  grep -Fq '/var/tmp/qvos-install-completed' "$installer" || {
+    echo "qvos-build staged an installer with an unexpected completion marker." >&2
+    return 1
+  }
+  # shellcheck disable=SC2016
+  grep -Fq 'source "$QVOS_INSTALL/helpers/run"' "$configurator" || {
+    echo "qvos-build staged a fallback configurator without native helpers." >&2
+    return 1
+  }
+  if rg -n 'helpers/all\.sh' "$installer" "$configurator"; then
+    echo "qvos-build staged the retired installer helper tree." >&2
+    return 1
+  fi
+  grep -Fqx "ALL_kver='/boot/vmlinuz-linux'" \
+    "$configs/airootfs/etc/mkinitcpio.d/linux.preset" || {
+    echo "qvos-build staged an unexpected live-media kernel preset." >&2
+    return 1
+  }
+  grep -Fqx '  kernel_choice="linux"' \
+    "$configs/airootfs/root/configurator" || {
+    echo "qvos-build staged an unexpected fallback installer kernel." >&2
+    return 1
+  }
+
+  for boot_config in \
+    "$configs/efiboot/loader/entries/01-archiso-x86_64-linux.conf" \
+    "$configs/grub/grub.cfg" \
+    "$configs/grub/loopback.cfg" \
+    "$configs/syslinux/archiso_pxe-linux.cfg" \
+    "$configs/syslinux/archiso_sys-linux.cfg"; do
+    rg -q 'vmlinuz-linux([^[:alnum:]_-]|$)' "$boot_config" || {
+      echo "qvos-build staged a boot path without the standard Arch kernel: $boot_config" >&2
+      return 1
+    }
+    rg -q 'initramfs-linux\.img' "$boot_config" || {
+      echo "qvos-build staged a boot path without the standard Arch initramfs: $boot_config" >&2
+      return 1
+    }
   done
 }
 
@@ -377,8 +431,6 @@ run_iso_builder() {
   local docker_args=(
     --rm
     --privileged
-    -e "OMARCHY_INSTALLER_REPO=basecamp/omarchy"
-    -e "OMARCHY_INSTALLER_REF=master"
     -e "OMARCHY_MIRROR=$omarchy_mirror"
     -e "HOST_UID=$(id -u)"
     -e "HOST_GID=$(id -g)"
@@ -386,7 +438,7 @@ run_iso_builder() {
     -v "$iso_root/archiso:/archiso:ro"
     -v "$iso_root/builder:/builder:ro"
     -v "$iso_root/configs:/configs:ro"
-    -v "$staged_qvos:/omarchy:ro"
+    -v "$staged_qvos:/qvos:ro"
   )
 
   if [[ -n $docker_network ]]; then
@@ -462,6 +514,7 @@ publish_release_artifact() {
 
 require_command git
 require_command patch
+require_command rg
 require_command tar
 if [[ $prepare_only == "false" ]]; then
   require_command docker
@@ -484,7 +537,7 @@ stage_qvos_source "$staged_qvos"
 validate_qvos_source "$staged_qvos"
 stage_omarchy_iso "$staged_iso"
 patch_omarchy_iso "$staged_iso" "$staged_qvos"
-configure_arch_mirror "$staged_iso"
+validate_staged_iso "$staged_iso"
 
 if [[ $prepare_only == "true" ]]; then
   echo "qvOS ISO prepare-only complete"

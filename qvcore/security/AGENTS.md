@@ -40,7 +40,10 @@ The same installer requires trusted signatures for packages from the Omarchy
 repository while leaving its unsigned database optional. Reject ambiguous
 repository configuration instead of weakening global policy or changing other
 repositories. During an ISO chroot install, defer only the exact temporary
-`[offline]` mirror contract. The inherited Pacman post-install step must then
+signed `[offline]` mirror contract at
+`file:///var/cache/qvos/mirror/offline/`; its packages use
+`Required DatabaseOptional`, never `TrustAll`. The inherited Pacman
+post-install step must then
 run first, followed immediately by `qvcore/security/install`, so the final
 `[omarchy]` repository is hardened before reboot is allowed.
 Docker publishes to loopback by default. This is a base network boundary, not

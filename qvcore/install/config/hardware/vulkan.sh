@@ -4,7 +4,6 @@
 declare -A VULKAN_DRIVERS=(
   [Intel]=vulkan-intel
   [AMD]=vulkan-radeon
-  [Apple]=vulkan-asahi
 )
 
 PACKAGES=()

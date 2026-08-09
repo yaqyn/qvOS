@@ -167,7 +167,10 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   keyboard repeat settings or duplicate timing logic by step. Only exact
   password confirmation reaches the drive page. Reject unsupported username and machine-name
   characters while typing, keep full name and email unset, prefill Machine Name
-  with `qvOS`, require disk encryption, and detect the installed kernel. Step
+  with `qvOS`, require disk encryption, and use the signed standard Arch kernel.
+  Runtime preflight must inspect PCI hardware and refuse T2 Macs before setup if
+  their required third-party packages remain outside a verifiably signed qvOS
+  provider boundary; inability to inspect PCI hardware also fails closed. Step
   3/3, Install drive, is the final screen: selecting a drive keeps the complete
   selected drive on the left while the right panel removes its model, identity,
   tracker, and title. The left hint becomes the bright erase sentence without a

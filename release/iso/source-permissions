@@ -3,7 +3,7 @@
 set -eEo pipefail
 
 source_root="${1:-}"
-install_root="${2:-/root/omarchy}"
+install_root="${2:-/root/qvos}"
 tracked_files=""
 
 if [[ -z $source_root || ! -d $source_root/.git ]]; then

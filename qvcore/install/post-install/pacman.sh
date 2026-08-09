@@ -10,12 +10,3 @@ mapfile -t provider_files <<<"$provider_output"
 }
 sudo install -o root -g root -m 0644 -- "${provider_files[0]}" /etc/pacman.conf
 sudo install -o root -g root -m 0644 -- "${provider_files[1]}" /etc/pacman.d/mirrorlist
-
-if lspci -nn | grep -q "106b:180[12]"; then
-  cat <<EOF | sudo tee -a /etc/pacman.conf >/dev/null
-
-[arch-mact2]
-Server = https://github.com/NoaHimesaka1873/arch-mact2-mirror/releases/download/release
-SigLevel = Never
-EOF
-fi

@@ -131,13 +131,13 @@ read -r \
     }
     in_offline && /^[[:space:]]*SigLevel[[:space:]]*=/ {
       offline_siglevels++
-      if ($0 ~ /^[[:space:]]*SigLevel[[:space:]]*=[[:space:]]*Optional[[:space:]]+TrustAll[[:space:]]*$/) {
+      if ($0 ~ /^[[:space:]]*SigLevel[[:space:]]*=[[:space:]]*Required[[:space:]]+DatabaseOptional[[:space:]]*$/) {
         offline_expected_siglevels++
       }
     }
     in_offline && /^[[:space:]]*Server[[:space:]]*=/ {
       offline_servers++
-      if ($0 ~ /^[[:space:]]*Server[[:space:]]*=[[:space:]]*file:\/\/\/var\/cache\/omarchy\/mirror\/offline\/[[:space:]]*$/) {
+      if ($0 ~ /^[[:space:]]*Server[[:space:]]*=[[:space:]]*file:\/\/\/var\/cache\/qvos\/mirror\/offline\/[[:space:]]*$/) {
         offline_expected_servers++
       }
     }

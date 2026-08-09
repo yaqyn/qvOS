@@ -57,13 +57,34 @@ grep -Fq 'if [[ ! -d $target/qvcore/boot/login ]]; then' \
 if grep -Fq 'missing install/' "$root/release/iso/build"; then
   fail "release ISO requires the retired install tree"
 fi
-if sed -n '/^[+ ]/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
+if sed -n '/^+/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
   grep -Fq '/var/log/omarchy-install.log'; then
   fail "release ISO activates the retired installer log identity"
 fi
 grep -Fq '/var/log/qvos-install.log' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "release ISO native installer log identity"
+# shellcheck disable=SC2016
+grep -Fq 'validate_staged_iso "$staged_iso"' "$root/release/iso/build" ||
+  fail "release ISO staged trust validation"
+grep -Fq 'fallback configurator without native helpers' "$root/release/iso/build" ||
+  fail "release ISO fallback helper validation"
+# shellcheck disable=SC2016
+grep -Fq -- '-v "$staged_qvos:/qvos:ro"' "$root/release/iso/build" ||
+  fail "release ISO pinned qvOS source mount"
+grep -Fq 'package_file.sig' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO detached package signature retention"
+grep -Fq 'Server = file:///var/cache/qvos/mirror/offline/' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO native offline cache path"
+grep -Fq 'qvOS cannot safely install on T2 Macs' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO fallback T2 refusal"
+if sed -n '/^+/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
+  rg -q 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2'; then
+  fail "release ISO activates weak package trust or an unsupported T2 kernel"
+fi
 if rg -q 'copy_tree|fresh-cloning ISO builder source local' "$root/release/iso/build"; then
   fail "local ISO source bypass remains"
 fi

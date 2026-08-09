@@ -198,6 +198,14 @@ if rg -n 'Optional[[:space:]]+TrustAll|SigLevel[[:space:]]*=[[:space:]]*Never' \
   "$provider_dir"; then
   fail "credited provider source contains weak signature policy"
 fi
+if ! grep -Fq 'package_file.sig' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  ! grep -Fq 'Server = file:///var/cache/qvos/mirror/offline/' \
+    "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  ! grep -Fq 'SigLevel = Required DatabaseOptional' \
+    "$root/release/iso/omarchy-iso-qvos-tui.patch"; then
+  fail "ISO offline mirror does not preserve the signed provider policy"
+fi
 mapfile -t stable_files < <("$root/qvcore/packages/provider-files" stable)
 [[ ${stable_files[*]} == "$stable_config $stable_mirror" ]] ||
   fail "Stable provider resolution"

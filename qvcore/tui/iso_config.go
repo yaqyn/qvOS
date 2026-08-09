@@ -321,14 +321,6 @@ func hashISOInstallerPassword(password []rune) (string, error) {
 	return hash, nil
 }
 
-func detectISOInstallerKernel() string {
-	out, err := exec.Command("lspci", "-nn").Output()
-	if err == nil && isoT2Pattern.Match(out) {
-		return "linux-t2"
-	}
-	return "linux"
-}
-
 type omarchyCredentials struct {
 	EncryptionPassword *string                 `json:"encryption_password,omitempty"`
 	RootEncPassword    string                  `json:"root_enc_password"`

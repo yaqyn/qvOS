@@ -46,6 +46,11 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
   remains optional. Provider source and `qvcore/security/install` agree on that
   policy; never create a weak bootstrap interval or weaken global Arch trust or
   another repository to make Omarchy work.
+- The release builder resolves those same provider files before its first
+  Omarchy package, retains every detached package signature in the offline
+  mirror, and uses `Required DatabaseOptional` for that mirror. Never accept
+  `TrustAll`, `SigLevel = Never`, an unsigned hardware repository, or an
+  unsigned cached package in a qvOS image.
 - A provider outage, signing-key rotation, repository rename, package removal,
   or Stable/Edge compatibility change is qvsync review input. Keep the monitored
   upstream paths in `upstream/qvsync/package-provider-paths`; every match must be

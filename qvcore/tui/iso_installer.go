@@ -147,10 +147,17 @@ func filterISOInstallerExitMessages(model tea.Model, msg tea.Msg) tea.Msg {
 }
 
 func ensureISOInstallerRuntime() error {
-	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+	for _, commandName := range []string{"findmnt", "loadkeys", "lspci", "lsblk", "openssl", "timedatectl"} {
 		if _, err := exec.LookPath(commandName); err != nil {
 			return fmt.Errorf("qvOS ISO installer requires %s", commandName)
 		}
+	}
+	out, err := exec.Command("lspci", "-nn").Output()
+	if err != nil {
+		return fmt.Errorf("qvOS ISO installer could not inspect PCI hardware: %w", err)
+	}
+	if isoT2Pattern.Match(out) {
+		return fmt.Errorf("qvOS cannot safely install on T2 Macs because their required third-party packages are not verifiably signed")
 	}
 	return nil
 }
@@ -179,7 +186,7 @@ func newISOInstallerModel(preview ...bool) isoInstallerModel {
 			Hostname:            isoInstallerDefaultHostname,
 			Timezone:            timezone,
 			EncryptInstallation: true,
-			Kernel:              detectISOInstallerKernel(),
+			Kernel:              "linux",
 		},
 	}
 }
@@ -844,7 +851,7 @@ func writeISOInstallerOutputCmd(cfg isoInstallerConfig, password []rune) tea.Cmd
 
 		cfg.Password = string(password)
 		cfg.PasswordHash = hash
-		cfg.Kernel = detectISOInstallerKernel()
+		cfg.Kernel = "linux"
 		return isoInstallerDoneMsg{err: writeOmarchyInstallerFiles(".", cfg)}
 	}
 }

@@ -180,7 +180,11 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - `qvcore/packages/provider/omarchy/` owns the credited Omarchy mirror and
-  repository inputs; installed qvOS uses Stable with required package signatures
+  repository inputs; installed qvOS uses Stable with required package signatures,
+  and release images preserve those signatures in their offline mirror
+- qvOS installs the signed standard Arch kernel. Do not add an unsigned hardware
+  repository or package set; T2 Macs are refused before disk selection until a
+  verifiably signed provider can support their complete required stack
 - local debug inventory belongs to `qvcore/security/debug`; it remains private,
   bounded, terminal-safe, and upload-free, with sudo limited to optional dmesg
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired
