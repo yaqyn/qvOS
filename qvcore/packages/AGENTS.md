@@ -11,6 +11,10 @@ truthful names and the published signing fingerprint; never introduce or imply
 a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
 Native package owners resolve source only through `QVOS_PATH`; the provider
 name never grants `OMARCHY_PATH` source authority.
+`omarchy-keyring` is the only retained provider-branded package requirement.
+Application and meta-package selection uses official upstream package names;
+qvOS owns the corresponding config and theme instead of depending on
+`omarchy-nvim`, `omarchy-walker`, or future provider-branded app bundles.
 
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may
@@ -21,7 +25,8 @@ name never grants `OMARCHY_PATH` source authority.
   and never interpolates unchecked environment input into a source path.
 - `qvcore/install/packaging/` owns the singular qvOS package manifests and
   resolver. Package presence never implies qvOS, Service, or Development
-  ownership.
+  ownership. Keep provider-branded applications out of both manifests and
+  list only the explicit official packages needed by an active qvOS owner.
 - `qvcore/packages/{add,drop,missing,present}` owns package mutation and
   readback through configured repositories. AUR operations are separate,
   explicit owners. Validate package names before Pacman or Yay, terminate

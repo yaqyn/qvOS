@@ -90,6 +90,12 @@ while IFS= read -r retired; do
     fail "retired package-update path remains: $retired"
 done <"$retired_manifest"
 
+if rg -n '^omarchy-[A-Za-z0-9@._+-]+$' \
+  "$root/qvcore/install/packaging/base.packages" \
+  "$root/qvcore/install/packaging/other.packages"; then
+  fail "qvOS package manifests select a provider-branded application bundle"
+fi
+
 native_refresh="$root/bin/qv-refresh-pacman"
 compatibility_refresh="$root/bin/omarchy-refresh-pacman"
 [[ -x $native_refresh && -x $compatibility_refresh ]] ||

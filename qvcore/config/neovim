@@ -1,0 +1,168 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+owner_dir="$QVOS_PATH/qvcore/config"
+seed_dir="$owner_dir/files/nvim"
+signature_manifest="$owner_dir/retired-neovim-signatures.psv"
+config_root="$HOME/.config"
+config_dir="$config_root/nvim"
+state_root="$HOME/.local/state/qvos"
+lock_dir="$state_root/config"
+backup_root="$state_root/config-backups"
+candidate=""
+stage=""
+backup=""
+restore_config=false
+
+fail() {
+  printf 'qvOS Neovim reconciliation: %s\n' "$1" >&2
+  exit 1
+}
+
+validate_user_directory() {
+  local label=$1
+  local path=$2
+
+  [[ ! -e $path && ! -L $path ]] && return 0
+  [[ -d $path && ! -L $path && -O $path ]] ||
+    fail "$label is not a real user-owned directory: $path"
+}
+
+cleanup() {
+  local status=$?
+
+  [[ -z $candidate ]] || rm -f -- "$candidate"
+  [[ -z $stage || ! -d $stage ]] || rm -rf -- "$stage"
+  if [[ $restore_config == "true" && ! -e $config_dir && ! -L $config_dir &&
+    -n $backup && -d $backup ]]; then
+    mv -- "$backup" "$config_dir" || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+if (($# != 0)); then
+  echo "Usage: qvcore/config/neovim" >&2
+  exit 2
+fi
+((EUID != 0)) || fail "run this owner as the desktop user, not root"
+[[ -d $seed_dir && ! -L $seed_dir ]] || fail "the native config seed is unsafe"
+[[ -f $seed_dir/init.lua && ! -L $seed_dir/init.lua ]] ||
+  fail "the native init.lua seed is unsafe"
+[[ -f $signature_manifest && ! -L $signature_manifest ]] ||
+  fail "the retirement signature manifest is unsafe"
+command -v flock >/dev/null || fail "flock is required"
+command -v sha256sum >/dev/null || fail "sha256sum is required"
+
+validate_user_directory "the home directory" "$HOME"
+for directory in \
+  "$config_root" \
+  "$HOME/.local" \
+  "$HOME/.local/state" \
+  "$state_root" \
+  "$lock_dir" \
+  "$backup_root" \
+  "$config_dir"; do
+  validate_user_directory "the Neovim path" "$directory"
+done
+[[ -d $config_dir ]] || exit 0
+
+for directory in \
+  "$HOME/.local" \
+  "$HOME/.local/state" \
+  "$state_root" \
+  "$lock_dir"; do
+  [[ -d $directory ]] || install -d -m 0700 "$directory"
+done
+exec {lock_fd}>"$lock_dir/neovim.lock"
+flock -x "$lock_fd"
+
+# Preserve a custom LazyVim configuration while moving its exact historical
+# qvOS theme seam onto the native theme-state root.
+plugins_dir="$config_dir/lua/plugins"
+validate_user_directory "the Neovim plugin config" "$plugins_dir"
+theme_link="$plugins_dir/theme.lua"
+native_target='../../../qvos/current/theme/neovim.lua'
+legacy_targets=(
+  '../../../../.config/omarchy/current/theme/neovim.lua'
+  '../../../../.local/state/omarchy/current/theme/neovim.lua'
+  "$HOME/.config/omarchy/current/theme/neovim.lua"
+  "$HOME/.local/state/omarchy/current/theme/neovim.lua"
+)
+replace_theme_link=false
+if [[ -L $theme_link ]]; then
+  current_target=$(readlink -- "$theme_link")
+  for legacy_target in "${legacy_targets[@]}"; do
+    [[ $current_target != "$legacy_target" ]] || replace_theme_link=true
+  done
+fi
+if [[ $replace_theme_link == "true" ]]; then
+  candidate=$(mktemp "$plugins_dir/.qvos-theme.XXXXXX")
+  rm -f -- "$candidate"
+  ln -s "$native_target" "$candidate"
+  mv -Tf -- "$candidate" "$theme_link"
+  candidate=""
+fi
+
+declare -A required_paths=()
+declare -A accepted_signatures=()
+while IFS='|' read -r relative_path expected_hash; do
+  [[ $relative_path != \#* && -n $relative_path ]] || continue
+  [[ $relative_path =~ ^[A-Za-z0-9._/-]+$ && $relative_path != /* &&
+    $relative_path != "." && $relative_path != ".." &&
+    $relative_path != ../* && $relative_path != */../* &&
+    $relative_path != */.. ]] ||
+    fail "invalid retired Neovim path: $relative_path"
+  [[ $expected_hash =~ ^[0-9a-f]{64}$ ]] ||
+    fail "invalid retired Neovim hash: $relative_path"
+  signature="$relative_path|$expected_hash"
+  [[ -z ${accepted_signatures[$signature]:-} ]] ||
+    fail "duplicate retired Neovim signature: $relative_path"
+  required_paths[$relative_path]=1
+  accepted_signatures[$signature]=1
+done <"$signature_manifest"
+(( ${#required_paths[@]} > 0 )) || fail "the retirement signature manifest is empty"
+
+provider_config=true
+for relative_path in "${!required_paths[@]}"; do
+  target="$config_dir/$relative_path"
+  if [[ ! -f $target || -L $target || ! -O $target ]]; then
+    provider_config=false
+    break
+  fi
+  actual_hash=$(sha256sum "$target" | cut -d ' ' -f 1)
+  if [[ -z ${accepted_signatures["$relative_path|$actual_hash"]:-} ]]; then
+    provider_config=false
+    break
+  fi
+done
+
+if [[ $provider_config != "true" ]]; then
+  exit 0
+fi
+
+install -d -m 0700 "$backup_root"
+stage=$(mktemp -d "$config_root/.qvos-nvim-stage.XXXXXX")
+cp -a "$seed_dir/." "$stage/"
+[[ -f $stage/init.lua && ! -L $stage/init.lua ]] ||
+  fail "the staged native Neovim config is unsafe"
+
+backup="$backup_root/neovim.$(date +%s)"
+backup_index=0
+while [[ -e $backup || -L $backup ]]; do
+  ((backup_index += 1))
+  backup="$backup_root/neovim.$(date +%s).$backup_index"
+done
+
+restore_config=true
+mv -- "$config_dir" "$backup"
+mv -- "$stage" "$config_dir"
+stage=""
+restore_config=false
+printf 'Replaced the provider Neovim config; backup: %s\n' "$backup"
+
+trap - EXIT INT TERM HUP

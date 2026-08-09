@@ -25,6 +25,10 @@ Built-in color templates live only under `qvcore/theme/templates/`;
 `default/themed/` is retired. Preflight every built-in and user template before
 rendering, keep user overrides first, reject unsafe paths and output names, and
 publish each generated file atomically inside the staged theme.
+The reserved `qvos-neovim.lua` output is always regenerated from the validated
+palette (or an explicit user template) before activation, so official Neovim
+follows Yaqyn and compatible imported themes without executing an imported
+theme's editor code or downloading theme plugins.
 
 - `qvcore/theme/install` owns the source-independent runtime and removes only
   inherited stock-theme symlinks. Preserve real user directories, external

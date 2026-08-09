@@ -92,6 +92,11 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   layout/style source under `qvcore/menu/walker-theme/`. Install only generated
   runtime copies through `qvcore/menu/install`; never link a provider or theme
   back to an inherited source tree. Native provider identities use `qvos*`.
+- Base installation selects official Walker, Elephant, and only the provider
+  packages referenced by the native config and menu. Never restore the
+  `omarchy-walker` meta-package or its unused Bluetooth, runner, todo, and
+  Unicode providers; qvOS configuration and generated theming remain the sole
+  application integration owners.
 - `qvcore/menu/menu` is the singular menu orchestrator. It sources `base` and
   `routes` exactly once, then loads the user-owned
   `~/.config/omarchy/extensions/menu.sh` compatibility ABI last so personal

@@ -176,7 +176,7 @@ func TestISOProgressClassifiesNativeInstallStages(t *testing.T) {
 		progress float64
 	}{
 		{"/home/installer/.local/share/qvos/qvcore/install/preflight/pacman.sh", "checking pacman", 0.58},
-		{"/home/installer/.local/share/qvos/qvcore/install/packaging/nvim.sh", "installing nvim", 0.62},
+		{"/home/installer/.local/share/qvos/qvcore/install/packaging/webapps", "installing webapps", 0.62},
 		{"/home/installer/.local/share/qvos/qvcore/install/config/docker.sh", "configuring docker", 0.72},
 		{"/home/installer/.local/share/qvos/qvcore/boot/login/hibernation.sh", "configuring hibernation", 0.92},
 		{"/home/installer/.local/share/qvos/qvcore/security/install", "applying security defaults", 0.96},

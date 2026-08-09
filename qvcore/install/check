@@ -59,6 +59,13 @@ for owner in npx resolve webapps; do
   [[ -x $root/qvcore/install/packaging/$owner ]] ||
     fail "packaging owner mode: $owner"
 done
+[[ ! -e $root/qvcore/install/packaging/nvim.sh ]] ||
+  fail "retired provider Neovim setup stage remains"
+if rg -n 'omarchy-(nvim|walker)([[:space:]]|$)' \
+  "$root/qvcore/install/packaging" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "fresh installation retains a branded application package"
+fi
 [[ -f $root/qvcore/install/packaging/base &&
   ! -x $root/qvcore/install/packaging/base ]] ||
   fail "base packaging owner mode"

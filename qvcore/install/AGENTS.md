@@ -153,6 +153,11 @@ links, menu runtime, and service reloads
 remain singularly owned by `qvcore/menu/install` during first run. Never
 restore the duplicate `walker-elephant.sh` stage or a root Pacman hook that
 executes a home-directory checkout.
+Install Walker and only the official Elephant providers referenced by qvOS
+configuration explicitly; never depend on `omarchy-walker` or restore its
+unused Bluetooth, runner, todo, and Unicode providers. Install official Neovim
+with the native minimal config seed and palette-generated theme; never restore
+`omarchy-nvim`, its setup stage, LazyVim preload, or bundled theme catalog.
 Before first-run services are enabled, run the native config toggle-state and
 user-service reconcilers. Battery monitoring and internal-monitor recovery use
 only `qvos-*` unit identities; inherited unit names and toggle roots are
@@ -184,6 +189,9 @@ conditional hardware paths that remain verifiably signed.
 `qvcore/install/packaging/resolve` validates and emits them; never restore an
 inherited manifest plus additions/exclusions model or an unsupported hardware
 stack merely to preserve upstream coverage.
+Provider-branded application and meta-packages are not qvOS base packages.
+The credited repository/keyring may supply official upstream-named packages,
+but qvOS owns their selection, configuration, theme, and lifecycle.
 `qvcore/install/packaging/all.sh` calls the native qvOS fixed NPX-wrapper and
 empty bundled Web App owners directly, and `qv refresh applications` uses
 those same owners. Application refresh delegates the fixed desktop payload to

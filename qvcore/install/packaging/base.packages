@@ -19,6 +19,15 @@ docker-buildx
 docker-compose
 dosfstools
 dust
+elephant
+elephant-calc
+elephant-clipboard
+elephant-desktopapplications
+elephant-files
+elephant-menus
+elephant-providerlist
+elephant-symbols
+elephant-websearch
 evince
 exfatprogs
 expac
@@ -78,8 +87,6 @@ nss-mdns
 neovim
 obsidian
 openai-codex
-omarchy-nvim
-omarchy-walker
 pamixer
 playerctl
 plocate
@@ -110,6 +117,7 @@ ufw-docker
 unzip
 usage
 uwsm
+walker
 waybar
 whois
 wireless-regdb

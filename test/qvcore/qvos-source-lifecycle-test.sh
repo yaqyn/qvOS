@@ -251,6 +251,7 @@ pass "source migration repairs only verified and conflict-free roots"
 config_source="$test_root/config-source"
 config_home="$test_root/config-home"
 install -d \
+  "$config_source/qvcore/config" \
   "$config_source/qvcore/config/files/example" \
   "$config_source/qvcore/install/config" \
   "$config_source/qvcore/shell/files" \
@@ -260,6 +261,10 @@ printf 'bashrc\n' >"$config_source/qvcore/shell/files/bashrc"
 install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+install -m 0755 /dev/stdin "$config_source/qvcore/config/neovim" <<'SCRIPT'
+#!/bin/bash
+printf 'neovim\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
 exit 1
@@ -267,8 +272,7 @@ SCRIPT
 for command in \
   qv-refresh-hyprland \
   qv-refresh-limine \
-  qv-refresh-plymouth \
-  omarchy-nvim-setup; do
+  qv-refresh-plymouth; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "${0##*/}" >>"$QVOS_TEST_ACTION_LOG"
@@ -303,7 +307,7 @@ HOME="$config_home" \
   "$root/qvcore/install/reinstall-configs" --yes >/dev/null
 [[ $(<"$config_home/.config/example/value") == "configured" ]] ||
   fail "config reset source"
-[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth\nomarchy-nvim-setup' ]] ||
+[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth\nneovim' ]] ||
   fail "config reset owner order"
 pass "config reset runs the theme source directly and reconciles native Hyprland config"
 

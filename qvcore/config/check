@@ -211,11 +211,15 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in toggle-state user-services; do
+for owner in neovim toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
 "$root/qvcore/config/assistant/check" >/dev/null ||
   fail "native assistant integration contract"
+if rg -n 'omarchy-nvim-(setup|refresh)' \
+  "$root/qvcore" --glob '!**/AGENTS.md' --glob '!**/check'; then
+  fail "qvOS retains the provider Neovim command as an internal owner"
+fi
 
 if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-internal(-mirror)?|hyprland-toggle(-disabled|-enabled)?|refresh-(config|hypridle|hyprland|hyprlock|hyprsunset|swayosd)|toggle-enabled|toggle-touchpad|toggle-touchscreen|tz-select)' \
   "$root/qvcore/config" \

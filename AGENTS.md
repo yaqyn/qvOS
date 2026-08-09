@@ -146,6 +146,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited browser defaults are retired and no browser owner seeds a Web App
 - `qvcore/menu/` owns every qvOS Elephant provider and the generated Walker
   menu theme; inherited Elephant and Walker defaults are retired
+- `qvcore/config/files/nvim/` owns the minimal official Neovim seed;
+  `qvcore/config/neovim` atomically backs up only recognized provider configs,
+  preserves custom configs, and keeps theming under the native qvOS palette
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state
@@ -261,6 +264,8 @@ Every qvOS change must leave one traceable lifecycle.
   read-only code upstream, never product authority. qvOS owns product and
   package selection; Omarchy provides only the credited Stable mirror,
   repository, and signing keyring boundary described in `qvcore/packages/`.
+  Select official application packages from that repository; never make an
+  `omarchy-*` application or meta-package part of the qvOS product surface.
 - During the native transition, keep each inherited implementation byte-for-byte
   until its domain is promoted. Then port selected capability into one owner
   under `qvcore/<domain>/` or `qvcore/<feature>/` and remove the inherited

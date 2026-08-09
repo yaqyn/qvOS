@@ -64,6 +64,8 @@
     qvcore/install/post-update-hook
     qvcore/install/retire-inherited-system-policy
     qvcore/config/migrate-runtime-root
+    qvcore/config/neovim
+    qvcore/config/retired-neovim-signatures.psv
     qvcore/config/retired-hypr-layer.psv
     qvcore/config/assistant/install
     qvcore/config/files/xcompose
@@ -215,6 +217,7 @@
 
   "$QVOS_PATH/qvcore/branding/install"
   "$QVOS_PATH/qvcore/config/assistant/install"
+  "$QVOS_PATH/qvcore/config/neovim"
 
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"

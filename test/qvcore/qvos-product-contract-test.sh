@@ -94,7 +94,33 @@ pass "qvOS resolves singular native package manifests"
 grep -qx 'chromium' "$base_packages" || fail "Chromium package contract"
 grep -qx 'alacritty' "$base_packages" || fail "Alacritty package contract"
 grep -qx 'neovim' "$base_packages" || fail "Neovim package contract"
-grep -qx 'omarchy-nvim' "$base_packages" || fail "qvOS Neovim package contract"
+for official_menu_package in \
+  elephant \
+  elephant-calc \
+  elephant-clipboard \
+  elephant-desktopapplications \
+  elephant-files \
+  elephant-menus \
+  elephant-providerlist \
+  elephant-symbols \
+  elephant-websearch \
+  walker; do
+  grep -Fqx "$official_menu_package" "$base_packages" ||
+    fail "official Walker package contract: $official_menu_package"
+done
+for retired_app_package in \
+  omarchy-nvim \
+  omarchy-walker \
+  elephant-bluetooth \
+  elephant-runner \
+  elephant-todo \
+  elephant-unicode; do
+  ! grep -Fqx "$retired_app_package" "$base_packages" ||
+    fail "retired or unused application package remains: $retired_app_package"
+done
+[[ -x $root/qvcore/config/neovim &&
+  -f $root/qvcore/config/files/nvim/init.lua ]] ||
+  fail "native Neovim config lifecycle"
 grep -qx 'wtype' "$base_packages" || fail "Codex Wayland input contract"
 grep -qx 'xdg-user-dirs' "$base_packages" ||
   fail "fresh-install user directory command package contract"

@@ -53,6 +53,9 @@ mkdir -p "$NEXT_THEME_PATH"
 # Copy the bundled Yaqyn theme or one complete compatible user theme.
 cp -a "$THEME_PATH/." "$NEXT_THEME_PATH/"
 rm -rf -- "$NEXT_THEME_PATH/.git"
+# This generated native colorscheme is qvOS-owned. Never execute an imported
+# theme's file at this reserved path; users can override the trusted template.
+rm -f -- "$NEXT_THEME_PATH/qvos-neovim.lua"
 
 # Generate colors.toml from alacritty.toml if theme is missing colors.toml
 if [[ ! -f $NEXT_THEME_PATH/colors.toml && -f $NEXT_THEME_PATH/alacritty.toml ]]; then
