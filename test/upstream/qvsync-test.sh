@@ -57,9 +57,12 @@ git -C "$repo" commit -qm "Record upstream baseline"
 git -C "$repo" switch -qc OS
 os_head=$(git -C "$repo" rev-parse HEAD)
 
+# Invoke by absolute path from outside the repository. The installer must own
+# the checkout containing its source, never whichever repository is the shell's
+# current directory.
 (
-  cd "$repo"
-  upstream/qvsync/install-qvsync
+  cd "$test_root"
+  "$repo/upstream/qvsync/install-qvsync"
 )
 
 # shellcheck disable=SC2016
@@ -68,6 +71,11 @@ os_head=$(git -C "$repo" rev-parse HEAD)
 # shellcheck disable=SC2016
 grep -Fq 'exec "$repo_root/upstream/qvsync/qvsync" "$@"' "$repo/.git/qvsync" ||
   fail "tracked qvsync dispatch"
+[[ $(git -C "$repo" remote get-url upstream) == \
+  "https://github.com/basecamp/omarchy.git" ]] ||
+  fail "official Omarchy review remote"
+[[ $(git -C "$repo" remote get-url --push upstream) == "DISABLED" ]] ||
+  fail "Omarchy review push guard"
 [[ $(git -C "$repo" remote get-url upstream-iso) == \
   "https://github.com/omacom-io/omarchy-iso.git" ]] ||
   fail "official Omarchy ISO review remote"
@@ -98,7 +106,8 @@ grep -Fq 'another qvsync appears to be running' <<<"$output" ||
 rm -rf "$repo/.git/qvsync.lock"
 pass "active qvsync lock is preserved and reported"
 
-git -C "$repo" remote add upstream "$test_root/pending-upstream.git"
+git -C "$repo" remote set-url upstream "$test_root/pending-upstream.git"
+git -C "$repo" remote set-url --push upstream "$test_root/pending-upstream.git"
 mkdir "$repo/.git/qvsync.lock"
 printf '%s\n' 99999999 >"$repo/.git/qvsync.lock/pid"
 if output=$(git -C "$repo" qvsync 2>&1); then

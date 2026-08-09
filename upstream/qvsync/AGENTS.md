@@ -11,6 +11,9 @@ replace its judgment.
 
 1. Require branch `OS`, inspect `git status --short --branch`, and inspect
    `.git/qvsync` when its dispatch is relevant.
+   Install the helper through its tracked absolute path; the installer resolves
+   the owning checkout from its own source, converges both official upstream
+   fetch URLs, and disables both push URLs regardless of the caller's directory.
 2. Start with `git qvsync --audit`. It fetches Omarchy `master` and Omarchy ISO
    `quattro` without merging, cherry-picking, moving product branches, making
    upstream executable build input, or publishing. It reports each independent

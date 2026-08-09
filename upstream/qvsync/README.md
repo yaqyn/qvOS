@@ -40,6 +40,7 @@ base. After independently porting and verifying selected fixes in
 git qvsync --record-reviewed-iso-upstream <target-sha>
 ```
 
-`upstream-iso` is configured with its push URL set to `DISABLED`. Its fetched
-objects and remote-tracking ref are audit evidence only; the native ISO build
-never reads them.
+The installer resolves the checkout containing its own tracked source, then
+converges `upstream` and `upstream-iso` to their official fetch URLs with both
+push URLs set to `DISABLED`. Their fetched objects and remote-tracking refs are
+audit evidence only; the native ISO build never reads them.

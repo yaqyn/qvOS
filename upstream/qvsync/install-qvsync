@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-repo_root=$(git rev-parse --show-toplevel)
-qvsync_path=$(git rev-parse --git-path qvsync)
+source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(git -C "$source_dir" rev-parse --show-toplevel)
+qvsync_path=$(git -C "$repo_root" rev-parse --path-format=absolute --git-path qvsync)
 qvsync_source="$repo_root/upstream/qvsync/qvsync"
 qvsync_audit_source="$repo_root/upstream/qvsync/qvsync-audit"
 
@@ -22,15 +23,25 @@ SCRIPT
 chmod 0755 "$qvsync_path"
 
 # shellcheck disable=SC2016
-git config alias.qvsync '!bash "$(git rev-parse --git-path qvsync)"'
+git -C "$repo_root" config alias.qvsync '!bash "$(git rev-parse --git-path qvsync)"'
 
-if ! git remote get-url upstream-iso >/dev/null 2>&1; then
-  git remote add upstream-iso https://github.com/omacom-io/omarchy-iso.git
-fi
-git remote set-url --push upstream-iso DISABLED
+configure_upstream() {
+  local name=$1
+  local url=$2
 
-if git show-ref --verify --quiet refs/remotes/origin/OS; then
-  git remote set-head origin OS >/dev/null 2>&1 || true
+  if git -C "$repo_root" remote get-url "$name" >/dev/null 2>&1; then
+    git -C "$repo_root" remote set-url "$name" "$url"
+  else
+    git -C "$repo_root" remote add "$name" "$url"
+  fi
+  git -C "$repo_root" remote set-url --push "$name" DISABLED
+}
+
+configure_upstream upstream https://github.com/basecamp/omarchy.git
+configure_upstream upstream-iso https://github.com/omacom-io/omarchy-iso.git
+
+if git -C "$repo_root" show-ref --verify --quiet refs/remotes/origin/OS; then
+  git -C "$repo_root" remote set-head origin OS >/dev/null 2>&1 || true
 fi
 
 printf "Installed git qvsync from %s\n" "$qvsync_source"
