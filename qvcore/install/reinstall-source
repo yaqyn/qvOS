@@ -21,7 +21,7 @@ if ((EUID == 0)); then
   echo "qvOS source reinstall must run as the desktop user, not root." >&2
   exit 1
 fi
-configured_target=${QVOS_PATH:-${OMARCHY_PATH:-$target}}
+configured_target=${QVOS_PATH:-$target}
 configured_target=$(readlink -f -- "$configured_target" 2>/dev/null || true)
 if [[ $configured_target != "$target" && $configured_target != "$compat_target" ]]; then
   echo "qvOS source reinstall only operates on $target." >&2

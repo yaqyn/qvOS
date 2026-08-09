@@ -36,7 +36,7 @@ done
 
 run_prepare() {
   HOME="$test_home" \
-    OMARCHY_PATH="$root" \
+    QVOS_PATH="$root" \
     QVOS_FIRST_RUN_TESTING=1 \
     QVOS_FIRST_RUN_SYSTEM_ROOT="$system_root" \
     "$root/qvcore/install/first-run/prepare"
@@ -141,7 +141,7 @@ unsafe_target="$test_root/unsafe-marker-target"
 ln -s "$unsafe_target" \
   "$unsafe_home/.local/state/qvos/install/first-run.mode"
 if HOME="$unsafe_home" \
-  OMARCHY_PATH="$root" \
+  QVOS_PATH="$root" \
   QVOS_FIRST_RUN_TESTING=1 \
   QVOS_FIRST_RUN_SYSTEM_ROOT="$unsafe_system_root" \
   "$root/qvcore/install/first-run/prepare" >/dev/null 2>&1; then

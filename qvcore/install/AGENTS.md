@@ -67,8 +67,9 @@ migrations or records the retired Omarchy marker tree.
 
 The complete installer implementation lives under `qvcore/install/`, with
 login leaves under `qvcore/boot/login/`. The top-level `install.sh` is the only
-entry point. `QVOS_INSTALL` names the native stage root; `OMARCHY_INSTALL` may
-mirror it only as an upstream helper compatibility environment. Never restore
+entry point. `QVOS_INSTALL` names the only stage root; `OMARCHY_INSTALL` is
+retired. Native install owners resolve only `QVOS_PATH`, invoke native `qv-*`
+helpers, and never select a source through inherited environment. Never restore
 the retired top-level `install/` tree or route an install lifecycle through the
 source-root compatibility link.
 
@@ -107,7 +108,7 @@ error, and logging helper order. The error handler
 must preserve the original failure status, bound output on small terminals,
 hide command arguments, never upload private logs, and point only to qvOS
 support. Online retry replaces the failed installer process from the validated
-OMARCHY_PATH; signals stop promptly with conventional exit codes.
+`QVOS_PATH`; signals stop promptly with conventional exit codes.
 
 `qvcore/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`

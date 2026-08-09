@@ -1,3 +1,3 @@
 if qv-hw-asus-rog; then
-  omarchy-pkg-add asusctl
+  qv-pkg-add asusctl
 fi

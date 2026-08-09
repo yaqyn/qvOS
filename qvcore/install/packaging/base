@@ -3,4 +3,4 @@
 resolved_packages=$("$QVOS_PATH/qvcore/install/packaging/resolve" base) ||
   return 1
 mapfile -t packages <<<"$resolved_packages"
-omarchy-pkg-add "${packages[@]}"
+qv-pkg-add "${packages[@]}"

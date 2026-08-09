@@ -204,19 +204,15 @@ if rg -n 'qvos_owner=' "$root/bin"; then
 fi
 pass "promoted public commands retain no inherited availability fallbacks"
 
-omarchy-webapp-install() {
-  printf 'webapp:%s\n' "$1"
-}
-omarchy-pkg-add() {
+qv-pkg-add() {
   printf 'pkg:%s\n' "$@"
 }
-export -f omarchy-webapp-install omarchy-pkg-add
+export -f qv-pkg-add
 
-webapps_output=$(QVOS_PATH="$root" OMARCHY_PATH="$root" "$root/qvcore/install/packaging/webapps") ||
+webapps_output=$(QVOS_PATH="$root" "$root/qvcore/install/packaging/webapps") ||
   fail "native webapps owner failed"
 base_output=$(
-  QVOS_PATH="$root" OMARCHY_PATH="$root" \
-    QVOS_INSTALL="$root/qvcore/install" OMARCHY_INSTALL="$root/qvcore/install" \
+  QVOS_PATH="$root" QVOS_INSTALL="$root/qvcore/install" \
     bash -c 'source "$1"' _ "$root/qvcore/install/packaging/base"
 ) || fail "base qvOS owner failed"
 

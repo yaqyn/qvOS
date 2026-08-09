@@ -292,7 +292,7 @@ diff --git configs/airootfs/root/.automated_script.sh configs/airootfs/root/.aut
 index 7566803..068980c 100644
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
-@@ -1,68 +1,125 @@
+@@ -1,68 +1,123 @@
 -#!/usr/bin/env bash
 +#!/bin/bash
  set -euo pipefail
@@ -307,8 +307,6 @@ index 7566803..068980c 100644
 +  export QVOS_PATH="/root/qvos"
 +  export QVOS_INSTALL="$QVOS_PATH/qvcore/install"
 +  export QVOS_INSTALL_LOG_FILE="/var/log/qvos-install.log"
-+  export OMARCHY_PATH="$QVOS_PATH"
-+  export OMARCHY_INSTALL="$QVOS_INSTALL"
 +  OMARCHY_MIRROR=$(</root/qvos_provider_channel)
 +  export OMARCHY_MIRROR
 +  # shellcheck disable=SC1091

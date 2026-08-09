@@ -17,8 +17,8 @@ clear
 echo -e "\n$ansi_art\n"
 
 # Validate the requested source before any privileged package or mirror change.
-QVOS_REF="${QVOS_REF:-${OMARCHY_REF:-OS}}"
-QVOS_REPO="${QVOS_REPO:-${OMARCHY_REPO:-Yaqyn-qvOS/qvOS}}"
+QVOS_REF="${QVOS_REF:-OS}"
+QVOS_REPO="${QVOS_REPO:-Yaqyn-qvOS/qvOS}"
 QVOS_TARGET="$HOME/.local/share/qvos"
 OMARCHY_COMPAT_TARGET="$HOME/.local/share/omarchy"
 if [[ $QVOS_REPO != "Yaqyn-qvOS/qvOS" ]]; then

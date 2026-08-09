@@ -2,8 +2,7 @@
 set -euo pipefail
 umask 077
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 system_root=${QVOS_FIRST_RUN_SYSTEM_ROOT:-}
 helper_source="$QVOS_PATH/qvcore/install/first-run/root"
 helper_target="$system_root/usr/lib/qvos/first-run-root"

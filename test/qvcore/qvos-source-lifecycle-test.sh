@@ -63,7 +63,7 @@ ln -s qvos "$reinstall_home/.local/share/omarchy"
 printf 'preserve me\n' >"$live_source/local-change"
 env "${git_env[@]}" \
   HOME="$reinstall_home" \
-  OMARCHY_PATH="$live_source" \
+  QVOS_PATH="$live_source" \
   "$root/qvcore/install/reinstall-source" >/dev/null
 [[ -z $(git -C "$live_source" status --porcelain=v1 --untracked-files=all) ]] ||
   fail "reinstalled source cleanliness"
@@ -85,7 +85,7 @@ set +e
 reinstall_mismatch_output=$(
   env "${git_env[@]}" \
     HOME="$reinstall_home" \
-    OMARCHY_PATH="$live_source" \
+    QVOS_PATH="$live_source" \
     "$root/qvcore/install/reinstall-source" 2>&1
 )
 reinstall_mismatch_status=$?
@@ -120,7 +120,7 @@ expected_head=$(git -C "$project" rev-parse HEAD)
 : >"$action_log"
 env "${git_env[@]}" \
   HOME="$update_home" \
-  OMARCHY_PATH="$update_source" \
+  QVOS_PATH="$update_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/update/update-source" >/dev/null
@@ -134,7 +134,7 @@ set +e
 dirty_update_output=$(
   env "${git_env[@]}" \
     HOME="$update_home" \
-    OMARCHY_PATH="$update_source" \
+    QVOS_PATH="$update_source" \
     QVOS_TEST_ACTION_LOG="$action_log" \
     PATH="$test_bin:/usr/bin" \
     "$root/qvcore/update/update-source" 2>&1
@@ -298,7 +298,6 @@ set -e
   fail "config reset cancellation mutation"
 HOME="$config_home" \
   QVOS_PATH="$config_source" \
-  OMARCHY_PATH="$config_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/install/reinstall-configs" --yes >/dev/null
@@ -324,7 +323,7 @@ exit 9
 SCRIPT
 : >"$action_log"
 set +e
-OMARCHY_PATH="$package_source" \
+QVOS_PATH="$package_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/install/reinstall-packages" --yes >/dev/null 2>&1
@@ -338,7 +337,7 @@ printf '%s\n' alpha beta
 SCRIPT
 : >"$action_log"
 set +e
-OMARCHY_PATH="$package_source" \
+QVOS_PATH="$package_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/install/reinstall-packages" >/dev/null
@@ -346,7 +345,7 @@ cancelled_packages_status=$?
 set -e
 (( cancelled_packages_status == 130 )) || fail "package reinstall cancellation status"
 [[ ! -s $action_log ]] || fail "package reinstall cancellation mutation"
-OMARCHY_PATH="$package_source" \
+QVOS_PATH="$package_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/install/reinstall-packages" --yes >/dev/null

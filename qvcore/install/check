@@ -103,9 +103,12 @@ expected_helper_stage=$'# shellcheck shell=bash\n# shellcheck disable=SC1091\n\n
 # shellcheck disable=SC2016
 grep -Fqx 'export QVOS_INSTALL="$QVOS_PATH/qvcore/install"' "$root/install.sh" ||
   fail "native installer stage root"
-# shellcheck disable=SC2016
-grep -Fqx 'export OMARCHY_INSTALL="$QVOS_INSTALL"' "$root/install.sh" ||
-  fail "installer compatibility environment"
+if rg -n 'OMARCHY_(PATH|INSTALL|REPO|REF)' \
+  "$root/install.sh" \
+  "$root/boot.sh" \
+  "$root/qvcore/install/preflight/show-env.sh"; then
+  fail "native installer accepts a retired product-source environment"
+fi
 # shellcheck disable=SC2016
 grep -Fqx 'export QVOS_INSTALL_LOG_FILE="${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}"' \
   "$root/install.sh" || fail "native installer log identity"
@@ -126,11 +129,13 @@ for stage in helpers/run config/run preflight/all.sh packaging/all.sh post-insta
   [[ -f $root/qvcore/install/$stage && ! -x $root/qvcore/install/$stage ]] ||
     fail "native sourced stage mode: $stage"
 done
-if rg -n '\$OMARCHY_PATH/install/|\$OMARCHY_INSTALL/' \
-  "$root/qvcore/install/config/run" \
-  "$root/qvcore/install/preflight/all.sh" \
-  "$root/qvcore/install/packaging/all.sh"; then
-  fail "native install orchestration reads the inherited tree"
+if rg -n 'OMARCHY_INSTALL|QVOS_PATH=.*OMARCHY_PATH' \
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
+  fail "native install orchestration accepts an inherited source root"
+fi
+if rg -n 'omarchy-pkg-add' \
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
+  fail "native installer calls the package compatibility frontend"
 fi
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
@@ -265,8 +270,7 @@ grep -Fqx '"$QVOS_PATH/qvcore/desktop/applications/install"' \
 ! rg -q 'HEY\.desktop|x-scheme-handler/mailto' \
   "$root/qvcore/install/config/mimetypes" ||
   fail "fresh install retains the absent HEY mail handler"
-[[ -z $(QVOS_PATH="$root" OMARCHY_PATH="$root" \
-  "$root/qvcore/install/packaging/webapps") ]] ||
+[[ -z $(QVOS_PATH="$root" "$root/qvcore/install/packaging/webapps") ]] ||
   fail "fresh install contains bundled Web App instances"
 if rg -n '(omarchy|qv)-(launch-webapp|webapp-handler)' \
   "$root/qvcore/desktop/applications" \

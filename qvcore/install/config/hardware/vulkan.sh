@@ -15,5 +15,5 @@ for vendor in "${!VULKAN_DRIVERS[@]}"; do
 done
 
 if (( ${#PACKAGES[@]} > 0 )); then
-  omarchy-pkg-add "${PACKAGES[@]}"
+  qv-pkg-add "${PACKAGES[@]}"
 fi

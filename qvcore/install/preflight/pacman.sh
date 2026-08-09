@@ -10,7 +10,7 @@ if [[ -n ${QVOS_ONLINE_INSTALL:-} ]]; then
   }
 
   # Install build tools
-  omarchy-pkg-add base-devel
+  qv-pkg-add base-devel
 
   # Configure pacman
   sudo install -o root -g root -m 0644 -- "${provider_files[0]}" /etc/pacman.conf
@@ -20,7 +20,7 @@ if [[ -n ${QVOS_ONLINE_INSTALL:-} ]]; then
   sudo pacman-key --lsign-key 40DFB630FF42BCFFB047046CF0134EE680CAC571
 
   sudo pacman -Sy
-  omarchy-pkg-add omarchy-keyring
+  qv-pkg-add omarchy-keyring
 
   # Refresh all repos
   sudo pacman -Syyuu --noconfirm

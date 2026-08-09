@@ -132,7 +132,6 @@ detect_context_git_root() {
   local candidate
   local candidates=(
     "${QVOS_PATH:-}"
-    "${OMARCHY_PATH:-}"
     "$source_checkout"
     "$HOME/.local/share/qvos"
     "$HOME/.local/share/omarchy"
@@ -365,6 +364,10 @@ validate_staged_iso() {
     "$installer" \
     "$configurator"; then
     echo "qvos-build staged a retired internal boot or installer identity." >&2
+    return 1
+  fi
+  if rg -n 'export OMARCHY_(PATH|INSTALL)=' "$installer" "$configurator"; then
+    echo "qvos-build staged a retired installer source environment." >&2
     return 1
   fi
   grep -Fq '/usr/share/plymouth/themes/qvos' "$builder" || {

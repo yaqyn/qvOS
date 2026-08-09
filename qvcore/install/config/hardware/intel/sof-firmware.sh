@@ -5,5 +5,5 @@
 # Wildcat Lake, Panther Lake, and similar platforms.
 
 if qv-hw-intel-sof; then
-  omarchy-pkg-add sof-firmware
+  qv-pkg-add sof-firmware
 fi

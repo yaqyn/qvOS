@@ -80,6 +80,10 @@ a thin adapter to this owner.
   truthful upstream environment contracts, provider package names and URLs,
   and the exact installed-source compatibility link; never recreate a retired
   internal boot identity.
+- The staged target installer exports only `QVOS_PATH` and `QVOS_INSTALL` for
+  source ownership. Keep upstream `OMARCHY_CHROOT_INSTALL`, user metadata, and
+  credited mirror variables only at the exact ISO boundary that still owns
+  them; never restore `OMARCHY_PATH` or `OMARCHY_INSTALL` as installer roots.
 - Progress renderers have one terminal owner at a time. Stop and wait for the
   live-media base-system TUI before entering the target PID namespace; start
   target-install progress inside that namespace, and stop and wait for it
