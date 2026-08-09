@@ -13,11 +13,44 @@ fail() {
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == $'bin/omarchy-install-browser\nbin/omarchy-refresh-chromium\nbin/omarchy-remove-browser' ]] ||
   fail "native browser inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  "bin/omarchy-install-chromium-google-account" ]] ||
+  $'bin/omarchy-install-chromium-google-account\ndefault/chromium/\ndefault/firefox/' ]] ||
   fail "retired browser inventory"
 [[ ! -e $root/bin/omarchy-install-chromium-google-account &&
   ! -L $root/bin/omarchy-install-chromium-google-account ]] ||
   fail "retired Chromium OAuth installer remains"
+for retired in default/chromium default/firefox; do
+  [[ ! -e $root/$retired && ! -L $root/$retired ]] ||
+    fail "retired browser default remains: $retired"
+done
+
+extension_dir="$root/qvcore/browser/extensions/copy-url"
+for extension_file in background.js icon.png manifest.json; do
+  [[ -f $extension_dir/$extension_file &&
+    ! -L $extension_dir/$extension_file ]] ||
+    fail "native Copy URL source: $extension_file"
+done
+[[ -f $root/qvcore/browser/firefox-policies.json &&
+  ! -L $root/qvcore/browser/firefox-policies.json ]] ||
+  fail "native Firefox policy"
+jq -e '
+  .manifest_version == 3 and
+  .name == "qvOS Copy URL" and
+  .background.service_worker == "background.js" and
+  .icons["128"] == "icon.png" and
+  .commands["copy-url"].suggested_key.default == "Alt+Shift+L" and
+  (.permissions | sort) == ["activeTab", "notifications", "scripting"]
+' "$extension_dir/manifest.json" >/dev/null ||
+  fail "qvOS Copy URL manifest"
+read -r icon_width icon_height < <(
+  od -An -tu4 --endian=big -j16 -N8 "$extension_dir/icon.png"
+)
+((icon_width == 128 && icon_height == 128)) ||
+  fail "qvOS Copy URL icon dimensions"
+jq -e '
+  .policies.Preferences["media.ffmpeg.vaapi.enabled"].Value == true and
+  .policies.Preferences["widget.wayland.fractional-scale.enabled"].Value == true
+' "$root/qvcore/browser/firefox-policies.json" >/dev/null ||
+  fail "native Firefox policy schema"
 
 declare -A browser_routes=(
   [install-browser]=install
@@ -54,6 +87,12 @@ grep -Fq 'qvcore/browser/setup-policy' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses policy ownership"
 grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses runtime migration"
+[[ $(grep -Fc 'qvcore/browser/migrate-runtime-root' \
+  "$root/qvcore/browser/install") == "1" ]] ||
+  fail "browser installer duplicates runtime migration"
+grep -Fq 'qvcore/browser/migrate-runtime-root' \
+  "$root/qvcore/browser/refresh-chromium" ||
+  fail "Chromium refresh bypasses runtime migration"
 grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/remove" ||
   fail "browser removal bypasses exact runtime cleanup"
 if rg -n 'rm[[:space:]]+-rf[[:space:]]+.*etc/(brave|opt)' \
@@ -85,6 +124,20 @@ if rg -n 'chromium-account|install-chromium-google-account' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/retired-paths'; then
   fail "retired Chromium OAuth feature remains active"
+fi
+grep -Fqx -- \
+  '--load-extension=~/.local/share/qvos/qvcore/browser/extensions/copy-url' \
+  "$root/qvcore/config/files/chromium-flags.conf" ||
+  fail "Chromium bypasses the native Copy URL extension"
+if rg -n 'default/(chromium|firefox)' \
+  "$root/qvcore/browser" "$root/qvcore/config/files/chromium-flags.conf" \
+  --glob '!AGENTS.md' --glob '!check' --glob '!migrate-runtime-root' \
+  --glob '!retired-paths'; then
+  fail "native browser ownership retains an inherited default"
+fi
+if rg -n 'eval|new Function|innerHTML|document\.write' \
+  "$extension_dir/background.js"; then
+  fail "Copy URL extension contains an unsafe execution primitive"
 fi
 
 printf 'ok - browsers have one exact lifecycle without inherited OAuth credentials\n'

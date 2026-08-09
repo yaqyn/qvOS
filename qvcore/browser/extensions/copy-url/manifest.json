@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Copy URL",
+  "name": "qvOS Copy URL",
   "version": "1.0",
-  "description": "Copy the current URL to the clipboard; this extension is installed by qvOS",
+  "description": "Copy the current page URL to the clipboard",
   "permissions": ["activeTab", "scripting", "notifications"],
   "icons": {
     "16": "icon.png",

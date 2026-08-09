@@ -17,7 +17,6 @@ fail() {
 install -d \
   "$test_home/.config/environment.d" \
   "$fixture/bin" \
-  "$fixture/default/firefox" \
   "$fixture/qvcore/browser" \
   "$fixture/qvcore/config/files" \
   "$test_bin"
@@ -32,10 +31,12 @@ install -m 0755 "$root/qvcore/browser/migrate-runtime-root" "$fixture/qvcore/bro
 install -m 0755 "$root/qvcore/browser/refresh-chromium" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/remove" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/retire-google-oauth" "$fixture/qvcore/browser/"
+install -m 0644 "$root/qvcore/browser/firefox-policies.json" \
+  "$fixture/qvcore/browser/firefox-policies.json"
+cp -a "$root/qvcore/browser/extensions" "$fixture/qvcore/browser/"
 install -D -m 0755 "$root/qvcore/config/refresh" "$fixture/qvcore/config/refresh"
-printf '%s\n' '--enable-features=UseOzonePlatform' \
-  >"$fixture/qvcore/config/files/chromium-flags.conf"
-printf '%s\n' '{"policies":{}}' >"$fixture/default/firefox/policies.json"
+install -m 0644 "$root/qvcore/config/files/chromium-flags.conf" \
+  "$fixture/qvcore/config/files/chromium-flags.conf"
 touch "$action_log"
 
 install -m 0755 /dev/stdin "$fixture/qvcore/browser/setup-policy" <<'STUB'
@@ -145,6 +146,57 @@ fi
   fail "linked Chromium flags target changed"
 unlink -- "$chromium_flags"
 
+legacy_omarchy_extension='--load-extension=~/.local/share/omarchy/default/chromium/extensions/copy-url'
+legacy_qvos_extension='--load-extension=~/.local/share/qvos/default/chromium/extensions/copy-url'
+native_extension='--load-extension=~/.local/share/qvos/qvcore/browser/extensions/copy-url'
+printf '%s\n' "$legacy_omarchy_extension" '--custom-chromium-flag' \
+  >"$chromium_flags"
+printf '%s\n' "$legacy_qvos_extension" '--custom-brave-flag' \
+  >"$test_home/.config/brave-flags.conf"
+invalid_snapshot=$(sha256sum "$chromium_flags")
+if run_browser "$fixture/bin/omarchy-install-browser" unknown >/dev/null 2>&1; then
+  fail "unsupported browser install"
+fi
+[[ $(sha256sum "$chromium_flags") == "$invalid_snapshot" ]] ||
+  fail "invalid browser install migrated configuration"
+run_browser "$fixture/qvcore/browser/migrate-runtime-root" >/dev/null
+for flags_file in chromium-flags.conf brave-flags.conf; do
+  grep -Fqx -- "$native_extension" "$test_home/.config/$flags_file" ||
+    fail "native Copy URL path migration: $flags_file"
+  [[ $(grep -Fxc -- "$native_extension" "$test_home/.config/$flags_file") == \
+    "1" ]] || fail "duplicate Copy URL path: $flags_file"
+done
+grep -Fqx -- '--custom-chromium-flag' "$chromium_flags" ||
+  fail "Chromium flag migration preservation"
+grep -Fqx -- '--custom-brave-flag' "$test_home/.config/brave-flags.conf" ||
+  fail "Brave flag migration preservation"
+grep -Rqx -- "$legacy_omarchy_extension" \
+  "$test_home/.config/chromium-flags.conf.qvos-backup."* ||
+  fail "Chromium flag migration backup"
+grep -Rqx -- "$legacy_qvos_extension" \
+  "$test_home/.config/brave-flags.conf.qvos-backup."* ||
+  fail "Brave flag migration backup"
+migrated_snapshot=$(sha256sum "$chromium_flags")
+backup_count=$(find "$test_home/.config" -maxdepth 1 \
+  -name '*-flags.conf.qvos-backup.*' -printf '.\n' | wc -l)
+run_browser "$fixture/qvcore/browser/migrate-runtime-root" >/dev/null
+[[ $(sha256sum "$chromium_flags") == "$migrated_snapshot" &&
+  $(find "$test_home/.config" -maxdepth 1 \
+    -name '*-flags.conf.qvos-backup.*' -printf '.\n' | wc -l) == \
+  "$backup_count" ]] || fail "Copy URL path migration idempotence"
+
+external_brave_flags="$test_root/external-brave-flags"
+printf 'preserve external brave flags\n' >"$external_brave_flags"
+unlink -- "$test_home/.config/brave-flags.conf"
+ln -s "$external_brave_flags" "$test_home/.config/brave-flags.conf"
+migration_warning=$(run_browser \
+  "$fixture/qvcore/browser/migrate-runtime-root" 2>&1 >/dev/null)
+[[ $(<"$external_brave_flags") == "preserve external brave flags" ]] ||
+  fail "linked browser flags target changed"
+grep -Fq 'Preserving unsafe browser flags file:' <<<"$migration_warning" ||
+  fail "linked browser flags preservation warning"
+unlink -- "$test_home/.config/brave-flags.conf"
+
 printf '%s\n' "${inherited_oauth_flags[@]}" '--preserve-in-backup' \
   >"$chromium_flags"
 run_browser "$fixture/bin/qv-refresh-chromium" >/dev/null
@@ -169,9 +221,13 @@ cmp -s \
   "$test_home/.config/chrome-flags.conf" ||
   fail "Chrome flag installation"
 
-if run_browser "$fixture/bin/omarchy-install-browser" unknown >/dev/null 2>&1; then
-  fail "unsupported browser install"
-fi
+run_browser "$fixture/bin/qv-install-browser" brave-origin >/dev/null
+grep -Fqx 'aur-add:brave-origin-beta-bin' "$action_log" ||
+  fail "Brave Origin package owner"
+cmp -s \
+  "$fixture/qvcore/config/files/chromium-flags.conf" \
+  "$test_home/.config/brave-origin-beta-flags.conf" ||
+  fail "Brave Origin shares the native Chromium flags"
 
 printf '%s\n' 'MOZ_ENABLE_WAYLAND=1' \
   >"$test_home/.config/environment.d/omarchy-firefox-wayland.conf"
@@ -179,6 +235,9 @@ run_browser "$fixture/bin/qv-install-browser" firefox >/dev/null
 grep -Fqx 'pkg-add:firefox' "$action_log" || fail "Firefox package owner"
 grep -Fqx 'policy:/usr/lib/firefox/distribution' "$action_log" ||
   fail "Firefox policy owner"
+grep -Fqx \
+  "sudo:install -m 0644 $fixture/qvcore/browser/firefox-policies.json /usr/lib/firefox/distribution/policies.json" \
+  "$action_log" || fail "Firefox native policy source"
 grep -Fqx 'MOZ_ENABLE_WAYLAND=1' \
   "$test_home/.config/environment.d/qvos-firefox-wayland.conf" ||
   fail "Firefox Wayland configuration"

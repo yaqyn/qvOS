@@ -72,6 +72,10 @@ grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
 grep -Fqx '"$QVOS_PATH/qvcore/desktop/webapp/migrate"' \
   "$root/qvcore/migrations/1786227147.sh" ||
   fail "custom Web App compatibility migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/browser/migrate-runtime-root"' \
+  "$root/qvcore/migrations/1786263924.sh" ||
+  fail "native browser-default migration"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

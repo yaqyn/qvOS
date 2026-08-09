@@ -144,7 +144,7 @@ identity_paths=(
   qvcore/config/files/systemd/user/qvos-battery-monitor.service
   qvcore/config/files/systemd/user/qvos-battery-monitor.timer
   qvcore/config/files/waybar/config.jsonc
-  default/chromium/extensions/copy-url/manifest.json
+  qvcore/browser/extensions/copy-url/manifest.json
   default/elephant/omarchy_background_selector.lua
   default/elephant/omarchy_themes.lua
   default/elephant/omarchy_unlocks.lua

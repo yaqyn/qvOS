@@ -32,6 +32,16 @@ delegate each selected operation once through the shared TUI.
   every user-owned OAuth value and unrelated flag. Fresh installs omit the
   feature, updates run its native migration, and Chromium refresh performs the
   same cleanup before creating a sanitized config backup.
+- Browser defaults live only in `qvcore/browser/`. The unpacked Copy URL
+  extension is a small qvOS base capability, not a Web App. Its 128px icon is
+  derived from `qvcore/branding/assets/qv-mark-light.svg` on `#d00000`; keep the
+  extension free of remote code, unsafe execution primitives, and service URLs.
+  Firefox and Zen share the one native `firefox-policies.json` source.
+- `migrate-runtime-root` rewrites only exact inherited Copy URL flag lines,
+  keeps a same-mode backup for every changed flags file, and preserves unsafe,
+  foreign, oversized, or unrelated browser configuration. Fresh install,
+  optional browser install, update migration, and Chromium refresh converge on
+  the same native path.
 - Installation remains noninteractive and stream-safe. Validate the browser
   slug before package or filesystem mutation, and do not launch the installed
   browser from the captured TUI flow.

@@ -173,14 +173,20 @@ browser_environment="$browser_home/.config/environment.d"
 install -d "$browser_environment"
 printf '%s\n' 'MOZ_ENABLE_WAYLAND=1' \
   >"$browser_environment/omarchy-firefox-wayland.conf"
-HOME="$browser_home" QVOS_PATH="$root" bash "$browser_migration" >/dev/null
+HOME="$browser_home" \
+  XDG_CONFIG_HOME="$browser_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$browser_migration" >/dev/null
 grep -Fqx 'MOZ_ENABLE_WAYLAND=1' \
   "$browser_environment/qvos-firefox-wayland.conf" ||
   fail "Firefox Wayland environment migration"
 [[ ! -e $browser_environment/omarchy-firefox-wayland.conf ]] ||
   fail "retired Firefox Wayland environment remains"
 browser_snapshot=$(find "$browser_environment" -type f -printf '%p|%m|%i|%T@\n' | sort)
-HOME="$browser_home" QVOS_PATH="$root" bash "$browser_migration" >/dev/null
+HOME="$browser_home" \
+  XDG_CONFIG_HOME="$browser_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$browser_migration" >/dev/null
 [[ $(find "$browser_environment" -type f -printf '%p|%m|%i|%T@\n' | sort) == \
   "$browser_snapshot" ]] || fail "Firefox Wayland migration idempotence"
 
@@ -190,7 +196,9 @@ install -d "$modified_browser_environment"
 printf '%s\n' 'CUSTOM_FIREFOX_SETTING=1' \
   >"$modified_browser_environment/omarchy-firefox-wayland.conf"
 browser_warning=$(
-  HOME="$modified_browser_home" QVOS_PATH="$root" \
+  HOME="$modified_browser_home" \
+    XDG_CONFIG_HOME="$modified_browser_home/.config" \
+    QVOS_PATH="$root" \
     bash "$browser_migration" 2>&1 >/dev/null
 )
 grep -Fqx 'CUSTOM_FIREFOX_SETTING=1' \
@@ -199,6 +207,33 @@ grep -Fqx 'CUSTOM_FIREFOX_SETTING=1' \
 grep -Fq 'Preserving modified Firefox Wayland environment:' \
   <<<"$browser_warning" || fail "modified Firefox Wayland migration warning"
 printf 'ok - browser runtime naming migrates exactly and preserves modifications\n'
+
+browser_defaults_migration="$root/qvcore/migrations/1786263924.sh"
+browser_flags="$browser_home/.config/chromium-flags.conf"
+printf '%s\n' \
+  '--load-extension=~/.local/share/omarchy/default/chromium/extensions/copy-url' \
+  '--preserve-browser-flag' >"$browser_flags"
+HOME="$browser_home" \
+  XDG_CONFIG_HOME="$browser_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$browser_defaults_migration" >/dev/null
+grep -Fqx -- \
+  '--load-extension=~/.local/share/qvos/qvcore/browser/extensions/copy-url' \
+  "$browser_flags" || fail "native Copy URL extension migration"
+grep -Fqx -- '--preserve-browser-flag' "$browser_flags" ||
+  fail "Copy URL extension migration preservation"
+compgen -G "$browser_flags.qvos-backup.*" >/dev/null ||
+  fail "Copy URL extension migration backup"
+browser_defaults_snapshot=$(find "$browser_home/.config" -type f \
+  -printf '%p|%m|%i|%T@\n' | sort)
+HOME="$browser_home" \
+  XDG_CONFIG_HOME="$browser_home/.config" \
+  QVOS_PATH="$root" \
+  bash "$browser_defaults_migration" >/dev/null
+[[ $(find "$browser_home/.config" -type f -printf '%p|%m|%i|%T@\n' | sort) == \
+  "$browser_defaults_snapshot" ]] ||
+  fail "Copy URL extension migration idempotence"
+printf 'ok - browser defaults migrate to singular native ownership\n'
 
 oauth_migration="$root/qvcore/migrations/1786214549.sh"
 oauth_home="$test_root/oauth-home"

@@ -135,6 +135,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   style; `default/waybar/` and the former merge overlay are retired
 - `qvcore/screensaver/` owns every installed terminal screensaver profile;
   inherited terminal-specific screensaver defaults are retired
+- `qvcore/browser/` owns browser policy and the local Copy URL extension;
+  inherited browser defaults are retired and no browser owner seeds a Web App
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state
