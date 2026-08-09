@@ -1,0 +1,77 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv voxtype status" >&2
+  exit 2
+}
+
+if ! qv-cmd-present voxtype jq; then
+  printf '{"alt":"","tooltip":""}\n'
+  exit 0
+fi
+
+voxtype_pid=""
+voxtype_fd=""
+jq_input_fd=""
+jq_pid=""
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  if [[ -n ${voxtype_fd:-} ]]; then
+    exec {voxtype_fd}<&- || true
+  fi
+  if [[ -n ${jq_input_fd:-} ]]; then
+    exec {jq_input_fd}<&- || true
+  fi
+  if [[ -n $jq_pid ]] && kill -0 "$jq_pid" 2>/dev/null; then
+    kill "$jq_pid" 2>/dev/null || true
+  fi
+  if [[ -n $voxtype_pid ]] && kill -0 "$voxtype_pid" 2>/dev/null; then
+    kill "$voxtype_pid" 2>/dev/null || true
+  fi
+  if [[ -n $jq_pid ]]; then
+    wait "$jq_pid" 2>/dev/null || true
+  fi
+  if [[ -n $voxtype_pid ]]; then
+    wait "$voxtype_pid" 2>/dev/null || true
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+coproc QVOS_VOXTYPE_STATUS {
+  exec voxtype status --follow --extended --format json
+}
+voxtype_pid=$QVOS_VOXTYPE_STATUS_PID
+voxtype_fd=${QVOS_VOXTYPE_STATUS[0]}
+exec {jq_input_fd}<&"$voxtype_fd"
+exec {voxtype_fd}<&-
+
+jq --unbuffered -c '
+  select(type == "object" and (.class | type == "string"))
+  | . + {alt: .class}
+' <&"$jq_input_fd" &
+jq_pid=$!
+exec {jq_input_fd}<&-
+
+set +e
+wait "$jq_pid"
+status=$?
+set -e
+jq_pid=""
+if (( status != 0 )); then
+  exit "$status"
+fi
+
+set +e
+wait "$voxtype_pid"
+status=$?
+set -e
+voxtype_pid=""
+if (( status != 0 )); then
+  exit "$status"
+fi

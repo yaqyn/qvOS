@@ -9,6 +9,11 @@
     "on-click": "qv-launch-update",
     "tooltip-format": "qvOS update available"
   },
+  "custom/voxtype": {
+    "exec": "qv-voxtype-status",
+    "on-click-right": "qv-voxtype-config",
+    "on-click": "qv-voxtype-model"
+  },
   "network": {
     "on-click-right": "qv-launch-task dns-configure"
   },

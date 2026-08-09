@@ -23,19 +23,28 @@ install -d \
 for route in \
   omarchy-install-nordvpn \
   omarchy-install-vscode \
+  omarchy-voxtype-config \
   omarchy-voxtype-install \
+  omarchy-voxtype-model \
   omarchy-voxtype-remove \
+  omarchy-voxtype-status \
   qv-install-nordvpn \
   qv-install-vscode \
+  qv-voxtype-config \
   qv-voxtype-install \
-  qv-voxtype-remove; do
+  qv-voxtype-model \
+  qv-voxtype-remove \
+  qv-voxtype-status; do
   install -m 0755 "$root/bin/$route" "$fixture/bin/$route"
 done
 for owner in \
   nordvpn-install \
   vscode-install \
+  voxtype-config \
   voxtype-install \
-  voxtype-remove; do
+  voxtype-model \
+  voxtype-remove \
+  voxtype-status; do
   install -m 0755 "$root/qvcore/software/$owner" "$fixture/qvcore/software/$owner"
 done
 printf 'language = "en"\n' >"$fixture/default/voxtype/config.toml"
@@ -84,6 +93,17 @@ printf 'qv%s\n' "${QVOS_TEST_GROUPS:+ $QVOS_TEST_GROUPS}"
 STUB
 install -m 0755 /dev/stdin "$test_bin/voxtype" <<'STUB'
 #!/bin/bash
+if [[ ${1:-} == "status" ]]; then
+  if [[ ${QVOS_TEST_VOXTYPE_FOLLOW:-0} == "1" ]]; then
+    printf '%s\n' "$BASHPID" >"$QVOS_TEST_VOXTYPE_PID_FILE"
+    trap 'printf "voxtype-terminated:%s\n" "$BASHPID" >>"$QVOS_TEST_ACTION_LOG"; exit 0' TERM
+    while :; do
+      :
+    done
+  fi
+  printf '{"class":"idle","tooltip":"Ready"}\n'
+  exit 0
+fi
 printf 'voxtype:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
 install -m 0755 /dev/stdin "$test_bin/qv-hw-vulkan" <<'STUB'
@@ -104,7 +124,21 @@ printf 'systemctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
 install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'STUB'
 #!/bin/bash
+for command_name in "$@"; do
+  [[ " ${QVOS_TEST_MISSING_COMMANDS:-} " != *" $command_name "* ]] || exit 1
+done
 exit 0
+STUB
+install -m 0755 /dev/stdin "$test_bin/qv-launch-editor" <<'STUB'
+#!/bin/bash
+printf 'launch-editor:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+STUB
+install -m 0755 /dev/stdin \
+  "$test_bin/qv-launch-floating-terminal-with-presentation" <<'STUB'
+#!/bin/bash
+printf 'presentation:' >>"$QVOS_TEST_ACTION_LOG"
+printf '<%s>' "$@" >>"$QVOS_TEST_ACTION_LOG"
+printf '\n' >>"$QVOS_TEST_ACTION_LOG"
 STUB
 
 touch "$action_log"
@@ -160,6 +194,73 @@ grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
 if grep -Fq 'pkg-add:wtype' "$action_log"; then
   fail "Voxtype install claimed qvOS base wtype"
 fi
+
+: >"$action_log"
+run_software "$fixture/bin/qv-voxtype-config"
+grep -Fqx "launch-editor:$config_file" "$action_log" ||
+  fail "Voxtype native config owner"
+run_software "$fixture/bin/omarchy-voxtype-config"
+(( $(grep -Fxc "launch-editor:$config_file" "$action_log") == 2 )) ||
+  fail "Voxtype compatibility config owner"
+
+: >"$action_log"
+run_software "$fixture/bin/qv-voxtype-model"
+run_software "$fixture/bin/omarchy-voxtype-model"
+(( $(grep -Fxc 'presentation:<voxtype><setup><model>' "$action_log") == 2 )) ||
+  fail "Voxtype model exact argument boundaries"
+if QVOS_TEST_MISSING_COMMANDS=voxtype run_software \
+  "$fixture/bin/qv-voxtype-model" >/dev/null 2>&1; then
+  fail "Voxtype missing model command rejection"
+fi
+
+status_output=$(run_software "$fixture/bin/qv-voxtype-status")
+[[ $status_output == '{"class":"idle","tooltip":"Ready","alt":"idle"}' ]] ||
+  fail "Voxtype native status transformation"
+status_output=$(run_software "$fixture/bin/omarchy-voxtype-status")
+[[ $status_output == '{"class":"idle","tooltip":"Ready","alt":"idle"}' ]] ||
+  fail "Voxtype compatibility status transformation"
+status_output=$(QVOS_TEST_MISSING_COMMANDS=voxtype run_software \
+  "$fixture/bin/qv-voxtype-status")
+[[ $status_output == '{"alt":"","tooltip":""}' ]] ||
+  fail "Voxtype missing status fallback"
+if run_software "$fixture/bin/qv-voxtype-status" unexpected >/dev/null 2>&1; then
+  fail "Voxtype status argument rejection"
+fi
+
+follow_pid_file="$test_root/voxtype-follow.pid"
+HOME="$test_home" \
+  USER=qv \
+  QVOS_PATH="$fixture" \
+  OMARCHY_PATH="$fixture" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  QVOS_TEST_VOXTYPE_FOLLOW=1 \
+  QVOS_TEST_VOXTYPE_PID_FILE="$follow_pid_file" \
+  "$fixture/bin/qv-voxtype-status" >"$test_root/follow.out" &
+status_owner_pid=$!
+for _ in {1..200}; do
+  [[ -s $follow_pid_file ]] && break
+  sleep 0.01
+done
+[[ -s $follow_pid_file ]] || fail "Voxtype follower startup"
+voxtype_follower_pid=$(<"$follow_pid_file")
+sleep 30 &
+unrelated_pid=$!
+kill -TERM "$status_owner_pid"
+set +e
+wait "$status_owner_pid"
+status_owner_result=$?
+set -e
+(( status_owner_result == 143 )) || fail "Voxtype status termination result"
+if kill -0 "$voxtype_follower_pid" 2>/dev/null; then
+  fail "Voxtype exact follower cleanup"
+fi
+kill -0 "$unrelated_pid" 2>/dev/null ||
+  fail "Voxtype cleanup signaled an unrelated process"
+kill "$unrelated_pid"
+wait "$unrelated_pid" 2>/dev/null || true
+grep -Fqx "voxtype-terminated:$voxtype_follower_pid" "$action_log" ||
+  fail "Voxtype follower graceful termination"
 
 run_software "$fixture/bin/qv-voxtype-remove" >/dev/null
 [[ -f $config_file && -f $model_file ]] ||

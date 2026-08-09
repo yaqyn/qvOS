@@ -81,9 +81,12 @@ fi
 
 jq -e '
   ."network"."on-click-right" == "qv-launch-task dns-configure" and
-  ."custom/qv-clock"."on-click-right" == "qv-launch-task timezone"
+  ."custom/qv-clock"."on-click-right" == "qv-launch-task timezone" and
+  ."custom/voxtype".exec == "qv-voxtype-status" and
+  ."custom/voxtype"."on-click-right" == "qv-voxtype-config" and
+  ."custom/voxtype"."on-click" == "qv-voxtype-model"
 ' "$root/qvcore/waybar/overrides.jsonc" >/dev/null ||
-  fail "Waybar task routes"
+  fail "Waybar native task and Voxtype routes"
 grep -Fqx 'qv-refresh-waybar' "$root/qvcore/waybar/post-update-hook" ||
   fail "Waybar post-update route"
 

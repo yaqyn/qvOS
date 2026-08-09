@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv voxtype model" >&2
+  exit 2
+}
+
+qv-cmd-present voxtype || {
+  echo "Voxtype is not installed. Run qv voxtype install first." >&2
+  exit 1
+}
+
+exec qv-launch-floating-terminal-with-presentation voxtype setup model

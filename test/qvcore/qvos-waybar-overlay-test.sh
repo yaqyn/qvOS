@@ -58,6 +58,9 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
+  (."custom/voxtype".exec == "qv-voxtype-status") and
+  (."custom/voxtype"."on-click-right" == "qv-voxtype-config") and
+  (."custom/voxtype"."on-click" == "qv-voxtype-model") and
   (."network"."on-click-right" == "qv-launch-task dns-configure") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons") and
   (."group/prayer-clock".modules == ["custom/prayerbar", "custom/qv-clock"]) and
@@ -82,6 +85,9 @@ cmp -s \
     | ."custom/update".exec = $source[0]."custom/update".exec
     | ."custom/update"."on-click" = $source[0]."custom/update"."on-click"
     | ."custom/update"."tooltip-format" = $source[0]."custom/update"."tooltip-format"
+    | ."custom/voxtype".exec = $source[0]."custom/voxtype".exec
+    | ."custom/voxtype"."on-click-right" = $source[0]."custom/voxtype"."on-click-right"
+    | ."custom/voxtype"."on-click" = $source[0]."custom/voxtype"."on-click"
     | if ($source[0].network | has("on-click-right")) then
         ."network"."on-click-right" = $source[0]."network"."on-click-right"
       else
@@ -126,6 +132,9 @@ cmp -s \
     | ."custom/update".exec = $source[0]."custom/update".exec
     | ."custom/update"."on-click" = $source[0]."custom/update"."on-click"
     | ."custom/update"."tooltip-format" = $source[0]."custom/update"."tooltip-format"
+    | ."custom/voxtype".exec = $source[0]."custom/voxtype".exec
+    | ."custom/voxtype"."on-click-right" = $source[0]."custom/voxtype"."on-click-right"
+    | ."custom/voxtype"."on-click" = $source[0]."custom/voxtype"."on-click"
     | if ($source[0].network | has("on-click-right")) then
         ."network"."on-click-right" = $source[0]."network"."on-click-right"
       else
@@ -156,6 +165,9 @@ sparse_live="$sparse_home/.config/waybar/config.jsonc"
 jq -e '
   (has("modules-left") | not) and
   .["modules-center"] == ["group/prayer-clock"] and
+  ."custom/voxtype".exec == "qv-voxtype-status" and
+  ."custom/voxtype"."on-click-right" == "qv-voxtype-config" and
+  ."custom/voxtype"."on-click" == "qv-voxtype-model" and
   ."future-omarchy-setting" == true
 ' "$sparse_live" >/dev/null || fail "future sparse Omarchy layout"
 
@@ -201,6 +213,9 @@ jq -e --slurpfile source "$source_config" '
   (."custom/omarchy"."on-click" == "omarchy-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
+  (."custom/voxtype".exec == "qv-voxtype-status") and
+  (."custom/voxtype"."on-click-right" == "qv-voxtype-config") and
+  (."custom/voxtype"."on-click" == "qv-voxtype-model") and
   (."network"."on-click-right" == "qv-launch-task dns-configure") and
   (."custom/qv-clock"."on-click-right" == "qv-launch-task timezone") and
   (."hyprland/workspaces"."format-icons" == $source[0]."hyprland/workspaces"."format-icons")

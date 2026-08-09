@@ -16,12 +16,14 @@ broad or unconditional SIGKILL. Close the toggle-lock descriptor only in the
 restart child so Waybar never inherits the lock while the owner retains its
 transaction boundary through startup verification.
 
-The overlay may replace only qvOS-owned keys and the clock module placement.
-Preserve every unrelated inherited key so qvsync can review upstream Waybar
-capability without maintaining a copied configuration. A reset backs up a
-different active configuration, writes the merged result atomically, refreshes
-the shared style through its configuration owner, and restarts Waybar only when
-something changed. `--status` is read-only and must not rewrite or restart.
+The overlay may replace only qvOS-owned keys, native action routes, and the
+clock module placement. This includes the Voxtype status, config, and model
+routes, but not its inherited visual format. Preserve every unrelated inherited
+key so qvsync can review upstream Waybar capability without maintaining a
+copied configuration. A reset backs up a different active configuration,
+writes the merged result atomically, refreshes the shared style through its
+configuration owner, and restarts Waybar only when something changed.
+`--status` is read-only and must not rewrite or restart.
 
 `qv-launch-task` is the native fallback for a classified qvOS task when the
 checked TUI runtime is unavailable. Waybar task actions must use it; never
