@@ -84,6 +84,7 @@ install_limine() {
   local efi_output
   local hooks_config
   local legacy_hooks_config
+  local legacy_hooks_content
   local legacy_uki
   local limine_config=
   local qvos_hooks_content
@@ -95,6 +96,7 @@ install_limine() {
   local -a dropins=()
 
   qvos_hooks_content=$'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
+  legacy_hooks_content=${qvos_hooks_content%%$'\n'*}
   hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/qvos_hooks.conf)
   legacy_hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/omarchy_hooks.conf)
   thunderbolt_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/thunderbolt_module.conf)
@@ -102,7 +104,10 @@ install_limine() {
     0644 \
     "$hooks_config" \
     "$qvos_hooks_content"
-  qvos_boot_remove_file_if_content "$legacy_hooks_config" "${qvos_hooks_content%$'\n'}"
+  qvos_boot_remove_file_if_content \
+    "$legacy_hooks_config" \
+    "${qvos_hooks_content%$'\n'}" \
+    "$legacy_hooks_content"
   qvos_boot_install_text \
     0644 \
     "$thunderbolt_config" \

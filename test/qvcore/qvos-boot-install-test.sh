@@ -367,6 +367,7 @@ grep -Fqx 'CUSTOM_UKI_NAME="qvos"' "$system_root/etc/default/limine" ||
 [[ -f $system_root/etc/mkinitcpio.conf.d/qvos_hooks.conf &&
   ! -e $system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf ]] ||
   fail "mkinitcpio hook identity migration"
+
 [[ -f $system_root/boot/EFI/Linux/qvos_linux.efi &&
   ! -e $system_root/boot/EFI/Linux/omarchy_linux.efi ]] ||
   fail "verified UKI identity migration"
@@ -395,6 +396,30 @@ grep -Fqx $'systemctl\tenable\tlimine-snapper-sync.service' "$action_log" ||
   fail "Limine snapshot service enable"
 grep -Fqx $'efibootmgr\t-b\t0007\t-B' "$action_log" ||
   fail "legacy EFI entry cleanup"
+
+system_root="$test_root/limine-legacy-hooks"
+prepare_limine_root "$system_root" 'root=UUID=legacy-hooks quiet'
+printf '%s\n' \
+  'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)' \
+  >"$system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf"
+: >"$action_log"
+OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+[[ ! -e $system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf ]] ||
+  fail "historical mkinitcpio hook identity remains"
+
+system_root="$test_root/limine-modified-hooks"
+prepare_limine_root "$system_root" 'root=UUID=modified-hooks quiet'
+printf '%s\n' 'HOOKS=(base custom filesystems)' \
+  >"$system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf"
+legacy_hook_warning=$(
+  OMARCHY_CHROOT_INSTALL=1 \
+    run_boot "$root/qvcore/boot/install-limine-snapper" 2>&1 >/dev/null
+)
+[[ -f $system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf ]] ||
+  fail "modified legacy mkinitcpio hook was removed"
+grep -Fq 'Preserving modified or unsafe legacy boot artifact:' \
+  <<<"$legacy_hook_warning" ||
+  fail "modified legacy mkinitcpio hook warning"
 
 system_root="$test_root/limine-fallback"
 prepare_limine_root "$system_root" 'root=UUID=fallback quiet'
