@@ -58,12 +58,38 @@ install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 #!/bin/bash
 exec "$@"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
+#!/bin/bash
+if [[ $* == *'list-units'* ]]; then
+  exit 0
+fi
+if [[ $* == *'--property=LoadState'* ]]; then
+  if [[ -f $QVOS_TEST_WAYBAR_PID_FILE ]]; then
+    printf 'loaded\n'
+  else
+    printf 'not-found\n'
+  fi
+  exit 0
+fi
+if [[ $* == *'is-active'* ]]; then
+  [[ -f $QVOS_TEST_WAYBAR_PID_FILE ]] || exit 1
+  pid=$(<"$QVOS_TEST_WAYBAR_PID_FILE")
+  kill -0 "$pid" 2>/dev/null
+  exit
+fi
+exit 0
+SCRIPT
 install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
 #!/bin/bash
 printf 'uwsm|%s\n' "$*" >>"$QVOS_TEST_COMMAND_LOG"
-[[ $1 == "--" && $# == 2 ]] || exit 0
-[[ ${QVOS_TEST_UWSM_FAIL:-} != "$2" ]] || exit 1
-case $2 in
+while (($# > 0)) && [[ $1 != "--" ]]; do
+  shift
+done
+[[ ${1:-} == "--" ]] || exit 0
+shift
+app=${1:-}
+[[ ${QVOS_TEST_UWSM_FAIL:-} != "$app" ]] || exit 1
+case $app in
 hypridle)
   pid_file=$QVOS_TEST_IDLE_PID_FILE
   ;;
@@ -72,7 +98,7 @@ waybar)
   ;;
 *) exit 0 ;;
 esac
-"$QVOS_TEST_HELPER_BIN/$2" 30 &
+"$QVOS_TEST_HELPER_BIN/$app" 30 &
 printf '%s\n' "$!" >"$pid_file"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
@@ -187,10 +213,12 @@ printf 'ok - notification silencing verifies the opposite Mako state\n'
 
 run_owner "$root/qvcore/waybar/toggle"
 for _ in {1..20}; do
-  grep -Fqx 'uwsm|-- waybar' "$command_log" && break
+  grep -Fqx 'uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- waybar' \
+    "$command_log" && break
   sleep 0.05
 done
-grep -Fqx 'uwsm|-- waybar' "$command_log" ||
+grep -Fqx 'uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- waybar' \
+  "$command_log" ||
   fail "Waybar toggle did not start through its native restart owner"
 
 waybar_pid=$(<"$waybar_pid_file")

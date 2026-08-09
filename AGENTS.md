@@ -177,6 +177,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   native autostart call only `qv-hyprland-*` routes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
+- Restartable long-running desktop components use stable `qvos-*` UWSM units
+  so a restart stops the complete prior control group before relaunching
 - qvOS-managed installed runtime command trees expose only native names. Exact
   retired Omarchy aliases may be removed after active configuration migrates;
   modified user files remain preserved, and thin source adapters remain the
@@ -201,6 +203,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   overrides remain under `~/.config/qvos/themed/`
 - `~/.config/qvos` owns active theme state; matching `~/.config/omarchy`
   theme paths are migration compatibility links only
+- Active Omarchy config compatibility roots contain only reviewed relative
+  links; exact historical backups move intact into private qvOS feature state
 - btop, Mako, and an installed Helix consume the native current-theme tree;
   migration rewrites only exact inherited links and the exact Helix seed while
   preserving custom application configuration

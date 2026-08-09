@@ -16,7 +16,9 @@ The `~/.config/qvos/{themes,current,backgrounds,themed}` namespace owns all
 theme data and active state. `qvcore/theme/migrate-config-root` moves each safe
 legacy directory atomically after a complete conflict preflight, then leaves
 only relative `~/.config/omarchy/` compatibility links. Preserve conflicts and
-unrecognized links without partial migration. Omarchy-format describes the
+unrecognized links without partial migration. Move only exact
+`themes.bak.<timestamp>` directories into private qvOS theme-backup state;
+never delete or reinterpret their contents. Omarchy-format describes the
 accepted theme payload, never qvOS state ownership.
 Native commands are `qv-theme-*` and `qv-plymouth-set-by-theme`; matching
 `omarchy-*` files are metadata-free compatibility adapters only. Implement
@@ -47,6 +49,9 @@ theme's editor code or downloading theme plugins.
 - `qvcore/theme/backgrounds` opens only the validated current installed theme's
   user-background directory. Preserve compatible theme links, but never use
   unchecked `theme.name` content as a path component.
+- Background selection publishes one atomic native link, and background
+  restore owns one stable `qvos-wallpaper.scope`. Stop the whole prior unit and
+  use exact-process fallback before launch; never use raw process-name killing.
 - Treat theme paths, colors, and integration metadata as untrusted input. Git
   installs accept HTTPS or Git SSH only, clone shallowly, validate before
   activation, reject internal links and special files, and never copy Git

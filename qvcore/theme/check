@@ -12,6 +12,7 @@ fail() {
 
 for owner in \
   apply-plymouth \
+  background-restore \
   background-next \
   background-set \
   backgrounds \
@@ -40,6 +41,19 @@ for owner in \
   validate; do
   [[ -x $root/qvcore/theme/$owner ]] || fail "theme owner mode: $owner"
 done
+
+[[ -f $root/qvcore/theme/background-lib &&
+  ! -L $root/qvcore/theme/background-lib &&
+  $(stat -c '%a' "$root/qvcore/theme/background-lib") == "644" ]] ||
+  fail "shared background library is unavailable or unsafe"
+[[ -x $root/bin/qv-theme-bg-restore ]] ||
+  fail "native background restore adapter is unavailable"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/theme/background-restore" "$@"' \
+  "$root/bin/qv-theme-bg-restore" ||
+  fail "native background restore adapter bypasses its owner"
+rg -q '^# qv:summary=' "$root/bin/qv-theme-bg-restore" ||
+  fail "native background restore adapter lacks metadata"
 
 declare -A route_owners=(
   [plymouth-set-by-theme]=apply-plymouth
@@ -169,6 +183,13 @@ if rg -n 'OMARCHY_THEME_' "$root/qvcore/theme" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "native theme owner accepts an inherited runtime environment"
 fi
+if rg -n '\b(pkill|killall)\b' "$root/qvcore/theme" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "theme owner bypasses exact process matching"
+fi
+grep -Fqx 'exec-once = qv-theme-bg-restore' \
+  "$root/qvcore/config/base/hypr/autostart.conf" ||
+  fail "native autostart bypasses the background lifecycle owner"
 
 if rg -n \
   'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))([^[:alnum:]_-]|$)' \

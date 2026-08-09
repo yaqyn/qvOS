@@ -1,0 +1,52 @@
+# shellcheck shell=bash
+
+qvos_user_units_matching() {
+  local unit_type=$1
+  local pattern=$2
+  local listing
+  local unit
+  local _rest
+
+  [[ $unit_type == "scope" || $unit_type == "service" ]] || return 2
+  listing=$(systemctl --user list-units \
+    --all \
+    --type="$unit_type" \
+    --no-legend \
+    --plain \
+    "$pattern") || return
+
+  while IFS=' ' read -r unit _rest; do
+    [[ -n $unit && $unit == *."$unit_type" ]] || continue
+    printf '%s\n' "$unit"
+  done <<<"$listing"
+}
+
+qvos_user_unit_property() {
+  local unit=$1
+  local property=$2
+
+  systemctl --user show \
+    --property="$property" \
+    --value \
+    -- "$unit"
+}
+
+qvos_user_unit_stop() {
+  local unit=$1
+  local load_state
+
+  load_state=$(qvos_user_unit_property "$unit" LoadState 2>/dev/null) || return
+  [[ -n $load_state && $load_state != "not-found" ]] || return 0
+  systemctl --user stop -- "$unit"
+}
+
+qvos_user_unit_wait_active() {
+  local unit=$1
+
+  for _ in {1..40}; do
+    systemctl --user --quiet is-active -- "$unit" && return 0
+    sleep 0.05
+  done
+  printf 'qvOS user unit did not start: %s\n' "$unit" >&2
+  return 1
+}

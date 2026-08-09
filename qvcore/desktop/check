@@ -135,6 +135,18 @@ done < <(printf '%s\n' "${native_paths[@]}" | grep '^bin/omarchy-restart-')
 [[ -f $restart_root/process-lib && ! -L $restart_root/process-lib &&
   $(stat -c '%a' "$restart_root/process-lib") == "644" ]] ||
   fail "shared restart process library is unavailable or unsafe"
+[[ -f $restart_root/user-unit-lib && ! -L $restart_root/user-unit-lib &&
+  $(stat -c '%a' "$restart_root/user-unit-lib") == "644" ]] ||
+  fail "shared restart user-unit library is unavailable or unsafe"
+[[ -x $restart_root/monitor-watch &&
+  -x $root/bin/qv-restart-monitor-watch ]] ||
+  fail "native monitor-watch restart owner is unavailable"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/desktop/restart/monitor-watch" "$@"' \
+  "$root/bin/qv-restart-monitor-watch" ||
+  fail "native monitor-watch restart adapter bypasses its owner"
+rg -q '^# qv:summary=' "$root/bin/qv-restart-monitor-watch" ||
+  fail "native monitor-watch restart adapter lacks metadata"
 if rg -n '\b(pkill|killall)\b' "$restart_root" --glob '!process-lib'; then
   fail "restart owner bypasses the self-safe process helper"
 fi
@@ -245,9 +257,12 @@ if rg -n 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?
   "$root/qvcore/config/files/hypr/bindings.conf"; then
   fail "fresh qvOS contains fixed Web App destinations"
 fi
-grep -Fqx 'exec-once = uwsm-app -- qv-hyprland-monitor-watch' \
+grep -Fqx 'exec-once = qv-restart-monitor-watch' \
   "$root/qvcore/config/base/hypr/autostart.conf" ||
   fail "native autostart bypasses the monitor-watch owner"
+grep -Fqx 'exec-once = ! qv-toggle-enabled waybar-off && qv-restart-waybar' \
+  "$root/qvcore/config/base/hypr/autostart.conf" ||
+  fail "native autostart bypasses the Waybar lifecycle owner"
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi

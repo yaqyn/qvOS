@@ -12,6 +12,8 @@ target_path="$extension_dir/menu.sh"
 legacy_extension_dir="$HOME/.config/omarchy/extensions"
 legacy_target_path="$legacy_extension_dir/menu.sh"
 legacy_qvos_target_path="$legacy_extension_dir/qvos-menu.sh"
+legacy_backup_root="$HOME/.local/state/qvos/menu-backups/legacy-extensions"
+legacy_extension_backups=()
 # Exact generated overlay installed before the native menu promotion.
 legacy_qvos_target_hash="bbe35b8874f031d6118492ac08f0f19814aa272a4c6c72364a477e1062b95405"
 # Exact stock menu-extension files that contain no user customization.
@@ -203,7 +205,8 @@ validate_menu_paths() {
     "$provider_runtime_dir" \
     "$HOME/.local/state" \
     "$HOME/.local/state/qvos" \
-    "$HOME/.local/state/qvos/menu-backups"; do
+    "$HOME/.local/state/qvos/menu-backups" \
+    "$legacy_backup_root"; do
     validate_user_directory "$directory" "qvOS menu" || return
   done
 
@@ -213,6 +216,56 @@ validate_menu_paths() {
       return 1
     }
   fi
+}
+
+validate_legacy_extension_backups() {
+  local backup
+  local backup_name
+  local backup_target
+  local -a candidates=()
+
+  legacy_extension_backups=()
+  [[ -d $legacy_extension_dir ]] || return 0
+  shopt -s nullglob
+  candidates=(
+    "$legacy_extension_dir"/menu.sh.bak.*
+    "$legacy_extension_dir"/menu.sh.qvos-backup.*
+  )
+  shopt -u nullglob
+
+  for backup in "${candidates[@]}"; do
+    backup_name=${backup##*/}
+    if [[ ! $backup_name =~ ^menu\.sh\.bak\.[0-9]+$ &&
+      ! $backup_name =~ ^menu\.sh\.qvos-backup\.[A-Za-z0-9]+$ ]]; then
+      continue
+    fi
+    [[ -f $backup && ! -L $backup && -O $backup ]] || {
+      echo "Refusing an unsafe historical menu backup: $backup" >&2
+      return 1
+    }
+    backup_target="$legacy_backup_root/$backup_name"
+    [[ ! -e $backup_target && ! -L $backup_target ]] || {
+      echo "A historical menu backup already has a conflicting archive: $backup_target" >&2
+      return 1
+    }
+    legacy_extension_backups+=("$backup")
+  done
+}
+
+archive_legacy_extension_backups() {
+  local backup
+  local backup_name
+
+  validate_legacy_extension_backups
+  ((${#legacy_extension_backups[@]} > 0)) || return 0
+
+  install -d -m 0700 "$legacy_backup_root"
+  for backup in "${legacy_extension_backups[@]}"; do
+    backup_name=${backup##*/}
+    mv -T -- "$backup" "$legacy_backup_root/$backup_name"
+    printf 'Preserved the historical menu backup as %s.\n' \
+      "$legacy_backup_root/$backup_name"
+  done
 }
 
 extension_is_stock() {
@@ -257,6 +310,7 @@ validate_generated_overlay_cleanup() {
   local installed_hash
 
   validate_personal_extension_migration
+  validate_legacy_extension_backups
 
   [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
   [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
@@ -319,6 +373,7 @@ retire_generated_menu_overlay() {
     fi
   fi
 
+  archive_legacy_extension_backups
   rmdir -- "$legacy_extension_dir" 2>/dev/null || true
 }
 

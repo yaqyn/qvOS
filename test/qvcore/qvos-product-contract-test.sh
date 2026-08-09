@@ -1193,6 +1193,10 @@ pass "native qvOS menu migrates personal overrides and retires only its generate
 
 stock_menu_home="$test_root/stock-menu-home"
 install -d "$stock_menu_home/.config/omarchy/extensions"
+printf 'historical stock backup\n' \
+  >"$stock_menu_home/.config/omarchy/extensions/menu.sh.bak.123"
+printf 'historical generated backup\n' \
+  >"$stock_menu_home/.config/omarchy/extensions/menu.sh.qvos-backup.AbC123"
 git -C "$root" show \
   74a3797cf0b57a19a458d3e96b19f48b7fbfc2de:config/omarchy/extensions/menu.sh \
   >"$stock_menu_home/.config/omarchy/extensions/menu.sh"
@@ -1205,6 +1209,14 @@ cmp -s "$root/qvcore/config/files/qvos/extensions/menu.sh" \
 [[ ! -e $stock_menu_home/.config/omarchy/extensions/menu.sh &&
   ! -L $stock_menu_home/.config/omarchy/extensions/menu.sh ]] ||
   fail "stock inherited menu retirement"
+grep -Fqx 'historical stock backup' \
+  "$stock_menu_home/.local/state/qvos/menu-backups/legacy-extensions/menu.sh.bak.123" ||
+  fail "historical stock menu-backup archive"
+grep -Fqx 'historical generated backup' \
+  "$stock_menu_home/.local/state/qvos/menu-backups/legacy-extensions/menu.sh.qvos-backup.AbC123" ||
+  fail "historical generated menu-backup archive"
+[[ ! -e $stock_menu_home/.config/omarchy/extensions ]] ||
+  fail "empty inherited menu-extension root retirement"
 pass "stock inherited menu state converges to the native qvOS default"
 
 conflict_menu_home="$test_root/conflict-menu-home"

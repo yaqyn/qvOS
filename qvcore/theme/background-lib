@@ -1,0 +1,82 @@
+# shellcheck shell=bash
+
+qvos_background_link="$HOME/.config/qvos/current/background"
+qvos_desktop_restart_root="$QVOS_PATH/qvcore/desktop/restart"
+# shellcheck source=qvcore/desktop/restart/process-lib
+source "$qvos_desktop_restart_root/process-lib"
+# shellcheck source=qvcore/desktop/restart/user-unit-lib
+source "$qvos_desktop_restart_root/user-unit-lib"
+
+qvos_background_publish() {
+  local source=$1
+  local parent
+  local candidate
+
+  source=$(realpath -e -- "$source") || {
+    echo "Background does not exist: $source" >&2
+    return 1
+  }
+  [[ -f $source ]] || {
+    echo "Background is not a regular file: $source" >&2
+    return 1
+  }
+  parent=$(dirname -- "$qvos_background_link")
+  [[ -d $parent && ! -L $parent && -O $parent ]] || {
+    echo "Refusing an unsafe qvOS background directory: $parent" >&2
+    return 1
+  }
+  [[ ! -e $qvos_background_link || -L $qvos_background_link ]] || {
+    echo "Refusing to replace a non-link qvOS background: $qvos_background_link" >&2
+    return 1
+  }
+
+  candidate=$(mktemp "$parent/.qvos-background.XXXXXX")
+  rm -f -- "$candidate"
+  if ! ln -s -- "$source" "$candidate" ||
+    ! mv -Tf -- "$candidate" "$qvos_background_link"; then
+    rm -f -- "$candidate"
+    echo "Could not publish the qvOS background." >&2
+    return 1
+  fi
+}
+
+qvos_background_run() {
+  local mode=$1
+  local value=${2:-}
+  local fixed_unit="qvos-wallpaper.scope"
+  local -a wallpaper_args=()
+
+  command -v uwsm-app >/dev/null || {
+    echo "Cannot start the qvOS background: uwsm-app is unavailable." >&2
+    return 1
+  }
+  case $mode in
+  image)
+    [[ -f $value ]] || {
+      echo "Background does not exist: $value" >&2
+      return 1
+    }
+    wallpaper_args=(-i "$value" -m fill)
+    ;;
+  color)
+    [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || {
+      echo "Invalid qvOS background color: $value" >&2
+      return 1
+    }
+    wallpaper_args=(--color "$value")
+    ;;
+  *)
+    echo "Unsupported qvOS background mode: $mode" >&2
+    return 2
+    ;;
+  esac
+
+  qvos_user_unit_stop "$fixed_unit"
+  qvos_process_stop_exact swaybg
+  setsid uwsm-app \
+    -u "$fixed_unit" \
+    -d "qvOS wallpaper" \
+    -S both \
+    -- swaybg "${wallpaper_args[@]}" >/dev/null 2>&1 &
+  qvos_user_unit_wait_active "$fixed_unit"
+}

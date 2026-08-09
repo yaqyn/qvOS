@@ -4,12 +4,15 @@ set -euo pipefail
 config_root="$HOME/.config"
 legacy_root="$config_root/omarchy"
 native_root="$config_root/qvos"
+backup_root="$HOME/.local/state/qvos/theme-backups"
 managed_entries=(themes current backgrounds themed)
 integration_specs=(
   "$HOME/.config/btop/themes/current.theme|$HOME/.config/qvos/current/theme/btop.theme|$HOME/.config/omarchy/current/theme/btop.theme"
   "$HOME/.config/mako/config|$HOME/.config/qvos/current/theme/mako.ini|$HOME/.config/omarchy/current/theme/mako.ini"
 )
 integration_actions=()
+legacy_backup_sources=()
+legacy_backup_targets=()
 
 fail() {
   printf 'Could not migrate qvOS theme state: %s\n' "$1" >&2
@@ -63,6 +66,15 @@ fi
 if [[ -e $native_root || -L $native_root ]]; then
   validate_owned_directory "the native root" "$native_root"
 fi
+for backup_parent in \
+  "$HOME/.local" \
+  "$HOME/.local/state" \
+  "$HOME/.local/state/qvos" \
+  "$backup_root"; do
+  if [[ -e $backup_parent || -L $backup_parent ]]; then
+    validate_owned_directory "a qvOS theme-backup parent" "$backup_parent"
+  fi
+done
 
 for entry in "${managed_entries[@]}"; do
   legacy_path="$legacy_root/$entry"
@@ -80,6 +92,20 @@ for entry in "${managed_entries[@]}"; do
     [[ ! -e $native_path && ! -L $native_path ]] ||
       fail "both native and compatibility $entry directories contain state"
   fi
+done
+
+shopt -s nullglob
+legacy_backup_candidates=("$legacy_root"/themes.bak.*)
+shopt -u nullglob
+for legacy_backup in "${legacy_backup_candidates[@]}"; do
+  backup_name=${legacy_backup##*/}
+  [[ $backup_name =~ ^themes\.bak\.[0-9]+$ ]] || continue
+  validate_owned_directory "a historical theme backup" "$legacy_backup"
+  backup_target="$backup_root/legacy-omarchy-$backup_name"
+  [[ ! -e $backup_target && ! -L $backup_target ]] ||
+    fail "the historical theme backup already has a conflicting archive: $backup_target"
+  legacy_backup_sources+=("$legacy_backup")
+  legacy_backup_targets+=("$backup_target")
 done
 
 # Preflight exact application-theme links before changing theme state. Foreign
@@ -127,6 +153,16 @@ for entry in "${managed_entries[@]}"; do
     ln -s "$expected_link" "$legacy_path"
   fi
 done
+
+if ((${#legacy_backup_sources[@]} > 0)); then
+  install -d -m 0700 "$backup_root"
+  for index in "${!legacy_backup_sources[@]}"; do
+    legacy_backup=${legacy_backup_sources[$index]}
+    backup_target=${legacy_backup_targets[$index]}
+    mv -T -- "$legacy_backup" "$backup_target"
+    printf 'Preserved the historical theme backup as %s.\n' "$backup_target"
+  done
+fi
 
 
 for index in "${!integration_specs[@]}"; do

@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/theme/background-lib
+source "$QVOS_PATH/qvcore/theme/background-lib"
+
+(($# == 0)) || {
+  echo "Usage: qv theme bg restore" >&2
+  exit 2
+}
+
+if [[ -L $qvos_background_link && -f $qvos_background_link ]]; then
+  qvos_background_run image "$qvos_background_link"
+else
+  qvos_background_run color '#000000'
+fi

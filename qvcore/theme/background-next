@@ -3,6 +3,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/theme/background-lib
+source "$QVOS_PATH/qvcore/theme/background-lib"
 THEMES_DIR="$HOME/.config/qvos/themes"
 THEME_NAME_PATH="$HOME/.config/qvos/current/theme.name"
 [[ -f $THEME_NAME_PATH ]] || {
@@ -12,21 +14,19 @@ THEME_NAME_PATH="$HOME/.config/qvos/current/theme.name"
 THEME_NAME=$("$QVOS_PATH/qvcore/theme/name" --resolve "$THEMES_DIR" "$(<"$THEME_NAME_PATH")")
 THEME_BACKGROUNDS_PATH="$HOME/.config/qvos/current/theme/backgrounds/"
 USER_BACKGROUNDS_PATH="$HOME/.config/qvos/backgrounds/$THEME_NAME/"
-CURRENT_BACKGROUND_LINK="$HOME/.config/qvos/current/background"
 
-mkdir -p -- "$USER_BACKGROUNDS_PATH" "$(dirname -- "$CURRENT_BACKGROUND_LINK")"
+mkdir -p -- "$USER_BACKGROUNDS_PATH" "$(dirname -- "$qvos_background_link")"
 
 mapfile -d '' -t BACKGROUNDS < <(find -L "$USER_BACKGROUNDS_PATH" "$THEME_BACKGROUNDS_PATH" -maxdepth 1 -type f -print0 2>/dev/null | sort -z)
 TOTAL=${#BACKGROUNDS[@]}
 
 if (( TOTAL == 0 )); then
   notify-send "No background was found for theme" -t 2000
-  pkill -x swaybg >/dev/null 2>&1 || true
-  setsid uwsm-app -- swaybg --color '#000000' >/dev/null 2>&1 &
+  qvos_background_run color '#000000'
 else
   # Get current background from symlink
-  if [[ -L $CURRENT_BACKGROUND_LINK ]]; then
-    CURRENT_BACKGROUND=$(readlink "$CURRENT_BACKGROUND_LINK")
+  if [[ -L $qvos_background_link ]]; then
+    CURRENT_BACKGROUND=$(readlink "$qvos_background_link")
   else
     # Default to first background if no symlink exists
     CURRENT_BACKGROUND=""
@@ -50,10 +50,6 @@ else
     NEW_BACKGROUND="${BACKGROUNDS[$NEXT_INDEX]}"
   fi
 
-  # Set new background symlink
-  ln -nsf "$NEW_BACKGROUND" "$CURRENT_BACKGROUND_LINK"
-
-  # Relaunch swaybg
-  pkill -x swaybg >/dev/null 2>&1 || true
-  setsid uwsm-app -- swaybg -i "$CURRENT_BACKGROUND_LINK" -m fill >/dev/null 2>&1 &
+  qvos_background_publish "$NEW_BACKGROUND"
+  qvos_background_run image "$qvos_background_link"
 fi

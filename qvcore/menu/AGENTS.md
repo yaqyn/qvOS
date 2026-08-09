@@ -114,6 +114,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   remove only its exact source line, delete only the reviewed generated-overlay
   hash, and leave any modified overlay preserved but inert. Reject links,
   foreign ownership, and unsafe personal extension targets before cleanup.
+  Archive exact historical `menu.sh.bak.<timestamp>` and
+  `menu.sh.qvos-backup.<token>` files into private qvOS menu-backup state so
+  the active Omarchy compatibility root carries no inert stock backups.
 - Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
   Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
   remove only their exact owned block, link, and theme while preserving foreign

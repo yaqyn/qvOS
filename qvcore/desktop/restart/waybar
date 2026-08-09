@@ -2,13 +2,39 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/desktop/restart/process-lib
+# qvos:contract=qvcore/desktop/restart/user-unit-lib
 restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/restart/process-lib
 source "$restart_root/process-lib"
+# shellcheck source=qvcore/desktop/restart/user-unit-lib
+source "$restart_root/user-unit-lib"
 
+fixed_unit="qvos-waybar.scope"
+legacy_pattern="app-*-waybar-*.scope"
+legacy_units=$(qvos_user_units_matching scope "$legacy_pattern")
+
+# Earlier UWSM launches used a random scope. Stopping only Waybar left its
+# long-running module workers alive inside that scope, so retire every exact
+# Waybar scope before starting the singular qvOS unit.
+while IFS= read -r unit; do
+  [[ -n $unit ]] || continue
+  suffix=${unit##*-waybar-}
+  suffix=${suffix%.scope}
+  [[ $suffix =~ ^[0-9a-f]{8}$ ]] || continue
+  description=$(qvos_user_unit_property "$unit" Description)
+  [[ $description == "waybar" ]] || continue
+  qvos_user_unit_stop "$unit"
+done <<<"$legacy_units"
+
+qvos_user_unit_stop "$fixed_unit"
 qvos_process_stop_exact waybar
 command -v uwsm-app >/dev/null || {
   echo "Cannot restart Waybar: uwsm-app is unavailable." >&2
   exit 1
 }
-setsid uwsm-app -- waybar >/dev/null 2>&1 &
+setsid uwsm-app \
+  -u "$fixed_unit" \
+  -d "qvOS Waybar" \
+  -S both \
+  -- waybar >/dev/null 2>&1 &
+qvos_user_unit_wait_active "$fixed_unit"

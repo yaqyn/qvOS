@@ -63,6 +63,9 @@ printf 'personal\n' >"$legacy_themes_dir/personal/marker"
 printf 'linked\n' >"$external_theme/marker"
 mkdir -p "$legacy_themes_dir/yaqyn"
 printf 'old yaqyn\n' >"$legacy_themes_dir/yaqyn/marker"
+mkdir -p "$test_root/.config/omarchy/themes.bak.123"
+printf 'historical theme data\n' \
+  >"$test_root/.config/omarchy/themes.bak.123/marker"
 ln -s "$external_theme" "$legacy_themes_dir/linked"
 ln -s "$root/themes/tokyo-night" "$legacy_themes_dir/tokyo-night"
 ln -s "$test_root/missing-theme" "$legacy_themes_dir/broken"
@@ -94,6 +97,11 @@ HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/migrate-config-root"
   fail "native Mako theme integration"
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
+grep -Fqx 'historical theme data' \
+  "$test_root/.local/state/qvos/theme-backups/legacy-omarchy-themes.bak.123/marker" ||
+  fail "historical compatibility-root theme backup"
+[[ ! -e $test_root/.config/omarchy/themes.bak.123 ]] ||
+  fail "active compatibility root retained an archived theme backup"
 pass "legacy theme state migrates once into native qvOS ownership"
 
 custom_integration_home="$test_root/custom-integration-home"
@@ -390,6 +398,63 @@ if HOME="$background_home" \
 fi
 [[ ! -e $background_home/.config/omarchy/escape ]] ||
   fail "invalid theme name created an external background directory"
+
+background_runtime_home="$test_root/background-runtime-home"
+background_runtime_log="$test_root/background-runtime.log"
+background_image="$test_root/background.png"
+mkdir -p "$background_runtime_home/.config/qvos/current"
+printf 'image fixture\n' >"$background_image"
+install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SYSTEMCTL'
+#!/bin/bash
+if [[ $* == *'--property=LoadState'* ]]; then
+  printf 'not-found\n'
+elif [[ $* == *'is-active'* ]]; then
+  exit 0
+fi
+SYSTEMCTL
+install -m 0755 /dev/stdin "$test_bin/setsid" <<'SETSID'
+#!/bin/bash
+exec "$@"
+SETSID
+install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'UWSM'
+#!/bin/bash
+printf 'uwsm' >>"$QVOS_TEST_BACKGROUND_RUNTIME_LOG"
+printf '|%s' "$@" >>"$QVOS_TEST_BACKGROUND_RUNTIME_LOG"
+printf '\n' >>"$QVOS_TEST_BACKGROUND_RUNTIME_LOG"
+UWSM
+HOME="$background_runtime_home" \
+QVOS_PATH="$root" \
+QVOS_TEST_BACKGROUND_RUNTIME_LOG="$background_runtime_log" \
+PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/theme/background-set" "$background_image"
+for _ in {1..20}; do
+  [[ -s $background_runtime_log ]] && break
+  sleep 0.05
+done
+expected_background_link="$background_runtime_home/.config/qvos/current/background"
+[[ -L $expected_background_link &&
+  $(readlink -- "$expected_background_link") == "$background_image" ]] ||
+  fail "atomic native background selection"
+grep -Fqx \
+  "uwsm|-u|qvos-wallpaper.scope|-d|qvOS wallpaper|-S|both|--|swaybg|-i|$expected_background_link|-m|fill" \
+  "$background_runtime_log" || fail "stable qvOS wallpaper unit"
+HOME="$background_runtime_home" \
+QVOS_PATH="$root" \
+QVOS_TEST_BACKGROUND_RUNTIME_LOG="$background_runtime_log" \
+PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/theme/background-restore"
+unlink -- "$expected_background_link"
+printf 'user-owned background state\n' >"$expected_background_link"
+if HOME="$background_runtime_home" \
+  QVOS_PATH="$root" \
+  QVOS_TEST_BACKGROUND_RUNTIME_LOG="$background_runtime_log" \
+  PATH="$test_bin:/usr/bin" \
+    "$root/qvcore/theme/background-set" "$background_image" >/dev/null 2>&1; then
+  fail "non-link background-state replacement"
+fi
+grep -Fqx 'user-owned background state' "$expected_background_link" ||
+  fail "non-link background-state preservation"
+pass "background selection is atomic and one stable qvOS scope owns swaybg"
 
 editor_home="$test_root/editor-home"
 editor_bin="$test_root/editor-bin"

@@ -45,9 +45,12 @@ desktop mutation. `qvcore/desktop/restart/` is the singular owner for supported
 runtime restart operations. Public `qv-restart-*` commands carry metadata; matching
 `omarchy-restart-*` files are metadata-free compatibility adapters only.
 qvOS-owned consumers call the native command or owner, never the compatibility
-name. Keep process names exact, preserve argument boundaries, treat an absent
-optional process as an idempotent success, and propagate failures from the
-component that must be restored.
+name. Waybar and the monitor watcher use stable qvOS UWSM units; their restart
+owners stop the complete prior unit before relaunching so module workers and
+transient inherited identities cannot survive a restart. Keep process names
+exact, preserve argument boundaries, treat an absent optional process as an
+idempotent success, and propagate failures from the component that must be
+restored.
 
 Lock accepts only `QVOS_LOCK_ONLY`, validates its bounded policy, starts at most
 one observed Hyprlock instance, locks 1Password only when its exact process and
