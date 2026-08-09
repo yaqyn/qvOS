@@ -148,12 +148,13 @@ Services and Development integrations never change qvOS base readiness.
   uses that same TUI flow and verifies its real installed result.
   Installed fonts additionally expose owner-derived Apply and exact Uninstall
   actions; removing the active font restores JetBrains Mono first.
-  ISO Build stages the qvOS source over the reviewed source-backed Omarchy ISO
-  builder commit, adds the qvOS configurator and progress surfaces, and
-  preserves its reviewed disk-install and post-install orchestration. It uses
-  one signed provider policy for online resolution and the offline mirror,
-  boots the standard Arch kernel, and refuses T2 Macs whose required
-  third-party stack is not available through that verifiable boundary.
+  ISO Build delegates to the native qvOS Archiso builder and profile under
+  `release/iso/`, embedding the exact pinned qvOS source and singular TUI
+  installer. Omarchy ISO is a separately audited, read-only qvsync reference,
+  never executable build input. The native image uses one signed provider
+  policy for online resolution and the offline mirror, boots the standard Arch
+  kernel, and refuses T2 Macs whose required third-party stack is not available
+  through that verifiable boundary.
 
 Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
 separate documented installation rather than a source, branch, or config reset.

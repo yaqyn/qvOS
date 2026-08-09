@@ -23,6 +23,11 @@ fail() {
   fail "TUI image-build adapter contains release implementation"
 grep -Fq 'release/iso/build' "$root/qvcore/tui/bin/qvos-build" ||
   fail "TUI adapter bypasses the release owner"
+grep -Fq 'native qvOS Archiso builder and profile' "$root/qvcore/README.md" ||
+  fail "qvCORE architecture does not describe the native ISO owner"
+if rg -n 'source-backed Omarchy ISO|stages .*Omarchy ISO' "$root/qvcore/README.md"; then
+  fail "qvCORE architecture retains the retired patched ISO model"
+fi
 
 for retired in \
   "$release_root/omarchy-iso-qvos-tui.patch" \
