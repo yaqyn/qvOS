@@ -4,7 +4,7 @@ Read this file completely when changing qvOS-owned optional software install or
 removal owners, their package boundaries, local configuration, services,
 downloads, launches, or reboot handoff.
 
-- Native routes are `qv install nordvpn`, `qv install vscode`, and
+- Native routes include `qv install dropbox/nordvpn/once/tailscale/vscode` and
   `qv voxtype config/install/model/remove/status`. Public inherited names are
   metadata-free adapters only. Put mutation in one `qvcore/software/` owner
   and keep state, presentation, sudo, and probe fields truthful in menu, TUI,
@@ -29,6 +29,11 @@ downloads, launches, or reboot handoff.
   exact follower PID, terminates only that child, validates JSON objects, and
   never signals a whole process group. The qvOS Waybar overlay owns all three
   Voxtype routes while preserving the reviewed inherited module styling.
+- Dropbox installs only its CLI, signature support, and current tray library;
+  never restore its retired Nautilus extension or detach the application from
+  a captured install. Tailscale authentication stays native, never accepts
+  advertised routes implicitly, and never creates a Web App. ONCE may open its
+  nested TUI only after its exact packaged service starts successfully.
 
 Run `qvcore/software/check`, Bash syntax, ShellCheck, focused software/TUI tests,
 `qvcore/tui/owner-contracts --check`, and the full qvOS suite. Do not install,

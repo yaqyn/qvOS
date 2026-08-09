@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv install once" >&2
+  exit 2
+}
+
+echo "Installing ONCE..."
+qv-pkg-add once-bin
+
+echo "Starting the ONCE background service..."
+sudo systemctl enable --now once-background.service
+
+echo "Launching ONCE..."
+exec once

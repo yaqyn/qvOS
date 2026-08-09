@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv install dropbox" >&2
+  exit 2
+}
+
+echo "Installing Dropbox..."
+qv-pkg-add dropbox-cli python-gpgme libayatana-appindicator
+
+echo "Dropbox is installed. Launch it from Apps to complete sign-in."

@@ -33,7 +33,7 @@ moonlight|install|Open Moonlight and add your Sunshine host.
 lutris|install|Open Lutris, wait for the runtimes, then use + to add games.
 heroic|install|Open Heroic and sign in.
 devel|install|Right-click a project folder and choose Open Codex Here.
-dropbox|install|Open the top-right hidden tray, right-click Dropbox, and complete setup.
+dropbox|install|Launch Dropbox from Apps, then complete sign-in from its tray icon.
 nordvpn|install|After rebooting, open a terminal and run: nordvpn login
 bitwarden|install|Open Bitwarden and sign in.
 vscode|install|Open VS Code from the app launcher.

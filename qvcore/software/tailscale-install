@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qv install tailscale" >&2
+  exit 2
+}
+
+echo "Installing Tailscale..."
+qv-pkg-add tailscale
+
+echo "Starting the Tailscale service..."
+sudo systemctl enable --now tailscaled.service
+
+echo "Starting Tailscale authentication..."
+exec sudo tailscale up --accept-dns=false --accept-routes=false

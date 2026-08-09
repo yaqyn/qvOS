@@ -6,6 +6,8 @@ test_root="$(mktemp -d)"
 source_root="$test_root/source"
 test_bin="$test_root/bin"
 launch_log="$test_root/launch.log"
+export QVOS_PATH="$source_root"
+export OMARCHY_PATH="$source_root"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -521,7 +523,7 @@ fi
 printf 'ok - every remaining Software installer has an explicit TUI or native contract\n'
 
 fallback_sublime_route=$(
-  HOME="$test_root/home" OMARCHY_PATH="$root" bash -s -- \
+  HOME="$test_root/home" QVOS_PATH="$root" OMARCHY_PATH="$root" bash -s -- \
     "$root/qvcore/menu/extension.sh" <<'SCRIPT'
 set -euo pipefail
 source "$1"
@@ -542,7 +544,8 @@ SCRIPT
 printf 'ok - Sublime Text uses the same installer route from every menu surface\n'
 
 fallback_stateful_routes=$(
-  bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+  QVOS_PATH="$root" OMARCHY_PATH="$root" \
+    bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
 set -euo pipefail
 source "$1"
 

@@ -25,6 +25,11 @@ directives. Validate before disconnecting WARP so rejected input has no side
 effects. Do not expose registrations, identifiers, or command output that can
 contain credentials.
 
+Tailscale is an optional-software owner, not qvOS DNS policy. Its native
+authentication may enable `tailscaled`, but must not accept advertised routes,
+change qvOS DNS policy, or create an admin Web App implicitly. Users opt into
+those capabilities separately after joining their tailnet.
+
 `dns-policy migrate-legacy` is the one unreleased-state cleanup for the former
 full-file resolver policy and immediately inserted `UseDNS=no` lines. It acts
 only on exact known qvOS/Omarchy-generated content, restores the installed
