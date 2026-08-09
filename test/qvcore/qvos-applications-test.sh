@@ -227,6 +227,10 @@ install -d "$test_bin"
 install -m 0755 /dev/stdin "$test_bin/mv" <<'SCRIPT'
 #!/bin/bash
 destination=${!#}
+if [[ $destination == "${QVOS_TEST_SIGNAL_DESTINATION:-}" ]]; then
+  kill -TERM "$PPID"
+  exit 0
+fi
 if [[ $destination == "$QVOS_TEST_FAIL_DESTINATION" &&
   ! -e $QVOS_TEST_FAILURE_MARKER ]]; then
   touch "$QVOS_TEST_FAILURE_MARKER"
@@ -248,6 +252,21 @@ fi
   ! -e $rollback_apps/mpv.desktop &&
   ! -e $rollback_home/.local/state/qvos/desktop/applications.psv ]] ||
   fail "application publication rollback"
+
+signal_home="$test_root/signal-home"
+signal_apps="$signal_home/.local/share/applications"
+install -d "$signal_home"
+export QVOS_TEST_FAIL_DESTINATION=never
+export QVOS_TEST_FAILURE_MARKER="$test_root/signal-failure-unused"
+export QVOS_TEST_SIGNAL_DESTINATION="$signal_apps/imv.desktop"
+if run_owner "$signal_home" >/dev/null 2>&1; then
+  fail "interrupted publication accepted"
+fi
+if find "$signal_home/.local/share" -type f -print -quit | grep -q . ||
+  [[ -e $signal_home/.local/state/qvos/desktop/applications.psv ]]; then
+  fail "interrupted application publication rollback"
+fi
+unset QVOS_TEST_SIGNAL_DESTINATION
 
 state_failure_home="$test_root/state-failure-home"
 install -d "$state_failure_home"

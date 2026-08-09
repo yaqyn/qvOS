@@ -9,6 +9,11 @@ state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/desktop"
 managed_state="$state_dir/applications.psv"
 transaction_dir=
 state_stage=
+state_backup=
+state_backup_hash=
+state_expected_hash=
+state_existed=false
+transaction_active=false
 rollback_failed=false
 legacy_hidden_hash="a0260e7f35579a73f77e257e9e3795abd8b33119a17b931ca6016a07036e1670"
 
@@ -101,14 +106,15 @@ cleanup() {
     rm -f -- "$state_stage"
   [[ -z $transaction_dir || ! -d $transaction_dir ]] || rm -rf -- "$transaction_dir"
 }
-trap cleanup EXIT
 
 rollback() {
+  local current_hash
   local index
   local published_index
   local destination
   local restore
 
+  rollback_failed=false
   for ((published_index = ${#published_indices[@]} - 1;
     published_index >= 0;
     published_index--)); do
@@ -136,7 +142,53 @@ rollback() {
       rollback_failed=true
     fi
   done
+
+  if [[ $state_existed == "true" ]]; then
+    if [[ ! -f $managed_state || -L $managed_state || ! -O $managed_state ]]; then
+      rollback_failed=true
+    else
+      current_hash=$(sha256sum -- "$managed_state" | cut -d' ' -f1)
+      if [[ $current_hash == "$state_expected_hash" &&
+        $current_hash != "$state_backup_hash" ]]; then
+        restore=$(mktemp "$state_dir/.qvos-applications-state-restore.XXXXXX") || {
+          rollback_failed=true
+          return
+        }
+        if ! cp -p -- "$state_backup" "$restore" ||
+          ! mv -Tf -- "$restore" "$managed_state"; then
+          rm -f -- "$restore"
+          rollback_failed=true
+        fi
+      elif [[ $current_hash != "$state_backup_hash" ]]; then
+        rollback_failed=true
+      fi
+    fi
+  elif [[ -e $managed_state || -L $managed_state ]]; then
+    if [[ ! -f $managed_state || -L $managed_state || ! -O $managed_state ]] ||
+      [[ $(sha256sum -- "$managed_state" | cut -d' ' -f1) != "$state_expected_hash" ]] ||
+      ! unlink -- "$managed_state"; then
+      rollback_failed=true
+    fi
+  fi
 }
+
+on_exit() {
+  local status=$?
+
+  trap - EXIT HUP INT TERM
+  if [[ $transaction_active == "true" ]]; then
+    rollback
+    if [[ $rollback_failed == "true" ]]; then
+      printf 'qvOS application install: interrupted transaction rollback was incomplete\n' >&2
+    fi
+  fi
+  cleanup
+  exit "$status"
+}
+trap on_exit EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 load_managed_state() {
   local extra
@@ -263,10 +315,19 @@ chmod 0600 "$state_stage"
     printf '%s|%s\n' "${identifiers[$index]}" "${source_hashes[$index]}"
   done
 } >"$state_stage"
+state_expected_hash=$(sha256sum -- "$state_stage" | cut -d' ' -f1)
+if [[ -f $managed_state ]]; then
+  state_backup="$transaction_dir/managed-state"
+  cp -p -- "$managed_state" "$state_backup"
+  state_backup_hash=$(sha256sum -- "$state_backup" | cut -d' ' -f1)
+  state_existed=true
+fi
 
+transaction_active=true
 for index in "${publish_indices[@]}"; do
   if ! mv -Tf -- "${stages[$index]}" "${destinations[$index]}"; then
     rollback
+    transaction_active=false
     [[ $rollback_failed == "false" ]] ||
       fail "publication failed and rollback was incomplete"
     fail "publication failed; the prior payload was restored"
@@ -280,12 +341,14 @@ if [[ -f $managed_state ]] && cmp -s -- "$state_stage" "$managed_state"; then
   state_stage=""
 elif ! mv -Tf -- "$state_stage" "$managed_state"; then
   rollback
+  transaction_active=false
   [[ $rollback_failed == "false" ]] ||
     fail "state publication failed and payload rollback was incomplete"
   fail "state publication failed; the prior payload was restored"
 else
   state_stage=""
 fi
+transaction_active=false
 
 retire_exact \
   "$application_dir/typora.desktop" \
@@ -294,5 +357,5 @@ retire_exact \
   "$application_dir/icons/imv.png" \
   479a45d0d5964484bd97a5bd98a405eb64252c2d2d9107168eb40a155a9ba572
 
-trap - EXIT
+trap - EXIT HUP INT TERM
 cleanup
