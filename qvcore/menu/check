@@ -171,5 +171,12 @@ if rg -n 'omarchy-menu' \
   "$root/qvcore/menu/elephant/qvos_menu.lua"; then
   fail "active desktop surface uses the menu compatibility route"
 fi
+if rg -n -i 'omarchy' \
+  "$root/qvcore/menu/concepts.psv" \
+  "$root/qvcore/menu/elephant/qvos_menu.lua"; then
+  fail "active menu catalog retains inherited product identity"
+fi
+grep -Fq '|Install|terminal:qv-pkg-install|AUR|terminal:qv-pkg-aur-install|Remove|terminal:qv-pkg-remove' \
+  "$root/qvcore/menu/concepts.psv" || fail "native package menu routes"
 
 printf 'ok - qvOS menu helpers, Walker, and Share have singular native owners\n'

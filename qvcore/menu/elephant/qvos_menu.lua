@@ -527,7 +527,7 @@ function GetEntries(query)
   add(entries, "", "Settings", "Home", { "setup", "configure", "software", "appearance" }, route("settings"))
   add(entries, "󰍜", "More", "Home", { "learn", "capture", "share", "about", "power" }, route("more"))
   add(entries, "󰧑", "Learn", "More", { "docs", "help", "manual" }, route("learn"))
-  add(entries, "", "About", "More", { "omarchy", "version", "credits" }, "qv-launch-about")
+  add(entries, "", "About", "More", { "qvos", "system", "version", "credits" }, "qv-launch-about")
 
   -- Concepts appear once; opening one reveals its available actions.
   add_concepts(entries)

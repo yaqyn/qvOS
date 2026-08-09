@@ -64,7 +64,7 @@ pass "commands --check passes"
 pass "commands --all does not crash"
 
 "$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy hyprland window gaps toggle" and .summary != "undocumented")' >/dev/null
-pass "fallback commands are inferred and documented"
+pass "filename-derived commands are inferred and documented"
 
 "$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy dev benchmark")' >/dev/null
 pass "benchmark command is discoverable in all commands"
@@ -91,7 +91,7 @@ assert_output_contains "bare root command with children renders help" "$output" 
 assert_output_contains "bare toggle help includes child route" "$output" "omarchy toggle waybar"
 
 output=$("$CLI" pkg --help)
-assert_output_contains "package group includes pkg add fallback route" "$output" "omarchy pkg add <packages...>"
+assert_output_contains "package group includes pkg add filename route" "$output" "omarchy pkg add <packages...>"
 
 output=$("$CLI" restart --help)
 assert_output_contains "restart group includes inferred commands" "$output" "omarchy restart btop"
@@ -133,10 +133,9 @@ commands = json.loads(subprocess.check_output([cli, 'commands', '--json'], text=
 by_group = {}
 for command in commands:
   binary = command['binary']
-  if binary.startswith('qv-'):
-    stem = binary.removeprefix('qv-')
-  else:
-    stem = binary.removeprefix('omarchy-')
+  if not binary.startswith('qv-'):
+    raise AssertionError(f'non-native binary discovered: {binary}')
+  stem = binary.removeprefix('qv-')
   group = stem.split('-', 1)[0]
   filename_route = 'omarchy ' + stem.replace('-', ' ')
   by_group.setdefault(group, []).append((binary, filename_route, command['route']))
@@ -220,17 +219,10 @@ while IFS= read -r binary_path; do
     { exit }
   ' "$binary_path")
 
-  if [[ -x $native_path ]]; then
-    [[ -z $header ]] || fail "compatibility adapter has no metadata: $binary_path"
-    grep -q '^# qv:summary=' "$native_path" ||
-      fail "native metadata summary is present: $native_path"
-    continue
-  fi
-  grep -q '^# omarchy:summary=' <<<"$header" || fail "metadata summary is present: $binary_path"
-  ! grep -q '^# omarchy:binary=' <<<"$header" || fail "metadata does not repeat inferred binary: $binary_path"
-  ! grep -q '^# omarchy:args=$' <<<"$header" || fail "metadata does not include empty args: $binary_path"
-  ! grep -Eq '^# omarchy:(legacy|usage|visibility|mutates|interactive)=' <<<"$header" || fail "metadata avoids removed fields: $binary_path"
-  ! grep -Eq '^# omarchy:requires-sudo=false$' <<<"$header" || fail "metadata omits false booleans: $binary_path"
+  [[ -x $native_path ]] || fail "native owner exists for compatibility adapter: $binary_path"
+  [[ -z $header ]] || fail "compatibility adapter has no metadata: $binary_path"
+  grep -q '^# qv:summary=' "$native_path" ||
+    fail "native metadata summary is present: $native_path"
 done < <(find "$ROOT/bin" -maxdepth 1 -type f -executable -name 'omarchy-*' | sort)
 pass "every command has one slim metadata owner"
 
@@ -240,40 +232,53 @@ ln -s "$CLI" "$TMPDIR/omarchy"
 {
   printf '#!/bin/bash\n\n'
   printf '# ordinary comments are fine\n'
-  printf '# omarchy:this malformed line should be ignored\n'
-  printf '# omarchy:group=weird\n'
-  printf '# omarchy:name=test\n'
-  printf '# omarchy:summary=Survives malformed metadata comments\n'
-  printf '# omarchy:made-up=value\n'
+  printf '# qv:this malformed line should be ignored\n'
+  printf '# qv:group=weird\n'
+  printf '# qv:name=test\n'
+  printf '# qv:summary=Survives malformed metadata comments\n'
+  printf '# omarchy:summary=This legacy metadata must be ignored\n'
+  printf '# qv:made-up=value\n'
   printf 'echo weird-ok\n'
-} >"$TMPDIR/omarchy-weird-test"
-chmod +x "$TMPDIR/omarchy-weird-test"
+} >"$TMPDIR/qv-weird-test"
+chmod +x "$TMPDIR/qv-weird-test"
 
 {
   printf '#!/bin/bash\n\n'
-  printf '# a partial metadata header should not destroy fallback routing\n'
-  printf '# omarchy:summary=Partial metadata keeps inferred route\n'
-  printf '# omarchy:made-up=value\n'
+  printf '# a partial metadata header should not destroy filename routing\n'
+  printf '# qv:summary=Partial metadata keeps inferred route\n'
+  printf '# qv:made-up=value\n'
   printf 'echo partial-ok\n'
-} >"$TMPDIR/omarchy-partial-meta-test"
-chmod +x "$TMPDIR/omarchy-partial-meta-test"
+} >"$TMPDIR/qv-partial-meta-test"
+chmod +x "$TMPDIR/qv-partial-meta-test"
 
 {
   printf '#!/bin/bash\n\n'
   printf 'echo body-metadata-ok\n'
-  printf '# omarchy:group=wrong\n'
-  printf '# omarchy:name=wrong\n'
-} >"$TMPDIR/omarchy-body-metadata-test"
-chmod +x "$TMPDIR/omarchy-body-metadata-test"
+  printf '# qv:group=wrong\n'
+  printf '# qv:name=wrong\n'
+} >"$TMPDIR/qv-body-metadata-test"
+chmod +x "$TMPDIR/qv-body-metadata-test"
+
+{
+  printf '#!/bin/bash\n\n'
+  printf '# omarchy:summary=Legacy-only commands are not native qvOS routes\n'
+  printf 'echo inherited-probe-must-not-run\n'
+} >"$TMPDIR/omarchy-legacy-only"
+chmod +x "$TMPDIR/omarchy-legacy-only"
 
 "$TMPDIR/omarchy" commands --all --json | jq -e '.commands[] | select(.route == "omarchy weird test" and .summary == "Survives malformed metadata comments")' >/dev/null
 pass "unknown metadata values are non-fatal"
 
 "$TMPDIR/omarchy" commands --all --json | jq -e '.commands[] | select(.route == "omarchy partial meta test" and .summary == "Partial metadata keeps inferred route")' >/dev/null
-pass "partial metadata keeps inferred fallback route"
+pass "partial metadata keeps inferred filename route"
 
 "$TMPDIR/omarchy" commands --all --json | jq -e '.commands[] | select(.route == "omarchy body metadata test" and .summary == "Run the body metadata test command")' >/dev/null
 pass "metadata-looking comments after script body are ignored"
+
+if "$TMPDIR/omarchy" commands --all --json | jq -e '.commands[] | select(.binary == "omarchy-legacy-only")' >/dev/null; then
+  fail "Omarchy-only command is absent from native discovery"
+fi
+pass "Omarchy-only commands are absent from native discovery"
 
 output=$("$TMPDIR/omarchy" weird test)
 assert_output_contains "temporary metadata command dispatches" "$output" "weird-ok"
@@ -283,3 +288,12 @@ assert_output_contains "partial metadata command dispatches" "$output" "partial-
 
 output=$("$TMPDIR/omarchy" body metadata test)
 assert_output_contains "body metadata command dispatches by filename" "$output" "body-metadata-ok"
+
+set +e
+output=$("$TMPDIR/omarchy" legacy only 2>&1)
+legacy_only_status=$?
+set -e
+((legacy_only_status == 127)) || fail "Omarchy-only command dispatch status"
+assert_output_contains "Omarchy-only command cannot dispatch" "$output" "Unknown qvOS command: omarchy legacy only"
+[[ $output != *"inherited-probe-must-not-run"* ]] || fail "Omarchy-only owner did not execute"
+pass "Omarchy-only owner did not execute"

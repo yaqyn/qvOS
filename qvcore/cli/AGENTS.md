@@ -10,17 +10,15 @@ engine and command directory without duplicating route behavior. Every public
 adapter resolves source only through `QVOS_PATH`; an inherited command name
 never grants `OMARCHY_PATH` source authority.
 
-Promoted commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
-that native route for both frontends and ignores its matching `omarchy-*` file
-during discovery; the latter is a metadata-free direct-command compatibility
-adapter only. Unpromoted `omarchy-*` implementations and metadata remain an
-upstream ABI until their complete domain moves. Never keep two implementations
-or two active metadata records for the same route. Native `qv` output, routes,
-examples, errors, and suggestions use `qv`; the compatibility frontend rewrites
-the same catalog to `omarchy` without changing its owner.
-Every retained command domain is now promoted: no `omarchy-*` adapter may carry
-command metadata or implementation. Compatibility adapters remain thin direct
-ABI routes until their callers can be retired.
+Native commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
+that native route for both frontends and never scans, registers, or dispatches
+an `omarchy-*` file. Matching Omarchy names are metadata-free direct-command
+compatibility adapters only. Every retained command domain is promoted: never
+keep two implementations or two active metadata records for the same route.
+Native `qv` output, routes, examples, errors, and suggestions use `qv`; the
+compatibility frontend rewrites the same native catalog to `omarchy` without
+changing its owner. Compatibility adapters remain thin direct ABI routes until
+their callers can be retired.
 
 `qvcore/cli/command-{missing,present}` owns command availability checks. Always
 terminate `command -v` option parsing with `--` and preserve empty-set semantics:
@@ -42,6 +40,8 @@ implementation subcommands as native `qv update` routes. Do not run an update
 or package upgrade while testing CLI dispatch; use help, metadata checks, and
 the update owner's `--check` mode only when the live checkout is in scope.
 
-List every promoted inherited CLI path in `native-paths`, sorted and unique.
-Run `qvcore/cli/check`, both CLI suites, the product and upstream-overlay
-guards, Bash syntax and ShellCheck for changed shell, then the full qvOS suite.
+List every CLI-domain compatibility path in `native-paths`, sorted and unique.
+Keep every `qv-*` and `omarchy-*` adapter paired with identical non-metadata
+content, and reject compatibility-only commands or `# omarchy:*` metadata. Run
+`qvcore/cli/check`, both CLI suites, the product and upstream-overlay guards,
+Bash syntax and ShellCheck for changed shell, then the full qvOS suite.

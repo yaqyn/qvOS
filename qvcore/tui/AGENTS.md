@@ -34,6 +34,8 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   model-specific state and copy.
 - Keep mutation, package, and update behavior in its existing qvOS
   owner. TUI adapters delegate once and never reproduce an engine.
+- Action launchers read only native `# qv:*` owner metadata. Compatibility
+  adapters and `# omarchy:*` records never define TUI copy or behavior.
 - Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
   for update, and ISO flows retain their inherited fallback.
 - Treat `qvcore/tui` as the qvOS product interface only. Never restore the
@@ -260,7 +262,7 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   stable action key and route activation by that key, never by tab or cursor
   coordinates. Add a section only with its first complete vertical slice.
 - State-aware Install and Uninstall labels come from `qvcore/menu/software-state`
-  using real qvOS or Omarchy state. `qvcore/tui/action/launch` refreshes state at
+  using real qvOS-owned state. `qvcore/tui/action/launch` refreshes state at
   activation and `qvcore/tui/action/run` delegates the selected mutation once; the
   TUI does not copy package or lifecycle logic.
 - Install-only selectors keep their inherited browse shape and use
@@ -510,7 +512,7 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
 6. Build and install the live binary through `qvcore/tui/install`, apply affected
    launch/config owners, verify the semantic model and responsive log/result
    states, then capture and inspect a fullscreen screenshot with
-   `omarchy capture screenshot fullscreen save`.
+   `qv capture screenshot fullscreen save`.
 
 When an ISO surface changes, follow `release/iso/AGENTS.md` in addition to this
 workflow and verify both boot fallback and the installed-system binary.

@@ -27,6 +27,7 @@ compat_help=$("$compat_cli" --help)
 "$qv_cli" commands --json | jq -e '
   .ok == true and
   (all(.commands[]; .route | startswith("qv "))) and
+  (all(.commands[]; .binary | startswith("qv-"))) and
   ([.commands[].binary | select(. == "omarchy-update" or startswith("omarchy-update-"))] | length == 0) and
   ([.commands[] | select(.route == "qv update" and .binary == "qv-update")] | length == 1) and
   ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1) and
@@ -78,7 +79,15 @@ cat >"$test_root/omarchy-probe-safe" <<'SCRIPT'
 #!/bin/bash
 echo inherited-probe-must-not-run
 SCRIPT
-chmod 0755 "$test_root/qv-probe-safe" "$test_root/omarchy-probe-safe"
+cat >"$test_root/omarchy-legacy-only" <<'SCRIPT'
+#!/bin/bash
+# omarchy:summary=Legacy-only commands are not native qvOS routes
+echo inherited-legacy-must-not-run
+SCRIPT
+chmod 0755 \
+  "$test_root/qv-probe-safe" \
+  "$test_root/omarchy-probe-safe" \
+  "$test_root/omarchy-legacy-only"
 
 [[ $("$test_root/qv" probe safe) == "qv-native-probe-ok" ]] ||
   fail "native adapter dispatch preference"
@@ -88,5 +97,17 @@ chmod 0755 "$test_root/qv-probe-safe" "$test_root/omarchy-probe-safe"
   [.commands[] | select(.route == "qv probe safe" and .binary == "qv-probe-safe")] |
   length == 1
 ' >/dev/null || fail "native discovery is singular"
+"$test_root/omarchy" commands --all --json | jq -e '
+  [.commands[] | select(.binary == "omarchy-legacy-only")] | length == 0
+' >/dev/null || fail "compatibility frontend exposed an Omarchy-only command"
+set +e
+legacy_output=$("$test_root/omarchy" legacy only 2>&1)
+legacy_status=$?
+set -e
+((legacy_status == 127)) || fail "Omarchy-only compatibility dispatch status"
+[[ $legacy_output == *"Unknown qvOS command: omarchy legacy only"* ]] ||
+  fail "Omarchy-only compatibility dispatch error"
+[[ $legacy_output != *"inherited-legacy-must-not-run"* ]] ||
+  fail "Omarchy-only compatibility owner executed"
 
 echo "qvOS native CLI tests passed."

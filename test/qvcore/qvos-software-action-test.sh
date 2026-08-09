@@ -67,8 +67,8 @@ CONCEPTS
 
 install -m 0755 /dev/stdin "$source_root/bin/demo-install" <<'SCRIPT'
 #!/bin/bash
-# omarchy:summary=Install the Demo fixture
-# omarchy:requires-sudo=true
+# qv:summary=Install the Demo fixture
+# qv:requires-sudo=true
 if [[ ${1:-} == "--qvos-post-success" ]]; then
   printf 'Windows image download visible\n'
   printf 'opened\n' >"$QVOS_TEST_POST_ACTION"
@@ -106,8 +106,8 @@ touch "$HOME/.demo-installed"
 SCRIPT
 install -m 0755 /dev/stdin "$source_root/bin/demo-uninstall" <<'SCRIPT'
 #!/bin/bash
-# omarchy:summary=Uninstall the Demo fixture
-# omarchy:requires-sudo=true
+# qv:summary=Uninstall the Demo fixture
+# qv:requires-sudo=true
 rm -f "$HOME/.demo-installed"
 SCRIPT
 install -m 0755 /dev/stdin "$source_root/bin/demo-installer-install" <<'SCRIPT'

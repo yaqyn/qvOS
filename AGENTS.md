@@ -12,12 +12,11 @@
 # Command Architecture
 
 `qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
-only a compatibility frontend. During the command-tree transition, a promoted
-command has one `qvcore/` owner, one metadata-bearing `bin/qv-*` adapter, and a
-metadata-free matching `bin/omarchy-*` compatibility adapter. The engine prefers
-the native route. Unpromoted inherited `bin/omarchy-*` files remain intact until
-their complete domain moves. Never add mutation logic, state ownership, or
-product branding to `bin/`.
+only a compatibility frontend over the same native catalog. The engine discovers
+and dispatches only metadata-bearing `bin/qv-*` routes. Every retained command
+has one `qvcore/` owner and one metadata-free matching `bin/omarchy-*` direct
+compatibility adapter; an Omarchy-only binary is never a qvOS command. Never add
+mutation logic, state ownership, or product branding to `bin/`.
 
 Native CLI benchmarking and metadata documentation live under `qvcore/cli/`.
 They inspect only static `qv` surfaces and describe only the current `qv:*`
@@ -27,10 +26,6 @@ The authoritative command group list lives in `qvcore/cli/qv` in
 `GROUP_DESCRIPTIONS`. Keep it updated when adding a command prefix. User-facing
 help, examples, errors, and suggestions use `qv`, even while an inherited
 binary name remains as compatibility ABI.
-
-Every retained command is promoted. Each has one metadata-bearing `bin/qv-*`
-adapter and one metadata-free matching `bin/omarchy-*` compatibility adapter;
-no inherited adapter may retain implementation or command metadata.
 
 Common prefixes include:
 
@@ -57,10 +52,10 @@ providers, and Waybar actions always call the native route.
 
 # Command Metadata
 
-The CLI reads `# qv:*` metadata from promoted native adapters and temporary
-`# omarchy:*` metadata from unpromoted inherited routes. Never keep both records
-for the same command. Metadata is scanned only from the first 80 lines, and qvOS
-help never exposes Omarchy product identity.
+The CLI reads only `# qv:*` metadata from native adapters. `# omarchy:*` metadata
+is invalid and ignored; compatibility adapters carry no metadata. Metadata is
+scanned only from the first 80 lines, and qvOS help never exposes Omarchy product
+identity.
 
 Supported metadata keys:
 
@@ -72,9 +67,6 @@ Supported metadata keys:
 - `# qv:alias=...` / `# qv:aliases=...` - alternate routes
 - `# qv:hidden=true` - hide from default command listings
 - `# qv:requires-sudo=true` - mark commands that require sudo
-
-The inherited schema supports the same keys with the `omarchy:` prefix only
-until that route is promoted.
 
 Prefer explicit metadata for user-facing commands. Keep routes consistent with the filename unless there is a deliberate alias or compatibility route.
 

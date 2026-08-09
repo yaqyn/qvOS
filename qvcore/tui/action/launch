@@ -137,7 +137,7 @@ owner_metadata() {
   else
     owner_path=$(command -v "$owner_route") || return 1
   fi
-  sed -n "s/^# omarchy:${key}=//p" "$owner_path" | head -n 1
+  sed -n "s/^# qv:${key}=//p" "$owner_path" | head -n 1
 }
 
 [[ -n $slug && $# == 1 ]] || {

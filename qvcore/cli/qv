@@ -14,7 +14,7 @@ fi
 COMMAND_KEYS=()
 ROUTE_COLLISIONS=()
 declare -A COMMAND_ROUTE
-declare -A COMMAND_FALLBACK_ROUTE
+declare -A COMMAND_FILENAME_ROUTE
 declare -A COMMAND_BINARY
 declare -A COMMAND_GROUP
 declare -A COMMAND_NAME
@@ -109,12 +109,10 @@ append_pipe_value() {
 normalize_cli_route() {
   local route="$1"
 
-  if [[ $route == "qv" || $route == "omarchy" ]]; then
+  if [[ $route == "qv" ]]; then
     printf '%s' "$QVOS_CLI_NAME"
   elif [[ $route == "qv "* ]]; then
     printf '%s %s' "$QVOS_CLI_NAME" "${route#qv }"
-  elif [[ $route == "omarchy "* ]]; then
-    printf '%s %s' "$QVOS_CLI_NAME" "${route#omarchy }"
   else
     printf '%s' "$route"
   fi
@@ -125,17 +123,8 @@ binary_stem() {
 
   case $binary in
   qv-*) printf '%s' "${binary#qv-}" ;;
-  omarchy-*) printf '%s' "${binary#omarchy-}" ;;
   *) return 1 ;;
   esac
-}
-
-native_binary_exists() {
-  local binary=$1
-  local stem
-
-  stem=$(binary_stem "$binary") || return 1
-  [[ -x $QVOS_COMMAND_DIR/qv-$stem ]]
 }
 
 normalize_pipe_routes() {
@@ -192,16 +181,9 @@ register_command() {
   local metadata_value=""
   local line_count=0
   local name_seen="false"
-  local fallback_summary=""
+  local comment_summary=""
   local has_summary="false"
   local metadata_errors=""
-
-  if [[
-    $file_binary == "omarchy-update" ||
-    $file_binary == omarchy-update-*
-  ]]; then
-    return 0
-  fi
 
   while IFS= read -r line && (( line_count < METADATA_SCAN_LIMIT )); do
     line_count=$((line_count + 1))
@@ -218,9 +200,9 @@ register_command() {
       break
     fi
 
-    if [[ $line =~ ^[[:space:]]*#[[:space:]]*(qv|omarchy):([[:alnum:]_-]+)=(.*)$ ]]; then
-      metadata_key="${BASH_REMATCH[2]}"
-      metadata_value="${BASH_REMATCH[3]}"
+    if [[ $line =~ ^[[:space:]]*#[[:space:]]*qv:([[:alnum:]_-]+)=(.*)$ ]]; then
+      metadata_key="${BASH_REMATCH[1]}"
+      metadata_value="${BASH_REMATCH[2]}"
       metadata_value="${metadata_value%$'\r'}"
       metadata_value="${metadata_value//$'\t'/ }"
 
@@ -256,33 +238,33 @@ register_command() {
       *)
         ;;
       esac
-    elif [[ -z $fallback_summary && $line =~ ^[[:space:]]*#[[:space:]]*(.+)$ ]]; then
-      fallback_summary="${BASH_REMATCH[1]}"
-      fallback_summary="${fallback_summary%$'\r'}"
-      fallback_summary="${fallback_summary//$'\t'/ }"
+    elif [[ -z $comment_summary && $line =~ ^[[:space:]]*#[[:space:]]*(.+)$ ]]; then
+      comment_summary="${BASH_REMATCH[1]}"
+      comment_summary="${comment_summary%$'\r'}"
+      comment_summary="${comment_summary//$'\t'/ }"
 
-      if [[ -z $fallback_summary || $fallback_summary == omarchy:* || $fallback_summary == qv:* ]]; then
-        fallback_summary=""
+      if [[ -z $comment_summary || $comment_summary == omarchy:* || $comment_summary == qv:* ]]; then
+        comment_summary=""
       fi
     fi
   done <"$file"
 
   local stem
   stem=$(binary_stem "$file_binary") || return 0
-  local fallback_group="$stem"
-  local fallback_name=""
-  local fallback_route="$QVOS_CLI_NAME ${stem//-/ }"
+  local filename_group="$stem"
+  local filename_name=""
+  local filename_route="$QVOS_CLI_NAME ${stem//-/ }"
 
   if [[ $stem == *-* ]]; then
-    fallback_group="${stem%%-*}"
-    fallback_name="${stem#*-}"
-    fallback_name="${fallback_name//-/ }"
+    filename_group="${stem%%-*}"
+    filename_name="${stem#*-}"
+    filename_name="${filename_name//-/ }"
   fi
 
   [[ -z $binary ]] && binary="$file_binary"
-  [[ -z $group ]] && group="$fallback_group"
-  [[ $name_seen != "true" ]] && name="$fallback_name"
-  [[ -z $summary && -n $fallback_summary ]] && summary="$fallback_summary"
+  [[ -z $group ]] && group="$filename_group"
+  [[ $name_seen != "true" ]] && name="$filename_name"
+  [[ -z $summary && -n $comment_summary ]] && summary="$comment_summary"
   [[ -z $summary ]] && summary="Run the ${stem//-/ } command"
   examples=$(normalize_pipe_routes "$examples")
   local route="$QVOS_CLI_NAME $group"
@@ -303,7 +285,7 @@ register_command() {
   local key="$file_binary"
   COMMAND_KEYS+=("$key")
   COMMAND_ROUTE["$key"]="$route"
-  COMMAND_FALLBACK_ROUTE["$key"]="$fallback_route"
+  COMMAND_FILENAME_ROUTE["$key"]="$filename_route"
   COMMAND_BINARY["$key"]="$binary"
   COMMAND_GROUP["$key"]="$group"
   COMMAND_NAME["$key"]="$name"
@@ -318,7 +300,7 @@ register_command() {
 
   BINARY_TO_KEY["$binary"]="$key"
   register_route "$route" "$key"
-  register_route "$fallback_route" "$key"
+  register_route "$filename_route" "$key"
 
   local old_ifs="$IFS"
   local alias_route=""
@@ -339,11 +321,6 @@ load_commands() {
 
   for file in "$QVOS_COMMAND_DIR"/qv-*; do
     [[ -f $file && -x $file ]] || continue
-    register_command "$file"
-  done
-  for file in "$QVOS_COMMAND_DIR"/omarchy-*; do
-    [[ -f $file && -x $file ]] || continue
-    native_binary_exists "${file##*/}" && continue
     register_command "$file"
   done
 }
@@ -367,11 +344,6 @@ load_child_commands_by_binary() {
     [[ -f $file && -x $file ]] || continue
     register_command "$file"
   done
-  for file in "$QVOS_COMMAND_DIR/omarchy-$stem"-*; do
-    [[ -f $file && -x $file ]] || continue
-    native_binary_exists "${file##*/}" && continue
-    register_command "$file"
-  done
 }
 
 group_has_child_commands() {
@@ -379,9 +351,6 @@ group_has_child_commands() {
   local file=""
 
   for file in "$QVOS_COMMAND_DIR/qv-$group"-*; do
-    [[ -f $file && -x $file ]] && return 0
-  done
-  for file in "$QVOS_COMMAND_DIR/omarchy-$group"-*; do
     [[ -f $file && -x $file ]] && return 0
   done
 
@@ -392,7 +361,6 @@ group_has_binary_commands() {
   local group="$1"
 
   [[ -x $QVOS_COMMAND_DIR/qv-$group ]] && return 0
-  [[ -x $QVOS_COMMAND_DIR/omarchy-$group ]] && return 0
   group_has_child_commands "$group"
 }
 
@@ -415,17 +383,10 @@ load_group_commands() {
 
   if [[ -f $QVOS_COMMAND_DIR/qv-$group && -x $QVOS_COMMAND_DIR/qv-$group ]]; then
     register_command "$QVOS_COMMAND_DIR/qv-$group"
-  elif [[ -f $QVOS_COMMAND_DIR/omarchy-$group && -x $QVOS_COMMAND_DIR/omarchy-$group ]]; then
-    register_command "$QVOS_COMMAND_DIR/omarchy-$group"
   fi
 
   for file in "$QVOS_COMMAND_DIR/qv-$group"-*; do
     [[ -f $file && -x $file ]] || continue
-    register_command "$file"
-  done
-  for file in "$QVOS_COMMAND_DIR/omarchy-$group"-*; do
-    [[ -f $file && -x $file ]] || continue
-    native_binary_exists "${file##*/}" && continue
     register_command "$file"
   done
 }
@@ -436,7 +397,6 @@ resolve_direct_route() {
   local args=("$@")
   local prefix_count=0
   local binary=""
-  local binary_prefix=""
   local candidate=""
 
   if [[ ${args[0]} == "update" ]]; then
@@ -458,15 +418,13 @@ resolve_direct_route() {
   fi
 
   for (( prefix_count = argc; prefix_count >= 1; prefix_count-- )); do
-    for binary_prefix in qv omarchy; do
-      binary="$binary_prefix-$(join_words "-" "${args[@]:0:prefix_count}")"
-      candidate="$QVOS_COMMAND_DIR/$binary"
-      if [[ -f $candidate && -x $candidate ]]; then
-        DIRECT_RESOLVED_BINARY="$binary"
-        DIRECT_RESOLVED_COUNT="$prefix_count"
-        return 0
-      fi
-    done
+    binary="qv-$(join_words "-" "${args[@]:0:prefix_count}")"
+    candidate="$QVOS_COMMAND_DIR/$binary"
+    if [[ -f $candidate && -x $candidate ]]; then
+      DIRECT_RESOLVED_BINARY="$binary"
+      DIRECT_RESOLVED_COUNT="$prefix_count"
+      return 0
+    fi
   done
 
   return 1
@@ -484,19 +442,19 @@ sorted_keys() {
   done | sort -u | cut -f2-
 }
 
-fallback_group_for_key() {
+filename_group_for_key() {
   local key="$1"
-  local fallback="${COMMAND_FALLBACK_ROUTE[$key]#$QVOS_CLI_NAME }"
+  local filename_route="${COMMAND_FILENAME_ROUTE[$key]#$QVOS_CLI_NAME }"
 
-  printf '%s' "${fallback%% *}"
+  printf '%s' "${filename_route%% *}"
 }
 
 command_route_for_group() {
   local key="$1"
   local group="$2"
 
-  if [[ $(fallback_group_for_key "$key") == "$group" && ${COMMAND_GROUP[$key]} != "$group" ]]; then
-    printf '%s' "${COMMAND_FALLBACK_ROUTE[$key]}"
+  if [[ $(filename_group_for_key "$key") == "$group" && ${COMMAND_GROUP[$key]} != "$group" ]]; then
+    printf '%s' "${COMMAND_FILENAME_ROUTE[$key]}"
   else
     printf '%s' "${COMMAND_ROUTE[$key]}"
   fi
@@ -519,7 +477,7 @@ sorted_group_keys() {
   local group="$1"
   local include_all="$2"
   local key=""
-  local fallback_group=""
+  local filename_group=""
   local route=""
 
   for key in "${COMMAND_KEYS[@]}"; do
@@ -527,8 +485,8 @@ sorted_group_keys() {
       continue
     fi
 
-    fallback_group=$(fallback_group_for_key "$key")
-    if [[ ${COMMAND_GROUP[$key]} != "$group" && $fallback_group != "$group" ]]; then
+    filename_group=$(filename_group_for_key "$key")
+    if [[ ${COMMAND_GROUP[$key]} != "$group" && $filename_group != "$group" ]]; then
       continue
     fi
 
@@ -720,7 +678,7 @@ emit_command_records() {
       "${COMMAND_ARGS[$key]}" \
       "${COMMAND_EXAMPLES[$key]}" \
       "${COMMAND_ALIASES[$key]}" \
-      "${COMMAND_FALLBACK_ROUTE[$key]}" \
+      "${COMMAND_FILENAME_ROUTE[$key]}" \
       "${COMMAND_USAGE[$key]}"
   done < <(sorted_keys "$include_all")
 }
@@ -804,7 +762,7 @@ show_command_json() {
       "${COMMAND_ARGS[$key]}" \
       "${COMMAND_EXAMPLES[$key]}" \
       "${COMMAND_ALIASES[$key]}" \
-      "${COMMAND_FALLBACK_ROUTE[$key]}" \
+      "${COMMAND_FILENAME_ROUTE[$key]}" \
       "${COMMAND_USAGE[$key]}"
   done | jq -Rn "$(commands_json_filter) | {ok: true, command: .commands[0]}"
 }
@@ -971,10 +929,10 @@ show_command_help() {
   echo "Binary:"
   echo "  ${COMMAND_BINARY[$key]}"
 
-  if [[ ${COMMAND_FALLBACK_ROUTE[$key]} != "${COMMAND_ROUTE[$key]}" ]]; then
+  if [[ ${COMMAND_FILENAME_ROUTE[$key]} != "${COMMAND_ROUTE[$key]}" ]]; then
     echo ""
     echo "Filename route:"
-    echo "  ${COMMAND_FALLBACK_ROUTE[$key]}"
+    echo "  ${COMMAND_FILENAME_ROUTE[$key]}"
   fi
 
   show_related_commands "$key"

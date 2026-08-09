@@ -32,6 +32,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   lack a paired lifecycle owner. Show selectors as `Browse` and delegate
   directly to their inherited list; never invent an Uninstall owner from a
   package name.
+- Package concept actions call only the native `qv-pkg-*` selectors. Omarchy
+  package command names remain compatibility ABI and never appear in active
+  menu catalogs or providers.
 - Web App creation and removal are the native exception to that inherited
   selector seam: route them only through `qv-webapp-install`, the shared
   searchable selector, and `qv-webapp-remove`. Inventory and mutation remain
