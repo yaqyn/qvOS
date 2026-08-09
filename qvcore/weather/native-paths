@@ -1,4 +1,3 @@
 # Inherited weather commands promoted to native qvOS ownership.
 bin/omarchy-weather-icon
 bin/omarchy-weather-status
-default/waybar/weather.sh

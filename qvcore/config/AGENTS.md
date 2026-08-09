@@ -126,6 +126,9 @@ Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM
 examples use `QVOS_SCREENSHOT_DIR` and `QVOS_SCREENRECORD_DIR`. Migrate only
 their exact inherited command, indicator, and variable literals.
+The same migration rewrites exact retired Waybar weather, idle, notification,
+and module identifiers to their singular native owners; customized values are
+otherwise preserved.
 
 Config commands use metadata-bearing `qv-*` adapters and one owner here.
 Desktop lock, logout, and wake owners live under `qvcore/desktop/session/`.

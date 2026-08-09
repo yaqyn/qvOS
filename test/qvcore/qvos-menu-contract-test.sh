@@ -6,7 +6,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qvcore/menu/routes" \
   "$root/qvcore/config/files/hypr/bindings.conf" \
-  "$root/qvcore/waybar/overrides.jsonc"; then
+  "$root/qvcore/config/files/waybar/config.jsonc"; then
   printf 'not ok - retired qvOS feature menu remains reachable\n' >&2
   exit 1
 fi

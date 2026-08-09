@@ -131,6 +131,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/config/base/hypr/` owns the source-side session, environment,
   appearance, and window defaults; `default/hypr/` and the former installed
   `hypr/qv` overlay are retired and must remain absent
+- `qvcore/config/files/waybar/` owns one complete native Waybar config and
+  style; `default/waybar/` and the former merge overlay are retired
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state
@@ -304,7 +306,7 @@ Root-started sessions must read every matching route completely before editing:
 - DNS, WARP, and privileged resolver policy: `qvcore/network/AGENTS.md`
 - Picture, video, and terminal-art conversion: `qvcore/transcode/AGENTS.md`
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`
-- Waybar overlay, runtime modules, refresh, and task actions: `qvcore/waybar/AGENTS.md`
+- Waybar configuration, runtime modules, refresh, and task actions: `qvcore/waybar/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
 - Bash defaults, aliases, completion, and existing-user reconciliation: `qvcore/shell/AGENTS.md`
 - Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`

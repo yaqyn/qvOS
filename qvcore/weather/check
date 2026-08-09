@@ -9,10 +9,10 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-weather-icon\nbin/omarchy-weather-status\ndefault/waybar/weather.sh'
+expected=$'bin/omarchy-weather-icon\nbin/omarchy-weather-status'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native weather inventory"
-for owner in lib icon status; do
+for owner in lib icon status waybar; do
   [[ -x $root/qvcore/weather/$owner ]] || fail "weather owner mode: $owner"
 done
 for command in icon status; do
@@ -34,9 +34,13 @@ for command in icon status; do
 done
 
 if rg -n 'omarchy-weather-(icon|status)' \
-  "$root/qvcore/config/files/waybar/config.jsonc" "$root/default/waybar/weather.sh"; then
+  "$root/qvcore/config/files/waybar/config.jsonc" "$root/qvcore/weather/waybar"; then
   fail "Waybar uses a weather compatibility route"
 fi
+# shellcheck disable=SC2016
+grep -Fq '"exec": "$QVOS_PATH/qvcore/weather/waybar"' \
+  "$root/qvcore/config/files/waybar/config.jsonc" ||
+  fail "native Waybar weather owner"
 grep -Fq -- '--connect-timeout 2 --max-time 4' "$root/qvcore/weather/lib" ||
   fail "weather request timeouts"
 grep -Fq -- '--max-filesize 1048576' "$root/qvcore/weather/lib" ||

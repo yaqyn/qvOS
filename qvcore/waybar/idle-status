@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if pgrep -x hypridle >/dev/null; then
+  printf '{"text":""}\n'
+else
+  printf '{"text":"󱫖","tooltip":"Idle lock disabled","class":"active"}\n'
+fi

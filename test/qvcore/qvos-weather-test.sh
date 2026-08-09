@@ -115,14 +115,14 @@ install -m 0755 /dev/stdin "$test_bin/qv-weather-icon" <<'SCRIPT'
 #!/bin/bash
 printf '%b\n' '\x22\x5c'
 SCRIPT
-waybar_json=$(PATH="$test_bin:/usr/bin" "$root/default/waybar/weather.sh")
+waybar_json=$(PATH="$test_bin:/usr/bin" "$root/qvcore/weather/waybar")
 jq -e '.text == "\"\\"' <<<"$waybar_json" >/dev/null ||
   fail "Waybar weather JSON escaping"
 install -m 0755 /dev/stdin "$test_bin/qv-weather-icon" <<'SCRIPT'
 #!/bin/bash
 exit 1
 SCRIPT
-waybar_json=$(PATH="$test_bin:/usr/bin" "$root/default/waybar/weather.sh")
+waybar_json=$(PATH="$test_bin:/usr/bin" "$root/qvcore/weather/waybar")
 jq -e '.text == "" and .class == "unavailable"' <<<"$waybar_json" >/dev/null ||
   fail "Waybar weather unavailable state"
 printf 'ok - Waybar consumes only the native weather icon safely\n'

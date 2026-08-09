@@ -391,7 +391,7 @@ if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
   "$root/qvcore/tui"; then
   fail "retired qvOS Repair TUI action remains"
 fi
-grep -Fq '"format": "󱅾"' "$root/qvcore/waybar/overrides.jsonc" ||
+grep -Fq '"format": "󱅾"' "$root/qvcore/config/files/waybar/config.jsonc" ||
   fail "qvOS Waybar noodle icon"
 if grep -Fq '' "$root/qvcore/menu/routes"; then
   fail "retired Omarchy menu glyph"
@@ -399,7 +399,7 @@ fi
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qvcore/menu/routes" \
   "$root/qvcore/config/files/hypr/bindings.conf" \
-  "$root/qvcore/waybar/overrides.jsonc"; then
+  "$root/qvcore/config/files/waybar/config.jsonc"; then
   fail "retired qvOS feature menu"
 fi
 grep -Fq '`qvcore/config/base/hypr/` is the singular source-side Hyprland base.' \
@@ -1130,7 +1130,7 @@ pass "LocalSend menu follows command availability"
 jq -e '
   ."network"."on-click-right"
     == "qv-launch-task dns-configure"
-' "$root/qvcore/waybar/overrides.jsonc" >/dev/null ||
+' "$root/qvcore/config/files/waybar/config.jsonc" >/dev/null ||
   fail "Waybar network DNS route"
 pass "network surfaces reuse their established owners"
 

@@ -132,8 +132,7 @@ fi
 if rg -n 'omarchy-menu' \
   "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/qvcore/config/files/waybar/config.jsonc" \
-  "$root/qvcore/menu/elephant/qvos_menu.lua" \
-  "$root/qvcore/waybar/overrides.jsonc"; then
+  "$root/qvcore/menu/elephant/qvos_menu.lua"; then
   fail "active desktop surface uses the menu compatibility route"
 fi
 

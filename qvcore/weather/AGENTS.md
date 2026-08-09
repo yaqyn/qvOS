@@ -5,7 +5,8 @@ requests, or Waybar weather consumers.
 
 `qvcore/weather/` owns the weather capability. Native commands are
 `qv-weather-icon` and `qv-weather-status`; matching `omarchy-weather-*` names
-are metadata-free compatibility adapters only.
+are metadata-free compatibility adapters only. `waybar` is the native JSON
+presentation owner and calls only `qv-weather-icon`.
 
 - Use the fixed HTTPS wttr.in JSON endpoint with short connection and total
   timeouts plus a one-megabyte response limit. Accept no URL or query input.

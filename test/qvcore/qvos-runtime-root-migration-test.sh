@@ -81,7 +81,7 @@ exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"audio":"omarchy-launch-audio","battery":"$(omarchy-battery-status)","bluetooth":"omarchy-launch-bluetooth","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","menu":"omarchy-menu power","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","tui":"omarchy-launch-or-focus-tui btop","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","wifi":"omarchy-launch-wifi","timezone":"omarchy-tz-select"}
+{"audio":"omarchy-launch-audio","battery":"$(omarchy-battery-status)","bluetooth":"omarchy-launch-bluetooth","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","idle":"$OMARCHY_PATH/default/waybar/indicators/idle.sh","menu":"omarchy-menu power","menu_module":"custom/omarchy","notifications":"$QVOS_PATH/default/waybar/indicators/notification-silencing.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","tui":"omarchy-launch-or-focus-tui btop","weather":"$(omarchy-weather-status)","weather_exec":"$OMARCHY_PATH/default/waybar/weather.sh","weather_icon":"omarchy-weather-icon","wifi":"omarchy-launch-wifi","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/fastfetch/config.jsonc" <<'CONFIG'
 {"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"},"modules":[{"text":"$(omarchy-version)"},{"text":"$(omarchy-theme-current)"},{"text":"$(omarchy-version-pkgs)"}]}
@@ -224,6 +224,20 @@ grep -Fq 'qv-capture-screenrecording' "$test_home/.config/waybar/config.jsonc" |
 grep -Fq '$QVOS_PATH/qvcore/capture/status' \
   "$test_home/.config/waybar/config.jsonc" ||
   fail "Waybar Capture indicator migration"
+for native_path in \
+  '$QVOS_PATH/qvcore/weather/waybar' \
+  '$QVOS_PATH/qvcore/waybar/idle-status' \
+  '$QVOS_PATH/qvcore/waybar/notification-status'; do
+  grep -Fq "$native_path" "$test_home/.config/waybar/config.jsonc" ||
+    fail "Waybar native source migration: $native_path"
+done
+grep -Fq '"menu_module":"custom/qvos"' \
+  "$test_home/.config/waybar/config.jsonc" ||
+  fail "Waybar native menu module migration"
+if rg -q 'default/waybar|custom/omarchy' \
+  "$test_home/.config/waybar/config.jsonc"; then
+  fail "retired Waybar source remains after migration"
+fi
 if rg -q 'omarchy-(capture-screenrecording|launch-(audio|bluetooth|floating-terminal-with-presentation|or-focus-tui|wifi)|weather-(icon|status))' \
   "$test_home/.config/waybar/config.jsonc"; then
   fail "Waybar weather compatibility route remains"

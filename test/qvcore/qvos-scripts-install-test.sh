@@ -511,7 +511,7 @@ pass "desktop refresh reconciles enrolled integrations without reinstalling stac
 pass "modified Nautilus extensions and bytecode remain untouched"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
-[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\ninstall\nnative-paths\noverrides.jsonc\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nruntime-paths\ntoggle' ]] ||
+[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\nidle-status\ninstall\nnative-paths\nnotification-status\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nretired-paths\nruntime-paths\ntoggle' ]] ||
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
@@ -725,11 +725,13 @@ pass "Bash loads the source-independent qvOS shell overlay"
 for source_only_path in \
   AGENTS.md \
   check \
+  idle-status \
   install \
   native-paths \
-  overrides.jsonc \
+  notification-status \
   post-update-hook \
   refresh \
+  retired-paths \
   runtime-paths; do
   [[ ! -e $test_root/.local/lib/qvos/waybar/$source_only_path ]] ||
     fail "source-only Waybar payload leaked into runtime: $source_only_path"

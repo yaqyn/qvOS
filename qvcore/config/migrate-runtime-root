@@ -263,6 +263,19 @@ rewrite_literals \
   'omarchy-capture-screenrecording' 'qv-capture-screenrecording' \
   '$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh' \
   '$QVOS_PATH/qvcore/capture/status' \
+  '$OMARCHY_PATH/default/waybar/weather.sh' \
+  '$QVOS_PATH/qvcore/weather/waybar' \
+  '$QVOS_PATH/default/waybar/weather.sh' \
+  '$QVOS_PATH/qvcore/weather/waybar' \
+  '$OMARCHY_PATH/default/waybar/indicators/idle.sh' \
+  '$QVOS_PATH/qvcore/waybar/idle-status' \
+  '$QVOS_PATH/default/waybar/indicators/idle.sh' \
+  '$QVOS_PATH/qvcore/waybar/idle-status' \
+  '$OMARCHY_PATH/default/waybar/indicators/notification-silencing.sh' \
+  '$QVOS_PATH/qvcore/waybar/notification-status' \
+  '$QVOS_PATH/default/waybar/indicators/notification-silencing.sh' \
+  '$QVOS_PATH/qvcore/waybar/notification-status' \
+  '"custom/omarchy"' '"custom/qvos"' \
   'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation' \
   'omarchy-launch-audio' 'qv-launch-audio' \
   'omarchy-launch-bluetooth' 'qv-launch-bluetooth' \

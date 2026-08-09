@@ -12,11 +12,6 @@ fail() {
 expected=$'bin/omarchy-capture-screenrecording\nbin/omarchy-capture-screenshot\nbin/omarchy-capture-text-extraction'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native Capture inventory"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
-  "$root/qvcore/capture/retired-paths") == \
-  "default/waybar/indicators/screen-recording.sh" ]] ||
-  fail "retired Capture inventory"
-
 declare -A owners=(
   [capture-screenrecording]=screenrecord
   [capture-screenshot]=screenshot

@@ -35,8 +35,8 @@ downloads, launches, or reboot handoff.
 - Voxtype model setup passes `voxtype`, `setup`, and `model` as exact argument
   boundaries through native presentation. Its Waybar status owner keeps one
   exact follower PID, terminates only that child, validates JSON objects, and
-  never signals a whole process group. The qvOS Waybar overlay owns all three
-  Voxtype routes while preserving the reviewed inherited module styling.
+  never signals a whole process group. The complete qvOS Waybar config owns
+  all three Voxtype routes and their module styling.
 - Dropbox installs only its CLI, signature support, and current tray library;
   never restore its retired Nautilus extension or detach the application from
   a captured install. Tailscale authentication stays native, never accepts

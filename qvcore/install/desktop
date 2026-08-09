@@ -176,13 +176,16 @@
     qvcore/windows/reconcile
     qvcore/tmux/qvos-tmux
     qvcore/waybar/clock.sh
+    qvcore/waybar/idle-status
     qvcore/waybar/install
-    qvcore/waybar/overrides.jsonc
+    qvcore/waybar/notification-status
     qvcore/waybar/post-update-hook
     qvcore/waybar/prayer-data.sh
     qvcore/waybar/prayerbar.sh
     qvcore/waybar/refresh
+    qvcore/waybar/retired-paths
     qvcore/waybar/runtime-paths
+    qvcore/weather/waybar
   )
   for source_path in "${required_sources[@]}"; do
     if [[ ! -f $QVOS_PATH/$source_path ]]; then

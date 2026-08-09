@@ -3,7 +3,9 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/waybar/native-paths"
+retired_manifest="$root/qvcore/waybar/retired-paths"
 runtime_manifest="$root/qvcore/waybar/runtime-paths"
+config="$root/qvcore/config/files/waybar/config.jsonc"
 
 fail() {
   printf 'qvOS Waybar check: %s\n' "$1" >&2
@@ -14,8 +16,15 @@ fail() {
   $'bin/omarchy-refresh-waybar\nbin/omarchy-toggle-waybar' ]] || fail "native Waybar inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest") == \
   $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] || fail "Waybar runtime inventory"
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  'default/waybar/' ]] || fail "retired Waybar inventory"
+[[ ! -e $root/default/waybar && ! -L $root/default/waybar ]] ||
+  fail "inherited Waybar source remains"
+[[ ! -e $root/qvcore/waybar/overrides.jsonc &&
+  ! -L $root/qvcore/waybar/overrides.jsonc ]] ||
+  fail "redundant Waybar overlay remains"
 
-for owner in check install refresh; do
+for owner in check idle-status install notification-status refresh; do
   [[ -x $root/qvcore/waybar/$owner && ! -L $root/qvcore/waybar/$owner ]] ||
     fail "native Waybar owner: $owner"
 done
@@ -80,14 +89,28 @@ if rg -n 'omarchy-toggle-waybar' "$root/qvcore" "$root/qvcore/config/files" \
 fi
 
 jq -e '
+  (."modules-left" + ."modules-center" + ."modules-right"
+    | index("custom/omarchy") == null) and
+  (."modules-left" + ."modules-center" + ."modules-right"
+    | index("custom/qvos") != null) and
+  (."modules-left" + ."modules-center" + ."modules-right"
+    | index("group/prayer-clock") != null) and
+  ."custom/qvos".format == "󱅾" and
+  ."custom/qvos"."on-click" == "qv-menu" and
   ."network"."on-click-right" == "qv-launch-task dns-configure" and
   ."custom/qv-clock"."on-click-right" == "qv-launch-task timezone" and
+  ."custom/weather".exec == "$QVOS_PATH/qvcore/weather/waybar" and
+  ."custom/idle-indicator".exec == "$QVOS_PATH/qvcore/waybar/idle-status" and
+  ."custom/notification-silencing-indicator".exec
+    == "$QVOS_PATH/qvcore/waybar/notification-status" and
   ."custom/voxtype".exec == "qv-voxtype-status" and
   ."custom/voxtype"."on-click-right" == "qv-voxtype-config" and
   ."custom/voxtype"."on-click" == "qv-voxtype-model"
-' "$root/qvcore/waybar/overrides.jsonc" >/dev/null ||
-  fail "Waybar native task and Voxtype routes"
+' "$config" >/dev/null || fail "complete native Waybar configuration"
+if rg -n 'default/waybar|custom/omarchy|omarchy-(menu|voxtype)' "$config"; then
+  fail "native Waybar configuration retains inherited ownership"
+fi
 grep -Fqx 'qv-refresh-waybar' "$root/qvcore/waybar/post-update-hook" ||
   fail "Waybar post-update route"
 
-printf 'ok - qvOS owns one narrow Waybar overlay and runtime payload\n'
+printf 'ok - qvOS owns one complete Waybar configuration and minimal runtime\n'
