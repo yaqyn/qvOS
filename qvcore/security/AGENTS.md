@@ -62,6 +62,17 @@ into a root shell command and depended on a separately usable root password.
 Authentication lockout recovery belongs to an explicit recovery environment,
 not a normal-session product command.
 
+Fingerprint and FIDO2 remain explicit optional capabilities. Their public `qv`
+adapters delegate to `auth`; matching Omarchy adapters are metadata-free ABI
+only. `auth-policy` is installed root-owned under `/usr/lib/qvos/security/` and
+is the sole owner of marked PAM blocks, private FIDO2 credentials, and root
+intent under `/var/lib/qvos/security/auth`. Never edit package-managed PAM files
+from a user-writable script, stage credentials in shared `/tmp`, create a new
+polkit PAM stack, remove unowned packages, or delete an administrator-owned
+FIDO2 directory. PAM updates must preserve unowned content, refuse modified
+qvOS blocks, serialize, publish atomically, and roll back as one transaction.
+The security installer reconciles enabled intent after package updates.
+
 `qv-dev-share` is the only metadata-bearing LAN-preview adapter. The former
 `omarchy-qvos-dev-share` qvOS-in-Omarchy namespace is retired and must remain
 absent; `omarchy-dev-share` is its metadata-free matching compatibility

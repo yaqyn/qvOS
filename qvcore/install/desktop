@@ -116,6 +116,8 @@
     qvcore/screensaver/qvos-launch-screensaver
     qvcore/screensaver/qvos-screensaver
     qvcore/security/60-qvos-security.conf
+    qvcore/security/auth
+    qvcore/security/auth-policy
     qvcore/security/boot-mount
     qvcore/security/debug
     qvcore/security/dev-share

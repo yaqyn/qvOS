@@ -1,0 +1,321 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+operation=${1:-}
+feature=${2:-}
+policy_source="$QVOS_PATH/qvcore/security/auth-policy"
+policy_helper=${QVOS_AUTH_ROOT_HELPER:-/usr/lib/qvos/security/auth-policy}
+testing=${QVOS_SECURITY_TESTING:-}
+state_root=${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/auth
+config_root=${XDG_CONFIG_HOME:-$HOME/.config}
+hyprlock_config="$config_root/hypr/hyprlock.conf"
+account=$(/usr/bin/id -un)
+uid=$(/usr/bin/id -u)
+gid=$(/usr/bin/id -g)
+package=
+package_added=0
+setup_started_disabled=0
+setup_complete=0
+fingerprint_backup=
+fingerprint_mode=
+
+usage() {
+  echo "Usage: qvcore/security/auth <setup|remove> <fingerprint|fido2>" >&2
+}
+
+fail() {
+  echo "qvOS authentication: $1" >&2
+  exit 1
+}
+
+[[ $operation == "setup" || $operation == "remove" ]] || {
+  usage
+  exit 2
+}
+[[ $feature == "fingerprint" || $feature == "fido2" ]] || {
+  usage
+  exit 2
+}
+if [[ -n ${QVOS_AUTH_ROOT_HELPER:-} && $testing != "1" ]]; then
+  fail "a custom authentication helper is only valid in tests"
+fi
+[[ -x $policy_source && ! -L $policy_source ]] ||
+  fail "missing qvOS authentication policy source"
+if [[ $testing != "1" ]]; then
+  [[ -f $policy_helper && ! -L $policy_helper && -x $policy_helper &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$policy_helper") == "0:0:755" ]] ||
+    fail "the root-owned authentication helper is not installed; run qv update first"
+  /usr/bin/cmp -s "$policy_source" "$policy_helper" ||
+    fail "the installed authentication helper is stale; run qv update first"
+fi
+
+safe_state_root() {
+  [[ -d $state_root && ! -L $state_root &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$state_root") == "$uid:$gid:700" ]]
+}
+
+ensure_state_root() {
+  if [[ -e $state_root || -L $state_root ]]; then
+    safe_state_root || fail "unsafe private authentication state"
+  else
+    /usr/bin/install -d -m 0700 "$state_root"
+  fi
+}
+
+policy() {
+  if [[ $testing == "1" ]]; then
+    "$policy_helper" "$@"
+  else
+    /usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin \
+      "$policy_helper" "$@"
+  fi
+}
+
+package_marker() {
+  printf '%s/%s.package\n' "$state_root" "$feature"
+}
+
+package_owned() {
+  local marker
+
+  marker=$(package_marker)
+  [[ -e $marker || -L $marker ]] || return 1
+  [[ -f $marker && ! -L $marker &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$marker") == "$uid:$gid:600" &&
+    $(<"$marker") == "$package" ]] ||
+    fail "unsafe managed package state: $marker"
+}
+
+mark_package_owned() {
+  local marker
+  local temporary
+
+  ((package_added)) || return 0
+  marker=$(package_marker)
+  if [[ -e $marker || -L $marker ]]; then
+    package_owned || fail "unsafe managed package state: $marker"
+    return 0
+  fi
+  temporary=$(/usr/bin/mktemp "$state_root/.${feature}.package.XXXXXX")
+  printf '%s\n' "$package" >"$temporary"
+  /usr/bin/chmod 0600 "$temporary"
+  /usr/bin/mv -f -- "$temporary" "$marker"
+}
+
+remove_owned_package() {
+  local marker
+
+  marker=$(package_marker)
+  package_owned || return 0
+  "$QVOS_PATH/qvcore/packages/drop" "$package"
+  /usr/bin/rm -f -- "$marker"
+}
+
+install_package() {
+  if ! pacman -Q -- "$package" &>/dev/null; then
+    "$QVOS_PATH/qvcore/packages/add" "$package"
+    package_added=1
+  fi
+}
+
+publish_user_file() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local directory=${target%/*}
+  local temporary
+
+  temporary=$(/usr/bin/mktemp "$directory/.qvos-auth.XXXXXX")
+  if ! /usr/bin/install -m "$mode" "$source" "$temporary"; then
+    /usr/bin/rm -f -- "$temporary"
+    return 1
+  fi
+  if ! /usr/bin/mv -f -- "$temporary" "$target"; then
+    /usr/bin/rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+cleanup_failed_setup() {
+  local status=$?
+  local current_policy
+  local marker
+  local rollback_safe=1
+
+  if ((status != 0 && setup_started_disabled && setup_complete == 0)); then
+    if current_policy=$(policy status "$feature" 2>/dev/null); then
+      if [[ $current_policy == "enabled" ]]; then
+        policy disable "$feature" || rollback_safe=0
+      elif [[ $current_policy != "disabled" ]]; then
+        rollback_safe=0
+      fi
+    else
+      rollback_safe=0
+    fi
+  fi
+  if ((status != 0 && rollback_safe)) && [[ -n $fingerprint_backup ]]; then
+    publish_user_file "$fingerprint_backup" "$hyprlock_config" "$fingerprint_mode" ||
+      rollback_safe=0
+  fi
+  [[ -z $fingerprint_backup ]] || /usr/bin/rm -f -- "$fingerprint_backup"
+  if ((status != 0 && package_added && rollback_safe)); then
+    if "$QVOS_PATH/qvcore/packages/drop" "$package"; then
+      marker=$(package_marker)
+      if [[ -e $marker || -L $marker ]]; then
+        package_owned && /usr/bin/rm -f -- "$marker"
+      fi
+    fi
+  fi
+  return "$status"
+}
+
+validate_hyprlock() {
+  local matches
+
+  [[ -f $hyprlock_config && ! -L $hyprlock_config ]] ||
+    fail "missing safe Hyprlock configuration: $hyprlock_config"
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$hyprlock_config") == "$uid:$gid" ]] ||
+    fail "Hyprlock configuration is not owned by the current user"
+  (( $(/usr/bin/stat -c '%s' -- "$hyprlock_config") <= 1048576 )) ||
+    fail "Hyprlock configuration is unexpectedly large"
+  matches=$(/usr/bin/grep -Ec \
+    '^[[:space:]]*fingerprint:enabled[[:space:]]*=[[:space:]]*(true|false)[[:space:]]*$' \
+    "$hyprlock_config" || true)
+  ((matches == 1)) ||
+    fail "Hyprlock must contain one fingerprint:enabled setting"
+}
+
+set_fingerprint_ui() {
+  local enabled=$1
+  local directory=${hyprlock_config%/*}
+  local mode
+  local temporary
+
+  validate_hyprlock
+  mode=$(/usr/bin/stat -c '%a' -- "$hyprlock_config")
+  temporary=$(/usr/bin/mktemp "$directory/.qvos-hyprlock.XXXXXX")
+  /usr/bin/awk -v enabled="$enabled" '
+    /^[[:space:]]*fingerprint:enabled[[:space:]]*=/ {
+      prefix = $0
+      sub(/fingerprint:enabled.*/, "", prefix)
+      print prefix "fingerprint:enabled = " enabled
+      next
+    }
+    { print }
+  ' "$hyprlock_config" >"$temporary"
+  /usr/bin/chmod "$mode" "$temporary"
+  /usr/bin/mv -f -- "$temporary" "$hyprlock_config"
+}
+
+setup_fingerprint() {
+  local status
+
+  package=fprintd
+  package_owned || true
+  validate_hyprlock
+  status=$(policy status fingerprint)
+  if [[ $status == "enabled" ]]; then
+    policy reconcile fingerprint
+    set_fingerprint_ui true
+    echo "Fingerprint authentication is already enabled."
+    return 0
+  fi
+  [[ $status == "disabled" ]] || fail "invalid fingerprint policy status"
+  setup_started_disabled=1
+  install_package
+  command -v fprintd-enroll >/dev/null 2>&1 ||
+    fail "fprintd-enroll is unavailable after package installation"
+  command -v fprintd-verify >/dev/null 2>&1 ||
+    fail "fprintd-verify is unavailable after package installation"
+  echo "Enroll a fingerprint for $account, then verify it when prompted."
+  fprintd-enroll "$account"
+  fprintd-verify "$account"
+
+  fingerprint_mode=$(/usr/bin/stat -c '%a' -- "$hyprlock_config")
+  fingerprint_backup=$(/usr/bin/mktemp)
+  /usr/bin/cp -- "$hyprlock_config" "$fingerprint_backup"
+  /usr/bin/chmod "$fingerprint_mode" "$fingerprint_backup"
+  set_fingerprint_ui true
+  if ! policy enable fingerprint; then
+    publish_user_file "$fingerprint_backup" "$hyprlock_config" "$fingerprint_mode"
+    /usr/bin/rm -f -- "$fingerprint_backup"
+    fingerprint_backup=
+    return 1
+  fi
+  mark_package_owned
+  /usr/bin/rm -f -- "$fingerprint_backup"
+  fingerprint_backup=
+  setup_complete=1
+  echo "Fingerprint authentication is enabled for sudo and supported desktop prompts."
+}
+
+remove_fingerprint() {
+  package=fprintd
+  package_owned || true
+  validate_hyprlock
+  policy disable fingerprint
+  set_fingerprint_ui false
+  remove_owned_package
+  echo "Fingerprint authentication is disabled."
+}
+
+setup_fido2() {
+  local status
+
+  package=pam-u2f
+  package_owned || true
+  status=$(policy status fido2)
+  if [[ $status == "enabled" ]]; then
+    policy reconcile fido2
+    echo "FIDO2 authentication is already enabled."
+    return 0
+  fi
+  [[ $status == "disabled" ]] || fail "invalid FIDO2 policy status"
+  setup_started_disabled=1
+  install_package
+  command -v fido2-token >/dev/null 2>&1 ||
+    fail "fido2-token is unavailable after package installation"
+  command -v pamu2fcfg >/dev/null 2>&1 ||
+    fail "pamu2fcfg is unavailable after package installation"
+  [[ -n $(fido2-token -L 2>/dev/null) ]] ||
+    fail "no FIDO2 device is available"
+
+  echo "Touch the FIDO2 key when it requests confirmation."
+  pamu2fcfg | policy enable fido2 "$uid"
+  mark_package_owned
+  setup_complete=1
+  echo "FIDO2 authentication is enabled for sudo and supported desktop prompts."
+}
+
+remove_fido2() {
+  package=pam-u2f
+  package_owned || true
+  policy disable fido2
+  remove_owned_package
+  echo "FIDO2 authentication is disabled."
+}
+
+ensure_state_root
+lock_file="$state_root/transaction.lock"
+if [[ -e $lock_file || -L $lock_file ]]; then
+  [[ -f $lock_file && ! -L $lock_file &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$lock_file") == "$uid:$gid:600" ]] ||
+    fail "unsafe authentication transaction lock"
+fi
+exec {lock_fd}>"$lock_file"
+/usr/bin/chmod 0600 "$lock_file"
+/usr/bin/flock -x "$lock_fd"
+
+trap cleanup_failed_setup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+case "$operation:$feature" in
+setup:fingerprint) setup_fingerprint ;;
+remove:fingerprint) remove_fingerprint ;;
+setup:fido2) setup_fido2 ;;
+remove:fido2) remove_fido2 ;;
+esac
+package_added=0
+trap - EXIT HUP INT TERM

@@ -1,2 +1,6 @@
-# Inherited diagnostics promoted to native qvOS security ownership.
+# Inherited security routes promoted to native qvOS ownership.
 bin/omarchy-debug
+bin/omarchy-remove-security-fido2
+bin/omarchy-remove-security-fingerprint
+bin/omarchy-setup-security-fido2
+bin/omarchy-setup-security-fingerprint

@@ -33,8 +33,8 @@ config||Config|Settings · System|defaults,refresh,reset|Edit|menu:setup-conf
 date-time||Date & Time|Settings · System|clock,timezone,sync|Timezone|present:qvcore/tui/task/selectable-owner timezone|Sync|present:qv-update-time
 firmware||Firmware|Settings · System|fwupd,upgrade|Update|present:qv-update-firmware
 password||Password|Settings · Security|user,login,luks,encryption|User|present:passwd|Drive Encryption|present:qv-drive-password
-fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:omarchy-setup-security-fingerprint|Remove|present:omarchy-remove-security-fingerprint
-fido2||Fido2|Settings · Security|key,security|Set Up|present:omarchy-setup-security-fido2|Remove|present:omarchy-remove-security-fido2
+fingerprint|󰈷|Fingerprint|Settings · Security|login,security|Set Up|present:qv-setup-security-fingerprint|Disable|present:qv-remove-security-fingerprint
+fido2||Fido2|Settings · Security|key,security|Set Up|present:qv-setup-security-fido2|Disable|present:qv-remove-security-fido2
 share||Share|More · Share|localsend,send|Send|menu:share
 ruby-on-rails|󰫏|Ruby on Rails|Settings · Software · Development|ruby,rails
 devel|󰵮|Devel|Settings · Software · Development|codex,workbench,tools,developer workstation

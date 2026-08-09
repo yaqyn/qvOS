@@ -15,7 +15,14 @@ export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
 install -d \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc" \
-  "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker"
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/pam.d" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/run"
+install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pam.d/sudo" <<'PAM'
+auth include system-auth
+account include system-auth
+session include system-auth
+PAM
 install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" <<'PACMAN'
 [core]
 SigLevel = Required DatabaseOptional
@@ -537,6 +544,10 @@ cmp -s \
   "$root/qvcore/security/retire-passwordless-sudo" \
   "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/retire-passwordless-sudo" ||
   fail "passwordless-sudo retirement root helper payload"
+cmp -s \
+  "$root/qvcore/security/auth-policy" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/security/auth-policy" ||
+  fail "authentication policy root helper payload"
 cmp -s \
   "$root/qvcore/network/dns-policy" \
   "$QVOS_NETWORK_SYSTEM_ROOT/usr/lib/qvos/network/dns-policy" ||

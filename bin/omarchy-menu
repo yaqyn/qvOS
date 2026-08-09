@@ -346,8 +346,8 @@ show_setup_power_menu() {
 
 show_setup_security_menu() {
   case $(menu "Setup" "󰈷  Fingerprint\n  Fido2") in
-  *Fingerprint*) present_terminal omarchy-setup-security-fingerprint ;;
-  *Fido2*) present_terminal omarchy-setup-security-fido2 ;;
+  *Fingerprint*) present_terminal qv-setup-security-fingerprint ;;
+  *Fido2*) present_terminal qv-setup-security-fido2 ;;
   *) show_setup_menu ;;
   esac
 }
@@ -662,8 +662,8 @@ show_remove_menu() {
 
 show_remove_security_menu() {
   case $(menu "Remove" "󰈷  Fingerprint\n  Fido2") in
-  *Fingerprint*) present_terminal omarchy-remove-security-fingerprint ;;
-  *Fido2*) present_terminal omarchy-remove-security-fido2 ;;
+  *Fingerprint*) present_terminal qv-remove-security-fingerprint ;;
+  *Fido2*) present_terminal qv-remove-security-fido2 ;;
   *) show_remove_menu ;;
   esac
 }

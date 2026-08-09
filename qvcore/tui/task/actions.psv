@@ -15,10 +15,10 @@ time-sync|System Time|Restart system time synchronization|1|mutation|tui|true|Sy
 firmware-update|Firmware|Review device safety prompts and install firmware updates|3|mutation|native|true|Update|Updating|Updated|qv-update-firmware
 user-password|User Password|Change the current user password securely|3|mutation|native|false|Change|Changing|Changed|passwd
 drive-password|Drive Encryption Password|Choose an encrypted drive and change its key securely|3|mutation|native|true|Change|Changing|Changed|qv-drive-password
-fingerprint-setup|Fingerprint Authentication|Enroll and verify a fingerprint for authentication|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fingerprint
-fingerprint-remove|Fingerprint Authentication|Remove fingerprint authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fingerprint
-fido2-setup|FIDO2 Authentication|Register and verify a hardware security key|3|mutation|native|true|Set Up|Setting Up|Set Up|omarchy-setup-security-fido2
-fido2-remove|FIDO2 Authentication|Remove FIDO2 authentication and its packages|3|mutation|tui|true|Remove|Removing|Removed|omarchy-remove-security-fido2
+fingerprint-setup|Fingerprint Authentication|Enroll and verify a fingerprint for authentication|3|mutation|native|true|Set Up|Setting Up|Set Up|qv-setup-security-fingerprint
+fingerprint-remove|Fingerprint Authentication|Disable fingerprint authentication and remove only qvOS-added packages|3|mutation|tui|true|Disable|Disabling|Disabled|qv-remove-security-fingerprint
+fido2-setup|FIDO2 Authentication|Register a hardware security key for authentication|3|mutation|native|true|Set Up|Setting Up|Set Up|qv-setup-security-fido2
+fido2-remove|FIDO2 Authentication|Disable FIDO2 authentication and remove only qvOS-added packages|3|mutation|tui|true|Disable|Disabling|Disabled|qv-remove-security-fido2
 direct-boot|Direct Boot|Confirm and change the qvOS EFI boot entry|3|mutation|native|true|Configure|Configuring|Configured|qv-config-direct-boot
 hybrid-gpu|Hybrid GPU|Confirm a supported GPU mode change and system reboot|3|mutation|native|true|Configure|Configuring|Configured|qv-toggle-hybrid-gpu
 hibernation-enable|Hibernation|Confirm disk allocation and configure hibernation|3|mutation|native|true|Enable|Enabling|Enabled|qv-hibernation-setup

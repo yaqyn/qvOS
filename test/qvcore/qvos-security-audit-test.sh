@@ -10,6 +10,8 @@ boot_mount="$root/qvcore/security/boot-mount"
 dev_share="$root/qvcore/security/dev-share"
 dev_share_helper="$root/qvcore/security/dev-share-firewall"
 retire_passwordless="$root/qvcore/security/retire-passwordless-sudo"
+auth_owner="$root/qvcore/security/auth"
+auth_policy="$root/qvcore/security/auth-policy"
 debug_owner="$root/qvcore/security/debug"
 debug_adapter="$root/bin/qv-debug"
 debug_compatibility="$root/bin/omarchy-debug"
@@ -30,7 +32,7 @@ fail() {
 [[ -x $runner && -x $root_helper ]] \
   || fail "security audit runners are executable"
 [[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper &&
-  -x $retire_passwordless &&
+  -x $retire_passwordless && -x $auth_owner && -x $auth_policy &&
   -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
 grep -Fq 'qvcore/security/AGENTS.md' "$root/AGENTS.md" \
@@ -71,6 +73,40 @@ grep -Fqx 'bin/omarchy-sudo-passwordless' \
 grep -Fqx 'bin/omarchy-sudo-reset' \
   "$root/qvcore/security/retired-paths" ||
   fail "authentication lockout reset retirement inventory"
+
+expected_security_native=$'bin/omarchy-debug\nbin/omarchy-remove-security-fido2\nbin/omarchy-remove-security-fingerprint\nbin/omarchy-setup-security-fido2\nbin/omarchy-setup-security-fingerprint'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+  "$root/qvcore/security/native-paths") == "$expected_security_native" ]] ||
+  fail "native security path inventory"
+declare -A auth_arguments=(
+  [remove-security-fido2]='remove fido2'
+  [remove-security-fingerprint]='remove fingerprint'
+  [setup-security-fido2]='setup fido2'
+  [setup-security-fingerprint]='setup fingerprint'
+)
+for auth_route in "${!auth_arguments[@]}"; do
+  native_auth="$root/bin/qv-$auth_route"
+  compatibility_auth="$root/bin/omarchy-$auth_route"
+  [[ -x $native_auth && -x $compatibility_auth ]] ||
+    fail "authentication adapter mode: $auth_route"
+  (( $(wc -l <"$native_auth") <= 10 )) ||
+    fail "native authentication adapter contains implementation: $auth_route"
+  (( $(wc -l <"$compatibility_auth") <= 5 )) ||
+    fail "authentication compatibility adapter contains implementation: $auth_route"
+  rg -q '^# qv:summary=' "$native_auth" ||
+    fail "native authentication metadata: $auth_route"
+  ! rg -q '^# (qv|omarchy):' "$compatibility_auth" ||
+    fail "authentication compatibility metadata duplication: $auth_route"
+  expected_auth_exec="exec \"\$QVOS_PATH/qvcore/security/auth\" ${auth_arguments[$auth_route]} \"\$@\""
+  for auth_adapter in "$native_auth" "$compatibility_auth"; do
+    grep -Fqx "$expected_auth_exec" "$auth_adapter" ||
+      fail "authentication adapter ownership: $auth_route"
+  done
+done
+if rg -n 'omarchy-(setup|remove)-security-(fingerprint|fido2)' \
+  "$root/qvcore/menu" "$root/qvcore/tui/task/actions.psv" "$root/bin/omarchy-menu"; then
+  fail "native qvOS surfaces call authentication compatibility routes"
+fi
 
 retire_root="$test_root/retire-root"
 retire_sudoers="$retire_root/etc/sudoers.d"
@@ -418,6 +454,12 @@ fi
 [[ ! -e $offline_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
   fail "ambiguous ISO offline mirror causes partial installation"
 
+install -d "$offline_system_root/etc/pam.d" "$offline_system_root/run"
+install -m 0644 /dev/stdin "$offline_system_root/etc/pam.d/sudo" <<'PAM'
+auth include system-auth
+account include system-auth
+session include system-auth
+PAM
 cp "$root/default/pacman/pacman-rc.conf" \
   "$offline_system_root/etc/pacman.conf"
 OMARCHY_CHROOT_INSTALL=1 \
@@ -457,9 +499,16 @@ system_install_tree="$security_system_root/usr/install"
 install -d \
   "$security_system_root/etc/docker" \
   "$security_system_root/etc" \
+  "$security_system_root/etc/pam.d" \
+  "$security_system_root/run" \
   "$system_install_tree/cache/test-package/dist" \
   "$system_install_tree/global/node_modules/test-package" \
   "$security_system_root/usr/local/bin"
+install -m 0644 /dev/stdin "$security_system_root/etc/pam.d/sudo" <<'PAM'
+auth include system-auth
+account include system-auth
+session include system-auth
+PAM
 install -m 0644 /dev/stdin "$security_system_root/etc/pacman.conf" <<'PACMAN'
 [core]
 SigLevel = Required DatabaseOptional
@@ -532,6 +581,7 @@ managed_security_files=(
   "$security_system_root/etc/pacman.conf"
   "$security_system_root/etc/sysctl.d/60-qvos-security.conf"
   "$security_system_root/usr/lib/qvos/dev-share-firewall"
+  "$security_system_root/usr/lib/qvos/security/auth-policy"
   "$security_system_root/usr/lib/qvos/retire-passwordless-sudo"
   "$system_install_tree/cache/test-package/dist/program.js"
   "$system_install_tree/global/node_modules/test-package/private.js"
@@ -560,6 +610,11 @@ cmp -s "$retire_passwordless" "$installed_retire_passwordless" \
   || fail "passwordless-sudo retirement helper system install"
 [[ $(stat -c '%a' "$installed_retire_passwordless") == "755" ]] \
   || fail "passwordless-sudo retirement helper mode"
+installed_auth_policy="$security_system_root/usr/lib/qvos/security/auth-policy"
+cmp -s "$root/qvcore/security/auth-policy" "$installed_auth_policy" \
+  || fail "authentication policy helper system install"
+[[ $(stat -c '%a' "$installed_auth_policy") == "755" ]] \
+  || fail "authentication policy helper mode"
 [[ $(awk '
   /^\[omarchy\]$/ { in_omarchy = 1; next }
   /^\[/ { in_omarchy = 0 }

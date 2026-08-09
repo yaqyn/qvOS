@@ -1,0 +1,484 @@
+#!/bin/bash
+set -euo pipefail
+export LC_ALL=C
+
+system_root=${QVOS_AUTH_SYSTEM_ROOT:-}
+testing=${QVOS_SECURITY_TESTING:-}
+operation=${1:-}
+feature=${2:-}
+registration_uid=${3:-}
+pam_dir="$system_root/etc/pam.d"
+state_dir="$system_root/var/lib/qvos/security/auth"
+credential_dir="$system_root/etc/qvos/security"
+system_owner_uid=0
+system_owner_gid=0
+failure_after=${QVOS_AUTH_TEST_FAIL_AFTER:-0}
+lock_file="$system_root/run/qvos-auth-policy.lock"
+transaction=
+transaction_complete=0
+registration=
+
+usage() {
+  echo "Usage: auth-policy <enable|disable|reconcile|status> <fingerprint|fido2> [registration-uid]" >&2
+}
+
+fail() {
+  echo "qvOS authentication: $1" >&2
+  exit 1
+}
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || {
+    echo "A custom qvOS authentication root is only valid in tests." >&2
+    exit 2
+  }
+  system_owner_uid=$(/usr/bin/id -u)
+  system_owner_gid=$(/usr/bin/id -g)
+elif ((EUID != 0)); then
+  fail "the installed policy helper must run as root"
+fi
+if [[ $testing != "1" && $failure_after != "0" ]]; then
+  fail "test failure injection is unavailable on the live system"
+fi
+[[ $operation == "enable" || $operation == "disable" ||
+  $operation == "reconcile" || $operation == "status" ]] || {
+  usage
+  exit 2
+}
+[[ $feature == "fingerprint" || $feature == "fido2" ]] || {
+  usage
+  exit 2
+}
+if [[ $operation == "enable" && $feature == "fido2" ]]; then
+  [[ $registration_uid =~ ^[1-9][0-9]*$ ]] || {
+    usage
+    exit 2
+  }
+elif [[ -n $registration_uid ]]; then
+  usage
+  exit 2
+fi
+
+case $feature in
+fingerprint)
+  pam_module=pam_fprintd.so
+  pam_line='auth      sufficient pam_fprintd.so'
+  ;;
+fido2)
+  pam_module=pam_u2f.so
+  pam_line='auth      sufficient pam_u2f.so cue authfile=/etc/qvos/security/fido2'
+  ;;
+esac
+module_path="$system_root/usr/lib/security/$pam_module"
+state_file="$state_dir/$feature.enabled"
+credential_file="$credential_dir/fido2"
+block_start="# qvOS authentication: $feature"
+block_end="# qvOS authentication end: $feature"
+expected_block="$block_start
+$pam_line
+$block_end"
+
+safe_directory() {
+  local path=$1
+  local mode=$2
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+    "$system_owner_uid:$system_owner_gid:${mode#0}" ]]
+}
+
+safe_system_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$system_owner_uid:$system_owner_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path")
+  (( (8#$mode & 0022) == 0 ))
+}
+
+ensure_private_directory() {
+  local path=$1
+  local mode=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" "$mode" ||
+      fail "unsafe managed directory: $path"
+  else
+    /usr/bin/install -d \
+      -o "$system_owner_uid" -g "$system_owner_gid" -m "$mode" "$path"
+  fi
+}
+
+ensure_managed_trees() {
+  ensure_private_directory "$system_root/var/lib/qvos" 0755
+  ensure_private_directory "$system_root/var/lib/qvos/security" 0700
+  ensure_private_directory "$system_root/etc/qvos" 0755
+}
+
+publish_file() {
+  local source=$1
+  local target=$2
+  local mode=$3
+  local target_dir=${target%/*}
+  local temporary
+
+  temporary=$(/usr/bin/mktemp "$target_dir/.qvos-auth.XXXXXX")
+  if ! /usr/bin/install \
+    -o "$system_owner_uid" -g "$system_owner_gid" -m "$mode" \
+    "$source" "$temporary"; then
+    /usr/bin/rm -f -- "$temporary"
+    return 1
+  fi
+  if ! /usr/bin/mv -f -- "$temporary" "$target"; then
+    /usr/bin/rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+validate_module() {
+  local module_mode
+
+  [[ -f $module_path && ! -L $module_path ]] ||
+    fail "missing authentication module: $module_path"
+  module_mode=$(/usr/bin/stat -c '%a' -- "$module_path")
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$module_path") == \
+    "$system_owner_uid:$system_owner_gid" ]] ||
+    fail "authentication module is not system-owned: $module_path"
+  (( (8#$module_mode & 0022) == 0 )) ||
+    fail "authentication module is writable outside its owner: $module_path"
+}
+
+block_from_file() {
+  local path=$1
+
+  /usr/bin/awk -v start="$block_start" -v end="$block_end" '
+    $0 == start { capture = 1 }
+    capture { print }
+    $0 == end { capture = 0 }
+  ' "$path"
+}
+
+validate_pam_file() {
+  local path=$1
+  local mode
+  local starts
+  local ends
+
+  [[ -f $path && ! -L $path ]] || fail "unsafe PAM file: $path"
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$system_owner_uid:$system_owner_gid" ]] ||
+    fail "PAM file is not system-owned: $path"
+  mode=$(/usr/bin/stat -c '%a' -- "$path")
+  (( (8#$mode & 0022) == 0 )) ||
+    fail "PAM file is writable outside its owner: $path"
+  (( $(/usr/bin/stat -c '%s' -- "$path") <= 131072 )) ||
+    fail "PAM file is unexpectedly large: $path"
+  starts=$(/usr/bin/grep -Fxc -- "$block_start" "$path" || true)
+  ends=$(/usr/bin/grep -Fxc -- "$block_end" "$path" || true)
+  ((starts == ends && starts <= 1)) ||
+    fail "managed PAM block is malformed: $path"
+  if ((starts == 1)); then
+    [[ $(block_from_file "$path") == "$expected_block" ]] ||
+      fail "managed PAM block was modified: $path"
+  fi
+}
+
+state_enabled() {
+  local content
+  local credential_hash
+
+  [[ -f $state_file && ! -L $state_file ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$state_file") == \
+    "$system_owner_uid:$system_owner_gid:600" ]] ||
+    fail "unsafe authentication state: $state_file"
+  content=$(<"$state_file")
+  if [[ $feature == "fingerprint" ]]; then
+    [[ $content == "fingerprint enabled" ]] ||
+      fail "modified authentication state: $state_file"
+  else
+    [[ -e $credential_file || -L $credential_file ]] ||
+      fail "enabled FIDO2 state has no credential"
+    validate_fido2_credential
+    credential_hash=$(/usr/bin/sha256sum "$credential_file")
+    credential_hash=${credential_hash%% *}
+    [[ $content == "fido2 enabled $credential_hash" ]] ||
+      fail "modified FIDO2 credential or authentication state"
+  fi
+}
+
+set_state() {
+  local enabled=$1
+  local temporary
+  local credential_hash
+
+  if [[ $enabled == "true" ]]; then
+    ensure_managed_trees
+    ensure_private_directory "$state_dir" 0700
+    temporary=$(/usr/bin/mktemp "$state_dir/.${feature}.enabled.XXXXXX")
+    if [[ $feature == "fido2" ]]; then
+      credential_hash=$(/usr/bin/sha256sum "$credential_file")
+      credential_hash=${credential_hash%% *}
+      printf 'fido2 enabled %s\n' "$credential_hash" >"$temporary"
+    else
+      printf 'fingerprint enabled\n' >"$temporary"
+    fi
+    /usr/bin/chown "$system_owner_uid:$system_owner_gid" "$temporary"
+    /usr/bin/chmod 0600 "$temporary"
+    /usr/bin/mv -f -- "$temporary" "$state_file"
+  elif [[ -e $state_file || -L $state_file ]]; then
+    state_enabled
+    /usr/bin/rm -f -- "$state_file"
+  fi
+}
+
+pam_targets=("$pam_dir/sudo")
+[[ ! -e $pam_dir/polkit-1 && ! -L $pam_dir/polkit-1 ]] ||
+  pam_targets+=("$pam_dir/polkit-1")
+
+set_pam_block() {
+  local enabled=$1
+  local temporary_dir
+  local path
+  local name
+  local candidate
+  local backup
+  local mode
+  local changed_count=0
+  local index
+  local -a changed_paths=()
+  local -a changed_backups=()
+  local -a changed_modes=()
+
+  [[ $enabled != "true" ]] || validate_module
+  safe_system_directory "$pam_dir" || fail "unsafe PAM directory: $pam_dir"
+  for path in "${pam_targets[@]}"; do
+    validate_pam_file "$path"
+  done
+  temporary_dir=$(/usr/bin/mktemp -d)
+  /usr/bin/chmod 0700 "$temporary_dir"
+
+  for path in "${pam_targets[@]}"; do
+    name=${path##*/}
+    candidate="$temporary_dir/$name.candidate"
+    backup="$temporary_dir/$name.backup"
+    mode=$(/usr/bin/stat -c '%a' -- "$path")
+    /usr/bin/cp -- "$path" "$backup"
+    if [[ $enabled == "true" ]]; then
+      {
+        printf '%s\n' "$expected_block"
+        /usr/bin/awk -v start="$block_start" -v end="$block_end" '
+          $0 == start { skip = 1; next }
+          $0 == end { skip = 0; next }
+          !skip { print }
+        ' "$path"
+      } >"$candidate"
+    else
+      /usr/bin/awk -v start="$block_start" -v end="$block_end" '
+        $0 == start { skip = 1; next }
+        $0 == end { skip = 0; next }
+        !skip { print }
+      ' "$path" >"$candidate"
+    fi
+    if /usr/bin/cmp -s "$candidate" "$path"; then
+      continue
+    fi
+    if ((failure_after > 0 && changed_count == failure_after)); then
+      for ((index = changed_count - 1; index >= 0; index--)); do
+        publish_file \
+          "${changed_backups[index]}" \
+          "${changed_paths[index]}" \
+          "${changed_modes[index]}"
+      done
+      /usr/bin/rm -rf -- "$temporary_dir"
+      fail "injected PAM transaction failure"
+    fi
+    if ! publish_file "$candidate" "$path" "$mode"; then
+      for ((index = changed_count - 1; index >= 0; index--)); do
+        publish_file \
+          "${changed_backups[index]}" \
+          "${changed_paths[index]}" \
+          "${changed_modes[index]}"
+      done
+      /usr/bin/rm -rf -- "$temporary_dir"
+      fail "could not update PAM atomically"
+    fi
+    changed_paths+=("$path")
+    changed_backups+=("$backup")
+    changed_modes+=("$mode")
+    ((changed_count += 1))
+  done
+  /usr/bin/rm -rf -- "$temporary_dir"
+}
+
+read_fido2_registration() {
+  local uid=$1
+  local passwd_record
+  local account
+  local extra
+
+  passwd_record=$(/usr/bin/getent passwd "$uid") ||
+    fail "unknown FIDO2 registration account: $uid"
+  account=${passwd_record%%:*}
+  registration=
+  IFS= read -r -n 16385 registration || [[ -n $registration ]] ||
+    fail "FIDO2 registration is empty"
+  ((${#registration} <= 16384)) ||
+    fail "FIDO2 registration is unexpectedly large"
+  if IFS= read -r -n 1 extra; then
+    : "$extra"
+    fail "FIDO2 registration contains additional data"
+  fi
+  [[ -n $registration && $registration == "$account:"* &&
+    $registration != *$'\n'* && $registration != *$'\r'* &&
+    $registration != *$'\t'* && $registration != *' '* ]] ||
+    fail "invalid FIDO2 registration content"
+}
+
+install_fido2_credential() {
+  local uid=$1
+  local temporary
+
+  read_fido2_registration "$uid"
+  ensure_managed_trees
+  ensure_private_directory "$credential_dir" 0700
+  [[ ! -e $credential_file && ! -L $credential_file ]] ||
+    fail "an untracked FIDO2 credential requires administrator review"
+  temporary=$(/usr/bin/mktemp "$credential_dir/.fido2.XXXXXX")
+  printf '%s\n' "$registration" >"$temporary"
+  /usr/bin/chown "$system_owner_uid:$system_owner_gid" "$temporary"
+  /usr/bin/chmod 0600 "$temporary"
+  /usr/bin/mv -f -- "$temporary" "$credential_file"
+}
+
+remove_fido2_credential() {
+  [[ -e $credential_file || -L $credential_file ]] || return 0
+  validate_fido2_credential
+  /usr/bin/rm -f -- "$credential_file"
+}
+
+validate_fido2_credential() {
+  [[ -f $credential_file && ! -L $credential_file &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$credential_file") == \
+      "$system_owner_uid:$system_owner_gid:600" ]] ||
+    fail "unsafe managed FIDO2 credential"
+}
+
+enable_feature() {
+  local uid=${1:-}
+
+  if state_enabled; then
+    fail "$feature authentication is already enabled"
+  fi
+  [[ ! -e $state_file && ! -L $state_file ]] ||
+    fail "unsafe authentication state: $state_file"
+  if [[ $feature == "fido2" &&
+    (-e $credential_file || -L $credential_file) ]]; then
+    fail "an untracked FIDO2 credential requires administrator review"
+  fi
+  transaction=enable
+  if [[ $feature == "fido2" ]]; then
+    install_fido2_credential "$uid"
+  fi
+  set_pam_block true
+  set_state true
+  transaction_complete=1
+}
+
+disable_feature() {
+  local was_enabled=0
+
+  if state_enabled; then
+    was_enabled=1
+  else
+    [[ ! -e $state_file && ! -L $state_file ]] ||
+      fail "unsafe authentication state: $state_file"
+  fi
+  if [[ $feature == "fido2" ]] && ((was_enabled == 0)) &&
+    [[ -e $credential_file || -L $credential_file ]]; then
+    fail "an untracked FIDO2 credential requires administrator review"
+  elif [[ $feature == "fido2" &&
+    (-e $credential_file || -L $credential_file) ]]; then
+    validate_fido2_credential
+  elif [[ $feature == "fido2" ]] && ((was_enabled)); then
+    fail "enabled FIDO2 state has no safe credential"
+  fi
+  ((was_enabled == 0)) || transaction=disable
+  set_pam_block false
+  set_state false
+  [[ $feature != "fido2" ]] || remove_fido2_credential
+  transaction_complete=1
+}
+
+reconcile_feature() {
+  if state_enabled; then
+    if [[ $feature == "fido2" ]]; then
+      [[ -e $credential_file || -L $credential_file ]] ||
+        fail "enabled FIDO2 state has no safe credential"
+      validate_fido2_credential
+    fi
+    set_pam_block true
+  else
+    [[ ! -e $state_file && ! -L $state_file ]] ||
+      fail "unsafe authentication state: $state_file"
+    if [[ $feature == "fido2" &&
+      (-e $credential_file || -L $credential_file) ]]; then
+      fail "an untracked FIDO2 credential requires administrator review"
+    fi
+    set_pam_block false
+  fi
+}
+
+rollback_transaction() {
+  local status=$?
+
+  trap - EXIT
+  ((status != 0 && transaction_complete == 0)) || return "$status"
+  case $transaction in
+  enable)
+    set_pam_block false || true
+    set_state false || true
+    [[ $feature != "fido2" ]] || remove_fido2_credential || true
+    ;;
+  disable)
+    set_state true || true
+    set_pam_block true || true
+    ;;
+  esac
+  return "$status"
+}
+
+safe_system_directory "$system_root/run" ||
+  fail "unsafe runtime directory: $system_root/run"
+if [[ -e $lock_file || -L $lock_file ]]; then
+  [[ -f $lock_file && ! -L $lock_file &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$lock_file") == \
+      "$system_owner_uid:$system_owner_gid:600" ]] ||
+    fail "unsafe authentication transaction lock"
+fi
+exec {lock_fd}>"$lock_file"
+/usr/bin/chown "$system_owner_uid:$system_owner_gid" "$lock_file"
+/usr/bin/chmod 0600 "$lock_file"
+/usr/bin/flock -x "$lock_fd"
+
+trap rollback_transaction EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+case $operation in
+enable) enable_feature "$registration_uid" ;;
+disable) disable_feature ;;
+reconcile) reconcile_feature ;;
+status)
+  if state_enabled; then
+    echo enabled
+  else
+    [[ ! -e $state_file && ! -L $state_file ]] ||
+      fail "unsafe authentication state: $state_file"
+    echo disabled
+  fi
+  ;;
+esac
+transaction_complete=1
+trap - EXIT HUP INT TERM
