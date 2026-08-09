@@ -8,22 +8,16 @@ QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
   exit 2
 }
 
-icon_dir="$HOME/.local/share/icons/hicolor/48x48/apps"
 application_dir="$HOME/.local/share/applications"
-install -d -- "$icon_dir" "$application_dir"
-
-cp "$QVOS_PATH"/applications/icons/*.png "$icon_dir/"
-gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null
-
-cp "$QVOS_PATH"/applications/*.desktop "$application_dir/"
-cp "$QVOS_PATH"/applications/hidden/*.desktop "$application_dir/"
+"$QVOS_PATH/qvcore/desktop/applications/install"
 
 if qv-cmd-present foot; then
+  install -d -- "$application_dir"
   cp "$QVOS_PATH/default/foot/foot.desktop" "$application_dir/"
 fi
 
-bash "$QVOS_PATH/qvcore/install/packaging/icons.sh"
 "$QVOS_PATH/qvcore/install/packaging/webapps"
 "$QVOS_PATH/qvcore/install/packaging/npx"
 
+gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null
 update-desktop-database "$application_dir"

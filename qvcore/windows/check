@@ -18,6 +18,12 @@ for owner in command launch manage reconcile; do
 done
 [[ -f $root/qvcore/windows/lib && ! -L $root/qvcore/windows/lib ]] ||
   fail "Windows shared validation owner"
+[[ -f $root/qvcore/windows/windows.png &&
+  ! -L $root/qvcore/windows/windows.png ]] ||
+  fail "Windows icon owner"
+# shellcheck disable=SC2016
+grep -Fq 'source_icon="$QVOS_PATH/qvcore/windows/windows.png"' \
+  "$root/qvcore/windows/manage" || fail "Windows icon source ownership"
 
 native="$root/bin/qv-windows-vm"
 compatibility="$root/bin/omarchy-windows-vm"

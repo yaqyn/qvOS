@@ -1,7 +1,6 @@
 run_logged "$QVOS_PATH/qvcore/install/packaging/base"
 run_logged "$QVOS_INSTALL/packaging/fonts.sh"
 run_logged "$QVOS_INSTALL/packaging/nvim.sh"
-run_logged "$QVOS_INSTALL/packaging/icons.sh"
 run_logged "$QVOS_PATH/qvcore/install/packaging/webapps"
 run_logged "$QVOS_PATH/qvcore/install/packaging/npx"
 run_logged "$QVOS_INSTALL/packaging/asus-rog.sh"

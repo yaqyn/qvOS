@@ -20,10 +20,16 @@ validation for both direct web-app launches and the website normalizer.
 and exact legacy-launcher migration. Fresh qvOS carries no preinstalled Web
 Apps, fixed web-service shortcuts, protocol handlers, or service-specific
 assets. Keep only the generic website keybinding and the on-demand installer.
-Never overwrite an
-existing desktop entry, accept an arbitrary Exec string, fetch an icon without
+Never overwrite an existing desktop entry, accept an arbitrary Exec string, fetch an icon without
 explicit input, or remove a desktop file or icon without proving its bounded
 qvOS Web App ownership. Keep compatibility adapters thin and metadata-free.
+`qvcore/desktop/applications/` singularly owns the fixed base desktop entries,
+intentional package-menu suppressors, and the imv icon. Its installer validates
+the complete source and destination set before mutation, serializes refreshes,
+publishes atomically with rollback, and removes only exact retired qvOS Typora
+and duplicate-imv artifacts. Preserve modified files and links. Never put a
+Web App, optional application, service URL, or Windows-owned icon in this
+payload; optional Web Apps exist only after an explicit user install.
 `qvcore/desktop/session/` owns lock, logout, wake, the delayed logout worker,
 and session-scoped Idle Lock and Nightlight toggles. Use the shared exact-process
 helper for Hypridle, validate one bounded Hyprsunset temperature before changing
@@ -79,11 +85,13 @@ each signal, and treats a vanished or reused PID as success. Never use raw
 the target can otherwise signal itself.
 
 List every promoted inherited restart path in `native-paths`, sorted and
-unique. `runtime-paths` is the exact source-independent desktop payload; never
+unique. The inherited top-level `applications/` tree is retired; fixed desktop
+sources remain source-owned here and are not generic runtime helpers.
+`runtime-paths` is the exact source-independent desktop payload; never
 copy policy, checks, inventories, or source-only restart owners into the user
 runtime. Runtime deployment stages only that inventory and restores the prior
-payload if replacement fails. Run `qvcore/desktop/check`, the focused launch,
-Web App, restart, and session suites, CLI and TUI
+payload if replacement fails. Run `qvcore/desktop/check`, the focused fixed-
+application, launch, Web App, restart, and session suites, CLI and TUI
 owner-contract checks, Bash syntax and ShellCheck for changed shell, then the
 full qvOS suite. Live verification is read-only: inspect CLI help and adapter
 resolution unless the user explicitly requests an actual application, window,

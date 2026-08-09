@@ -65,7 +65,7 @@ done
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
-expected_retired=$'applications/icons/Basecamp.png\napplications/icons/ChatGPT.png\napplications/icons/Discord.png\napplications/icons/Disk Usage.png\napplications/icons/Docker.png\napplications/icons/Figma.png\napplications/icons/Fizzy.png\napplications/icons/GitHub.png\napplications/icons/Google Contacts.png\napplications/icons/Google Maps.png\napplications/icons/Google Messages.png\napplications/icons/Google Photos.png\napplications/icons/HEY.png\napplications/icons/WhatsApp.png\napplications/icons/X.png\napplications/icons/YouTube.png\napplications/icons/Zoom.png\nbin/omarchy-npx-install\nbin/omarchy-remove-preinstalls\ndefault/nautilus-python/\ninstall/'
+expected_retired=$'bin/omarchy-npx-install\nbin/omarchy-remove-preinstalls\ndefault/nautilus-python/\ninstall/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
   fail "retired install and Nautilus source inventory"
 [[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||
@@ -205,11 +205,16 @@ grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/webapps"' \
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/npx"' \
   "$root/qvcore/install/refresh-applications" || fail "native npx refresh wiring"
-
-expected_icons=$'imv.png\nwindows.png'
-actual_icons=$(find "$root/applications/icons" -maxdepth 1 -type f -printf '%f\n' | sort)
-[[ $actual_icons == "$expected_icons" ]] ||
-  fail "application icon inventory contains unowned assets"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/desktop/applications/install"' \
+  "$root/qvcore/install/refresh-applications" ||
+  fail "fixed desktop application refresh wiring"
+[[ ! -e $root/qvcore/install/packaging/icons.sh ]] ||
+  fail "duplicate application icon staging owner remains"
+! rg -q 'packaging/icons\.sh' \
+  "$root/qvcore/install/packaging/all.sh" \
+  "$root/qvcore/install/refresh-applications" ||
+  fail "install lifecycle calls the retired icon staging owner"
 ! rg -q 'HEY\.desktop|x-scheme-handler/mailto' \
   "$root/qvcore/install/config/mimetypes" ||
   fail "fresh install retains the absent HEY mail handler"
@@ -217,7 +222,9 @@ actual_icons=$(find "$root/applications/icons" -maxdepth 1 -type f -printf '%f\n
   "$root/qvcore/install/packaging/webapps") ]] ||
   fail "fresh install contains bundled Web App instances"
 if rg -n '(omarchy|qv)-(launch-webapp|webapp-handler)' \
-  "$root/applications" "$root/qvcore/install/packaging/webapps"; then
+  "$root/qvcore/desktop/applications" \
+  "$root/qvcore/install/packaging/webapps" \
+  --glob '*.desktop' --glob '*.png'; then
   fail "fresh-install application payload contains a Web App"
 fi
 [[ ! -e $root/qvcore/install/packaging/tuis.sh ]] ||

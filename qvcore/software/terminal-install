@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# qvos:contract=applications/Alacritty.desktop
+# qvos:contract=qvcore/desktop/applications/Alacritty.desktop
 # qvos:contract=config/alacritty
 # qvos:contract=config/foot
 # qvos:contract=config/ghostty
@@ -45,7 +45,7 @@ case $slug in
 alacritty)
   package=alacritty
   desktop_id=Alacritty.desktop
-  desktop_source="$QVOS_PATH/applications/$desktop_id"
+  desktop_source="$QVOS_PATH/qvcore/desktop/applications/$desktop_id"
   ;;
 foot)
   package=foot

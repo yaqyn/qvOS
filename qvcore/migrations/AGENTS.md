@@ -19,6 +19,8 @@ after every native migration is current. Reject links, foreign ownership,
 unexpected entries, nonempty markers, and conflicting state before mutation.
 Legacy cleanup accepts only empty timestamp or timestamp-plus-lowercase-slug
 markers from the former Omarchy runner; native migration names stay numeric.
+Tests for an exact retired runtime must use its pinned historical source, not
+copy the evolving active owner and broaden a cleanup allowlist to fit it.
 
 Use `qv dev add migration` to create a numeric `0644` source. Migration files
 are sourced as Bash data: no shebang, first line is a concise `echo`, use

@@ -9,6 +9,9 @@ There is no inherited binding layer and no qvOS binding overlay.
 Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
 private-browser, localhost, and prompted-website access; users may install and
 bind their own Web Apps later.
+Fresh config also omits Typora: it is neither base-owned nor offered by a qvOS
+installer. Preserve existing user Typora configuration, but never restore its
+retired bundled themes, desktop seed, or window rule.
 
 Promoted desktop bindings call `qv-toggle-*` routes. Matching
 `omarchy-toggle-*` commands exist only as metadata-free saved-config

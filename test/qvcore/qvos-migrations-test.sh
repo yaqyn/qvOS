@@ -73,13 +73,30 @@ HOME="$home" \
 printf 'ok - native migration markers adopt exact state and converge privately\n'
 
 retired_windows_migration="$root/qvcore/migrations/1785774136.sh"
+retired_windows_source_ref=145d9e5beade84d911f536e3a1832a2c6fe4e623
+
+install_retired_windows_fixture() {
+  local destination=$1
+  local runtime_file
+  local mode
+
+  install -d "$destination"
+  for runtime_file in AGENTS.md command launch lib manage; do
+    case $runtime_file in
+    AGENTS.md | lib) mode=0644 ;;
+    *) mode=0755 ;;
+    esac
+    git show "$retired_windows_source_ref:qvcore/windows/$runtime_file" |
+      install -m "$mode" /dev/stdin "$destination/$runtime_file"
+  done
+}
+
+git cat-file -e "$retired_windows_source_ref^{commit}" ||
+  fail "retired Windows runtime fixture source is unavailable"
 retired_windows_home="$test_root/retired-windows-home"
 retired_windows_runtime="$retired_windows_home/.local/lib/qvos/windows"
 install -d "$(dirname -- "$retired_windows_runtime")"
-install -d "$retired_windows_runtime"
-for runtime_file in AGENTS.md command launch lib manage; do
-  cp -a "$root/qvcore/windows/$runtime_file" "$retired_windows_runtime/$runtime_file"
-done
+install_retired_windows_fixture "$retired_windows_runtime"
 HOME="$retired_windows_home" bash "$retired_windows_migration" >/dev/null
 [[ ! -e $retired_windows_runtime ]] ||
   fail "exact retired Windows runtime was preserved"
@@ -87,10 +104,7 @@ HOME="$retired_windows_home" bash "$retired_windows_migration" >/dev/null
 modified_windows_home="$test_root/modified-windows-home"
 modified_windows_runtime="$modified_windows_home/.local/lib/qvos/windows"
 install -d "$(dirname -- "$modified_windows_runtime")"
-install -d "$modified_windows_runtime"
-for runtime_file in AGENTS.md command launch lib manage; do
-  cp -a "$root/qvcore/windows/$runtime_file" "$modified_windows_runtime/$runtime_file"
-done
+install_retired_windows_fixture "$modified_windows_runtime"
 printf '\nuser modification\n' >>"$modified_windows_runtime/command"
 migration_warning=$(
   HOME="$modified_windows_home" bash "$retired_windows_migration" 2>&1 >/dev/null

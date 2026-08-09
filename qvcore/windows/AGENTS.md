@@ -10,7 +10,9 @@ configuration, or installed runtime payloads.
   checked TUI through `qvcore/windows/launch`.
 - Windows owners run from the installed qvOS source. Do not duplicate the
   source tree under `~/.local/lib/qvos/windows`; only generated user state and
-  the shared TUI runtime belong outside the source checkout.
+  the shared TUI runtime belong outside the source checkout. The Windows icon
+  is owned beside these sources at `qvcore/windows/windows.png`; never stage it
+  through a general fixed-application icon tree.
 - Collect resources and credentials through the shared owner-form contract
   before sudo. Pass values only through the TUI's private `0600` form file,
   write the Compose file as `0600`, and never print credentials.

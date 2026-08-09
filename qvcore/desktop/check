@@ -192,8 +192,33 @@ if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
   fail "native qvOS source still calls a Web App compatibility command"
 fi
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  $'bin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
+  $'applications/\nbin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
   fail "retired Web App handler inventory is incomplete"
+[[ ! -e $root/applications && ! -L $root/applications ]] ||
+  fail "retired inherited application payload remains"
+[[ -x $root/qvcore/desktop/applications/install ]] ||
+  fail "native fixed application owner is unavailable"
+expected_application_files=$'Alacritty.desktop\nhidden/avahi-discover.desktop\nhidden/bssh.desktop\nhidden/btop.desktop\nhidden/bvnc.desktop\nhidden/cmake-gui.desktop\nhidden/cups.desktop\nhidden/dropbox.desktop\nhidden/electron34.desktop\nhidden/electron36.desktop\nhidden/electron37.desktop\nhidden/fcitx5-configtool.desktop\nhidden/fcitx5-wayland-launcher.desktop\nhidden/foot-server.desktop\nhidden/footclient.desktop\nhidden/java-java-openjdk.desktop\nhidden/jconsole-java-openjdk.desktop\nhidden/jshell-java-openjdk.desktop\nhidden/kbd-layout-viewer5.desktop\nhidden/kcm_fcitx5.desktop\nhidden/kcm_kaccounts.desktop\nhidden/kvantummanager.desktop\nhidden/limine-snapper-restore.desktop\nhidden/lstopo.desktop\nhidden/org.fcitx.Fcitx5.desktop\nhidden/org.fcitx.fcitx5-config-qt.desktop\nhidden/org.fcitx.fcitx5-migrator.desktop\nhidden/org.fcitx.fcitx5-qt5-gui-wrapper.desktop\nhidden/org.fcitx.fcitx5-qt6-gui-wrapper.desktop\nhidden/qv4l2.desktop\nhidden/qvidcap.desktop\nhidden/uuctl.desktop\nhidden/wiremix.desktop\nhidden/xgps.desktop\nhidden/xgpsspeed.desktop\nicons/imv.png\nimv.desktop\ninstall\nmpv.desktop'
+actual_application_files=$(find "$root/qvcore/desktop/applications" -type f \
+  -printf '%P\n' | sort)
+[[ $actual_application_files == "$expected_application_files" ]] ||
+  fail "fixed application source inventory changed"
+expected_applications=$'Alacritty.desktop\nimv.desktop\nmpv.desktop'
+actual_applications=$(find "$root/qvcore/desktop/applications" -maxdepth 1 \
+  -type f -name '*.desktop' -printf '%f\n' | sort)
+[[ $actual_applications == "$expected_applications" ]] ||
+  fail "fixed desktop application inventory changed"
+[[ $(find "$root/qvcore/desktop/applications/hidden" -maxdepth 1 \
+  -type f -name '*.desktop' | wc -l) == 34 ]] ||
+  fail "hidden desktop application inventory changed"
+[[ $(find "$root/qvcore/desktop/applications/icons" -maxdepth 1 \
+  -type f -printf '%f\n') == "imv.png" ]] ||
+  fail "fixed desktop icon inventory changed"
+if rg -ni '(typora|https?://|--app=|(omarchy|qv)-(launch-webapp|webapp-handler))' \
+  "$root/qvcore/desktop/applications" \
+  --glob '*.desktop' --glob '*.png'; then
+  fail "fresh fixed application payload contains a retired app or Web App"
+fi
 for handler in hey zoom; do
   for path in \
     "$root/bin/qv-webapp-handler-$handler" \

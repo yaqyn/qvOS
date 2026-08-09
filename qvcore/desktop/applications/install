@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_root="$QVOS_PATH/qvcore/desktop/applications"
+application_dir="$HOME/.local/share/applications"
+icon_dir="$HOME/.local/share/icons/hicolor/48x48/apps"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/qvos/desktop"
+transaction_dir=
+published=0
+rollback_failed=false
+
+declare -a sources=()
+declare -a destinations=()
+declare -a stages=()
+declare -a backups=()
+declare -a existed=()
+
+fail() {
+  printf 'qvOS application install: %s\n' "$1" >&2
+  return 1
+}
+
+require_safe_directory_chain() {
+  local path=$1
+  local current=$HOME
+  local relative
+  local component
+
+  [[ $HOME == /* && -d $HOME && ! -L $HOME && -O $HOME ]] ||
+    fail "HOME must be an owned, real directory"
+  [[ $path == "$HOME"/* ]] || fail "path escapes HOME: $path"
+  relative=${path#"$HOME"/}
+  IFS=/ read -ra components <<<"$relative"
+  for component in "${components[@]}"; do
+    current+="/$component"
+    if [[ -e $current || -L $current ]]; then
+      [[ -d $current && ! -L $current && -O $current ]] ||
+        fail "unsafe directory: $current"
+    fi
+  done
+}
+
+ensure_directory() {
+  local path=$1
+  local mode=$2
+  local current=$HOME
+  local relative=${path#"$HOME"/}
+  local component
+
+  IFS=/ read -ra components <<<"$relative"
+  for component in "${components[@]}"; do
+    current+="/$component"
+    if [[ ! -e $current && ! -L $current ]]; then
+      mkdir -m "$mode" -- "$current"
+    fi
+  done
+}
+
+require_safe_source() {
+  local path=$1
+
+  [[ -f $path && ! -L $path && $(stat -c '%a' -- "$path") == "644" ]] ||
+    fail "unsafe or missing source: $path"
+}
+
+require_safe_target() {
+  local path=$1
+
+  if [[ -e $path || -L $path ]]; then
+    [[ -f $path && ! -L $path && -O $path ]] ||
+      fail "unsafe destination: $path"
+  fi
+}
+
+retire_exact() {
+  local path=$1
+  local expected_hash=$2
+
+  [[ -e $path || -L $path ]] || return 0
+  [[ -f $path && ! -L $path && -O $path ]] || return 0
+  [[ $(sha256sum -- "$path" | cut -d' ' -f1) == "$expected_hash" ]] || return 0
+  unlink -- "$path"
+}
+
+cleanup() {
+  local stage
+
+  for stage in "${stages[@]:-}"; do
+    [[ -z $stage || (! -e $stage && ! -L $stage) ]] || rm -f -- "$stage"
+  done
+  [[ -z $transaction_dir || ! -d $transaction_dir ]] || rm -rf -- "$transaction_dir"
+}
+trap cleanup EXIT
+
+rollback() {
+  local index
+  local destination
+  local restore
+
+  for ((index = published - 1; index >= 0; index--)); do
+    destination=${destinations[$index]}
+    if [[ ! -f $destination || -L $destination || ! -O $destination ]] ||
+      ! cmp -s -- "${sources[$index]}" "$destination"; then
+      rollback_failed=true
+      continue
+    fi
+    if [[ ${existed[$index]} == "true" ]]; then
+      restore=$(mktemp "${destination%/*}/.qvos-application-restore.XXXXXX") || {
+        rollback_failed=true
+        continue
+      }
+      if ! cp -p -- "${backups[$index]}" "$restore" ||
+        ! mv -Tf -- "$restore" "$destination"; then
+        rm -f -- "$restore"
+        rollback_failed=true
+      fi
+    elif [[ -f $destination && ! -L $destination && -O $destination ]] &&
+      cmp -s -- "${sources[$index]}" "$destination"; then
+      unlink -- "$destination" || rollback_failed=true
+    else
+      rollback_failed=true
+    fi
+  done
+}
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/desktop/applications/install" >&2
+  exit 2
+}
+
+while IFS= read -r source; do
+  sources+=("$source")
+  destinations+=("$application_dir/${source##*/}")
+done < <(
+  printf '%s\n' \
+    "$source_root/Alacritty.desktop" \
+    "$source_root/imv.desktop" \
+    "$source_root/mpv.desktop"
+  find "$source_root/hidden" -maxdepth 1 -type f -name '*.desktop' -print | sort
+)
+sources+=("$source_root/icons/imv.png")
+destinations+=("$icon_dir/imv.png")
+
+(( ${#sources[@]} == 38 )) || fail "fixed payload inventory changed"
+for source in "${sources[@]}"; do
+  require_safe_source "$source"
+  if rg -qi '(https?://|--app=|-(launch-webapp|webapp-handler))' "$source"; then
+    fail "bundled Web App content is forbidden: $source"
+  fi
+done
+require_safe_directory_chain "$application_dir"
+require_safe_directory_chain "$icon_dir"
+require_safe_directory_chain "$state_dir"
+for destination in "${destinations[@]}"; do
+  require_safe_target "$destination"
+done
+
+ensure_directory "$application_dir" 0755
+ensure_directory "$icon_dir" 0755
+ensure_directory "$state_dir" 0700
+chmod 0700 "$state_dir"
+require_safe_target "$state_dir/applications.lock"
+exec 8>"$state_dir/applications.lock"
+chmod 0600 "$state_dir/applications.lock"
+flock 8
+
+transaction_dir=$(mktemp -d "$state_dir/applications.XXXXXX")
+chmod 0700 "$transaction_dir"
+for ((index = 0; index < ${#sources[@]}; index++)); do
+  destination=${destinations[$index]}
+  stage=$(mktemp "${destination%/*}/.qvos-application.XXXXXX")
+  install -m 0644 -- "${sources[$index]}" "$stage"
+  stages+=("$stage")
+  if [[ -e $destination ]]; then
+    backup="$transaction_dir/$index"
+    cp -p -- "$destination" "$backup"
+    backups+=("$backup")
+    existed+=(true)
+  else
+    backups+=("")
+    existed+=(false)
+  fi
+done
+
+for ((index = 0; index < ${#sources[@]}; index++)); do
+  if ! mv -Tf -- "${stages[$index]}" "${destinations[$index]}"; then
+    rollback
+    [[ $rollback_failed == "false" ]] ||
+      fail "publication failed and rollback was incomplete"
+    fail "publication failed; the prior payload was restored"
+  fi
+  stages[index]=""
+  ((published += 1))
+done
+
+retire_exact \
+  "$application_dir/typora.desktop" \
+  a9ea9330636ada89d7408b1ca382d9dd691e4ff533f180dd3edc3cff9114edbb
+retire_exact \
+  "$application_dir/icons/imv.png" \
+  479a45d0d5964484bd97a5bd98a405eb64252c2d2d9107168eb40a155a9ba572
+
+trap - EXIT
+cleanup

@@ -23,10 +23,10 @@ pass() {
 }
 
 install -d \
-  "$source_root/applications" \
   "$source_root/bin" \
   "$source_root/config" \
   "$source_root/default/foot" \
+  "$source_root/qvcore/desktop/applications" \
   "$source_root/qvcore/defaults" \
   "$source_root/qvcore/software" \
   "$source_root/qvcore/theme" \
@@ -36,8 +36,8 @@ cp -a "$root/config/alacritty" "$source_root/config/"
 cp -a "$root/config/foot" "$source_root/config/"
 cp -a "$root/config/ghostty" "$source_root/config/"
 cp -a "$root/config/kitty" "$source_root/config/"
-install -m 0644 "$root/applications/Alacritty.desktop" \
-  "$source_root/applications/Alacritty.desktop"
+install -m 0644 "$root/qvcore/desktop/applications/Alacritty.desktop" \
+  "$source_root/qvcore/desktop/applications/Alacritty.desktop"
 install -m 0644 "$root/default/foot/foot.desktop" \
   "$source_root/default/foot/foot.desktop"
 install -m 0644 "$root/qvcore/defaults/lib" \
@@ -116,7 +116,7 @@ export HOME="$terminal_home"
 "$source_root/qvcore/software/terminal-install" alacritty >/dev/null
 cmp -s "$root/config/alacritty/alacritty.toml" \
   "$HOME/.config/alacritty/alacritty.toml" || fail "Alacritty default config"
-cmp -s "$root/applications/Alacritty.desktop" \
+cmp -s "$root/qvcore/desktop/applications/Alacritty.desktop" \
   "$HOME/.local/share/applications/Alacritty.desktop" ||
   fail "Alacritty desktop entry"
 [[ $("$source_root/bin/qv-default-terminal") == "alacritty" ]] ||

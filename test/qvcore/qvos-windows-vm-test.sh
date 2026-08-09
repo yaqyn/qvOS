@@ -30,10 +30,9 @@ fail() {
 install -d \
   "$test_home" \
   "$test_source/qvcore/windows" \
-  "$test_source/applications/icons" \
   "$test_bin"
 touch "$test_root/kvm"
-printf 'icon fixture\n' >"$test_source/applications/icons/windows.png"
+printf 'icon fixture\n' >"$test_source/qvcore/windows/windows.png"
 install -m 0644 "$root/qvcore/windows/lib" "$test_source/qvcore/windows/lib"
 install -m 0755 "$root/qvcore/windows/reconcile" "$test_source/qvcore/windows/reconcile"
 

@@ -136,7 +136,9 @@ conditional hardware paths. `qvcore/install/packaging/resolve` validates and emi
 them; never restore an inherited manifest plus additions/exclusions model.
 `qvcore/install/packaging/all.sh` calls the native qvOS fixed NPX-wrapper and
 empty bundled Web App owners directly, and `qv refresh applications` uses
-those same owners. The fixed wrapper owner may replace only its current output
+those same owners. Application refresh delegates the fixed desktop payload to
+`qvcore/desktop/applications/install`; it never stages a second icon tree under
+`~/.local/share/applications/icons`. The fixed wrapper owner may replace only its current output
 or the exact retired generated Pi/GHUI wrappers; it preserves links, modified
 files, and foreign commands. Codex is base-owned through the signed Arch
 package and must never be written through a user command path.
@@ -145,6 +147,9 @@ inherited implementation or a bundled desktop launcher. Do not preinstall
 arbitrary-command terminal desktop wrappers: command-line tools such as `dust`
 and `lazydocker` remain directly accessible without a second launcher
 lifecycle. Keep only icons with a current native desktop or Windows owner.
+The Windows icon stays with `qvcore/windows/`; the fixed desktop owner installs
+only imv into the hicolor application theme. Retire Typora desktop, theme, and
+window-rule seeds instead of preinstalling an unowned optional application.
 Keep Pi and GHUI in the singular fixed wrapper owner until their product
 ownership changes deliberately. Never restore a generic package-to-command
 generator or make application refresh download an npm package.

@@ -1,9 +1,11 @@
 # Inherited config paths intentionally absent from qvOS.
+config/Typora/
 config/hypr/hypridle.conf
 config/systemd/user/omarchy-battery-monitor.service
 config/systemd/user/omarchy-battery-monitor.timer
 config/systemd/user/omarchy-recover-internal-monitor.service
 default/hypr/apps/telegram.conf
+default/hypr/apps/typora.conf
 default/hypr/bindings.conf
 default/hypr/bindings/
 default/hypr/plain-bindings.conf
