@@ -248,6 +248,8 @@ upstream_config_steps=$(
     sed -n 's/^run_logged \(\$OMARCHY_INSTALL[^[:space:]]*\)$/\1/p' |
     while IFS= read -r step; do
       case $step in
+      '$OMARCHY_INSTALL/config/gpg.sh')
+        ;;
       '$OMARCHY_INSTALL/config/mimetypes.sh')
         ;;
       '$OMARCHY_INSTALL/config/nautilus-python.sh')
@@ -256,6 +258,10 @@ upstream_config_steps=$(
         printf '%s\n' '$QVOS_PATH/qvcore/config/toggle-state'
         ;;
       '$OMARCHY_INSTALL/config/walker-elephant.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/fast-shutdown.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/unmount-fuse.sh')
         ;;
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
@@ -274,6 +280,13 @@ native_config_steps=$(
 )
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
   fail "native configuration stage changed reviewed capability order or coverage"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/power/install"' \
+  "$root/qvcore/install/desktop" ||
+  fail "fresh configuration omits the native power lifecycle"
+grep -Fqx '    qvcore/power/unmount-fuse' \
+  "$root/qvcore/install/desktop" ||
+  fail "fresh configuration omits the native FUSE sleep-hook source"
 for walker_source in \
   qvcore/config/files/autostart/walker.desktop \
   qvcore/config/files/systemd/user/app-walker@autostart.service.d/restart.conf; do

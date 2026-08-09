@@ -48,6 +48,10 @@ actively sourced.
 Retired Nautilus extensions are removed only when their source hash matches the
 known inherited payload; remove their matching bytecode only in that same
 verified cleanup and leave every modified or unrelated extension intact.
+Do not install a global GnuPG resolver policy or force five-second system and
+user service shutdown timeouts. The native retirement owner removes only exact
+reviewed predecessors, loads the restored systemd defaults transactionally,
+recovers an interrupted transaction, and preserves modified or unsafe policy.
 Fresh install seeds only numeric owners from `qvcore/migrations/` through
 `qvcore/migrations/run --mark-current`; it never executes existing-system
 migrations or records the retired Omarchy marker tree.

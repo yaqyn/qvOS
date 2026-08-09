@@ -95,6 +95,58 @@ for helper in profiles-set supply-lib wifi-powersave; do
     fail "root-owned power helper payload: $helper"
 done
 
+sleep_dir="$system_root/usr/lib/systemd/system-sleep"
+sleep_hook="$sleep_dir/qvos-unmount-fuse"
+[[ -f $sleep_hook && ! -L $sleep_hook ]] ||
+  fail "root-owned FUSE sleep hook type"
+[[ $(stat -c '%u:%g:%a' -- "$sleep_hook") == \
+  "$(id -u):$(id -g):755" ]] || fail "root-owned FUSE sleep hook mode"
+cmp -s "$root/qvcore/power/unmount-fuse" "$sleep_hook" ||
+  fail "root-owned FUSE sleep hook payload"
+
+install -m 0755 /dev/stdin "$sleep_dir/unmount-fuse" <<'SCRIPT'
+#!/bin/bash
+
+# Lazy-unmount gvfsd-fuse filesystems before suspend/hibernate to prevent the
+# kernel's process freeze from timing out. FUSE daemons (like gvfsd-fuse from
+# Nautilus) can block in uninterruptible sleep during freeze, causing suspend
+# to silently fail. After wake, restart gvfs so the FUSE mount is restored.
+
+if [[ $1 == "pre" ]]; then
+  while IFS=' ' read -r _ mountpoint fstype _; do
+    if [[ $fstype == fuse.gvfsd-fuse ]]; then
+      mountpoint=$(printf '%b' "$mountpoint")
+      fusermount3 -uz "$mountpoint" 2>/dev/null || fusermount -uz "$mountpoint" 2>/dev/null || true
+    fi
+  done < /proc/mounts
+fi
+
+if [[ $1 == "post" ]]; then
+  # Run in background — user.slice is still frozen at this point, so a
+  # synchronous restart would block the thaw for up to 90 seconds.
+  (
+    sleep 5
+    for uid_dir in /run/user/*; do
+      uid=$(basename "$uid_dir")
+      if [[ -S $uid_dir/bus ]]; then
+        sudo -u "#$uid" env \
+          DBUS_SESSION_BUS_ADDRESS="unix:path=$uid_dir/bus" \
+          XDG_RUNTIME_DIR="$uid_dir" \
+          systemctl --user restart gvfs-daemon.service 2>/dev/null || true
+      fi
+    done
+  ) &
+fi
+SCRIPT
+run_event_owner "$root/qvcore/power/root-install" >/dev/null
+[[ ! -e $sleep_dir/unmount-fuse && ! -L $sleep_dir/unmount-fuse ]] ||
+  fail "exact inherited FUSE sleep hook remains"
+printf 'custom sleep hook\n' >"$sleep_dir/unmount-fuse"
+chmod 0755 "$sleep_dir/unmount-fuse"
+run_event_owner "$root/qvcore/power/root-install" >/dev/null
+[[ $(<"$sleep_dir/unmount-fuse") == "custom sleep hook" ]] ||
+  fail "modified inherited FUSE sleep hook preservation"
+
 grep -Fq "$helper_root/profiles-set autodetect" "$profile_rule" ||
   fail "power-profile rule root helper"
 grep -Fq 'ATTR{type}=="USB*"' "$profile_rule" ||

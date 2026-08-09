@@ -71,7 +71,7 @@ for route in "${!route_owners[@]}"; do
 done
 
 [[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
-for owner in event-rule profile-rule root-install wifi-rule \
+for owner in event-rule profile-rule root-install unmount-fuse wifi-rule \
   hibernation/available hibernation/install-root hibernation/remove \
   hibernation/root hibernation/setup; do
   [[ -x $root/qvcore/power/$owner ]] || fail "power event owner mode: $owner"
@@ -96,6 +96,11 @@ for helper in profiles-set supply-lib wifi-powersave; do
   grep -Fq "install_system_helper $helper" "$root/qvcore/power/root-install" ||
     fail "root helper installer omits $helper"
 done
+grep -Fq 'qvos-unmount-fuse' "$root/qvcore/power/root-install" ||
+  fail "root helper installer omits the native FUSE sleep hook"
+grep -Fq 'ab7034106e456e93dfb01c6948706c0bfcf0f19e6c9b4c2335b5fb1b3e7ec177' \
+  "$root/qvcore/power/root-install" ||
+  fail "native FUSE sleep hook omits exact inherited cleanup"
 grep -Fq '/usr/lib/qvos/power/profiles-set' "$root/qvcore/power/event-rule" ||
   fail "power-profile rule bypasses its root-owned helper"
 grep -Fq '/usr/lib/qvos/power/wifi-powersave' "$root/qvcore/power/event-rule" ||
@@ -142,9 +147,11 @@ grep -Fq '"${system_root:-/}" "$etc_root" "$run_root"' \
 
 retired_manifest="$root/qvcore/power/retired-paths"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  "default/systemd/system-sleep/keyboard-backlight" ]] ||
+  $'default/systemd/system-sleep/keyboard-backlight\ndefault/systemd/system-sleep/unmount-fuse' ]] ||
   fail "retired hibernation payload inventory"
-[[ ! -e $root/default/systemd/system-sleep/keyboard-backlight ]] ||
-  fail "retired hibernation payload remains"
+for retired in keyboard-backlight unmount-fuse; do
+  [[ ! -e $root/default/systemd/system-sleep/$retired ]] ||
+    fail "retired power sleep payload remains: $retired"
+done
 
 printf 'ok - qvOS owns power telemetry, profiles, sleep guards, and system power\n'

@@ -2,5 +2,8 @@
 # qvcore/boot. No installed or update lifecycle may depend on this prefix.
 bin/omarchy-npx-install
 bin/omarchy-remove-preinstalls
+default/gpg/
 default/nautilus-python/
+default/systemd/faster-shutdown.conf
+default/systemd/user@.service.d/faster-shutdown.conf
 install/

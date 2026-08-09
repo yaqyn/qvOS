@@ -63,6 +63,7 @@
     qvcore/install/cleanup-obsolete
     qvcore/install/migrate-structure
     qvcore/install/post-update-hook
+    qvcore/install/retire-inherited-system-policy
     qvcore/config/migrate-runtime-root
     qvcore/config/retired-hypr-layer.psv
     qvcore/config/files/xcompose
@@ -122,6 +123,7 @@
     qvcore/power/root-install
     qvcore/power/supply-lib
     qvcore/power/suspend-if-safe
+    qvcore/power/unmount-fuse
     qvcore/power/wifi-powersave
     qvcore/power/wifi-rule
     qvcore/screensaver/alacritty.toml

@@ -161,6 +161,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   by the Limine/Snapper boot owner; `default/snapper/` is retired
 - `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
   `default/udev/` is retired
+- `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook;
+  inherited global GnuPG and five-second shutdown policy are retired rather
+  than carried into qvOS
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes

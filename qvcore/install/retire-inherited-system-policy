@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
+system_root=${QVOS_INSTALL_POLICY_SYSTEM_ROOT:-}
+testing=${QVOS_INSTALL_POLICY_TESTING:-}
+systemctl_command=${QVOS_INSTALL_SYSTEMCTL:-/usr/bin/systemctl}
+gpgconf_command=${QVOS_INSTALL_GPGCONF:-/usr/bin/gpgconf}
+expected_uid=0
+expected_gid=0
+transaction_active=false
+
+declare -A expected_hashes=(
+  [etc/gnupg/dirmngr.conf]=9086469592ff80cd4f147dcc7873959a7016a5dcbe5cdb39c03ec57adb6e7eef
+  [etc/systemd/system.conf.d/10-faster-shutdown.conf]=dbd88d8f4f55a28d51b19fb6ccb2679ad14f07041192e0dac1eceb5b66b06f35
+  [etc/systemd/system/user@.service.d/faster-shutdown.conf]=1dd0343bcd5a30b8309f5eb07527da1d64f6c9a8e93d909a6ac050d926d65796
+)
+systemd_policies=(
+  etc/systemd/system.conf.d/10-faster-shutdown.conf
+  etc/systemd/system/user@.service.d/faster-shutdown.conf
+)
+moved_policies=()
+
+fail() {
+  printf 'qvOS inherited system-policy cleanup: %s\n' "$1" >&2
+  exit 1
+}
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+safe_parent() {
+  local path=$1
+  local parent=${path%/*}
+  local mode
+
+  [[ -d $parent && ! -L $parent ]] || return 1
+  [[ $(/usr/bin/realpath -m -- "$parent") == "$parent" ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$parent") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$parent") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+policy_path_is_exact() {
+  local path=$1
+  local relative=$2
+  local hash
+
+  safe_parent "$path" || return 1
+  [[ -f $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+    "$expected_uid:$expected_gid:644" ]] || return 1
+  hash=$(/usr/bin/sha256sum -- "$path")
+  hash=${hash%% *}
+  [[ $hash == "${expected_hashes[$relative]}" ]]
+}
+
+policy_is_exact() {
+  local relative=$1
+
+  policy_path_is_exact "$system_root/$relative" "$relative"
+}
+
+recovery_is_exact() {
+  local relative=$1
+  local path="$system_root/$relative"
+  local backup="$path.qvos-retirement-backup"
+
+  [[ ! -e $path && ! -L $path ]] || return 1
+  policy_path_is_exact "$backup" "$relative"
+}
+
+has_actionable_policy() {
+  local relative
+
+  policy_is_exact etc/gnupg/dirmngr.conf && return 0
+  for relative in "${systemd_policies[@]}"; do
+    policy_is_exact "$relative" && return 0
+    recovery_is_exact "$relative" && return 0
+  done
+  return 1
+}
+
+has_actionable_systemd_policy() {
+  local relative
+
+  for relative in "${systemd_policies[@]}"; do
+    policy_is_exact "$relative" && return 0
+    recovery_is_exact "$relative" && return 0
+  done
+  return 1
+}
+
+validate_command() {
+  local command_path=$1
+
+  [[ $command_path == /* && -x $command_path && -f $command_path &&
+    ! -L $command_path ]] ||
+    fail "required command is unavailable or unsafe: $command_path"
+  if [[ $command_path != "/usr/bin/systemctl" &&
+    $command_path != "/usr/bin/gpgconf" ]]; then
+    [[ $testing == "1" && $command_path == /tmp/* ]] ||
+      fail "command overrides are valid only in tests beneath /tmp"
+  fi
+}
+
+restore_systemd_transaction() {
+  local relative
+  local path
+  local backup
+  local restored=false
+
+  [[ $transaction_active == "true" ]] || return 0
+  for relative in "${moved_policies[@]}"; do
+    path="$system_root/$relative"
+    backup="$path.qvos-retirement-backup"
+    [[ -e $backup || -L $backup ]] || continue
+    if [[ -e $path || -L $path ]]; then
+      printf 'Refusing to overwrite a concurrent system policy: %s\n' \
+        "$path" >&2
+      continue
+    fi
+    /usr/bin/mv -- "$backup" "$path"
+    restored=true
+  done
+  if [[ $restored == "true" ]]; then
+    "$systemctl_command" daemon-reload >/dev/null 2>&1 ||
+      printf 'Could not reload systemd after restoring inherited policy.\n' >&2
+  fi
+}
+
+trap restore_systemd_transaction EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if [[ -z $system_root && $EUID != 0 ]]; then
+  has_actionable_policy || exit 0
+  exec /usr/bin/sudo -- "$script_path"
+fi
+
+gpg_policy=etc/gnupg/dirmngr.conf
+if [[ -e $system_root/$gpg_policy || -L $system_root/$gpg_policy ]]; then
+  if policy_is_exact "$gpg_policy"; then
+    validate_command "$gpgconf_command"
+    /usr/bin/rm -f -- "$system_root/$gpg_policy"
+    if ! "$gpgconf_command" --kill dirmngr; then
+      printf 'Removed inherited GnuPG policy, but could not stop dirmngr.\n' >&2
+    fi
+  else
+    printf 'Preserving modified or unsafe inherited system policy: %s\n' \
+      "$system_root/$gpg_policy" >&2
+  fi
+fi
+
+if has_actionable_systemd_policy; then
+  validate_command "$systemctl_command"
+  transaction_active=true
+fi
+for relative in "${systemd_policies[@]}"; do
+  path="$system_root/$relative"
+  backup="$path.qvos-retirement-backup"
+  if recovery_is_exact "$relative"; then
+    moved_policies+=("$relative")
+    continue
+  fi
+  [[ -e $path || -L $path ]] || continue
+  if ! policy_is_exact "$relative"; then
+    printf 'Preserving modified or unsafe inherited system policy: %s\n' \
+      "$path" >&2
+    continue
+  fi
+  if [[ -e $backup || -L $backup ]]; then
+    fail "refusing an occupied system-policy recovery path: $backup"
+  fi
+  /usr/bin/mv -- "$path" "$backup"
+  moved_policies+=("$relative")
+done
+
+if ((${#moved_policies[@]} > 0)); then
+  if ! "$systemctl_command" daemon-reload; then
+    fail "could not load the default systemd timeout policy"
+  fi
+  transaction_active=false
+  for relative in "${moved_policies[@]}"; do
+    /usr/bin/rm -f -- "$system_root/$relative.qvos-retirement-backup"
+  done
+fi
+transaction_active=false
+
+trap - EXIT HUP INT TERM

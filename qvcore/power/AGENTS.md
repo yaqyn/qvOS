@@ -54,6 +54,12 @@ runtime directory. Test roots require
 `QVOS_POWER_TESTING=1`. Native qvOS consumers use `qv-*` routes. Sleep-inhibit
 and automatic-suspend runtime links resolve to one copied power owner; retain
 exact `omarchy-*` links only for external and saved-session compatibility.
+`unmount-fuse` is the singular system-sleep owner for lazily unmounting gvfs
+before sleep and restarting it after wake. `root-install` deploys its fixed
+root-owned copy as `/usr/lib/systemd/system-sleep/qvos-unmount-fuse`; it removes
+the inherited `unmount-fuse` name only when its mode, owner, and payload hash
+all match the reviewed predecessor, and preserves every modified or unsafe
+file.
 
 ## Hibernation
 
