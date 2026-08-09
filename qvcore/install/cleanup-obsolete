@@ -80,6 +80,26 @@ cleanup_retired_logo_font() {
 
 cleanup_retired_logo_font
 
+cleanup_retired_command_links() {
+  local command_name
+  local expected_target
+  local target
+
+  for command_name in \
+    omarchy-qvos-doctor \
+    omarchy-qvos-reconcile \
+    omarchy-qvos-update; do
+    target="$HOME/.local/bin/$command_name"
+    expected_target="$HOME/.local/share/qvos/bin/$command_name"
+    if [[ -L $target && $(readlink -- "$target") == "$expected_target" &&
+      ! -e $target ]]; then
+      rm -f -- "$target"
+    fi
+  done
+}
+
+cleanup_retired_command_links
+
 cleanup_retired_nautilus_extension() {
   local expected_hash=$1
   local extension_name=$2

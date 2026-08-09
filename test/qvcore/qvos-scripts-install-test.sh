@@ -102,6 +102,31 @@ HOME="$linked_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
   -f $linked_font_target ]] || fail "linked Waybar logo-font preservation"
 pass "linked retired Waybar logo font is preserved"
 
+retired_command_home="$test_root/retired-command-home"
+install -d "$retired_command_home/.local/bin"
+for retired_command in \
+  omarchy-qvos-doctor \
+  omarchy-qvos-reconcile \
+  omarchy-qvos-update; do
+  ln -s "$retired_command_home/.local/share/qvos/bin/$retired_command" \
+    "$retired_command_home/.local/bin/$retired_command"
+done
+ln -s "$retired_command_home/missing-custom-owner" \
+  "$retired_command_home/.local/bin/omarchy-qvos-custom"
+HOME="$retired_command_home" QVOS_PATH="$root" \
+  "$root/qvcore/install/cleanup-obsolete"
+for retired_command in \
+  omarchy-qvos-doctor \
+  omarchy-qvos-reconcile \
+  omarchy-qvos-update; do
+  [[ ! -e $retired_command_home/.local/bin/$retired_command &&
+    ! -L $retired_command_home/.local/bin/$retired_command ]] ||
+    fail "exact retired command link cleanup: $retired_command"
+done
+[[ -L $retired_command_home/.local/bin/omarchy-qvos-custom ]] ||
+  fail "foreign broken command link preservation"
+pass "retired maintenance aliases are removed without claiming foreign links"
+
 unsafe_cleanup_home="$test_root/unsafe-cleanup-home"
 unsafe_nautilus_target="$test_root/foreign-nautilus"
 install -d \
@@ -222,6 +247,17 @@ fi
   fail "screensaver runtime rollback residue"
 pass "failed screensaver replacement restores the complete prior runtime"
 
+modified_screensaver_home="$test_root/modified-screensaver-home"
+install -d "$modified_screensaver_home/.local/lib/qvos/bin"
+printf 'custom compatibility wrapper\n' \
+  >"$modified_screensaver_home/.local/lib/qvos/bin/omarchy-launch-screensaver"
+HOME="$modified_screensaver_home" QVOS_PATH="$root" \
+  "$root/qvcore/screensaver/install" >/dev/null 2>&1
+[[ $(<"$modified_screensaver_home/.local/lib/qvos/bin/omarchy-launch-screensaver") == \
+  "custom compatibility wrapper" ]] ||
+  fail "modified screensaver compatibility wrapper preservation"
+pass "modified screensaver runtime compatibility remains user-owned"
+
 downstream_failure_home="$test_root/downstream-failure-home"
 power_blocker="$test_root/power-blocker"
 install -d "$downstream_failure_home/.local/lib/qvos/screensaver"
@@ -251,8 +287,6 @@ for command_name in \
     fail "downstream failure left an incomplete $command_name"
 done
 for alias_entry in \
-  omarchy-launch-screensaver:qvos-launch-screensaver \
-  omarchy-screensaver:qvos-screensaver \
   qv-launch-screensaver:qvos-launch-screensaver \
   qv-screensaver:qvos-screensaver; do
   alias_name=${alias_entry%%:*}
@@ -260,6 +294,11 @@ for alias_entry in \
   [[ $(readlink "$downstream_failure_home/.local/bin/$alias_name") == \
     "$downstream_failure_home/.local/lib/qvos/bin/$owner_name" ]] ||
     fail "downstream failure left an incomplete $alias_name"
+done
+for retired_alias in omarchy-launch-screensaver omarchy-screensaver; do
+  [[ ! -e $downstream_failure_home/.local/bin/$retired_alias &&
+    ! -L $downstream_failure_home/.local/bin/$retired_alias ]] ||
+    fail "downstream failure restored retired $retired_alias"
 done
 pass "later privileged failures cannot break the screensaver runtime"
 
@@ -269,6 +308,7 @@ install -d \
   "$test_root/.local/share/dbus-1/services" \
   "$test_root/.local/share/applications" \
   "$test_root/.local/share/nautilus-python/extensions/__pycache__" \
+  "$test_root/.local/bin" \
   "$test_root/.local/lib/qvos/bin" \
   "$test_root/.local/lib/qvos/defaults/thunarx-3" \
   "$test_root/.local/lib/qvos/desktop/context" \
@@ -276,6 +316,35 @@ install -d \
   "$test_root/.local/lib/qvos/thunar" \
   "$test_root/.local/lib/qvos/tmux" \
   "$test_root/.local/lib/qvos/waybar"
+install -m 0755 /dev/stdin \
+  "$test_root/.local/lib/qvos/bin/omarchy-launch-screensaver" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+# omarchy:summary=Launch the qvOS screensaver
+# omarchy:args=[force]
+
+launcher="$HOME/.local/lib/qvos/bin/qvos-launch-screensaver"
+
+if [[ ! -x $launcher ]]; then
+  printf 'omarchy-launch-screensaver: launcher is missing: %s\n' "$launcher" >&2
+  exit 1
+fi
+
+exec "$launcher" "$@"
+SCRIPT
+[[ $(sha256sum "$test_root/.local/lib/qvos/bin/omarchy-launch-screensaver" |
+  cut -d ' ' -f 1) == \
+  "48ddc02d70230fbe7d18d8329a5caeb0e23b40591a23662bca328cefdc26eb76" ]] ||
+  fail "retired screensaver runtime fixture"
+for retired_alias_entry in \
+  omarchy-launch-screensaver:qvos-launch-screensaver \
+  omarchy-screensaver:qvos-screensaver; do
+  alias_name=${retired_alias_entry%%:*}
+  owner_name=${retired_alias_entry#*:}
+  ln -s "$test_root/.local/lib/qvos/bin/$owner_name" \
+    "$test_root/.local/bin/$alias_name"
+done
 touch \
   "$test_root/.local/lib/qvos/desktop/context/removed-helper" \
   "$test_root/.local/lib/qvos/screensaver/removed-launcher" \
@@ -607,8 +676,6 @@ for command_name in qvos-launch-screensaver qvos-screensaver; do
   [[ "$(readlink "$test_root/.local/bin/$command_name")" == "$installed_command" ]] || fail "$command_name link"
 done
 for alias_entry in \
-  omarchy-launch-screensaver:qvos-launch-screensaver \
-  omarchy-screensaver:qvos-screensaver \
   qv-launch-screensaver:qvos-launch-screensaver \
   qv-screensaver:qvos-screensaver; do
   alias_name=${alias_entry%%:*}
@@ -617,11 +684,17 @@ for alias_entry in \
     "$test_root/.local/lib/qvos/bin/$owner_name" ]] ||
     fail "$alias_name runtime owner"
 done
+for retired_alias in omarchy-launch-screensaver omarchy-screensaver; do
+  [[ ! -e $test_root/.local/bin/$retired_alias &&
+    ! -L $test_root/.local/bin/$retired_alias ]] ||
+    fail "$retired_alias runtime alias cleanup"
+done
+[[ ! -e $test_root/.local/lib/qvos/bin/omarchy-launch-screensaver &&
+  ! -L $test_root/.local/lib/qvos/bin/omarchy-launch-screensaver ]] ||
+  fail "retired copied screensaver adapter cleanup"
 pass "screensaver commands and user links are installed"
 
 for command_name in \
-  omarchy-system-inhibit-sleep \
-  omarchy-system-suspend-if-safe \
   qv-system-inhibit-sleep \
   qv-system-suspend-if-safe; do
   command_path="$test_root/.local/lib/qvos/bin/$command_name"
@@ -632,7 +705,14 @@ for command_name in \
   [[ $(readlink -- "$command_path") == "../power/$owner" ]] ||
     fail "$command_name runtime owner"
 done
-pass "native power guards and exact compatibility links share runtime owners"
+for retired_command in \
+  omarchy-system-inhibit-sleep \
+  omarchy-system-suspend-if-safe; do
+  [[ ! -e $test_root/.local/lib/qvos/bin/$retired_command &&
+    ! -L $test_root/.local/lib/qvos/bin/$retired_command ]] ||
+    fail "retired power runtime link cleanup: $retired_command"
+done
+pass "native power guards have one installed runtime owner"
 
 for runtime_file in \
   battery-protection \

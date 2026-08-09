@@ -182,6 +182,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   native autostart call only `qv-hyprland-*` routes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   inherited unit names are migration input only
+- qvOS-managed installed runtime command trees expose only native names. Exact
+  retired Omarchy aliases may be removed after active configuration migrates;
+  modified user files remain preserved, and thin source adapters remain the
+  bounded external compatibility surface
 - desktop application, browser, web-app, and terminal launching belongs to
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;

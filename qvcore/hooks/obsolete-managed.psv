@@ -1,4 +1,5 @@
-# relative-path|native-owner|accepted-historical-sha256
-post-update.d/qvos-base|qvcore/install/post-update-hook|9ad1aa99b80b15b72d9345e83b3570dffdeda65ffccdf36b61dde4f7ea596c92
-post-update.d/qvos-direct-tools|qvcore/direct/post-update-hook|-
-post-update.d/qvos-waybar-overrides|qvcore/waybar/post-update-hook|-
+# relative-path|native-owner|accepted-historical-sha256|mismatch-policy
+post-update|qvcore/install/post-update-hook|51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc|preserve
+post-update.d/qvos-base|qvcore/install/post-update-hook|9ad1aa99b80b15b72d9345e83b3570dffdeda65ffccdf36b61dde4f7ea596c92|fail
+post-update.d/qvos-direct-tools|qvcore/direct/post-update-hook|-|fail
+post-update.d/qvos-waybar-overrides|qvcore/waybar/post-update-hook|-|fail

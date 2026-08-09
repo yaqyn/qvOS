@@ -21,6 +21,11 @@ expected=$'bin/omarchy-hook\nbin/omarchy-hook-install'
 for owner in lib run install reconcile; do
   [[ -x $root/qvcore/hooks/$owner ]] || fail "hook owner mode: $owner"
 done
+grep -Fq 'mismatch_policy == "preserve"' "$root/qvcore/hooks/reconcile" ||
+  fail "optional obsolete-hook preservation policy"
+grep -Fq 'post-update|qvcore/install/post-update-hook|51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc|preserve' \
+  "$root/qvcore/hooks/obsolete-managed.psv" ||
+  fail "retired qvOS main post-update hook inventory"
 # shellcheck disable=SC2016
 grep -Fq 'ln -- "$temporary" "$target"' "$root/qvcore/hooks/lib" ||
   fail "hook installation lacks an atomic no-clobber commit"

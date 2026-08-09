@@ -20,11 +20,14 @@ commands=(
   qvos-screensaver
 )
 aliases=(
-  omarchy-launch-screensaver:qvos-launch-screensaver
-  omarchy-screensaver:qvos-screensaver
   qv-launch-screensaver:qvos-launch-screensaver
   qv-screensaver:qvos-screensaver
 )
+retired_aliases=(
+  omarchy-launch-screensaver:qvos-launch-screensaver
+  omarchy-screensaver:qvos-screensaver
+)
+retired_runtime_hash=48ddc02d70230fbe7d18d8329a5caeb0e23b40591a23662bca328cefdc26eb76
 
 cleanup() {
   local status=$?
@@ -67,6 +70,36 @@ done
 }
 
 install -d "$runtime_root" "$qvos_bin" "$local_bin"
+
+retired_runtime="$qvos_bin/omarchy-launch-screensaver"
+if [[ -e $retired_runtime || -L $retired_runtime ]]; then
+  if [[ -L $retired_runtime &&
+    $(readlink -- "$retired_runtime") == "qvos-launch-screensaver" ]]; then
+    rm -f -- "$retired_runtime"
+  elif [[ -f $retired_runtime && ! -L $retired_runtime && -O $retired_runtime ]]; then
+    runtime_hash=$(sha256sum -- "$retired_runtime")
+    runtime_hash=${runtime_hash%% *}
+    if [[ $runtime_hash == "$retired_runtime_hash" ]]; then
+      rm -f -- "$retired_runtime"
+    else
+      printf 'Preserving modified screensaver runtime command: %s\n' \
+        "$retired_runtime" >&2
+    fi
+  else
+    printf 'Preserving unsafe screensaver runtime command: %s\n' \
+      "$retired_runtime" >&2
+  fi
+fi
+
+for alias_entry in "${retired_aliases[@]}"; do
+  alias_name=${alias_entry%%:*}
+  owner_name=${alias_entry#*:}
+  alias_path="$local_bin/$alias_name"
+  if [[ -L $alias_path &&
+    $(readlink -- "$alias_path") == "$qvos_bin/$owner_name" ]]; then
+    rm -f -- "$alias_path"
+  fi
+done
 
 staged_config=$(mktemp -d "$runtime_root/.screensaver.XXXXXX")
 for config_name in "${configs[@]}"; do

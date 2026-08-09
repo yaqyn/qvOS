@@ -99,13 +99,20 @@ grep -Fqx '    on-timeout = pidof hyprlock || ~/.local/lib/qvos/bin/qvos-launch-
   fail "installed idle config bypasses the native runtime owner"
 
 for alias_entry in \
-  omarchy-launch-screensaver:qvos-launch-screensaver \
-  omarchy-screensaver:qvos-screensaver \
   qv-launch-screensaver:qvos-launch-screensaver \
   qv-screensaver:qvos-screensaver; do
   grep -Fqx "  $alias_entry" "$root/qvcore/screensaver/install" ||
     fail "screensaver runtime alias is missing: $alias_entry"
 done
+for retired_alias in \
+  omarchy-launch-screensaver:qvos-launch-screensaver \
+  omarchy-screensaver:qvos-screensaver; do
+  grep -Fqx "  $retired_alias" "$root/qvcore/screensaver/install" ||
+    fail "screensaver retired runtime alias is not recognized: $retired_alias"
+done
+grep -Fq '48ddc02d70230fbe7d18d8329a5caeb0e23b40591a23662bca328cefdc26eb76' \
+  "$root/qvcore/screensaver/install" ||
+  fail "screensaver copied compatibility adapter cleanup hash"
 if rg -n 'omarchy-((launch-)?screensaver|toggle-screensaver)([^[:alnum:]_-]|$)' \
   "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \

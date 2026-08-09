@@ -61,6 +61,9 @@ The former Omarchy logo font is not a qvOS theme asset: its only consumer was
 the retired Waybar branding glyph. Keep it absent from fresh installation and
 remove an installed copy only when its exact historical hash matches; preserve
 modified files, links, and foreign fonts.
+Remove the three retired qvOS maintenance aliases only when they are exact
+broken links to their absent historical source commands; preserve every other
+local command or target.
 Do not install a global GnuPG resolver policy or force five-second system and
 user service shutdown timeouts. The native retirement owner removes only exact
 reviewed predecessors, loads the restored systemd defaults transactionally,

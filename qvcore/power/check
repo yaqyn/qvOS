@@ -98,6 +98,12 @@ for helper in profiles-set supply-lib wifi-powersave; do
 done
 grep -Fq 'qvos-unmount-fuse' "$root/qvcore/power/root-install" ||
   fail "root helper installer omits the native FUSE sleep hook"
+for retired_runtime in \
+  omarchy-system-inhibit-sleep \
+  omarchy-system-suspend-if-safe; do
+  grep -Fq "  [$retired_runtime]=" "$root/qvcore/power/install" ||
+    fail "retired sleep-guard runtime is not recognized: $retired_runtime"
+done
 grep -Fq 'ab7034106e456e93dfb01c6948706c0bfcf0f19e6c9b4c2335b5fb1b3e7ec177' \
   "$root/qvcore/power/root-install" ||
   fail "native FUSE sleep hook omits exact inherited cleanup"

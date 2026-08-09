@@ -52,8 +52,9 @@ remaining time, monitoring samples, and status without repeating device
 queries. Low-battery notification state lives only in the validated user
 runtime directory. Test roots require
 `QVOS_POWER_TESTING=1`. Native qvOS consumers use `qv-*` routes. Sleep-inhibit
-and automatic-suspend runtime links resolve to one copied power owner; retain
-exact `omarchy-*` links only for external and saved-session compatibility.
+and automatic-suspend runtime links resolve to one copied power owner. Retire
+exact runtime `omarchy-*` links after saved configurations migrate; their thin
+source adapters remain the sole external compatibility boundary.
 `unmount-fuse` is the singular system-sleep owner for lazily unmounting gvfs
 before sleep and restarting it after wake. `root-install` deploys its fixed
 root-owned copy as `/usr/lib/systemd/system-sleep/qvos-unmount-fuse`; it removes

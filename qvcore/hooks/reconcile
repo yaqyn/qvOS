@@ -42,9 +42,10 @@ fi
 working_root=$qvos_hooks_root
 [[ $legacy_exists == "false" ]] || working_root=$qvos_hooks_legacy_root
 if [[ -d $working_root ]]; then
-  while IFS='|' read -r relative owner allowed extra; do
+  while IFS='|' read -r relative owner allowed mismatch_policy extra; do
     [[ -z $relative || $relative == \#* ]] && continue
     [[ -n $owner && -n $allowed && -z ${extra:-} &&
+      ($mismatch_policy == "fail" || $mismatch_policy == "preserve") &&
       $relative =~ ^[a-z0-9][a-z0-9._/-]*$ && $relative != *..* &&
       $owner =~ ^qvcore/[a-z0-9][a-z0-9._/-]*$ && $owner != *..* ]] || {
       qvos_hooks_error "invalid obsolete-hook catalog row: $relative"
@@ -60,7 +61,10 @@ if [[ -d $working_root ]]; then
     target_hash=${target_hash%% *}
     owner_hash=$(sha256sum -- "$QVOS_PATH/$owner")
     owner_hash=${owner_hash%% *}
-    if [[ $target_hash != "$owner_hash" && " $allowed " != *" $target_hash "* ]]; then
+    if [[ $target_hash != "$owner_hash" && " $allowed " != *" $target_hash "* ]] &&
+      [[ $mismatch_policy == "preserve" ]]; then
+      continue
+    elif [[ $target_hash != "$owner_hash" && " $allowed " != *" $target_hash "* ]]; then
       qvos_hooks_error "modified former managed hook requires review: $target"
       exit 1
     fi

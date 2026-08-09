@@ -283,6 +283,13 @@ done
 grep -Fq 'e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966' \
   "$root/qvcore/install/cleanup-obsolete" ||
   fail "retired Waybar logo-font cleanup hash"
+for retired_command in \
+  omarchy-qvos-doctor \
+  omarchy-qvos-reconcile \
+  omarchy-qvos-update; do
+  grep -Fq "$retired_command" "$root/qvcore/install/cleanup-obsolete" ||
+    fail "retired qvOS maintenance alias cleanup: $retired_command"
+done
 for package_stage in preflight/pacman.sh post-install/pacman.sh; do
   grep -Fq 'qvcore/packages/provider-files' \
     "$root/qvcore/install/$package_stage" ||

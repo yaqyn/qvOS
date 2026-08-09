@@ -78,6 +78,31 @@ done
 run_reconcile --check >/dev/null
 printf 'ok - legacy custom hooks migrate without retaining qvOS system-job copies\n'
 
+retired_main_home="$test_root/retired-main-home"
+retired_main="$retired_main_home/.config/qvos/hooks/post-update"
+install -d "${retired_main%/*}"
+install -m 0755 /dev/stdin "$retired_main" <<'SCRIPT'
+#!/bin/bash
+# qvOS created post-update hook
+
+# qvOS reconcile begin
+qvos_reconcile="$HOME/.local/share/qvos/bin/omarchy-qvos-reconcile"
+if [[ -x $qvos_reconcile ]]; then
+  "$qvos_reconcile" --quiet
+elif command -v omarchy-qvos-reconcile >/dev/null 2>&1; then
+  omarchy-qvos-reconcile --quiet
+fi
+# qvOS reconcile end
+SCRIPT
+[[ $(sha256sum "$retired_main" | cut -d ' ' -f 1) == \
+  "51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc" ]] ||
+  fail "retired main hook fixture"
+HOME="$retired_main_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" >/dev/null
+[[ ! -e $retired_main && ! -L $retired_main ]] ||
+  fail "retired qvOS-created main post-update hook cleanup"
+printf 'ok - exact retired main hook is removed without claiming custom automation\n'
+
 : >"$events"
 HOME="$test_home" QVOS_PATH="$root" QVOS_HOOK_TEST_LOG="$events" \
   "$root/bin/qv-hook" font-set "MesloLGL Nerd Font"

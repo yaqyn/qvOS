@@ -18,7 +18,9 @@ are metadata-free compatibility adapters only.
 - `reconcile` atomically adopts one safe legacy Omarchy hook tree only when the
   canonical tree is absent, installs missing qvOS samples without overwriting
   custom files, removes only allowlisted exact historical qvOS-managed hook
-  copies, and rewrites only the exact inherited post-boot invocation.
+  copies, and rewrites only the exact inherited post-boot invocation. An exact
+  retired qvOS-created main post-update hook may be removed, but a different
+  main hook is personal automation and must be preserved.
 - qvOS-owned post-update jobs execute directly from their feature owners.
   Never copy system behavior into the user-writable custom hook tree.
 - Native consumers decide whether a custom-hook failure is fatal. Font,

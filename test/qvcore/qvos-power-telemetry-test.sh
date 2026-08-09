@@ -99,13 +99,31 @@ QVOS_POWER_TESTING=1 \
 QVOS_POWER_SYSTEM_ROOT="$test_root/legacy-system" \
   "$root/qvcore/power/install"
 for command_name in \
-  omarchy-system-inhibit-sleep \
-  omarchy-system-suspend-if-safe \
   qv-system-inhibit-sleep \
   qv-system-suspend-if-safe; do
   [[ -L $legacy_bin/$command_name ]] ||
-    fail "legacy sleep owner conversion: $command_name"
+    fail "native sleep owner conversion: $command_name"
 done
+for retired_command in \
+  omarchy-system-inhibit-sleep \
+  omarchy-system-suspend-if-safe; do
+  [[ ! -e $legacy_bin/$retired_command && ! -L $legacy_bin/$retired_command ]] ||
+    fail "retired sleep owner cleanup: $retired_command"
+done
+
+custom_legacy_home="$test_root/custom-legacy-home"
+custom_legacy_command="$custom_legacy_home/.local/lib/qvos/bin/omarchy-system-inhibit-sleep"
+install -D -m 0755 /dev/stdin "$custom_legacy_command" <<'SCRIPT'
+#!/bin/bash
+echo "custom sleep wrapper"
+SCRIPT
+HOME="$custom_legacy_home" \
+QVOS_PATH="$root" \
+QVOS_POWER_TESTING=1 \
+QVOS_POWER_SYSTEM_ROOT="$test_root/custom-legacy-system" \
+  "$root/qvcore/power/install" 2>/dev/null
+grep -Fqx 'echo "custom sleep wrapper"' "$custom_legacy_command" ||
+  fail "modified compatibility sleep wrapper preservation"
 
 modified_home="$test_root/modified-home"
 modified_command="$modified_home/.local/lib/qvos/bin/qv-system-inhibit-sleep"
