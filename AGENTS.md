@@ -148,6 +148,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   graphical wordmark and terminal composition are intentionally distinct
 - `qvcore/config/toggles/` owns toggle templates; active toggle state lives
   privately under `~/.local/state/qvos/toggles`
+- `qvcore/controls/notification/mako-core.ini` owns shared Mako policy;
+  `qvcore/software/voxtype-config.toml` owns the optional Voxtype seed
 - `qvcore/hooks/` owns custom automation under `~/.config/qvos/hooks`; qvOS
   system jobs execute from their tracked feature owners, never user copies
 - `qvcore/desktop/session/` owns native lock, logout, and wake behavior;

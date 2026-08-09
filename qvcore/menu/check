@@ -45,7 +45,7 @@ done
 if rg -n 'omarchy-(launch-walker|menu-(file|input|keybindings|select|share)|qvos-share|refresh-walker)' \
   "$root/bin/omarchy-menu" \
   "$root/qvcore/config/files/hypr/bindings.conf" \
-  "$root/default/mako/core.ini" \
+  "$root/qvcore/controls/notification/mako-core.ini" \
   "$root/qvcore/branding" \
   "$root/qvcore/desktop" \
   "$root/qvcore/menu" \

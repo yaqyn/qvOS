@@ -12,4 +12,3 @@ bin/omarchy-voxtype-install
 bin/omarchy-voxtype-model
 bin/omarchy-voxtype-remove
 bin/omarchy-voxtype-status
-default/mako/core.ini

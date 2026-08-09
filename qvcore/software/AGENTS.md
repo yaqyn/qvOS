@@ -19,6 +19,9 @@ downloads, launches, or reboot handoff.
 - Preserve existing user configuration. Install defaults only when their exact
   destination is absent; application-specific theme owners may update only
   their declared theme fields.
+- The Voxtype configuration seed lives only at
+  `qvcore/software/voxtype-config.toml`; `default/voxtype/` is retired. Never
+  install that seed unless the user's exact configuration path is absent.
 - Terminal installation delegates default selection to `qv-default-terminal`,
   copies only a missing approved config and desktop entry, and never writes the
   XDG terminal preference itself. The optional Foot desktop entry lives only at

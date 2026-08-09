@@ -97,6 +97,12 @@ done
 cmp -s "$yaqyn_background" "$yaqyn_preview" ||
   fail "Yaqyn background and preview differ"
 
+mako_include='include=~/.local/share/qvos/qvcore/controls/notification/mako-core.ini'
+grep -Fqx "$mako_include" "$root/qvcore/theme/yaqyn/mako.ini" ||
+  fail "Yaqyn bypasses the native Mako policy"
+grep -Fqx "$mako_include" "$root/default/themed/mako.ini.tpl" ||
+  fail "compatible themes bypass the native Mako policy"
+
 for inventory in "$native_manifest" "$retired_manifest"; do
   [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
     sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u

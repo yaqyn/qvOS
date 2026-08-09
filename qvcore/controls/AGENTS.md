@@ -10,6 +10,11 @@ adapters only. qvOS bindings and native owners call the native command or
 owner. Keep the focused-monitor lookup as a reviewed inherited Hyprland ABI
 until that complete domain moves.
 
+`qvcore/controls/notification/mako-core.ini` is the singular shared Mako
+policy included by Yaqyn and compatible custom-theme templates. It may call
+only native qvOS routes. `default/mako/` is retired and listed in this owner's
+`retired-paths` manifest.
+
 Validate bounded values before hardware or session mutation, preserve exact
 arguments, and fail clearly when no compatible device exists. Treat hardware
 LED feedback as best effort only after the real audio mutation succeeds. Use
@@ -21,7 +26,8 @@ Notification silencing reads the current Mako mode, toggles exactly
 Notify and refresh the Waybar indicator only after the state is verified; both
 are best-effort presentation, not evidence of mutation success.
 
-List every promoted inherited route in `native-paths`, sorted and unique. Run
+List every promoted inherited route in `native-paths` and every removed source
+prefix in `retired-paths`, sorted and unique. Run
 `qvcore/controls/check`, the focused controls suite, binding/config checks,
 Bash syntax and ShellCheck, then the full qvOS suite. Hardware fixtures use
 `QVOS_CONTROLS_TESTING=1`; never point a test override at live sysfs or device

@@ -1,4 +1,4 @@
-include=~/.local/share/qvos/default/mako/core.ini
+include=~/.local/share/qvos/qvcore/controls/notification/mako-core.ini
 
 text-color={{ foreground }}
 border-color={{ accent }}

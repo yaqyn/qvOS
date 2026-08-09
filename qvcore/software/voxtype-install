@@ -30,7 +30,7 @@ config_file="$HOME/.config/voxtype/config.toml"
 
 qv-pkg-add voxtype-bin
 if [[ ! -e $config_file ]]; then
-  install -D -m 0644 "$QVOS_PATH/default/voxtype/config.toml" "$config_file"
+  install -D -m 0644 "$QVOS_PATH/qvcore/software/voxtype-config.toml" "$config_file"
 else
   echo "Preserving existing Voxtype configuration."
 fi

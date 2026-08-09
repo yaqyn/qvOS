@@ -16,7 +16,6 @@ fail() {
 
 install -d \
   "$fixture/bin" \
-  "$fixture/default/voxtype" \
   "$fixture/qvcore/software" \
   "$fixture/qvcore/theme" \
   "$test_bin"
@@ -47,7 +46,7 @@ for owner in \
   voxtype-status; do
   install -m 0755 "$root/qvcore/software/$owner" "$fixture/qvcore/software/$owner"
 done
-printf 'language = "en"\n' >"$fixture/default/voxtype/config.toml"
+printf 'language = "en"\n' >"$fixture/qvcore/software/voxtype-config.toml"
 install -m 0755 /dev/stdin "$fixture/qvcore/theme/install-vscode" <<'STUB'
 #!/bin/bash
 printf 'install-vscode-theme\n' >>"$QVOS_TEST_ACTION_LOG"
@@ -194,6 +193,13 @@ grep -Fqx 'pkg-add:voxtype-bin' "$action_log" ||
 if grep -Fq 'pkg-add:wtype' "$action_log"; then
   fail "Voxtype install claimed qvOS base wtype"
 fi
+
+rm -- "$config_file"
+run_software "$fixture/bin/qv-voxtype-install" --yes >/dev/null
+grep -Fqx 'language = "en"' "$config_file" ||
+  fail "Voxtype native configuration seed"
+[[ $(stat -c '%a' "$config_file") == "644" ]] ||
+  fail "Voxtype native configuration seed mode"
 
 : >"$action_log"
 run_software "$fixture/bin/qv-voxtype-config"

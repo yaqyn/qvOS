@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/controls/native-paths"
+retired_manifest="$root/qvcore/controls/retired-paths"
 
 fail() {
   printf 'qvOS controls check: %s\n' "$1" >&2
@@ -28,6 +29,28 @@ mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifes
 [[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
   fail "native control paths are not sorted and unique"
 ((${#native_paths[@]} == ${#owners[@]})) || fail "native control inventory is incomplete"
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
+  'default/mako/' ]] || fail "retired notification-default inventory"
+[[ ! -e $root/default/mako && ! -L $root/default/mako ]] ||
+  fail "inherited Mako defaults remain"
+
+mako_policy="$root/qvcore/controls/notification/mako-core.ini"
+[[ -f $mako_policy && ! -L $mako_policy ]] ||
+  fail "native Mako policy source"
+for route in \
+  qv-launch-floating-terminal-with-presentation \
+  qv-launch-update \
+  qv-launch-wifi \
+  qv-menu-keybindings \
+  qv-notification-dismiss \
+  qv-voxtype-install; do
+  grep -Fq "$route" "$mako_policy" ||
+    fail "native Mako policy route: $route"
+done
+if rg -n '(^|[^[:alnum:]_-])omarchy-[[:alnum:]_-]+' "$mako_policy"; then
+  fail "native Mako policy calls a compatibility route"
+fi
 
 for inherited_path in "${native_paths[@]}"; do
   stem=${inherited_path##*/omarchy-}

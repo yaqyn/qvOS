@@ -71,6 +71,8 @@
     qvcore/hooks/reconcile
     qvcore/config/toggle-state
     qvcore/config/user-services
+    qvcore/controls/notification/mako-core.ini
+    qvcore/controls/retired-paths
     qvcore/menu/concepts.psv
     qvcore/menu/elephant/qvos_background_selector.lua
     qvcore/menu/elephant/qvos_themes.lua
@@ -139,6 +141,7 @@
     qvcore/software/helix-install
     qvcore/software/foot.desktop
     qvcore/software/terminal-install
+    qvcore/software/voxtype-config.toml
     qvcore/software/zed-install
     qvcore/theme/set-zed
     qvcore/thunar/actions.sh

@@ -59,7 +59,7 @@ fi
 if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed))' \
   "$root/qvcore/config/files/waybar/config.jsonc" \
   "$root/qvcore/menu/elephant/qvos_unlocks.lua" \
-  "$root/default/mako/core.ini" \
+  "$root/qvcore/controls/notification/mako-core.ini" \
   "$root/qvcore" \
   --glob '!**/AGENTS.md' \
   --glob '!**/check' \

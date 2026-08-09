@@ -10,16 +10,25 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-install-dropbox\nbin/omarchy-install-helix\nbin/omarchy-install-nordvpn\nbin/omarchy-install-once\nbin/omarchy-install-tailscale\nbin/omarchy-install-terminal\nbin/omarchy-install-vscode\nbin/omarchy-install-zed\nbin/omarchy-voxtype-config\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-model\nbin/omarchy-voxtype-remove\nbin/omarchy-voxtype-status\ndefault/mako/core.ini'
+expected=$'bin/omarchy-install-dropbox\nbin/omarchy-install-helix\nbin/omarchy-install-nordvpn\nbin/omarchy-install-once\nbin/omarchy-install-tailscale\nbin/omarchy-install-terminal\nbin/omarchy-install-vscode\nbin/omarchy-install-zed\nbin/omarchy-voxtype-config\nbin/omarchy-voxtype-install\nbin/omarchy-voxtype-model\nbin/omarchy-voxtype-remove\nbin/omarchy-voxtype-status'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native optional-software inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  'default/foot/' ]] || fail "retired optional-software inventory"
-[[ ! -e $root/default/foot && ! -L $root/default/foot ]] ||
-  fail "inherited Foot defaults remain"
+  $'default/foot/\ndefault/voxtype/' ]] ||
+  fail "retired optional-software inventory"
+for retired_path in default/foot default/voxtype; do
+  [[ ! -e $root/$retired_path && ! -L $root/$retired_path ]] ||
+    fail "inherited optional-software default remains: $retired_path"
+done
 [[ -f $root/qvcore/software/foot.desktop &&
   ! -L $root/qvcore/software/foot.desktop ]] ||
   fail "native Foot desktop source"
+[[ -f $root/qvcore/software/voxtype-config.toml &&
+  ! -L $root/qvcore/software/voxtype-config.toml ]] ||
+  fail "native Voxtype configuration seed"
+grep -Fq 'qvcore/software/voxtype-config.toml' \
+  "$root/qvcore/software/voxtype-install" ||
+  fail "Voxtype installer bypasses its native configuration seed"
 
 declare -A owner_by_route=(
   [install-dropbox]=qvcore/software/dropbox-install
@@ -93,7 +102,7 @@ if rg -n 'omarchy-(install-(dropbox|helix|nordvpn|once|tailscale|terminal|vscode
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
   "$root/qvcore/waybar" \
-  "$root/default/mako/core.ini" \
+  "$root/qvcore/controls/notification/mako-core.ini" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces call optional-software compatibility routes"
 fi
@@ -121,7 +130,8 @@ if rg -n 'default/foot' "$root/qvcore/software" \
 fi
 grep -Fqx 'alias hx=helix' "$root/qvcore/shell/aliases" ||
   fail "Helix command alias is not owned by the qvOS shell overlay"
-grep -Fq 'qv-voxtype-install' "$root/default/mako/core.ini" ||
+grep -Fq 'qv-voxtype-install' \
+  "$root/qvcore/controls/notification/mako-core.ini" ||
   fail "Dictation notification does not use the native owner route"
 # shellcheck disable=SC2016
 grep -Fqx 'exec qv-launch-floating-terminal-with-presentation voxtype setup model' \
