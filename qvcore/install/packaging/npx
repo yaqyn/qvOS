@@ -1,7 +1,123 @@
 #!/bin/bash
 set -euo pipefail
 
-omarchy-npx-install @openai/codex codex
-# omarchy-npx-install @github/copilot copilot
-omarchy-npx-install @earendil-works/pi-coding-agent pi
-omarchy-npx-install @kitlangton/ghui ghui
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+manifest="$script_dir/npx-wrappers.psv"
+install_dir="$HOME/.local/bin"
+pending=""
+
+cleanup() {
+  [[ -z $pending || ! -e $pending ]] || rm -f -- "$pending"
+}
+trap cleanup EXIT
+
+validate_manifest() {
+  awk -F '|' '
+    /^#/ || NF == 0 { next }
+    NF != 3 { invalid = 1; next }
+    $1 !~ /^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/ {
+      invalid = 1
+    }
+    $2 !~ /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/ { invalid = 1 }
+    $3 !~ /^[[:xdigit:]]{64}$/ { invalid = 1 }
+    seen_package[$1]++ || seen_command[$2]++ { invalid = 1 }
+    END { exit invalid }
+  ' "$manifest"
+}
+
+render_wrapper() {
+  local package=$1
+  local command_name=$2
+  local target=$3
+
+  {
+    printf '%s\n' '#!/bin/bash' 'set -euo pipefail' ''
+    printf 'package=%q\n' "$package"
+    printf 'command_name=%q\n' "$command_name"
+    cat <<'WRAPPER'
+
+command -v mise >/dev/null 2>&1 || {
+  echo "$command_name requires the qvOS base package: mise" >&2
+  exit 1
+}
+if ! node_root=$(mise where node@lts 2>/dev/null); then
+  echo "Preparing the shared qvOS Node.js LTS runtime for $command_name..." >&2
+  mise use --global node@lts
+  node_root=$(mise where node@lts)
+fi
+node_bin="$node_root/bin/node"
+npx_bin="$node_root/bin/npx"
+[[ -x $node_bin && -x $npx_bin ]] || {
+  echo "The qvOS Node.js LTS runtime is incomplete." >&2
+  exit 1
+}
+
+exec "$node_bin" "$npx_bin" --yes --package "$package" -- "$command_name" "$@"
+WRAPPER
+  } >"$target"
+  chmod 0755 -- "$target"
+}
+
+install_wrapper() {
+  local package=$1
+  local command_name=$2
+  local legacy_hash=$3
+  local target="$install_dir/$command_name"
+  local candidate_hash
+  local installed_hash=""
+
+  pending=$(mktemp "$install_dir/.qvos-npx-${command_name}.XXXXXX")
+  render_wrapper "$package" "$command_name" "$pending"
+  candidate_hash=$(sha256sum -- "$pending")
+  candidate_hash=${candidate_hash%% *}
+
+  if [[ -e $target || -L $target ]]; then
+    if [[ -L $target || ! -f $target || ! -O $target ]]; then
+      printf 'qvOS preserved the externally managed %s command: %s\n' \
+        "$command_name" "$target" >&2
+      rm -f -- "$pending"
+      pending=""
+      return
+    fi
+    installed_hash=$(sha256sum -- "$target")
+    installed_hash=${installed_hash%% *}
+    if [[ $installed_hash == "$candidate_hash" ]]; then
+      rm -f -- "$pending"
+      pending=""
+      return
+    fi
+    if [[ $installed_hash != "$legacy_hash" ]]; then
+      printf 'qvOS preserved the modified or external %s command: %s\n' \
+        "$command_name" "$target" >&2
+      rm -f -- "$pending"
+      pending=""
+      return
+    fi
+  fi
+
+  mv -f -- "$pending" "$target"
+  pending=""
+}
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/install/packaging/npx" >&2
+  exit 2
+}
+if [[ ! -f $manifest || -L $manifest ]] || ! validate_manifest; then
+  echo "The qvOS NPX wrapper inventory is missing or invalid: $manifest" >&2
+  exit 1
+fi
+if [[ -e $install_dir || -L $install_dir ]]; then
+  [[ -d $install_dir && ! -L $install_dir && -O $install_dir ]] || {
+    echo "Refusing unsafe local command directory: $install_dir" >&2
+    exit 1
+  }
+else
+  install -d -m 0755 -- "$install_dir"
+fi
+
+while IFS='|' read -r package command_name legacy_hash extra; do
+  [[ -n $package && $package != "#"* ]] || continue
+  [[ -z ${extra:-} ]] || exit 1
+  install_wrapper "$package" "$command_name" "$legacy_hash"
+done <"$manifest"

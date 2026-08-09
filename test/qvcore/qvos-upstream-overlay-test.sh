@@ -204,19 +204,14 @@ if rg -n 'qvos_owner=' "$root/bin"; then
 fi
 pass "promoted public commands retain no inherited availability fallbacks"
 
-omarchy-npx-install() {
-  printf 'npx:%s|%s\n' "$1" "$2"
-}
 omarchy-webapp-install() {
   printf 'webapp:%s\n' "$1"
 }
 omarchy-pkg-add() {
   printf 'pkg:%s\n' "$@"
 }
-export -f omarchy-npx-install omarchy-webapp-install omarchy-pkg-add
+export -f omarchy-webapp-install omarchy-pkg-add
 
-npx_output=$(QVOS_PATH="$root" OMARCHY_PATH="$root" "$root/qvcore/install/packaging/npx") ||
-  fail "native npx owner failed"
 webapps_output=$(QVOS_PATH="$root" OMARCHY_PATH="$root" "$root/qvcore/install/packaging/webapps") ||
   fail "native webapps owner failed"
 base_output=$(
@@ -225,8 +220,10 @@ base_output=$(
     bash -c 'source "$1"' _ "$root/qvcore/install/packaging/base"
 ) || fail "base qvOS owner failed"
 
-[[ $npx_output == $'npx:@openai/codex|codex\nnpx:@earendil-works/pi-coding-agent|pi\nnpx:@kitlangton/ghui|ghui' ]] ||
-  fail "native npx owner inventory"
+[[ $(sed '/^#/d; /^[[:space:]]*$/d' \
+  "$root/qvcore/install/packaging/npx-wrappers.psv" | cut -d '|' -f 1,2) == \
+  $'@earendil-works/pi-coding-agent|pi\n@kitlangton/ghui|ghui' ]] ||
+  fail "native fixed NPX wrapper inventory"
 [[ -z $webapps_output ]] || fail "native webapps owner is not empty"
 grep -Fqx 'pkg:xdg-user-dirs' <<<"$base_output" ||
   fail "base qvOS owner omits additions"

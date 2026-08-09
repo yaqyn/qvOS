@@ -65,7 +65,7 @@ done
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
-expected_retired=$'applications/icons/Basecamp.png\napplications/icons/ChatGPT.png\napplications/icons/Discord.png\napplications/icons/Disk Usage.png\napplications/icons/Docker.png\napplications/icons/Figma.png\napplications/icons/Fizzy.png\napplications/icons/GitHub.png\napplications/icons/Google Contacts.png\napplications/icons/Google Maps.png\napplications/icons/Google Messages.png\napplications/icons/Google Photos.png\napplications/icons/HEY.png\napplications/icons/WhatsApp.png\napplications/icons/X.png\napplications/icons/YouTube.png\napplications/icons/Zoom.png\nbin/omarchy-remove-preinstalls\ndefault/nautilus-python/\ninstall/'
+expected_retired=$'applications/icons/Basecamp.png\napplications/icons/ChatGPT.png\napplications/icons/Discord.png\napplications/icons/Disk Usage.png\napplications/icons/Docker.png\napplications/icons/Figma.png\napplications/icons/Fizzy.png\napplications/icons/GitHub.png\napplications/icons/Google Contacts.png\napplications/icons/Google Maps.png\napplications/icons/Google Messages.png\napplications/icons/Google Photos.png\napplications/icons/HEY.png\napplications/icons/WhatsApp.png\napplications/icons/X.png\napplications/icons/YouTube.png\napplications/icons/Zoom.png\nbin/omarchy-npx-install\nbin/omarchy-remove-preinstalls\ndefault/nautilus-python/\ninstall/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
   fail "retired install and Nautilus source inventory"
 [[ ! -e $root/default/nautilus-python && ! -L $root/default/nautilus-python ]] ||

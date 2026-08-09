@@ -17,6 +17,7 @@ applications/icons/WhatsApp.png
 applications/icons/X.png
 applications/icons/YouTube.png
 applications/icons/Zoom.png
+bin/omarchy-npx-install
 bin/omarchy-remove-preinstalls
 default/nautilus-python/
 install/

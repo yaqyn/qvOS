@@ -292,9 +292,17 @@ if grep -Eq '^(warp|media|qvcore)\|' "$root/qvcore/menu/concepts.psv"; then
 fi
 [[ ! -e $root/qvcore/codex ]] ||
   fail "redundant qvOS Codex inspection domain remains"
-grep -Fqx 'omarchy-npx-install @openai/codex codex' \
-  "$root/qvcore/install/packaging/npx" ||
-  fail "Omarchy Codex wrapper is not preserved"
+grep -Fqx 'openai-codex' "$base_packages" ||
+  fail "qvOS Codex is not base-owned through the Arch package"
+if rg -q '@openai/codex|command_name=.*codex|omarchy-npx-install' \
+  "$root/qvcore/install/packaging/npx" \
+  "$root/qvcore/install/packaging/npx-wrappers.psv"; then
+  fail "qvOS retains a mutable Codex NPX wrapper"
+fi
+[[ ! -e $root/bin/omarchy-npx-install ]] ||
+  fail "retired generic NPX wrapper generator remains"
+grep -Fqx 'bin/omarchy-npx-install' "$root/qvcore/install/retired-paths" ||
+  fail "retired generic NPX wrapper generator is not inventoried"
 if rg -qi '\bcodex\b' "$root/qvcore/direct" "$root/qvcore/install/configure"; then
   fail "qvOS retains a duplicate Codex installer"
 fi
