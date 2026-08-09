@@ -276,6 +276,9 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
         ;;
+      '$OMARCHY_INSTALL/config/sudoless-asdcontrol.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/controls/install-root'
+        ;;
       *)
         printf '$QVOS_INSTALL/%s\n' "${step#\$OMARCHY_INSTALL/}"
         ;;

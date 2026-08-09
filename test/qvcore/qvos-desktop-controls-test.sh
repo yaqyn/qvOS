@@ -104,6 +104,7 @@ printf '\n' >>"$QVOS_CONTROLS_TEST_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 #!/bin/bash
+[[ ${1:-} != "--" ]] || shift
 exec "$@"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/asdcontrol" <<'SCRIPT'
@@ -142,6 +143,7 @@ SCRIPT
 run_control() {
   QVOS_CONTROLS_TESTING=1 \
   QVOS_CONTROLS_TEST_LOG="$log" \
+  QVOS_CONTROLS_SUDO="$test_bin/sudo" \
   QVOS_BRIGHTNESS_STATE="$brightness_state" \
   PATH="$test_bin:/usr/bin" \
     "$@"
@@ -191,11 +193,84 @@ hid_root="$test_root/dev"
 install -d "$hid_root/usb"
 : >"$hid_root/usb/hiddev0"
 : >"$log"
-QVOS_HID_ROOT="$hid_root" run_control "$root/qvcore/controls/brightness/display-apple" +5%
+QVOS_HID_ROOT="$hid_root" \
+QVOS_ASDCONTROL="$test_bin/asdcontrol" \
+QVOS_APPLE_BRIGHTNESS_HELPER="$root/qvcore/controls/brightness/apple-display-helper" \
+  run_control "$root/qvcore/controls/brightness/display-apple" +5%
+grep -Fqx "asdcontrol|--detect|$hid_root/usb/hiddev0" "$log" ||
+  fail "Apple display HID detection"
 grep -Fqx "asdcontrol|$hid_root/usb/hiddev0|--|+5%" "$log" ||
   fail "Apple display brightness mutation"
+grep -Fqx "asdcontrol|$hid_root/usb/hiddev0" "$log" ||
+  fail "Apple display brightness verification"
 grep -Fq 'display-brightness-symbolic' "$log" || fail "Apple display brightness OSD"
-printf 'ok - Apple display brightness validates detected HID devices before mutation\n'
+
+controls_system_root="$test_root/controls-system"
+controls_sudoers="$controls_system_root/etc/sudoers.d/asdcontrol"
+controls_helper="$controls_system_root/usr/lib/qvos/controls/apple-display-brightness"
+desktop_user=$(id -un)
+install -d -m 0750 "$controls_system_root/etc/sudoers.d"
+install -D -m 0440 /dev/stdin "$controls_sudoers" <<'POLICY'
+ALL ALL=(ALL) NOPASSWD: /usr/bin/asdcontrol
+POLICY
+QVOS_CONTROLS_TESTING=1 \
+QVOS_CONTROLS_SYSTEM_ROOT="$controls_system_root" \
+QVOS_CONTROLS_DESKTOP_USER="$desktop_user" \
+  "$root/qvcore/controls/install-root"
+cmp -s "$root/qvcore/controls/brightness/apple-display-helper" \
+  "$controls_helper" || fail "root-owned Apple display helper payload"
+[[ $(stat -c '%a' -- "$controls_helper") == "755" ]] ||
+  fail "root-owned Apple display helper mode"
+grep -Fqx \
+  "$desktop_user ALL=(root) NOPASSWD: /usr/lib/qvos/controls/apple-display-brightness" \
+  "$controls_sudoers" || fail "bounded Apple display sudoers policy"
+[[ $(stat -c '%a' -- "$controls_sudoers") == "440" ]] ||
+  fail "bounded Apple display sudoers mode"
+chmod 0640 "$controls_sudoers"
+printf '%s ALL=(ALL) NOPASSWD: /usr/bin/asdcontrol\n' "$desktop_user" \
+  >"$controls_sudoers"
+chmod 0440 "$controls_sudoers"
+QVOS_CONTROLS_TESTING=1 \
+QVOS_CONTROLS_SYSTEM_ROOT="$controls_system_root" \
+QVOS_CONTROLS_DESKTOP_USER="$desktop_user" \
+  "$root/qvcore/controls/install-root"
+grep -Fqx \
+  "$desktop_user ALL=(root) NOPASSWD: /usr/lib/qvos/controls/apple-display-brightness" \
+  "$controls_sudoers" || fail "former qvOS Apple display policy migration"
+controls_state=$(find "$controls_system_root" -type f -printf '%P|%m|%i|%T@\n' | sort)
+QVOS_CONTROLS_TESTING=1 \
+QVOS_CONTROLS_SYSTEM_ROOT="$controls_system_root" \
+QVOS_CONTROLS_DESKTOP_USER="$desktop_user" \
+  "$root/qvcore/controls/install-root"
+[[ $(find "$controls_system_root" -type f -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$controls_state" ]] || fail "idempotent Apple display privilege install"
+chmod 0640 "$controls_sudoers"
+printf 'custom administrator policy\n' >"$controls_sudoers"
+chmod 0440 "$controls_sudoers"
+if QVOS_CONTROLS_TESTING=1 \
+  QVOS_CONTROLS_SYSTEM_ROOT="$controls_system_root" \
+  QVOS_CONTROLS_DESKTOP_USER="$desktop_user" \
+    "$root/qvcore/controls/install-root" >/dev/null 2>&1; then
+  fail "modified Apple display policy was overwritten"
+fi
+grep -Fqx 'custom administrator policy' "$controls_sudoers" ||
+  fail "modified Apple display policy preservation"
+
+unsafe_controls_root="$test_root/unsafe-controls-system"
+external_helper="$test_root/external-apple-helper"
+install -d "$unsafe_controls_root/usr/lib/qvos/controls"
+: >"$external_helper"
+ln -s "$external_helper" \
+  "$unsafe_controls_root/usr/lib/qvos/controls/apple-display-brightness"
+if QVOS_CONTROLS_TESTING=1 \
+  QVOS_CONTROLS_SYSTEM_ROOT="$unsafe_controls_root" \
+  QVOS_CONTROLS_DESKTOP_USER="$desktop_user" \
+    "$root/qvcore/controls/install-root" >/dev/null 2>&1; then
+  fail "linked Apple display helper was overwritten"
+fi
+[[ -L $unsafe_controls_root/usr/lib/qvos/controls/apple-display-brightness ]] ||
+  fail "linked Apple display helper preservation"
+printf 'ok - Apple display brightness is bounded across user and root ownership\n'
 
 : >"$log"
 QVOS_LED_ROOT="$led_root" run_control "$root/qvcore/controls/audio/input-mute"

@@ -1,0 +1,146 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
+source_dir=$(cd -- "$(/usr/bin/dirname -- "$script_path")" && pwd)
+helper_source="$source_dir/brightness/apple-display-helper"
+system_root=${QVOS_CONTROLS_SYSTEM_ROOT:-}
+testing=${QVOS_CONTROLS_TESTING:-}
+helper_path=/usr/lib/qvos/controls/apple-display-brightness
+target_helper="$system_root$helper_path"
+sudoers_target="$system_root/etc/sudoers.d/asdcontrol"
+expected_uid=0
+expected_gid=0
+helper_candidate=""
+sudoers_candidate=""
+
+cleanup() {
+  [[ -z $helper_candidate ]] || /usr/bin/rm -f -- "$helper_candidate"
+  [[ -z $sudoers_candidate ]] || /usr/bin/rm -f -- "$sudoers_candidate"
+}
+trap cleanup EXIT
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* &&
+    -d $system_root && ! -L $system_root ]] || {
+    echo "Invalid qvOS controls test root." >&2
+    exit 2
+  }
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+  desktop_user=${QVOS_CONTROLS_DESKTOP_USER:-$(/usr/bin/id -un)}
+elif ((EUID != 0)); then
+  exec /usr/bin/sudo -- "$script_path"
+else
+  desktop_user=${SUDO_USER:-}
+fi
+
+[[ ${desktop_user:-} =~ ^[a-z_][a-z0-9_-]*[$]?$ &&
+  $desktop_user != "root" ]] || {
+  echo "Could not determine the qvOS desktop account for Apple display control." >&2
+  exit 1
+}
+[[ -f $helper_source && ! -L $helper_source && -x $helper_source ]] || {
+  echo "Missing qvOS Apple display helper source." >&2
+  exit 1
+}
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == "$expected_uid:$expected_gid" ]] ||
+    return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_directory() {
+  local path=$1
+  local mode=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || {
+      echo "Refusing unsafe qvOS controls directory: $path" >&2
+      return 1
+    }
+  else
+    /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m "$mode" "$path"
+  fi
+}
+
+expected_rule="$desktop_user ALL=(root) NOPASSWD: $helper_path"
+package_rule='ALL ALL=(ALL) NOPASSWD: /usr/bin/asdcontrol'
+legacy_rule="$desktop_user ALL=(ALL) NOPASSWD: /usr/bin/asdcontrol"
+
+if [[ -e $target_helper || -L $target_helper ]]; then
+  [[ -f $target_helper && ! -L $target_helper &&
+    $(/usr/bin/stat -c '%u:%g' -- "$target_helper") == "$expected_uid:$expected_gid" ]] || {
+    echo "Refusing an unsafe or foreign qvOS Apple display helper." >&2
+    exit 1
+  }
+fi
+if [[ -e $sudoers_target || -L $sudoers_target ]]; then
+  [[ -f $sudoers_target && ! -L $sudoers_target &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$sudoers_target") == \
+      "$expected_uid:$expected_gid:440" ]] || {
+    echo "Refusing an unsafe Apple display privilege policy." >&2
+    exit 1
+  }
+  current_rule=$(<"$sudoers_target")
+  [[ $current_rule == "$expected_rule" || $current_rule == "$package_rule" ||
+    $current_rule == "$legacy_rule" ]] || {
+    echo "Refusing a modified Apple display privilege policy." >&2
+    exit 1
+  }
+fi
+
+ensure_directory "$system_root/usr" 0755
+ensure_directory "$system_root/usr/lib" 0755
+ensure_directory "$system_root/usr/lib/qvos" 0755
+ensure_directory "$system_root/usr/lib/qvos/controls" 0755
+ensure_directory "$system_root/etc" 0755
+ensure_directory "$system_root/etc/sudoers.d" 0750
+
+if [[ -f $target_helper && ! -L $target_helper &&
+  $(/usr/bin/stat -c '%u:%g:%a' -- "$target_helper") == \
+    "$expected_uid:$expected_gid:755" &&
+  -f $sudoers_target && ! -L $sudoers_target &&
+  $(/usr/bin/stat -c '%u:%g:%a' -- "$sudoers_target") == \
+    "$expected_uid:$expected_gid:440" &&
+  $(<"$sudoers_target") == "$expected_rule" ]] &&
+  /usr/bin/cmp -s "$helper_source" "$target_helper"; then
+  exit 0
+fi
+
+helper_candidate=$(/usr/bin/mktemp "$system_root/usr/lib/qvos/controls/.apple-display.XXXXXX")
+/usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0755 \
+  "$helper_source" "$helper_candidate"
+sudoers_candidate=$(/usr/bin/mktemp "$system_root/etc/sudoers.d/.qvos-asdcontrol.XXXXXX")
+printf '%s\n' "$expected_rule" >"$sudoers_candidate"
+/usr/bin/chown "$expected_uid:$expected_gid" "$sudoers_candidate"
+/usr/bin/chmod 0440 "$sudoers_candidate"
+/usr/bin/visudo -cf "$sudoers_candidate" >/dev/null
+
+# Publish the narrow policy before its helper so interruption cannot restore
+# passwordless access to the package executable.
+/usr/bin/mv -f -- "$sudoers_candidate" "$sudoers_target"
+sudoers_candidate=""
+/usr/bin/mv -f -- "$helper_candidate" "$target_helper"
+helper_candidate=""
+
+if ! {
+  [[ -f $target_helper && ! -L $target_helper &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$target_helper") == \
+      "$expected_uid:$expected_gid:755" &&
+    -f $sudoers_target && ! -L $sudoers_target &&
+    $(/usr/bin/stat -c '%u:%g:%a' -- "$sudoers_target") == \
+      "$expected_uid:$expected_gid:440" &&
+    $(<"$sudoers_target") == "$expected_rule" ]] &&
+    /usr/bin/cmp -s "$helper_source" "$target_helper"
+}; then
+  echo "Could not install the bounded Apple display privilege policy." >&2
+  exit 1
+fi

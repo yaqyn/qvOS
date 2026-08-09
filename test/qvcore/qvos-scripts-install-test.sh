@@ -9,6 +9,10 @@ export QVOS_NETWORK_TESTING=1
 export QVOS_NETWORK_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_SECURITY_TESTING=1
 export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_CONTROLS_TESTING=1
+export QVOS_CONTROLS_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_CONTROLS_DESKTOP_USER
+QVOS_CONTROLS_DESKTOP_USER=$(id -un)
 export XDG_STATE_HOME="$test_root/.local/state"
 export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
 export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
@@ -771,6 +775,16 @@ done
 [[ ! -e $test_root/.local/state/qvos/battery-protection ]] ||
   fail "desktop install must not create Battery Protection intent"
 pass "Battery Protection installs dormant without touching charging state"
+
+cmp -s \
+  "$root/qvcore/controls/brightness/apple-display-helper" \
+  "$QVOS_CONTROLS_SYSTEM_ROOT/usr/lib/qvos/controls/apple-display-brightness" ||
+  fail "root-owned Apple display helper payload"
+grep -Fqx \
+  "$QVOS_CONTROLS_DESKTOP_USER ALL=(root) NOPASSWD: /usr/lib/qvos/controls/apple-display-brightness" \
+  "$QVOS_CONTROLS_SYSTEM_ROOT/etc/sudoers.d/asdcontrol" ||
+  fail "bounded Apple display privilege policy"
+pass "Apple display brightness exposes only its bounded root helper"
 
 cmp -s \
   "$root/qvcore/security/60-qvos-security.conf" \

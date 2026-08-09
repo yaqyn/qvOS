@@ -15,47 +15,30 @@ else
   echo "Usage: qv brightness display apple <+N%|N%-|N%>" >&2
   exit 2
 fi
-if [[ $step =~ ^([0-9]+)%-$ ]]; then
-  step="-${BASH_REMATCH[1]}%"
-fi
-
-devices=()
-hid_root=${QVOS_HID_ROOT:-/dev}
-if [[ $hid_root != "/dev" && ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
-  echo "A custom HID root is valid only in tests." >&2
+root_helper=${QVOS_APPLE_BRIGHTNESS_HELPER:-/usr/lib/qvos/controls/apple-display-brightness}
+sudo_command=${QVOS_CONTROLS_SUDO:-/usr/bin/sudo}
+if [[ $root_helper != "/usr/lib/qvos/controls/apple-display-brightness" &&
+  ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
+  echo "A custom Apple display helper is valid only in tests." >&2
   exit 2
 fi
-shopt -s nullglob
-for path in "$hid_root"/usb/hiddev* "$hid_root"/hiddev*; do
-  [[ -e $path ]] && devices+=("$path")
-done
-shopt -u nullglob
-((${#devices[@]})) || {
-  echo "No Apple Display HID device was found." >&2
+if [[ $sudo_command != "/usr/bin/sudo" && ${QVOS_CONTROLS_TESTING:-} != "1" ]]; then
+  echo "A custom sudo command is valid only in tests." >&2
+  exit 2
+fi
+[[ -x $root_helper && ! -L $root_helper ]] || {
+  echo "The qvOS Apple display brightness helper is unavailable." >&2
   exit 1
 }
-device=$(sudo asdcontrol --detect "${devices[@]}" | awk -F: 'NF && !found { print $1; found = 1 }')
-[[ -n $device ]] || {
-  echo "No Apple Display HID device was found." >&2
-  exit 1
-}
-valid_device=false
-for candidate in "${devices[@]}"; do
-  if [[ $device == "$candidate" ]]; then
-    valid_device=true
-    break
-  fi
-done
-[[ $valid_device == "true" ]] || {
-  echo "Apple display detection returned an unexpected device path." >&2
+[[ -x $sudo_command && ! -L $sudo_command ]] || {
+  echo "The qvOS Apple display privilege boundary is unavailable." >&2
   exit 1
 }
 
-sudo asdcontrol "$device" -- "$step" >/dev/null
-value=$(sudo asdcontrol "$device" | awk -F= '/BRIGHTNESS=/ { print $2; exit }')
+value=$("$sudo_command" -- "$root_helper" "$step")
 if [[ ! $value =~ ^[0-9]+$ ]] || ((value > 60000)); then
   echo "Apple display returned an invalid brightness value." >&2
   exit 1
 fi
-controls_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+controls_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 exec "$controls_root/osd/brightness" "$((value * 100 / 60000))"

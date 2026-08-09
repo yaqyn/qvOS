@@ -4,6 +4,8 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/controls/native-paths"
 retired_manifest="$root/qvcore/controls/retired-paths"
+apple_helper="$root/qvcore/controls/brightness/apple-display-helper"
+root_installer="$root/qvcore/controls/install-root"
 
 fail() {
   printf 'qvOS controls check: %s\n' "$1" >&2
@@ -50,6 +52,17 @@ for route in \
 done
 if rg -n '(^|[^[:alnum:]_-])omarchy-[[:alnum:]_-]+' "$mako_policy"; then
   fail "native Mako policy calls a compatibility route"
+fi
+[[ -x $apple_helper && ! -L $apple_helper &&
+  -x $root_installer && ! -L $root_installer ]] ||
+  fail "bounded Apple display privilege owner"
+grep -Fq '/usr/lib/qvos/controls/apple-display-brightness' \
+  "$root/qvcore/controls/brightness/display-apple" "$root_installer" ||
+  fail "Apple display control does not use its root-owned helper"
+if rg -n 'NOPASSWD:.*asdcontrol|sudo[[:space:]]+asdcontrol' \
+  "$root/qvcore/controls" \
+  --glob '!AGENTS.md' --glob '!check' --glob '!install-root'; then
+  fail "Apple display control exposes the package executable through sudo"
 fi
 
 for inherited_path in "${native_paths[@]}"; do

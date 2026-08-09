@@ -21,6 +21,15 @@ LED feedback as best effort only after the real audio mutation succeeds. Use
 one shared OSD client owner and direct owner-to-owner calls; never duplicate
 progress calculations or rebuild command strings.
 
+Apple Studio Display brightness never grants passwordless access to the
+package executable. `install-root` replaces only the exact package or former
+qvOS sudoers rule with one desktop-user rule for the root-owned
+`apple-display-brightness` helper. The helper accepts one bounded percentage
+step, discovers at most 64 non-linked HID devices, validates the detected device,
+and returns one bounded value after mutation. Reconcile it after package
+updates, preserve modified policy, refuse links and foreign ownership, and
+publish the narrow sudoers policy before its helper.
+
 Notification silencing reads the current Mako mode, toggles exactly
 `do-not-disturb`, verifies the opposite state, and rolls back on disagreement.
 Notify and refresh the Waybar indicator only after the state is verified; both

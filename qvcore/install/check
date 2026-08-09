@@ -156,6 +156,17 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
   "$root/qvcore/install/config/run" || fail "native qvOS toggle-state stage"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/controls/install-root"' \
+  "$root/qvcore/install/config/run" ||
+  fail "bounded Apple display privilege stage"
+[[ ! -e $root/qvcore/install/config/sudoless-asdcontrol.sh ]] ||
+  fail "raw passwordless asdcontrol installer remains"
+if rg -n 'NOPASSWD:.*asdcontrol|sudo[[:space:]]+asdcontrol' \
+  "$root/qvcore/install" "$root/qvcore/controls" \
+  --glob '!AGENTS.md' --glob '!check' --glob '!install-root'; then
+  fail "raw passwordless Apple display control remains"
+fi
 if rg -n 'config/(gpg|fast-shutdown|unmount-fuse)\.sh|default/(gpg|systemd)' \
   "$root/qvcore/install/config/run" "$root/qvcore/install/config"; then
   fail "fresh install retains inherited global policy"

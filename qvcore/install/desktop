@@ -78,6 +78,8 @@
     qvcore/hardware/framework16-qmk-hid.rules
     qvcore/config/toggle-state
     qvcore/config/user-services
+    qvcore/controls/brightness/apple-display-helper
+    qvcore/controls/install-root
     qvcore/controls/notification/mako-core.ini
     qvcore/controls/retired-paths
     qvcore/menu/concepts.psv
@@ -355,5 +357,6 @@
   "$QVOS_PATH/qvcore/screensaver/install"
   "$QVOS_PATH/qvcore/network/install"
   "$QVOS_PATH/qvcore/power/install"
+  "$QVOS_PATH/qvcore/controls/install-root"
   "$QVOS_PATH/qvcore/security/install"
 )

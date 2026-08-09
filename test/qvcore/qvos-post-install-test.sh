@@ -61,6 +61,7 @@ QVOS_INSTALL="$test_install" \
 expected_run=$(
   printf 'run:%s\n' "$test_install/post-install/pacman.sh"
   printf 'run:%s\n' "$test_qvos/qvcore/security/install"
+  printf 'run:%s\n' "$test_qvos/qvcore/controls/install-root"
   printf '%s\n' allow-reboot stop-log finished
 )
 [[ $(<"$event_log") == "$expected_run" ]] ||

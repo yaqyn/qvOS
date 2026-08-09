@@ -2,6 +2,7 @@
 
 run_logged "$QVOS_INSTALL/post-install/pacman.sh"
 run_logged "$QVOS_PATH/qvcore/security/install"
+run_logged "$QVOS_PATH/qvcore/controls/install-root"
 # shellcheck disable=SC1091
 source "$QVOS_INSTALL/post-install/allow-reboot.sh"
 stop_install_log
