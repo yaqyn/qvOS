@@ -5,7 +5,7 @@ set -eEo pipefail
 allow_downloads=false
 no_cache=false
 prepare_only=false
-omarchy_mirror="${QVOS_OMARCHY_MIRROR:-edge}"
+omarchy_mirror="${QVOS_OMARCHY_MIRROR:-stable}"
 
 usage() {
   echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--dev|--rc]"
@@ -69,6 +69,14 @@ done
 if env_enabled QVOS_BUILD_PREPARE_ONLY; then
   prepare_only=true
 fi
+
+case $omarchy_mirror in
+stable | edge | rc) ;;
+*)
+  echo "QVOS_OMARCHY_MIRROR must be stable, edge, or rc." >&2
+  exit 2
+  ;;
+esac
 
 if [[ $allow_downloads == "false" && $prepare_only == "false" ]]; then
   echo "qvos-build downloads packages and runs the omarchy-iso Docker builder." >&2

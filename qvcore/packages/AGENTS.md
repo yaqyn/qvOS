@@ -13,6 +13,10 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may
   move a user to them.
+- Credited provider files live under `qvcore/packages/provider/omarchy/` and
+  require signed packages at source. `qvcore/packages/provider-files` is the
+  only channel resolver; it accepts Edge or RC only in the reviewed ISO chroot
+  and never interpolates unchecked environment input into a source path.
 - `qvcore/install/packaging/` owns the singular qvOS package manifests and
   resolver. Package presence never implies qvOS, Service, or Development
   ownership.
@@ -39,8 +43,9 @@ a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
   files if configuration or hardening fails. `qv refresh pacman` owns public
   metadata; `omarchy-refresh-pacman` is a metadata-free compatibility adapter.
 - Package signatures from `[omarchy]` are required while its unsigned database
-  remains optional. `qvcore/security/install` owns that installed policy; never
-  weaken global Arch trust or another repository to make Omarchy work.
+  remains optional. Provider source and `qvcore/security/install` agree on that
+  policy; never create a weak bootstrap interval or weaken global Arch trust or
+  another repository to make Omarchy work.
 - A provider outage, signing-key rotation, repository rename, package removal,
   or Stable/Edge compatibility change is qvsync review input. Keep the monitored
   upstream paths in `upstream/qvsync/package-provider-paths`; every match must be

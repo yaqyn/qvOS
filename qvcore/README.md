@@ -65,11 +65,11 @@ credited Stable Arch mirror, curated package repository, and signing keyring;
 qvOS does not rebuild, resign, relabel, or mirror that package infrastructure.
 Native `qv-pkg-*` commands own validated Pacman and explicit AUR operations;
 matching `omarchy-pkg-*` names are direct compatibility adapters only.
-The base keeps Omarchy's on-demand OpenAI Codex wrapper plus software with an
-independent qvOS, Omarchy, gaming, hardware, or desktop purpose. The package
-resolver validates singular qvOS base and conditional-hardware manifests;
-upstream package changes are capability-review input, never an automatic change
-to the qvOS package set.
+The base keeps Codex through the signed configured repositories plus software
+with an independent qvOS, upstream-compatibility, gaming, hardware, or desktop
+purpose. The package resolver validates singular qvOS base and
+conditional-hardware manifests; upstream package changes are capability-review
+input, never an automatic change to the qvOS package set.
 Steam remains optional and uses its standard gaming installer and remover.
 Services and Development integrations never change qvOS base readiness.
 
@@ -119,9 +119,9 @@ Services and Development integrations never change qvOS base readiness.
   enrolled software and qvOS integration while preserving personal files,
   browser profiles, credentials, authentication state, projects, and cloud
   data.
-- Codex remains Omarchy-owned through its standard on-demand NPM installation.
-  qvOS preserves that upstream step but does not replace or separately update
-  Codex.
+- Codex is qvOS-base-owned through its signed repository package and follows
+  the normal Pacman update transaction; no global NPM installation path may
+  replace it.
 - Devel unifies developer and Codex workstation ownership. It owns
   developer-specific Pacman packages, mise tools, verified provider binaries,
   Semgrep, Dev Container CLI, and Codex desktop/workbench integration. It uses
@@ -201,8 +201,8 @@ exposes, installs, or refreshes the native owner:
 - `qvcore/config/files/` owns every installed user-config source;
   `qvcore/config/` owns its atomic refresh, toggle templates, private state
   migration, and service reconciliation. The inherited top-level `config/`
-  tree is retired. Unpromoted `default/` paths remain reviewed upstream source
-  until their complete domains move.
+  tree and the inherited top-level `default/` source tree are retired.
+  Domain-owned defaults must remain under their native `qvcore/` owner.
 - `qvcore/install/` owns the complete fresh-install implementation and
   `qvcore/boot/login/` owns its login leaves. The retired top-level `install/`
   tree must not return. Existing-system transitions live only in

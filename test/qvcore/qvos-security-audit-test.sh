@@ -462,7 +462,7 @@ auth include system-auth
 account include system-auth
 session include system-auth
 PAM
-cp "$root/default/pacman/pacman-rc.conf" \
+cp "$root/qvcore/packages/provider/omarchy/pacman-rc.conf" \
   "$offline_system_root/etc/pacman.conf"
 OMARCHY_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \

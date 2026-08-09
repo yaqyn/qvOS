@@ -17,6 +17,26 @@ grep -Fq 'release/iso/build' "$root/qvcore/tui/bin/qvos-build" ||
   fail "TUI adapter bypasses the release owner"
 grep -Fq 'release/iso/omarchy-iso-qvos-tui.patch' "$root/release/iso/build" ||
   fail "image builder bypasses its release patch"
+# shellcheck disable=SC2016
+grep -Fq 'omarchy_mirror="${QVOS_OMARCHY_MIRROR:-stable}"' \
+  "$root/release/iso/build" ||
+  fail "release image does not default to the installed Stable channel"
+grep -Fq 'omarchy_mirror=edge' "$root/release/iso/build" ||
+  fail "release image lacks the explicit development channel"
+grep -Fq 'omarchy_mirror=rc' "$root/release/iso/build" ||
+  fail "release image lacks the explicit release-candidate channel"
+set +e
+invalid_channel_output=$(
+  QVOS_OMARCHY_MIRROR='../edge' \
+    "$root/release/iso/build" --prepare-only 2>&1
+)
+invalid_channel_status=$?
+set -e
+((invalid_channel_status == 2)) ||
+  fail "release image invalid-channel status"
+grep -Fq 'QVOS_OMARCHY_MIRROR must be stable, edge, or rc.' \
+  <<<"$invalid_channel_output" ||
+  fail "release image accepts an unvalidated package channel"
 grep -Fq 'release/iso/source-permissions' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "ISO patch bypasses release source-permission policy"

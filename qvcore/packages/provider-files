@@ -1,0 +1,68 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 1)); then
+  echo "Usage: qvcore/packages/provider-files <stable|edge|rc>" >&2
+  exit 2
+fi
+
+channel=$1
+case $channel in
+stable)
+  expected_mirror='https://stable-mirror.omarchy.org/$repo/os/$arch'
+  expected_repository='https://pkgs.omarchy.org/stable/$arch'
+  ;;
+edge | rc)
+  [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]] || {
+    echo "Omarchy $channel is restricted to reviewed ISO-builder use." >&2
+    exit 2
+  }
+  if [[ $channel == "edge" ]]; then
+    expected_mirror='https://mirror.omarchy.org/$repo/os/$arch'
+  else
+    expected_mirror='https://rc-mirror.omarchy.org/$repo/os/$arch'
+  fi
+  expected_repository='https://pkgs.omarchy.org/edge/$arch'
+  ;;
+*)
+  echo "Unknown Omarchy package channel." >&2
+  exit 2
+  ;;
+esac
+
+source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/provider/omarchy"
+pacman_config="$source_dir/pacman-$channel.conf"
+mirrorlist="$source_dir/mirrorlist-$channel"
+
+for source_file in "$pacman_config" "$mirrorlist"; do
+  [[ -f $source_file && ! -L $source_file ]] || {
+    echo "Missing safe Omarchy $channel provider file: $source_file" >&2
+    exit 1
+  }
+done
+
+[[ $(grep -Fxc '[omarchy]' "$pacman_config") == 1 ]] || {
+  echo "Invalid Omarchy repository section: $pacman_config" >&2
+  exit 1
+}
+repository_policy=$(awk '
+  /^\[omarchy\]$/ { active = 1; next }
+  /^\[/ { active = 0 }
+  active && /^(SigLevel|Server)[[:space:]]*=/ { print }
+' "$pacman_config")
+expected_policy=$'SigLevel = Required DatabaseOptional\nServer = '"$expected_repository"
+[[ $repository_policy == "$expected_policy" ]] || {
+  echo "Invalid Omarchy repository policy: $pacman_config" >&2
+  exit 1
+}
+[[ $(<"$mirrorlist") == "Server = $expected_mirror" ]] || {
+  echo "Invalid Omarchy mirror policy: $mirrorlist" >&2
+  exit 1
+}
+if grep -Eq 'TrustAll|SigLevel[[:space:]]*=[[:space:]]*Never' \
+  "$pacman_config"; then
+  echo "Weak package signature policy: $pacman_config" >&2
+  exit 1
+fi
+
+printf '%s\n%s\n' "$pacman_config" "$mirrorlist"

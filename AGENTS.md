@@ -146,7 +146,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state
-- `default/` remains reviewed source only for domains not yet promoted
+- the inherited top-level `default/` source tree is fully retired and must
+  remain absent; native defaults live with their qvCORE domain owners
 - `qvcore/branding/` owns the qvOS vector masters, the user-approved terminal
   art, its private install/migration lifecycle, and branding commands; the
   graphical wordmark and terminal composition are intentionally distinct
@@ -178,6 +179,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   no preinstalled Web Apps, fixed service URLs, or service protocol handlers
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
+- `qvcore/packages/provider/omarchy/` owns the credited Omarchy mirror and
+  repository inputs; installed qvOS uses Stable with required package signatures
 - local debug inventory belongs to `qvcore/security/debug`; it remains private,
   bounded, terminal-safe, and upload-free, with sudo limited to optional dmesg
 - `qvcore/theme/yaqyn/` is the only bundled theme; `themes/` is retired

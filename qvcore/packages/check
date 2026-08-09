@@ -2,8 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-stable_config="$root/default/pacman/pacman-stable.conf"
-stable_mirror="$root/default/pacman/mirrorlist-stable"
+provider_dir="$root/qvcore/packages/provider/omarchy"
+stable_config="$provider_dir/pacman-stable.conf"
+stable_mirror="$provider_dir/mirrorlist-stable"
 manifest="$root/qvcore/packages/native-paths"
 
 fail() {
@@ -51,6 +52,19 @@ for owner in update-aur update-keyring remove-orphans update-system; do
   [[ -x $root/qvcore/packages/$owner ]] ||
     fail "native package-update owner mode: $owner"
 done
+[[ -x $root/qvcore/packages/provider-files ]] ||
+  fail "native package-provider resolver mode"
+expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-rc.conf\npacman-stable.conf'
+actual_provider_files=$(
+  find "$provider_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort
+)
+[[ $actual_provider_files == "$expected_provider_files" ]] ||
+  fail "credited provider source inventory"
+while IFS= read -r provider_file; do
+  [[ -f $provider_file && ! -L $provider_file &&
+    $(stat -c '%a' -- "$provider_file") == "644" ]] ||
+    fail "unsafe credited provider source: ${provider_file#"$root/"}"
+done < <(find "$provider_dir" -mindepth 1 -maxdepth 1 -print)
 sudo_keepalive="$root/qvcore/packages/sudo-keepalive"
 [[ -x $sudo_keepalive ]] || fail "native package sudo refresh owner mode"
 for picker in install aur-install; do
@@ -64,6 +78,9 @@ for picker in install aur-install; do
     fail "package $picker does not bound sudo refresh lifetime"
 done
 retired_manifest="$root/qvcore/packages/retired-paths"
+expected_retired=$'bin/omarchy-sudo-keepalive\nbin/omarchy-update-aur-pkgs\nbin/omarchy-update-keyring\nbin/omarchy-update-orphan-pkgs\nbin/omarchy-update-system-pkgs\ndefault/pacman/'
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
+  fail "retired package source inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
 ) ]] || fail "retired package paths are not sorted and unique"
@@ -107,6 +124,17 @@ if rg -n 'omarchy-refresh-pacman' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls the package refresh compatibility route"
 fi
+grep -Fq 'qvcore/packages/provider-files' "$root/qvcore/packages/configure" ||
+  fail "Stable reset bypasses the provider resolver"
+for installer_stage in \
+  "$root/qvcore/install/preflight/pacman.sh" \
+  "$root/qvcore/install/post-install/pacman.sh"; do
+  grep -Fq 'qvcore/packages/provider-files' "$installer_stage" ||
+    fail "installer bypasses the provider resolver: ${installer_stage#"$root/"}"
+  if rg -n 'default/pacman|pacman-\$\{|mirrorlist-\$\{' "$installer_stage"; then
+    fail "installer interpolates an inherited provider path"
+  fi
+done
 
 for frontend in qv omarchy; do
   "$root/bin/$frontend" commands --json | jq -e --arg route "$frontend pkg add" '
@@ -140,15 +168,55 @@ grep -Fq "pacman -Q -- \"\$package\"" "$root/qvcore/packages/aur-add" ||
 [[ $(<"$stable_mirror") == 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' ]] || {
   fail "Omarchy Stable Arch mirror contract drifted"
 }
-[[ $(grep -Fxc '[omarchy]' "$stable_config") == 1 ]] || {
-  fail "expected exactly one credited Omarchy repository"
-}
-# shellcheck disable=SC2016
-grep -Fqx 'Server = https://pkgs.omarchy.org/stable/$arch' "$stable_config" || {
-  fail "Omarchy Stable package repository contract drifted"
-}
+declare -A expected_mirrors=(
+  [edge]="https://mirror.omarchy.org/\$repo/os/\$arch"
+  [rc]="https://rc-mirror.omarchy.org/\$repo/os/\$arch"
+  [stable]="https://stable-mirror.omarchy.org/\$repo/os/\$arch"
+)
+declare -A expected_repositories=(
+  [edge]="https://pkgs.omarchy.org/edge/\$arch"
+  [rc]="https://pkgs.omarchy.org/edge/\$arch"
+  [stable]="https://pkgs.omarchy.org/stable/\$arch"
+)
+for channel in edge rc stable; do
+  config="$provider_dir/pacman-$channel.conf"
+  mirror="$provider_dir/mirrorlist-$channel"
+  [[ $(grep -Fxc '[omarchy]' "$config") == 1 ]] ||
+    fail "expected one credited Omarchy repository: $channel"
+  [[ $(awk '
+    /^\[omarchy\]$/ { active = 1; next }
+    /^\[/ { active = 0 }
+    active && /^SigLevel = / { print }
+  ' "$config") == "SigLevel = Required DatabaseOptional" ]] ||
+    fail "Omarchy package signatures are not required at source: $channel"
+  grep -Fqx "Server = ${expected_repositories[$channel]}" "$config" ||
+    fail "Omarchy package repository contract drifted: $channel"
+  grep -Fqx "Server = ${expected_mirrors[$channel]}" "$mirror" ||
+    fail "Omarchy Arch mirror contract drifted: $channel"
+done
+if rg -n 'Optional[[:space:]]+TrustAll|SigLevel[[:space:]]*=[[:space:]]*Never' \
+  "$provider_dir"; then
+  fail "credited provider source contains weak signature policy"
+fi
+mapfile -t stable_files < <("$root/qvcore/packages/provider-files" stable)
+[[ ${stable_files[*]} == "$stable_config $stable_mirror" ]] ||
+  fail "Stable provider resolution"
+if "$root/qvcore/packages/provider-files" edge >/dev/null 2>&1 ||
+  "$root/qvcore/packages/provider-files" rc >/dev/null 2>&1 ||
+  "$root/qvcore/packages/provider-files" '../stable' >/dev/null 2>&1; then
+  fail "provider resolver accepts an unreviewed installed channel"
+fi
+for channel in edge rc; do
+  mapfile -t iso_files < <(
+    OMARCHY_CHROOT_INSTALL=1 \
+      "$root/qvcore/packages/provider-files" "$channel"
+  )
+  [[ ${iso_files[*]} == \
+    "$provider_dir/pacman-$channel.conf $provider_dir/mirrorlist-$channel" ]] ||
+    fail "ISO provider resolution: $channel"
+done
 if rg -n '^\[qvos\]$|pkgs\.qvos|mirror\.qvos' \
-  "$root/default/pacman" "$root/qvcore"; then
+  "$provider_dir" "$root/qvcore"; then
   fail "qvOS claims package infrastructure it does not operate"
 fi
 grep -Fq 'omarchy-keyring' "$root/qvcore/packages/update-keyring" || {

@@ -35,6 +35,10 @@ the native theme configuration directly, and finishes through the shared
 Hyprland reconciliation owner. Its Bash source comes only from
 `qvcore/shell/files/bashrc`; the inherited top-level shell defaults are
 retired.
+Resolve package-provider files only through
+`qvcore/packages/provider-files`. Installed and online qvOS use Stable; Edge and
+RC are accepted only inside the reviewed ISO chroot. Provider source requires
+signed Omarchy packages before the first repository synchronization.
 Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
 when its former owner is absent and the installed payload is an exact known
 qvOS artifact. Preserve symbolic links, modified files, and foreign data.

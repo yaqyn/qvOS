@@ -30,6 +30,9 @@ a thin adapter to this owner.
 - During pre-public development, run full image builds and embedded audits on
   request or for release candidates. For ISO changes, run fast staging and
   contract checks immediately and report any deferred full build.
+- Unflagged image builds use the installed qvOS Stable package channel.
+  `--dev` selects Edge and `--rc` selects RC only for those explicit reviewed
+  image workflows; never make a development channel the production default.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
   release candidate starts with an empty package cache; retries inside that one
   build may preserve packages already verified during the same run.

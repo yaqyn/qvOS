@@ -17,8 +17,14 @@ case $# in
   ;;
 esac
 
-pacman_source="$QVOS_PATH/default/pacman/pacman-stable.conf"
-mirror_source="$QVOS_PATH/default/pacman/mirrorlist-stable"
+provider_output=$("$QVOS_PATH/qvcore/packages/provider-files" stable) || exit
+mapfile -t provider_files <<<"$provider_output"
+(( ${#provider_files[@]} == 2 )) || {
+  echo "qvOS could not resolve the Stable package provider files." >&2
+  exit 1
+}
+pacman_source=${provider_files[0]}
+mirror_source=${provider_files[1]}
 pacman_target="/etc/pacman.conf"
 mirror_target="/etc/pacman.d/mirrorlist"
 pacman_backup=""
@@ -26,13 +32,6 @@ mirror_backup=""
 pacman_replaced=0
 mirror_replaced=0
 committed=0
-
-for source_file in "$pacman_source" "$mirror_source"; do
-  [[ -f $source_file && ! -L $source_file ]] || {
-    echo "Missing safe Omarchy Stable package configuration: $source_file" >&2
-    exit 1
-  }
-done
 
 restore_previous_config() {
   ((committed == 0)) || return

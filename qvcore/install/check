@@ -66,6 +66,8 @@ done
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
+[[ ! -e $root/default && ! -L $root/default ]] ||
+  fail "inherited default source tree remains"
 expected_retired=$'bin/omarchy-npx-install\nbin/omarchy-remove-preinstalls\ndefault/gpg/\ndefault/nautilus-python/\ndefault/systemd/faster-shutdown.conf\ndefault/systemd/user@.service.d/faster-shutdown.conf\ninstall/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
   fail "retired install and Nautilus source inventory"
@@ -199,6 +201,15 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/webapps"' \
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/packaging/npx"' \
   "$root/qvcore/install/packaging/all.sh" || fail "native npx stage"
+for package_stage in preflight/pacman.sh post-install/pacman.sh; do
+  grep -Fq 'qvcore/packages/provider-files' \
+    "$root/qvcore/install/$package_stage" ||
+    fail "installer package stage bypasses native provider resolution: $package_stage"
+  if rg -n 'default/pacman|pacman-\$\{|mirrorlist-\$\{' \
+    "$root/qvcore/install/$package_stage"; then
+    fail "installer package stage retains an interpolated inherited provider path"
+  fi
+done
 
 if rg -n 'basecamp/omarchy|branch master|rm -rf .*local/share/omarchy' \
   "$root/bin/omarchy-reinstall-git" "$root/qvcore/install/reinstall-source" "$root/boot.sh"; then
