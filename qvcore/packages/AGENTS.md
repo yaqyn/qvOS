@@ -9,6 +9,8 @@ checks. Omarchy remains the credited provider of the Stable Arch mirror, the
 `[omarchy]` curated package repository, and `omarchy-keyring`. Preserve those
 truthful names and the published signing fingerprint; never introduce or imply
 a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
+Native package owners resolve source only through `QVOS_PATH`; the provider
+name never grants `OMARCHY_PATH` source authority.
 
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may

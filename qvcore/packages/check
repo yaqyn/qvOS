@@ -107,15 +107,8 @@ for adapter in "$native_refresh" "$compatibility_refresh"; do
   grep -Fqx 'exec "$QVOS_PATH/qvcore/packages/configure" "$@"' "$adapter" ||
     fail "package refresh adapter ownership"
 done
-compatibility_path_refs=$(
-  # This intentionally matches the literal compatibility fallback expression.
-  # shellcheck disable=SC2016
-  rg -n 'OMARCHY_PATH' "$root/qvcore/packages" \
-    --glob '!AGENTS.md' --glob '!check' --glob '!native-paths' |
-    grep -Fv 'QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}' || true
-)
-if [[ -n $compatibility_path_refs ]]; then
-  printf '%s\n' "$compatibility_path_refs" >&2
+if rg -n 'OMARCHY_PATH' "$root/qvcore/packages" \
+  --glob '!AGENTS.md' --glob '!check'; then
   fail "native package owner dereferences the compatibility source root"
 fi
 if rg -n 'omarchy-refresh-pacman' \

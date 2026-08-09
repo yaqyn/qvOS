@@ -1,9 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-source_path=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_path=${QVOS_PATH:-$HOME/.local/share/qvos}
 QVOS_PATH=$(readlink -f -- "$source_path" 2>/dev/null || true)
-OMARCHY_PATH=$QVOS_PATH
 mode=interactive
 
 usage() {

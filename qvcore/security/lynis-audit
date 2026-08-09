@@ -31,7 +31,7 @@ if [[ $output_dir != /* ]]; then
   exit 1
 fi
 if ! command -v lynis >/dev/null 2>&1; then
-  printf 'Lynis is required. Install it with: omarchy-pkg-add lynis\n' >&2
+  printf 'Lynis is required. Install it with: qv pkg add lynis\n' >&2
   exit 1
 fi
 if [[ ! -x $root_helper ]]; then

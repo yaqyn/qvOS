@@ -9,12 +9,12 @@ update, and availability checks all call it; mutation paths recheck immediately
 before use to close time-of-check gaps.
 
 `qvcore/update/update-source` owns source synchronization. The public inherited
-command is a thin compatibility adapter. Resolve `QVOS_PATH` first and the
-inherited environment name second. Require a clean non-symbolic checkout
-on branch `OS`, accept only the official qvOS origin, and pull `origin/OS` with
-fast-forward-only semantics and bounded network time. Never autostash, reset,
-merge another branch, or conceal source changes. Always restore Hyprland error
-reporting after an attempted pull.
+command is a thin compatibility adapter. Native update owners resolve source
+only through `QVOS_PATH` and never propagate `OMARCHY_PATH`. Require a clean
+non-symbolic checkout on branch `OS`, accept only the official qvOS origin, and
+pull `origin/OS` with fast-forward-only semantics and bounded network time.
+Never autostash, reset, merge another branch, or conceal source changes. Always
+restore Hyprland error reporting after an attempted pull.
 qvOS has one installed source channel: official `origin/OS`. The inherited
 branch and channel switchers are retired; experimental upstream refs belong in
 separate development checkouts and never mutate the installed OS.
@@ -50,8 +50,9 @@ owner. Never invoke these mutations during source-only verification.
 
 `qvcore/migrations/run` is the update pipeline's only migration engine. It reads
 only native numeric owners, serializes runs, keeps private atomic qvOS markers,
-and stops the update on failure without allowing a skip. Update paths call
-`qv-migrate`; `omarchy-migrate` is a metadata-free ABI adapter only. No path may read or
+and stops the update on failure without allowing a skip. Update paths call the
+owner directly; `qv migrate` is the native frontend and `omarchy-migrate` is a
+metadata-free compatibility frontend to that same engine. No path may read or
 replay the retired top-level Omarchy migration tree.
 
 `qvcore/update/state` owns only `reboot-required` and validated

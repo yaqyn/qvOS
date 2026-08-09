@@ -37,6 +37,10 @@ owners=(
 for owner in "${owners[@]}"; do
   [[ -x $root/qvcore/update/$owner ]] || fail "native update owner mode: $owner"
 done
+if rg -n 'OMARCHY_PATH' "$root/qvcore/update" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native update owner dereferences the compatibility source root"
+fi
 
 declare -A compatibility_owners=(
   [omarchy-snapshot]=snapshot

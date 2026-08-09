@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
 lock_file="$runtime_root/qvos-update.lock"
 
@@ -50,7 +49,6 @@ if [[ ${QVOS_UPDATE_CAPTURED:-0} != "1" ]]; then
   script_command=$(printf '%q ' "$QVOS_PATH/qvcore/update/run")
   exec env \
     QVOS_PATH="$QVOS_PATH" \
-    OMARCHY_PATH="$QVOS_PATH" \
     QVOS_UPDATE_CAPTURED=1 \
     QVOS_UPDATE_LOG_PATH="$update_log" \
     QVOS_UPDATE_LOCK_FD="$lock_fd" \

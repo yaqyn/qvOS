@@ -39,7 +39,7 @@ grep -Fq 'Omarchy package-provider signals' \
   echo "not ok - qvsync omits provider compatibility signals" >&2
   exit 1
 }
-if output=$(OMARCHY_PATH="$root" "$root/qvcore/packages/configure" edge 2>&1); then
+if output=$(QVOS_PATH="$root" "$root/qvcore/packages/configure" edge 2>&1); then
   echo "not ok - installed package channel accepts Edge" >&2
   exit 1
 fi
