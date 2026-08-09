@@ -2,7 +2,7 @@
 
 # qv:summary=Set custom qvOS Plymouth and SDDM colors and logo
 # qv:args=<background-hex> <text-hex> <path-to-logo.png>
-# qv:examples=qv plymouth set '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png
+# qv:examples=qv plymouth set '#1d2021' '#ebdbb2' ~/.config/qvos/current/theme/plymouth/logo.png
 # qv:requires-sudo=true
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}

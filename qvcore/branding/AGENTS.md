@@ -7,6 +7,10 @@ labels, terminal titles, or branding-state migration.
 `qvcore/branding/` owns product identity. Public copy says qvOS; Omarchy appears
 only for truthful upstream attribution, an exact external compatibility ABI, or
 historical migration evidence.
+Repository issue forms, native command examples, bundled configuration samples,
+and qvOS-owned comments are public identity surfaces. They use qvOS names and
+native `qv` routes; do not send users to upstream support or compatibility
+commands.
 
 The graphical and terminal identities are deliberately distinct:
 

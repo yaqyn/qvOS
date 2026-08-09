@@ -1,6 +1,4 @@
-# Public installed-app OAuth identity inherited by Chromium account support.
-bin/omarchy-install-chromium-google-account:generic-api-key:12
-bin/omarchy-install-chromium-google-account:generic-api-key:13
+# Public installed-app OAuth identity retained only in inherited history.
 dac34aa5e0b1d9a8e96f33ed671db58cca4a242b:bin/omarchy-install-chromium-google-account:generic-api-key:9
 dac34aa5e0b1d9a8e96f33ed671db58cca4a242b:bin/omarchy-install-chromium-google-account:generic-api-key:10
 d5314cecb7f39ca92968a494f02aa7cde3904b9a:config/chromium-flags.conf:generic-api-key:5

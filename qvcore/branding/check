@@ -173,6 +173,30 @@ for path in "${identity_paths[@]}"; do
   fi
 done
 
+native_identity_paths=(
+  .github/ISSUE_TEMPLATE/bug.yml
+  .github/ISSUE_TEMPLATE/config.yml
+  bin/qv-plymouth-preview
+  bin/qv-plymouth-set
+  qvcore/config/files/hypr/looknfeel.conf
+  qvcore/config/files/qvos/themed/alacritty.toml.tpl.sample
+  qvcore/shell/aliases
+  qvcore/theme/yaqyn/gum.env.conf
+  qvcore/theme/yaqyn/hyprland/windows.conf
+)
+for path in "${native_identity_paths[@]}"; do
+  [[ -f $root/$path ]] || fail "missing native identity source: $path"
+  if rg -n -i 'omarchy' "$root/$path"; then
+    fail "native identity source retains inherited branding: $path"
+  fi
+done
+# shellcheck disable=SC2016
+grep -Fq '`qv debug`' "$root/.github/ISSUE_TEMPLATE/bug.yml" ||
+  fail "qvOS bug report bypasses the native debug command"
+grep -Fqx 'blank_issues_enabled: true' \
+  "$root/.github/ISSUE_TEMPLATE/config.yml" ||
+  fail "qvOS questions and proposals lack an issue path"
+
 # shellcheck disable=SC2016
 grep -Fqx 'QVOS_REF="${QVOS_REF:-OS}"' "$root/boot.sh" ||
   fail "online installer does not default to the qvOS product branch"

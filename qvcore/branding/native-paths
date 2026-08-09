@@ -1,4 +1,6 @@
 # Inherited paths promoted to native qvOS ownership for product branding.
+.github/ISSUE_TEMPLATE/bug.yml
+.github/ISSUE_TEMPLATE/config.yml
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
 bin/omarchy-refresh-fastfetch

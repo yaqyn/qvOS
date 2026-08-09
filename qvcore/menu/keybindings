@@ -89,7 +89,7 @@ parse_keycodes() {
 # bindsRequest), and older versions broke on quotes in bind args.
 #
 # Also do some pre-processing:
-# - Remove standard Omarchy bin path prefix
+# - Remove qvOS and compatibility bin path prefixes
 # - Remove uwsm prefix
 # - Map numeric modifier key mask to a textual rendition
 # - Output comma-separated values that the parser can understand

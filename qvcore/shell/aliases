@@ -1,4 +1,6 @@
-# qvOS shell overlay loaded after the original Omarchy aliases.
+# shellcheck shell=bash
+
+# qvOS shell aliases.
 
 unalias c cx ic ix icx qv 2>/dev/null || true
 

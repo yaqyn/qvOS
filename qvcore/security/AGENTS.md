@@ -68,6 +68,11 @@ into a root shell command and depended on a separately usable root password.
 Authentication lockout recovery belongs to an explicit recovery environment,
 not a normal-session product command.
 
+Keep `.gitleaksignore` narrow and reviewable. A retired public identifier may
+retain only a commit-pinned historical exception; never keep an unqualified
+current-path exception after its owner is removed, because that can hide a
+future secret at the reused path.
+
 Fingerprint and FIDO2 remain explicit optional capabilities. Their public `qv`
 adapters delegate to `auth`; matching Omarchy adapters are metadata-free ABI
 only. `auth-policy` is installed root-owned under `/usr/lib/qvos/security/` and

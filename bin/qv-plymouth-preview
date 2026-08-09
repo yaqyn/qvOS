@@ -2,7 +2,7 @@
 
 # qv:summary=Preview a qvOS Plymouth screen without installing it
 # qv:args=<background-hex> <text-hex> <path-to-logo.png> <output-path>
-# qv:examples=qv plymouth preview '#1d2021' '#ebdbb2' ~/.config/omarchy/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
+# qv:examples=qv plymouth preview '#1d2021' '#ebdbb2' ~/.config/qvos/current/theme/plymouth/logo.png /tmp/plymouth-preview.png
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 exec "$QVOS_PATH/qvcore/boot/plymouth-preview" "$@"
