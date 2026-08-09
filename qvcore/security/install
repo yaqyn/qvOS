@@ -256,7 +256,7 @@ fi
 
 "$QVOS_PATH/qvcore/security/boot-mount"
 
-if [[ -z $system_root ]]; then
+if [[ -z $system_root && ${OMARCHY_CHROOT_INSTALL:-} != "1" ]]; then
   if ((docker_changed)) &&
     /usr/bin/systemctl is-active --quiet docker.service; then
     if ((EUID == 0)); then

@@ -78,6 +78,9 @@ changes atomically, and restore the prior boot policy if rebuilding fails. Use
 only `/etc/limine-entry-tool.d/80-qvos-*.conf`; remove an old duplicate line
 from `/etc/default/limine` only when it exactly matches a validated managed
 drop-in. Never execute a home checkout from a boot, sleep, or package hook.
+Fresh install invokes hibernation before the Limine owner creates that defaults
+file. Treat an absent file as clean state, keep it absent, and still reject any
+linked, foreign-owned, or writable file that is present.
 
 Removal may delete `/swap/swapfile` and its subvolume only after explicit user
 confirmation, exact ownership checks, successful boot-policy removal and

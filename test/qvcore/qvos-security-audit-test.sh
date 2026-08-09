@@ -699,6 +699,12 @@ grep -Fq 'desired_options=$(awk' "$boot_mount" ||
   fail "EFI generated policy uses the validated candidate options"
 grep -Fq 'restore_prior_policy' "$boot_mount" ||
   fail "EFI policy reload failure restores the prior fstab"
+# shellcheck disable=SC2016
+grep -Fq '[[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]' "$boot_mount" ||
+  fail "ISO chroot defers live mount-unit validation"
+# shellcheck disable=SC2016
+grep -Fq '[[ -z $system_root && ${OMARCHY_CHROOT_INSTALL:-} != "1" ]]' \
+  "$installer" || fail "ISO chroot defers live security activation"
 
 ambiguous_boot_root="$test_root/ambiguous-boot-system"
 install -d "$ambiguous_boot_root/etc"

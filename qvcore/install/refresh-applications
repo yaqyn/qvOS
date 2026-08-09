@@ -20,5 +20,8 @@ fi
 "$QVOS_PATH/qvcore/install/packaging/webapps"
 "$QVOS_PATH/qvcore/install/packaging/npx"
 
-gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null
+# The fixed payload adds one hicolor icon but does not own a complete local
+# icon theme. Cache generation is an optional optimization and legitimately
+# returns non-zero when the inherited system index is used.
+gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" &>/dev/null || true
 update-desktop-database "$application_dir"

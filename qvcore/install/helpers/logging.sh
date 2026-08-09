@@ -171,8 +171,10 @@ run_logged() {
 
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting: $script" >>"$QVOS_INSTALL_LOG_FILE"
 
-  # Use bash -c to create a clean subshell
-  if bash -c 'source "$1"' _ "$script" </dev/null >>"$QVOS_INSTALL_LOG_FILE" 2>&1; then
+  # Use bash -c to create a clean subshell. Save the path and clear the
+  # transport argument before sourcing so a stage receives no false $1.
+  if bash -c 'script=$1; set --; source "$script"' _ "$script" \
+    </dev/null >>"$QVOS_INSTALL_LOG_FILE" 2>&1; then
     exit_code=0
   else
     exit_code=$?

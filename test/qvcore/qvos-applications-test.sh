@@ -285,4 +285,34 @@ if run_owner "$fresh_home" unexpected >/dev/null 2>&1; then
   fail "unexpected application-owner argument accepted"
 fi
 
+refresh_home="$test_root/refresh-home"
+refresh_events="$test_root/refresh-events"
+install -d "$refresh_home"
+: >"$refresh_events"
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/gtk-update-icon-cache" <<'SCRIPT'
+#!/bin/bash
+printf 'icon-cache:%s\n' "$*" >>"$QVOS_TEST_REFRESH_EVENTS"
+exit 1
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/update-desktop-database" <<'SCRIPT'
+#!/bin/bash
+printf 'desktop-database:%s\n' "$*" >>"$QVOS_TEST_REFRESH_EVENTS"
+SCRIPT
+HOME="$refresh_home" \
+  QVOS_PATH="$root" \
+  XDG_STATE_HOME="$refresh_home/.local/state" \
+  QVOS_TEST_REFRESH_EVENTS="$refresh_events" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/install/refresh-applications"
+grep -Fqx \
+  "icon-cache:$refresh_home/.local/share/icons/hicolor" \
+  "$refresh_events" || fail "hicolor cache refresh attempted"
+grep -Fqx \
+  "desktop-database:$refresh_home/.local/share/applications" \
+  "$refresh_events" || fail "cache miss did not abort application refresh"
+
 printf 'ok - qvOS fixed applications are native, atomic, slim, and Web App free\n'

@@ -131,6 +131,28 @@ hibernation_env=(
   "QVOS_TEST_SYSTEM_ROOT=$system_root"
 )
 
+fresh_system_root="$test_root/fresh-system"
+cp -a -- "$system_root" "$fresh_system_root"
+rm -- "$fresh_system_root/etc/default/limine"
+fresh_hibernation_env=(
+  "QVOS_PATH=$root"
+  QVOS_HIBERNATION_TESTING=1
+  "QVOS_HIBERNATION_SYSTEM_ROOT=$fresh_system_root"
+  "QVOS_HIBERNATION_TEST_BIN=$fresh_system_root/test-bin"
+  "QVOS_TEST_REBUILD_LOG=$test_root/fresh-rebuild.log"
+  "QVOS_TEST_SYSTEM_ROOT=$fresh_system_root"
+)
+env "${fresh_hibernation_env[@]}" \
+  "$root/qvcore/power/hibernation/setup" --force --no-rebuild >/dev/null
+[[ ! -e $fresh_system_root/etc/default/limine &&
+  ! -L $fresh_system_root/etc/default/limine ]] ||
+  fail "fresh hibernation created a duplicate Limine defaults owner"
+grep -Fqx \
+  'KERNEL_CMDLINE[default]+=" resume=/dev/mapper/test resume_offset=123"' \
+  "$fresh_system_root/etc/limine-entry-tool.d/80-qvos-resume.conf" ||
+  fail "fresh hibernation without Limine defaults"
+printf 'ok - fresh hibernation precedes the singular Limine defaults owner\n'
+
 env "${hibernation_env[@]}" \
   "$root/qvcore/power/hibernation/setup" --force
 

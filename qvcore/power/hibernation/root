@@ -174,12 +174,16 @@ validate_managed_files() {
   local path
   local swap_mentions
 
-  for path in "$fstab" "$limine_default"; do
-    safe_file "$path" || {
-      echo "Refusing unsafe qvOS hibernation system file: $path" >&2
+  safe_file "$fstab" || {
+    echo "Refusing unsafe qvOS hibernation system file: $fstab" >&2
+    return 1
+  }
+  if [[ -e $limine_default || -L $limine_default ]]; then
+    safe_file "$limine_default" || {
+      echo "Refusing unsafe qvOS hibernation system file: $limine_default" >&2
       return 1
     }
-  done
+  fi
   owned_line_file "$qvos_hook" '^HOOKS\+\=\(resume\)$' || return 1
   owned_line_file "$legacy_hook" '^HOOKS\+\=\(resume\)$' || return 1
   owned_line_file "$qvos_resume" '^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$' || return 1
@@ -374,14 +378,18 @@ build_limine_candidate() {
   [[ ! -f $legacy_resume ]] || old_resume=$(<"$legacy_resume")
   [[ ! -f $qvos_rtc ]] || old_rtc=$(<"$qvos_rtc")
   [[ ! -f $legacy_rtc ]] || old_rtc=$(<"$legacy_rtc")
-  awk -v resume="$old_resume" -v rtc="$old_rtc" '
-    (resume != "" && $0 == resume) || (rtc != "" && $0 == rtc) { next }
-    { lines[++count] = $0 }
-    END {
-      while (count > 0 && lines[count] == "") count--
-      for (i = 1; i <= count; i++) print lines[i]
-    }
-  ' "$limine_default" >"$candidate"
+  if [[ -f $limine_default ]]; then
+    awk -v resume="$old_resume" -v rtc="$old_rtc" '
+      (resume != "" && $0 == resume) || (rtc != "" && $0 == rtc) { next }
+      { lines[++count] = $0 }
+      END {
+        while (count > 0 && lines[count] == "") count--
+        for (i = 1; i <= count; i++) print lines[i]
+      }
+    ' "$limine_default" >"$candidate"
+  else
+    : >"$candidate"
+  fi
   printf '%s\n' "$candidate"
 }
 
@@ -493,7 +501,10 @@ if [[ $action == "apply" ]]; then
   limine_candidate=$(build_limine_candidate)
   changed=false
   atomic_install "$fstab_candidate" "$fstab" 0644 && changed=true || true
-  atomic_install "$limine_candidate" "$limine_default" 0644 && changed=true || true
+  if [[ -f $limine_default ]]; then
+    atomic_install "$limine_candidate" "$limine_default" 0644 &&
+      changed=true || true
+  fi
   atomic_install "$transaction_root/mkinit" "$qvos_hook" 0644 && changed=true || true
   atomic_install "$transaction_root/resume" "$qvos_resume" 0644 && changed=true || true
   atomic_install "$keyboard_payload" "$qvos_keyboard" 0755 && changed=true || true
@@ -529,7 +540,10 @@ fstab_candidate=$(build_fstab_candidate remove)
 limine_candidate=$(build_limine_candidate)
 changed=false
 atomic_install "$fstab_candidate" "$fstab" 0644 && changed=true || true
-atomic_install "$limine_candidate" "$limine_default" 0644 && changed=true || true
+if [[ -f $limine_default ]]; then
+  atomic_install "$limine_candidate" "$limine_default" 0644 &&
+    changed=true || true
+fi
 for managed in \
   "$qvos_hook" "$legacy_hook" \
   "$qvos_resume" "$legacy_resume" \

@@ -27,20 +27,41 @@ session, Wayland compositor config, autologin compatibility, and PAM policy,
 then configure Limine and Snapper after the native keyring and hibernation
 leaves in `qvcore/boot/login/`. The hibernation leaf calls the native power
 owner with `--no-rebuild`, so the later Limine package step remains the only
-fresh-install UKI rebuild. Active Plymouth, SDDM, session, mkinitcpio, and UKI
+fresh-install UKI rebuild. Hibernation must accept a safely absent
+`/etc/default/limine`; the later Limine owner singularly creates that file.
+Active Plymouth, SDDM, session, mkinitcpio, and UKI
 identifiers use `qvos`. Legacy `omarchy` boot artifacts are migration input
 only: create and verify the native replacement first, remove an old theme or
 config only when its complete content is recognized, and preserve modified or
 unsafe artifacts with a warning. The shared atomic theme sync owner installs
 the new payload, switches its Plymouth or SDDM selector, and only then retires
 recognized legacy content; a failed copy restores the prior native theme.
+Treat Snapper's non-zero empty `list-configs` result as fresh state, then let
+the required root `create-config` operation surface any real failure.
+Use Snapper's native `--no-dbus` mode only for the reviewed chroot installer
+boundary; running systems retain normal daemon coordination.
+An interrupted run may have already installed the qvOS skin before generated
+entries exist. Retry may recover its kernel command line only from an exact
+re-render of the native Limine defaults plus the current validated drop-ins;
+never source defaults or accept a partial or foreign recovery file.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed
 substitution, restore disabled mkinitcpio hooks on every exit, and rebuild UKIs
-only when installed entries prove the package hooks did not. Preserve the
-root-only Snapper policy from `qvcore/boot/snapper-root.conf` and disabled
-btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
+when either generated entries are absent or an EFI install lacks its native
+non-empty UKI. Treat those as independent evidence; never let one mask the
+other. When the installed config already begins with the exact native header,
+preserve its generated entries instead of rewriting the header and forcing an
+unchanged UKI rebuild. Changed native defaults, mkinitcpio policy, or drop-ins
+must still rebuild exactly once when the mkinitcpio hook was already installed;
+on first installation, trust its package hook only after the generated entries
+and non-empty UKI verify successfully. Install required Limine integration packages through
+the native package owner so a retry skips packages already present without
+depending on a still-populated synchronization database. Include
+`inotify-tools` with the integration packages because the enabled snapshot
+watcher otherwise exits successfully without monitoring later snapshots.
+Preserve the root-only Snapper policy from `qvcore/boot/snapper-root.conf` and
+disabled btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
 require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
 non-writable permissions before redirecting any system path.
 

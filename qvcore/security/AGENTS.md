@@ -32,6 +32,10 @@ activate them. Report that a reboot is required when the live mount still has
 the prior masks, and restore and reload the prior fstab policy if generation
 fails. Boot owners must use privileged reads for EFI payloads after this
 boundary is active.
+During the reviewed ISO chroot, persist the validated fstab policy but do not
+query the live ISO's systemd generator, apply sysctls to its shared kernel, or
+restart its services. The installed system activates those persistent defaults
+on first boot; live-system reconciliation keeps immediate reload and rollback.
 `qvcore/security/install` also removes group and other write access from root-owned
 regular files under `/usr/install`. System package code must not remain
 writable by unprivileged users, and the reconciliation must run after package

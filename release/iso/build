@@ -13,6 +13,7 @@ usage() {
   echo "Environment:"
   echo "  QVOS_SOURCE_REPO       qvOS git repository or local git path"
   echo "  QVOS_SOURCE_REF        qvOS branch, tag, or commit"
+  echo "  QVOS_UPDATE_REPO       public HTTPS origin embedded for installed updates"
   echo "  QVOS_PROVIDER_CHANNEL  package-provider channel (stable, edge, or rc)"
   echo "  QVOS_ARCH_MIRROR       optional HTTPS Arch mirror root"
   echo "  QVOS_DOCKER_NETWORK     optional Docker network, such as host"
@@ -166,6 +167,39 @@ default_qvos_source_ref() {
   fi
 }
 
+default_qvos_update_repo() {
+  local context_root="$1"
+  local source_repo="$2"
+  local remote_url=""
+
+  if [[ -d $source_repo ]] && git -C "$source_repo" rev-parse --git-dir >/dev/null 2>&1; then
+    remote_url=$(git -C "$source_repo" remote get-url origin 2>/dev/null || true)
+  elif [[ $source_repo == https://* ]]; then
+    remote_url="$source_repo"
+  fi
+  if [[ -z $remote_url && -n $context_root ]]; then
+    remote_url=$(git -C "$context_root" remote get-url origin 2>/dev/null || true)
+  fi
+
+  if [[ -n $remote_url ]]; then
+    echo "$remote_url"
+  else
+    echo "https://github.com/Yaqyn-qvOS/qvOS.git"
+  fi
+}
+
+validate_qvos_update_repo() {
+  local repo="$1"
+  local remote_path="${repo#https://}"
+
+  if [[ $repo != https://* || $repo == *[[:space:]]* || $repo == https://*@* ||
+    $repo == *\?* || $repo == *\#* || $remote_path != */* ||
+    -z ${remote_path%%/*} || -z ${remote_path#*/} ]]; then
+    echo "QVOS_UPDATE_REPO must be a public HTTPS Git URL without credentials." >&2
+    return 2
+  fi
+}
+
 checkout_git_ref() {
   local target="$1"
   local ref="$2"
@@ -202,11 +236,13 @@ clone_git_source() {
   local attempt
 
   if [[ -d $repo ]]; then
-    git clone --no-checkout "$repo" "$target"
+    git clone --no-local --depth 1 --single-branch --branch OS \
+      --no-checkout "$repo" "$target"
   else
     for attempt in 1 2 3; do
       if git -c http.version=HTTP/1.1 clone \
-        --filter=blob:none --no-checkout "$repo" "$target"; then
+        --filter=blob:none --depth 1 --single-branch --branch OS \
+        --no-checkout "$repo" "$target"; then
         break
       fi
       ((attempt == 3)) && return 1
@@ -217,6 +253,21 @@ clone_git_source() {
     done
   fi
   checkout_git_ref "$target" "$ref"
+}
+
+sanitize_qvos_checkout() {
+  local target="$1"
+
+  git -C "$target" remote set-url origin "$qvos_update_repo"
+  git -C "$target" config --local core.logAllRefUpdates false
+  rm -f -- \
+    "$target/.git/COMMIT_EDITMSG" \
+    "$target/.git/FETCH_HEAD" \
+    "$target/.git/ORIG_HEAD" \
+    "$target/.git/description" \
+    "$target/.git/info/exclude"
+  rm -rf -- "$target/.git/hooks" "$target/.git/logs"
+  install -d -m 0755 "$target/.git/hooks"
 }
 
 checkout_qvos_update_branch() {
@@ -246,14 +297,18 @@ stage_qvos_source() {
   local target="$1"
 
   echo "qvOS ISO progress: fresh-cloning qvOS source $qvos_source_ref"
-  clone_git_source "$qvos_source_repo" "$qvos_source_ref" "$target"
-  checkout_qvos_update_branch "$target"
+  clone_git_source "$qvos_source_repo" "$qvos_source_ref" "$target" || return
+  checkout_qvos_update_branch "$target" || return
+  sanitize_qvos_checkout "$target" || return
 }
 
 validate_qvos_source() {
   local target="$1"
   local missing=false
   local source_branch
+  local source_fetch
+  local source_remote
+  local source_shallow
   local source_upstream
 
   echo "qvOS ISO progress: validating qvOS payload"
@@ -288,12 +343,32 @@ validate_qvos_source() {
   fi
 
   source_branch=$(git -C "$target" branch --show-current 2>/dev/null || true)
+  source_fetch=$(git -C "$target" config --get-all remote.origin.fetch 2>/dev/null || true)
+  source_remote=$(git -C "$target" remote get-url origin 2>/dev/null || true)
+  source_shallow=$(git -C "$target" rev-parse --is-shallow-repository 2>/dev/null || true)
   source_upstream=$(
     git -C "$target" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' \
       2>/dev/null || true
   )
   if [[ $source_branch != "OS" || $source_upstream != "origin/OS" ]]; then
     echo "qvos-build staged qvOS source must be on OS tracking origin/OS." >&2
+    missing=true
+  fi
+  if [[ $source_remote != "$qvos_update_repo" ]]; then
+    echo "qvos-build staged qvOS source has an unexpected update origin." >&2
+    missing=true
+  fi
+  if [[ $source_shallow != "true" ||
+    $source_fetch != "+refs/heads/OS:refs/remotes/origin/OS" ]]; then
+    echo "qvos-build staged qvOS source is not a shallow OS-only checkout." >&2
+    missing=true
+  fi
+  if [[ -e $target/.git/FETCH_HEAD || -e $target/.git/logs ]]; then
+    echo "qvos-build staged qvOS source retains transient Git state." >&2
+    missing=true
+  fi
+  if find "$target/.git/hooks" -mindepth 1 -print -quit | grep -q .; then
+    echo "qvos-build staged qvOS source retains ambient Git hooks." >&2
     missing=true
   fi
 
@@ -359,6 +434,10 @@ validate_native_iso() {
   grep -Fqx 'Theme=qvos' \
     "$profile/airootfs/etc/plymouth/plymouthd.conf" || {
     echo "qvos-build staged a non-native Plymouth theme selection." >&2
+    return 1
+  }
+  grep -Fqx 'qvos' "$profile/airootfs/etc/hostname" || {
+    echo "qvos-build staged a non-native live hostname." >&2
     return 1
   }
   grep -Fq '/etc/sudoers.d/99-qvos-installer' "$installer" || {
@@ -537,6 +616,10 @@ fi
 qvos_context_root=$(detect_context_git_root || true)
 qvos_source_repo="${QVOS_SOURCE_REPO:-$(default_qvos_source_repo "$qvos_context_root")}"
 qvos_source_ref="${QVOS_SOURCE_REF:-$(default_qvos_source_ref "$qvos_context_root")}"
+qvos_update_repo="${QVOS_UPDATE_REPO:-$(
+  default_qvos_update_repo "$qvos_context_root" "$qvos_source_repo"
+)}"
+validate_qvos_update_repo "$qvos_update_repo"
 
 echo "qvOS ISO preflight: stage $stage_root"
 

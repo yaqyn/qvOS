@@ -70,7 +70,8 @@ reviewed predecessors, loads the restored systemd defaults transactionally,
 recovers an interrupted transaction, and preserves modified or unsafe policy.
 Fresh install seeds only numeric owners from `qvcore/migrations/` through
 `qvcore/migrations/run --mark-current`; it never executes existing-system
-migrations or records the retired Omarchy marker tree.
+migrations or records the retired Omarchy marker tree. This seeding runs before
+the installed account has a login session and must not require `/run/user/$UID`.
 
 The complete installer implementation lives under `qvcore/install/`, with
 login leaves under `qvcore/boot/login/`. The top-level `install.sh` is the only
@@ -137,7 +138,9 @@ support. A caller may define `qvos_install_exit_cleanup` for an owner-specific,
 idempotent final cleanup; its failure replaces only an otherwise successful
 status and never hides the original installation failure. Online retry replaces
 the failed installer process from the validated `QVOS_PATH`; signals stop
-promptly with conventional exit codes.
+promptly with conventional exit codes. `run_logged` transports only the exact
+stage path into its clean shell and clears positional parameters before sourcing;
+an installer leaf must never observe the helper's path as its own `$1`.
 
 `qvcore/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
@@ -193,8 +196,12 @@ restore the retired delayed Voxtype prompt; optional software remains an
 explicit menu action.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
+Keep `rtkit` with the PipeWire desktop runtime so audio processes retain their
+realtime scheduling path instead of silently falling back on every fresh boot.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths that remain verifiably signed.
+It also caches the Limine integration packages and `inotify-tools` required by
+the native boot owner; the owner installs that set only when Limine is present.
 `qvcore/install/packaging/resolve` validates and emits them; never restore an
 inherited manifest plus additions/exclusions model or an unsupported hardware
 stack merely to preserve upstream coverage.
@@ -220,6 +227,9 @@ lifecycle. Keep only icons with a current native desktop or Windows owner.
 The Windows icon stays with `qvcore/windows/`; the fixed desktop owner installs
 only imv into the hicolor application theme. Retire Typora desktop, theme, and
 window-rule seeds instead of preinstalling an unowned optional application.
+Treat user hicolor cache generation as a best-effort optimization: the fixed
+payload does not own a complete local icon theme, so a missing local
+`index.theme` must not abort fresh install or application refresh.
 Keep Pi and GHUI in the singular fixed wrapper owner until their product
 ownership changes deliberately. Never restore a generic package-to-command
 generator or make application refresh download an npm package.

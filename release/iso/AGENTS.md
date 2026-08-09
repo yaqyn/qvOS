@@ -45,10 +45,16 @@ a thin adapter to this owner.
   signature with its cached package and validate the native builder for weak
   trust, unsupported repositories, and boot-kernel drift before Docker runs.
   Require signatures for direct local package files too, and keep the offline
-  cache root-owned without group write access.
+  cache root-owned without group write access. Its directory is `0755`, while
+  package archives, signatures, and repository metadata are non-executable
+  `0644`; never use Archiso's trailing-slash recursive permission form for the
+  mirror directory.
   The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.
+- The interactive live image exposes no remote-administration service and does
+  not run inherited mirror or cloud discovery. Retain SSH tooling only for an
+  operator to start explicitly from the recovery shell.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
   release candidate starts with an empty package cache; retries inside that one
   build may preserve packages already verified during the same run.
@@ -58,7 +64,10 @@ a thin adapter to this owner.
   filenames before using downloaded archives.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   require that commit to equal `origin/OS`, and leave the embedded checkout on
-  `OS` tracking `origin/OS` so the installed update guard remains usable. The
+  `OS` tracking `origin/OS` so the installed update guard remains usable.
+  `QVOS_SOURCE_REPO` is only the build transfer source; embed the public,
+  credential-free HTTPS `QVOS_UPDATE_REPO` as `origin`, use a shallow
+  single-branch checkout, and remove fetch provenance and ambient hooks. The
   native builder and profile come from that same pinned qvOS commit. Verify the
   image and embedded source, and keep optional Services and Development
   integrations out unless explicitly promoted.
@@ -69,8 +78,9 @@ a thin adapter to this owner.
 - Build the ISO TUI with the exact digest from `qvcore/tui/source-hash` and verify
   the embedded binary reports that digest, never `unmanaged`. Disable and
   remove clone reflogs before image assembly so transient builder identity is
-  absent; retain the usable `OS` branch, `origin/OS` tracking, and clean Git
-  worktree. The TUI is the singular installer: an image build fails if it cannot
+  absent; retain the usable `OS` branch, `origin/OS` tracking, canonical public
+  update URL, and clean Git worktree. The TUI is the singular installer: an
+  image build fails if it cannot
   be built, and live boot fails closed to a recovery shell if it is unexpectedly
   unavailable. Never ship a parallel configurator fallback.
 - Keep the signed offline package archive uncompressed inside the zstd live

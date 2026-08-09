@@ -50,6 +50,10 @@ for retired_package in \
 done
 grep -Fxq 'yaru-icon-theme' <<<"$base" ||
   fail "Yaru compatibility icons are missing from the base manifest"
+grep -Fxq 'rtkit' <<<"$base" ||
+  fail "PipeWire realtime scheduling support is missing from the base manifest"
+grep -Fxq 'inotify-tools' <<<"$other" ||
+  fail "Limine snapshot monitoring dependency is missing from the ISO inventory"
 
 install -d "$fixture"
 install -m 0755 "$resolver" "$fixture/resolve"

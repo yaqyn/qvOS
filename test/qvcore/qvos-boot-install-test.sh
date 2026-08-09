@@ -7,6 +7,7 @@ test_bin="$test_root/bin"
 system_root="$test_root/system"
 action_log="$test_root/actions.log"
 swap_failure_marker="$test_root/swap-failed"
+package_installed_marker="$test_root/packages-installed"
 test_user=$(id -un)
 
 cleanup() {
@@ -23,6 +24,7 @@ run_boot() {
   QVOS_BOOT_TESTING=1 \
     QVOS_BOOT_TEST_ROOT="$system_root" \
     QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_PACKAGES_INSTALLED_MARKER="$package_installed_marker" \
     QVOS_TEST_SWAP_FAILURE_MARKER="$swap_failure_marker" \
     QVOS_PATH="$root" \
     OMARCHY_PATH="$test_root/stale-source" \
@@ -72,19 +74,47 @@ plymouth-set-default-theme)
   (( $# > 0 )) || printf 'legacy\n'
   ;;
 pacman)
+  if [[ ${1:-} == "-Q" ]]; then
+    [[ ${QVOS_TEST_PACKAGES_MISSING:-0} != "1" ||
+      -e $QVOS_TEST_PACKAGES_INSTALLED_MARKER ]]
+    exit
+  fi
+  if [[ ${1:-} == "-S" ]]; then
+    : >"$QVOS_TEST_PACKAGES_INSTALLED_MARKER"
+  fi
   if [[ ${QVOS_TEST_PACMAN_ENTRIES:-} == "1" ]]; then
-    printf '/+qvOS\n' >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
+    cmdline=$(
+      sed -nE 's/^KERNEL_CMDLINE\[default\]\+="(.*)"$/\1/p' \
+        "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | head -n 1
+    )
+    printf '/+qvOS\ncmdline: %s\n' "$cmdline" \
+      >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
     install -D -m 0644 /dev/stdin \
       "$QVOS_BOOT_TEST_ROOT/boot/EFI/Linux/qvos_linux.efi" <<<"qvOS UKI"
   fi
   ;;
 snapper)
+  if [[ ${1:-} == "--no-dbus" ]]; then
+    shift
+  fi
   if [[ ${1:-} == "list-configs" ]]; then
     printf 'Config | Subvolume\n-------+----------\n'
+    if [[ -f $QVOS_BOOT_TEST_ROOT/etc/snapper/configs/root ]]; then
+      printf 'root | /\n'
+    fi
+    [[ ${QVOS_TEST_SNAPPER_EMPTY_STATUS:-0} != "1" ]] || exit 1
+  elif [[ ${1:-} == "-c" && ${2:-} == "root" &&
+    ${3:-} == "create-config" && ${4:-} == "/" ]]; then
+    [[ ${QVOS_TEST_SNAPPER_CREATE_FAIL:-0} != "1" ]] || exit 9
   fi
   ;;
 limine-update)
-  printf '/+qvOS\n' >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
+  cmdline=$(
+    sed -nE 's/^KERNEL_CMDLINE\[default\]\+="(.*)"$/\1/p' \
+      "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | head -n 1
+  )
+  printf '/+qvOS\ncmdline: %s\n' "$cmdline" \
+    >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
   install -D -m 0644 /dev/stdin \
     "$QVOS_BOOT_TEST_ROOT/boot/EFI/Linux/qvos_linux.efi" <<<"qvOS UKI"
   ;;
@@ -352,8 +382,11 @@ install -D -m 0644 /dev/null \
   "$system_root/boot/EFI/Linux/omarchy_linux.efi"
 : >"$action_log"
 export QVOS_TEST_PACMAN_ENTRIES=1
+export QVOS_TEST_PACKAGES_MISSING=1
+export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
 OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
-unset QVOS_TEST_PACMAN_ENTRIES
+unset QVOS_TEST_PACKAGES_MISSING QVOS_TEST_PACMAN_ENTRIES \
+  QVOS_TEST_SNAPPER_EMPTY_STATUS
 grep -Fqx 'KERNEL_CMDLINE[default]+="root=UUID=test foo=a&b pipe=one|two slash=\value"' \
   "$system_root/etc/default/limine" ||
   fail "Limine literal kernel command line rendering"
@@ -388,14 +421,60 @@ for hook in 90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook; do
   [[ ! -e $system_root/usr/share/libalpm/hooks/$hook.disabled ]] ||
     fail "disabled mkinitcpio hook residue: $hook"
 done
-grep -Fqx $'pacman\t-S\t--noconfirm\t--needed\tlimine-snapper-sync\tlimine-mkinitcpio-hook' \
+grep -Fqx $'pacman\t-S\t--noconfirm\t--needed\t--\tinotify-tools\tlimine-mkinitcpio-hook\tlimine-snapper-sync' \
   "$action_log" || fail "Limine package transaction"
+grep -Fqx $'snapper\t--no-dbus\t-c\troot\tcreate-config\t/' "$action_log" ||
+  fail "empty Snapper inventory root creation"
 grep -Fqx $'btrfs\tquota\tdisable\t/' "$action_log" ||
   fail "Snapper quota performance policy"
 grep -Fqx $'systemctl\tenable\tlimine-snapper-sync.service' "$action_log" ||
   fail "Limine snapshot service enable"
 grep -Fqx $'efibootmgr\t-b\t0007\t-B' "$action_log" ||
   fail "legacy EFI entry cleanup"
+: >"$action_log"
+OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+if grep -q '^limine-update' "$action_log"; then
+  fail "unchanged Limine header forced a second UKI rebuild"
+fi
+if grep -q $'^pacman\t-S\t' "$action_log"; then
+  fail "unchanged Limine retry required a synchronization database"
+fi
+grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
+  fail "unchanged Limine reconciliation lost generated entries"
+
+printf 'KERNEL_CMDLINE[default]+=" extra=2"\n' \
+  >"$system_root/etc/limine-entry-tool.d/10-extra.conf"
+: >"$action_log"
+OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+[[ $(grep -c '^limine-update$' "$action_log") == "1" ]] ||
+  fail "changed Limine inputs did not rebuild exactly once"
+grep -Fqx 'KERNEL_CMDLINE[default]+=" extra=2"' \
+  "$system_root/etc/default/limine" ||
+  fail "changed Limine drop-in did not reach native defaults"
+
+system_root="$test_root/limine-interrupted"
+prepare_limine_root "$system_root" 'root=UUID=interrupted quiet'
+: >"$action_log"
+export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
+export QVOS_TEST_SNAPPER_CREATE_FAIL=1
+if OMARCHY_CHROOT_INSTALL=1 \
+  run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
+  fail "failed Snapper creation reported boot success"
+fi
+unset QVOS_TEST_SNAPPER_CREATE_FAIL
+if grep -q '^[[:space:]]*cmdline:' "$system_root/boot/limine.conf"; then
+  fail "interrupted boot fixture retained its original command-line source"
+fi
+install -D -m 0644 /dev/stdin \
+  "$system_root/boot/EFI/Linux/qvos_linux.efi" <<<"existing qvOS UKI"
+OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+unset QVOS_TEST_SNAPPER_EMPTY_STATUS
+grep -Fqx \
+  'KERNEL_CMDLINE[default]+="root=UUID=interrupted quiet"' \
+  "$system_root/etc/default/limine" ||
+  fail "interrupted Limine command-line recovery"
+grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
+  fail "interrupted Limine generated-entry recovery"
 
 system_root="$test_root/limine-legacy-hooks"
 prepare_limine_root "$system_root" 'root=UUID=legacy-hooks quiet'

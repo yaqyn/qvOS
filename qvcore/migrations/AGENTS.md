@@ -8,8 +8,10 @@ Omarchy migrations are retired: fresh qvOS installs already contain their
 selected outcomes, and updates must never replay them. `qvcore/migrations/run`
 executes numeric migration files in order, serializes runs, records private
 atomic markers under `~/.local/state/qvos/migrations`, and fails closed without
-offering a skip path. Every migration must be idempotent because a failure may
-occur after partial work and the unmarked migration will run again.
+offering a skip path. Its exact private `.lock` lives beside those markers so
+fresh chroot and other headless runs never depend on a login-time runtime
+directory. Every migration must be idempotent because a failure may occur after
+partial work and the unmarked migration will run again.
 
 Fresh installation calls `run --mark-current` only through the exact
 `QVOS_INSTALL` owner so existing-system migrations are recorded without being

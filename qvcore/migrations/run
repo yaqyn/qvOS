@@ -9,8 +9,7 @@ qvos_state_root="$state_parent/qvos"
 state_root="$qvos_state_root/migrations"
 legacy_root="$state_parent/omarchy/migrations"
 legacy_parent=${legacy_root%/*}
-runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
-lock_file="$runtime_root/qvos-migrations.lock"
+lock_file="$state_root/.lock"
 mode=run
 temporary=""
 migrations=()
@@ -88,7 +87,10 @@ validate_qvos_state() {
 
   while IFS= read -r -d '' entry; do
     name=${entry##*/}
-    if [[ $name =~ ^[0-9]+\.sh$ ]]; then
+    if [[ $name == ".lock" ]]; then
+      safe_marker "$entry" || fail "refusing unsafe migration lock: $entry"
+      chmod 0600 -- "$entry"
+    elif [[ $name =~ ^[0-9]+\.sh$ ]]; then
       safe_marker "$entry" ||
         fail "refusing unsafe migration marker: $entry"
     elif [[ $name == .qvos-migration.?????? ]] && safe_marker "$entry"; then
@@ -163,10 +165,8 @@ ensure_directory 0700 "$qvos_state_root"
 ensure_directory 0700 "$state_root"
 chmod 0700 -- "$qvos_state_root" "$state_root"
 
-safe_directory "$runtime_root" ||
-  fail "refusing unsafe runtime directory: $runtime_root"
 if [[ -e $lock_file || -L $lock_file ]]; then
-  [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] ||
+  safe_marker "$lock_file" ||
     fail "refusing unsafe migration lock: $lock_file"
 fi
 exec 9>>"$lock_file"

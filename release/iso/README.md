@@ -33,13 +33,20 @@ the previous one.
   image identity, resolved package inventory, artifact name and size, SHA-256,
   build result, and retained failure-stage path when applicable.
 - Verify that repository and direct local package signatures are required, the
-  offline cache is not group-writable, the generated Archinstall configuration
-  contains no network mirrors, and native post-install policy restores the
-  reviewed provider channel, Stable by default.
+  offline cache is not group-writable, its package archives, signatures, and
+  repository metadata are non-executable, the generated Archinstall
+  configuration contains no network mirrors, and native post-install policy
+  restores the reviewed provider channel, Stable by default.
+- Confirm the live image does not start SSH, inherited mirror discovery, or
+  cloud bootstrap services; networking is client-only until the user explicitly
+  starts a recovery service.
 - Inspect the completed image and prove that its embedded qvOS source equals
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with
-  `core.filemode=true`; do not infer any of this from the build command. Verify
+  `core.filemode=true`. Confirm `origin` is the intended public credential-free
+  HTTPS qvOS update URL, the checkout is shallow and single-branch, and no
+  source-machine path, fetch record, reflog, or ambient hook remains; do not
+  infer any of this from the build command. Verify
   the embedded `qvos-tui --source-hash` equals the shared source digest and is
   not `unmanaged`, and reject build-only Git reflogs or private builder
   identity in the embedded checkout.

@@ -166,6 +166,13 @@ desired_options=$(awk '$2 == "/boot" { print $4; exit }' "$candidate")
   echo "Could not resolve the desired /boot mount options." >&2
   exit 1
 }
+if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]; then
+  if ! cmp -s "$candidate" "$fstab"; then
+    as_root /usr/bin/install -o root -g root -m 0644 "$candidate" "$fstab"
+  fi
+  echo "Stored private /boot policy for first boot."
+  exit 0
+fi
 if ! cmp -s "$candidate" "$fstab"; then
   fstab_changed=1
 fi

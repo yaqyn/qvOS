@@ -371,7 +371,7 @@ seed_home="$test_root/seed-home"
 seed_log="$test_root/seed.log"
 make_home "$seed_home"
 HOME="$seed_home" \
-  XDG_RUNTIME_DIR="$seed_home/run" \
+  XDG_RUNTIME_DIR="$seed_home/missing-runtime" \
   QVOS_PATH="$source_root" \
   QVOS_INSTALL="$source_root/qvcore/install" \
   QVOS_TEST_MIGRATION_LOG="$seed_log" \
@@ -381,6 +381,11 @@ for marker in 100.sh 101.sh; do
   [[ -f $seed_home/.local/state/qvos/migrations/$marker ]] ||
     fail "fresh-install marker missing: $marker"
 done
+seed_lock="$seed_home/.local/state/qvos/migrations/.lock"
+[[ -f $seed_lock && ! -L $seed_lock && ! -s $seed_lock ]] ||
+  fail "fresh-install migration lock is unsafe"
+[[ $(stat -c '%a' "$seed_lock") == "600" ]] ||
+  fail "fresh-install migration lock is not private"
 if HOME="$seed_home" XDG_RUNTIME_DIR="$seed_home/run" \
   QVOS_PATH="$source_root" "$runner" --mark-current >/dev/null 2>&1; then
   fail "migration seeding accepted a non-installer caller"

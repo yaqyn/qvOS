@@ -104,6 +104,14 @@ rm -rf "$build_cache_dir/airootfs/etc/xdg/reflector"
 # Bring in the native qvOS profile.
 cp -r /profile/* "$build_cache_dir/"
 
+# The interactive qvOS image has no remote-administration or cloud-bootstrap
+# contract. Keep SSH available for explicit recovery, but do not expose it or
+# run Archiso mirror/cloud discovery automatically on an untrusted network.
+rm -f \
+  "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/choose-mirror.service" \
+  "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/sshd.service"
+rm -rf "$build_cache_dir/airootfs/etc/systemd/system/cloud-init.target.wants"
+
 # Persist the validated provider channel for the target installer.
 printf '%s\n' "$provider_channel" \
   >"$build_cache_dir/airootfs/root/qvos_provider_channel"
@@ -115,10 +123,16 @@ printf '%s\n' "$provider_channel" \
 }
 cp -rp "$qvos_source" "$build_cache_dir/airootfs/root/qvos"
 
-# Do not ship transient builder identity in the embedded Git checkout.
+# Do not ship transient builder identity in the embedded Git checkout. The
+# release owner already sanitizes these files; repeat the cleanup after the
+# profile copy so the final image fails toward the same invariant.
 git -c safe.directory="$build_cache_dir/airootfs/root/qvos" \
   -C "$build_cache_dir/airootfs/root/qvos" \
   config --local core.logAllRefUpdates false
+rm -f -- \
+  "$build_cache_dir/airootfs/root/qvos/.git/COMMIT_EDITMSG" \
+  "$build_cache_dir/airootfs/root/qvos/.git/FETCH_HEAD" \
+  "$build_cache_dir/airootfs/root/qvos/.git/ORIG_HEAD"
 rm -rf -- "$build_cache_dir/airootfs/root/qvos/.git/logs"
 
 # Build the singular qvOS boot/install interface. A missing or unbuildable TUI
@@ -274,7 +288,10 @@ for package_url in "${offline_package_urls[@]}"; do
     echo "ERROR: package $package_file has no detached signature in $package_cache_dir"
     exit 1
   fi
-  cp "$package_cache_dir/$package_file" "$signature_file" "$offline_mirror_dir/"
+  install -m 0644 \
+    "$package_cache_dir/$package_file" \
+    "$signature_file" \
+    "$offline_mirror_dir/"
 done
 
 mapfile -t offline_packages < <(
@@ -287,6 +304,7 @@ fi
 
 echo "qvOS ISO progress: indexing package mirror"
 repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "${offline_packages[@]}"
+find "$offline_mirror_dir" -maxdepth 1 -type f -exec chmod 0644 {} +
 
 # Create a symlink to the offline mirror instead of duplicating it.
 # mkarchiso needs packages at the same path exposed inside the live image.

@@ -339,6 +339,8 @@ fi
   fail "redundant qvOS Codex inspection domain remains"
 grep -Fqx 'openai-codex' "$base_packages" ||
   fail "qvOS Codex is not base-owned through the Arch package"
+grep -Fqx 'rtkit' "$base_packages" ||
+  fail "PipeWire realtime scheduling support is not base-owned"
 if rg -q '@openai/codex|command_name=.*codex|omarchy-npx-install' \
   "$root/qvcore/install/packaging/npx" \
   "$root/qvcore/install/packaging/npx-wrappers.psv"; then
@@ -377,6 +379,10 @@ pass "qvCORE is mandatory while Proton and Devel remain independent integrations
 grep -Fqx 'qmk-hid' "$root/qvcore/install/packaging/other.packages" ||
   fail "qvOS Framework 16 offline package ownership"
 grep -Fqx 'qmk-hid' "$other_packages" || fail "Framework 16 offline package contract"
+grep -Fqx 'inotify-tools' "$other_packages" ||
+  fail "Limine snapshot monitoring dependency is unavailable offline"
+grep -Fq 'inotify-tools' "$root/qvcore/boot/install-limine-snapper" ||
+  fail "Limine owner does not install its persistent watcher dependency"
 for unsupported_t2_package in \
   apple-bcm-firmware \
   apple-t2-audio-config \
@@ -652,7 +658,13 @@ grep -Fq 'if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out"; then' 
   fail "qvOS ISO build failure stage retention"
 grep -Fq 'checkout_qvos_update_branch "$target"' "$iso_build" ||
   fail "qvOS ISO attached update branch"
-grep -Fq -- '--filter=blob:none --no-checkout' "$iso_build" ||
+grep -Fq 'sanitize_qvos_checkout "$target"' "$iso_build" ||
+  fail "qvOS ISO checkout sanitation"
+grep -Fq 'remote set-url origin "$qvos_update_repo"' "$iso_build" ||
+  fail "qvOS ISO canonical update origin"
+grep -Fq -- '--depth 1 --single-branch --branch OS' "$iso_build" ||
+  fail "qvOS ISO shallow single-branch source"
+grep -Fq -- '--filter=blob:none --depth 1 --single-branch --branch OS' "$iso_build" ||
   fail "qvOS ISO source clone transfers unnecessary historical blobs"
 grep -Fq 'git -c http.version=HTTP/1.1' "$iso_build" ||
   fail "qvOS ISO Git transfer retry transport"
@@ -877,6 +889,7 @@ logged_script="$test_root/logged script's owner.sh"
 logged_marker="$test_root/logged-script.marker"
 logged_output="$test_root/logged-script.log"
 install -m 0644 /dev/stdin "$logged_script" <<'SCRIPT'
+(( $# == 0 )) || exit 23
 printf 'ran\n' >"$QVOS_TEST_LOGGED_MARKER"
 SCRIPT
 (
@@ -891,7 +904,7 @@ grep -Fqx 'ran' "$logged_marker" ||
   fail "installer logging did not preserve the exact script path"
 grep -Fq "Completed: $logged_script" "$logged_output" ||
   fail "installer logging omitted successful exact-path completion"
-pass "installer logging safely preserves exact script paths"
+pass "installer logging preserves exact paths without leaking transport arguments"
 
 source_permissions="$root/release/iso/source-permissions"
 [[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
@@ -920,6 +933,8 @@ source <(sed -n '/^clone_git_source() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
 source <(sed -n '/^checkout_qvos_update_branch() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
+source <(sed -n '/^sanitize_qvos_checkout() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
 source <(sed -n '/^stage_qvos_source() {$/,/^}$/p' "$iso_build")
 
 iso_source_fixture="$test_root/iso-source"
@@ -943,6 +958,8 @@ git -C "$iso_source_fixture" switch -q OS
 qvos_source_repo="$iso_source_fixture"
 # shellcheck disable=SC2034
 qvos_source_ref="$iso_source_commit"
+# shellcheck disable=SC2034
+qvos_update_repo="https://example.invalid/Yaqyn-qvOS/qvOS.git"
 stage_qvos_source "$iso_source_stage" >/dev/null
 [[ $(git -C "$iso_source_stage" rev-parse HEAD) == "$iso_source_commit" ]] ||
   fail "qvOS ISO staged commit identity"
@@ -950,6 +967,17 @@ stage_qvos_source "$iso_source_stage" >/dev/null
   fail "qvOS ISO staged OS branch"
 [[ $(git -C "$iso_source_stage" rev-parse --abbrev-ref '@{upstream}') == "origin/OS" ]] ||
   fail "qvOS ISO staged OS upstream"
+[[ $(git -C "$iso_source_stage" remote get-url origin) == "$qvos_update_repo" ]] ||
+  fail "qvOS ISO staged public update origin"
+[[ $(git -C "$iso_source_stage" rev-parse --is-shallow-repository) == "true" ]] ||
+  fail "qvOS ISO staged source is not shallow"
+[[ $(git -C "$iso_source_stage" config --get-all remote.origin.fetch) == \
+  "+refs/heads/OS:refs/remotes/origin/OS" ]] ||
+  fail "qvOS ISO staged source fetches more than OS"
+[[ ! -e $iso_source_stage/.git/FETCH_HEAD ]] ||
+  fail "qvOS ISO staged source retains fetch provenance"
+[[ -z $(find "$iso_source_stage/.git/hooks" -mindepth 1 -print -quit) ]] ||
+  fail "qvOS ISO staged source retains ambient Git hooks"
 [[ -z $(git -C "$iso_source_stage" status --porcelain=v1 --untracked-files=all) ]] ||
   fail "qvOS ISO staged branch cleanliness"
 

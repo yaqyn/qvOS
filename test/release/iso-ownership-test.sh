@@ -77,6 +77,14 @@ grep -Fq -- '-v "$iso_root/profile:/profile:ro"' "$build" ||
   fail "release ISO native profile read-only mount"
 grep -Fq -- '-v "$staged_qvos:/qvos:ro"' "$build" ||
   fail "release ISO pinned qvOS source mount"
+grep -Fq 'QVOS_UPDATE_REPO must be a public HTTPS Git URL without credentials.' \
+  "$build" || fail "release ISO public update-origin validation"
+grep -Fq 'remote set-url origin "$qvos_update_repo"' "$build" ||
+  fail "release ISO does not sanitize its embedded update origin"
+grep -Fq -- '--depth 1 --single-branch --branch OS' "$build" ||
+  fail "release ISO embeds unnecessary Git history"
+grep -Fq '"$target/.git/FETCH_HEAD"' "$build" ||
+  fail "release ISO retains transient clone provenance"
 
 grep -Fq '/qvcore/packages/provider-files' "$builder" ||
   fail "release ISO bypasses qvOS provider validation"
@@ -94,8 +102,21 @@ grep -Fqx 'SigLevel = Required DatabaseOptional' \
   "$profile/pacman-offline.conf" || fail "release ISO signed offline policy"
 grep -Fqx 'LocalFileSigLevel = Required' \
   "$profile/pacman-offline.conf" || fail "release ISO signed local-package policy"
-grep -Fq '["/var/cache/qvos/mirror/offline/"]="0:0:755"' \
+grep -Fq '["/var/cache/qvos/mirror/offline"]="0:0:755"' \
   "$profile/profiledef.sh" || fail "release ISO offline mirror permissions"
+if grep -Fq '["/var/cache/qvos/mirror/offline/"]=' "$profile/profiledef.sh"; then
+  fail "release ISO recursively overrides offline artifact permissions"
+fi
+grep -Fq "install -m 0644 \\" "$builder" ||
+  fail "release ISO does not normalize offline package permissions"
+grep -Fq 'find "$offline_mirror_dir" -maxdepth 1 -type f -exec chmod 0644 {} +' \
+  "$builder" || fail "release ISO does not normalize repository metadata permissions"
+grep -Fq 'multi-user.target.wants/sshd.service' "$builder" ||
+  fail "release ISO does not disable automatic remote administration"
+grep -Fq 'multi-user.target.wants/choose-mirror.service' "$builder" ||
+  fail "release ISO does not disable inherited mirror discovery"
+grep -Fq 'cloud-init.target.wants' "$builder" ||
+  fail "release ISO does not disable inherited cloud bootstrap"
 if rg -n 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2' \
   "$builder" "$profile"; then
   fail "release ISO activates weak package trust or unsupported T2 packages"
@@ -103,6 +124,8 @@ fi
 
 grep -Fq 'qvos-tui --iso-installer' "$installer" ||
   fail "release ISO bypasses the qvOS installer TUI"
+grep -Fqx 'qvos' "$profile/airootfs/etc/hostname" ||
+  fail "release ISO live hostname"
 grep -Fq 'if [[ ! -f $target/qvcore/boot/install || -L $target/qvcore/boot/install ]]; then' "$build" ||
   fail "release ISO does not require the native qvOS boot owner"
 if rg -n \
