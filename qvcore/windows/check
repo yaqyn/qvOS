@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+manifest="$root/qvcore/windows/native-paths"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
+  "bin/omarchy-windows-vm" ]] || fail "native Windows path inventory"
+
+for owner in command launch manage reconcile; do
+  [[ -x $root/qvcore/windows/$owner && ! -L $root/qvcore/windows/$owner ]] ||
+    fail "Windows owner mode: $owner"
+done
+[[ -f $root/qvcore/windows/lib && ! -L $root/qvcore/windows/lib ]] ||
+  fail "Windows shared validation owner"
+
+native="$root/bin/qv-windows-vm"
+compatibility="$root/bin/omarchy-windows-vm"
+[[ -x $native && -x $compatibility ]] || fail "Windows adapter mode"
+(( $(wc -l <"$native") <= 12 && $(wc -l <"$compatibility") <= 5 )) ||
+  fail "Windows adapter contains implementation"
+rg -q '^# qv:summary=' "$native" || fail "native Windows metadata"
+! rg -q '^# (qv|omarchy):' "$compatibility" ||
+  fail "Windows compatibility adapter duplicates metadata"
+for adapter in "$native" "$compatibility"; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'exec "$QVOS_PATH/qvcore/windows/command" "$@"' "$adapter" ||
+    fail "Windows adapter owner"
+done
+
+for frontend in qv omarchy; do
+  "$root/bin/$frontend" commands --json | jq -e \
+    --arg route "$frontend windows" '
+      [.commands[] | select(
+        .binary == "qv-windows-vm" and
+        (.routes | index($route)) != null
+      )] |
+      length == 1
+    ' >/dev/null || fail "$frontend Windows route does not prefer qvOS"
+done
+
+grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/command" ||
+  fail "native Windows runtime identity"
+grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/manage" ||
+  fail "native Windows install identity"
+grep -Fq 'qvcore/windows/reconcile' "$root/qvcore/install/desktop" ||
+  fail "Windows identity is not reconciled during desktop installation"
+
+if rg -n 'omarchy-windows-vm|omarchy-windows' \
+  "$root/qvcore/windows/command" \
+  "$root/qvcore/windows/launch" \
+  "$root/qvcore/windows/manage"; then
+  fail "active Windows owner uses a retired identity"
+fi
+
+printf 'ok - qvOS singularly owns the Windows command, container, and migration lifecycle\n'

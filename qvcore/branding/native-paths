@@ -2,7 +2,6 @@
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
 bin/omarchy-refresh-fastfetch
-bin/omarchy-windows-vm
 config/fastfetch/config.jsonc
 config/waybar/config.jsonc
 default/chromium/extensions/copy-url/manifest.json

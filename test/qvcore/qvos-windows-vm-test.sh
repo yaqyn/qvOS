@@ -15,6 +15,7 @@ rdp_args_log="$test_root/rdp-args.log"
 rdp_password_log="$test_root/rdp-password.log"
 image_state="$test_root/windows-image"
 container_state="$test_root/windows-container"
+legacy_container_state="$test_root/legacy-windows-container"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -34,6 +35,7 @@ install -d \
 touch "$test_root/kvm"
 printf 'icon fixture\n' >"$test_source/applications/icons/windows.png"
 install -m 0644 "$root/qvcore/windows/lib" "$test_source/qvcore/windows/lib"
+install -m 0755 "$root/qvcore/windows/reconcile" "$test_source/qvcore/windows/reconcile"
 
 install -m 0755 /dev/stdin "$test_bin/package-owner" <<'SCRIPT'
 #!/bin/bash
@@ -53,26 +55,41 @@ install -m 0755 /dev/stdin "$test_bin/docker" <<'SCRIPT'
 printf 'docker %s\n' "$*" >>"$QVOS_TEST_DOCKER_LOG"
 case $* in
 "info")
+  [[ ${QVOS_TEST_DOCKER_UNAVAILABLE:-false} != "true" ]]
+  ;;
+"container inspect qvos-windows")
+  [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]]
+  ;;
+"container inspect omarchy-windows")
+  [[ -e $QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE ]]
+  ;;
+"rename omarchy-windows qvos-windows")
+  [[ -e $QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE ]] || exit 1
+  mv -- "$QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE" "$QVOS_TEST_WINDOWS_CONTAINER_STATE"
+  ;;
+"rename qvos-windows omarchy-windows")
+  [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]] || exit 1
+  mv -- "$QVOS_TEST_WINDOWS_CONTAINER_STATE" "$QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE"
   exit 0
   ;;
 "image inspect dockurr/windows")
   [[ -e $QVOS_TEST_WINDOWS_IMAGE_STATE ]]
   ;;
-"inspect --format {{.State.Status}} omarchy-windows")
+"inspect --format {{.State.Status}} qvos-windows")
   [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]] || exit 1
   printf 'running\n'
   ;;
-"inspect omarchy-windows")
+"inspect qvos-windows")
   [[ -e $QVOS_TEST_WINDOWS_CONTAINER_STATE ]]
   ;;
 "image rm dockurr/windows")
   [[ ! -e $QVOS_TEST_WINDOWS_IMAGE_STATE ]] || unlink "$QVOS_TEST_WINDOWS_IMAGE_STATE"
   ;;
-"logs --follow omarchy-windows")
+"logs --follow qvos-windows")
   printf 'Downloading Windows installer...\n'
   printf 'Windows started successfully\n'
   ;;
-"logs --tail 200 omarchy-windows")
+"logs --tail 200 qvos-windows")
   printf 'Windows started successfully\n'
   ;;
 esac
@@ -93,7 +110,7 @@ install -m 0755 /dev/stdin "$test_bin/uwsm" <<'SCRIPT'
 #!/bin/bash
 exit 0
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/omarchy-windows-vm" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-windows-vm" <<'SCRIPT'
 #!/bin/bash
 exit 0
 SCRIPT
@@ -122,7 +139,7 @@ exit 0
 SCRIPT
 run_windows() {
   HOME="$test_home" \
-    OMARCHY_PATH="$test_source" \
+    QVOS_PATH="$test_source" \
     PATH="$test_bin:/usr/bin" \
     QVOS_WINDOWS_KVM_PATH="$test_root/kvm" \
     QVOS_WINDOWS_PACKAGE_OWNER="$test_bin/package-owner" \
@@ -135,12 +152,13 @@ run_windows() {
     QVOS_TEST_WINDOWS_POST_LAUNCH_LOG="$post_launch_log" \
     QVOS_TEST_WINDOWS_IMAGE_STATE="$image_state" \
     QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
+    QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE="$legacy_container_state" \
     "$root/qvcore/windows/manage" "$@"
 }
 
 run_windows_live_owner() {
   HOME="$test_home" \
-    OMARCHY_PATH="$test_source" \
+    QVOS_PATH="$test_source" \
     PATH="$test_bin:/usr/bin" \
     QVOS_WINDOWS_KVM_PATH="$test_root/kvm" \
     QVOS_WINDOWS_PACKAGE_OWNER="$test_bin/package-owner" \
@@ -151,21 +169,60 @@ run_windows_live_owner() {
     QVOS_TEST_DOCKER_LOG="$docker_log" \
     QVOS_TEST_WINDOWS_IMAGE_STATE="$image_state" \
     QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
+    QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE="$legacy_container_state" \
     QVOS_TEST_WINDOWS_SESSION_LAUNCH_LOG="$session_launch_log" \
     "$root/qvcore/windows/manage" "$@"
 }
 
 run_windows_command() {
   HOME="$test_home" \
-    OMARCHY_PATH="$test_source" \
+    QVOS_PATH="$test_source" \
     PATH="$test_bin:/usr/bin" \
     QVOS_TEST_DOCKER_LOG="$docker_log" \
     QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
+    QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE="$legacy_container_state" \
     QVOS_TEST_WINDOWS_RDP_ARGS_LOG="$rdp_args_log" \
     QVOS_TEST_WINDOWS_RDP_PASSWORD_LOG="$rdp_password_log" \
     QVOS_TEST_WINDOWS_RDP_STATUS="${QVOS_TEST_WINDOWS_RDP_STATUS:-0}" \
     QVOS_TEST_COMPOSE_TOUCH_CONTAINER=true \
     "$root/qvcore/windows/command" "$@"
+}
+
+run_windows_reconcile() {
+  local reconcile_home=$1
+  shift
+
+  HOME="$reconcile_home" \
+    QVOS_PATH="$test_source" \
+    PATH="$test_bin:/usr/bin" \
+    QVOS_TEST_DOCKER_LOG="$docker_log" \
+    QVOS_TEST_DOCKER_UNAVAILABLE="${QVOS_TEST_DOCKER_UNAVAILABLE:-false}" \
+    QVOS_TEST_WINDOWS_CONTAINER_STATE="$container_state" \
+    QVOS_TEST_WINDOWS_LEGACY_CONTAINER_STATE="$legacy_container_state" \
+    "$root/qvcore/windows/reconcile" "$@"
+}
+
+prepare_legacy_home() {
+  local reconcile_home=$1
+  local source_compose=$2
+
+  install -d -m 0700 \
+    "$reconcile_home/.config/windows" \
+    "$reconcile_home/.windows" \
+    "$reconcile_home/Windows"
+  install -d -m 0755 "$reconcile_home/.local/share/applications"
+  sed \
+    -e "s|$test_home|$reconcile_home|g" \
+    -e 's/container_name: qvos-windows/container_name: omarchy-windows/' \
+    "$source_compose" >"$reconcile_home/.config/windows/docker-compose.yml"
+  chmod 0600 "$reconcile_home/.config/windows/docker-compose.yml"
+  install -m 0644 /dev/stdin \
+    "$reconcile_home/.local/share/applications/windows-vm.desktop" <<'DESKTOP'
+[Desktop Entry]
+Name=Windows
+Exec=uwsm app -- omarchy-windows-vm launch
+Type=Application
+DESKTOP
 }
 
 schema=$(run_windows install --qvos-form)
@@ -199,7 +256,7 @@ grep -Fq 'Downloading Windows installer' <<<"$session_output" ||
 grep -Fq 'Windows started successfully' <<<"$session_output" ||
   fail "Windows first-launch ready boundary"
 grep -Fqx -- \
-  '--user --collect --quiet --description=qvOS Windows VM session -- uwsm app -- omarchy-windows-vm launch' \
+  '--user --collect --quiet --description=qvOS Windows VM session -- uwsm app -- qv-windows-vm launch' \
   "$session_launch_log" || fail "Windows ready-session handoff"
 [[ $(stat -c '%a' "$test_home/.config/windows/docker-compose.yml") == "600" ]] ||
   fail "Windows Compose credentials are not private"
@@ -284,25 +341,34 @@ install -m 0755 /dev/stdin "$test_home/.local/lib/qvos/tui/action/launch" <<'SCR
 #!/bin/bash
 printf '%s\n' "$*" >>"$QVOS_TEST_WINDOWS_LAUNCH_LOG"
 SCRIPT
-for legacy_operation in install remove; do
-  HOME="$test_home" \
-    OMARCHY_PATH="$test_source" \
-    QVOS_TEST_WINDOWS_LAUNCH_LOG="$launch_log" \
-    "$root/bin/omarchy-windows-vm" "$legacy_operation"
+for adapter in qv-windows-vm omarchy-windows-vm; do
+  for operation in install remove; do
+    HOME="$test_home" \
+      QVOS_PATH="$test_source" \
+      QVOS_TEST_WINDOWS_LAUNCH_LOG="$launch_log" \
+      "$root/bin/$adapter" "$operation"
+  done
 done
-[[ $(<"$launch_log") == $'windows\nwindows' ]] ||
+[[ $(<"$launch_log") == $'windows\nwindows\nwindows\nwindows' ]] ||
   fail "direct Windows lifecycle commands bypassed the TUI"
 printf 'ok - direct Install and Remove commands converge on the same Windows TUI\n'
 
-(( $(wc -l <"$root/bin/omarchy-windows-vm") <= 10 )) ||
+(( $(wc -l <"$root/bin/qv-windows-vm") <= 12 )) ||
+  fail "Windows native adapter contains implementation"
+(( $(wc -l <"$root/bin/omarchy-windows-vm") <= 5 )) ||
   fail "Windows compatibility adapter contains implementation"
 # shellcheck disable=SC2016
-grep -Fqx 'exec "$OMARCHY_PATH/qvcore/windows/command" "$@"' "$root/bin/omarchy-windows-vm" ||
+grep -Fqx 'exec "$QVOS_PATH/qvcore/windows/command" "$@"' "$root/bin/qv-windows-vm" ||
+  fail "Windows native adapter is not direct"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/windows/command" "$@"' "$root/bin/omarchy-windows-vm" ||
   fail "Windows compatibility adapter is not direct"
-if grep -Fq 'requires-sudo=true' "$root/bin/omarchy-windows-vm"; then
-  fail "Windows compatibility adapter elevates the full user lifecycle"
+rg -q '^# qv:summary=' "$root/bin/qv-windows-vm" ||
+  fail "Windows native adapter lacks metadata"
+if rg -q '^# (qv|omarchy):' "$root/bin/omarchy-windows-vm"; then
+  fail "Windows compatibility adapter duplicates metadata"
 fi
-printf 'ok - the public Windows command is a direct unprivileged adapter\n'
+printf 'ok - the native and compatibility Windows commands share one unprivileged owner\n'
 
 run_windows install >/dev/null
 compose_file="$test_home/.config/windows/docker-compose.yml"
@@ -365,3 +431,85 @@ fi
 unlink -- "$compose_file"
 mv -- "$test_root/real-compose.yml" "$compose_file"
 printf 'ok - Windows rejects public listeners, foreign structure, and symlinked config before Docker\n'
+
+migration_home="$test_root/migration-home"
+prepare_legacy_home "$migration_home" "$compose_file"
+rm -f -- "$container_state" "$legacy_container_state"
+touch "$legacy_container_state"
+: >"$docker_log"
+migration_output=$(run_windows_reconcile "$migration_home")
+grep -Fq 'Migrated Windows VM internals to qvOS identity.' <<<"$migration_output" ||
+  fail "Windows identity migration result"
+[[ -e $container_state && ! -e $legacy_container_state ]] ||
+  fail "Windows identity migration did not rename the existing container"
+grep -Fqx '    container_name: qvos-windows' \
+  "$migration_home/.config/windows/docker-compose.yml" ||
+  fail "Windows identity migration did not publish native Compose state"
+grep -Fqx 'Exec=uwsm app -- qv-windows-vm launch' \
+  "$migration_home/.local/share/applications/windows-vm.desktop" ||
+  fail "Windows identity migration did not publish the native launcher"
+(( $(find "$migration_home" -type f -name '*.qvos-backup.*' | wc -l) == 2 )) ||
+  fail "Windows identity migration backup set"
+[[ -z $(run_windows_reconcile "$migration_home") ]] ||
+  fail "Windows identity migration is not quiet when already converged"
+run_windows_reconcile "$migration_home" --check
+(( $(find "$migration_home" -type f -name '*.qvos-backup.*' | wc -l) == 2 )) ||
+  fail "Windows identity migration is not idempotent"
+printf 'ok - Windows identity migration preserves and renames exact existing state atomically\n'
+
+deferred_home="$test_root/deferred-home"
+prepare_legacy_home "$deferred_home" "$compose_file"
+rm -f -- "$container_state" "$legacy_container_state"
+touch "$legacy_container_state"
+deferred_snapshot=$(
+  stat -c '%n|%a|%i|%Y' \
+    "$deferred_home/.config/windows/docker-compose.yml" \
+    "$deferred_home/.local/share/applications/windows-vm.desktop"
+  sha256sum \
+    "$deferred_home/.config/windows/docker-compose.yml" \
+    "$deferred_home/.local/share/applications/windows-vm.desktop"
+)
+set +e
+deferred_output=$(QVOS_TEST_DOCKER_UNAVAILABLE=true \
+  run_windows_reconcile "$deferred_home" 2>&1)
+deferred_status=$?
+set -e
+(( deferred_status == 0 )) || fail "Windows unavailable-Docker migration status"
+grep -Fq 'migration deferred until Docker is available' <<<"$deferred_output" ||
+  fail "Windows unavailable-Docker migration diagnostic"
+[[ $(
+  stat -c '%n|%a|%i|%Y' \
+    "$deferred_home/.config/windows/docker-compose.yml" \
+    "$deferred_home/.local/share/applications/windows-vm.desktop"
+  sha256sum \
+    "$deferred_home/.config/windows/docker-compose.yml" \
+    "$deferred_home/.local/share/applications/windows-vm.desktop"
+) == "$deferred_snapshot" ]] ||
+  fail "Windows unavailable-Docker migration changed file state"
+grep -Fqx '    container_name: omarchy-windows' \
+  "$deferred_home/.config/windows/docker-compose.yml" ||
+  fail "Windows unavailable-Docker migration changed Compose state"
+grep -Fqx 'Exec=uwsm app -- omarchy-windows-vm launch' \
+  "$deferred_home/.local/share/applications/windows-vm.desktop" ||
+  fail "Windows unavailable-Docker migration changed launcher state"
+if find "$deferred_home" -type f -name '*.qvos-backup.*' -print -quit | grep -q .; then
+  fail "Windows unavailable-Docker migration wrote a backup without changing state"
+fi
+printf 'ok - Windows identity migration defers without partial changes when Docker is unavailable\n'
+
+conflict_home="$test_root/conflict-home"
+prepare_legacy_home "$conflict_home" "$compose_file"
+touch "$container_state" "$legacy_container_state"
+if run_windows_reconcile "$conflict_home" >/dev/null 2>&1; then
+  fail "Windows identity migration accepted conflicting containers"
+fi
+grep -Fqx '    container_name: omarchy-windows' \
+  "$conflict_home/.config/windows/docker-compose.yml" ||
+  fail "Windows container-conflict path changed Compose state"
+grep -Fqx 'Exec=uwsm app -- omarchy-windows-vm launch' \
+  "$conflict_home/.local/share/applications/windows-vm.desktop" ||
+  fail "Windows container-conflict path changed launcher state"
+if find "$conflict_home" -type f -name '*.qvos-backup.*' -print -quit | grep -q .; then
+  fail "Windows container-conflict path wrote a backup"
+fi
+printf 'ok - Windows identity migration fails closed on container conflicts\n'

@@ -28,6 +28,10 @@ The authoritative command group list lives in `qvcore/cli/qv` in
 help, examples, errors, and suggestions use `qv`, even while an inherited
 binary name remains as compatibility ABI.
 
+Every retained command is promoted. Each has one metadata-bearing `bin/qv-*`
+adapter and one metadata-free matching `bin/omarchy-*` compatibility adapter;
+no inherited adapter may retain implementation or command metadata.
+
 Common prefixes include:
 
 - `cmd-` - check if commands exist, misc utility commands

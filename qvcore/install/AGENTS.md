@@ -21,6 +21,10 @@ The desktop owner must resolve `QVOS_PATH` once, bind the inherited
 running any feature owner. Never allow stale inherited environment to mix
 payloads from two source checkouts.
 Windows owners run from the installed source and have no duplicate runtime tree.
+Desktop reconciliation invokes their absent-safe identity owner so validated
+existing configuration converges on the native command and container without
+recreating or discarding VM state; an unavailable Docker daemon safely defers
+that existing-system migration.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.

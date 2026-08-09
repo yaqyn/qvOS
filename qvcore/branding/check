@@ -128,7 +128,7 @@ identity_paths=(
   bin/omarchy-reinstall
   bin/omarchy-reinstall-configs
   bin/omarchy-update-available
-  bin/omarchy-windows-vm
+  bin/qv-windows-vm
   boot.sh
   config/fastfetch/config.jsonc
   config/systemd/user/qvos-battery-monitor.service

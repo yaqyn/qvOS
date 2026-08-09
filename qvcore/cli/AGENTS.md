@@ -16,6 +16,9 @@ upstream ABI until their complete domain moves. Never keep two implementations
 or two active metadata records for the same route. Native `qv` output, routes,
 examples, errors, and suggestions use `qv`; the compatibility frontend rewrites
 the same catalog to `omarchy` without changing its owner.
+Every retained command domain is now promoted: no `omarchy-*` adapter may carry
+command metadata or implementation. Compatibility adapters remain thin direct
+ABI routes until their callers can be retired.
 
 `qvcore/cli/command-{missing,present}` owns command availability checks. Always
 terminate `command -v` option parsing with `--` and preserve empty-set semantics:

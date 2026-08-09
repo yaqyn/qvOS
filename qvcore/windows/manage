@@ -1,13 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# omarchy:summary=Manage the qvOS Windows VM lifecycle
 # qvos:install-summary=Configure a private Windows VM without starting its download
 # qvos:uninstall-summary=Remove Windows VM configuration while keeping its virtual disk
 
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
-OMARCHY_PATH=$QVOS_PATH
-source "$OMARCHY_PATH/qvcore/windows/lib"
+source "$QVOS_PATH/qvcore/windows/lib"
 operation=${1:-}
 [[ -n $operation ]] && shift
 
@@ -22,9 +20,10 @@ applications_dir="$HOME/.local/share/applications"
 icons_dir="$applications_dir/icons"
 desktop_file="$applications_dir/windows-vm.desktop"
 icon_file="$icons_dir/windows.png"
-source_icon="$OMARCHY_PATH/applications/icons/windows.png"
+source_icon="$QVOS_PATH/applications/icons/windows.png"
 kvm_path=${QVOS_WINDOWS_KVM_PATH:-/dev/kvm}
-package_owner=${QVOS_WINDOWS_PACKAGE_OWNER:-omarchy-pkg-add}
+package_owner=${QVOS_WINDOWS_PACKAGE_OWNER:-qv-pkg-add}
+container_name=qvos-windows
 
 usage() {
   echo "Usage: qvcore/windows/manage <install|uninstall> [--list|--qvos-post-success|-- <scope>]" >&2
@@ -46,7 +45,7 @@ launch_windows() {
     ! command -v docker-compose >/dev/null 2>&1 ||
     ! command -v systemd-run >/dev/null 2>&1 ||
     ! command -v uwsm >/dev/null 2>&1 ||
-    ! command -v omarchy-windows-vm >/dev/null 2>&1; then
+    ! command -v qv-windows-vm >/dev/null 2>&1; then
     echo "The Windows application launcher is unavailable." >&2
     return 1
   fi
@@ -55,7 +54,7 @@ launch_windows() {
   docker-compose -f "$compose_file" up -d
   printf 'Preparing Windows...\n'
   set +o pipefail
-  docker logs --follow omarchy-windows 2>&1 | awk '
+  docker logs --follow "$container_name" 2>&1 | awk '
     {
       print
       fflush()
@@ -79,7 +78,7 @@ launch_windows() {
     --quiet \
     --description="qvOS Windows VM session" \
     -- \
-    uwsm app -- omarchy-windows-vm launch
+    uwsm app -- qv-windows-vm launch
 }
 
 available_space_gb() {
@@ -301,7 +300,7 @@ write_compose_file() {
     printf 'services:\n'
     printf '  windows:\n'
     printf '    image: dockurr/windows\n'
-    printf '    container_name: omarchy-windows\n'
+    printf '    container_name: %s\n' "$container_name"
     printf '    environment:\n'
     printf '      VERSION: %s\n' "$(yaml_quote 11)"
     printf '      RAM_SIZE: %s\n' "$(yaml_quote "$selected_ram")"
@@ -338,7 +337,7 @@ write_desktop_file() {
     printf '[Desktop Entry]\n'
     printf 'Name=Windows\n'
     printf 'Comment=Start Windows VM and connect with RDP\n'
-    printf 'Exec=uwsm app -- omarchy-windows-vm launch\n'
+    printf 'Exec=uwsm app -- qv-windows-vm launch\n'
     printf 'Icon=%s\n' "$icon_file"
     printf 'Terminal=false\n'
     printf 'Type=Application\n'
@@ -515,7 +514,7 @@ post_rollback_snapshot() {
   else
     printf 'missing\n' >"$state/image.before"
   fi
-  if docker inspect omarchy-windows >/dev/null 2>&1; then
+  if docker inspect "$container_name" >/dev/null 2>&1; then
     printf 'present\n' >"$state/container.before"
   else
     printf 'missing\n' >"$state/container.before"
@@ -564,7 +563,7 @@ post_cancel_status() {
     return
   }
   if [[ $(<"$state/container.before") == "missing" ]] &&
-    docker inspect omarchy-windows >/dev/null 2>&1; then
+    docker inspect "$container_name" >/dev/null 2>&1; then
     printf 'target-reached\n'
     return
   fi
