@@ -67,7 +67,8 @@ a thin adapter to this owner.
   `OS` tracking `origin/OS` so the installed update guard remains usable.
   `QVOS_SOURCE_REPO` is only the build transfer source; embed the public,
   credential-free HTTPS `QVOS_UPDATE_REPO` as `origin`, use a shallow
-  single-branch checkout, and remove fetch provenance and ambient hooks. The
+  single-branch, tag-free one-commit checkout, and remove fetch provenance and
+  ambient hooks. The
   native builder and profile come from that same pinned qvOS commit. Verify the
   image and embedded source, and keep optional Services and Development
   integrations out unless explicitly promoted.

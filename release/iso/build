@@ -211,7 +211,7 @@ checkout_git_ref() {
   elif git -C "$target" show-ref --verify --quiet "refs/tags/$ref"; then
     retry_git_transfer -C "$target" checkout -q "tags/$ref"
   else
-    retry_git_transfer -C "$target" fetch --tags origin "$ref"
+    retry_git_transfer -C "$target" fetch --depth 1 origin "$ref"
     retry_git_transfer -C "$target" checkout -q FETCH_HEAD
   fi
 }
@@ -236,12 +236,12 @@ clone_git_source() {
   local attempt
 
   if [[ -d $repo ]]; then
-    git clone --no-local --depth 1 --single-branch --branch OS \
+    git clone --no-local --depth 1 --single-branch --branch OS --no-tags \
       --no-checkout "$repo" "$target"
   else
     for attempt in 1 2 3; do
       if git -c http.version=HTTP/1.1 clone \
-        --filter=blob:none --depth 1 --single-branch --branch OS \
+        --filter=blob:none --depth 1 --single-branch --branch OS --no-tags \
         --no-checkout "$repo" "$target"; then
         break
       fi
@@ -309,6 +309,8 @@ validate_qvos_source() {
   local source_fetch
   local source_remote
   local source_shallow
+  local source_tag_option
+  local source_tags
   local source_upstream
 
   echo "qvOS ISO progress: validating qvOS payload"
@@ -346,6 +348,8 @@ validate_qvos_source() {
   source_fetch=$(git -C "$target" config --get-all remote.origin.fetch 2>/dev/null || true)
   source_remote=$(git -C "$target" remote get-url origin 2>/dev/null || true)
   source_shallow=$(git -C "$target" rev-parse --is-shallow-repository 2>/dev/null || true)
+  source_tag_option=$(git -C "$target" config --get remote.origin.tagOpt 2>/dev/null || true)
+  source_tags=$(git -C "$target" for-each-ref --format='%(refname)' refs/tags)
   source_upstream=$(
     git -C "$target" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' \
       2>/dev/null || true
@@ -361,6 +365,11 @@ validate_qvos_source() {
   if [[ $source_shallow != "true" ||
     $source_fetch != "+refs/heads/OS:refs/remotes/origin/OS" ]]; then
     echo "qvos-build staged qvOS source is not a shallow OS-only checkout." >&2
+    missing=true
+  fi
+  if [[ $source_tag_option != "--no-tags" || -n $source_tags ||
+    $(git -C "$target" rev-list --count --all 2>/dev/null || true) != "1" ]]; then
+    echo "qvos-build staged qvOS source retains unrelated history or tags." >&2
     missing=true
   fi
   if [[ -e $target/.git/FETCH_HEAD || -e $target/.git/logs ]]; then

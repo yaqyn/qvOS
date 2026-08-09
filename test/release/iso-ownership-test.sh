@@ -81,8 +81,10 @@ grep -Fq 'QVOS_UPDATE_REPO must be a public HTTPS Git URL without credentials.' 
   "$build" || fail "release ISO public update-origin validation"
 grep -Fq 'remote set-url origin "$qvos_update_repo"' "$build" ||
   fail "release ISO does not sanitize its embedded update origin"
-grep -Fq -- '--depth 1 --single-branch --branch OS' "$build" ||
+grep -Fq -- '--depth 1 --single-branch --branch OS --no-tags' "$build" ||
   fail "release ISO embeds unnecessary Git history"
+grep -Fq 'source retains unrelated history or tags' "$build" ||
+  fail "release ISO does not reject historical Git objects"
 grep -Fq '"$target/.git/FETCH_HEAD"' "$build" ||
   fail "release ISO retains transient clone provenance"
 

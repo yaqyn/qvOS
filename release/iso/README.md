@@ -44,8 +44,9 @@ the previous one.
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with
   `core.filemode=true`. Confirm `origin` is the intended public credential-free
-  HTTPS qvOS update URL, the checkout is shallow and single-branch, and no
-  source-machine path, fetch record, reflog, or ambient hook remains; do not
+  HTTPS qvOS update URL, the checkout is shallow, single-branch, tag-free, and
+  contains only the pinned commit, and no source-machine path, fetch record,
+  reflog, or ambient hook remains; do not
   infer any of this from the build command. Verify
   the embedded `qvos-tui --source-hash` equals the shared source digest and is
   not `unmanaged`, and reject build-only Git reflogs or private builder

@@ -662,9 +662,9 @@ grep -Fq 'sanitize_qvos_checkout "$target"' "$iso_build" ||
   fail "qvOS ISO checkout sanitation"
 grep -Fq 'remote set-url origin "$qvos_update_repo"' "$iso_build" ||
   fail "qvOS ISO canonical update origin"
-grep -Fq -- '--depth 1 --single-branch --branch OS' "$iso_build" ||
+grep -Fq -- '--depth 1 --single-branch --branch OS --no-tags' "$iso_build" ||
   fail "qvOS ISO shallow single-branch source"
-grep -Fq -- '--filter=blob:none --depth 1 --single-branch --branch OS' "$iso_build" ||
+grep -Fq -- '--filter=blob:none --depth 1 --single-branch --branch OS --no-tags' "$iso_build" ||
   fail "qvOS ISO source clone transfers unnecessary historical blobs"
 grep -Fq 'git -c http.version=HTTP/1.1' "$iso_build" ||
   fail "qvOS ISO Git transfer retry transport"
@@ -974,6 +974,12 @@ stage_qvos_source "$iso_source_stage" >/dev/null
 [[ $(git -C "$iso_source_stage" config --get-all remote.origin.fetch) == \
   "+refs/heads/OS:refs/remotes/origin/OS" ]] ||
   fail "qvOS ISO staged source fetches more than OS"
+[[ -z $(git -C "$iso_source_stage" for-each-ref --format='%(refname)' refs/tags) ]] ||
+  fail "qvOS ISO staged source retains repository tags"
+[[ $(git -C "$iso_source_stage" config --get remote.origin.tagOpt) == "--no-tags" ]] ||
+  fail "qvOS ISO staged source permits automatic tag fetching"
+[[ $(git -C "$iso_source_stage" rev-list --count --all) == "1" ]] ||
+  fail "qvOS ISO staged source retains unrelated history"
 [[ ! -e $iso_source_stage/.git/FETCH_HEAD ]] ||
   fail "qvOS ISO staged source retains fetch provenance"
 [[ -z $(find "$iso_source_stage/.git/hooks" -mindepth 1 -print -quit) ]] ||
