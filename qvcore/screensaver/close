@@ -12,7 +12,7 @@ clients_json=$(hyprctl clients -j 2>/dev/null) || {
 }
 if ! jq -e '
   type == "array" and
-  all(.[] | select((.class // "") == "org.omarchy.screensaver");
+  all(.[] | select((.class // "") == "org.qvos.screensaver");
     (.address | type) == "string" and
     (.address | test("^0x[0-9A-Fa-f]+$")))
 ' >/dev/null 2>&1 <<<"$clients_json"; then
@@ -21,7 +21,7 @@ if ! jq -e '
 fi
 
 mapfile -t addresses < <(
-  jq -r '.[] | select((.class // "") == "org.omarchy.screensaver") | .address' \
+  jq -r '.[] | select((.class // "") == "org.qvos.screensaver") | .address' \
     <<<"$clients_json"
 )
 status=0

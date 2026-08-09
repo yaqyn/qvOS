@@ -12,8 +12,9 @@ Branding owner; never restore active Omarchy branding state.
 Public `qv-launch-screensaver` and `qv-screensaver` commands carry metadata;
 matching `omarchy-*` commands are metadata-free source compatibility adapters.
 Runtime aliases are direct symlinks to the two installed `qvos-*` owners, not
-copied adapters. Keep `org.omarchy.screensaver` only as the existing Hyprland
-window-class ABI until window rules and live-window matching migrate together.
+copied adapters. `org.qvos.screensaver` is the only runtime window class; keep
+the launcher, close transaction, tests, and native Hyprland rules
+synchronized.
 `qvcore/screensaver/close` is the singular close transaction shared by the
 runner and desktop lock owner. It prevalidates the complete matching Hyprland
 window inventory before issuing any close dispatch; never restore broad

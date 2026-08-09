@@ -61,6 +61,20 @@ grep -Fq 'qv-cmd-present tte' "$root/qvcore/screensaver/qvos-launch-screensaver"
   fail "screensaver bypasses the native command helper"
 grep -Fq 'qv-hyprland-monitor-focused' "$root/qvcore/screensaver/qvos-launch-screensaver" ||
   fail "screensaver bypasses the native monitor helper"
+for class_owner in \
+  qvcore/screensaver/qvos-launch-screensaver \
+  qvcore/screensaver/close; do
+  grep -Fq 'org.qvos.screensaver' "$root/$class_owner" ||
+    fail "native screensaver class is missing: $class_owner"
+done
+grep -Fq 'org\.qvos\.screensaver' \
+  "$root/qvcore/config/base/hypr/windows.conf" ||
+  fail "native screensaver class is missing from Hyprland rules"
+if rg -n 'org\.omarchy\.screensaver' \
+  "$root/qvcore/screensaver" "$root/qvcore/config/base/hypr/windows.conf" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native screensaver retains the inherited window class"
+fi
 # shellcheck disable=SC2016
 for runtime_profile in \
   '"$qvos_root/screensaver/alacritty.toml"' \

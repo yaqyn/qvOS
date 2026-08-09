@@ -66,7 +66,7 @@ printf 'ok - all-window closure validates the full client inventory before mutat
 
 : >"$hyprctl_log"
 QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
-  QVOS_TEST_CLIENTS_JSON='[{"class":"org.omarchy.screensaver","address":"0x2"},{"class":"app","address":"unrelated"}]' \
+  QVOS_TEST_CLIENTS_JSON='[{"class":"org.qvos.screensaver","address":"0x2"},{"class":"app","address":"unrelated"}]' \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/screensaver/close"
 [[ $(<"$hyprctl_log") == 'dispatch|closewindow|address:0x2' ]] ||
@@ -74,7 +74,7 @@ QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
 
 : >"$hyprctl_log"
 if QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
-  QVOS_TEST_CLIENTS_JSON='[{"class":"org.omarchy.screensaver","address":"0x2"},{"class":"org.omarchy.screensaver","address":"unsafe"}]' \
+  QVOS_TEST_CLIENTS_JSON='[{"class":"org.qvos.screensaver","address":"0x2"},{"class":"org.qvos.screensaver","address":"unsafe"}]' \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/screensaver/close" >/dev/null 2>&1; then
   fail "invalid screensaver window inventory accepted"

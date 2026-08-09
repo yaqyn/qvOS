@@ -26,7 +26,7 @@ if ! flock -n 9; then
 fi
 
 screensaver_count() {
-  hyprctl clients -j 2>/dev/null | jq '[.[] | select((.class // "") == "org.omarchy.screensaver")] | length' 2>/dev/null || printf '0\n'
+  hyprctl clients -j 2>/dev/null | jq '[.[] | select((.class // "") == "org.qvos.screensaver")] | length' 2>/dev/null || printf '0\n'
 }
 
 if ! qv-cmd-present tte || [[ ! -x $runner ]]; then
@@ -52,7 +52,7 @@ case ${terminal,,} in
 *alacritty*)
   command=(
     alacritty
-    --class=org.omarchy.screensaver
+    --class=org.qvos.screensaver
     --config-file "$qvos_root/screensaver/alacritty.toml"
     -e "$runner"
   )
@@ -60,7 +60,7 @@ case ${terminal,,} in
 *ghostty*)
   command=(
     ghostty
-    --class=org.omarchy.screensaver
+    --class=org.qvos.screensaver
     --config-file="$qvos_root/screensaver/ghostty.conf"
     --font-size=14
     -e "$runner"
@@ -69,7 +69,7 @@ case ${terminal,,} in
 *foot*)
   command=(
     foot
-    --app-id=org.omarchy.screensaver
+    --app-id=org.qvos.screensaver
     --config="$qvos_root/screensaver/foot.ini"
     -e "$runner"
   )
@@ -77,7 +77,7 @@ case ${terminal,,} in
 *kitty*)
   command=(
     kitty
-    --class=org.omarchy.screensaver
+    --class=org.qvos.screensaver
     --override font_size=14
     --override window_padding_width=0
     -e "$runner"

@@ -45,14 +45,14 @@ install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 case $1 in
 clients)
   if [[ ${QVOS_TEST_EXISTING:-0} == "1" ]]; then
-    printf '[{"class":"org.omarchy.screensaver","address":"0xexisting"}]\n'
+    printf '[{"class":"org.qvos.screensaver","address":"0xexisting"}]\n'
   else
     count=0
     [[ -f $QVOS_TEST_LAUNCH_LOG ]] && count="$(wc -l <"$QVOS_TEST_LAUNCH_LOG")"
     polls=0
     [[ -f $QVOS_TEST_CLIENT_POLL_LOG ]] && polls="$(wc -l <"$QVOS_TEST_CLIENT_POLL_LOG")"
     if ((count > 0 && polls == 0)); then
-      jq -cn --argjson count "$count" '[range(0; $count) | {class: "org.omarchy.screensaver", address: ("0x" + (.|tostring))}]'
+      jq -cn --argjson count "$count" '[range(0; $count) | {class: "org.qvos.screensaver", address: ("0x" + (.|tostring))}]'
       printf 'active\n' >>"$QVOS_TEST_CLIENT_POLL_LOG"
     else
       printf '[]\n'
@@ -155,7 +155,7 @@ run_launcher() {
 : >"$cursor_keyword_log"
 run_launcher force
 [[ "$(wc -l <"$launch_log")" == "2" ]] || fail "monitor launch count"
-grep -F -- $'alacritty\t--class=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Alacritty command"
+grep -F -- $'alacritty\t--class=org.qvos.screensaver' "$launch_log" >/dev/null || fail "Alacritty command"
 [[ "$(tail -n 1 "$focus_log")" == "DP-1" ]] || fail "focused monitor restoration"
 pass "screensaver launches once per monitor and restores focus"
 
@@ -170,13 +170,13 @@ pass "an existing screensaver suppresses duplicate launches"
 
 : >"$launch_log"
 QVOS_TEST_TERMINAL="Ghostty" run_launcher force
-grep -F -- $'ghostty\t--class=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Ghostty command"
+grep -F -- $'ghostty\t--class=org.qvos.screensaver' "$launch_log" >/dev/null || fail "Ghostty command"
 grep -F -- "--config-file=$test_root/.local/lib/qvos/screensaver/ghostty.conf" \
   "$launch_log" >/dev/null || fail "Ghostty runtime profile"
 
 : >"$launch_log"
 QVOS_TEST_TERMINAL="Foot" run_launcher force
-grep -F -- $'foot\t--app-id=org.omarchy.screensaver' "$launch_log" >/dev/null || fail "Foot command"
+grep -F -- $'foot\t--app-id=org.qvos.screensaver' "$launch_log" >/dev/null || fail "Foot command"
 grep -F -- "--config=$test_root/.local/lib/qvos/screensaver/foot.ini" \
   "$launch_log" >/dev/null || fail "Foot runtime profile"
 pass "supported terminals use installed qvOS runtime profiles"
@@ -229,7 +229,7 @@ QVOS_TEST_CURSOR_LOG="$cursor_log" \
   "$runner" </dev/null >/dev/null
 pass "cursor movement exits the screensaver"
 
-if rg -q 'on-resume\s*=\s*pkill.*org\.omarchy\.screensaver' "$root/qvcore/config/files/hypr/hypridle.conf"; then
+if rg -q 'on-resume\s*=\s*pkill.*org\.(omarchy|qvos)\.screensaver' "$root/qvcore/config/files/hypr/hypridle.conf"; then
   fail "idle resume can terminate a screensaver during launch"
 fi
 pass "idle config does not race screensaver startup"
