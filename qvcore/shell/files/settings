@@ -1,4 +1,6 @@
-# History control
+# shellcheck shell=bash disable=SC1091
+
+# History and interactive shell behavior
 shopt -s histappend
 HISTCONTROL=ignoreboth
 HISTSIZE=32768

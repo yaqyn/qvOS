@@ -1,0 +1,3 @@
+# Inherited shell paths retired by the native qvOS shell owner.
+default/bash/
+default/bashrc

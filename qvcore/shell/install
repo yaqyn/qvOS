@@ -1,22 +1,41 @@
 #!/bin/bash
 set -euo pipefail
 
-source_file="$OMARCHY_PATH/qvcore/shell/aliases"
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+source_file="$QVOS_PATH/qvcore/shell/aliases"
 runtime_file="$HOME/.local/lib/qvos/shell/aliases"
+runtime_dir=${runtime_file%/*}
 bashrc="$HOME/.bashrc"
 bashrc_existed=0
 backup_done=0
-staged_bashrc=""
+staged_bashrc=
+staged_runtime=
 # shellcheck disable=SC2016
 runtime_source='source "$HOME/.local/lib/qvos/shell/aliases"'
 # shellcheck disable=SC2016
 legacy_runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
+# shellcheck disable=SC2016
+native_rc_source='source "$HOME/.local/share/qvos/qvcore/shell/files/rc"'
+legacy_qvos_rc_source='source ~/.local/share/qvos/default/bash/rc'
+legacy_omarchy_rc_source='source ~/.local/share/omarchy/default/bash/rc'
 legacy_helix_alias='alias hx="helix"'
 
 cleanup() {
-  [[ -z $staged_bashrc ]] || rm -f -- "$staged_bashrc"
+  [[ -z $staged_bashrc || (! -e $staged_bashrc && ! -L $staged_bashrc) ]] ||
+    rm -f -- "$staged_bashrc"
+  [[ -z $staged_runtime || (! -e $staged_runtime && ! -L $staged_runtime) ]] ||
+    rm -f -- "$staged_runtime"
 }
 trap cleanup EXIT
+
+require_safe_directory() {
+  local directory=$1
+
+  [[ -d $directory && ! -L $directory && -O $directory ]] || {
+    echo "Unsafe qvOS shell directory: $directory" >&2
+    exit 1
+  }
+}
 
 backup_bashrc() {
   local backup_file
@@ -33,35 +52,85 @@ backup_bashrc() {
   fi
 }
 
-[[ -f $source_file ]] || {
+[[ -f $source_file && ! -L $source_file ]] || {
   echo "Missing qvOS shell overlay: $source_file" >&2
   exit 1
 }
-
-install -d "$(dirname -- "$runtime_file")"
-install -m 0644 "$source_file" "$runtime_file.tmp.$$"
-mv -f -- "$runtime_file.tmp.$$" "$runtime_file"
-if [[ -e $bashrc ]]; then
+[[ $HOME == /* ]] || {
+  echo "qvOS shell installation requires an absolute HOME." >&2
+  exit 1
+}
+require_safe_directory "$HOME"
+for directory in \
+  "$HOME/.local" \
+  "$HOME/.local/lib" \
+  "$HOME/.local/lib/qvos" \
+  "$runtime_dir"; do
+  if [[ -e $directory || -L $directory ]]; then
+    require_safe_directory "$directory"
+  else
+    install -d -m 0755 -- "$directory"
+  fi
+done
+if [[ -e $runtime_file || -L $runtime_file ]]; then
+  [[ -f $runtime_file && ! -L $runtime_file && -O $runtime_file ]] || {
+    echo "Unsafe qvOS shell runtime: $runtime_file" >&2
+    exit 1
+  }
+fi
+if [[ -e $bashrc || -L $bashrc ]]; then
+  [[ -f $bashrc && ! -L $bashrc && -O $bashrc ]] || {
+    echo "Unsafe Bash configuration: $bashrc" >&2
+    exit 1
+  }
   bashrc_existed=1
 else
   install -m 0644 /dev/null "$bashrc"
 fi
 
-if grep -Fqx "$legacy_runtime_source" "$bashrc" ||
-  grep -Fqx "$legacy_helix_alias" "$bashrc"; then
-  backup_bashrc
-  staged_bashrc=$(mktemp "$(dirname -- "$bashrc")/.bashrc.XXXXXX")
-  awk \
-    -v legacy_source="$legacy_runtime_source" \
-    -v legacy_helix="$legacy_helix_alias" \
-    '$0 != legacy_source && $0 != legacy_helix' \
-    "$bashrc" >"$staged_bashrc"
-  chmod --reference="$bashrc" "$staged_bashrc"
-  mv -f -- "$staged_bashrc" "$bashrc"
-  staged_bashrc=""
+if [[ ! -f $runtime_file ]] || ! cmp -s -- "$source_file" "$runtime_file" ||
+  [[ $(stat -c '%a' -- "$runtime_file") != "644" ]]; then
+  staged_runtime=$(mktemp "$runtime_dir/.aliases.XXXXXX")
+  install -m 0644 -- "$source_file" "$staged_runtime"
+  mv -fT -- "$staged_runtime" "$runtime_file"
+  staged_runtime=
 fi
 
-if ! grep -Fqx "$runtime_source" "$bashrc"; then
-  backup_bashrc
-  printf '\n%s\n' "$runtime_source" >>"$bashrc"
+has_native_rc=false
+if grep -Fqx "$native_rc_source" "$bashrc" ||
+  grep -Fqx "$legacy_qvos_rc_source" "$bashrc" ||
+  grep -Fqx "$legacy_omarchy_rc_source" "$bashrc"; then
+  has_native_rc=true
 fi
+staged_bashrc=$(mktemp "$(dirname -- "$bashrc")/.bashrc.XXXXXX")
+awk \
+  -v has_native_rc="$has_native_rc" \
+  -v legacy_helix="$legacy_helix_alias" \
+  -v legacy_omarchy_rc="$legacy_omarchy_rc_source" \
+  -v legacy_qvos_rc="$legacy_qvos_rc_source" \
+  -v legacy_runtime="$legacy_runtime_source" \
+  -v native_rc="$native_rc_source" \
+  -v runtime="$runtime_source" '
+    $0 == legacy_helix || $0 == legacy_runtime { next }
+    $0 == legacy_omarchy_rc || $0 == legacy_qvos_rc || $0 == native_rc {
+      if (!native_seen) print native_rc
+      native_seen = 1
+      next
+    }
+    $0 == runtime {
+      if (has_native_rc == "true" || runtime_seen) next
+      runtime_seen = 1
+    }
+    { print }
+    END {
+      if (has_native_rc != "true" && !runtime_seen) print "\n" runtime
+    }
+  ' "$bashrc" >"$staged_bashrc"
+chmod --reference="$bashrc" "$staged_bashrc"
+if ! cmp -s -- "$staged_bashrc" "$bashrc"; then
+  backup_bashrc
+  mv -fT -- "$staged_bashrc" "$bashrc"
+else
+  rm -f -- "$staged_bashrc"
+fi
+staged_bashrc=

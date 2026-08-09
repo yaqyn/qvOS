@@ -1,13 +1,17 @@
-_omarchy_complete() {
+# shellcheck shell=bash
+
+_qvos_complete() {
   COMPREPLY=()
   local cur="${COMP_WORDS[COMP_CWORD]}"
 
-  local omarchy_path bin_dir
-  omarchy_path=$(command -v omarchy 2>/dev/null) || return 0
-  bin_dir=$(dirname -- "$(readlink -f -- "$omarchy_path" 2>/dev/null || printf '%s' "$omarchy_path")")
+  local frontend=${COMP_WORDS[0]}
+  local frontend_path bin_dir
+  [[ $frontend == "qv" || $frontend == "omarchy" ]] || return 0
+  frontend_path=$(command -v "$frontend" 2>/dev/null) || return 0
+  bin_dir=$(dirname -- "$(readlink -f -- "$frontend_path" 2>/dev/null || printf '%s' "$frontend_path")")
   [[ -d $bin_dir ]] || return 0
 
-  local prefix="omarchy"
+  local prefix=$frontend
   local i part
   for ((i = 1; i < COMP_CWORD; i++)); do
     part="${COMP_WORDS[i]}"
@@ -40,24 +44,13 @@ _omarchy_complete() {
     candidates+=("--all" "--json" "--markdown" "--check")
   fi
 
-  if (( ${#candidates[@]} == 0 )) && [[ -x $bin_dir/$prefix ]]; then
-    local args enum
-    args=$(grep -m 1 '^# omarchy:args=<' "$bin_dir/$prefix" 2>/dev/null)
-    enum="${args#*<}"
-    enum="${enum%%>*}"
-
-    if [[ $enum == *"|"* && $enum != *" "* ]]; then
-      read -r -a candidates <<<"${enum//|/ }"
-    fi
-  fi
-
   if (( ${#candidates[@]} > 0 )); then
     local IFS=$'\n'
-    COMPREPLY=($(compgen -W "${candidates[*]}" -- "$cur"))
+    mapfile -t COMPREPLY < <(compgen -W "${candidates[*]}" -- "$cur")
   fi
 }
 
-complete -o default -F _omarchy_complete omarchy
+complete -o default -F _qvos_complete qv omarchy
 
 # Hide individual omarchy-* binaries from initial-word command completion;
 # the unified `omarchy` dispatcher is the user-facing entry point.

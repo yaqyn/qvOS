@@ -17,9 +17,6 @@ bin/omarchy-toggle-enabled
 bin/omarchy-toggle-touchpad
 bin/omarchy-toggle-touchscreen
 bin/omarchy-tz-select
-default/bash/envs
-default/bash/rc
-default/bashrc
 default/hypr/apps.conf
 default/hypr/apps/browser.conf
 default/hypr/windows.conf

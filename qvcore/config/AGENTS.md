@@ -71,7 +71,9 @@ every file succeeds. Public `qv-refresh-*` commands carry metadata; matching
 `omarchy-refresh-*` files are compatibility only. Native menus and TUI actions
 always call the qv route.
 
-All installed defaults are native qvOS sources under `qvcore/config/files/`.
+All defaults installed under `~/.config` are native qvOS sources under
+`qvcore/config/files/`. Bash startup and alias ownership lives separately
+under `qvcore/shell/`; never restore it as a second config source here.
 qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
 subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those units, preserves the

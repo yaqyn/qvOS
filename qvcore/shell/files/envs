@@ -1,5 +1,7 @@
+# shellcheck shell=bash
+
 # Editor used by CLI
-export SUDO_EDITOR="$EDITOR"
+export SUDO_EDITOR="${EDITOR:-nvim}"
 export BAT_THEME=ansi
 
 # Color man pages with bat
@@ -9,4 +11,4 @@ export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 # Duplicated from .config/uwsm/env so SSH works too
 export QVOS_PATH=$HOME/.local/share/qvos
 export OMARCHY_PATH=$QVOS_PATH
-export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin
+export PATH="$QVOS_PATH/bin:$PATH:$HOME/.local/bin"

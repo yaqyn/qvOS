@@ -304,6 +304,7 @@ Root-started sessions must read every matching route completely before editing:
 - Screenshots, OCR, screen recording, and recording state: `qvcore/capture/AGENTS.md`
 - Waybar overlay, runtime modules, refresh, and task actions: `qvcore/waybar/AGENTS.md`
 - qvOS terminal interface and action flows: `qvcore/tui/AGENTS.md`
+- Bash defaults, aliases, completion, and existing-user reconciliation: `qvcore/shell/AGENTS.md`
 - Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
 - qvOS configuration and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`

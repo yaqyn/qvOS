@@ -1,0 +1,15 @@
+# shellcheck shell=bash disable=SC1090,SC1091
+
+source "$HOME/.local/share/qvos/qvcore/shell/files/envs"
+source "$HOME/.local/share/qvos/qvcore/shell/files/settings"
+source "$HOME/.local/share/qvos/qvcore/shell/files/init"
+
+runtime_aliases="$HOME/.local/lib/qvos/shell/aliases"
+if [[ -f $runtime_aliases && ! -L $runtime_aliases && -O $runtime_aliases ]]; then
+  source "$runtime_aliases"
+else
+  source "$HOME/.local/share/qvos/qvcore/shell/aliases"
+fi
+unset runtime_aliases
+
+[[ $- == *i* ]] && bind -f "$HOME/.local/share/qvos/qvcore/shell/files/inputrc"

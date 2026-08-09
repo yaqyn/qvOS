@@ -7,7 +7,7 @@ set completion-prefix-display-length 2
 set show-all-if-ambiguous on
 set show-all-if-unmodified on
 
-# Arrow keys match what you've typed so far against your command history
+# Arrow keys search command history for the current prefix
 "\e[A": history-search-backward
 "\e[B": history-search-forward
 "\e[C": forward-char

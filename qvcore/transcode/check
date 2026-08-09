@@ -9,7 +9,7 @@ fail() {
   exit 1
 }
 
-expected=$'bin/omarchy-transcode\nbin/omarchy-transcode-ascii\ndefault/bash/fns/transcoding'
+expected=$'bin/omarchy-transcode\nbin/omarchy-transcode-ascii'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected" ]] ||
   fail "native Transcode inventory"
 
@@ -38,7 +38,6 @@ if rg -n 'omarchy-transcode(-ascii)?' \
   "$root/qvcore/menu/base" \
   "$root/qvcore/menu/routes" \
   "$root/qvcore/config/files/hypr/bindings.conf" \
-  "$root/default/bash/fns/transcoding" \
   "$root/qvcore/branding" \
   "$root/qvcore/menu" \
   "$root/qvcore/thunar" \

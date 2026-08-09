@@ -3,4 +3,4 @@ mkdir -p ~/.config
 cp -a "$QVOS_PATH/qvcore/config/files/." ~/.config/
 
 # Use the qvOS default bashrc.
-cp "$QVOS_PATH/default/bashrc" ~/.bashrc
+cp "$QVOS_PATH/qvcore/shell/files/bashrc" ~/.bashrc
