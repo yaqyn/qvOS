@@ -10,8 +10,8 @@ if [[ -e $xcompose_target && (! -f $xcompose_target || ! -O $xcompose_target) ]]
   return 1
 fi
 
-qvos_user_name=${QVOS_USER_NAME:-${OMARCHY_USER_NAME:-}}
-qvos_user_email=${QVOS_USER_EMAIL:-${OMARCHY_USER_EMAIL:-}}
+qvos_user_name=${QVOS_USER_NAME:-}
+qvos_user_email=${QVOS_USER_EMAIL:-}
 if [[ $qvos_user_name == *$'\n'* || $qvos_user_name == *$'\r'* ||
   $qvos_user_email == *$'\n'* || $qvos_user_email == *$'\r'* ]]; then
   echo "XCompose identity values may not contain line breaks." >&2

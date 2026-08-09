@@ -70,6 +70,8 @@ requirements. Use only package-owned kernel images, inspect one running
 Hyprland process safely, accept only exact restart-marker service slugs, and
 clear each marker only after its restart owner succeeds. Delegate every reboot
 choice to `qvcore/update/reboot-request`; never restore an inherited fallback.
+Reboot deferral accepts only `QVOS_UPDATE_DEFER_REBOOT`; inherited environment
+names must not alter a native update transaction.
 `analyze-log` also recognizes completed Pacman upgrade, downgrade, or reinstall
 lines for Walker and Elephant and records `restart-walker-required` through the
 private state owner. This replaces the retired root Pacman hook; keep matching

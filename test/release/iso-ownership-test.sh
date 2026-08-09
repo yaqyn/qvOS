@@ -65,6 +65,22 @@ grep -Fq '/var/log/qvos-install.log' \
   "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
   fail "release ISO native installer log identity"
 # shellcheck disable=SC2016
+grep -Fq 'QVOS_PROVIDER_CHANNEL=$(</root/qvos_provider_channel)' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO provider-channel boundary translation"
+# shellcheck disable=SC2016
+grep -Fq 'QVOS_USER_NAME="$(<user_full_name.txt)"' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO native user-name input"
+# shellcheck disable=SC2016
+grep -Fq 'QVOS_USER_EMAIL="$(<user_email_address.txt)"' \
+  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  fail "release ISO native user-email input"
+if sed -n '/^+/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
+  rg -q 'OMARCHY_(USER_NAME|USER_EMAIL)'; then
+  fail "release ISO activates inherited user metadata"
+fi
+# shellcheck disable=SC2016
 grep -Fq 'validate_staged_iso "$staged_iso"' "$root/release/iso/build" ||
   fail "release ISO staged trust validation"
 grep -Fq 'fallback configurator without native helpers' "$root/release/iso/build" ||

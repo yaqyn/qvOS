@@ -57,6 +57,10 @@ if rg -n '/tmp/omarchy|pkill .*gpu-screen-recorder|pgrep .*gpu-screen-recorder|p
   "$root/qvcore/capture" --glob '!AGENTS.md' --glob '!check'; then
   fail "Capture owner retains shared state or broad process control"
 fi
+if rg -n 'OMARCHY_(SCREENSHOT|SCREENRECORD|OCR)' \
+  "$root/qvcore/capture" --glob '!AGENTS.md' --glob '!check'; then
+  fail "Capture owner accepts an inherited runtime environment"
+fi
 # shellcheck disable=SC2016
 grep -Fq 'ln -- "$source" "$candidate"' "$root/qvcore/capture/lib" ||
   fail "no-clobber Capture publication"

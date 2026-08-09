@@ -30,8 +30,9 @@ qv routes.
 - Missing clipboard, editor, notification, or post-processing tools may reduce
   convenience but must not discard an otherwise complete capture. Missing
   validation tools fail closed while preserving recoverable recording state.
-- `QVOS_*` variables are authoritative. Accept matching `OMARCHY_*` variables
-  only as transition input, and migrate active UWSM examples to qvOS names.
+- Capture accepts only its documented `QVOS_*` environment. Historical
+  `OMARCHY_*` settings are migration input for `qvcore/config/migrate-runtime-root`,
+  never runtime fallback or source authority.
 - The Waybar indicator calls `qvcore/capture/status` directly and performs no
   process discovery of its own. Inactive status stays invisible; active,
   recoverable, and unsafe state remain distinguishable.

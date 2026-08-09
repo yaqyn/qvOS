@@ -134,6 +134,11 @@ if rg -n 'OMARCHY_INSTALL|QVOS_PATH=.*OMARCHY_PATH' \
   "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "native install orchestration accepts an inherited source root"
 fi
+if rg -n 'OMARCHY_(MIRROR|USER_NAME|USER_EMAIL)' \
+  "$root/boot.sh" "$root/qvcore/install" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native installer accepts inherited provider or user metadata"
+fi
 if rg -n 'omarchy-pkg-add' \
   "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "native installer calls the package compatibility frontend"
@@ -282,7 +287,7 @@ grep -Fq 'target="$HOME/.local/share/qvos"' \
 grep -Fq 'QVOS_TARGET="$HOME/.local/share/qvos"' "$root/boot.sh" ||
   fail "canonical fresh-install source root"
 # shellcheck disable=SC2016
-grep -Fq 'ln -s qvos "$OMARCHY_COMPAT_TARGET"' "$root/boot.sh" ||
+grep -Fq 'ln -s qvos "$QVOS_COMPAT_TARGET"' "$root/boot.sh" ||
   fail "fresh-install source compatibility link"
 grep -Fq 'qvcore/install/packaging/resolve' "$root/qvcore/install/reinstall-packages" ||
   fail "native package resolver"

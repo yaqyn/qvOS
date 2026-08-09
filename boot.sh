@@ -20,7 +20,7 @@ echo -e "\n$ansi_art\n"
 QVOS_REF="${QVOS_REF:-OS}"
 QVOS_REPO="${QVOS_REPO:-Yaqyn-qvOS/qvOS}"
 QVOS_TARGET="$HOME/.local/share/qvos"
-OMARCHY_COMPAT_TARGET="$HOME/.local/share/omarchy"
+QVOS_COMPAT_TARGET="$HOME/.local/share/omarchy"
 if [[ $QVOS_REPO != "Yaqyn-qvOS/qvOS" ]]; then
   echo "qvOS installation requires the official repository." >&2
   exit 2
@@ -30,14 +30,14 @@ if [[ $QVOS_REF != "OS" ]]; then
   exit 2
 fi
 if [[ -e $QVOS_TARGET || -L $QVOS_TARGET ||
-  -e $OMARCHY_COMPAT_TARGET || -L $OMARCHY_COMPAT_TARGET ]]; then
+  -e $QVOS_COMPAT_TARGET || -L $QVOS_COMPAT_TARGET ]]; then
   echo "qvOS source already exists under $HOME/.local/share." >&2
   echo "Move it aside explicitly before starting a fresh installation." >&2
   exit 1
 fi
 
 # qvOS has one installed channel and uses its credited upstream Stable mirror.
-export OMARCHY_MIRROR=stable
+export QVOS_PROVIDER_CHANNEL=stable
 # shellcheck disable=SC2016
 echo 'Server = https://stable-mirror.omarchy.org/$repo/os/$arch' | sudo tee /etc/pacman.d/mirrorlist >/dev/null
 
@@ -63,7 +63,7 @@ git -C "$staging_root/source" fsck --strict --no-progress >/dev/null
   exit 1
 }
 mv -- "$staging_root/source" "$QVOS_TARGET"
-if ! ln -s qvos "$OMARCHY_COMPAT_TARGET"; then
+if ! ln -s qvos "$QVOS_COMPAT_TARGET"; then
   mv -- "$QVOS_TARGET" "$staging_root/source"
   echo "Could not create the inherited source compatibility link." >&2
   exit 1

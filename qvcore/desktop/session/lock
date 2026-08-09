@@ -10,7 +10,7 @@ set -euo pipefail
   exit 2
 }
 
-lock_only=${QVOS_LOCK_ONLY:-${OMARCHY_LOCK_ONLY:-false}}
+lock_only=${QVOS_LOCK_ONLY:-false}
 [[ $lock_only == "true" || $lock_only == "false" ]] || {
   echo "QVOS_LOCK_ONLY must be true or false." >&2
   exit 2

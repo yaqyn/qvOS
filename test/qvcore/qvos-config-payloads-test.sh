@@ -75,6 +75,35 @@ run_leaf() {
     bash -c 'set -euo pipefail; source "$1"' _ "$1"
 }
 
+git_leaf="$root/qvcore/install/config/git.sh"
+HOME="$test_home" \
+  XDG_CONFIG_HOME="$test_home/.config" \
+  QVOS_USER_NAME='Abdulrahman M. Yaqyn' \
+  QVOS_USER_EMAIL='Yaqyn@pm.me' \
+  OMARCHY_USER_NAME='Retired Name' \
+  OMARCHY_USER_EMAIL='retired@example.invalid' \
+  bash -c 'set -euo pipefail; source "$1"' _ "$git_leaf"
+[[ $(HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config" \
+  git config --global user.name) == "Abdulrahman M. Yaqyn" ]] ||
+  fail "native Git user name input"
+[[ $(HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config" \
+  git config --global user.email) == "Yaqyn@pm.me" ]] ||
+  fail "native Git user email input"
+
+legacy_git_home="$test_root/legacy-git-home"
+install -d "$legacy_git_home"
+HOME="$legacy_git_home" \
+  XDG_CONFIG_HOME="$legacy_git_home/.config" \
+  OMARCHY_USER_NAME='Retired Name' \
+  OMARCHY_USER_EMAIL='retired@example.invalid' \
+  bash -c 'set -euo pipefail; source "$1"' _ "$git_leaf"
+if HOME="$legacy_git_home" XDG_CONFIG_HOME="$legacy_git_home/.config" \
+  git config --global user.name >/dev/null 2>&1 ||
+  HOME="$legacy_git_home" XDG_CONFIG_HOME="$legacy_git_home/.config" \
+  git config --global user.email >/dev/null 2>&1; then
+  fail "inherited Git identity input remains active"
+fi
+
 xcompose_leaf="$root/qvcore/install/config/xcompose.sh"
 run_leaf "$xcompose_leaf"
 xcompose="$test_home/.XCompose"

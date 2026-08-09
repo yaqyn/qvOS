@@ -1,5 +1,5 @@
 if [[ -n ${QVOS_ONLINE_INSTALL:-} ]]; then
-  provider_channel=${OMARCHY_MIRROR:-stable}
+  provider_channel=${QVOS_PROVIDER_CHANNEL:-stable}
   provider_output=$(
     "$QVOS_PATH/qvcore/packages/provider-files" "$provider_channel"
   ) || return

@@ -104,8 +104,10 @@ Install stage files follow this pattern:
   `OMARCHY_PATH` may exist only at a documented compatibility boundary outside
   native install orchestration
 - use qvOS-owned installer state and environment (`QVOS_INSTALL_LOG_FILE`,
-  `QVOS_ONLINE_INSTALL`, `/var/log/qvos-install.log`); preserve
-  `OMARCHY_CHROOT_INSTALL` only as the reviewed ISO-builder input
+  `QVOS_ONLINE_INSTALL`, `QVOS_PROVIDER_CHANNEL`, `QVOS_USER_NAME`,
+  `QVOS_USER_EMAIL`, `/var/log/qvos-install.log`); translate external builder
+  inputs at the ISO boundary and preserve `OMARCHY_CHROOT_INSTALL` only as the
+  reviewed ISO-builder input
 - keep hardware-specific install logic under `qvcore/install/config/hardware/`
 - prefer helper commands for package and command checks where available
 

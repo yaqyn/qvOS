@@ -289,7 +289,7 @@ index fbdb629..72f19e8 100644
 +Theme=qvos
 +ShowDelay=0
 diff --git configs/airootfs/root/.automated_script.sh configs/airootfs/root/.automated_script.sh
-index 7566803..068980c 100644
+index 7566803..6f2d4a8 100644
 --- configs/airootfs/root/.automated_script.sh
 +++ configs/airootfs/root/.automated_script.sh
 @@ -1,68 +1,123 @@
@@ -307,8 +307,8 @@ index 7566803..068980c 100644
 +  export QVOS_PATH="/root/qvos"
 +  export QVOS_INSTALL="$QVOS_PATH/qvcore/install"
 +  export QVOS_INSTALL_LOG_FILE="/var/log/qvos-install.log"
-+  OMARCHY_MIRROR=$(</root/qvos_provider_channel)
-+  export OMARCHY_MIRROR
++  QVOS_PROVIDER_CHANNEL=$(</root/qvos_provider_channel)
++  export QVOS_PROVIDER_CHANNEL
 +  # shellcheck disable=SC1091
 +  source "$QVOS_INSTALL/helpers/run"
  }
@@ -455,7 +455,7 @@ index 7566803..068980c 100644
  
      # Set default foreground and background
      echo -en "\033[0m"
-@@ -164,32 +221,32 @@ install_base_system() {
+@@ -164,32 +219,32 @@ install_base_system() {
    cp /etc/pacman.conf /mnt/etc/pacman.conf
  
    # Mount the offline mirror so it's accessible in the chroot
@@ -500,7 +500,7 @@ index 7566803..068980c 100644
  }
  
  configure_login_for_unencrypted_install() {
-@@ -201,14 +258,11 @@ configure_login_for_unencrypted_install() {
+@@ -201,14 +256,11 @@ configure_login_for_unencrypted_install() {
    # before reaching the desktop. Omarchy's normal encrypted path may autologin
    # because the disk password was already entered at boot.
    #
@@ -518,7 +518,7 @@ index 7566803..068980c 100644
  [Users]
  RememberLastUser=true
  RememberLastSession=true
-@@ -217,7 +271,7 @@ EOF
+@@ -217,7 +269,7 @@ EOF
    mkdir -p /mnt/var/lib/sddm
    cat >/mnt/var/lib/sddm/state.conf <<EOF
  [Last]
@@ -527,7 +527,7 @@ index 7566803..068980c 100644
  User=$OMARCHY_USER
  EOF
  
-@@ -227,8 +281,8 @@ EOF
+@@ -227,11 +279,11 @@ EOF
  }
  
  chroot_bash() {
@@ -536,9 +536,14 @@ index 7566803..068980c 100644
 +  HOME="/home/$OMARCHY_USER" \
 +    arch-chroot -u "$OMARCHY_USER" /mnt/ \
      env OMARCHY_CHROOT_INSTALL=1 \
-     OMARCHY_USER_NAME="$(<user_full_name.txt)" \
-     OMARCHY_USER_EMAIL="$(<user_email_address.txt)" \
-@@ -239,8 +293,8 @@ chroot_bash() {
+-    OMARCHY_USER_NAME="$(<user_full_name.txt)" \
+-    OMARCHY_USER_EMAIL="$(<user_email_address.txt)" \
++    QVOS_USER_NAME="$(<user_full_name.txt)" \
++    QVOS_USER_EMAIL="$(<user_email_address.txt)" \
+     OMARCHY_MIRROR="$OMARCHY_MIRROR" \
+     USER="$OMARCHY_USER" \
+     HOME="/home/$OMARCHY_USER" \
+@@ -239,8 +291,8 @@ chroot_bash() {
  }
  
  if [[ $(tty) == "/dev/tty1" ]]; then

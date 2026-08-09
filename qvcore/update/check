@@ -41,6 +41,10 @@ if rg -n 'OMARCHY_PATH' "$root/qvcore/update" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "native update owner dereferences the compatibility source root"
 fi
+if rg -n 'OMARCHY_UPDATE_' "$root/qvcore/update" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native update owner accepts an inherited runtime environment"
+fi
 
 declare -A compatibility_owners=(
   [omarchy-snapshot]=snapshot

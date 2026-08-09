@@ -23,7 +23,7 @@ EOF
 
 mode=smart
 processing=slurp
-editor=${QVOS_SCREENSHOT_EDITOR:-${OMARCHY_SCREENSHOT_EDITOR:-satty}}
+editor=${QVOS_SCREENSHOT_EDITOR:-satty}
 temporary=""
 declare -a positional=()
 
@@ -89,7 +89,7 @@ if [[ $processing == "copy" ]]; then
 fi
 
 fallback=$(capture_xdg_directory XDG_PICTURES_DIR "$HOME/Pictures")
-output_dir=${QVOS_SCREENSHOT_DIR:-${OMARCHY_SCREENSHOT_DIR:-$fallback}}
+output_dir=${QVOS_SCREENSHOT_DIR:-$fallback}
 output_dir=$(capture_prepare_output_directory "screenshot" "$output_dir")
 stem="screenshot-$(date +'%Y-%m-%d_%H-%M-%S')"
 desired=$(capture_next_output_path "$output_dir" png "$stem")

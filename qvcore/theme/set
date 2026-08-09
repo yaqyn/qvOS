@@ -116,7 +116,7 @@ run_integration() {
 }
 
 # Change background with theme
-skip_background=${QVOS_THEME_SKIP_BACKGROUND:-${OMARCHY_THEME_SKIP_BACKGROUND:-0}}
+skip_background=${QVOS_THEME_SKIP_BACKGROUND:-0}
 if [[ $skip_background != "1" ]]; then
   run_integration "the background" "$QVOS_PATH/qvcore/theme/background-next"
 fi

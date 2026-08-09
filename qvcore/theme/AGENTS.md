@@ -53,6 +53,8 @@ publish each generated file atomically inside the staged theme.
   boundary and must not be emulated by weakening the directory.
 - Yaqyn is always present and cannot be installed over or removed. Removing an
   active custom theme first returns to Yaqyn without changing the background.
+- Theme runtime policy accepts only documented `QVOS_THEME_*` inputs; inherited
+  environment names are not a compatibility ABI.
 - Theme activation stages and validates a complete next tree, swaps it
   atomically, and preserves the prior tree until the name marker lands. Git
   updates require a clean checkout and restore the exact prior commit if the

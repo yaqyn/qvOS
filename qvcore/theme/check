@@ -153,6 +153,10 @@ if [[ -n $compatibility_path_refs ]]; then
   printf '%s\n' "$compatibility_path_refs" >&2
   fail "native theme owner dereferences the compatibility source root"
 fi
+if rg -n 'OMARCHY_THEME_' "$root/qvcore/theme" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native theme owner accepts an inherited runtime environment"
+fi
 
 if rg -n \
   'omarchy-(plymouth-set-by-theme|theme-(bg-(install|next|set)|colors-from-alacritty|current|install|list|refresh|remove|set|set-[a-z0-9-]+|update))([^[:alnum:]_-]|$)' \

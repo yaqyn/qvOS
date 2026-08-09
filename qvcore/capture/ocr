@@ -13,7 +13,7 @@ Languages must already be installed Tesseract language identifiers.
 EOF
 }
 
-languages=${QVOS_OCR_LANGS:-${OMARCHY_OCR_LANGS:-eng}}
+languages=${QVOS_OCR_LANGS:-eng}
 temporary_dir=""
 
 cleanup() {

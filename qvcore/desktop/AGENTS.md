@@ -49,11 +49,11 @@ name. Keep process names exact, preserve argument boundaries, treat an absent
 optional process as an idempotent success, and propagate failures from the
 component that must be restored.
 
-Lock validates its bounded lock-only policy, starts at most one observed
-Hyprlock instance, locks 1Password only when its exact process and command are
-present, closes screensaver windows through their shared owner, and dims only
-while Hyprlock remains active. Preserve `OMARCHY_LOCK_ONLY` only as an external
-environment compatibility input; native config uses `QVOS_LOCK_ONLY`. Logout
+Lock accepts only `QVOS_LOCK_ONLY`, validates its bounded policy, starts at most
+one observed Hyprlock instance, locks 1Password only when its exact process and
+command are present, closes screensaver windows through their shared owner, and dims only
+while Hyprlock remains active. Historical `OMARCHY_LOCK_ONLY` is migration
+input only and must not alter a native session. Logout
 schedules one fixed worker before closing a prevalidated Hyprland client
 inventory so cleanup failure cannot cancel the requested session exit. Never
 exercise lock, logout, wake, all-window closure, or display dimming on the live

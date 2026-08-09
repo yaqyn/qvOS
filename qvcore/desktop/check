@@ -74,6 +74,10 @@ for helper in "${!helper_owners[@]}"; do
       fail "desktop helper adapter does not delegate directly: $helper"
   done
 done
+if rg -n 'OMARCHY_LOCK_ONLY' "$root/qvcore/desktop" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "desktop owner accepts an inherited lock environment"
+fi
 [[ -x $root/qvcore/desktop/session/logout-worker ]] ||
   fail "desktop logout worker is unavailable"
 [[ -f $root/qvcore/desktop/launch/lib && ! -L $root/qvcore/desktop/launch/lib &&

@@ -12,7 +12,7 @@ prompt=$2
   exit 2
 }
 
-defer_reboot=${QVOS_UPDATE_DEFER_REBOOT:-${OMARCHY_UPDATE_DEFER_REBOOT:-0}}
+defer_reboot=${QVOS_UPDATE_DEFER_REBOOT:-0}
 if [[ $defer_reboot == "1" ]]; then
   printf 'qvOS action: reboot required: %s\n' "$reason"
 else
