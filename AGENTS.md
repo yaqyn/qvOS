@@ -13,10 +13,11 @@
 
 `qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
 only a compatibility frontend over the same native catalog. The engine discovers
-and dispatches only metadata-bearing `bin/qv-*` routes. Every retained command
-has one `qvcore/` owner and one metadata-free matching `bin/omarchy-*` direct
-compatibility adapter; an Omarchy-only binary is never a qvOS command. Never add
-mutation logic, state ownership, or product branding to `bin/`.
+and dispatches only metadata-bearing `bin/qv-*` routes. Every promoted inherited
+command has one `qvcore/` owner and one metadata-free matching
+`bin/omarchy-*` direct compatibility adapter. A qvOS-only capability never
+invents an Omarchy binary, and an Omarchy-only binary is never a qvOS command.
+Never add mutation logic, state ownership, or product branding to `bin/`.
 
 Native CLI benchmarking and metadata documentation live under `qvcore/cli/`.
 They inspect only static `qv` surfaces and describe only the current `qv:*`

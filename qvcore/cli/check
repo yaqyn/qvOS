@@ -3,6 +3,7 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 native_manifest="$QVOS_PATH/qvcore/cli/native-paths"
+native_only_manifest="$QVOS_PATH/qvcore/cli/native-only-routes"
 retired_manifest="$QVOS_PATH/qvcore/cli/retired-paths"
 
 expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present\nbin/omarchy-dev-benchmark\nbin/omarchy-dev-bin-metadata'
@@ -10,6 +11,22 @@ expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present\
   echo "Native CLI path inventory is incomplete or unordered." >&2
   exit 1
 }
+mapfile -t native_only_routes < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_only_manifest"
+)
+[[ $(printf '%s\n' "${native_only_routes[@]}" | sort -u) == \
+  $(printf '%s\n' "${native_only_routes[@]}") ]] || {
+  echo "Native-only CLI routes are not sorted and unique." >&2
+  exit 1
+}
+declare -A native_only_route_set=()
+for route in "${native_only_routes[@]}"; do
+  [[ $route =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || {
+    echo "Invalid native-only CLI route: $route" >&2
+    exit 1
+  }
+  native_only_route_set[$route]=1
+done
 grep -Fqx 'bin/omarchy-cmd-terminal-cwd' "$retired_manifest" || {
   echo "Retired terminal-cwd command is not inventoried." >&2
   exit 1
@@ -88,20 +105,31 @@ for native_adapter in "$QVOS_PATH"/bin/qv-*; do
   [[ -f $native_adapter && -x $native_adapter ]] || continue
   stem=${native_adapter##*/qv-}
   compatibility_adapter="$QVOS_PATH/bin/omarchy-$stem"
-  [[ -f $compatibility_adapter && -x $compatibility_adapter ]] || {
-    echo "Missing compatibility adapter for native command: $stem" >&2
-    exit 1
-  }
   (($(wc -l <"$native_adapter") <= 12)) || {
     echo "Native command adapter contains implementation: $stem" >&2
     exit 1
   }
-  (($(wc -l <"$compatibility_adapter") <= 5)) || {
-    echo "Compatibility command adapter contains implementation: $stem" >&2
-    exit 1
-  }
   rg -q '^# qv:summary=' "$native_adapter" || {
     echo "Native command adapter lacks metadata: $stem" >&2
+    exit 1
+  }
+  [[ $(grep -Fxc "qv-$stem" <<<"$native_catalog_binaries") == 1 ]] || {
+    echo "Native command is absent or duplicated in the catalog: $stem" >&2
+    exit 1
+  }
+  if [[ -n ${native_only_route_set[$stem]:-} ]]; then
+    [[ ! -e $compatibility_adapter && ! -L $compatibility_adapter ]] || {
+      echo "Native-only command invents a compatibility adapter: $stem" >&2
+      exit 1
+    }
+    continue
+  fi
+  [[ -f $compatibility_adapter && -x $compatibility_adapter ]] || {
+    echo "Missing compatibility adapter for inherited command: $stem" >&2
+    exit 1
+  }
+  (($(wc -l <"$compatibility_adapter") <= 5)) || {
+    echo "Compatibility command adapter contains implementation: $stem" >&2
     exit 1
   }
   if rg -q '^# (qv|omarchy):' "$compatibility_adapter"; then
@@ -114,8 +142,11 @@ for native_adapter in "$QVOS_PATH"/bin/qv-*; do
     echo "Compatibility adapter does not match its native owner: $stem" >&2
     exit 1
   }
-  [[ $(grep -Fxc "qv-$stem" <<<"$native_catalog_binaries") == 1 ]] || {
-    echo "Native command is absent or duplicated in the catalog: $stem" >&2
+done
+
+for route in "${native_only_routes[@]}"; do
+  [[ -f $QVOS_PATH/bin/qv-$route && -x $QVOS_PATH/bin/qv-$route ]] || {
+    echo "Stale native-only CLI route: $route" >&2
     exit 1
   }
 done

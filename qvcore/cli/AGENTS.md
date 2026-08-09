@@ -13,8 +13,10 @@ never grants `OMARCHY_PATH` source authority.
 Native commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
 that native route for both frontends and never scans, registers, or dispatches
 an `omarchy-*` file. Matching Omarchy names are metadata-free direct-command
-compatibility adapters only. Every retained command domain is promoted: never
-keep two implementations or two active metadata records for the same route.
+compatibility adapters only. `native-only-routes` is the sorted, explicit
+inventory of qvOS capabilities that never had an installed Omarchy binary;
+those routes must not invent one. Every retained command domain is promoted:
+never keep two implementations or two active metadata records for the same route.
 Native `qv` output, routes, examples, errors, and suggestions use `qv`; the
 compatibility frontend rewrites the same native catalog to `omarchy` without
 changing its owner. Compatibility adapters remain thin direct ABI routes until
@@ -41,7 +43,9 @@ or package upgrade while testing CLI dispatch; use help, metadata checks, and
 the update owner's `--check` mode only when the live checkout is in scope.
 
 List every CLI-domain compatibility path in `native-paths`, sorted and unique.
-Keep every `qv-*` and `omarchy-*` adapter paired with identical non-metadata
-content, and reject compatibility-only commands or `# omarchy:*` metadata. Run
+Keep every inherited `qv-*` and `omarchy-*` adapter paired with identical
+non-metadata content. Require an explicit `native-only-routes` entry for every
+unpaired qvOS capability, and reject compatibility-only commands or
+`# omarchy:*` metadata. Run
 `qvcore/cli/check`, both CLI suites, the product and upstream-overlay guards,
 Bash syntax and ShellCheck for changed shell, then the full qvOS suite.
