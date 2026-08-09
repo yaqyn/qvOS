@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)
+owner="$root/qvcore/config/assistant"
+skill="$owner/qvos/SKILL.md"
+
+fail() {
+  printf 'not ok - %s\n' "$1" >&2
+  exit 1
+}
+
+for path in install check; do
+  [[ -x $owner/$path && ! -L $owner/$path ]] ||
+    fail "assistant owner mode: $path"
+done
+for path in pi-managed-hashes pi-system-theme.ts qvos/SKILL.md; do
+  [[ -f $owner/$path && ! -L $owner/$path ]] ||
+    fail "assistant source: $path"
+done
+grep -Fqx 'name: qvos' "$skill" || fail "native qvOS skill name"
+# shellcheck disable=SC2016
+grep -Fq 'Use the native `qv` frontend.' "$skill" ||
+  fail "native qvOS skill command boundary"
+if rg -n '(^|`)omarchy[[:space:]]|name:[[:space:]]+omarchy' "$skill"; then
+  fail "qvOS skill exposes an Omarchy command or identity"
+fi
+grep -Fq '.config/omarchy/current/theme/light.mode' \
+  "$owner/pi-system-theme.ts" || fail "compatible Pi theme-state ABI"
+grep -Fq 'function qvosPiTheme' "$owner/pi-system-theme.ts" ||
+  fail "native Pi theme identity"
+if rg -n 'function omarchy|Omarchy theme' "$owner/pi-system-theme.ts"; then
+  fail "Pi theme integration retains product branding"
+fi
+
+mapfile -t hashes < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$owner/pi-managed-hashes"
+)
+[[ $(printf '%s\n' "${hashes[@]}" | sort -u) == \
+  $(printf '%s\n' "${hashes[@]}") ]] || fail "managed Pi hash order"
+source_hash=$(sha256sum "$owner/pi-system-theme.ts")
+source_hash=${source_hash%% *}
+printf '%s\n' "${hashes[@]}" | grep -Fqx "$source_hash" ||
+  fail "managed Pi source hash"
+
+[[ ! -e $root/default/omarchy-skill && ! -L $root/default/omarchy-skill ]] ||
+  fail "inherited assistant skill source remains"
+[[ ! -e $root/default/pi && ! -L $root/default/pi ]] ||
+  fail "inherited Pi source remains"
+for leaf in omarchy-ai-skill.sh pi.sh; do
+  [[ ! -e $root/qvcore/install/config/$leaf ]] ||
+    fail "retired assistant installer leaf remains: $leaf"
+done
+if rg -n 'config/(omarchy-ai-skill|pi)\.sh|default/(omarchy-skill|pi)' \
+  "$root/qvcore/install/config/run" "$root/qvcore/install/desktop"; then
+  fail "installer retains inherited assistant ownership"
+fi
+grep -Fqx '    qvcore/config/assistant/install' \
+  "$root/qvcore/install/desktop" || fail "desktop assistant source preflight"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/config/assistant/install"' \
+  "$root/qvcore/install/desktop" || fail "desktop assistant reconciliation"
+
+printf 'ok - qvOS owns one native assistant skill and Pi theme integration\n'

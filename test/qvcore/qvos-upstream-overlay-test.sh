@@ -263,6 +263,10 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/unmount-fuse.sh')
         ;;
+      '$OMARCHY_INSTALL/config/omarchy-ai-skill.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/pi.sh')
+        ;;
       '$OMARCHY_INSTALL/config/hardware/asus/fix-asus-ptl-b9406-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad'
         ;;
@@ -287,6 +291,13 @@ grep -Fqx '  "$QVOS_PATH/qvcore/power/install"' \
 grep -Fqx '    qvcore/power/unmount-fuse' \
   "$root/qvcore/install/desktop" ||
   fail "fresh configuration omits the native FUSE sleep-hook source"
+grep -Fqx '    qvcore/config/assistant/install' \
+  "$root/qvcore/install/desktop" ||
+  fail "fresh configuration omits the native assistant integration source"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/config/assistant/install"' \
+  "$root/qvcore/install/desktop" ||
+  fail "fresh configuration omits native assistant reconciliation"
 for walker_source in \
   qvcore/config/files/autostart/walker.desktop \
   qvcore/config/files/systemd/user/app-walker@autostart.service.d/restart.conf; do

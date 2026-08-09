@@ -66,6 +66,7 @@
     qvcore/install/retire-inherited-system-policy
     qvcore/config/migrate-runtime-root
     qvcore/config/retired-hypr-layer.psv
+    qvcore/config/assistant/install
     qvcore/config/files/xcompose
     qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf
     qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf
@@ -214,6 +215,7 @@
   "$QVOS_PATH/qvcore/hooks/reconcile"
 
   "$QVOS_PATH/qvcore/branding/install"
+  "$QVOS_PATH/qvcore/config/assistant/install"
 
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"

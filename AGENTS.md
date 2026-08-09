@@ -135,6 +135,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   style; `default/waybar/` and the former merge overlay are retired
 - `qvcore/config/files/` owns XCompose and WirePlumber policy;
   `default/xcompose` and `default/wireplumber/` are retired
+- `qvcore/config/assistant/` owns the installed qvOS agent skill and Pi theme
+  sync; inherited `default/omarchy-skill/` and `default/pi/` are retired
 - `qvcore/screensaver/` owns every installed terminal screensaver profile;
   inherited terminal-specific screensaver defaults are retired
 - `qvcore/browser/` owns browser policy and the local Copy URL extension;
@@ -328,7 +330,9 @@ Root-started sessions must read every matching route completely before editing:
 - Bash defaults, aliases, completion, and existing-user reconciliation: `qvcore/shell/AGENTS.md`
 - Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
-- qvOS configuration and Thunar reconciliation: `qvcore/config/AGENTS.md`, `qvcore/thunar/AGENTS.md`
+- qvOS configuration, assistant integration, and Thunar reconciliation:
+  `qvcore/config/AGENTS.md`, `qvcore/config/assistant/AGENTS.md`,
+  `qvcore/thunar/AGENTS.md`
 - qvOS power, root-owned AC events, battery protection, and charging thresholds: `qvcore/power/AGENTS.md`
 - Windows VM configuration, data scope, and rollback: `qvcore/windows/AGENTS.md`
 - Security hardening and screensaver lifecycle: `qvcore/security/AGENTS.md`, `qvcore/screensaver/AGENTS.md`

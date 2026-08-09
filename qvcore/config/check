@@ -24,6 +24,9 @@ fail() {
   fail "inherited WirePlumber defaults remain"
 [[ ! -e $root/default/xcompose && ! -L $root/default/xcompose ]] ||
   fail "inherited XCompose default remains"
+[[ ! -e $root/default/omarchy-skill && ! -L $root/default/omarchy-skill &&
+  ! -e $root/default/pi && ! -L $root/default/pi ]] ||
+  fail "inherited assistant configuration remains"
 [[ ! -e $root/qvcore/config/files/hypr/qv.conf &&
   ! -L $root/qvcore/config/files/hypr/qv.conf &&
   ! -e $root/qvcore/config/files/hypr/qv &&
@@ -62,7 +65,7 @@ grep -Fqx '<?xml version="1.0" encoding="UTF-8"?>' \
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $'bin/omarchy-battery-monitor\nbin/omarchy-hw-recover-internal-monitor\nbin/omarchy-hyprland-monitor-internal\nbin/omarchy-hyprland-monitor-internal-mirror\nbin/omarchy-hyprland-toggle\nbin/omarchy-hyprland-toggle-disabled\nbin/omarchy-hyprland-toggle-enabled\nbin/omarchy-refresh-config\nbin/omarchy-refresh-hypridle\nbin/omarchy-refresh-hyprland\nbin/omarchy-refresh-hyprlock\nbin/omarchy-refresh-hyprsunset\nbin/omarchy-refresh-swayosd\nbin/omarchy-toggle\nbin/omarchy-toggle-enabled\nbin/omarchy-toggle-touchpad\nbin/omarchy-toggle-touchscreen\nbin/omarchy-tz-select' ]] ||
   fail "native config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  $'config/\ndefault/hypr/\ndefault/wireplumber/\ndefault/xcompose' ]] ||
+  $'config/\ndefault/hypr/\ndefault/omarchy-skill/\ndefault/pi/\ndefault/wireplumber/\ndefault/xcompose' ]] ||
   fail "retired config inventory changed"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_hypr_manifest") == \
   $'qv.conf|51609b3bfb93e29350f57a527176b08c3c322d02b2d5b7cb8b583437a9849d0e\nqv/looknfeel.conf|200b286673249f4b340ba8b77b68718e7a1bc5a531e287d041618c1af8867f3a\nqv/windows.conf|588592b7f9bb36d46c963d80ab54bf01fbc79b0f2fd38cd75f4644c6f0d91a91' ]] ||
@@ -211,6 +214,8 @@ done
 for owner in toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+"$root/qvcore/config/assistant/check" >/dev/null ||
+  fail "native assistant integration contract"
 
 if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-internal(-mirror)?|hyprland-toggle(-disabled|-enabled)?|refresh-(config|hypridle|hyprland|hyprlock|hyprsunset|swayosd)|toggle-enabled|toggle-touchpad|toggle-touchscreen|tz-select)' \
   "$root/qvcore/config" \

@@ -75,6 +75,9 @@ always call the qv route.
 All defaults installed under `~/.config` are native qvOS sources under
 `qvcore/config/files/`. Bash startup and alias ownership lives separately
 under `qvcore/shell/`; never restore it as a second config source here.
+Coding-assistant configuration belongs to `qvcore/config/assistant/`; its local
+workflow owns native skill links, the Pi extension, and exact inherited cleanup.
+Never restore `default/omarchy-skill/`, `default/pi/`, or their installer leaves.
 XCompose and WirePlumber policy live in this tree; their inherited
 `default/xcompose` and `default/wireplumber/` sources are retired. Rerunning
 installation may replace only a missing or exact prior qvOS-generated file.

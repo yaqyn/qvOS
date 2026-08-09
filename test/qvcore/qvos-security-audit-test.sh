@@ -46,7 +46,7 @@ grep -Fq 'never authorize automatic hardening' "$root/qvcore/README.md" \
   fail "unsupported diagnostic upload command"
 if rg -q 'logs\.omarchy\.org|omarchy upload log' \
   "$debug_owner" \
-  "$root/default/omarchy-skill/SKILL.md" \
+  "$root/qvcore/config/assistant/qvos/SKILL.md" \
   "$root/qvcore/install/helpers/errors" \
   "$root/release/iso/omarchy-iso-qvos-tui.patch"; then
   fail "qvOS diagnostics still export private machine inventory"

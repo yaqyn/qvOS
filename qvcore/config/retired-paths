@@ -1,5 +1,7 @@
 # Inherited config paths intentionally absent from qvOS.
 config/
 default/hypr/
+default/omarchy-skill/
+default/pi/
 default/wireplumber/
 default/xcompose

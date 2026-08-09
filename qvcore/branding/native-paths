@@ -2,5 +2,4 @@
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
 bin/omarchy-refresh-fastfetch
-default/omarchy-skill/SKILL.md
 test/omarchy-cli-test.sh

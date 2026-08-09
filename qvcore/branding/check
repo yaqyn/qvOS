@@ -148,7 +148,7 @@ identity_paths=(
   qvcore/menu/elephant/qvos_background_selector.lua
   qvcore/menu/elephant/qvos_themes.lua
   qvcore/menu/elephant/qvos_unlocks.lua
-  default/omarchy-skill/SKILL.md
+  qvcore/config/assistant/qvos/SKILL.md
   qvcore/install/first-run/welcome.sh
   qvcore/install/config/hardware/apple/fix-suspend-nvme.sh
   qvcore/install/helpers/logging.sh
