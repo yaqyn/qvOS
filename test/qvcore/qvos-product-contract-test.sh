@@ -709,9 +709,14 @@ grep -Fq 'for attempt in 1 2 3' "$iso_builder" ||
 grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \
   "$iso_builder" ||
   fail "qvOS ISO HTTP/1.1 package transport"
+grep -Fq -- '--connect-timeout 20 --speed-limit 1 --speed-time 30' \
+  "$iso_builder" ||
+  fail "qvOS ISO stalled-transfer boundary"
 grep -Fq -- '--retry 5 --retry-connrefused --retry-delay 2' \
   "$iso_builder" ||
   fail "qvOS ISO bounded curl retries"
+grep -Fqx 'configure_pacman_transport /etc/pacman.conf' "$iso_builder" ||
+  fail "qvOS ISO bootstrap transport hardening"
 if grep -F 'XferCommand =' "$iso_builder" | grep -Fq -- '--retry-all-errors'; then
   fail "qvOS ISO retries permanent package transport failures"
 fi

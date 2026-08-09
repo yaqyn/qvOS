@@ -11,6 +11,14 @@ stable | edge | rc) ;;
 esac
 qvos_source=/qvos
 
+configure_pacman_transport() {
+  local config="$1"
+  local xfer_command='XferCommand = /usr/bin/curl --http1.1 --fail --location --connect-timeout 20 --speed-limit 1 --speed-time 30 --retry 5 --retry-connrefused --retry-delay 2 --output %o --url %u'
+
+  sed -i '/^XferCommand[[:space:]]*=/d' "$config"
+  sed -i "/^\[options\]/a $xfer_command" "$config"
+}
+
 # Note that these are packages installed to the Arch container used to build the ISO.
 pacman-key --init
 if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
@@ -23,6 +31,7 @@ if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
   grep -qxF "DisableDownloadTimeout" /etc/pacman.conf ||
     sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
 fi
+configure_pacman_transport /etc/pacman.conf
 pacman --noconfirm -Sy archlinux-keyring
 # A cached container can predate the repositories it is about to use. Upgrade
 # the complete ephemeral build root before installing tools; a partial upgrade
@@ -69,9 +78,9 @@ if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
   printf 'Server = %s/$repo/os/$arch\n' "${QVOS_ARCH_MIRROR%/}" >"$online_mirrorlist"
 fi
 sed -i \
-  -e "s|^Include = /etc/pacman.d/mirrorlist$|Include = $online_mirrorlist|" \
-  -e '/^\[options\]/a XferCommand = /usr/bin/curl --http1.1 --fail --location --retry 5 --retry-connrefused --retry-delay 2 --output %o --url %u' \
+  "s|^Include = /etc/pacman.d/mirrorlist$|Include = $online_mirrorlist|" \
   "$online_pacman_config"
+configure_pacman_transport "$online_pacman_config"
 
 # Install omarchy-keyring under the same signed provider policy used below.
 pacman --config "$online_pacman_config" --noconfirm -Sy omarchy-keyring
