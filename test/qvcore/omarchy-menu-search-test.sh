@@ -49,6 +49,23 @@ esac
 SCRIPT
 install -d "$test_root/.config/elephant/menus"
 
+retired_entities="$test_root/.local/lib/qvos/menu/entities.psv"
+install -D -m 0644 /dev/stdin "$retired_entities" <<'ENTITIES'
+# modified retired qvOS menu catalog
+fingerprint|present:omarchy-setup-security-fingerprint
+ENTITIES
+if HOME="$test_root" \
+  QVOS_PATH="$root" \
+  OMARCHY_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  "$root/qvcore/menu/install" --install >/dev/null 2>&1; then
+  fail "modified retired menu catalog was removed"
+fi
+grep -Fqx '# modified retired qvOS menu catalog' "$retired_entities" ||
+  fail "modified retired menu catalog preservation"
+rm -f -- "$retired_entities"
+
 HOME="$test_root" \
   QVOS_PATH="$root" \
   OMARCHY_PATH="$root" \
@@ -61,6 +78,8 @@ HOME="$test_root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/menu/install" --status ||
   fail "installed menu status"
+[[ ! -e $retired_entities && ! -L $retired_entities ]] ||
+  fail "retired menu catalog residue"
 [[ $(<"$systemctl_log") == $'--user restart elephant.service\n--user restart app-walker@autostart.service' ]] ||
   fail "active menu service reload"
 python3 - "$test_root/.config/walker/config.toml" <<'PY'

@@ -94,6 +94,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
   remove only their exact owned block, link, and theme while preserving foreign
   files and user-selected themes.
+- The menu runtime under `~/.local/lib/qvos/menu` is generated payload, not
+  user configuration. Retire obsolete payload files only when their exact
+  reviewed hash matches; refuse links, foreign ownership, and modified
+  lookalikes so cleanup cannot erase an administrator's evidence.
 - Launch every TUI-backed menu action through the checked
   `~/.local/lib/qvos/tui` payload. Menu state may come from the active
   Omarchy owner, but no route may pair that owner with launch, task, or

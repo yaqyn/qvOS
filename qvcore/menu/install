@@ -27,6 +27,8 @@ terminal_action_source="$menu_source_dir/terminal-action"
 terminal_action_runtime="$menu_runtime_dir/terminal-action"
 retired_steam_remove_runtime="$menu_runtime_dir/steam-remove"
 retired_steam_remove_hash="4435fcd69490cc49fe4079391157fe2d7347b20c9b3357d7e1ab512df091a407"
+retired_entities_runtime="$menu_runtime_dir/entities.psv"
+retired_entities_hash="80bee250c5d8334cc89c9a026d60684de014daeeadc35f7610565ae7c80a2c80"
 task_catalog_source="$OMARCHY_PATH/qvcore/tui/task/actions.psv"
 task_launch_source="$OMARCHY_PATH/qvcore/tui/task/launch"
 task_run_source="$OMARCHY_PATH/qvcore/tui/task/run"
@@ -215,7 +217,7 @@ install_menu_runtime() {
 
   install -D -m 0755 "$font_install_source" "$font_install_runtime"
   install -D -m 0755 "$terminal_action_source" "$terminal_action_runtime"
-  retire_steam_remove_runtime
+  retire_menu_runtime
   install -D -m 0644 "$concept_source" "$concept_runtime"
   install -D -m 0644 "$software_installers_source" "$software_installers_runtime"
   install -D -m 0644 "$search_intents_source" "$search_intents_runtime"
@@ -231,21 +233,34 @@ install_menu_runtime() {
   fi
 }
 
-retire_steam_remove_runtime() {
+retire_menu_runtime_file() {
+  local target=$1
+  local expected_hash=$2
+  local label=$3
   local installed_hash
 
-  [[ ! -e $retired_steam_remove_runtime && ! -L $retired_steam_remove_runtime ]] && return
-  if [[ ! -f $retired_steam_remove_runtime || -L $retired_steam_remove_runtime ||
-    ! -O $retired_steam_remove_runtime ]]; then
-    echo "Refusing an unsafe retired Steam runtime owner: $retired_steam_remove_runtime" >&2
+  [[ ! -e $target && ! -L $target ]] && return
+  if [[ ! -f $target || -L $target || ! -O $target ]]; then
+    echo "Refusing an unsafe retired $label runtime owner: $target" >&2
     return 1
   fi
-  read -r installed_hash _ < <(sha256sum -- "$retired_steam_remove_runtime")
-  [[ $installed_hash == "$retired_steam_remove_hash" ]] || {
-    echo "Refusing a modified retired Steam runtime owner: $retired_steam_remove_runtime" >&2
+  read -r installed_hash _ < <(sha256sum -- "$target")
+  [[ $installed_hash == "$expected_hash" ]] || {
+    echo "Refusing a modified retired $label runtime owner: $target" >&2
     return 1
   }
-  unlink -- "$retired_steam_remove_runtime"
+  unlink -- "$target"
+}
+
+retire_menu_runtime() {
+  retire_menu_runtime_file \
+    "$retired_steam_remove_runtime" \
+    "$retired_steam_remove_hash" \
+    "Steam"
+  retire_menu_runtime_file \
+    "$retired_entities_runtime" \
+    "$retired_entities_hash" \
+    "menu catalog"
 }
 
 ensure_walker_config() {
@@ -450,6 +465,7 @@ menu_runtime_ready() {
     cmp -s "$terminal_action_source" "$terminal_action_runtime" &&
     [[ -x $terminal_action_runtime ]] &&
     [[ ! -e $retired_steam_remove_runtime && ! -L $retired_steam_remove_runtime ]] &&
+    [[ ! -e $retired_entities_runtime && ! -L $retired_entities_runtime ]] &&
     cmp -s "$concept_source" "$concept_runtime" &&
     cmp -s "$software_installers_source" "$software_installers_runtime" &&
     cmp -s "$search_intents_source" "$search_intents_runtime" &&
