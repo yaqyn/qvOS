@@ -57,6 +57,10 @@ unsafe across reboot because its `/etc/sudoers.d` rule outlived its transient
 timer. `retire-passwordless-sudo` removes only its exact root-owned legacy rule
 and refuses modified lookalikes; package workflows use their scoped native
 credential refresh helper instead.
+The inherited `sudo-reset` route is also retired: it interpolated account state
+into a root shell command and depended on a separately usable root password.
+Authentication lockout recovery belongs to an explicit recovery environment,
+not a normal-session product command.
 
 `qv-dev-share` is the only metadata-bearing LAN-preview adapter. The former
 `omarchy-qvos-dev-share` qvOS-in-Omarchy namespace is retired and must remain

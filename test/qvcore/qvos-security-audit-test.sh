@@ -57,6 +57,8 @@ if rg -q 'omarchy-upload-log|Upload log for support' \
 fi
 [[ ! -e $root/bin/omarchy-sudo-passwordless ]] ||
   fail "reboot-unsafe passwordless sudo command remains"
+[[ ! -e $root/bin/omarchy-sudo-reset ]] ||
+  fail "unsafe authentication lockout reset command remains"
 if rg -q 'passwordless-sudo|Passwordless Sudo|omarchy-sudo-passwordless' \
   "$root/qvcore/menu/concepts.psv" \
   "$root/qvcore/tui/task/actions.psv" \
@@ -66,6 +68,9 @@ fi
 grep -Fqx 'bin/omarchy-sudo-passwordless' \
   "$root/qvcore/security/retired-paths" ||
   fail "passwordless sudo retirement inventory"
+grep -Fqx 'bin/omarchy-sudo-reset' \
+  "$root/qvcore/security/retired-paths" ||
+  fail "authentication lockout reset retirement inventory"
 
 retire_root="$test_root/retire-root"
 retire_sudoers="$retire_root/etc/sudoers.d"

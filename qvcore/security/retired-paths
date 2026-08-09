@@ -1,3 +1,4 @@
 # Inherited diagnostic export retired because qvOS has no owned upload service.
 bin/omarchy-sudo-passwordless
+bin/omarchy-sudo-reset
 bin/omarchy-upload-log

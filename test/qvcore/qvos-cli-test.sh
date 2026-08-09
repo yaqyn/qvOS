@@ -31,7 +31,8 @@ compat_help=$("$compat_cli" --help)
   ([.commands[] | select(.route == "qv update" and .binary == "qv-update")] | length == 1) and
   ([.commands[] | select(.route == "qv pkg add" and .binary == "qv-pkg-add")] | length == 1) and
   ([.commands[] | select(.route == "qv dev benchmark" and .binary == "qv-dev-benchmark")] | length == 1) and
-  ([.commands[] | select(.route == "qv dev bin metadata" and .binary == "qv-dev-bin-metadata")] | length == 1)
+  ([.commands[] | select(.route == "qv dev bin metadata" and .binary == "qv-dev-bin-metadata")] | length == 1) and
+  ([.commands[] | select(.route == "qv sudo reset" or .binary == "omarchy-sudo-reset")] | length == 0)
 ' >/dev/null || fail "native command catalog"
 
 metadata=$("$qv_cli" dev bin metadata --json)
