@@ -651,7 +651,7 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 	case isoAccountUsername:
 		username := strings.ToLower(strings.TrimSpace(string(m.username)))
 		if !validISOUsername(username) {
-			m.errorText = "enter a username"
+			m.errorText = isoUsernameError(username)
 			return m, nil
 		}
 		m.username = []rune(username)
@@ -675,7 +675,7 @@ func (m isoInstallerModel) submitISOAccountField() (tea.Model, tea.Cmd) {
 		username := strings.ToLower(strings.TrimSpace(string(m.username)))
 		if !validISOUsername(username) {
 			m.accountFocus = isoAccountUsername
-			m.errorText = "enter a username"
+			m.errorText = isoUsernameError(username)
 			return m, nil
 		}
 		hostname := strings.TrimSpace(string(m.hostname))

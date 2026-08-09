@@ -425,10 +425,10 @@ The boot installer keeps one TUI lifecycle:
    timer continues automatically; any key stops it and Enter continues
    immediately. The finale has no second log or terminal lifecycle.
 
-The temporary Omarchy ISO builder integration lives in
-`../../release/iso/omarchy-iso-qvos-tui.patch`. `qvos-build` delegates to the
-release-owned builder, which stages a fresh official builder and applies that
-patch without modifying upstream source.
+The native qvOS Archiso builder and profile live under `../../release/iso/`.
+`qvos-build` delegates to that singular release owner. Omarchy ISO is read-only
+qvsync review input; it is never cloned, patched, mounted, or executed by an
+image build.
 
 ## Development
 

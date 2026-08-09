@@ -2,8 +2,8 @@
 set -euo pipefail
 
 os_branch="OS"
-upstream_ref="refs/remotes/upstream/master"
 mode="audit"
+record_source=""
 recorded_target=""
 git_fetch_timeout="${QVSYNC_GIT_FETCH_TIMEOUT:-30}"
 
@@ -11,14 +11,15 @@ repo_root=$(git rev-parse --show-toplevel) || exit 1
 cd "$repo_root" || exit 1
 
 audit_command="$repo_root/upstream/qvsync/qvsync-audit"
-reviewed_state="$repo_root/upstream/qvsync/reviewed-upstream"
 provider_paths="$repo_root/upstream/qvsync/package-provider-paths"
+product_state="$repo_root/upstream/qvsync/reviewed-upstream"
+iso_state="$repo_root/upstream/qvsync/reviewed-iso-upstream"
 lock_dir=$(git rev-parse --git-path qvsync.lock)
 lock_acquired=0
 state_tmp=""
 
 usage() {
-  printf "Usage: git qvsync [--audit|--record-reviewed-upstream <full-sha>]\n" >&2
+  printf "Usage: git qvsync [--audit|--record-reviewed-upstream <full-sha>|--record-reviewed-iso-upstream <full-sha>]\n" >&2
   exit 2
 }
 
@@ -28,15 +29,21 @@ case $# in
     [[ $1 == "--audit" ]] || usage
     ;;
   2)
+    [[ $2 =~ ^[0-9a-f]{40}$ ]] || usage
     case $1 in
       --record-reviewed-upstream)
-        [[ $2 =~ ^[0-9a-f]{40}$ ]] || usage
         mode="record"
+        record_source="product"
+        recorded_target=$2
+        ;;
+      --record-reviewed-iso-upstream)
+        mode="record"
+        record_source="iso"
         recorded_target=$2
         ;;
       --reviewed-upstream)
         printf "Refusing: --reviewed-upstream merge mode has been retired.\n" >&2
-        printf "qvsync now audits upstream without merging or publishing.\n" >&2
+        printf "qvsync audits upstream without merging or publishing.\n" >&2
         printf "After porting and verifying the reviewed capabilities, use:\n" >&2
         printf "  git qvsync --record-reviewed-upstream %s\n" "$2" >&2
         exit 2
@@ -47,20 +54,26 @@ case $# in
   *) usage ;;
 esac
 
-for required_path in "$audit_command" "$reviewed_state" "$provider_paths"; do
-  if [[ ! -f $required_path ]]; then
-    printf "Refusing: required qvsync source is missing: %s\n" "$required_path" >&2
+for required_path in \
+  "$audit_command" \
+  "$provider_paths" \
+  "$product_state" \
+  "$iso_state"; do
+  if [[ ! -f $required_path || -L $required_path ]]; then
+    printf "Refusing: required qvsync source is missing or linked: %s\n" \
+      "$required_path" >&2
     exit 1
   fi
 done
 [[ -x $audit_command ]] || {
-  printf "Refusing: qvsync audit helper is not executable: %s\n" "$audit_command" >&2
+  printf "Refusing: qvsync audit helper is not executable: %s\n" \
+    "$audit_command" >&2
   exit 1
 }
 
 cleanup() {
-  [[ -z $state_tmp || ! -e $state_tmp ]] || rm -f "$state_tmp"
-  ((lock_acquired == 0)) || rm -rf "$lock_dir"
+  [[ -z $state_tmp || ! -e $state_tmp ]] || rm -f -- "$state_tmp"
+  ((lock_acquired == 0)) || rm -rf -- "$lock_dir"
 }
 trap cleanup EXIT
 
@@ -79,7 +92,7 @@ acquire_lock() {
 
   if [[ $lock_pid =~ ^[0-9]+$ ]] && ! kill -0 "$lock_pid" 2>/dev/null; then
     printf "Removing stale qvsync lock from pid %s.\n" "$lock_pid" >&2
-    rm -rf "$lock_dir"
+    rm -rf -- "$lock_dir"
     if mkdir "$lock_dir" 2>/dev/null; then
       printf "%s\n" "$$" >"$lock_dir/pid"
       lock_acquired=1
@@ -95,11 +108,12 @@ acquire_lock() {
   exit 1
 }
 
-github_upstream_repo() {
+github_remote_repo() {
+  local remote=$1
   local url
   local repo
 
-  url=$(git remote get-url upstream 2>/dev/null) || return 1
+  url=$(git remote get-url "$remote" 2>/dev/null) || return 1
   case $url in
     https://github.com/*)
       repo=${url#https://github.com/}
@@ -118,15 +132,37 @@ github_upstream_repo() {
   printf "%s\n" "$repo"
 }
 
-github_upstream_sha() {
+github_remote_sha() {
+  local remote=$1
+  local branch=$2
   local repo
 
   command -v gh >/dev/null || return 1
-  repo=$(github_upstream_repo) || return 1
-  gh api "repos/$repo/git/ref/heads/master" --jq .object.sha 2>/dev/null
+  repo=$(github_remote_repo "$remote") || return 1
+  gh api "repos/$repo/git/ref/heads/$branch" --jq .object.sha 2>/dev/null
 }
 
-refresh_upstream_ref() {
+require_read_only_remote() {
+  local remote=$1
+  local push_url
+
+  git remote get-url "$remote" >/dev/null 2>&1 || {
+    printf "Refusing: required qvsync remote is missing: %s\n" "$remote" >&2
+    exit 1
+  }
+  push_url=$(git remote get-url --push "$remote" 2>/dev/null || true)
+  [[ $push_url == "DISABLED" ]] || {
+    printf "Refusing: %s push URL is not disabled.\n" "$remote" >&2
+    printf "Expected %s push URL: DISABLED\n" "$remote" >&2
+    printf "Fix with: git remote set-url --push %s DISABLED\n" "$remote" >&2
+    exit 1
+  }
+}
+
+refresh_remote_ref() {
+  local remote=$1
+  local branch=$2
+  local remote_ref=$3
   local sha
 
   if timeout "$git_fetch_timeout" \
@@ -134,27 +170,31 @@ refresh_upstream_ref() {
     -c http.version=HTTP/1.1 \
     -c http.lowSpeedLimit=1 \
     -c http.lowSpeedTime=30 \
-    fetch --prune upstream \
-    "+refs/heads/master:$upstream_ref"; then
+    fetch --prune "$remote" \
+    "+refs/heads/$branch:$remote_ref"; then
     return
   fi
 
-  printf "upstream/master fetch failed; trying a read-only GitHub ref refresh.\n" >&2
-  sha=$(github_upstream_sha) || return 1
+  printf "%s/%s fetch failed; trying a read-only GitHub ref refresh.\n" \
+    "$remote" "$branch" >&2
+  sha=$(github_remote_sha "$remote" "$branch") || return 1
   if ! git cat-file -e "$sha^{commit}" 2>/dev/null; then
-    printf "GitHub reports upstream/master at %s, but that commit is not present locally.\n" \
-      "$sha" >&2
+    printf "GitHub reports %s/%s at %s, but that commit is not present locally.\n" \
+      "$remote" "$branch" "$sha" >&2
     return 1
   fi
-  git update-ref "$upstream_ref" "$sha"
+  git update-ref "$remote_ref" "$sha"
 }
 
 read_reviewed_state() {
+  local state_path=$1
+  local label=$2
   local state
 
-  state=$(<"$reviewed_state")
+  state=$(<"$state_path")
   if [[ ! $state =~ ^[0-9a-f]{40}$ ]]; then
-    printf "Refusing: invalid reviewed upstream state in %s\n" "$reviewed_state" >&2
+    printf "Refusing: invalid reviewed %s state in %s\n" \
+      "$label" "$state_path" >&2
     exit 1
   fi
   printf "%s\n" "$state"
@@ -163,7 +203,9 @@ read_reviewed_state() {
 validate_review_ledger() {
   local base_sha=$1
   local target_sha=$2
-  local ledger="$repo_root/upstream/qvsync/upstream-reviews/$target_sha.psv"
+  local ledger_dir=$3
+  local label=$4
+  local ledger="$repo_root/upstream/qvsync/$ledger_dir/$target_sha.psv"
   local line
   local line_number=0
   local field_count
@@ -176,15 +218,17 @@ validate_review_ledger() {
   local -A reviewed=()
 
   [[ -f $ledger && ! -L $ledger ]] || {
-    printf "Refusing: missing upstream review ledger: %s\n" "$ledger" >&2
+    printf "Refusing: missing %s review ledger: %s\n" "$label" "$ledger" >&2
     exit 1
   }
   grep -Fqx "# base=$base_sha" "$ledger" || {
-    printf "Refusing: review ledger does not name the current base: %s\n" "$base_sha" >&2
+    printf "Refusing: review ledger does not name the current base: %s\n" \
+      "$base_sha" >&2
     exit 1
   }
   grep -Fqx "# target=$target_sha" "$ledger" || {
-    printf "Refusing: review ledger does not name the fetched target: %s\n" "$target_sha" >&2
+    printf "Refusing: review ledger does not name the fetched target: %s\n" \
+      "$target_sha" >&2
     exit 1
   }
 
@@ -210,13 +254,15 @@ validate_review_ledger() {
       exit 1
     }
     [[ -z ${reviewed[$commit]:-} ]] || {
-      printf "Refusing: duplicate upstream commit in review ledger: %s\n" "$commit" >&2
+      printf "Refusing: duplicate %s commit in review ledger: %s\n" \
+        "$label" "$commit" >&2
       exit 1
     }
     case $decision in
       adopt | combine | retire-qvos | preserve | no-impact) ;;
       *)
-        printf "Refusing: invalid decision for %s: %s\n" "$commit" "$decision" >&2
+        printf "Refusing: invalid decision for %s: %s\n" \
+          "$commit" "$decision" >&2
         exit 1
         ;;
     esac
@@ -229,11 +275,101 @@ validate_review_ledger() {
 
   for commit in "${!expected[@]}"; do
     [[ -n ${reviewed[$commit]:-} ]] || {
-      printf "Refusing: upstream commit is missing from the review ledger: %s\n" \
-        "$commit" >&2
+      printf "Refusing: %s commit is missing from the review ledger: %s\n" \
+        "$label" "$commit" >&2
       exit 1
     }
   done
+}
+
+verify_review_range() {
+  local base_sha=$1
+  local target_sha=$2
+  local label=$3
+
+  git cat-file -e "$base_sha^{commit}" 2>/dev/null || {
+    printf "Refusing: reviewed %s base is not available locally: %s\n" \
+      "$label" "$base_sha" >&2
+    exit 1
+  }
+  git merge-base --is-ancestor "$base_sha" "$target_sha" || {
+    printf "Refusing: reviewed %s base is not an ancestor of the fetched target.\n" \
+      "$label" >&2
+    printf "Base:   %s\nTarget: %s\n" "$base_sha" "$target_sha" >&2
+    exit 1
+  }
+}
+
+audit_source() {
+  local kind=$1
+  local remote=$2
+  local branch=$3
+  local remote_ref=$4
+  local state_path=$5
+  local label=$6
+  local base_sha
+  local target_sha
+
+  require_read_only_remote "$remote"
+  refresh_remote_ref "$remote" "$branch" "$remote_ref" || {
+    printf "Refusing: failed to fetch %s/%s.\n" "$remote" "$branch" >&2
+    exit 1
+  }
+  base_sha=$(read_reviewed_state "$state_path" "$label")
+  target_sha=$(git rev-parse "$remote_ref^{commit}")
+  verify_review_range "$base_sha" "$target_sha" "$label"
+  "$audit_command" "$base_sha" "$remote_ref" HEAD "$kind" "$remote"
+}
+
+record_review() {
+  local kind=$1
+  local remote=$2
+  local branch=$3
+  local remote_ref=$4
+  local state_path=$5
+  local ledger_dir=$6
+  local label=$7
+  local record_option=$8
+  local base_sha
+  local target_sha
+
+  require_read_only_remote "$remote"
+  refresh_remote_ref "$remote" "$branch" "$remote_ref" || {
+    printf "Refusing: failed to fetch %s/%s.\n" "$remote" "$branch" >&2
+    exit 1
+  }
+  base_sha=$(read_reviewed_state "$state_path" "$label")
+  target_sha=$(git rev-parse "$remote_ref^{commit}")
+  verify_review_range "$base_sha" "$target_sha" "$label"
+
+  [[ $recorded_target == "$target_sha" ]] || {
+    "$audit_command" "$base_sha" "$remote_ref" HEAD "$kind" "$remote" >&2
+    printf "\nRefusing: reviewed %s SHA does not match the fetched target.\n" \
+      "$label" >&2
+    printf "Reviewed: %s\nFetched:  %s\n" \
+      "$recorded_target" "$target_sha" >&2
+    exit 1
+  }
+
+  if [[ $base_sha == "$target_sha" ]]; then
+    printf "Reviewed %s state already matches %s/%s at %s.\n" \
+      "$label" "$remote" "$branch" "$target_sha"
+    printf "No merge, publication, or state change was performed.\n"
+    return
+  fi
+
+  validate_review_ledger "$base_sha" "$target_sha" "$ledger_dir" "$label"
+
+  state_tmp=$(mktemp "$state_path.tmp.XXXXXX")
+  printf "%s\n" "$target_sha" >"$state_tmp"
+  chmod 0644 "$state_tmp"
+  mv -- "$state_tmp" "$state_path"
+  state_tmp=""
+
+  printf "Recorded reviewed %s target %s.\n" "$label" "$target_sha"
+  printf "No upstream commit was merged or cherry-picked, and no ref was published.\n"
+  printf "Commit the review ledger, reviewed state, and verified qvOS adaptations together.\n"
+  printf "Future records use: git qvsync %s <full-sha>\n" "$record_option"
 }
 
 acquire_lock
@@ -248,58 +384,29 @@ branch=$(git symbolic-ref --quiet --short HEAD) || {
   exit 1
 }
 
-upstream_push=$(git remote get-url --push upstream 2>/dev/null || true)
-[[ $upstream_push == "DISABLED" ]] || {
-  printf "Refusing: upstream push URL is not disabled.\n" >&2
-  printf "Expected upstream push URL: DISABLED\n" >&2
-  printf "Fix with: git remote set-url --push upstream DISABLED\n" >&2
-  exit 1
-}
-
-refresh_upstream_ref || {
-  printf "Refusing: failed to fetch upstream/master.\n" >&2
-  exit 1
-}
-
-base_sha=$(read_reviewed_state)
-target_sha=$(git rev-parse "$upstream_ref^{commit}")
-git cat-file -e "$base_sha^{commit}" 2>/dev/null || {
-  printf "Refusing: reviewed upstream base is not available locally: %s\n" "$base_sha" >&2
-  exit 1
-}
-git merge-base --is-ancestor "$base_sha" "$target_sha" || {
-  printf "Refusing: reviewed upstream base is not an ancestor of upstream/master.\n" >&2
-  printf "Base:   %s\nTarget: %s\n" "$base_sha" "$target_sha" >&2
-  exit 1
-}
-
 if [[ $mode == "audit" ]]; then
-  "$audit_command" "$base_sha" "$upstream_ref" HEAD
+  audit_source \
+    product upstream master refs/remotes/upstream/master \
+    "$product_state" "upstream"
+  printf "\n"
+  audit_source \
+    iso upstream-iso quattro refs/remotes/upstream-iso/quattro \
+    "$iso_state" "ISO upstream"
   exit 0
 fi
 
-[[ $recorded_target == "$target_sha" ]] || {
-  "$audit_command" "$base_sha" "$upstream_ref" HEAD >&2
-  printf "\nRefusing: reviewed upstream SHA does not match the fetched target.\n" >&2
-  printf "Reviewed: %s\nFetched:  %s\n" "$recorded_target" "$target_sha" >&2
-  exit 1
-}
-
-if [[ $base_sha == "$target_sha" ]]; then
-  printf "Reviewed upstream state already matches upstream/master at %s.\n" \
-    "$target_sha"
-  printf "No merge, publication, or state change was performed.\n"
-  exit 0
-fi
-
-validate_review_ledger "$base_sha" "$target_sha"
-
-state_tmp=$(mktemp "$reviewed_state.tmp.XXXXXX")
-printf "%s\n" "$target_sha" >"$state_tmp"
-chmod 0644 "$state_tmp"
-mv "$state_tmp" "$reviewed_state"
-state_tmp=""
-
-printf "Recorded reviewed upstream target %s.\n" "$target_sha"
-printf "No upstream commit was merged or cherry-picked, and no ref was published.\n"
-printf "Commit the review ledger, reviewed state, and verified qvOS adaptations together.\n"
+case $record_source in
+  product)
+    record_review \
+      product upstream master refs/remotes/upstream/master \
+      "$product_state" upstream-reviews "upstream" \
+      --record-reviewed-upstream
+    ;;
+  iso)
+    record_review \
+      iso upstream-iso quattro refs/remotes/upstream-iso/quattro \
+      "$iso_state" iso-upstream-reviews "ISO upstream" \
+      --record-reviewed-iso-upstream
+    ;;
+  *) usage ;;
+esac

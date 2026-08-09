@@ -20,9 +20,19 @@ const (
 )
 
 var (
-	isoUsernamePattern = regexp.MustCompile(`^[a-z_][a-z0-9_-]*[$]?$`)
-	isoHostnamePattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
-	isoT2Pattern       = regexp.MustCompile(`106b:180[12]`)
+	isoUsernamePattern   = regexp.MustCompile(`^[a-z_][a-z0-9_-]*[$]?$`)
+	isoHostnamePattern   = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+	isoT2Pattern         = regexp.MustCompile(`106b:180[12]`)
+	isoReservedUsernames = map[string]struct{}{
+		"_talkd": {}, "alpm": {}, "avahi": {}, "bin": {}, "brltty": {},
+		"cups": {}, "daemon": {}, "dbus": {}, "ftp": {}, "git": {},
+		"gluster": {}, "http": {}, "libvirt-qemu": {}, "lp": {}, "mail": {},
+		"nobody": {}, "nvidia-persistenced": {}, "pcscd": {}, "polkitd": {},
+		"qemu": {}, "root": {}, "rpc": {}, "rtkit": {}, "sddm": {},
+		"systemd-coredump": {}, "systemd-journal-remote": {},
+		"systemd-network": {}, "systemd-oom": {}, "systemd-resolve": {},
+		"systemd-timesync": {}, "tss": {}, "uuidd": {},
+	}
 )
 
 type isoInstallerConfig struct {
@@ -121,7 +131,18 @@ func validateISOInstallerConfig(cfg isoInstallerConfig) error {
 }
 
 func validISOUsername(username string) bool {
-	return isoUsernamePattern.MatchString(username)
+	if !isoUsernamePattern.MatchString(username) {
+		return false
+	}
+	_, reserved := isoReservedUsernames[username]
+	return !reserved
+}
+
+func isoUsernameError(username string) string {
+	if _, reserved := isoReservedUsernames[username]; reserved {
+		return "choose a non-system username"
+	}
+	return "enter a username"
 }
 
 func validISOHostname(hostname string) bool {
@@ -179,30 +200,30 @@ func buildISOUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 		ArchinstallLanguage: "English",
 		AuthConfig:          map[string]string{},
 		AudioConfig:         isoAudioConfig{Audio: "pipewire"},
-		Bootloader:          "Limine",
-		CustomCommands:      []string{},
-		DiskConfig:          diskConfig,
-		Hostname:            cfg.Hostname,
-		Kernels:             []string{cfg.Kernel},
-		NetworkConfig:       isoNetworkConfig{Type: "iso"},
-		NTP:                 true,
-		ParallelDownloads:   8,
-		Script:              nil,
-		Services:            []string{},
-		Swap:                true,
-		Timezone:            cfg.Timezone,
+		BootloaderConfig: isoBootloaderConfig{
+			Bootloader: "Limine",
+			UKI:        false,
+			Removable:  false,
+		},
+		CustomCommands:    []string{},
+		DiskConfig:        diskConfig,
+		Hostname:          cfg.Hostname,
+		Kernels:           []string{cfg.Kernel},
+		NetworkConfig:     isoNetworkConfig{Type: "iso"},
+		NTP:               true,
+		ParallelDownloads: 8,
+		Script:            nil,
+		Services:          []string{},
+		Swap:              true,
+		Timezone:          cfg.Timezone,
 		LocaleConfig: isoLocaleConfig{
 			KeyboardLayout: cfg.Keyboard,
 			SystemEncoding: "UTF-8",
 			SystemLanguage: "en_US.UTF-8",
 		},
 		MirrorConfig: isoMirrorConfig{
-			CustomRepositories: []string{},
-			CustomServers: []isoMirrorServer{
-				{URL: "https://mirror.omarchy.org/$repo/os/$arch"},
-				{URL: "https://mirror.rackspace.com/archlinux/$repo/os/$arch"},
-				{URL: "https://geo.mirror.pkgbuild.com/$repo/os/$arch"},
-			},
+			CustomRepositories:   []string{},
+			CustomServers:        []isoMirrorServer{},
 			MirrorRegions:        map[string]string{},
 			OptionalRepositories: []string{},
 		},
@@ -335,27 +356,33 @@ type isoCredentialUser struct {
 }
 
 type isoUserConfiguration struct {
-	AppConfig           *string           `json:"app_config"`
-	ArchinstallLanguage string            `json:"archinstall-language"`
-	AuthConfig          map[string]string `json:"auth_config"`
-	AudioConfig         isoAudioConfig    `json:"audio_config"`
-	Bootloader          string            `json:"bootloader"`
-	CustomCommands      []string          `json:"custom_commands"`
-	DiskConfig          isoDiskConfig     `json:"disk_config"`
-	Hostname            string            `json:"hostname"`
-	Kernels             []string          `json:"kernels"`
-	NetworkConfig       isoNetworkConfig  `json:"network_config"`
-	NTP                 bool              `json:"ntp"`
-	ParallelDownloads   int               `json:"parallel_downloads"`
-	Script              *string           `json:"script"`
-	Services            []string          `json:"services"`
-	Swap                bool              `json:"swap"`
-	Timezone            string            `json:"timezone"`
-	LocaleConfig        isoLocaleConfig   `json:"locale_config"`
-	MirrorConfig        isoMirrorConfig   `json:"mirror_config"`
-	Packages            []string          `json:"packages"`
-	ProfileConfig       isoProfileConfig  `json:"profile_config"`
-	Version             string            `json:"version"`
+	AppConfig           *string             `json:"app_config"`
+	ArchinstallLanguage string              `json:"archinstall-language"`
+	AuthConfig          map[string]string   `json:"auth_config"`
+	AudioConfig         isoAudioConfig      `json:"audio_config"`
+	BootloaderConfig    isoBootloaderConfig `json:"bootloader_config"`
+	CustomCommands      []string            `json:"custom_commands"`
+	DiskConfig          isoDiskConfig       `json:"disk_config"`
+	Hostname            string              `json:"hostname"`
+	Kernels             []string            `json:"kernels"`
+	NetworkConfig       isoNetworkConfig    `json:"network_config"`
+	NTP                 bool                `json:"ntp"`
+	ParallelDownloads   int                 `json:"parallel_downloads"`
+	Script              *string             `json:"script"`
+	Services            []string            `json:"services"`
+	Swap                bool                `json:"swap"`
+	Timezone            string              `json:"timezone"`
+	LocaleConfig        isoLocaleConfig     `json:"locale_config"`
+	MirrorConfig        isoMirrorConfig     `json:"mirror_config"`
+	Packages            []string            `json:"packages"`
+	ProfileConfig       isoProfileConfig    `json:"profile_config"`
+	Version             string              `json:"version"`
+}
+
+type isoBootloaderConfig struct {
+	Bootloader string `json:"bootloader"`
+	UKI        bool   `json:"uki"`
+	Removable  bool   `json:"removable"`
 }
 
 type isoAudioConfig struct {

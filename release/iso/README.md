@@ -9,9 +9,10 @@ artifact outside Git; it can contain machine and installation details.
 - Select one full qvOS commit and freeze feature work for that candidate.
 - Complete `git qvsync --audit`, resolve every upstream capability decision,
   and verify clean development, tracking, remote, and live source parity.
-- Pin `QVOS_SOURCE_REF` to that qvOS commit. Use the reviewed full builder
-  commit in `release/iso/upstream-ref`; if `QVOS_OMARCHY_ISO_REF` overrides it,
-  record and audit that exact official `omacom-io/omarchy-iso` commit first.
+- Pin `QVOS_SOURCE_REF` to that qvOS commit. Its native builder and profile are
+  the only executable ISO inputs. Complete both qvsync review ledgers and record
+  the exact reviewed Omarchy and Omarchy ISO baselines without making either
+  upstream an executable build dependency.
 - Keep optional Services and Development integrations out of the image. Their
   lifecycle never gates base readiness; qvCORE itself is the image's mandatory
   qvOS implementation.
@@ -24,11 +25,17 @@ the previous one.
 - Run `qvcore/tui/owner-contracts --check`, all Go tests, a production TUI build,
   Bash syntax and ShellCheck for changed shell, `test/qvcore/run.sh`, and
   `git diff --check`.
-- Run a fresh `qvos-build --prepare-only --rc` with both refs pinned. Inspect
-  the staged patch application and package resolution before the full build.
+- Run a fresh `qvos-build --prepare-only --rc` with the qvOS ref pinned. Inspect
+  the staged native builder, profile, package trust, and source validation
+  before the full build.
 - Build with downloads explicitly allowed and no reused ISO package cache for
-  the release proof. Record both input commits, the artifact name and size,
-  SHA-256, build result, and retained failure-stage path when applicable.
+  the release proof. Record the qvOS input commit, provider channel, container
+  image identity, resolved package inventory, artifact name and size, SHA-256,
+  build result, and retained failure-stage path when applicable.
+- Verify that repository and direct local package signatures are required, the
+  offline cache is not group-writable, the generated Archinstall configuration
+  contains no network mirrors, and native post-install policy restores the
+  reviewed provider channel, Stable by default.
 - Inspect the completed image and prove that its embedded qvOS source equals
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with
@@ -79,14 +86,14 @@ the previous one.
   `Reboot`, and automatically continues after a hidden five-second timer that
   any key stops. Verify the live-media progress process exits before
   target-install progress starts, and that target progress exits before the
-  finale or error fallback; two renderers must never own the installer terminal
+  finale or native error path; two renderers must never own the installer terminal
   together.
 - Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
   menu. All displayed product, entry, publisher, and application names must say
   `qvOS`. Confirm the live and installed Plymouth, SDDM, session, hostname, and
   UKI identities use `qvos` or `qvOS`; `omarchy` may remain only in truthful
-  package-provider inputs, upstream environment contracts, and the exact
-  installed-source compatibility link.
+  package-provider inputs, upstream provenance and review records, the exact
+  chroot compatibility signal, and the installed-source compatibility link.
 - Inspect the rendered Syslinux splash and menu palette. Its background is
   exact black, its artwork and text are neutral grayscale, and no inherited
   Arch blue or red accent remains in this bootloader path.
@@ -101,8 +108,9 @@ test storage. Never overwrite this development installation for rehearsal.
 - Reboot from the installed disk and verify login, networking, audio, graphics,
   storage, the qvOS menu, the shared TUI, and installed source/payload parity.
 - Exercise the read-only update preflight, then one real update when an update
-  exists. Verify the branch guard, Omarchy delegation, qvOS post-update hooks,
-  configuration reconciliation, reboot handling, and a clean second boot.
+  exists. Verify the branch guard, credited package-provider transaction, qvOS
+  post-update hooks, configuration reconciliation, reboot handling, and a clean
+  second boot.
 - Confirm no failed system or user units and no private build, installer, or
   development-machine data entered the image or installed source.
 

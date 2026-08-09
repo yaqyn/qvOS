@@ -311,12 +311,14 @@ the owner and two consumers, and leave no equivalent implementation behind.
 
 ## Main qvsync Workflow
 
-`qvsync` is the read-only upstream intake loop. It never merges, cherry-picks,
-moves product branches, or publishes refs.
+`qvsync` is the read-only upstream intake loop for independent Omarchy product
+and Omarchy ISO histories. It never merges, cherry-picks, moves product
+branches, makes upstream executable build input, or publishes refs.
 
-1. Start with `git qvsync --audit`. Read every upstream commit and diff, then
-   search qvOS owners, installed payloads, tests, and history for the same
-   capability; filename overlap alone is not an audit.
+1. Start with `git qvsync --audit`. Read every commit and diff in both reported
+   ranges, then search qvOS owners, installed payloads, tests, and history for
+   the same capability; filename overlap alone is not an audit. Keep
+   `reviewed-upstream` and `reviewed-iso-upstream` independent.
 2. Flag changed commands, seams, schemas, paths, packages, services, lifecycle
    flows, permissions, network exposure, security defaults, duplicate
    ownership, and upstream replacements for qvOS enhancements.
@@ -331,9 +333,12 @@ moves product branches, or publishes refs.
 6. Never merge or cherry-pick an upstream commit into qvOS. Port reviewed code
    deliberately, update owners and guards, and verify affected fresh install,
    update, removal, live, and cleanup paths.
-7. Record every commit in `upstream/qvsync/upstream-reviews/<target-sha>.psv`, then use
-   `--record-reviewed-upstream <full-sha>` only for that exact fetched target.
-   Commit the ledger, baseline, and verified adaptation together.
+7. Record Omarchy product commits in
+   `upstream/qvsync/upstream-reviews/<target-sha>.psv` and ISO commits in
+   `upstream/qvsync/iso-upstream-reviews/<target-sha>.psv`. Use the matching
+   `--record-reviewed-upstream` or `--record-reviewed-iso-upstream` option only
+   for its exact fetched target. Commit each ledger, baseline, and verified
+   adaptation together; never advance one baseline as evidence for the other.
 8. Review upstream instruction changes for useful engineering guidance, but
    keep this qvOS-owned contract current and independent. qvsync never
    publishes; use normal Git publication only when explicitly requested and

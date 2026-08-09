@@ -1,7 +1,7 @@
 # qvOS Git And qvsync Workflow
 
-Read this file completely when committing qvOS work, auditing upstream Omarchy,
-or running `git qvsync`.
+Read this file completely when committing qvOS work, auditing upstream Omarchy
+or Omarchy ISO, or running `git qvsync`.
 
 The root `AGENTS.md` owns the main qvsync evolution and capability-audit
 workflow. These instructions supplement it with repository mechanics and never
@@ -11,10 +11,11 @@ replace its judgment.
 
 1. Require branch `OS`, inspect `git status --short --branch`, and inspect
    `.git/qvsync` when its dispatch is relevant.
-2. Start with `git qvsync --audit`. It fetches upstream without merging,
-   cherry-picking, moving branches, or publishing and reports every commit
-   after `upstream/qvsync/reviewed-upstream`, changed path, mechanical overlap hint, and
-   upstream change to a source named by the catalog-wide TUI owner contract.
+2. Start with `git qvsync --audit`. It fetches Omarchy `master` and Omarchy ISO
+   `quattro` without merging, cherry-picking, moving product branches, making
+   upstream executable build input, or publishing. It reports each independent
+   range after `reviewed-upstream` and `reviewed-iso-upstream`, changed paths,
+   mechanical overlap hints, and changes to catalog-wide TUI owner sources.
    Treat an owner-contract hint as required semantic review, not permission to
    refresh its fingerprint.
 3. Create `upstream/qvsync/upstream-reviews/<target-sha>.psv` for the exact fetched
@@ -37,6 +38,12 @@ replace its judgment.
    Verify Stable URLs, repository identity, signatures, keyring, package
    availability, and qvOS manifest compatibility without taking ownership of
    Omarchy's builds or infrastructure.
+8. For Omarchy ISO, create
+   `upstream/qvsync/iso-upstream-reviews/<target-sha>.psv`, review every commit
+   and complete diff, and search the native `release/iso/` owner and tests.
+   Port selected fixes deliberately, then record only the exact fetched target
+   with `git qvsync --record-reviewed-iso-upstream <target-sha>`. Never restore
+   a build-time clone, patch, mount, package dependency, or fallback installer.
 
 ## Verification And Publication
 
@@ -67,6 +74,10 @@ replace its judgment.
   ledger, reviewed baseline, and qvOS adaptation together. Review upstream
   instruction changes as capability input, but keep root `AGENTS.md` precise to
   qvOS's current paths, owners, and verification model.
+- Record an ISO target separately with
+  `git qvsync --record-reviewed-iso-upstream <target-sha>` and commit its ISO
+  ledger, baseline, and verified native ports together. Never advance one
+  baseline as evidence for the other.
 - qvsync never publishes. Use the normal reviewed Git workflow only when the
   user asks to push, then report the commit, upstream baseline, checks, and
   final branch status.

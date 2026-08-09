@@ -62,6 +62,11 @@ export PADDING_LEFT=0
 
 source "$owner"
 
+qvos_install_exit_cleanup() {
+  printf 'cleanup:%s\n' "$1" >>"$QVOS_TEST_EVENT_LOG"
+  [[ $mode != "cleanup-fail" ]] || return 29
+}
+
 case $mode in
 exit23)
   export CURRENT_SCRIPT="/qvOS/install/configure"
@@ -72,6 +77,9 @@ secret)
   ;;
 signal)
   kill -TERM "$$"
+  ;;
+cleanup-fail)
+  exit 0
   ;;
 *)
   exit 64
@@ -112,6 +120,8 @@ run_case() {
 
 run_case Exit exit23 "" "$root"
 (( CASE_STATUS == 23 )) || fail "installer error exit status preservation"
+grep -Fqx 'cleanup:23' "$event_log" ||
+  fail "installer error cleanup hook"
 grep -Fq 'qvOS installation stopped!' <<<"$CASE_OUTPUT" ||
   fail "installer error product title"
 grep -Fq 'This command halted with exit code 23:' <<<"$CASE_OUTPUT" ||
@@ -157,5 +167,13 @@ run_case Exit signal "" "$root"
 (( CASE_STATUS == 143 )) || fail "installer termination status"
 grep -Fq 'qvOS installation interrupted.' <<<"$CASE_OUTPUT" ||
   fail "installer termination feedback"
+
+: >"$event_log"
+run_case Exit cleanup-fail "" "$root"
+(( CASE_STATUS == 29 )) || fail "installer cleanup failure status"
+grep -Fqx 'cleanup:0' "$event_log" ||
+  fail "installer success cleanup hook"
+grep -Fq 'This command halted with exit code 29:' <<<"$CASE_OUTPUT" ||
+  fail "installer cleanup failure feedback"
 
 printf 'ok - qvOS installer failures are accurate, private, bounded, and retry-safe\n'

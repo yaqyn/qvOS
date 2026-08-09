@@ -54,7 +54,7 @@ for owner in update-aur update-keyring remove-orphans update-system; do
 done
 [[ -x $root/qvcore/packages/provider-files ]] ||
   fail "native package-provider resolver mode"
-expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-rc.conf\npacman-stable.conf'
+expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-rc.conf\npacman-stable.conf\nsigning-key.gpg'
 actual_provider_files=$(
   find "$provider_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort
 )
@@ -198,11 +198,13 @@ if rg -n 'Optional[[:space:]]+TrustAll|SigLevel[[:space:]]*=[[:space:]]*Never' \
   fail "credited provider source contains weak signature policy"
 fi
 if ! grep -Fq 'package_file.sig' \
-  "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+  "$root/release/iso/builder/build-iso.sh" ||
   ! grep -Fq 'Server = file:///var/cache/qvos/mirror/offline/' \
-    "$root/release/iso/omarchy-iso-qvos-tui.patch" ||
+    "$root/release/iso/profile/pacman-offline.conf" ||
   ! grep -Fq 'SigLevel = Required DatabaseOptional' \
-    "$root/release/iso/omarchy-iso-qvos-tui.patch"; then
+    "$root/release/iso/profile/pacman-offline.conf" ||
+  ! grep -Fq 'LocalFileSigLevel = Required' \
+    "$root/release/iso/profile/pacman-offline.conf"; then
   fail "ISO offline mirror does not preserve the signed provider policy"
 fi
 mapfile -t stable_files < <("$root/qvcore/packages/provider-files" stable)
@@ -233,6 +235,14 @@ grep -Fq '40DFB630FF42BCFFB047046CF0134EE680CAC571' \
   "$root/qvcore/packages/update-keyring" || {
   fail "Omarchy signing fingerprint contract is missing"
 }
+provider_key="$provider_dir/signing-key.gpg"
+[[ $(sha256sum "$provider_key" | cut -d ' ' -f 1) == \
+  "15d6aac44df688165b2ea35fe0b23af239bbc66a6909c10a5c219e8d94b707de" ]] ||
+  fail "Omarchy signing key payload drifted"
+gpg --show-keys --with-colons "$provider_key" 2>/dev/null |
+  awk -F: '$1 == "fpr" { print $10 }' |
+  grep -Fqx '40DFB630FF42BCFFB047046CF0134EE680CAC571' ||
+  fail "Omarchy signing key fingerprint drifted"
 grep -Fq 'pacman -Syu --noconfirm' "$root/qvcore/packages/update-system" ||
   fail "native package full-upgrade stage"
 if rg -n 'pacman -Syyu|for pkg in|xargs|eval' \

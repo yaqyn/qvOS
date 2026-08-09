@@ -51,13 +51,14 @@ if rg -q 'logs\.omarchy\.org|omarchy upload log' \
   "$debug_owner" \
   "$root/qvcore/config/assistant/qvos/SKILL.md" \
   "$root/qvcore/install/helpers/errors" \
-  "$root/release/iso/omarchy-iso-qvos-tui.patch"; then
+  "$root/release/iso/builder" \
+  "$root/release/iso/profile"; then
   fail "qvOS diagnostics still export private machine inventory"
 fi
 if rg -q 'omarchy-upload-log|Upload log for support' \
-  "$root/qvcore/install/helpers/errors" ||
-  sed -n '/^[ +]/p' "$root/release/iso/omarchy-iso-qvos-tui.patch" |
-    rg -q 'omarchy-upload-log|Upload log for support'; then
+  "$root/qvcore/install/helpers/errors" \
+  "$root/release/iso/builder" \
+  "$root/release/iso/profile"; then
   fail "retired diagnostic upload remains in install or ISO lifecycle"
 fi
 [[ ! -e $root/bin/omarchy-sudo-passwordless ]] ||

@@ -133,8 +133,11 @@ qvcore/install/helpers/run singularly owns the native chroot, presentation,
 error, and logging helper order. The error handler
 must preserve the original failure status, bound output on small terminals,
 hide command arguments, never upload private logs, and point only to qvOS
-support. Online retry replaces the failed installer process from the validated
-`QVOS_PATH`; signals stop promptly with conventional exit codes.
+support. A caller may define `qvos_install_exit_cleanup` for an owner-specific,
+idempotent final cleanup; its failure replaces only an otherwise successful
+status and never hides the original installation failure. Online retry replaces
+the failed installer process from the validated `QVOS_PATH`; signals stop
+promptly with conventional exit codes.
 
 `qvcore/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`

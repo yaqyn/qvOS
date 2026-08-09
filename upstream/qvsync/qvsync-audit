@@ -5,7 +5,26 @@ repo_root=$(git rev-parse --show-toplevel)
 base_ref=${1:-HEAD}
 target_ref=${2:-upstream/master}
 qvos_ref=${3:-HEAD}
+audit_kind=${4:-product}
+audit_remote=${5:-upstream}
 provider_contract="$repo_root/upstream/qvsync/package-provider-paths"
+
+case $audit_kind in
+  product)
+    audit_title="qvOS upstream capability audit"
+    upstream_label="Upstream"
+    ledger_dir="upstream-reviews"
+    ;;
+  iso)
+    audit_title="qvOS Omarchy ISO capability audit"
+    upstream_label="ISO upstream"
+    ledger_dir="iso-upstream-reviews"
+    ;;
+  *)
+    printf "Refusing: unsupported qvsync audit kind: %s\n" "$audit_kind" >&2
+    exit 2
+    ;;
+esac
 
 cd "$repo_root"
 
@@ -126,7 +145,7 @@ github_upstream_repo() {
   local url
   local repo
 
-  url=$(git remote get-url upstream 2>/dev/null) || return 1
+  url=$(git remote get-url "$audit_remote" 2>/dev/null) || return 1
   case $url in
     https://github.com/*)
       repo=${url#https://github.com/}
@@ -207,11 +226,11 @@ mapfile -d '' changed_paths < <(
 )
 commit_count=$(git rev-list --count "$base_sha..$target_sha")
 
-printf "qvOS upstream capability audit\n"
+printf "%s\n" "$audit_title"
 printf "Base: %s\n" "$base_sha"
-printf "Upstream target: %s\n" "$target_sha"
+printf "%s target: %s\n" "$upstream_label" "$target_sha"
 printf "qvOS head: %s\n" "$qvos_sha"
-printf "\nUpstream commits (%d):\n" "$commit_count"
+printf "\n%s commits (%d):\n" "$upstream_label" "$commit_count"
 if ((commit_count == 0)); then
   printf "  (none)\n"
 else
@@ -221,7 +240,8 @@ else
     "$base_sha..$target_sha"
 fi
 
-printf "\nChanged upstream paths (%d):\n" "${#changed_paths[@]}"
+printf "\nChanged %s paths (%d):\n" \
+  "${upstream_label,,}" "${#changed_paths[@]}"
 if ((${#changed_paths[@]} == 0)); then
   printf "  (none)\n"
 else
@@ -236,8 +256,14 @@ fi
 printf "\nMechanical qvOS overlap hints:\n"
 collect_overlap_hints
 
-printf "\nOmarchy package-provider signals:\n"
-print_package_provider_signals
+if [[ $audit_kind == "product" ]]; then
+  printf "\nOmarchy package-provider signals:\n"
+  print_package_provider_signals
+else
+  printf "\nNative ISO ownership boundary:\n"
+  printf "  Omarchy ISO is review input only; port selected changes into release/iso/.\n"
+  printf "  Never clone, patch, mount, or execute this upstream during a qvOS build.\n"
+fi
 
 printf "\nUpstream roadmap signals (advisory only; never merged by qvsync):\n"
 print_roadmap_signals
@@ -249,6 +275,7 @@ printf "  3. Inspect relevant roadmap signals for impending replacement architec
 printf "  4. Classify each capability: adopt, combine, retire-qvos, preserve, or no-impact.\n"
 printf "  5. Port selected capability into one native qvOS owner and remove duplicate implementations.\n"
 printf "  6. Verify fresh install, update, removal, live runtime, and cleanup paths that changed.\n"
-printf "  7. Record every commit in upstream/qvsync/upstream-reviews/<target-sha>.psv.\n"
+printf "  7. Record every commit in upstream/qvsync/%s/<target-sha>.psv.\n" \
+  "$ledger_dir"
 printf "  8. Never merge or cherry-pick the upstream commit into qvOS.\n"
 printf "\nFull patch: git diff --find-renames %s %s\n" "$base_sha" "$target_sha"

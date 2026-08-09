@@ -64,10 +64,14 @@ if rg -n 'Optional[[:space:]]+TrustAll|SigLevel[[:space:]]*=[[:space:]]*Never' \
   exit 1
 fi
 # shellcheck disable=SC2016
-grep -Fq 'omarchy_mirror="${QVOS_OMARCHY_MIRROR:-stable}"' \
+grep -Fq 'provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"' \
   "$root/release/iso/build" || {
   echo "not ok - production ISO does not default to Stable" >&2
   exit 1
 }
+if rg -n 'QVOS_OMARCHY_MIRROR|OMARCHY_MIRROR' "$root/release/iso"; then
+  echo "not ok - native ISO channel selection retains an inherited mirror variable" >&2
+  exit 1
+fi
 
 printf 'ok - qvOS owns package policy while Omarchy remains the credited Stable provider\n'

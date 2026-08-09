@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,6 +67,21 @@ func TestWriteISOInstallerFilesMatchesContract(t *testing.T) {
 	if configuration.LocaleConfig.KeyboardLayout != cfg.Keyboard {
 		t.Fatalf("keyboard = %q, want %q", configuration.LocaleConfig.KeyboardLayout, cfg.Keyboard)
 	}
+	if configuration.BootloaderConfig.Bootloader != "Limine" ||
+		configuration.BootloaderConfig.UKI || configuration.BootloaderConfig.Removable {
+		t.Fatalf("bootloader config = %#v", configuration.BootloaderConfig)
+	}
+	rawConfiguration, err := os.ReadFile(filepath.Join(dir, "user_configuration.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var configurationKeys map[string]json.RawMessage
+	if err := json.Unmarshal(rawConfiguration, &configurationKeys); err != nil {
+		t.Fatal(err)
+	}
+	if _, legacy := configurationKeys["bootloader"]; legacy {
+		t.Fatal("installer configuration retained the retired Archinstall bootloader field")
+	}
 	if len(configuration.DiskConfig.DeviceModifications) != 1 {
 		t.Fatalf("device modifications = %#v", configuration.DiskConfig.DeviceModifications)
 	}
@@ -78,6 +94,25 @@ func TestWriteISOInstallerFilesMatchesContract(t *testing.T) {
 	}
 	if !containsString(configuration.Packages, "snapper") {
 		t.Fatalf("packages missing snapper: %#v", configuration.Packages)
+	}
+	if len(configuration.MirrorConfig.CustomServers) != 0 {
+		t.Fatalf("offline installer configuration retained network mirrors: %#v", configuration.MirrorConfig.CustomServers)
+	}
+	if bytes.Contains(rawConfiguration, []byte("https://")) || bytes.Contains(rawConfiguration, []byte("http://")) {
+		t.Fatalf("offline installer configuration retained a network URL: %s", rawConfiguration)
+	}
+}
+
+func TestISOInstallerRejectsReservedSystemUsernames(t *testing.T) {
+	for username := range isoReservedUsernames {
+		if validISOUsername(username) {
+			t.Errorf("validISOUsername(%q) = true, want false", username)
+		}
+	}
+	for _, username := range []string{"qv", "yaqyn", "developer-1"} {
+		if !validISOUsername(username) {
+			t.Errorf("validISOUsername(%q) = false, want true", username)
+		}
 	}
 }
 

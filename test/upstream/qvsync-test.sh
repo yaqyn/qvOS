@@ -7,6 +7,8 @@ repo="$test_root/repo"
 origin_bare="$test_root/origin.git"
 upstream_bare="$test_root/upstream.git"
 upstream_work="$test_root/upstream-work"
+iso_upstream_bare="$test_root/iso-upstream.git"
+iso_upstream_work="$test_root/iso-upstream-work"
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -28,6 +30,7 @@ cp \
   "$root/upstream/qvsync/qvsync-audit" \
   "$root/upstream/qvsync/install-qvsync" \
   "$root/upstream/qvsync/package-provider-paths" \
+  "$root/upstream/qvsync/reviewed-iso-upstream" \
   "$repo/upstream/qvsync/"
 chmod 0755 \
   "$repo/upstream/qvsync/qvsync" \
@@ -46,7 +49,10 @@ git -C "$repo" add qvcore upstream
 git -C "$repo" commit -qm "Add qvsync fixture"
 base_sha=$(git -C "$repo" rev-parse HEAD)
 printf '%s\n' "$base_sha" >"$repo/upstream/qvsync/reviewed-upstream"
-git -C "$repo" add upstream/qvsync/reviewed-upstream
+printf '%s\n' "$base_sha" >"$repo/upstream/qvsync/reviewed-iso-upstream"
+git -C "$repo" add \
+  upstream/qvsync/reviewed-upstream \
+  upstream/qvsync/reviewed-iso-upstream
 git -C "$repo" commit -qm "Record upstream baseline"
 git -C "$repo" switch -qc OS
 os_head=$(git -C "$repo" rev-parse HEAD)
@@ -62,6 +68,11 @@ os_head=$(git -C "$repo" rev-parse HEAD)
 # shellcheck disable=SC2016
 grep -Fq 'exec "$repo_root/upstream/qvsync/qvsync" "$@"' "$repo/.git/qvsync" ||
   fail "tracked qvsync dispatch"
+[[ $(git -C "$repo" remote get-url upstream-iso) == \
+  "https://github.com/omacom-io/omarchy-iso.git" ]] ||
+  fail "official Omarchy ISO review remote"
+[[ $(git -C "$repo" remote get-url --push upstream-iso) == "DISABLED" ]] ||
+  fail "Omarchy ISO review push guard"
 pass "installer keeps the executable implementation in tracked source"
 
 if rg -q 'git merge( |$)|git push( |$)|git_push|push_origin_ref|push_os' \
@@ -87,6 +98,7 @@ grep -Fq 'another qvsync appears to be running' <<<"$output" ||
 rm -rf "$repo/.git/qvsync.lock"
 pass "active qvsync lock is preserved and reported"
 
+git -C "$repo" remote add upstream "$test_root/pending-upstream.git"
 mkdir "$repo/.git/qvsync.lock"
 printf '%s\n' 99999999 >"$repo/.git/qvsync.lock/pid"
 if output=$(git -C "$repo" qvsync 2>&1); then
@@ -103,11 +115,14 @@ pass "stale lock recovery retains the upstream write guard"
 
 git init --bare -q "$origin_bare"
 git init --bare -q "$upstream_bare"
+git init --bare -q "$iso_upstream_bare"
 git -C "$repo" remote add origin "$origin_bare"
-git -C "$repo" remote add upstream "$upstream_bare"
+git -C "$repo" remote set-url upstream "$upstream_bare"
 git -C "$repo" remote set-url --push upstream DISABLED
+git -C "$repo" remote set-url upstream-iso "$iso_upstream_bare"
 git -C "$repo" push -q origin "$base_sha:refs/heads/master" "OS:refs/heads/OS"
 git -C "$repo" push -q "$upstream_bare" "$base_sha:refs/heads/master"
+git -C "$repo" push -q "$iso_upstream_bare" "$base_sha:refs/heads/quattro"
 
 git clone -q "$upstream_bare" "$upstream_work"
 git -C "$upstream_work" config user.name "Upstream Test"
@@ -123,6 +138,22 @@ git -C "$upstream_work" add bin/omarchy-menu default/pacman/mirrorlist-stable
 git -C "$upstream_work" commit -qm "Replace the menu architecture"
 git -C "$upstream_work" push -q origin master
 upstream_sha=$(git -C "$upstream_work" rev-parse HEAD)
+
+git clone -q -b quattro "$iso_upstream_bare" "$iso_upstream_work"
+git -C "$iso_upstream_work" config user.name "ISO Upstream Test"
+git -C "$iso_upstream_work" config user.email "iso-upstream@qvos.invalid"
+mkdir -p "$iso_upstream_work/builder" "$iso_upstream_work/configs/airootfs/root"
+printf '%s\n' '#!/bin/bash' 'printf "iso builder fix\n"' \
+  >"$iso_upstream_work/builder/build-iso.sh"
+printf '%s\n' '#!/bin/bash' 'printf "install fix\n"' \
+  >"$iso_upstream_work/configs/airootfs/root/.automated_script.sh"
+chmod 0755 \
+  "$iso_upstream_work/builder/build-iso.sh" \
+  "$iso_upstream_work/configs/airootfs/root/.automated_script.sh"
+git -C "$iso_upstream_work" add builder configs
+git -C "$iso_upstream_work" commit -qm "Fix ISO package installation"
+git -C "$iso_upstream_work" push -q origin quattro
+iso_upstream_sha=$(git -C "$iso_upstream_work" rev-parse HEAD)
 
 output=$(git -C "$repo" qvsync 2>&1) ||
   fail "default read-only upstream audit"
@@ -150,13 +181,26 @@ grep -Fq 'adopt, combine, retire-qvos, preserve, or no-impact' <<<"$output" ||
   fail "capability audit decision contract"
 grep -Fq 'Never merge or cherry-pick the upstream commit into qvOS' <<<"$output" ||
   fail "capability audit native import boundary"
+grep -Fq 'qvOS Omarchy ISO capability audit' <<<"$output" ||
+  fail "ISO capability audit heading"
+grep -Fq "$iso_upstream_sha Fix ISO package installation" <<<"$output" ||
+  fail "ISO capability audit commit inventory"
+grep -Fq $'A\tbuilder/build-iso.sh' <<<"$output" ||
+  fail "ISO capability audit changed path"
+grep -Fq \
+  'Omarchy ISO is review input only; port selected changes into release/iso/.' \
+  <<<"$output" || fail "ISO native ownership boundary"
+grep -Fq 'upstream/qvsync/iso-upstream-reviews/<target-sha>.psv' \
+  <<<"$output" || fail "ISO review ledger route"
 [[ $(git -C "$repo" rev-parse HEAD) == "$os_head" ]] ||
   fail "audit changed local OS"
 [[ $(git --git-dir="$origin_bare" rev-parse refs/heads/master) == "$base_sha" ]] ||
   fail "audit mutated origin master"
 [[ $(git --git-dir="$origin_bare" rev-parse refs/heads/OS) == "$os_head" ]] ||
   fail "audit mutated origin OS"
-pass "default qvsync audits complete upstream changes without integrating or publishing"
+[[ $(git --git-dir="$iso_upstream_bare" rev-parse refs/heads/quattro) == \
+  "$iso_upstream_sha" ]] || fail "audit mutated ISO upstream"
+pass "default qvsync audits both upstreams without integrating or publishing"
 
 if output=$(git -C "$repo" qvsync --reviewed-upstream "$upstream_sha" 2>&1); then
   fail "retired merge mode refusal"
@@ -225,11 +269,55 @@ fi
   fail "recording review mutated origin OS"
 pass "validated review advances only tracked intake state"
 
+if output=$(
+  git -C "$repo" qvsync --record-reviewed-iso-upstream "$base_sha" 2>&1
+); then
+  fail "stale ISO upstream review guard"
+fi
+grep -Fq 'reviewed ISO upstream SHA does not match the fetched target' \
+  <<<"$output" || fail "stale ISO upstream review diagnostic"
+[[ $(<"$repo/upstream/qvsync/reviewed-iso-upstream") == "$base_sha" ]] ||
+  fail "stale ISO review changed tracked baseline"
+
+if output=$(
+  git -C "$repo" qvsync --record-reviewed-iso-upstream "$iso_upstream_sha" 2>&1
+); then
+  fail "missing ISO upstream ledger guard"
+fi
+grep -Fq 'missing ISO upstream review ledger' <<<"$output" ||
+  fail "missing ISO upstream ledger diagnostic"
+
+mkdir -p "$repo/upstream/qvsync/iso-upstream-reviews"
+iso_ledger="$repo/upstream/qvsync/iso-upstream-reviews/$iso_upstream_sha.psv"
+printf '%s\n' \
+  "# base=$base_sha" \
+  "# target=$iso_upstream_sha" \
+  '# commit|decision|owner|summary|verification' \
+  "$iso_upstream_sha|combine|release/iso|Port the reviewed ISO fix|native ISO ownership checks" \
+  >"$iso_ledger"
+output=$(
+  git -C "$repo" qvsync --record-reviewed-iso-upstream "$iso_upstream_sha" 2>&1
+) || fail "record exact reviewed ISO upstream target"
+grep -Fq "Recorded reviewed ISO upstream target $iso_upstream_sha" \
+  <<<"$output" || fail "reviewed ISO upstream record result"
+[[ $(<"$repo/upstream/qvsync/reviewed-iso-upstream") == \
+  "$iso_upstream_sha" ]] || fail "tracked reviewed ISO baseline"
+[[ $(git -C "$repo" rev-parse HEAD) == "$os_head" ]] ||
+  fail "recording ISO review changed local OS history"
+if git -C "$repo" merge-base --is-ancestor "$iso_upstream_sha" HEAD; then
+  fail "recording ISO review merged upstream"
+fi
+[[ $(git --git-dir="$iso_upstream_bare" rev-parse refs/heads/quattro) == \
+  "$iso_upstream_sha" ]] || fail "recording review mutated ISO upstream"
+pass "validated ISO review advances only its independent tracked baseline"
+
 output=$(git -C "$repo" qvsync --audit 2>&1) ||
   fail "post-review upstream audit"
 grep -Fq 'Upstream commits (0)' <<<"$output" ||
   fail "reviewed baseline audit range"
-pass "future audits start at the tracked reviewed baseline"
+grep -Fq 'ISO upstream commits (0)' <<<"$output" ||
+  fail "reviewed ISO baseline audit range"
+pass "future audits start at both independent reviewed baselines"
 
 grep -Eq 'Start with .*git qvsync --audit' "$root/AGENTS.md" ||
   fail "Codex qvsync audit instruction"
@@ -239,6 +327,17 @@ grep -Fq 'maintainer roadmaps as advisory signals' "$root/AGENTS.md" ||
   fail "Codex upstream roadmap instruction"
 grep -Fq 'remove duplicate implementations' "$root/upstream/qvsync/qvsync-audit" ||
   fail "Codex duplicate implementation cleanup"
+grep -Fq 'reviewed-iso-upstream' "$root/AGENTS.md" ||
+  fail "root independent ISO upstream baseline"
+grep -Fq -- '--record-reviewed-iso-upstream' \
+  "$root/upstream/qvsync/qvsync" \
+  "$root/upstream/qvsync/README.md" \
+  "$root/upstream/qvsync/AGENTS.md" ||
+  fail "qvsync ISO review recording contract"
+if rg -q 'release/iso/(upstream-ref|omarchy-iso-qvos-tui\.patch)|QVOS_OMARCHY_ISO' \
+  "$root/upstream/qvsync"; then
+  fail "qvsync restored the executable ISO upstream seam"
+fi
 grep -Fq 'complete its software reconciliation' "$root/upstream/qvsync/AGENTS.md" ||
   fail "qvsync software reconciliation route"
 grep -Fq 'independent downstream distribution' "$root/AGENTS.md" ||

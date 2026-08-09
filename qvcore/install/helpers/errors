@@ -171,8 +171,15 @@ interrupt_install() {
 
 exit_handler() {
   local exit_code=$?
+  local cleanup_status=0
 
   trap - EXIT
+  if declare -F qvos_install_exit_cleanup >/dev/null; then
+    qvos_install_exit_cleanup "$exit_code" || cleanup_status=$?
+    if (( exit_code == 0 && cleanup_status != 0 )); then
+      exit_code=$cleanup_status
+    fi
+  fi
   if (( exit_code != 0 )) && [[ $ERROR_HANDLING != "true" ]]; then
     catch_errors "$exit_code" "${BASH_COMMAND:-unknown}"
   else

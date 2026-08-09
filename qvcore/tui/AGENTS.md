@@ -36,8 +36,11 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   owner. TUI adapters delegate once and never reproduce an engine.
 - Action launchers read only native `# qv:*` owner metadata. Compatibility
   adapters and `# omarchy:*` records never define TUI copy or behavior.
-- Preserve plain CLI and TTY fallbacks. The TUI must not become a prerequisite
-  for update, and ISO flows retain their inherited fallback.
+- Preserve plain CLI and TTY fallbacks for installed-system actions. The TUI
+  must not become a prerequisite for update. The ISO build requires the
+  singular qvOS installer TUI and fails closed; live boot exposes a recovery
+  shell if that verified binary is unexpectedly unavailable, never a second
+  installer implementation.
 - Treat `qvcore/tui` as the qvOS product interface only. Never restore the
   inherited generic TUI-shortcut installer or accept arbitrary shell command
   strings to synthesize desktop launchers; terminal tools use their CLI or an
@@ -71,8 +74,8 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   Every local, live, and ISO build embeds its output in `buildSourceHash`, and
   verification rejects `unmanaged` or any value that differs from that owner.
 - Keep private installer schema and builder names qvOS/ISO-owned. Omarchy may
-  appear only where the separate upstream ISO builder or package-provider ABI
-  is named; never use it as the identity of qvOS Go types or functions.
+  appear only in package-provider ABI, provenance, or qvsync review records;
+  never use it as the identity of qvOS Go types or functions.
 - `qvcore/tui/install` removes only owner-matching build temporaries older than
   one hour and older than the managed target. Preserve recent files that may
   belong to a concurrent build.
@@ -515,4 +518,5 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
    `qv capture screenshot fullscreen save`.
 
 When an ISO surface changes, follow `release/iso/AGENTS.md` in addition to this
-workflow and verify both boot fallback and the installed-system binary.
+workflow and verify the missing-binary fail-closed path, the boot installer,
+and the installed-system binary.
