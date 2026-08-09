@@ -45,7 +45,8 @@ for owner in lib status; do
 done
 
 if rg -n 'omarchy-capture-(screenrecording|screenshot|text-extraction)' \
-  "$root/bin/omarchy-menu" \
+  "$root/qvcore/menu/base" \
+  "$root/qvcore/menu/routes" \
   "$root/config/hypr/bindings.conf" \
   "$root/config/waybar/config.jsonc" \
   "$root/qvcore/menu/elephant/qvos_menu.lua"; then

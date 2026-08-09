@@ -12,7 +12,7 @@ local function shell_escape(value)
 end
 
 local function route(name)
-  return "omarchy-menu " .. shell_escape(name)
+  return "qv-menu " .. shell_escape(name)
 end
 
 local function qvos_source()

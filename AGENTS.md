@@ -47,6 +47,10 @@ Other current prefixes include:
 
 - `ac-`, `audio-`, `battery-`, `branch-`, `brightness-`, `channel-`, `config-`, `debug-`, `dev-`, `drive-`, `first-`, `font-`, `haptic-`, `hibernation-`, `hook-`, `hyprland-`, `menu-`, `migrate-`, `notification-`, `plymouth-`, `powerprofiles-`, `reinstall-`, `remove-`, `screensaver-`, `show-`, `snapshot-`, `state-`, `swayosd-`, `system-`, `transcode-`, `tui-`, `tz-`, `upload-`, `version-`, `voxtype-`, `webapp-`, `wifi-`, `windows-`
 
+`qvcore/menu/menu` owns the product menu engine. Its native `qv-menu` adapter
+carries metadata; `omarchy-menu` is compatibility only. Fresh bindings,
+providers, and Waybar actions always call the native route.
+
 # Command Metadata
 
 The CLI reads `# qv:*` metadata from promoted native adapters and temporary

@@ -124,6 +124,7 @@ rewrite_literals \
   'omarchy-launch-walker' 'qv-launch-walker' \
   'omarchy-hyprland-window-close-all' 'qv-hyprland-window-close-all' \
   'omarchy-menu-keybindings' 'qv-menu-keybindings' \
+  'omarchy-menu' 'qv-menu' \
   'omarchy-reminder clear' 'qv-reminder clear' \
   'omarchy-reminder show' 'qv-reminder show' \
   'omarchy-swayosd-client' 'qv-swayosd-client' \
@@ -158,6 +159,7 @@ rewrite_literals \
   'omarchy-launch-or-focus-tui' 'qv-launch-or-focus-tui' \
   'omarchy-launch-tui' 'qv-launch-tui' \
   'omarchy-launch-wifi' 'qv-launch-wifi' \
+  'omarchy-menu' 'qv-menu' \
   'omarchy-weather-icon' 'qv-weather-icon' \
   'omarchy-weather-status' 'qv-weather-status' \
   'omarchy-tz-select' 'qv-tz-select'

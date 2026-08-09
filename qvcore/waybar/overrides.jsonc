@@ -1,7 +1,7 @@
 {
   "custom/omarchy": {
     "format": "󱅾",
-    "on-click": "omarchy-menu",
+    "on-click": "qv-menu",
     "tooltip-format": "qvOS Menu\n\nSuper + Space"
   },
   "custom/update": {

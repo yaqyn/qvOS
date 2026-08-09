@@ -1,0 +1,545 @@
+#!/bin/bash
+
+# qvOS menu primitives and specialized routes not owned by the catalog module.
+# This file is sourced by qvcore/menu/menu and has no standalone entrypoint.
+
+back_to() {
+  local parent_menu="${1:-}"
+
+  if [[ $BACK_TO_EXIT == "true" ]]; then
+    exit 0
+  elif [[ -n $parent_menu ]]; then
+    "$parent_menu"
+  else
+    show_main_menu
+  fi
+}
+
+toggle_existing_menu() {
+  if pgrep -f "walker.*--dmenu" >/dev/null; then
+    walker --close >/dev/null 2>&1
+    exit 0
+  fi
+}
+
+menu() {
+  local prompt="${1:-}"
+  local options="${2:-}"
+  local extra="${3:-}"
+  local preselect="${4:-}"
+
+  read -r -a args <<<"$extra"
+
+  if [[ -n $preselect ]]; then
+    local index
+    index=$(echo -e "$options" | grep -nxF "$preselect" | cut -d: -f1)
+    if [[ -n $index ]]; then
+      args+=("-c" "$index")
+    fi
+  fi
+
+  echo -e "$options" | qv-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p "$prompt…" "${args[@]}" 2>/dev/null
+}
+
+terminal() {
+  xdg-terminal-exec --app-id=org.qvos.terminal "$@"
+}
+
+open_in_editor() {
+  notify-send -u low "Editing config file" "$1"
+  qv-launch-editor "$1"
+}
+
+install() {
+  # shellcheck disable=SC2016
+  present_terminal \
+    bash -c 'printf "Installing %s...\n" "$1"; qv-pkg-add "$2"' \
+    qvos-menu "$1" "$2"
+}
+
+install_and_launch() {
+  # shellcheck disable=SC2016
+  present_terminal \
+    bash -c 'printf "Installing %s...\n" "$1"; qv-pkg-add "$2" && setsid gtk-launch "$3"' \
+    qvos-menu "$1" "$2" "$3"
+}
+
+install_terminal() {
+  present_terminal qv-install-terminal "$1"
+}
+
+aur_install() {
+  # shellcheck disable=SC2016
+  present_terminal \
+    bash -c 'printf "Installing %s from AUR...\n" "$1"; qv-pkg-aur-add "$2"' \
+    qvos-menu "$1" "$2"
+}
+
+aur_install_and_launch() {
+  # shellcheck disable=SC2016
+  present_terminal \
+    bash -c 'printf "Installing %s from AUR...\n" "$1"; qv-pkg-aur-add "$2" && setsid gtk-launch "$3"' \
+    qvos-menu "$1" "$2" "$3"
+}
+
+show_learn_menu() {
+  case $(menu "Learn" "  Keybindings\n  qvOS Source\n  Hyprland\n󰣇  Arch\n  Neovim\n󱆃  Bash") in
+  *Keybindings*) qv-menu-keybindings ;;
+  *"qvOS Source"*) qv-launch-webapp "https://github.com/Yaqyn-qvOS/qvOS" ;;
+  *Hyprland*) qv-launch-webapp "https://wiki.hypr.land/" ;;
+  *Arch*) qv-launch-webapp "https://wiki.archlinux.org/title/Main_page" ;;
+  *Bash*) qv-launch-webapp "https://devhints.io/bash" ;;
+  *Neovim*) qv-launch-webapp "https://www.lazyvim.org/keymaps" ;;
+  *) show_main_menu ;;
+  esac
+}
+
+show_reminder_menu() {
+  case $(menu "Reminder" "󰔛  Set one\n󰔛  Show all\n󰔛  Clear all") in
+  *Set*) show_custom_reminder_input ;;
+  *"Show all"*) qv-reminder show ;;
+  *"Clear all"*) qv-reminder clear ;;
+  *) back_to show_trigger_menu ;;
+  esac
+}
+
+show_custom_reminder_input() {
+  local minutes
+  minutes=$(qv-menu-input "Remind in minutes")
+
+  if [[ $minutes =~ ^[0-9]+$ ]] && ((minutes > 0)); then
+    show_reminder_message_input "$minutes"
+  elif [[ -n $minutes ]]; then
+    qv-notification-send "󰔛" "Invalid reminder" "Enter the number of minutes" -u critical
+    show_custom_reminder_input
+  else
+    back_to show_reminder_menu
+  fi
+}
+
+show_reminder_message_input() {
+  local minutes="$1"
+  local message
+  message=$(qv-menu-input "Reminder message")
+
+  if [[ -n $message ]]; then
+    qv-reminder "$minutes" "$message"
+  else
+    qv-reminder "$minutes"
+  fi
+}
+
+show_capture_menu() {
+  case $(menu "Capture" "  Screenshot\n  Screenrecord\n󰴑  Text Extraction\n󰃉  Color") in
+  *Screenshot*) qv-capture-screenshot ;;
+  *Screenrecord*) show_screenrecord_menu ;;
+  *Text*) qv-capture-text-extraction ;;
+  *Color*) pkill hyprpicker || hyprpicker -a ;;
+  *) back_to show_trigger_menu ;;
+  esac
+}
+
+get_webcam_list() {
+  v4l2-ctl --list-devices 2>/dev/null | while IFS= read -r line; do
+    if [[ $line != $'\t'* && -n $line ]]; then
+      local name="$line"
+      IFS= read -r device || break
+      device=$(echo "$device" | tr -d '\t' | head -1)
+      [[ -n $device ]] && echo "$device  $name"
+    fi
+  done
+}
+
+show_webcam_select_menu() {
+  local devices
+  local count
+  devices=$(get_webcam_list)
+  count=$(grep -c . <<<"$devices" || true)
+
+  if [[ -z $devices ]] || ((count == 0)); then
+    notify-send "No webcam devices found" -u critical -t 3000
+    return 1
+  fi
+
+  if ((count == 1)); then
+    echo "$devices" | awk '{print $1}'
+  else
+    menu "Select Webcam" "$devices" | awk '{print $1}'
+  fi
+}
+
+show_screenrecord_menu() {
+  qv-capture-screenrecording --stop-recording && exit 0
+
+  case $(menu "Screenrecord" "  With no audio\n  With desktop audio\n  With desktop + microphone audio\n  With desktop + microphone audio + webcam") in
+  *"With no audio") qv-capture-screenrecording ;;
+  *"With desktop audio") qv-capture-screenrecording --with-desktop-audio ;;
+  *"With desktop + microphone audio") qv-capture-screenrecording --with-desktop-audio --with-microphone-audio ;;
+  *"With desktop + microphone audio + webcam")
+    local device
+    device=$(show_webcam_select_menu) || {
+      back_to show_capture_menu
+      return
+    }
+    qv-capture-screenrecording --with-desktop-audio --with-microphone-audio --with-webcam --webcam-device="$device"
+    ;;
+  *) back_to show_capture_menu ;;
+  esac
+}
+
+show_toggle_menu() {
+  local options="󱄄  Screensaver\n󰔎  Nightlight\n󱫖  Idle Lock\n󰂛  Notifications\n󰍜  Top Bar\n󱂬  Workspace Layout\n  Window Gaps\n  1-Window Ratio\n󰍹  Monitor Scaling\n  Direct Boot"
+
+  case $(menu "Toggle" "$options") in
+  *Screensaver*) qv-toggle-screensaver ;;
+  *Nightlight*) qv-toggle-nightlight ;;
+  *Idle*) qv-toggle-idle ;;
+  *Notifications*) qv-toggle-notification-silencing ;;
+  *Bar*) qv-toggle-waybar ;;
+  *Layout*) qv-hyprland-workspace-layout-toggle ;;
+  *Ratio*) qv-hyprland-window-single-square-aspect-toggle ;;
+  *Gaps*) qv-hyprland-window-gaps-toggle ;;
+  *Scaling*) qv-hyprland-monitor-scaling-cycle ;;
+  *"Direct Boot"*) present_terminal qv-config-direct-boot ;;
+  *) back_to show_trigger_menu ;;
+  esac
+}
+
+show_hardware_menu() {
+  local options="󰛧  Laptop Display\n 󰍹  Mirror Display"
+
+  if qv-hw-hybrid-gpu; then
+    options="$options\n  Hybrid GPU"
+  fi
+
+  if qv-hw-touchpad; then
+    options="$options\n󰟸  Touchpad"
+  fi
+
+  if qv-hw-dell-xps-haptic-touchpad && qv-cmd-present dell-xps-touchpad-haptics; then
+    options="$options\n󰌌  Touchpad Haptics"
+  fi
+
+  if qv-hw-touchscreen; then
+    options="$options\n󰆽  Touchscreen"
+  fi
+
+  case $(menu "Toggle" "$options") in
+  *Laptop*) qv-hyprland-monitor-internal toggle ;;
+  *Mirror*) qv-hyprland-monitor-internal-mirror toggle ;;
+  *Haptics*) show_hardware_touchpad_haptics_menu ;;
+  *Touchpad*) qv-toggle-touchpad ;;
+  *Touchscreen*) qv-toggle-touchscreen ;;
+  *"Hybrid GPU"*) present_terminal qv-toggle-hybrid-gpu ;;
+  *) back_to show_trigger_menu ;;
+  esac
+}
+
+show_hardware_touchpad_haptics_menu() {
+  local current
+  local selected
+  current=$(dell-xps-touchpad-haptics get)
+  selected=$(menu "Touchpad Haptics" "low\nmid\nhigh" "" "$current")
+
+  if [[ -n $selected ]]; then
+    dell-xps-touchpad-haptics set "$selected"
+  else
+    back_to show_hardware_menu
+  fi
+}
+
+show_about_menu() {
+  case $(menu "About" "  Edit Text\n  Set From Image\n  Restore Default") in
+  *Text*) qv-branding-about text ;;
+  *Image*) qv-branding-about image ;;
+  *Default*) qv-branding-about reset ;;
+  *) show_style_menu ;;
+  esac
+}
+
+show_screensaver_menu() {
+  case $(menu "Screensaver" "  Edit Text\n  Set From Image\n  Restore Default") in
+  *Text*) qv-branding-screensaver text ;;
+  *Image*) qv-branding-screensaver image ;;
+  *Default*) qv-branding-screensaver reset ;;
+  *) show_style_menu ;;
+  esac
+}
+
+show_theme_menu() {
+  qv-launch-walker -m menus:omarchythemes --width 800 --minheight 400
+}
+
+show_background_menu() {
+  qv-launch-walker -m menus:omarchyBackgroundSelector --width 800 --minheight 400
+}
+
+show_font_menu() {
+  theme=$(menu "Font" "$(qv-font-list)" "--width 350" "$(qv-font-current)")
+  if [[ $theme == "CNCLD" || -z $theme ]]; then
+    back_to show_style_menu
+  else
+    qv-font-set "$theme"
+  fi
+}
+
+show_setup_power_menu() {
+  profile=$(menu "Power Profile" "$(qv-powerprofiles-list)" "" "$(powerprofilesctl get)")
+
+  if [[ $profile == "CNCLD" || -z $profile ]]; then
+    back_to show_setup_menu
+  else
+    powerprofilesctl set "$profile"
+  fi
+}
+
+show_setup_security_menu() {
+  case $(menu "Setup" "󰈷  Fingerprint\n  Fido2") in
+  *Fingerprint*) present_terminal qv-setup-security-fingerprint ;;
+  *Fido2*) present_terminal qv-setup-security-fido2 ;;
+  *) show_setup_menu ;;
+  esac
+}
+
+show_setup_default_menu() {
+  case $(menu "Default" "  Browser\n  Terminal\n  Editor") in
+  *Browser*) show_setup_default_browser_menu ;;
+  *Terminal*) show_setup_default_terminal_menu ;;
+  *Editor*) show_setup_default_editor_menu ;;
+  *) show_setup_menu ;;
+  esac
+}
+
+browser_desktop_exists() {
+  [[ -f ~/.local/share/applications/$1 || -f ~/.nix-profile/share/applications/$1 || -f /usr/share/applications/$1 ]]
+}
+
+show_setup_default_browser_menu() {
+  local options=""
+  browser_desktop_exists chromium.desktop && options="$options  Chromium"
+  browser_desktop_exists google-chrome.desktop && options="${options:+$options\n}󰊯  Chrome"
+  browser_desktop_exists brave-browser.desktop && options="${options:+$options\n}󰖟  Brave"
+  browser_desktop_exists brave-origin-beta.desktop && options="${options:+$options\n}󰖟  Brave Origin"
+  browser_desktop_exists microsoft-edge.desktop && options="${options:+$options\n}󰇩  Edge"
+  browser_desktop_exists firefox.desktop && options="${options:+$options\n}󰈹  Firefox"
+  browser_desktop_exists zen.desktop && options="${options:+$options\n}󰖟  Zen"
+
+  local current=""
+  case "$(qv-default-browser)" in
+  chromium) current="  Chromium" ;;
+  chrome) current="󰊯  Chrome" ;;
+  brave) current="󰖟  Brave" ;;
+  brave-origin) current="󰖟  Brave Origin" ;;
+  edge) current="󰇩  Edge" ;;
+  firefox) current="󰈹  Firefox" ;;
+  zen) current="󰖟  Zen" ;;
+  esac
+
+  case $(menu "Default Browser" "$options" "" "$current") in
+  *Chromium*) qv-default-browser chromium ;;
+  *Chrome*) qv-default-browser chrome ;;
+  *"Brave Origin"*) qv-default-browser brave-origin ;;
+  *Brave*) qv-default-browser brave ;;
+  *Edge*) qv-default-browser edge ;;
+  *Firefox*) qv-default-browser firefox ;;
+  *Zen*) qv-default-browser zen ;;
+  *) show_setup_default_menu ;;
+  esac
+}
+
+show_setup_default_terminal_menu() {
+  local options=""
+  qv-cmd-present alacritty && options="$options  Alacritty"
+  qv-cmd-present foot && options="${options:+$options\n}  Foot"
+  qv-cmd-present ghostty && options="${options:+$options\n}  Ghostty"
+  qv-cmd-present kitty && options="${options:+$options\n}  Kitty"
+
+  local current=""
+  case "$(qv-default-terminal)" in
+  alacritty) current="  Alacritty" ;;
+  foot) current="  Foot" ;;
+  ghostty) current="  Ghostty" ;;
+  kitty) current="  Kitty" ;;
+  esac
+
+  case $(menu "Default Terminal" "$options" "" "$current") in
+  *Alacritty*) qv-default-terminal alacritty ;;
+  *Foot*) qv-default-terminal foot ;;
+  *Ghostty*) qv-default-terminal ghostty ;;
+  *Kitty*) qv-default-terminal kitty ;;
+  *) show_setup_default_menu ;;
+  esac
+}
+
+show_setup_default_editor_menu() {
+  local options=""
+  qv-cmd-present nvim && options="$options  Neovim"
+  qv-cmd-present code && options="${options:+$options\n}  VSCode"
+  qv-cmd-present cursor && options="${options:+$options\n}  Cursor"
+  qv-cmd-present zeditor && options="${options:+$options\n}  Zed"
+  qv-cmd-present sublime_text && options="${options:+$options\n}  Sublime Text"
+  qv-cmd-present helix && options="${options:+$options\n}  Helix"
+  qv-cmd-present vim && options="${options:+$options\n}  Vim"
+  qv-cmd-present emacs && options="${options:+$options\n}  Emacs"
+
+  local current=""
+  case "$(qv-default-editor)" in
+  nvim) current="  Neovim" ;;
+  code) current="  VSCode" ;;
+  cursor) current="  Cursor" ;;
+  zed | zeditor) current="  Zed" ;;
+  sublime_text) current="  Sublime Text" ;;
+  helix) current="  Helix" ;;
+  vim) current="  Vim" ;;
+  emacs) current="  Emacs" ;;
+  esac
+
+  case $(menu "Default Editor" "$options" "" "$current") in
+  *Neovim*) qv-default-editor nvim ;;
+  *VSCode*) qv-default-editor code ;;
+  *Cursor*) qv-default-editor cursor ;;
+  *Zed*) qv-default-editor zed ;;
+  *Sublime*) qv-default-editor sublime_text ;;
+  *Helix*) qv-default-editor helix ;;
+  *Vim*) qv-default-editor vim ;;
+  *Emacs*) qv-default-editor emacs ;;
+  *) show_setup_default_menu ;;
+  esac
+}
+
+show_setup_config_menu() {
+  case $(menu "Setup" "  Hyprland\n  Hypridle\n  Hyprlock\n  Hyprsunset\n  Swayosd\n󰌧  Walker\n󰍜  Waybar\n󰞅  XCompose") in
+  *Hyprland*) open_in_editor ~/.config/hypr/hyprland.conf ;;
+  *Hypridle*) open_in_editor ~/.config/hypr/hypridle.conf && qv-restart-hypridle ;;
+  *Hyprlock*) open_in_editor ~/.config/hypr/hyprlock.conf ;;
+  *Hyprsunset*) open_in_editor ~/.config/hypr/hyprsunset.conf && qv-restart-hyprsunset ;;
+  *Swayosd*) open_in_editor ~/.config/swayosd/config.toml && qv-restart-swayosd ;;
+  *Walker*) open_in_editor ~/.config/walker/config.toml && qv-restart-walker ;;
+  *Waybar*) open_in_editor ~/.config/waybar/config.jsonc && qv-restart-waybar ;;
+  *XCompose*) open_in_editor ~/.XCompose && qv-restart-xcompose ;;
+  *) show_setup_menu ;;
+  esac
+}
+
+show_setup_system_menu() {
+  local options=""
+
+  if qv-toggle-enabled suspend-off; then
+    options="$options󰒲  Enable Suspend"
+  else
+    options="$options󰒲  Disable Suspend"
+  fi
+
+  if qv-hibernation-available; then
+    options="$options\n󰤁  Disable Hibernate"
+  else
+    options="$options\n󰤁  Enable Hibernate"
+  fi
+
+  case $(menu "System" "$options") in
+  *Suspend*) qv-toggle-suspend ;;
+  *"Enable Hibernate"*) present_terminal qv-hibernation-setup ;;
+  *"Disable Hibernate"*) present_terminal qv-hibernation-remove ;;
+  *) show_setup_menu ;;
+  esac
+}
+
+show_install_style_menu() {
+  case $(menu "Install" "󰸌  Theme\n  Background\n  Font") in
+  *Theme*) present_terminal qv-theme-install ;;
+  *Background*) qv-theme-bg-install ;;
+  *Font*) show_install_font_menu ;;
+  *) show_install_menu ;;
+  esac
+}
+
+show_install_php_menu() {
+  case $(menu "Install" "  PHP\n  Laravel\n  Symfony") in
+  *PHP*) present_terminal qv-install-dev-env php ;;
+  *Laravel*) present_terminal qv-install-dev-env laravel ;;
+  *Symfony*) present_terminal qv-install-dev-env symfony ;;
+  *) show_install_development_menu ;;
+  esac
+}
+
+show_install_elixir_menu() {
+  case $(menu "Install" "  Elixir\n  Phoenix") in
+  *Elixir*) present_terminal qv-install-dev-env elixir ;;
+  *Phoenix*) present_terminal qv-install-dev-env phoenix ;;
+  *) show_install_development_menu ;;
+  esac
+}
+
+show_remove_security_menu() {
+  case $(menu "Remove" "󰈷  Fingerprint\n  Fido2") in
+  *Fingerprint*) present_terminal qv-remove-security-fingerprint ;;
+  *Fido2*) present_terminal qv-remove-security-fido2 ;;
+  *) show_remove_menu ;;
+  esac
+}
+
+show_remove_javascript_menu() {
+  case $(menu "Remove" "  Node.js\n  Bun\n  Deno") in
+  *Node*) present_terminal qv-remove-dev-env node ;;
+  *Bun*) present_terminal qv-remove-dev-env bun ;;
+  *Deno*) present_terminal qv-remove-dev-env deno ;;
+  *) show_remove_development_menu ;;
+  esac
+}
+
+show_remove_php_menu() {
+  case $(menu "Remove" "  PHP\n  Laravel\n  Symfony") in
+  *PHP*) present_terminal qv-remove-dev-env php ;;
+  *Laravel*) present_terminal qv-remove-dev-env laravel ;;
+  *Symfony*) present_terminal qv-remove-dev-env symfony ;;
+  *) show_remove_development_menu ;;
+  esac
+}
+
+show_remove_elixir_menu() {
+  case $(menu "Remove" "  Elixir\n  Phoenix") in
+  *Elixir*) present_terminal qv-remove-dev-env elixir ;;
+  *Phoenix*) present_terminal qv-remove-dev-env phoenix ;;
+  *) show_remove_development_menu ;;
+  esac
+}
+
+show_update_hardware_menu() {
+  case $(menu "Restart" "  Audio\n󱚾  Wi-Fi\n󰂯  Bluetooth\n󰟸  Trackpad") in
+  *Audio*) present_terminal qv-restart-pipewire ;;
+  *Wi-Fi*) present_terminal qv-restart-wifi ;;
+  *Bluetooth*) present_terminal qv-restart-bluetooth ;;
+  *Trackpad*) present_terminal qv-restart-trackpad ;;
+  *) show_update_menu ;;
+  esac
+}
+
+show_update_password_menu() {
+  case $(menu "Update Password" "  Drive Encryption\n  User") in
+  *Drive*) present_terminal qv-drive-password ;;
+  *User*) present_terminal passwd ;;
+  *) show_update_menu ;;
+  esac
+}
+
+show_about() {
+  qv-launch-about
+}
+
+show_system_menu() {
+  local options="󱄄  Screensaver\n  Lock"
+  ! qv-toggle-enabled suspend-off && options="$options\n󰒲  Suspend"
+  qv-hibernation-available && options="$options\n󰤁  Hibernate"
+  options="$options\n󰍃  Logout\n󰜉  Restart\n󰐥  Shutdown"
+
+  case $(menu "System" "$options") in
+  *Screensaver*) qv-launch-screensaver force ;;
+  *Lock*) qv-system-lock ;;
+  *Suspend*) systemctl suspend ;;
+  *Hibernate*) systemctl hibernate ;;
+  *Logout*) qv-system-logout ;;
+  *Restart*) qv-system-reboot ;;
+  *Shutdown*) qv-system-shutdown ;;
+  *) back_to show_main_menu ;;
+  esac
+}

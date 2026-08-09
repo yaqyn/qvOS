@@ -48,13 +48,15 @@ if rg -n 'bash -c "\$1"|\$1 == \*\[\[:space:\]\]\*' \
   "$root/qvcore/presentation/run"; then
   fail "presentation owner shell-parses a caller string"
 fi
-# The retained inherited menu owns reviewed compound install-and-launch
-# sequences and must request its shell explicitly at the call boundary.
-# shellcheck disable=SC2016
-grep -Fq 'qv-launch-floating-terminal-with-presentation bash -c "$1" qvos-menu' \
-  "$root/bin/omarchy-menu" || fail "menu presentation shell boundary"
+# Compound package actions use explicit positional shell arguments. Ordinary
+# menu actions remain argv and never fall back to parsing a command string.
+grep -Fq "bash -c 'printf \"Installing %s...\\n\" \"\$1\"; qv-pkg-add \"\$2\"'" \
+  "$root/qvcore/menu/base" || fail "menu presentation shell boundary"
+if rg -n 'present_terminal "[^"]+[[:space:]][^"]+"' \
+  "$root/qvcore/menu/base" "$root/qvcore/menu/routes"; then
+  fail "menu presentation retains a shell-like argv string"
+fi
 if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed))' \
-  "$root/bin/omarchy-menu" \
   "$root/config/waybar/config.jsonc" \
   "$root/default/elephant/omarchy_unlocks.lua" \
   "$root/default/mako/core.ini" \

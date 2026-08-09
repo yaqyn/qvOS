@@ -72,7 +72,9 @@
     qvcore/menu/concepts.psv
     qvcore/menu/elephant/omarchy_unlocks.lua
     qvcore/menu/elephant/qvos_menu.lua
-    qvcore/menu/extension.sh
+    qvcore/menu/base
+    qvcore/menu/menu
+    qvcore/menu/routes
     qvcore/menu/font-install
     qvcore/menu/install
     qvcore/menu/search-intents.psv

@@ -1,7 +1,6 @@
 # Inherited paths promoted to native qvOS ownership for product branding.
 bin/omarchy-branding-about
 bin/omarchy-branding-screensaver
-bin/omarchy-menu
 bin/omarchy-refresh-fastfetch
 bin/omarchy-windows-vm
 config/fastfetch/config.jsonc

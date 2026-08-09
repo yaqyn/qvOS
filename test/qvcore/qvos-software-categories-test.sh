@@ -38,7 +38,7 @@ fi
 export XDG_RUNTIME_DIR="$test_root/runtime"
 install -d "$XDG_RUNTIME_DIR"
 # shellcheck source=/dev/null
-source "$root/qvcore/menu/extension.sh"
+source "$root/qvcore/menu/routes"
 qv-launch-walker() { :; }
 
 show_install_service_menu

@@ -87,7 +87,7 @@ fi
 [[ ! -s $dispatch_log ]] || fail "dispatch without active window"
 pass "a missing active window cannot change workspace state"
 
-grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, omarchy-menu background' "$bindings" ||
+grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, qv-menu background' "$bindings" ||
   fail "native background picker"
 grep -Fqx 'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' "$bindings" ||
   fail "native special workspace toggle"

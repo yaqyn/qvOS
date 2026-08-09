@@ -33,7 +33,7 @@ chmod 0755 \
   "$repo/upstream/qvsync/qvsync" \
   "$repo/upstream/qvsync/qvsync-audit" \
   "$repo/upstream/qvsync/install-qvsync"
-printf '%s\n' '# qvOS menu owner' 'omarchy-menu' >"$repo/qvcore/menu/extension.sh"
+printf '%s\n' '# qvOS menu routes' 'qv-menu' >"$repo/qvcore/menu/routes"
 printf '%s\n' \
   '# owner|uses|sources' \
   'omarchy-menu|task:menu|bin/omarchy-menu@fixture' \
@@ -132,7 +132,7 @@ grep -Fq "$upstream_sha Replace the menu architecture" <<<"$output" ||
   fail "capability audit commit inventory"
 grep -Fq $'A\tbin/omarchy-menu' <<<"$output" ||
   fail "capability audit changed path"
-grep -Fq 'qvcore/menu/extension.sh' <<<"$output" ||
+grep -Fq 'qvcore/menu/routes' <<<"$output" ||
   fail "capability audit qvOS overlap hint"
 grep -Fq \
   'bin/omarchy-menu — contracted TUI owner changed upstream; review qvcore/tui/owner-contracts.psv before refreshing it' \

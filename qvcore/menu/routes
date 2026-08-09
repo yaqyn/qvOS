@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 
-# qvOS menu overrides loaded before personal Omarchy menu extensions.
+# qvOS catalog-driven menu routes loaded before personal compatibility
+# extensions.
 
 INSTALL_EASY_LIST_ACTIVE=false
 STYLE_BACK_MENU=show_main_menu
@@ -503,8 +504,8 @@ show_install_menu() {
   fi
 
   case $(menu "Install" "󰣇  Package\n󰣇  AUR\n󰏖  Easy List") in
-  *Package*) terminal omarchy-pkg-install ;;
-  *AUR*) terminal omarchy-pkg-aur-install ;;
+  *Package*) terminal qv-pkg-install ;;
+  *AUR*) terminal qv-pkg-aur-install ;;
   *Easy*) show_install_easy_list_menu ;;
   *) show_settings_menu ;;
   esac
@@ -555,7 +556,7 @@ show_install_easy_list_menu() {
 
 show_remove_menu() {
   case $(menu "Remove" "󰣇  Package\n  Web App\n󰵮  Development\n󰸌  Theme\n  Browser\n  Dictation\n  Gaming\n󰍲  Windows\n  Security") in
-  *Package*) terminal omarchy-pkg-remove ;;
+  *Package*) terminal qv-pkg-remove ;;
   *Web*) launch_tui_task webapp-remove ;;
   *Development*) show_remove_development_menu ;;
   *Theme*) launch_tui_task theme-remove ;;

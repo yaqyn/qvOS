@@ -524,7 +524,7 @@ printf 'ok - every remaining Software installer has an explicit TUI or native co
 
 fallback_sublime_route=$(
   HOME="$test_root/home" QVOS_PATH="$root" OMARCHY_PATH="$root" bash -s -- \
-    "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+    "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"
 
@@ -545,7 +545,7 @@ printf 'ok - Sublime Text uses the same installer route from every menu surface\
 
 fallback_stateful_routes=$(
   QVOS_PATH="$root" OMARCHY_PATH="$root" \
-    bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+    bash -s -- "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"
 
@@ -564,7 +564,7 @@ SCRIPT
 [[ $fallback_stateful_routes == $'development\nbrowser\ngaming\ndevelopment\nbrowser\ngaming' ]] ||
   fail "fallback state-aware Software routes"
 if rg -q 'present_terminal omarchy-(install|remove)-(browser|dev-env|gaming)' \
-  "$root/qvcore/menu/extension.sh"; then
+  "$root/qvcore/menu/routes"; then
   fail "fallback state-aware owner bypasses the shared action route"
 fi
 printf 'ok - legacy Install and Remove surfaces converge on state-aware Software\n'

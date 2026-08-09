@@ -201,7 +201,7 @@ for line in io.lines(os.getenv("HOME") .. "/.local/lib/qvos/menu/concepts.psv") 
     local slug, _, name, breadcrumb = line:match("^([^|]*)|([^|]*)|([^|]*)|([^|]*)|")
     concept_counts[name] = {
       count = 0,
-      route = "omarchy-menu 'concept:" .. slug .. "'",
+      route = "qv-menu 'concept:" .. slug .. "'",
       breadcrumb = breadcrumb,
     }
     concept_count = concept_count + 1
@@ -364,9 +364,9 @@ entries = GetEntries("")
 local editor = assert(by_name(entries, "Editor"))
 local package = assert(by_name(entries, "Package"))
 assert(editor.Subtext == "")
-assert(editor.Actions.activate == "omarchy-menu 'install-editor'")
+assert(editor.Actions.activate == "qv-menu 'install-editor'")
 assert(package.Subtext == "")
-assert(package.Actions.activate == "omarchy-menu 'concept:package'")
+assert(package.Actions.activate == "qv-menu 'concept:package'")
 assert(not by_name(entries, "Development"))
 
 view_file = assert(io.open(os.getenv("XDG_RUNTIME_DIR") .. "/qvos-menu-view", "w"))
@@ -760,7 +760,7 @@ run_menu() {
     QVOS_PATH="$root" \
     OMARCHY_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-menu" "$@"
+    "$root/bin/qv-menu" "$@"
 }
 
 run_menu
@@ -800,7 +800,7 @@ run_menu concept:development
 
 single_action_routes=$(
   HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" bash -s -- \
-    "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+    "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 
 source "$1"

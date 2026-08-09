@@ -357,21 +357,21 @@ grep -Fq 'Actions = { activate = "qv-launch-update" }' \
   "$root/qvcore/menu/elephant/qvos_menu.lua" ||
   fail "qvOS update menu route"
 update_override=$(
-  sed -n '/^show_update_menu()/,/^}/p' "$root/qvcore/menu/extension.sh"
+  sed -n '/^show_update_menu()/,/^}/p' "$root/qvcore/menu/routes"
 )
 [[ $update_override == $'show_update_menu() {\n  qv-launch-update\n}' ]] ||
   fail "Update qvOS is not direct"
 if rg -q 'qvos-system|qvOS System' \
-  "$root/qvcore/menu/extension.sh" \
+  "$root/qvcore/menu/routes" \
   "$root/qvcore/menu/concepts.psv" \
   "$root/qvcore/menu/search-intents.psv"; then
   fail "retired qvOS System menu route remains"
 fi
 install_gaming_override=$(
-  sed -n '/^show_install_gaming_menu()/,/^}/p' "$root/qvcore/menu/extension.sh"
+  sed -n '/^show_install_gaming_menu()/,/^}/p' "$root/qvcore/menu/routes"
 )
 remove_gaming_override=$(
-  sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qvcore/menu/extension.sh"
+  sed -n '/^show_remove_gaming_menu()/,/^}/p' "$root/qvcore/menu/routes"
 )
 grep -Fqx \
   'steam|package|steam|tui|true|tui|true|qv-install-gaming-steam|qvcore/gaming/steam-remove' \
@@ -381,8 +381,8 @@ grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||
   fail "Steam install bypasses Omarchy's owner"
 grep -Fq 'show_software_menu gaming' <<<"$remove_gaming_override" ||
   fail "Steam removal bypasses Omarchy's owner"
-grep -Fq '  qvOS Source' "$root/bin/omarchy-menu" || fail "qvOS learning entry"
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS' "$root/bin/omarchy-menu" ||
+grep -Fq '  qvOS Source' "$root/qvcore/menu/base" || fail "qvOS learning entry"
+grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS' "$root/qvcore/menu/base" ||
   fail "qvOS learning destination"
 if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
   "$root/qvcore/tui"; then
@@ -390,11 +390,11 @@ if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
 fi
 grep -Fq '"format": "󱅾"' "$root/qvcore/waybar/overrides.jsonc" ||
   fail "qvOS Waybar noodle icon"
-if grep -Fq '' "$root/qvcore/menu/extension.sh"; then
+if grep -Fq '' "$root/qvcore/menu/routes"; then
   fail "retired Omarchy menu glyph"
 fi
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
-  "$root/qvcore/menu/extension.sh" \
+  "$root/qvcore/menu/routes" \
   "$root/config/hypr/bindings.conf" \
   "$root/qvcore/waybar/overrides.jsonc"; then
   fail "retired qvOS feature menu"
@@ -930,7 +930,7 @@ for retired_switcher in \
     fail "unsupported installed source switcher: $retired_switcher"
 done
 if rg -q 'omarchy-(branch-set|channel-set|update-branch)|Update channel' \
-  "$root/bin/omarchy" "$root/bin/omarchy-menu" "$root/qvcore/menu"; then
+  "$root/bin/omarchy" "$root/qvcore/menu"; then
   fail "unsupported installed source channel route"
 fi
 pass "visible system branding is qvOS while compatibility internals remain stable"
@@ -1009,25 +1009,108 @@ install -m 0755 /dev/stdin "$test_bin/qv-launch-walker" <<'SCRIPT'
 } >>"$QVOS_TEST_MENU_LOG"
 SCRIPT
 
-printf '%s\n' 'show_about() { printf "personal menu\n"; }' \
-  >"$test_root/.config/omarchy/extensions/menu.sh"
+unsafe_menu_home="$test_root/unsafe-menu-home"
+external_menu="$test_root/external-menu"
+install -d "$unsafe_menu_home/.config/omarchy/extensions"
+printf 'external personal menu\n' >"$external_menu"
+ln -s "$external_menu" \
+  "$unsafe_menu_home/.config/omarchy/extensions/menu.sh"
+if HOME="$unsafe_menu_home" QVOS_PATH="$root" \
+  "$root/qvcore/menu/install" --preflight \
+  >"$test_root/unsafe-personal.out" \
+  2>"$test_root/unsafe-personal.err"; then
+  fail "linked personal menu preflight"
+fi
+grep -Fq 'Refusing an unsafe personal menu extension:' \
+  "$test_root/unsafe-personal.err" || fail "linked personal menu diagnostic"
+grep -Fqx 'external personal menu' "$external_menu" ||
+  fail "linked personal menu preservation"
+unlink -- "$unsafe_menu_home/.config/omarchy/extensions/menu.sh"
+ln -s "$external_menu" \
+  "$unsafe_menu_home/.config/omarchy/extensions/qvos-menu.sh"
+if HOME="$unsafe_menu_home" QVOS_PATH="$root" \
+  "$root/qvcore/menu/install" --preflight \
+  >"$test_root/unsafe-overlay.out" \
+  2>"$test_root/unsafe-overlay.err"; then
+  fail "linked retired menu overlay preflight"
+fi
+grep -Fq 'Refusing an unsafe retired qvOS menu overlay:' \
+  "$test_root/unsafe-overlay.err" || fail "linked menu overlay diagnostic"
+grep -Fqx 'external personal menu' "$external_menu" ||
+  fail "linked menu overlay preservation"
+
+cat >"$test_root/.config/omarchy/extensions/menu.sh" <<'MENU'
+[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"
+show_about() { printf "personal menu\n"; }
+MENU
+cp -a \
+  "$test_root/.config/omarchy/extensions/menu.sh" \
+  "$test_root/personal-menu.before"
+git -C "$root" show \
+  e4e308a7d53263e0270e398364315e9acd66a926:qvcore/menu/extension.sh \
+  >"$test_root/.config/omarchy/extensions/qvos-menu.sh"
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$root" \
   "$root/qvcore/menu/install" --install
 grep -Fqx 'show_about() { printf "personal menu\n"; }' \
   "$test_root/.config/omarchy/extensions/menu.sh" ||
   fail "personal Omarchy menu extension preservation"
-cmp -s \
-  "$root/qvcore/menu/extension.sh" \
+if rg -q 'qvos-menu\.sh' "$test_root/.config/omarchy/extensions/menu.sh"; then
+  fail "retired qvOS menu overlay remains sourced"
+fi
+[[ ! -e $test_root/.config/omarchy/extensions/qvos-menu.sh ]] ||
+  fail "exact generated qvOS menu overlay retirement"
+mapfile -t menu_backups < <(
+  find "$test_root/.config/omarchy/extensions" -maxdepth 1 -type f \
+    -name 'menu.sh.qvos-backup.*' -print
+)
+((${#menu_backups[@]} == 1)) || fail "personal menu backup inventory"
+cmp -s "$test_root/personal-menu.before" "${menu_backups[0]}" ||
+  fail "personal menu backup content"
+printf 'modified retired overlay\n' \
+  >"$test_root/.config/omarchy/extensions/qvos-menu.sh"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/menu/install" --install \
+  >"$test_root/modified-overlay.out" \
+  2>"$test_root/modified-overlay.err"
+grep -Fq 'Preserving a modified retired qvOS menu overlay:' \
+  "$test_root/modified-overlay.err" ||
+  fail "modified retired menu overlay diagnostic"
+grep -Fqx 'modified retired overlay' \
   "$test_root/.config/omarchy/extensions/qvos-menu.sh" ||
-  fail "qvOS menu extension installation"
-pass "qvOS menu overrides preserve personal Omarchy extensions"
+  fail "modified retired menu overlay preservation"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/menu/install" --status ||
+  fail "modified inert menu overlay status"
+pass "native qvOS menu preserves personal overrides and retires only its generated overlay"
+
+for menu_adapter in qv-menu omarchy-menu; do
+  menu_output=$(
+    HOME="$test_root" \
+      QVOS_PATH="$root" \
+      PATH="$test_bin:$root/bin:/usr/bin" \
+      "$root/bin/$menu_adapter" about
+  )
+  [[ $menu_output == "personal menu" ]] ||
+    fail "$menu_adapter personal override order"
+done
+if HOME="$test_root" QVOS_PATH="$root" \
+  PATH="$test_bin:$root/bin:/usr/bin" \
+  "$root/bin/qv-menu" one two \
+  >"$test_root/menu-usage.out" \
+  2>"$test_root/menu-usage.err"; then
+  fail "menu accepts multiple destinations"
+fi
+grep -Fqx 'Usage: qv-menu [destination]' "$test_root/menu-usage.err" ||
+  fail "menu argument diagnostic"
+pass "native and compatibility menu routes preserve personal overrides and bounded input"
 
 run_menu() {
   QVOS_TEST_LOCALSEND="$1" \
     QVOS_TEST_MENU_LOG="$menu_log" \
     HOME="$test_root" \
+    QVOS_PATH="$root" \
     PATH="$test_bin:$root/bin:/usr/bin" \
-    "$root/bin/omarchy-menu" trigger
+    "$root/bin/qv-menu" trigger
 }
 
 : >"$menu_log"

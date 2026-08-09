@@ -55,6 +55,7 @@ bindd = SUPER SHIFT, E, Editor, exec, omarchy-launch-editor
 bindd = SUPER, Q, Web app, exec, omarchy-launch-webapp https://example.com
 bindd = SUPER CTRL, T, Terminal app, exec, omarchy-launch-tui btop
 bindd = SUPER CTRL, W, Wi-Fi, exec, omarchy-launch-wifi
+bindd = SUPER, SPACE, Apps menu, exec, omarchy-menu apps
 bindd = SUPER, K, Show key bindings, exec, omarchy-menu-keybindings
 bindd = CTRL ALT, DELETE, Close all windows, exec, omarchy-hyprland-window-close-all
 bindd = SUPER SHIFT CTRL, F, Pop window, exec, omarchy-hyprland-window-pop
@@ -76,7 +77,7 @@ exec = ~/.local/share/qvos/bin/omarchy-launch-screensaver
 exec = ~/.local/share/qvos/bin/omarchy-system-suspend-if-safe --watch
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/waybar/config.jsonc" <<'CONFIG'
-{"audio":"omarchy-launch-audio","battery":"$(omarchy-battery-status)","bluetooth":"omarchy-launch-bluetooth","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","tui":"omarchy-launch-or-focus-tui btop","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","wifi":"omarchy-launch-wifi","timezone":"omarchy-tz-select"}
+{"audio":"omarchy-launch-audio","battery":"$(omarchy-battery-status)","bluetooth":"omarchy-launch-bluetooth","capture":"omarchy-capture-screenrecording","indicator":"$OMARCHY_PATH/default/waybar/indicators/screen-recording.sh","menu":"omarchy-menu power","presentation":"omarchy-launch-floating-terminal-with-presentation qv-tz-select","tui":"omarchy-launch-or-focus-tui btop","weather":"$(omarchy-weather-status)","weather_icon":"omarchy-weather-icon","wifi":"omarchy-launch-wifi","timezone":"omarchy-tz-select"}
 CONFIG
 install -m 0644 /dev/stdin "$test_home/.config/fastfetch/config.jsonc" <<'CONFIG'
 {"logo":{"type":"file-raw","source":"~/.config/omarchy/branding/about-fastfetch.ansi"},"modules":[{"text":"$(omarchy-version)"},{"text":"$(omarchy-theme-current)"},{"text":"$(omarchy-version-pkgs)"}]}
@@ -141,6 +142,7 @@ for command in \
   qv-launch-webapp \
   qv-launch-wifi \
   qv-launch-walker \
+  qv-menu \
   qv-menu-keybindings \
   qv-transcode; do
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
@@ -158,7 +160,7 @@ for command in \
   grep -Fq "$command" "$test_home/.config/hypr/bindings.conf" ||
     fail "promoted desktop session route was not migrated: $command"
 done
-if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|monitor-scaling-cycle|window-(close-all|gaps-toggle|pop|single-square-aspect-toggle|transparency-toggle)|workspace-layout-toggle)|launch-(browser|editor|tui|webapp|wifi|walker)|menu-keybindings|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
+if rg -q 'omarchy-(audio|brightness|capture-(screenshot|text-extraction)|hw-external-monitors|hyprland-(monitor-internal|monitor-scaling-cycle|window-(close-all|gaps-toggle|pop|single-square-aspect-toggle|transparency-toggle)|workspace-layout-toggle)|launch-(browser|editor|tui|webapp|wifi|walker)|menu|reminder|swayosd|system-lock|toggle-touchpad|toggle-touchscreen|transcode)' \
   "$test_home/.config/hypr/bindings.conf"; then
   fail "desktop compatibility route remains after migration"
 fi
@@ -173,6 +175,8 @@ grep -Fq 'QVOS_LOCK_ONLY=true qv-system-lock' \
   fail "lock-only session policy migration"
 grep -Fq 'qv-system-wake' "$test_home/.config/hypr/hypridle.conf" ||
   fail "wake route migration"
+grep -Fq '"menu":"qv-menu power"' \
+  "$test_home/.config/waybar/config.jsonc" || fail "Waybar menu route migration"
 if rg -q 'OMARCHY_LOCK_ONLY|omarchy-system-(lock|wake)' \
   "$test_home/.config/hypr/hypridle.conf"; then
   fail "desktop session compatibility policy remains after migration"

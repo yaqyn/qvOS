@@ -22,16 +22,16 @@ assert_binding "bindd = SUPER SHIFT, A, Codex YOLO, exec, ~/.local/lib/qvos/desk
 assert_binding 'bindd = SUPER SHIFT CTRL, A, Codex YOLO here, exec, ~/.local/lib/qvos/desktop/context/qvos-launch-terminal-here codex-yolo' "contextual Codex YOLO binding"
 pass "the A family keeps only native development tools"
 
-assert_binding 'bindd = SUPER ALT, R, Set reminder, exec, omarchy-menu reminder-set' "Set reminder binding"
+assert_binding 'bindd = SUPER ALT, R, Set reminder, exec, qv-menu reminder-set' "Set reminder binding"
 assert_binding 'bindd = SUPER CTRL ALT, R, Clear reminders, exec, qv-reminder clear' "Clear reminders binding"
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, R, Show reminders, exec, qv-reminder show' "Show reminders binding"
 pass "the R family keeps only native reminder actions"
 
 assert_binding 'bindd = SUPER, C, Universal copy, sendshortcut, CTRL, Insert, activewindow' "Universal copy binding"
-assert_binding 'bindd = SUPER SHIFT, PRINT, Capture menu, exec, omarchy-menu capture' "relocated Capture menu binding"
+assert_binding 'bindd = SUPER SHIFT, PRINT, Capture menu, exec, qv-menu capture' "relocated Capture menu binding"
 pass "Universal copy and Capture have singular qvOS bindings"
 
-assert_binding 'bindd = SUPER, SPACE, qvOS apps, exec, omarchy-menu apps' "shared qvOS Apps menu binding"
+assert_binding 'bindd = SUPER, SPACE, qvOS apps, exec, qv-menu apps' "shared qvOS Apps menu binding"
 pass "Super+Space opens the shared qvOS menu in Apps mode"
 
 assert_binding 'bindd = SUPER CTRL, W, Wifi controls, exec, qv-launch-wifi' "Wifi binding"

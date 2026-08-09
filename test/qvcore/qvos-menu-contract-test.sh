@@ -4,7 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
-  "$root/qvcore/menu/extension.sh" \
+  "$root/qvcore/menu/routes" \
   "$root/config/hypr/bindings.conf" \
   "$root/qvcore/waybar/overrides.jsonc"; then
   printf 'not ok - retired qvOS feature menu remains reachable\n' >&2

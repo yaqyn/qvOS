@@ -157,14 +157,12 @@ if rg -n 'omarchy-(hyprland-window-close-all|system-(lock|logout|wake))' \
   "$root/qvcore/menu" \
   "$root/qvcore/power" \
   "$root/config/hypr" \
-  "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a session compatibility command"
 fi
 if rg -n 'omarchy-hyprland-(monitor-scaling-cycle|window-gaps-toggle|window-pop|window-single-square-aspect-toggle|window-transparency-toggle|workspace-layout-toggle)' \
   "$root/qvcore/menu" \
   "$root/config/hypr" \
-  "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md'; then
   fail "native qvOS source still calls a Hyprland-control compatibility command"
 fi
@@ -172,7 +170,6 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
   "$root/qvcore" \
   "$root/config/hypr" \
   "$root/config/waybar" \
-  "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md' \
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
@@ -185,7 +182,6 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
 fi
 if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
   "$root/qvcore" \
-  "$root/bin/omarchy-menu" \
   --glob '!**/AGENTS.md' \
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
@@ -218,7 +214,7 @@ if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"
 fi
 if rg -n 'omarchy-toggle-(idle|nightlight)' \
-  "$root/qvcore" "$root/config" "$root/bin/omarchy-menu" \
+  "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/check' \
   --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source calls a desktop-toggle compatibility route"

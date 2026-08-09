@@ -257,16 +257,17 @@ EOF
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 
-cmp -s \
-  "$root/qvcore/menu/extension.sh" \
-  "$test_root/.config/omarchy/extensions/qvos-menu.sh" ||
-  fail "qvOS menu extension install"
-# shellcheck disable=SC2016
-grep -Fqx \
-  '[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"' \
-  "$test_root/.config/omarchy/extensions/menu.sh" ||
-  fail "Omarchy user menu extension seam"
-pass "qvOS menu installs through the Omarchy user extension seam"
+for menu_owner in base menu routes; do
+  [[ -f $root/qvcore/menu/$menu_owner ]] ||
+    fail "native qvOS menu owner: $menu_owner"
+done
+[[ ! -e $test_root/.config/omarchy/extensions/qvos-menu.sh ]] ||
+  fail "fresh install generated a retired qvOS menu overlay"
+if [[ -f $test_root/.config/omarchy/extensions/menu.sh ]] &&
+  rg -q 'qvos-menu\.sh' "$test_root/.config/omarchy/extensions/menu.sh"; then
+  fail "fresh personal menu config sources a generated qvOS overlay"
+fi
+pass "fresh qvOS uses the native menu without a generated overlay"
 
 runtime_provider="$test_root/.local/lib/qvos/menu/elephant/omarchy_unlocks.lua"
 cmp -s "$root/qvcore/menu/elephant/omarchy_unlocks.lua" "$runtime_provider" ||

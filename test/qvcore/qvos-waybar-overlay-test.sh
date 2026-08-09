@@ -55,7 +55,7 @@ jq -e --slurpfile source "$source_config" '
   (."modules-left" + ."modules-center" + ."modules-right" | index("clock") == null) and
   (."modules-left" + ."modules-center" + ."modules-right" | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."custom/omarchy"."on-click" == "omarchy-menu") and
+  (."custom/omarchy"."on-click" == "qv-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
   (."custom/voxtype".exec == "qv-voxtype-status") and
@@ -210,7 +210,7 @@ PATH="$test_bin:$PATH" HOME="$fresh_home" QVOS_PATH="$root" \
 jq -e --slurpfile source "$source_config" '
   (.["modules-left"] + .["modules-center"] + .["modules-right"] | index("group/prayer-clock") != null) and
   (."custom/omarchy".format == "󱅾") and
-  (."custom/omarchy"."on-click" == "omarchy-menu") and
+  (."custom/omarchy"."on-click" == "qv-menu") and
   (."custom/update".exec == "qv-update-available") and
   (."custom/update"."on-click" == "qv-launch-update") and
   (."custom/voxtype".exec == "qv-voxtype-status") and

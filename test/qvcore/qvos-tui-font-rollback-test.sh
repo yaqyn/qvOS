@@ -170,7 +170,7 @@ printf 'ok - font Stop preserves concurrently changed configuration\n'
 sed -i '/foreign change/d' "${config_paths[0]}"
 "$test_bin/qv-font-set" "JetBrainsMono Nerd Font"
 font_route=$(
-  bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+  bash -s -- "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"
 

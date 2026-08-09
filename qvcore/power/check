@@ -116,7 +116,8 @@ if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|rem
   fail "native qvOS source still calls a power compatibility command"
 fi
 if rg -n 'omarchy-hibernation-' \
-  "$root/bin/omarchy-menu" "$root/qvcore/tui/task/actions.psv"; then
+  "$root/qvcore/menu" "$root/qvcore/tui/task/actions.psv" \
+  --glob '!AGENTS.md' --glob '!native-paths'; then
   fail "active qvOS interface calls hibernation compatibility"
 fi
 event_compatibility=$(

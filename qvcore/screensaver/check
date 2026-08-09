@@ -65,7 +65,7 @@ for alias_entry in \
     fail "screensaver runtime alias is missing: $alias_entry"
 done
 if rg -n 'omarchy-((launch-)?screensaver|toggle-screensaver)([^[:alnum:]_-]|$)' \
-  "$root/qvcore" "$root/config" "$root/bin/omarchy-menu" \
+  "$root/qvcore" "$root/config" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/screensaver/check' --glob '!**/config/migrate-runtime-root' \
   --glob '!**/screensaver/install' \

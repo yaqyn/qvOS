@@ -180,7 +180,6 @@ fi
 if rg -n 'omarchy-(install|remove)-gaming-|omarchy-toggle-hybrid-gpu' \
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
-  "$root/bin/omarchy-menu" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces still call gaming compatibility routes"
 fi

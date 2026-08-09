@@ -58,7 +58,7 @@ if rg -n 'xdg-settings set default-web-browser|xdg-mime default .*x-scheme-handl
 fi
 
 if rg -n 'omarchy-default-(browser|editor|terminal)' \
-  "$root/bin/omarchy-menu" "$root/qvcore/menu" \
+  "$root/qvcore/menu" \
   --glob '!AGENTS.md' --glob '!owner-contracts.psv'; then
   fail "native menus call a default compatibility route"
 fi

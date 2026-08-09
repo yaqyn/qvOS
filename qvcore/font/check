@@ -55,7 +55,7 @@ if rg -n 'sed -i|xmlstarlet ed -L|grep -i[qE]* .*\$font' \
 fi
 
 if rg -n 'omarchy-font-(current|list|set)' \
-  "$root/qvcore/menu/font-install" "$root/bin/omarchy-menu"; then
+  "$root/qvcore/menu" --glob '!AGENTS.md' --glob '!native-paths'; then
   fail "native menu calls a font compatibility route"
 fi
 if rg -n 'omarchy-pkg-add' "$root/qvcore/menu/font-install"; then
@@ -65,7 +65,8 @@ for dependency in bin/qv-font-current bin/qv-font-set; do
   grep -Fqx "# qvos:contract=$dependency" "$root/qvcore/menu/font-install" ||
     fail "font lifecycle omits dependency: $dependency"
 done
-if rg -n '^install_font\(\)|sleep 2.*font-set' "$root/bin/omarchy-menu"; then
+if rg -n '^install_font\(\)|sleep 2.*font-set' \
+  "$root/qvcore/menu/base" "$root/qvcore/menu/routes"; then
   fail "menu retains a duplicate font installer"
 fi
 

@@ -214,7 +214,7 @@ export QVOS_TEST_TERMINAL_ROUTE_LOG="$test_root/terminal-route.log"
 export QVOS_TEST_GENERIC_ROUTE_LOG="$test_root/generic-route.log"
 QVOS_TERMINAL_ACTION_LAUNCH="$test_root/terminal-route" \
   QVOS_SOFTWARE_INSTALLER_LAUNCH="$test_root/generic-route" \
-  bash -s -- "$root/qvcore/menu/extension.sh" <<'SCRIPT'
+  bash -s -- "$root/qvcore/menu/routes" <<'SCRIPT'
 set -euo pipefail
 source "$1"
 launch_software_installer alacritty

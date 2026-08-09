@@ -4,10 +4,14 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
 OMARCHY_PATH=$QVOS_PATH
 menu_source_dir="$OMARCHY_PATH/qvcore/menu"
-source_path="$menu_source_dir/extension.sh"
+base_source="$menu_source_dir/base"
+routes_source="$menu_source_dir/routes"
+menu_owner="$menu_source_dir/menu"
 extension_dir="$HOME/.config/omarchy/extensions"
 target_path="$extension_dir/menu.sh"
-qvos_target_path="$extension_dir/qvos-menu.sh"
+legacy_qvos_target_path="$extension_dir/qvos-menu.sh"
+# Exact generated overlay installed before the native menu promotion.
+legacy_qvos_target_hash="bbe35b8874f031d6118492ac08f0f19814aa272a4c6c72364a477e1062b95405"
 provider_source_dir="$menu_source_dir/elephant"
 omarchy_provider_source_dir="$OMARCHY_PATH/default/elephant"
 menu_runtime_dir="$HOME/.local/lib/qvos/menu"
@@ -71,13 +75,15 @@ omarchy_providers=(
   omarchy_themes.lua
 )
 # shellcheck disable=SC2016
-source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
+legacy_source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
 walker_config_backed_up=false
 mode=${1:---install}
 
 require_sources() {
   local required_sources=(
-    "$source_path"
+    "$base_source"
+    "$routes_source"
+    "$menu_owner"
     "$concept_source"
     "$software_actions_source"
     "$software_install_source"
@@ -154,30 +160,55 @@ require_sources() {
 
 }
 
-install_qvos_menu() {
+validate_generated_overlay_cleanup() {
+  local installed_hash
+
+  if [[ -e $target_path || -L $target_path ]]; then
+    [[ -f $target_path && ! -L $target_path && -O $target_path ]] || {
+      echo "Refusing an unsafe personal menu extension: $target_path" >&2
+      return 1
+    }
+  fi
+
+  [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
+  [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
+    -O $legacy_qvos_target_path ]] || {
+    echo "Refusing an unsafe retired qvOS menu overlay: $legacy_qvos_target_path" >&2
+    return 1
+  }
+
+  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
+  if [[ $installed_hash != "$legacy_qvos_target_hash" ]]; then
+    echo "Preserving a modified retired qvOS menu overlay: $legacy_qvos_target_path" >&2
+  fi
+}
+
+retire_generated_menu_overlay() {
+  local backup_path
+  local installed_hash
   local temporary_path
 
-  install -D -m 0644 "$source_path" "$qvos_target_path"
+  validate_generated_overlay_cleanup
 
-  if [[ ! -f $target_path ]]; then
-    printf '%s\n' "$source_line" >"$target_path"
-    chmod 0644 "$target_path"
-    return
+  if [[ -f $target_path ]] && grep -Fqx "$legacy_source_line" "$target_path"; then
+    backup_path=$(mktemp "$target_path.qvos-backup.XXXXXX")
+    cp -a -- "$target_path" "$backup_path"
+    temporary_path=$(mktemp "$extension_dir/.qvos-menu-extension.XXXXXX")
+    if ! awk -v retired="$legacy_source_line" '$0 != retired { print }' \
+      "$target_path" >"$temporary_path"; then
+      rm -f -- "$temporary_path"
+      echo "Could not retire the generated qvOS menu source line." >&2
+      return 1
+    fi
+    chmod --reference="$target_path" "$temporary_path"
+    mv -f -- "$temporary_path" "$target_path"
   fi
 
-  if [[ $(head -n 1 "$target_path") == "$source_line" ]]; then
-    return
+  [[ ! -f $legacy_qvos_target_path ]] && return
+  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
+  if [[ $installed_hash == "$legacy_qvos_target_hash" ]]; then
+    unlink -- "$legacy_qvos_target_path"
   fi
-
-  temporary_path=$(mktemp "$target_path.tmp.XXXXXX")
-  {
-    printf '%s\n' "$source_line"
-    while IFS= read -r line || [[ -n $line ]]; do
-      [[ $line == "$source_line" ]] || printf '%s\n' "$line"
-    done <"$target_path"
-  } >"$temporary_path"
-  chmod --reference="$target_path" "$temporary_path"
-  mv "$temporary_path" "$target_path"
 }
 
 install_menu_providers() {
@@ -430,9 +461,19 @@ reload_active_menu_services() {
   done
 }
 
-menu_extension_ready() {
-  cmp -s "$source_path" "$qvos_target_path" &&
-    [[ $(head -n 1 "$target_path" 2>/dev/null) == "$source_line" ]]
+menu_overlay_retired() {
+  local installed_hash
+
+  if [[ -e $target_path || -L $target_path ]]; then
+    [[ -f $target_path && ! -L $target_path && -O $target_path ]] || return 1
+    ! grep -Fqx "$legacy_source_line" "$target_path" || return 1
+  fi
+
+  [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
+  [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
+    -O $legacy_qvos_target_path ]] || return 1
+  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
+  [[ $installed_hash != "$legacy_qvos_target_hash" ]]
 }
 
 menu_providers_ready() {
@@ -503,11 +544,12 @@ menu_theme_ready() {
 case $mode in
 --preflight)
   require_sources
+  validate_generated_overlay_cleanup
   ;;
 --status)
   require_sources >/dev/null 2>&1 &&
     [[ -f $walker_config ]] &&
-    menu_extension_ready &&
+    menu_overlay_retired &&
     menu_providers_ready &&
     menu_runtime_ready &&
     cmp -s <(provider_set_block) "$provider_set_source" &&
@@ -517,9 +559,10 @@ case $mode in
   ;;
 --install)
   require_sources
+  validate_generated_overlay_cleanup
   install -d "$extension_dir"
+  retire_generated_menu_overlay
   ensure_walker_config
-  install_qvos_menu
   install_menu_runtime
   install_menu_providers
   install_provider_set

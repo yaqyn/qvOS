@@ -64,7 +64,8 @@ fi
 if rg -q 'passwordless-sudo|Passwordless Sudo|omarchy-sudo-passwordless' \
   "$root/qvcore/menu/concepts.psv" \
   "$root/qvcore/tui/task/actions.psv" \
-  "$root/bin/omarchy-menu"; then
+  "$root/qvcore/menu/base" \
+  "$root/qvcore/menu/routes"; then
   fail "broad passwordless sudo remains user-accessible"
 fi
 grep -Fqx 'bin/omarchy-sudo-passwordless' \
@@ -104,7 +105,8 @@ for auth_route in "${!auth_arguments[@]}"; do
   done
 done
 if rg -n 'omarchy-(setup|remove)-security-(fingerprint|fido2)' \
-  "$root/qvcore/menu" "$root/qvcore/tui/task/actions.psv" "$root/bin/omarchy-menu"; then
+  "$root/qvcore/menu" "$root/qvcore/tui/task/actions.psv" \
+  --glob '!AGENTS.md' --glob '!native-paths'; then
   fail "native qvOS surfaces call authentication compatibility routes"
 fi
 

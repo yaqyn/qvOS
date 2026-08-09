@@ -36,7 +36,7 @@ done
 [[ -f $root/qvcore/storage/lib && ! -x $root/qvcore/storage/lib ]] ||
   fail "storage library mode"
 if rg -n 'omarchy-drive-(info|password|select)' \
-  "$root/qvcore" "$root/bin/omarchy-menu" \
+  "$root/qvcore" \
   --glob '!owner-contracts.psv' --glob '!**/check' \
   --glob '!**/native-paths'; then
   fail "active qvOS source calls storage compatibility"

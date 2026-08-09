@@ -90,6 +90,17 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   qvOS feature submenu.
 - Keep qvOS Elephant provider deltas under `qvcore/menu/elephant/`. Install them
   through `qvcore/menu/install` and link inherited providers from Omarchy source.
+- `qvcore/menu/menu` is the singular menu orchestrator. It sources `base` and
+  `routes` exactly once, then loads the user-owned
+  `~/.config/omarchy/extensions/menu.sh` compatibility ABI last so personal
+  overrides remain possible. Keep every built-in function in exactly one of
+  `base` or `routes`; neither module may call an Omarchy command route. The
+  metadata-bearing `qv-menu` adapter is native and `omarchy-menu` delegates only.
+- Never reinstall the former generated `qvos-menu.sh` override. Menu install
+  backs up and removes only its exact source line from the personal extension,
+  deletes only the reviewed generated overlay hash, and leaves any modified
+  overlay preserved but inert. Reject links, foreign ownership, and unsafe
+  personal extension targets before cleanup.
 - Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
   Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
   remove only their exact owned block, link, and theme while preserving foreign
@@ -102,7 +113,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   `~/.local/lib/qvos/tui` payload. Menu state may come from the active
   Omarchy owner, but no route may pair that owner with launch, task, or
   cancellation adapters from the live checkout.
-- `qvcore/menu/{launch-walker,file,input,select,keybindings}` owns native
+- `qvcore/menu/{menu,launch-walker,file,input,select,keybindings}` owns native
   Walker helpers. `qv-launch-walker` and `qv-menu-*` are the public commands;
   matching Omarchy names are metadata-free compatibility adapters. Validate
   prompts, choices, search directories, formats, monitor data, and arguments
@@ -125,8 +136,8 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 
 ## Change workflow
 
-1. Read the catalog, extension, provider, installer, and one or two analogous
-   routes before editing.
+1. Read the catalog, `base`, `routes`, provider, installer, and one or two
+   analogous routes before editing.
 2. Reuse command owners. Keep only thin stable adapters for inherited inline
    package routes. Route stream-safe Software through the shared two-ring
    action adapter and fixed non-Software scripts through their classified task
@@ -141,7 +152,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
 4. Run Bash syntax and ShellCheck for shell changes and `luac -p` for Lua.
 5. Run the focused menu suites, then `test/qvcore/run.sh` when shared contracts
    change.
-6. Apply with `OMARCHY_PATH=$PWD bash -c 'source qvcore/install/desktop'`, require
+6. Apply with `QVOS_PATH=$PWD bash -c 'source qvcore/install/desktop'`, require
    Elephant and Walker active, query the live provider, and inspect a fullscreen
    screenshot.
 

@@ -1,0 +1,39 @@
+#!/bin/bash
+set -eo pipefail
+
+QVOS_PATH=${QVOS_PATH:-${OMARCHY_PATH:-$HOME/.local/share/qvos}}
+OMARCHY_PATH=$QVOS_PATH
+export QVOS_PATH OMARCHY_PATH
+
+base="$QVOS_PATH/qvcore/menu/base"
+routes="$QVOS_PATH/qvcore/menu/routes"
+personal_extension="$HOME/.config/omarchy/extensions/menu.sh"
+BACK_TO_EXIT=false
+
+if [[ ! -f $base || -L $base || ! -f $routes || -L $routes ]]; then
+  echo "The qvOS menu source is incomplete." >&2
+  exit 1
+fi
+
+# shellcheck source=qvcore/menu/base
+source "$base"
+# shellcheck source=qvcore/menu/routes
+source "$routes"
+
+# This inherited path remains the user-owned menu customization ABI. Load it
+# last so personal functions can deliberately override qvOS defaults.
+# shellcheck source=/dev/null
+[[ ! -f $personal_extension ]] || source "$personal_extension"
+
+if (($# > 1)); then
+  echo "Usage: qv-menu [destination]" >&2
+  exit 2
+fi
+
+toggle_existing_menu
+if (($# == 1)); then
+  BACK_TO_EXIT=true
+  go_to_menu "$1"
+else
+  show_main_menu
+fi

@@ -19,7 +19,7 @@ moves.
 - Inspect it and `omarchy menu keybindings --print` before edits. If a key is
   occupied, report its action and owner and wait before replacing it; use
   neither `unbind` nor a second active source to override it.
-- Keep `Super+Space` routed through `omarchy-menu apps`. It must open the shared
+- Keep `Super+Space` routed through `qv-menu apps`. It must open the shared
   qvOS surface in Apps mode and preserve its Tab switch to Menu.
 - Rank access from simplest to most complex as `Super`, `Super+Shift`,
   `Super+Ctrl`, `Super+Shift+Ctrl`, `Super+Alt`, `Super+Ctrl+Alt`,

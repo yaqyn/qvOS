@@ -85,7 +85,6 @@ if rg -n 'omarchy-(install-(dropbox|helix|nordvpn|once|tailscale|terminal|vscode
   "$root/qvcore/menu" \
   "$root/qvcore/tui" \
   "$root/qvcore/waybar" \
-  "$root/bin/omarchy-menu" \
   "$root/default/mako/core.ini" \
   --glob '!owner-contracts.psv'; then
   fail "native qvOS surfaces call optional-software compatibility routes"

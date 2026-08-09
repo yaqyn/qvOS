@@ -108,7 +108,7 @@ for frontend in qv omarchy; do
 done
 
 if rg -n 'omarchy-branding-(about|screensaver)|omarchy-(refresh-fastfetch|show-logo)' \
-  "$root/qvcore/branding" "$root/qvcore/menu" "$root/bin/omarchy-menu" \
+  "$root/qvcore/branding" "$root/qvcore/menu" \
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths'; then
   fail "native qvOS source calls a branding compatibility route"
 fi
@@ -123,7 +123,7 @@ identity_paths=(
   bin/omarchy-dev-benchmark
   bin/omarchy-dev-bin-metadata
   bin/omarchy-launch-floating-terminal-with-presentation
-  bin/omarchy-menu
+  bin/qv-menu
   bin/omarchy-refresh-config
   bin/omarchy-reinstall
   bin/omarchy-reinstall-configs
