@@ -6,11 +6,24 @@ menu_source_dir="$QVOS_PATH/qvcore/menu"
 base_source="$menu_source_dir/base"
 routes_source="$menu_source_dir/routes"
 menu_owner="$menu_source_dir/menu"
-extension_dir="$HOME/.config/omarchy/extensions"
+personal_extension_source="$QVOS_PATH/qvcore/config/files/qvos/extensions/menu.sh"
+extension_dir="$HOME/.config/qvos/extensions"
 target_path="$extension_dir/menu.sh"
-legacy_qvos_target_path="$extension_dir/qvos-menu.sh"
+legacy_extension_dir="$HOME/.config/omarchy/extensions"
+legacy_target_path="$legacy_extension_dir/menu.sh"
+legacy_qvos_target_path="$legacy_extension_dir/qvos-menu.sh"
 # Exact generated overlay installed before the native menu promotion.
 legacy_qvos_target_hash="bbe35b8874f031d6118492ac08f0f19814aa272a4c6c72364a477e1062b95405"
+# Exact stock menu-extension files that contain no user customization.
+legacy_stock_extension_hashes=(
+  0017edb84ff30cc838582ae19843dff7523f867b05f80645f89c9fa4ec29b7c2
+  36e836660032d7fd66777a58a2cc719a8dca7424b6ecf279b4d7e9443544e513
+  ddc57399d297c1561a263990ccc24f04e45591a51285bbc4924d9e5be26d4a42
+  7ac9d68ef8179f483a0ae2b3127c7f03929a377c59f458d1ef243e39131ae054
+  55c5d4f3127471959ef8cd4813d4edf54052d8c63b45eb056625f63d9baa5048
+  9b0bbaa8ebe0d54349d1af977cea73cfbd926c8a6c0a366bc8cf8ff576518685
+  fcf552727705655f75dee6b79ac9dd34c38da55cecf3fd476337d77bf93cdf31
+)
 provider_source_dir="$menu_source_dir/elephant"
 menu_runtime_dir="$HOME/.local/lib/qvos/menu"
 provider_runtime_dir="$menu_runtime_dir/elephant"
@@ -84,6 +97,7 @@ require_sources() {
     "$base_source"
     "$routes_source"
     "$menu_owner"
+    "$personal_extension_source"
     "$concept_source"
     "$software_actions_source"
     "$software_install_source"
@@ -172,6 +186,10 @@ validate_menu_paths() {
 
   for directory in \
     "$HOME/.config" \
+    "$HOME/.config/qvos" \
+    "$extension_dir" \
+    "$HOME/.config/omarchy" \
+    "$legacy_extension_dir" \
     "$HOME/.config/elephant" \
     "$provider_menu_dir" \
     "$HOME/.config/walker" \
@@ -197,15 +215,48 @@ validate_menu_paths() {
   fi
 }
 
+extension_is_stock() {
+  local candidate=$1
+  local expected_hash
+  local installed_hash
+
+  [[ -f $candidate && ! -L $candidate && -O $candidate ]] || return 1
+  read -r installed_hash _ < <(sha256sum -- "$candidate")
+  for expected_hash in "${legacy_stock_extension_hashes[@]}"; do
+    [[ $installed_hash != "$expected_hash" ]] || return 0
+  done
+  return 1
+}
+
+validate_personal_extension() {
+  local label=$1
+  local path=$2
+
+  [[ ! -e $path && ! -L $path ]] && return
+  [[ -f $path && ! -L $path && -O $path ]] || {
+    echo "Refusing an unsafe $label: $path" >&2
+    return 1
+  }
+}
+
+validate_personal_extension_migration() {
+  validate_personal_extension "personal qvOS menu extension" "$target_path"
+  validate_personal_extension "inherited personal menu extension" \
+    "$legacy_target_path"
+
+  [[ -f $legacy_target_path && -f $target_path ]] || return 0
+  extension_is_stock "$legacy_target_path" && return 0
+  cmp -s "$legacy_target_path" "$target_path" && return 0
+  cmp -s "$personal_extension_source" "$target_path" && return 0
+
+  echo "Both qvOS and inherited personal menu extensions contain custom content; preserve them and reconcile manually." >&2
+  return 1
+}
+
 validate_generated_overlay_cleanup() {
   local installed_hash
 
-  if [[ -e $target_path || -L $target_path ]]; then
-    [[ -f $target_path && ! -L $target_path && -O $target_path ]] || {
-      echo "Refusing an unsafe personal menu extension: $target_path" >&2
-      return 1
-    }
-  fi
+  validate_personal_extension_migration
 
   [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
   [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
@@ -217,6 +268,26 @@ validate_generated_overlay_cleanup() {
   read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
   if [[ $installed_hash != "$legacy_qvos_target_hash" ]]; then
     echo "Preserving a modified retired qvOS menu overlay: $legacy_qvos_target_path" >&2
+  fi
+}
+
+migrate_personal_extension() {
+  if [[ -f $legacy_target_path ]]; then
+    if extension_is_stock "$legacy_target_path" ||
+      { [[ -f $target_path ]] && cmp -s "$legacy_target_path" "$target_path"; }; then
+      unlink -- "$legacy_target_path"
+    elif [[ ! -e $target_path && ! -L $target_path ]]; then
+      mv -T -- "$legacy_target_path" "$target_path"
+    elif cmp -s "$personal_extension_source" "$target_path"; then
+      mv -fT -- "$legacy_target_path" "$target_path"
+    else
+      echo "Could not safely migrate the inherited personal menu extension." >&2
+      return 1
+    fi
+  fi
+
+  if [[ ! -e $target_path && ! -L $target_path ]]; then
+    install -m 0644 -- "$personal_extension_source" "$target_path"
   fi
 }
 
@@ -241,11 +312,14 @@ retire_generated_menu_overlay() {
     mv -f -- "$temporary_path" "$target_path"
   fi
 
-  [[ ! -f $legacy_qvos_target_path ]] && return
-  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
-  if [[ $installed_hash == "$legacy_qvos_target_hash" ]]; then
-    unlink -- "$legacy_qvos_target_path"
+  if [[ -f $legacy_qvos_target_path ]]; then
+    read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
+    if [[ $installed_hash == "$legacy_qvos_target_hash" ]]; then
+      unlink -- "$legacy_qvos_target_path"
+    fi
   fi
+
+  rmdir -- "$legacy_extension_dir" 2>/dev/null || true
 }
 
 retired_provider_target_allowed() {
@@ -569,13 +643,12 @@ reload_active_menu_services() {
   done
 }
 
-menu_overlay_retired() {
+personal_extension_native() {
   local installed_hash
 
-  if [[ -e $target_path || -L $target_path ]]; then
-    [[ -f $target_path && ! -L $target_path && -O $target_path ]] || return 1
-    ! grep -Fqx "$legacy_source_line" "$target_path" || return 1
-  fi
+  [[ -f $target_path && ! -L $target_path && -O $target_path ]] || return 1
+  ! grep -Fqx "$legacy_source_line" "$target_path" || return 1
+  [[ ! -e $legacy_target_path && ! -L $legacy_target_path ]] || return 1
 
   [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
   [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
@@ -672,7 +745,7 @@ case $mode in
 --status)
   require_sources >/dev/null 2>&1 &&
     [[ -f $walker_config ]] &&
-    menu_overlay_retired &&
+    personal_extension_native &&
     menu_providers_ready &&
     menu_runtime_ready &&
     cmp -s <(provider_set_block) "$provider_set_source" &&
@@ -686,6 +759,7 @@ case $mode in
   validate_retired_provider_links
   validate_native_provider_links
   install -d "$extension_dir"
+  migrate_personal_extension
   retire_generated_menu_overlay
   ensure_walker_config
   install_menu_runtime

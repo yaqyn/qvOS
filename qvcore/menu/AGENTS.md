@@ -99,15 +99,18 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   application integration owners.
 - `qvcore/menu/menu` is the singular menu orchestrator. It sources `base` and
   `routes` exactly once, then loads the user-owned
-  `~/.config/omarchy/extensions/menu.sh` compatibility ABI last so personal
-  overrides remain possible. Keep every built-in function in exactly one of
+  `~/.config/qvos/extensions/menu.sh` file last so personal overrides remain
+  possible. Keep every built-in function in exactly one of
   `base` or `routes`; neither module may call an Omarchy command route. The
   metadata-bearing `qv-menu` adapter is native and `omarchy-menu` delegates only.
-- Never reinstall the former generated `qvos-menu.sh` override. Menu install
-  backs up and removes only its exact source line from the personal extension,
-  deletes only the reviewed generated overlay hash, and leaves any modified
-  overlay preserved but inert. Reject links, foreign ownership, and unsafe
-  personal extension targets before cleanup.
+- `qvcore/menu/install` migrates a safe inherited personal extension into the
+  native path without changing custom content or mode. It replaces only known
+  stock predecessors, accepts a native default as the destination for custom
+  inherited content, and fails before mutation when both paths are customized.
+  Never reinstall the former generated `qvos-menu.sh` override: back up and
+  remove only its exact source line, delete only the reviewed generated-overlay
+  hash, and leave any modified overlay preserved but inert. Reject links,
+  foreign ownership, and unsafe personal extension targets before cleanup.
 - Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
   Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
   remove only their exact owned block, link, and theme while preserving foreign

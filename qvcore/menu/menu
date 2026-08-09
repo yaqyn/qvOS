@@ -6,7 +6,7 @@ export QVOS_PATH
 
 base="$QVOS_PATH/qvcore/menu/base"
 routes="$QVOS_PATH/qvcore/menu/routes"
-personal_extension="$HOME/.config/omarchy/extensions/menu.sh"
+personal_extension="$HOME/.config/qvos/extensions/menu.sh"
 BACK_TO_EXIT=false
 
 if [[ ! -f $base || -L $base || ! -f $routes || -L $routes ]]; then
@@ -19,10 +19,17 @@ source "$base"
 # shellcheck source=qvcore/menu/routes
 source "$routes"
 
-# This inherited path remains the user-owned menu customization ABI. Load it
-# last so personal functions can deliberately override qvOS defaults.
+# Load the user-owned qvOS extension last so personal functions can deliberately
+# override qvOS defaults.
 # shellcheck source=/dev/null
-[[ ! -f $personal_extension ]] || source "$personal_extension"
+if [[ -e $personal_extension || -L $personal_extension ]]; then
+  if [[ ! -f $personal_extension || -L $personal_extension ||
+    ! -O $personal_extension ]]; then
+    echo "Refusing an unsafe personal qvOS menu extension: $personal_extension" >&2
+    exit 1
+  fi
+  source "$personal_extension"
+fi
 
 if (($# > 1)); then
   echo "Usage: qv-menu [destination]" >&2

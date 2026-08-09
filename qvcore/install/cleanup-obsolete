@@ -80,6 +80,24 @@ cleanup_retired_logo_font() {
 
 cleanup_retired_logo_font
 
+cleanup_retired_logo_font_config_copy() {
+  local expected_hash=e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966
+  local installed_hash
+  local target="$HOME/.config/omarchy.ttf"
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] || return 0
+  [[ -d $HOME/.config && ! -L $HOME/.config && -O $HOME/.config ]] ||
+    return 0
+  [[ -f $target && ! -L $target && -O $target ]] || return 0
+  installed_hash=$(sha256sum -- "$target")
+  installed_hash=${installed_hash%% *}
+  [[ $installed_hash == "$expected_hash" ]] || return 0
+
+  rm -f -- "$target"
+}
+
+cleanup_retired_logo_font_config_copy
+
 cleanup_retired_command_links() {
   local command_name
   local expected_target

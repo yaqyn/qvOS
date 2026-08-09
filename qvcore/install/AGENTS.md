@@ -59,8 +59,8 @@ known inherited payload; remove their matching bytecode only in that same
 verified cleanup and leave every modified or unrelated extension intact.
 The former Omarchy logo font is not a qvOS theme asset: its only consumer was
 the retired Waybar branding glyph. Keep it absent from fresh installation and
-remove an installed copy only when its exact historical hash matches; preserve
-modified files, links, and foreign fonts.
+remove installed-font and old config-root copies only when their exact
+historical hash matches; preserve modified files, links, and foreign fonts.
 Remove the three retired qvOS maintenance aliases only when they are exact
 broken links to their absent historical source commands; preserve every other
 local command or target.
@@ -156,6 +156,9 @@ links, menu runtime, and service reloads
 remain singularly owned by `qvcore/menu/install` during first run. Never
 restore the duplicate `walker-elephant.sh` stage or a root Pacman hook that
 executes a home-directory checkout.
+The same menu owner seeds and migrates the personal extension at
+`~/.config/qvos/extensions/menu.sh`; fresh installation never creates its
+inherited Omarchy path.
 Install Walker and only the official Elephant providers referenced by qvOS
 configuration explicitly; never depend on `omarchy-walker` or restore its
 unused Bluetooth, runner, todo, and Unicode providers. Install official Neovim

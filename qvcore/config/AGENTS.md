@@ -75,6 +75,9 @@ always call the qv route.
 All defaults installed under `~/.config` are native qvOS sources under
 `qvcore/config/files/`. Bash startup and alias ownership lives separately
 under `qvcore/shell/`; never restore it as a second config source here.
+The personal menu-extension seed lives at
+`qvcore/config/files/qvos/extensions/menu.sh`; never recreate an installed
+`~/.config/omarchy/extensions/menu.sh` source.
 Coding-assistant configuration belongs to `qvcore/config/assistant/`; its local
 workflow owns native skill links, the Pi extension, and exact inherited cleanup.
 Never restore `default/omarchy-skill/`, `default/pi/`, or their installer leaves.

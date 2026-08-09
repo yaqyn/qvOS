@@ -131,6 +131,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 
 - `qvcore/config/files/` is the singular source for installed user config;
   `config/` is retired and must remain absent
+- `qvcore/config/files/qvos/extensions/menu.sh` owns the personal menu-extension
+  seed; active overrides live only under `~/.config/qvos/extensions/`, while the
+  inherited Omarchy path is validated migration input and is never seeded
 - `qvcore/config/base/hypr/` owns the source-side session, environment,
   appearance, and window defaults; `default/hypr/` and the former installed
   `hypr/qv` overlay are retired and must remain absent

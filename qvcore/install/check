@@ -283,6 +283,9 @@ done
 grep -Fq 'e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966' \
   "$root/qvcore/install/cleanup-obsolete" ||
   fail "retired Waybar logo-font cleanup hash"
+grep -Fq "target=\"\$HOME/.config/omarchy.ttf\"" \
+  "$root/qvcore/install/cleanup-obsolete" ||
+  fail "retired config-root logo-font cleanup"
 for retired_command in \
   omarchy-qvos-doctor \
   omarchy-qvos-reconcile \

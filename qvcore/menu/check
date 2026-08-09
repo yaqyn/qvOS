@@ -158,6 +158,13 @@ if rg -n 'install_qvos_menu|menu_extension_ready' \
   "$root/qvcore/menu/install"; then
   fail "retired generated menu overlay remains active"
 fi
+grep -Fq "personal_extension=\"\$HOME/.config/qvos/extensions/menu.sh\"" \
+  "$root/qvcore/menu/menu" || fail "native personal menu-extension runtime"
+grep -Fq "legacy_target_path=\"\$legacy_extension_dir/menu.sh\"" \
+  "$root/qvcore/menu/install" || fail "inherited menu-extension migration owner"
+[[ -f $root/qvcore/config/files/qvos/extensions/menu.sh &&
+  ! -e $root/qvcore/config/files/omarchy ]] ||
+  fail "singular native personal menu-extension source"
 if rg -n 'omarchy-menu' \
   "$root/qvcore/config/files/hypr/bindings.conf" \
   "$root/qvcore/config/files/waybar/config.jsonc" \

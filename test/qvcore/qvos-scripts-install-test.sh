@@ -70,37 +70,46 @@ retired_font_hash=e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef52159
   "$retired_font_hash  -" ]] || fail "retired Waybar logo-font fixture"
 
 exact_font_home="$test_root/exact-font-home"
-install -d "$exact_font_home/.local/share/fonts"
+install -d "$exact_font_home/.config" "$exact_font_home/.local/share/fonts"
 git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
   install -m 0644 /dev/stdin "$exact_font_home/.local/share/fonts/omarchy.ttf"
+git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
+  install -m 0644 /dev/stdin "$exact_font_home/.config/omarchy.ttf"
 HOME="$exact_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
   "$root/qvcore/install/cleanup-obsolete"
-[[ ! -e $exact_font_home/.local/share/fonts/omarchy.ttf ]] ||
+[[ ! -e $exact_font_home/.local/share/fonts/omarchy.ttf &&
+  ! -e $exact_font_home/.config/omarchy.ttf ]] ||
   fail "exact retired Waybar logo-font cleanup"
-pass "exact retired Waybar logo font is removed"
+pass "exact retired Waybar logo-font copies are removed"
 
 modified_font_home="$test_root/modified-font-home"
-install -d "$modified_font_home/.local/share/fonts"
+install -d "$modified_font_home/.config" "$modified_font_home/.local/share/fonts"
 git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
   install -m 0644 /dev/stdin "$modified_font_home/.local/share/fonts/omarchy.ttf"
+git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
+  install -m 0644 /dev/stdin "$modified_font_home/.config/omarchy.ttf"
 printf 'user modification\n' >>"$modified_font_home/.local/share/fonts/omarchy.ttf"
+printf 'user modification\n' >>"$modified_font_home/.config/omarchy.ttf"
 HOME="$modified_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
   "$root/qvcore/install/cleanup-obsolete"
-[[ -f $modified_font_home/.local/share/fonts/omarchy.ttf ]] ||
+[[ -f $modified_font_home/.local/share/fonts/omarchy.ttf &&
+  -f $modified_font_home/.config/omarchy.ttf ]] ||
   fail "modified Waybar logo-font preservation"
-pass "modified retired Waybar logo font is preserved"
+pass "modified retired Waybar logo-font copies are preserved"
 
 linked_font_home="$test_root/linked-font-home"
 linked_font_target="$test_root/linked-font-target.ttf"
-install -d "$linked_font_home/.local/share/fonts"
+install -d "$linked_font_home/.config" "$linked_font_home/.local/share/fonts"
 git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
   install -m 0644 /dev/stdin "$linked_font_target"
 ln -s "$linked_font_target" "$linked_font_home/.local/share/fonts/omarchy.ttf"
+ln -s "$linked_font_target" "$linked_font_home/.config/omarchy.ttf"
 HOME="$linked_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
   "$root/qvcore/install/cleanup-obsolete"
 [[ -L $linked_font_home/.local/share/fonts/omarchy.ttf &&
+  -L $linked_font_home/.config/omarchy.ttf &&
   -f $linked_font_target ]] || fail "linked Waybar logo-font preservation"
-pass "linked retired Waybar logo font is preserved"
+pass "linked retired Waybar logo-font copies are preserved"
 
 retired_command_home="$test_root/retired-command-home"
 install -d "$retired_command_home/.local/bin"
@@ -412,13 +421,15 @@ for menu_owner in base menu routes; do
   [[ -f $root/qvcore/menu/$menu_owner ]] ||
     fail "native qvOS menu owner: $menu_owner"
 done
-[[ ! -e $test_root/.config/omarchy/extensions/qvos-menu.sh ]] ||
-  fail "fresh install generated a retired qvOS menu overlay"
-if [[ -f $test_root/.config/omarchy/extensions/menu.sh ]] &&
-  rg -q 'qvos-menu\.sh' "$test_root/.config/omarchy/extensions/menu.sh"; then
-  fail "fresh personal menu config sources a generated qvOS overlay"
-fi
-pass "fresh qvOS uses the native menu without a generated overlay"
+cmp -s "$root/qvcore/config/files/qvos/extensions/menu.sh" \
+  "$test_root/.config/qvos/extensions/menu.sh" ||
+  fail "fresh native personal menu extension"
+[[ ! -e $test_root/.config/omarchy/extensions/menu.sh &&
+  ! -L $test_root/.config/omarchy/extensions/menu.sh &&
+  ! -e $test_root/.config/omarchy/extensions/qvos-menu.sh &&
+  ! -L $test_root/.config/omarchy/extensions/qvos-menu.sh ]] ||
+  fail "fresh install generated an inherited menu extension"
+pass "fresh qvOS uses only its native personal menu extension"
 
 for provider in \
   qvos_background_selector.lua \

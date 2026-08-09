@@ -42,8 +42,12 @@ fail() {
   fail "inherited battery monitor service remains"
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.timer ]] ||
   fail "inherited battery monitor timer remains"
-[[ ! -e $root/qvcore/config/files/omarchy/branding ]] ||
-  fail "legacy branding config source remains"
+[[ ! -e $root/qvcore/config/files/omarchy &&
+  ! -L $root/qvcore/config/files/omarchy ]] ||
+  fail "inherited config namespace remains"
+[[ -f $root/qvcore/config/files/qvos/extensions/menu.sh &&
+  ! -L $root/qvcore/config/files/qvos/extensions/menu.sh ]] ||
+  fail "native personal menu-extension source is unavailable"
 [[ -f $root/qvcore/config/files/hypr/hypridle.conf &&
   ! -L $root/qvcore/config/files/hypr/hypridle.conf ]] ||
   fail "specialized native Hypridle source is unavailable"
