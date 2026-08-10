@@ -285,7 +285,7 @@ Target = elephant*
 [Action]
 Description = Restarting Walker services after system update
 When = PostTransaction
-Exec = /home/qv/.local/share/omarchy/bin/omarchy-restart-walker
+Exec = /home/tester/.local/share/omarchy/bin/omarchy-restart-walker
 HOOK
 QVOS_PATH="$root" \
   QVOS_MENU_TESTING=1 \
