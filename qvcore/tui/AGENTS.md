@@ -76,6 +76,10 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
 - Keep private installer schema and builder names qvOS/ISO-owned. Omarchy may
   appear only in package-provider ABI, provenance, or qvsync review records;
   never use it as the identity of qvOS Go types or functions.
+- The generated Archinstall package set owns the minimal target bootstrap,
+  including Gum before the native installer handoff. Keep that schema and its
+  regression test aligned; never make the ISO shell install a presentation
+  dependency in a hidden target transaction.
 - `qvcore/tui/install` removes only owner-matching build temporaries older than
   one hour and older than the managed target. Preserve recent files that may
   belong to a concurrent build.

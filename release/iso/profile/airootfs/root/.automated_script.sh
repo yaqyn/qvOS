@@ -227,10 +227,22 @@ install_arch() {
 }
 
 install_qvos() {
-  chroot_bash -lc "sudo pacman -S --noconfirm --needed gum" >/dev/null
-  # Expand HOME only inside the target chroot.
-  # shellcheck disable=SC2016
-  chroot_bash -lc 'source "$HOME/.local/share/qvos/install.sh"'
+  local target_installer="/home/$QVOS_USER/.local/share/qvos/install.sh"
+
+  [[ -f /mnt$target_installer && ! -L /mnt$target_installer ]] || {
+    echo "The installed qvOS source is missing its native installer." >&2
+    return 1
+  }
+
+  # Archinstall owns every package needed to enter the native installer,
+  # including Gum. Execute the tracked entry point directly so login-profile
+  # state cannot alter the handoff and no hidden Pacman transaction sits
+  # outside the native install log.
+  # Used by the sourced native error owner.
+  # shellcheck disable=SC2034
+  CURRENT_SCRIPT=$target_installer
+  chroot_bash "$target_installer"
+  unset CURRENT_SCRIPT
 
   [[ -f /mnt/var/tmp/qvos-install-completed ]] || {
     echo "qvOS installation returned without a completion marker." >&2

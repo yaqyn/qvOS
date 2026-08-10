@@ -221,6 +221,13 @@ grep -Fq 'cleanup_qvos_target_mounts' "$installer" ||
   fail "release ISO does not unwind target bind mounts"
 grep -Fq 'qvOS installation returned without a completion marker.' "$installer" ||
   fail "release ISO accepts a partial qvOS finalizer"
+grep -Fq 'chroot_bash "$target_installer"' "$installer" ||
+  fail "release ISO does not execute the native installer directly"
+grep -Fq 'CURRENT_SCRIPT=$target_installer' "$installer" ||
+  fail "release ISO does not identify native handoff failures"
+if rg -n 'chroot_bash -lc|pacman .*gum' "$installer"; then
+  fail "release ISO retains a hidden package or login-shell handoff"
+fi
 grep -Fq 'arch-chroot /mnt mount /boot' "$installer" ||
   fail "release ISO does not remount the target ESP for native finalization"
 grep -Fq 'boot_fstype == "vfat"' "$installer" ||

@@ -230,6 +230,7 @@ func buildISOUserConfiguration(cfg isoInstallerConfig) ([]byte, error) {
 		Packages: []string{
 			"base-devel",
 			"git",
+			"gum",
 			"omarchy-keyring",
 			"snapper",
 		},

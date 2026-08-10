@@ -92,8 +92,16 @@ func TestWriteISOInstallerFilesMatchesContract(t *testing.T) {
 	if configuration.DiskConfig.DiskEncryption == nil {
 		t.Fatalf("disk encryption was not written")
 	}
-	if !containsString(configuration.Packages, "snapper") {
-		t.Fatalf("packages missing snapper: %#v", configuration.Packages)
+	for _, bootstrapPackage := range []string{
+		"base-devel",
+		"git",
+		"gum",
+		"omarchy-keyring",
+		"snapper",
+	} {
+		if !containsString(configuration.Packages, bootstrapPackage) {
+			t.Fatalf("packages missing %s: %#v", bootstrapPackage, configuration.Packages)
+		}
 	}
 	if len(configuration.MirrorConfig.CustomServers) != 0 {
 		t.Fatalf("offline installer configuration retained network mirrors: %#v", configuration.MirrorConfig.CustomServers)

@@ -758,7 +758,8 @@ if rg -q '"/root/omarchy"' "$root/qvcore/tui"; then
   fail "qvOS ISO TUI retains the retired embedded source root"
 fi
 for qvos_source_root_contract in \
-  'source "$HOME/.local/share/qvos/install.sh"' \
+  'target_installer="/home/$QVOS_USER/.local/share/qvos/install.sh"' \
+  'chroot_bash "$target_installer"' \
   'cp -a -- /root/qvos "/mnt/home/$QVOS_USER/.local/share/qvos"' \
   'ln -s qvos "/mnt/home/$QVOS_USER/.local/share/omarchy"'; do
   grep -Fq "$qvos_source_root_contract" "$iso_installer" ||

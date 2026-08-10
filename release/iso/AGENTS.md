@@ -120,6 +120,10 @@ a thin adapter to this owner.
   `QVOS_USER_EMAIL`. Preserve only
   `OMARCHY_CHROOT_INSTALL` as the exact upstream chroot-mode signal; never
   restore `OMARCHY_PATH` or `OMARCHY_INSTALL` as installer roots.
+- Put Gum in the Archinstall target bootstrap and execute the tracked native
+  `install.sh` directly as the installed user. Never insert a hidden target
+  Pacman transaction or a login-shell/source layer between Archinstall and the
+  native installer; both obscure failures and create a second bootstrap owner.
 - Progress renderers have one terminal owner at a time. Stop and wait for the
   live-media base-system TUI before entering the target PID namespace; start
   target-install progress inside that namespace, and stop and wait for it

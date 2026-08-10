@@ -107,6 +107,10 @@ input only. Translate its credited mirror channel and user metadata into qvOS
 names before invoking any native stage; never accept inherited names inside
 the installer. The finished owner removes the native temporary policy and its
 exact legacy predecessor without extending either into persistent state.
+The ISO gives Archinstall ownership of Gum as the target-side presentation
+bootstrap, then executes the tracked native `install.sh` directly under the
+installed account. Do not add a hidden pre-installer Pacman transaction or
+source the entry point through a login shell.
 
 `qvcore/install/post-install/run` singularly owns the ordered post-install stage.
 Stop the install log before handing control to the finished presentation, and
