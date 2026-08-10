@@ -119,6 +119,12 @@ grep -Fq 'multi-user.target.wants/choose-mirror.service' "$builder" ||
   fail "release ISO does not disable inherited mirror discovery"
 grep -Fq 'cloud-init.target.wants' "$builder" ||
   fail "release ISO does not disable inherited cloud bootstrap"
+grep -Fqx 'unused_live_packages=(cloud-init dhcpcd reflector)' "$builder" ||
+  fail "release ISO retains unsupported releng packages"
+grep -Fq 'sed -i "/^${package}$/d" "$build_cache_dir/packages.x86_64"' \
+  "$builder" || fail "release ISO does not prune unsupported releng packages"
+grep -Fq 'Unsupported live-image package remains:' "$builder" ||
+  fail "release ISO does not verify unsupported package removal"
 if rg -n 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2' \
   "$builder" "$profile"; then
   fail "release ISO activates weak package trust or unsupported T2 packages"

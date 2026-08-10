@@ -96,7 +96,19 @@ mkdir -p "$build_cache_dir" "$offline_mirror_dir"
 cp -r /usr/share/archiso/configs/releng/* "$build_cache_dir/"
 rm "$build_cache_dir/airootfs/etc/motd"
 
-# Avoid using reflector for mirror identification as we are relying on the global CDN
+# Remove releng packages whose capability qvOS deliberately does not expose.
+# The live image uses the global CDN and systemd-networkd, and it has no cloud
+# bootstrap contract. SSH remains installed separately for explicit recovery.
+unused_live_packages=(cloud-init dhcpcd reflector)
+for package in "${unused_live_packages[@]}"; do
+  sed -i "/^${package}$/d" "$build_cache_dir/packages.x86_64"
+  if grep -Fqx "$package" "$build_cache_dir/packages.x86_64"; then
+    echo "Unsupported live-image package remains: $package" >&2
+    exit 1
+  fi
+done
+
+# Remove the corresponding releng activation and configuration overlays.
 rm -rf "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/reflector.service"
 rm -rf "$build_cache_dir/airootfs/etc/systemd/system/reflector.service.d"
 rm -rf "$build_cache_dir/airootfs/etc/xdg/reflector"

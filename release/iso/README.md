@@ -37,9 +37,10 @@ the previous one.
   repository metadata are non-executable, the generated Archinstall
   configuration contains no network mirrors, and native post-install policy
   restores the reviewed provider channel, Stable by default.
-- Confirm the live image does not start SSH, inherited mirror discovery, or
-  cloud bootstrap services; networking is client-only until the user explicitly
-  starts a recovery service.
+- Confirm the live image does not contain inherited cloud bootstrap, mirror
+  discovery, or a parallel DHCP client, and does not start SSH. Networking has
+  one systemd-networkd/iwd owner and remains client-only until the user
+  explicitly starts a recovery service.
 - Inspect the completed image and prove that its embedded qvOS source equals
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with

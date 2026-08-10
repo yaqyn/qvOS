@@ -53,8 +53,9 @@ a thin adapter to this owner.
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.
 - The interactive live image exposes no remote-administration service and does
-  not run inherited mirror or cloud discovery. Retain SSH tooling only for an
-  operator to start explicitly from the recovery shell.
+  not install inherited cloud bootstrap, mirror discovery, or a parallel DHCP
+  client. Its one network owner is systemd-networkd with iwd. Retain SSH
+  tooling only for an operator to start explicitly from the recovery shell.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
   release candidate starts with an empty package cache; retries inside that one
   build may preserve packages already verified during the same run.
