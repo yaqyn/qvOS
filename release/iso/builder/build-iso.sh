@@ -41,14 +41,14 @@ pacman --noconfirm -Syu --needed archiso git sudo base-devel jq grub go
 # Pre-import the credited provider key from qvOS's reviewed package boundary so
 # Pacman can verify the keyring package without a keyserver lookup.
 provider_fingerprint=40DFB630FF42BCFFB047046CF0134EE680CAC571
-provider_key_sha256=15d6aac44df688165b2ea35fe0b23af239bbc66a6909c10a5c219e8d94b707de
+provider_payload_sha256=15d6aac44df688165b2ea35fe0b23af239bbc66a6909c10a5c219e8d94b707de
 provider_key="$qvos_source/qvcore/packages/provider/omarchy/signing-key.gpg"
 [[ -f $provider_key && ! -L $provider_key ]] || {
   echo "Missing the reviewed Omarchy provider signing key." >&2
   exit 1
 }
 [[ $(sha256sum "$provider_key" | cut -d ' ' -f 1) == \
-  "$provider_key_sha256" ]] || {
+  "$provider_payload_sha256" ]] || {
   echo "The reviewed Omarchy provider signing key payload has drifted." >&2
   exit 1
 }
