@@ -48,9 +48,9 @@ fi
 pass "native qvCORE source resolution uses QVOS_PATH only"
 
 if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
-  --glob '!qvcore/config/migrate-runtime-root' \
-  --glob '!qvcore/install/cleanup-obsolete' \
-  --glob '!qvcore/shell/install' \
+  --glob '!**/qvcore/config/migrate-runtime-root' \
+  --glob '!**/qvcore/install/cleanup-obsolete' \
+  --glob '!**/qvcore/shell/install' \
   "$root/bin" \
   "$root/qvcore/config/files" \
   "$root/development" \
