@@ -37,6 +37,9 @@ the previous one.
   repository metadata are non-executable, the generated Archinstall
   configuration contains no network mirrors, and native post-install policy
   restores the reviewed provider channel, Stable by default.
+- Exercise reused-cache recovery: a Pacman-identified checksum-invalid archive
+  is quarantined individually inside the ephemeral builder and fetched again.
+  Ambiguous or repeated mismatches fail closed without clearing the whole cache.
 - Confirm the live image does not contain inherited cloud bootstrap, mirror
   discovery, or a parallel DHCP client, and does not start SSH. Networking has
   one systemd-networkd/iwd owner and remains client-only until the user

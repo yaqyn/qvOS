@@ -6,6 +6,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 release_root="$root/release/iso"
 build="$release_root/build"
 builder="$release_root/builder/build-iso.sh"
+cache_recovery="$release_root/builder/cache-recovery"
 profile="$release_root/profile"
 installer="$profile/airootfs/root/.automated_script.sh"
 
@@ -15,7 +16,8 @@ fail() {
 }
 
 [[ ! -e $root/qvcore/iso ]] || fail "ISO implementation remains in qvCORE"
-[[ -x $build && -x $builder && -f $profile/profiledef.sh ]] ||
+[[ -x $build && -x $builder && -f $cache_recovery &&
+  ! -L $cache_recovery && -f $profile/profiledef.sh ]] ||
   fail "release-owned native image builder"
 [[ -x $root/qvcore/tui/bin/qvos-build ]] ||
   fail "installed image-build adapter"
@@ -41,7 +43,8 @@ if rg -q "QVOS_OMARCHY_ISO|OMARCHY_ISO_REF|patch_omarchy|staged_iso|(^|[[:space:
 fi
 grep -Fq '/usr/share/archiso/configs/releng/' "$builder" ||
   fail "native ISO does not use the signed Archiso releng profile"
-grep -Fq 'pacman --noconfirm -Syu --needed' "$builder" ||
+grep -Fq -- '--noconfirm -Syu --needed archiso git sudo base-devel jq grub go' \
+  "$builder" ||
   fail "native ISO permits a partial build-container upgrade"
 grep -Fq -- '--pull=always' "$build" ||
   fail "native ISO reuses a stale mutable build container"
@@ -71,6 +74,8 @@ grep -Fq 'if [[ ! -f $target/release/iso/profile/profiledef.sh ]]; then' \
   "$build" || fail "release ISO native profile validation"
 grep -Fq 'validate_native_iso "$native_iso"' "$build" ||
   fail "release ISO staged trust validation"
+grep -Fq '! -f $cache_recovery || -L $cache_recovery' "$build" ||
+  fail "release ISO does not validate its cache recovery owner"
 grep -Fq -- '-v "$iso_root/builder:/builder:ro"' "$build" ||
   fail "release ISO native builder read-only mount"
 grep -Fq -- '-v "$iso_root/profile:/profile:ro"' "$build" ||
@@ -98,6 +103,66 @@ grep -Fq '15d6aac44df688165b2ea35fe0b23af239bbc66a6909c10a5c219e8d94b707de' \
   "$builder" || fail "release ISO provider key payload digest"
 grep -Fq 'package_file.sig' "$builder" ||
   fail "release ISO detached package signature retention"
+grep -Fq 'source /builder/cache-recovery' "$builder" ||
+  fail "release ISO bypasses its cache recovery owner"
+grep -Fq 'quarantine_corrupt_cache_entries()' "$cache_recovery" ||
+  fail "release ISO lacks exact corrupted-cache recovery"
+grep -Fq 'Refusing unsafe Pacman cache recovery target:' "$cache_recovery" ||
+  fail "release ISO accepts unsafe cache recovery targets"
+grep -Fq 'Retrying Pacman with fresh signed package data' "$cache_recovery" ||
+  fail "release ISO does not retry a verified stale cache entry"
+if grep -Eq 'pacman[[:space:]].*-Scc|rm -rf.*pacman/pkg' \
+  "$builder" "$cache_recovery"; then
+  fail "release ISO clears the reusable package cache broadly"
+fi
+
+cache_test_root=$(mktemp -d)
+trap 'rm -rf -- "$cache_test_root"' EXIT
+test_bin="$cache_test_root/bin"
+package_cache_dir="$cache_test_root/cache"
+cache_quarantine_dir="$cache_test_root/quarantine"
+test_package="$package_cache_dir/qvos-test-1-1-any.pkg.tar.zst"
+test_state="$cache_test_root/pacman-attempt"
+mkdir -p "$test_bin" "$package_cache_dir" "$cache_quarantine_dir"
+install -m 0644 /dev/null "$test_package"
+install -m 0644 /dev/null "$test_package.sig"
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+attempt=0
+[[ ! -f $QVOS_TEST_STATE ]] || attempt=$(<"$QVOS_TEST_STATE")
+((attempt += 1))
+printf '%s\n' "$attempt" >"$QVOS_TEST_STATE"
+if ((attempt == 1)); then
+  printf ':: File %s is corrupted (invalid or corrupted package (checksum)).\n' \
+    "$QVOS_TEST_PACKAGE"
+  exit 1
+fi
+SCRIPT
+export QVOS_TEST_PACKAGE="$test_package"
+export QVOS_TEST_STATE="$test_state"
+# shellcheck source=release/iso/builder/cache-recovery
+source "$cache_recovery"
+PATH="$test_bin:$PATH" pacman_with_cache_recovery --noconfirm -Sy qvos-test \
+  >/dev/null 2>&1 || fail "release ISO cache recovery retry"
+[[ $(<"$test_state") == "2" && ! -e $test_package &&
+  ! -e $test_package.sig ]] || fail "release ISO exact stale-cache quarantine"
+(( $(find "$cache_quarantine_dir" -maxdepth 1 -type f | wc -l) == 2 )) ||
+  fail "release ISO stale-cache quarantine inventory"
+
+unsafe_package="$cache_test_root/outside.pkg.tar.zst"
+unsafe_log="$cache_test_root/unsafe.log"
+install -m 0644 /dev/null "$unsafe_package"
+printf ':: File %s is corrupted (invalid or corrupted package (checksum)).\n' \
+  "$unsafe_package" >"$unsafe_log"
+set +e
+quarantine_corrupt_cache_entries "$unsafe_log" >/dev/null 2>&1
+unsafe_status=$?
+set -e
+((unsafe_status == 2)) || fail "release ISO unsafe cache target status"
+[[ -f $unsafe_package ]] || fail "release ISO moved an unsafe cache target"
+
 grep -Fq 'Server = file:///var/cache/qvos/mirror/offline/' \
   "$profile/pacman-offline.conf" || fail "release ISO native offline mirror"
 grep -Fqx 'SigLevel = Required DatabaseOptional' \

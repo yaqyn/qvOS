@@ -390,11 +390,13 @@ validate_native_iso() {
   local iso_root="$1"
   local boot_config
   local builder="$iso_root/builder/build-iso.sh"
+  local cache_recovery="$iso_root/builder/cache-recovery"
   local profile="$iso_root/profile"
   local installer="$profile/airootfs/root/.automated_script.sh"
 
   echo "qvOS ISO progress: validating staged package trust and kernel policy"
   if [[ ! -f $builder || -L $builder || ! -x $builder ||
+    ! -f $cache_recovery || -L $cache_recovery ||
     ! -d $profile || -L $profile ]]; then
     echo "qvos-build staged an invalid native builder or profile owner." >&2
     return 1

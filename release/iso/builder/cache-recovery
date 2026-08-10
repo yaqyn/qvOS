@@ -1,0 +1,73 @@
+#!/bin/bash
+
+quarantine_corrupt_cache_entries() {
+  local log=$1
+  local cache_dir=${package_cache_dir:?}
+  local line
+  local path
+  local quarantine_dir=${cache_quarantine_dir:?}
+  local signature
+  local -A seen=()
+  local -a corrupt_paths=()
+
+  while IFS= read -r line; do
+    [[ $line == ":: File "*" is corrupted "* ]] || continue
+    path=${line#":: File "}
+    path=${path%%" is corrupted "*}
+    [[ -n ${seen[$path]:-} ]] && continue
+    seen[$path]=1
+    corrupt_paths+=("$path")
+  done <"$log"
+  ((${#corrupt_paths[@]} > 0)) || return 1
+
+  for path in "${corrupt_paths[@]}"; do
+    if [[ $path != "$cache_dir/"* || $path == *.sig ||
+      ! -f $path || -L $path || ${path#"$cache_dir/"} == */* ]]; then
+      echo "Refusing unsafe Pacman cache recovery target: $path" >&2
+      return 2
+    fi
+
+    signature="$path.sig"
+    if [[ -e $signature || -L $signature ]]; then
+      [[ -f $signature && ! -L $signature ]] || {
+        echo "Refusing unsafe Pacman cache signature: $signature" >&2
+        return 2
+      }
+      mv -- "$signature" "$quarantine_dir/"
+    fi
+    mv -- "$path" "$quarantine_dir/"
+    echo "Quarantined checksum-invalid Pacman cache entry: ${path##*/}" >&2
+  done
+}
+
+pacman_with_cache_recovery() {
+  local attempt
+  local log
+  local recovery_status
+  local status=1
+
+  for attempt in 1 2 3; do
+    log=$(mktemp /tmp/qvos-pacman.XXXXXX)
+    set +e
+    pacman "$@" 2>&1 | tee "$log"
+    status=${PIPESTATUS[0]}
+    set -e
+    if ((status == 0)); then
+      rm -f -- "$log"
+      return 0
+    fi
+
+    recovery_status=0
+    quarantine_corrupt_cache_entries "$log" || recovery_status=$?
+    rm -f -- "$log"
+    ((recovery_status != 2)) || return "$status"
+    ((attempt < 3)) || break
+    if ((recovery_status == 0)); then
+      echo "Retrying Pacman with fresh signed package data ($((attempt + 1))/3)..." >&2
+    else
+      echo "Pacman transaction failed; retrying ($((attempt + 1))/3)..." >&2
+    fi
+  done
+
+  return "$status"
+}

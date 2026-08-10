@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export LC_ALL=C
 
 provider_channel=${QVOS_PROVIDER_CHANNEL:-stable}
 case $provider_channel in
@@ -10,6 +11,10 @@ stable | edge | rc) ;;
   ;;
 esac
 qvos_source=/qvos
+package_cache_dir=/var/cache/pacman/pkg
+cache_quarantine_dir=$(mktemp -d /tmp/qvos-pacman-quarantine.XXXXXX)
+# shellcheck source=release/iso/builder/cache-recovery
+source /builder/cache-recovery
 
 configure_pacman_transport() {
   local config="$1"
@@ -32,11 +37,12 @@ if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
     sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
 fi
 configure_pacman_transport /etc/pacman.conf
-pacman --noconfirm -Sy archlinux-keyring
+pacman_with_cache_recovery --noconfirm -Sy archlinux-keyring
 # A cached container can predate the repositories it is about to use. Upgrade
 # the complete ephemeral build root before installing tools; a partial upgrade
 # is unsupported on Arch Linux.
-pacman --noconfirm -Syu --needed archiso git sudo base-devel jq grub go
+pacman_with_cache_recovery \
+  --noconfirm -Syu --needed archiso git sudo base-devel jq grub go
 
 # Pre-import the credited provider key from qvOS's reviewed package boundary so
 # Pacman can verify the keyring package without a keyserver lookup.
@@ -83,7 +89,8 @@ sed -i \
 configure_pacman_transport "$online_pacman_config"
 
 # Install omarchy-keyring under the same signed provider policy used below.
-pacman --config "$online_pacman_config" --noconfirm -Sy omarchy-keyring
+pacman_with_cache_recovery \
+  --config "$online_pacman_config" --noconfirm -Sy omarchy-keyring
 pacman-key --populate omarchy
 
 # Setup build locations
@@ -254,7 +261,6 @@ mapfile -t all_packages < <(
 
 # Download packages into the reusable host cache, then copy only this build's
 # resolved package files into the offline mirror inside the ISO filesystem.
-package_cache_dir="/var/cache/pacman/pkg"
 offline_db_dir=$(mktemp -d /tmp/offlinedb.XXXXXX)
 rm -rf "$offline_mirror_dir"
 mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
@@ -265,21 +271,12 @@ chmod 0755 "$offline_db_dir"
 
 echo "qvOS ISO progress: resolving package set"
 download_offline_packages() {
-  pacman --config "$online_pacman_config" --noconfirm -Syw \
+  pacman_with_cache_recovery \
+    --config "$online_pacman_config" --noconfirm -Syw \
     "${all_packages[@]}" --cachedir "$package_cache_dir/" --dbpath "$offline_db_dir" --needed
 }
 
-download_complete=false
-for attempt in 1 2 3; do
-  if download_offline_packages; then
-    download_complete=true
-    break
-  fi
-  if (( attempt < 3 )); then
-    echo "Offline package download failed; retrying cached transfer ($attempt/3)..." >&2
-  fi
-done
-if [[ $download_complete != "true" ]]; then
+if ! download_offline_packages; then
   echo "Offline package download failed after 3 attempts" >&2
   exit 1
 fi

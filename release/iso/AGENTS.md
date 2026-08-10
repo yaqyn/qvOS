@@ -49,6 +49,12 @@ a thin adapter to this owner.
   package archives, signatures, and repository metadata are non-executable
   `0644`; never use Archiso's trailing-slash recursive permission form for the
   mirror directory.
+- The reusable package cache is a performance aid, never a trust source. If
+  Pacman identifies a checksum-invalid cached archive, quarantine only that
+  exact regular archive and its regular detached signature inside the ephemeral
+  build container, then retry against current signed metadata. Refuse links,
+  nested paths, ambiguous output, and broad cache deletion; a repeated mismatch
+  fails the build.
   The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.

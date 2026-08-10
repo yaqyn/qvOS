@@ -599,11 +599,13 @@ fi
 
 iso_build="$root/release/iso/build"
 iso_builder="$root/release/iso/builder/build-iso.sh"
+iso_cache_recovery="$root/release/iso/builder/cache-recovery"
 iso_profile="$root/release/iso/profile"
 iso_installer="$iso_profile/airootfs/root/.automated_script.sh"
 grep -Fq 'release/iso/build' "$root/qvcore/tui/bin/qvos-build" ||
   fail "TUI qvos-build adapter bypasses the release owner"
-[[ -x $iso_builder && -f $iso_profile/profiledef.sh ]] ||
+[[ -x $iso_builder && -f $iso_cache_recovery &&
+  ! -L $iso_cache_recovery && -f $iso_profile/profiledef.sh ]] ||
   fail "qvOS native ISO owner"
 [[ ! -e $root/release/iso/omarchy-iso-qvos-tui.patch &&
   ! -e $root/release/iso/upstream-ref ]] ||
@@ -684,7 +686,8 @@ grep -Fq '/qvcore/packages/provider-files' \
 grep -Fq 'QVOS_ARCH_MIRROR must use HTTPS' \
   "$iso_builder" ||
   fail "qvOS ISO builder mirror validation"
-grep -Fq 'pacman --noconfirm -Syu --needed' "$iso_builder" ||
+grep -Fq -- '--noconfirm -Syu --needed archiso git sudo base-devel jq grub go' \
+  "$iso_builder" ||
   fail "qvOS ISO avoids a partial Arch build-container upgrade"
 grep -Fq '/usr/share/archiso/configs/releng/' "$iso_builder" ||
   fail "qvOS ISO uses the signed Archiso releng profile"
@@ -716,7 +719,7 @@ grep -Fq 'config --local core.logAllRefUpdates false' \
 grep -Fq 'rm -rf -- "$build_cache_dir/airootfs/root/qvos/.git/logs"' \
   "$iso_builder" ||
   fail "qvOS ISO embedded source reflog cleanup"
-grep -Fq 'for attempt in 1 2 3' "$iso_builder" ||
+grep -Fq 'for attempt in 1 2 3' "$iso_cache_recovery" ||
   fail "qvOS ISO bounded package download retries"
 grep -Fq 'XferCommand = /usr/bin/curl --http1.1' \
   "$iso_builder" ||
