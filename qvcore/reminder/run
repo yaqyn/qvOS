@@ -49,8 +49,7 @@ parse_systemd_timespan() {
 
 list_timer_units() {
   LC_ALL=C systemctl --user list-units --type=timer --all --no-legend \
-    --no-pager --plain 'qvos-reminder-*.timer' \
-    'omarchy-reminder-*.timer' 2>/dev/null |
+    --no-pager --plain 'qvos-reminder-*.timer' 2>/dev/null |
     awk '{ print $1 }' | LC_ALL=C sort -u
 }
 
@@ -62,7 +61,6 @@ show_reminders() {
 
   qvos_reminder_validate_runtime
   qvos_reminder_validate_state "$qvos_reminder_state"
-  qvos_reminder_validate_state "$qvos_reminder_legacy_state"
   uptime=${SECONDS_SINCE_BOOT:-$(awk '{ print int($1) }' /proc/uptime)}
   [[ $uptime =~ ^[0-9]+$ ]] || {
     qvos_reminder_error "could not read system uptime"
@@ -152,7 +150,6 @@ clear_reminders() {
     }
   fi
   clear_message_state "$qvos_reminder_state"
-  clear_message_state "$qvos_reminder_legacy_state"
   qvos_reminder_notify "󰔛" "All reminders have been cleared" -u low
 }
 

@@ -14,8 +14,6 @@ matching `omarchy-reminder` command is a metadata-free compatibility adapter.
   to shared `/tmp`, follow links, or accept foreign state.
 - Create collision-resistant transient units and private message files. If
   scheduling fails, remove only the exact new message file.
-- `show` and `clear` recognize safe still-running legacy Omarchy transient
-  units until they expire. New work never creates legacy state.
 - A scheduled notification revalidates and reads its exact private file, then
   removes that state even if desktop notification delivery fails. Clearing
   stops only validated pending reminder timers and preserves state on a stop

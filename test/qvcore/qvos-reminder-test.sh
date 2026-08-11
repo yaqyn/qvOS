@@ -8,7 +8,6 @@ runtime="$test_root/runtime"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 native_state="$runtime/qvos/reminders"
-legacy_state="$runtime/omarchy-reminders"
 
 cleanup() {
   rm -rf -- "$test_root"
@@ -35,11 +34,8 @@ if [[ $* == *'list-units'* ]]; then
   [[ ${QVOS_REMINDER_LIST_STATUS:-0} == "0" ]] || exit "$QVOS_REMINDER_LIST_STATUS"
   printf '%s\n' "${QVOS_REMINDER_TIMERS:-}"
 elif [[ $* == *' show '* || ${3:-} == "show" ]]; then
-  case ${!#} in
-  qvos-*) printf '%s\n' "${QVOS_REMINDER_NATIVE_NEXT:-2min}" ;;
-  omarchy-*) printf '%s\n' "${QVOS_REMINDER_LEGACY_NEXT:-3min}" ;;
-  *) exit 1 ;;
-  esac
+  [[ ${!#} == qvos-* ]] || exit 1
+  printf '%s\n' "${QVOS_REMINDER_NATIVE_NEXT:-2min}"
 elif [[ $* == *' stop '* ]]; then
   printf 'stop' >>"$QVOS_REMINDER_TEST_LOG"
   printf '\t%s' "$@" >>"$QVOS_REMINDER_TEST_LOG"
@@ -90,37 +86,31 @@ printf 'ok - reminders keep text out of unique qvOS unit arguments\n'
 
 : >"$event_log"
 native_unit=qvos-reminder-5m-1786191000-1786191000123456789
-legacy_unit=omarchy-reminder-30m-1786190000
-install -d -m 0700 "$native_state" "$legacy_state"
+install -d -m 0700 "$native_state"
 printf 'Native message' >"$native_state/$native_unit.message"
-printf 'Legacy message' >"$legacy_state/$legacy_unit.message"
-chmod 0600 "$native_state/$native_unit.message" "$legacy_state/$legacy_unit.message"
-QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting\nomarchy-reminder-30m-1786190000.timer loaded active waiting' \
+chmod 0600 "$native_state/$native_unit.message"
+QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting' \
   SECONDS_SINCE_BOOT=100 run_reminder show
 grep -Fq 'Native message in 20s' "$event_log" || fail "native reminder listing"
-grep -Fq 'Legacy message in 1m 20s' "$event_log" || fail "legacy reminder listing"
 
 : >"$event_log"
-if QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting\nomarchy-reminder-30m-1786190000.timer loaded active waiting' \
+if QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting' \
   QVOS_REMINDER_STOP_STATUS=9 run_reminder clear >/dev/null 2>&1; then
   fail "failed timer stop returned success"
 fi
-[[ -e $native_state/$native_unit.message &&
-  -e $legacy_state/$legacy_unit.message ]] ||
+[[ -e $native_state/$native_unit.message ]] ||
   fail "failed timer stop removed retry state"
 
 : >"$event_log"
-QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting\nomarchy-reminder-30m-1786190000.timer loaded active waiting' \
+QVOS_REMINDER_TIMERS=$'qvos-reminder-5m-1786191000-1786191000123456789.timer loaded active waiting' \
   run_reminder clear
 stop_event=$(grep '^stop' "$event_log")
 [[ $stop_event == *$'\tqvos-reminder-5m-1786191000-1786191000123456789.timer'* &&
-  $stop_event == *$'\tomarchy-reminder-30m-1786190000.timer'* &&
   $stop_event != *'.service'* ]] ||
   fail "validated reminder timer cleanup"
-[[ ! -e $native_state/$native_unit.message &&
-  ! -e $legacy_state/$legacy_unit.message ]] ||
-  fail "native and legacy reminder message cleanup"
-printf 'ok - show and clear safely cover native and still-running legacy timers\n'
+[[ ! -e $native_state/$native_unit.message ]] ||
+  fail "native reminder message cleanup"
+printf 'ok - show and clear safely cover native timers\n'
 
 : >"$event_log"
 if QVOS_REMINDER_LIST_STATUS=7 run_reminder show >/dev/null 2>&1; then

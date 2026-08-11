@@ -37,6 +37,11 @@ if rg -n 'XDG_RUNTIME_DIR:-/tmp|bash -c|omarchy-notification-send' \
   "$root/qvcore/reminder" --glob '!AGENTS.md' --glob '!check'; then
   fail "reminder owner retains shared state or shell-string execution"
 fi
+if rg -n 'omarchy-reminders|omarchy-reminder-\*\.timer' \
+  "$root/qvcore/reminder/lib" "$root/qvcore/reminder/notify" \
+  "$root/qvcore/reminder/run"; then
+  fail "reminder owner retains legacy runtime state"
+fi
 grep -Fq 'qvos-reminder-' "$root/qvcore/reminder/run" ||
   fail "native reminder unit identity"
 # shellcheck disable=SC2016

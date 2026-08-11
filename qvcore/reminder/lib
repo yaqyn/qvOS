@@ -2,7 +2,6 @@
 
 qvos_reminder_runtime=${XDG_RUNTIME_DIR:-/run/user/$UID}
 qvos_reminder_state="$qvos_reminder_runtime/qvos/reminders"
-qvos_reminder_legacy_state="$qvos_reminder_runtime/omarchy-reminders"
 
 qvos_reminder_error() {
   printf 'qvOS reminder: %s\n' "$1" >&2
@@ -35,18 +34,15 @@ qvos_reminder_validate_state() {
   local parent=${state%/*}
 
   qvos_reminder_validate_runtime || return
-  [[ $state == "$qvos_reminder_state" ||
-    $state == "$qvos_reminder_legacy_state" ]] || {
+  [[ $state == "$qvos_reminder_state" ]] || {
     qvos_reminder_error "unexpected state directory: $state"
     return 1
   }
-  if [[ $state == "$qvos_reminder_state" ]]; then
-    [[ ! -e $parent && ! -L $parent ]] ||
-      [[ -d $parent && ! -L $parent && -O $parent ]] || {
-      qvos_reminder_error "state parent is unsafe: $parent"
-      return 1
-    }
-  fi
+  [[ ! -e $parent && ! -L $parent ]] ||
+    [[ -d $parent && ! -L $parent && -O $parent ]] || {
+    qvos_reminder_error "state parent is unsafe: $parent"
+    return 1
+  }
   [[ ! -e $state && ! -L $state ]] ||
     [[ -d $state && ! -L $state && -O $state ]] || {
     qvos_reminder_error "state directory is unsafe: $state"
@@ -69,8 +65,7 @@ qvos_reminder_validate_unit() {
   local unit=${1%.timer}
   unit=${unit%.service}
 
-  [[ $unit =~ ^qvos-reminder-([0-9]{1,6})m-[0-9]{10}-[0-9]{10,20}$ ||
-    $unit =~ ^omarchy-reminder-([0-9]{1,6})m-[0-9]{10}$ ]]
+  [[ $unit =~ ^qvos-reminder-([0-9]{1,6})m-[0-9]{10}-[0-9]{10,20}$ ]]
 }
 
 qvos_reminder_minutes() {
@@ -85,11 +80,9 @@ qvos_reminder_minutes() {
 qvos_reminder_message_path() {
   local unit=${1%.timer}
   unit=${unit%.service}
-  local state=$qvos_reminder_state
 
   qvos_reminder_validate_unit "$unit" || return
-  [[ $unit != omarchy-* ]] || state=$qvos_reminder_legacy_state
-  printf '%s/%s.message\n' "$state" "$unit"
+  printf '%s/%s.message\n' "$qvos_reminder_state" "$unit"
 }
 
 qvos_reminder_validate_message_file() {
@@ -97,8 +90,7 @@ qvos_reminder_validate_message_file() {
   local parent=${path%/*}
   local name=${path##*/}
 
-  [[ $parent == "$qvos_reminder_state" ||
-    $parent == "$qvos_reminder_legacy_state" ]] || {
+  [[ $parent == "$qvos_reminder_state" ]] || {
     qvos_reminder_error "unexpected message path: $path"
     return 1
   }
