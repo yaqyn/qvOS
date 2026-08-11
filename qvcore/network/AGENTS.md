@@ -30,11 +30,10 @@ authentication may enable `tailscaled`, but must not accept advertised routes,
 change qvOS DNS policy, or create an admin Web App implicitly. Users opt into
 those capabilities separately after joining their tailnet.
 
-`dns-policy migrate-legacy` is the one unreleased-state cleanup for the former
-full-file resolver policy and immediately inserted `UseDNS=no` lines. It acts
-only on exact known qvOS/Omarchy-generated content, restores the installed
-systemd default from the matching package cache when available, and otherwise
-uses a neutral `[Resolve]` file. Preserve unknown or modified configuration.
+The unreleased full-file resolver and inline `UseDNS=no` transition is retired
+after the only supported installation converged. The installed helper exposes
+only `apply`, `check`, and `validate`; never restore a legacy policy scanner or
+package-cache restoration path to normal network operation.
 
 Run `qvcore/network/check`, `test/qvcore/qvos-dns-test.sh`, menu, TUI owner,
 install, update, migration, CLI, product, and upstream-overlay tests, then Bash

@@ -146,31 +146,6 @@ fi
 unlink "$network_root/20-ethernet.network.d"
 pass "failed multi-file DNS policy rolls back without following links"
 
-install -m 0644 /dev/stdin "$system_root/etc/systemd/resolved.conf" <<'LEGACY'
-[Resolve]
-FallbackDNS=
-LEGACY
-awk '
-  { print }
-  $0 == "[DHCPv4]" { print "UseDNS=no" }
-  $0 == "[IPv6AcceptRA]" { print "UseDNS=no" }
-' "$network_root/20-ethernet.network" >"$test_root/legacy-network"
-install -m 0644 "$test_root/legacy-network" "$network_root/20-ethernet.network"
-run_policy migrate-legacy >/dev/null
-grep -Fqx '[Resolve]' "$system_root/etc/systemd/resolved.conf" ||
-  fail "systemd resolver default restoration"
-! grep -Fqx 'FallbackDNS=' "$system_root/etc/systemd/resolved.conf" ||
-  fail "legacy full-file resolver policy remains"
-! grep -Fqx 'UseDNS=no' "$network_root/20-ethernet.network" ||
-  fail "legacy inline network policy remains"
-legacy_snapshot=$(sha256sum \
-  "$system_root/etc/systemd/resolved.conf" "$network_root"/*.network)
-run_policy migrate-legacy >/dev/null
-[[ $(sha256sum "$system_root/etc/systemd/resolved.conf" \
-  "$network_root"/*.network) == "$legacy_snapshot" ]] ||
-  fail "legacy DNS migration is not idempotent"
-pass "exact legacy DNS mutations retire idempotently"
-
 install_root="$test_root/install-system"
 install -d "$install_root"
 QVOS_NETWORK_TESTING=1 QVOS_NETWORK_SYSTEM_ROOT="$install_root" \

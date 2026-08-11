@@ -46,5 +46,9 @@ grep -Fq '/usr/lib/qvos/network/dns-policy' "$root/qvcore/network/setup-dns" ||
 ! rg -q 'sudo[[:space:]]+(tee|sed)|/etc/systemd/network/\*' \
   "$root/qvcore/network/setup-dns" ||
   fail "interactive DNS owner mutates system policy directly"
+if rg -n 'migrate-legacy|legacy_resolved_policy|build_systemd_default' \
+  "$root/qvcore/network/dns-policy"; then
+  fail "privileged DNS helper retains the pre-release legacy migration"
+fi
 
 printf 'ok - qvOS owns one validated DNS and WARP policy boundary\n'
