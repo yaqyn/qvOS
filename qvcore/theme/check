@@ -215,8 +215,10 @@ grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/install-external" ||
   fail "Git theme installation bypasses payload validation"
 grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses payload validation"
-grep -Fq 'QVOS_THEME_RETAIN_LEGACY_HYPRLAND' "$root/qvcore/config/migrate-hyprland-lua" ||
-  fail "Hyprland Lua migration lacks a safe theme handoff"
+if rg -n 'QVOS_THEME_RETAIN_LEGACY_HYPRLAND' \
+  "$root/qvcore/theme" "$root/qvcore/config" --glob '!AGENTS.md' --glob '!check'; then
+  fail "retired Hyprland theme handoff remains"
+fi
 # shellcheck disable=SC2016
 grep -Fq 'rm -f -- "$NEXT_THEME_PATH/hyprland.conf"' \
   "$root/qvcore/theme/set" || fail "ordinary themes can retain legacy Hyprland code"

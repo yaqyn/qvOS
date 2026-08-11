@@ -18,11 +18,6 @@ skip_session=${QVOS_THEME_SKIP_SESSION:-0}
   echo "QVOS_THEME_SKIP_SESSION must be 0 or 1." >&2
   exit 2
 }
-retain_legacy_hyprland=${QVOS_THEME_RETAIN_LEGACY_HYPRLAND:-0}
-[[ $retain_legacy_hyprland == "0" || $retain_legacy_hyprland == "1" ]] || {
-  echo "QVOS_THEME_RETAIN_LEGACY_HYPRLAND must be 0 or 1." >&2
-  exit 2
-}
 CURRENT_THEME_PATH="$HOME/.config/qvos/current/theme"
 NEXT_THEME_PATH="$HOME/.config/qvos/current/next-theme"
 PREVIOUS_THEME_PATH="$HOME/.config/qvos/current/previous-theme"
@@ -67,16 +62,6 @@ rm -rf -- "$NEXT_THEME_PATH/.git"
 # their validated palette and assets, never executable compositor or editor
 # code. Users may override either trusted qvOS template explicitly.
 rm -f -- "$NEXT_THEME_PATH/hyprland.conf"
-if [[ $retain_legacy_hyprland == "1" &&
-  -e $CURRENT_THEME_PATH/hyprland.conf ]]; then
-  [[ -f $CURRENT_THEME_PATH/hyprland.conf &&
-    ! -L $CURRENT_THEME_PATH/hyprland.conf &&
-    -O $CURRENT_THEME_PATH/hyprland.conf ]] || {
-    echo "Refusing an unsafe active legacy Hyprland theme." >&2
-    exit 1
-  }
-  cp -a -- "$CURRENT_THEME_PATH/hyprland.conf" "$NEXT_THEME_PATH/hyprland.conf"
-fi
 rm -f -- \
   "$NEXT_THEME_PATH/hyprland.lua" \
   "$NEXT_THEME_PATH/qvos-neovim.lua"

@@ -1,19 +1,36 @@
 #!/bin/bash
 set -euo pipefail
 
-QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 config_path="$HOME/.config/hypr/hyprland.lua"
-finalizer="$QVOS_PATH/qvcore/config/finalize-hyprland-lua"
+generated_stub="$HOME/.config/hypr/hyprland.conf"
+generated_stub_hash=de900c9facfb6df53f0f3c64b0b156f92081b8628e081eba347609c509624177
 
 [[ $HOME == /* && $HOME != *$'\n'* && $HOME != *$'\r'* ]] || {
   echo "qvOS session requires a safe absolute HOME" >&2
   exit 1
 }
-[[ -x $finalizer && ! -L $finalizer ]] || {
-  echo "qvOS session finalizer is missing or unsafe: $finalizer" >&2
+[[ -f $config_path && ! -L $config_path && -O $config_path ]] || {
+  echo "qvOS session config is missing or unsafe: $config_path" >&2
   exit 1
 }
-"$finalizer"
+command -v Hyprland >/dev/null 2>&1 || {
+  echo "qvOS session requires Hyprland" >&2
+  exit 1
+}
+Hyprland --verify-config -c "$config_path" >/dev/null || {
+  echo "qvOS session config is invalid: $config_path" >&2
+  exit 1
+}
+
+# Hyprland may recreate this exact stub when launched without qvOS's explicit
+# Lua entrypoint. It is inert now, but removing only the reviewed payload keeps
+# future tools from mistaking it for the active configuration.
+if [[ -f $generated_stub && ! -L $generated_stub && -O $generated_stub ]]; then
+  current_hash=$(sha256sum -- "$generated_stub")
+  if [[ ${current_hash%% *} == "$generated_stub_hash" ]]; then
+    unlink -- "$generated_stub"
+  fi
+fi
 
 exec uwsm start \
   -g -1 \

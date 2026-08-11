@@ -178,13 +178,12 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/boot/session-start` owns qvOS login and always passes the verified
   native Lua entrypoint explicitly to Hyprland through UWSM; generic
   `hyprland.desktop` discovery is forbidden because it can regenerate a
-  `.conf` stub and discard qvOS configuration. A running legacy session keeps
-  its proven files until the next native login retires them exactly
+  `.conf` stub and discard qvOS configuration. Remove only Hyprland's exact
+  reviewed generated stub before starting the native session
 - `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
   `default/udev/` is retired
-- `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook;
-  inherited global GnuPG and five-second shutdown policy are retired rather
-  than carried into qvOS
+- `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook; qvOS
+  carries no global GnuPG resolver policy or forced shutdown timeout
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes, while one typed runtime

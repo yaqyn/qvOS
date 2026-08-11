@@ -114,8 +114,9 @@ if rg -n 'menus:omarchy|default/(elephant|walker)|omarchy-restart-walker' \
   fail "active menu source retains an inherited provider or Walker default"
 fi
 
-[[ -x $root/qvcore/menu/retire-pacman-hook ]] ||
-  fail "retired Walker hook cleanup owner mode"
+[[ ! -e $root/qvcore/menu/retire-pacman-hook &&
+  ! -L $root/qvcore/menu/retire-pacman-hook ]] ||
+  fail "pre-release Walker hook cleanup owner remains"
 grep -Fq 'restart-walker-required' "$root/qvcore/update/analyze-log" ||
   fail "Walker update restart marker"
 

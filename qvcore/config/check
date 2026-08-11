@@ -225,12 +225,22 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in finalize-hyprland-lua migrate-hyprland-lua neovim toggle-state user-services; do
+for owner in neovim toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
-[[ -f $root/qvcore/config/hyprland-conf-profiles.psv &&
-  ! -L $root/qvcore/config/hyprland-conf-profiles.psv ]] ||
-  fail "Hyprland legacy profile catalog"
+for retired_owner in \
+  finalize-hyprland-lua \
+  hyprland-conf-profiles.psv \
+  migrate-hyprland-lua; do
+  [[ ! -e $root/qvcore/config/$retired_owner &&
+    ! -L $root/qvcore/config/$retired_owner ]] ||
+    fail "pre-release Hyprland convergence owner remains: $retired_owner"
+done
+if [[ -d $root/qvcore/config/migration/hyprland ]] &&
+  find -P "$root/qvcore/config/migration/hyprland" -mindepth 1 -print -quit |
+    grep -q .; then
+  fail "pre-release Hyprland migration payload remains"
+fi
 [[ -f $root/qvcore/config/user-systemd-lib &&
   ! -L $root/qvcore/config/user-systemd-lib ]] ||
   fail "shared user-manager probe"

@@ -645,18 +645,6 @@ if grep -Eq '^(pacman|limine-update)' "$action_log"; then
   fail "non-Limine host reached Limine mutation"
 fi
 
-system_root="$test_root/identity-migration"
-install -d -m 0700 "$system_root/etc/pam.d"
-printf 'auth optional pam_unix.so\n' >"$system_root/etc/pam.d/sddm"
-: >"$action_log"
-export QVOS_BOOT_TEST_NO_LIMINE=1
-run_boot "$root/qvcore/boot/migrate-identity"
-unset QVOS_BOOT_TEST_NO_LIMINE
-[[ -f $system_root/usr/share/plymouth/themes/qvos/qvos.plymouth &&
-  -f $system_root/usr/share/sddm/themes/qvos/Main.qml &&
-  -f $system_root/usr/local/share/wayland-sessions/qvos.desktop ]] ||
-  fail "existing-system boot identity migration"
-
 chmod 0770 "$system_root"
 if run_boot "$root/qvcore/boot/sync-theme" plymouth >/dev/null 2>&1; then
   fail "group-writable boot fixture root accepted"

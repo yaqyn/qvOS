@@ -64,10 +64,9 @@ historical hash matches; preserve modified files, links, and foreign fonts.
 Remove the three retired qvOS maintenance aliases only when they are exact
 broken links to their absent historical source commands; preserve every other
 local command or target.
-Do not install a global GnuPG resolver policy or force five-second system and
-user service shutdown timeouts. The native retirement owner removes only exact
-reviewed predecessors, loads the restored systemd defaults transactionally,
-recovers an interrupted transaction, and preserves modified or unsafe policy.
+Do not install a global GnuPG resolver policy or force system and user service
+shutdown timeouts. The pre-public convergence code for those inherited files
+is retired; fresh qvOS carries only the system defaults.
 Fresh install marks only the current supported numeric owners from
 `qvcore/migrations/` through `qvcore/migrations/run --mark-current`; an empty
 compacted baseline is valid. It never executes existing-system migrations or

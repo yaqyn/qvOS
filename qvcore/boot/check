@@ -100,10 +100,12 @@ for owner in \
   install-sddm \
   install-sddm-session \
   install-sddm-wayland \
-  migrate-identity \
   sync-theme; do
   [[ -x $root/qvcore/boot/$owner ]] || fail "native boot install owner mode: $owner"
 done
+[[ ! -e $root/qvcore/boot/migrate-identity &&
+  ! -L $root/qvcore/boot/migrate-identity ]] ||
+  fail "pre-release boot convergence owner remains"
 grep -Fq 'qvcore/boot/limine/default.conf' \
   "$root/qvcore/boot/install-limine-snapper" || fail "fresh Limine defaults owner"
 grep -Fq 'qvcore/boot/limine/limine.conf' \

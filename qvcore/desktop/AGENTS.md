@@ -22,10 +22,10 @@ and app-window mode require an explicitly supported browser executable. Treat
 radio unblock failure as a warning and still open its accessible controls.
 `qvcore/desktop/web/url-lib` singularly owns strict HTTP and HTTPS authority
 validation for both direct web-app launches and the website normalizer.
-`qvcore/desktop/webapp/` owns custom Web App installation, inventory, removal,
-and exact legacy-launcher migration. Fresh qvOS carries no preinstalled Web
-Apps, fixed web-service shortcuts, protocol handlers, or service-specific
-assets. Keep only the generic website keybinding and the on-demand installer.
+`qvcore/desktop/webapp/` owns custom Web App installation, inventory, and
+removal. Fresh qvOS carries no preinstalled Web Apps, fixed web-service
+shortcuts, protocol handlers, or service-specific assets. Keep only the
+generic website keybinding and the on-demand installer.
 Never overwrite an existing desktop entry, accept an arbitrary Exec string,
 fetch an icon without explicit input, or remove a desktop file or icon without
 proving its bounded qvOS Web App ownership. Keep compatibility adapters thin

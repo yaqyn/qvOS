@@ -151,10 +151,6 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   never creates a Pacman hook that executes a user-writable checkout. qvOS
   update-log analysis records a private Walker restart marker after Walker or
   Elephant changes.
-- `retire-pacman-hook` removes only the exact historical qvOS/Omarchy Walker
-  hook schema and preserves links, foreign ownership, and modified content.
-  Its system-root override is test-only and must remain confined to a
-  caller-owned directory under `/tmp`.
 - Capture menu leaves delegate once to `qv-capture-screenshot`,
   `qv-capture-screenrecording`, or `qv-capture-text-extraction`; selection,
   media, process, and recovery behavior remains in `qvcore/capture/`.

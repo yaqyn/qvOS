@@ -205,8 +205,7 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
   --glob '!**/owner-contracts.psv' \
   --glob '!**/config/migrate-runtime-root' \
   --glob '!**/tui/task/selectable-owner' \
-  --glob '!**/desktop/webapp/lib' \
-  --glob '!**/desktop/webapp/migrate'; then
+  --glob '!**/desktop/webapp/lib'; then
   fail "native qvOS source still calls a launch compatibility command"
 fi
 if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
@@ -216,10 +215,12 @@ if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/desktop/webapp/lib' \
-  --glob '!**/desktop/webapp/migrate' \
   --glob '!**/tui/task/selectable-owner'; then
   fail "native qvOS source still calls a Web App compatibility command"
 fi
+[[ ! -e $root/qvcore/desktop/webapp/migrate &&
+  ! -L $root/qvcore/desktop/webapp/migrate ]] ||
+  fail "pre-release Web App migration owner remains"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
   $'applications/\nbin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
   fail "retired Web App handler inventory is incomplete"

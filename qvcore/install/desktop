@@ -54,7 +54,6 @@
     qvcore/desktop/web/qvos-website-open
     qvcore/desktop/webapp/install
     qvcore/desktop/webapp/lib
-    qvcore/desktop/webapp/migrate
     qvcore/desktop/webapp/remove
     qvcore/direct/manifest.tsv
     qvcore/direct/post-update-hook
@@ -63,7 +62,6 @@
     qvcore/install/cleanup-obsolete
     qvcore/install/migrate-structure
     qvcore/install/post-update-hook
-    qvcore/install/retire-inherited-system-policy
     qvcore/config/migrate-runtime-root
     qvcore/config/neovim
     qvcore/config/retired-neovim-signatures.psv

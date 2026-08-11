@@ -22,14 +22,13 @@ owners already converge the selected state; future transitions use only the
 native migration domain.
 
 `qvcore/boot/session-start` is the singular qvOS Hyprland login launcher. The
-installed `/usr/local/bin/qvos-session` validates and finalizes the native Lua
+installed `/usr/local/bin/qvos-session` validates the native Lua
 configuration before starting UWSM with an explicit `--config` path and the
 Hyprland watchdog. Never route the qvOS session through generic
 `hyprland.desktop`: default config discovery can recreate a `.conf` stub and
-silently discard qvOS bindings, monitor policy, and appearance. During the
-one-time format transition, keep the already-running legacy session loaded;
-the next login retires only exact backed-up legacy files or a known generated
-stub before Lua starts.
+silently discard qvOS bindings, monitor policy, and appearance. The launcher
+removes only the exact reviewed generated stub after the native Lua entrypoint
+validates and preserves every unrecognized `.conf` file.
 
 `qvcore/boot/install` singularly owns the ordered login stage. Its native leaves
 install Plymouth without an early image rebuild, install the SDDM theme,
@@ -78,13 +77,6 @@ commands validate an interactive sudo ticket. The reviewed ISO chroot cannot
 prompt and must instead prove its temporary authorization with
 `sudo -n /usr/bin/true`; never let credential validation block a no-input
 target install or weaken the commands that follow.
-
-`qvcore/boot/migrate-identity` is the singular existing-system convergence
-owner and is called by its numeric native migration. It reuses the fresh-install
-owners in their normal order so Plymouth selects `qvos` before the one Limine
-rebuild. A qvOS UKI must exist as a regular file before generated legacy UKIs
-are removed. Keep the old EFI label only as exact removal detection in the
-direct-boot owner; never select an old UKI when creating a new entry.
 
 - Keep the Limine screen center-only on exact black: explicit empty branding,
   hidden interface help, no wallpaper, and no custom font or renderer fork.

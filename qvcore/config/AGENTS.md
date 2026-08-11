@@ -120,15 +120,9 @@ ANSI asset are retired; runtime-root migration rewrites only their exact source
 paths and preserves the rest of an existing Fastfetch config.
 
 `toggle-state` singularly initializes and permissions the private
-`.local/state/qvos/toggles` tree and its inert `flags.lua`. The one-time
-`migrate-hyprland-lua` owner recognizes reviewed legacy qvOS `.conf` payloads,
-backs them up privately, translates the supported monitor, NVIDIA, and toggle
-profiles, verifies the complete native Lua entrypoint, and fails before
-publication on customized legacy compositor code. It also preserves an active
-legacy theme fragment, verifies the Lua entrypoint before publication, retires
-the old main config before that fragment, and re-verifies before removing the
-remaining legacy leaves. Toggle templates and command
-implementations live under `qvcore/config/`; native `qv-*` routes carry metadata and matching
+`.local/state/qvos/toggles` tree and its inert `flags.lua`. Toggle templates
+and command implementations live under `qvcore/config/`; native `qv-*` routes
+carry metadata and matching
 `bin/omarchy-*` routes are metadata-free compatibility only. Keep state files
 private, validate every ancestor and reject links before mutation, and
 serialize changes through the shared toggle lock. A process launched while a

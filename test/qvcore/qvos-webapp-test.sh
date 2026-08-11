@@ -7,7 +7,6 @@ test_root=$(mktemp -d)
 test_home="$test_root/home"
 test_bin="$test_root/bin"
 event_log="$test_root/events.log"
-mime_state="$test_root/mailto-default"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -25,7 +24,6 @@ pass() {
 
 install -d "$test_home" "$test_bin"
 : >"$event_log"
-printf 'HEY.desktop\n' >"$mime_state"
 
 install -m 0755 /dev/stdin "$test_bin/qv-restart-walker" <<'SCRIPT'
 #!/bin/bash
@@ -34,25 +32,6 @@ SCRIPT
 install -m 0755 /dev/stdin "$test_bin/update-desktop-database" <<'SCRIPT'
 #!/bin/bash
 printf 'desktop-database:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
-SCRIPT
-install -m 0755 /dev/stdin "$test_bin/xdg-settings" <<'SCRIPT'
-#!/bin/bash
-[[ $* == "get default-web-browser" ]] || exit 2
-printf 'brave-origin-beta.desktop\n'
-SCRIPT
-install -m 0755 /dev/stdin "$test_bin/xdg-mime" <<'SCRIPT'
-#!/bin/bash
-case ${1:-} in
-query)
-  [[ $* == "query default x-scheme-handler/mailto" ]] || exit 2
-  cat "$QVOS_TEST_MIME_STATE"
-  ;;
-default)
-  printf '%s\n' "$2" >"$QVOS_TEST_MIME_STATE"
-  printf 'mime-default:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
-  ;;
-*) exit 2 ;;
-esac
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/curl" <<'SCRIPT'
 #!/bin/bash
@@ -78,7 +57,6 @@ run_owner() {
   HOME="$test_home" \
     QVOS_PATH="$root" \
     QVOS_TEST_EVENT_LOG="$event_log" \
-    QVOS_TEST_MIME_STATE="$mime_state" \
     PATH="$test_bin:/usr/bin" \
     "$@"
 }
@@ -197,83 +175,10 @@ run_owner "$owner_root/remove" 'Icon App' >/dev/null
   fail "owned Web App desktop and icon removal"
 pass "Web App removal proves ownership and preserves foreign desktop entries"
 
-install -m 0644 /dev/stdin "$app_dir/Legacy.desktop" <<'DESKTOP'
-[Desktop Entry]
-Name=Legacy
-Exec=omarchy-launch-webapp https://legacy.example
-Icon=web-browser
-DESKTOP
-install -m 0644 /dev/stdin "$app_dir/Unsafe legacy.desktop" <<'DESKTOP'
-[Desktop Entry]
-Name=Unsafe legacy
-Exec=omarchy-launch-webapp https://legacy.example; unsafe
-Icon=web-browser
-DESKTOP
-install -m 0644 /dev/stdin "$app_dir/HEY.desktop" <<'DESKTOP'
-[Desktop Entry]
-Name=HEY
-Exec=omarchy-webapp-handler-hey %u
-Icon=web-browser
-DESKTOP
-install -m 0644 /dev/stdin "$app_dir/Basecamp.desktop" <<'DESKTOP'
-[Desktop Entry]
-Name=Basecamp
-Exec=omarchy-launch-webapp https://launchpad.37signals.com
-Icon=web-browser
-DESKTOP
-install -d "$test_home/.config/hypr/apps"
-install -m 0644 /dev/stdin "$test_home/.config/hypr/bindings.conf" <<'CONFIG'
-bindd = SUPER SHIFT CTRL, C, Discord, exec, qv-launch-webapp "https://discord.com/app"
-bindd = SUPER CTRL, N, My site, exec, qv-launch-webapp "https://user.example"
-CONFIG
-install -m 0644 /dev/stdin "$test_home/.config/hypr/apps.conf" <<'CONFIG'
-source = ~/.local/share/qvos/default/hypr/apps/browser.conf
-source = ~/.local/share/qvos/default/hypr/apps/telegram.conf
-CONFIG
-install -m 0644 /dev/stdin "$test_home/.config/hypr/apps/browser.conf" <<'CONFIG'
-windowrule = tag -chromium-based-browser, match:class (chrome-youtube.com__-Default|chrome-app.zoom.us__wc_home-Default)
-windowrule = tile on, match:tag chromium-based-browser
-CONFIG
-install -m 0644 /dev/stdin "$test_home/.config/hypr/apps/system.conf" <<'CONFIG'
-windowrule = tag -default-opacity, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$
-windowrule = opacity 1 1, match:class ^(zoom|vlc|mpv|org.kde.kdenlive|com.obsproject.Studio|com.github.PintaProject.Pinta|imv|org.gnome.NautilusPreviewer)$
-CONFIG
-migration_output=$(run_owner "$owner_root/migrate")
-grep -Fqx 'Exec=qv-launch-webapp "https://legacy.example"' \
-  "$app_dir/Legacy.desktop" || fail "legacy launcher migration"
-grep -Fqx 'Exec=omarchy-launch-webapp https://legacy.example; unsafe' \
-  "$app_dir/Unsafe legacy.desktop" || fail "unsafe legacy launcher preservation"
-[[ ! -e $app_dir/HEY.desktop && ! -e $app_dir/Basecamp.desktop ]] ||
-  fail "inherited bundled Web App retirement"
-! rg -q 'Discord|discord\.com' "$test_home/.config/hypr/bindings.conf" ||
-  fail "fixed Web App binding retirement"
-grep -Fq 'https://user.example' "$test_home/.config/hypr/bindings.conf" ||
-  fail "custom Web App binding preservation"
-! rg -q 'telegram\.conf' "$test_home/.config/hypr/apps.conf" ||
-  fail "retired Telegram rule source"
-! rg -q 'default/hypr/apps/(browser|telegram)\.conf' \
-  "$test_home/.config/hypr/apps.conf" ||
-  fail "retired application rule sources"
-! rg -qi 'youtube|zoom' "$test_home/.config/hypr/apps/browser.conf" ||
-  fail "retired browser service rules"
-! rg -q 'match:class .*\bzoom\b' "$test_home/.config/hypr/apps/system.conf" ||
-  fail "retired Zoom application rules"
-[[ $(<"$mime_state") == 'brave-origin-beta.desktop' ]] ||
-  fail "stale absent HEY mail default migration"
-grep -Fq 'Cleaned or migrated 8 Web App setting(s)' <<<"$migration_output" ||
-  fail "Web App migration result"
-migration_snapshot=$(find "$app_dir" -maxdepth 1 -type f -printf '%f|%m|%i|%T@\n' | sort)
-[[ -z $(run_owner "$owner_root/migrate") ]] || fail "Web App migration reran"
-[[ $(find "$app_dir" -maxdepth 1 -type f -printf '%f|%m|%i|%T@\n' | sort) == \
-  "$migration_snapshot" ]] || fail "Web App migration idempotence"
-pass "bundled Web Apps retire while custom apps and bindings migrate exactly"
-
 run_owner "$owner_root/remove" --all >/dev/null
 [[ -f $app_dir/Foreign.desktop ]] || fail "remove-all deleted a foreign desktop entry"
 [[ -f "$app_dir/Manual qv.desktop" ]] ||
   fail "remove-all deleted an unmarked manual qv launcher"
-[[ -f "$app_dir/Unsafe legacy.desktop" ]] ||
-  fail "remove-all deleted an unsafe foreign legacy launcher"
 if [[ -n $(run_owner "$owner_root/remove" --list) ]]; then
   fail "remove-all left a managed Web App"
 fi
