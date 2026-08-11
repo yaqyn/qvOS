@@ -9,7 +9,6 @@ skill_source="$source_dir/qvos"
 pi_source="$source_dir/pi-system-theme.ts"
 hash_manifest="$source_dir/pi-managed-hashes"
 pi_target="$HOME/.pi/agent/extensions/qvos-system-theme.ts"
-legacy_pi_target="$HOME/.pi/agent/extensions/omarchy-system-theme.ts"
 temporary=""
 managed_hashes=()
 skill_dirs=(
@@ -30,12 +29,6 @@ managed_directories=(
   "$HOME/.pi/agent/extensions"
   "$HOME/.pi/agent/skills"
 )
-legacy_skill_targets=(
-  "$QVOS_PATH/default/omarchy-skill"
-  "$HOME/.local/share/qvos/default/omarchy-skill"
-  "$HOME/.local/share/omarchy/default/omarchy-skill"
-)
-
 cleanup() {
   [[ -z $temporary || ! -e $temporary ]] || /usr/bin/rm -rf -- "$temporary"
 }
@@ -79,16 +72,6 @@ validate_directory() {
     fail "unsafe assistant directory: $directory"
 }
 
-is_legacy_skill_target() {
-  local target=$1
-  local expected
-
-  for expected in "${legacy_skill_targets[@]}"; do
-    [[ $target != "$expected" ]] || return 0
-  done
-  return 1
-}
-
 validate_skill_link() {
   local path=$1
   local target
@@ -96,8 +79,7 @@ validate_skill_link() {
   [[ ! -e $path && ! -L $path ]] && return 0
   [[ -L $path ]] || fail "refusing a non-link assistant skill: $path"
   target=$(/usr/bin/readlink -- "$path")
-  [[ $target != "$skill_source" ]] || return 0
-  is_legacy_skill_target "$target" ||
+  [[ $target == "$skill_source" ]] ||
     fail "refusing a foreign assistant skill link: $path"
 }
 
@@ -117,12 +99,9 @@ for directory in "${managed_directories[@]}"; do
 done
 for skill_dir in "${skill_dirs[@]}"; do
   validate_skill_link "$skill_dir/qvos"
-  validate_skill_link "$skill_dir/omarchy"
 done
-for pi_path in "$pi_target" "$legacy_pi_target"; do
-  [[ ! -e $pi_path && ! -L $pi_path ]] || pi_file_is_managed "$pi_path" ||
-    fail "refusing a modified or unsafe Pi theme extension: $pi_path"
-done
+[[ ! -e $pi_target && ! -L $pi_target ]] || pi_file_is_managed "$pi_target" ||
+  fail "refusing a modified or unsafe Pi theme extension: $pi_target"
 
 for directory in "${managed_directories[@]}"; do
   [[ -d $directory ]] || /usr/bin/install -d -m 0755 "$directory"
@@ -148,11 +127,3 @@ if ! pi_file_is_managed "$pi_target" ||
   /usr/bin/mv -f -- "$temporary" "$pi_target"
   temporary=""
 fi
-
-for skill_dir in "${skill_dirs[@]}"; do
-  legacy_link="$skill_dir/omarchy"
-  [[ ! -e $legacy_link && ! -L $legacy_link ]] ||
-    /usr/bin/rm -f -- "$legacy_link"
-done
-[[ ! -e $legacy_pi_target && ! -L $legacy_pi_target ]] ||
-  /usr/bin/rm -f -- "$legacy_pi_target"

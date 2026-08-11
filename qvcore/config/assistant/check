@@ -55,6 +55,10 @@ if rg -n 'config/(omarchy-ai-skill|pi)\.sh|default/(omarchy-skill|pi)' \
   "$root/qvcore/install/config/run" "$root/qvcore/install/desktop"; then
   fail "installer retains inherited assistant ownership"
 fi
+if rg -n 'omarchy-(skill|system-theme)|default/omarchy-skill' \
+  "$owner/install"; then
+  fail "assistant installer retains pre-release convergence"
+fi
 grep -Fqx '    qvcore/config/assistant/install' \
   "$root/qvcore/install/desktop" || fail "desktop assistant source preflight"
 # shellcheck disable=SC2016
