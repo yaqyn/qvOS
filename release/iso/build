@@ -696,7 +696,10 @@ echo "qvOS ISO preflight: stage $stage_root"
 staged_qvos="$stage_root/qvOS"
 stage_out="$stage_root/out"
 stage_cache="$stage_root/cache"
-install -d -m 0700 "$stage_out" "$stage_cache"
+install -d -m 0700 "$stage_out"
+# The random stage root remains private. Its bind-mounted cache root must be
+# searchable by Pacman's unprivileged DownloadUser inside the container.
+install -d -m 0755 "$stage_cache"
 
 echo "qvOS ISO progress: stage ready"
 stage_qvos_source "$staged_qvos"

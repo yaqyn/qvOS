@@ -33,7 +33,10 @@ a thin adapter to this owner.
   delete or replace those reusable volumes during stage cleanup. Release the
   stage workspace back to the invoking user through a bounded container mount
   after every build attempt so retained failures remain inspectable and
-  successful stages remain removable.
+  successful stages remain removable. Keep the randomized stage root private,
+  but make its cache mount root searchable inside the container so Pacman's
+  unprivileged `DownloadUser` can reach the per-transaction directories it
+  owns; never disable Pacman's download sandbox to work around host modes.
 - Mount that exact staged source read-only at `/qvos`, embed it at `/root/qvos`,
   and resolve package-provider files from it before the first Omarchy package.
   Never let the builder fetch a replacement product source or keep retired

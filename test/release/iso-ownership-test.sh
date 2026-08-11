@@ -62,6 +62,11 @@ grep -Fq -- '--pull=never' "$build" ||
   fail "native ISO stage ownership cleanup can pull mutable code"
 grep -Fq 'chown -R "$(id -u):$(id -g)" /cache' "$build" ||
   fail "native ISO leaves staged build data owned by Docker"
+grep -Fq 'install -d -m 0755 "$stage_cache"' "$build" ||
+  fail "native ISO blocks Pacman's sandboxed download user from its stage"
+if rg -n 'DisableSandbox|DownloadUser[[:space:]]*=[[:space:]]*root' "$build" "$builder"; then
+  fail "native ISO weakens Pacman's download sandbox for its stage cache"
+fi
 
 # shellcheck disable=SC2016
 grep -Fq 'provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"' "$build" ||
