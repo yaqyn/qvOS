@@ -12,6 +12,16 @@ and qvOS-owned comments are public identity surfaces. They use qvOS names and
 native `qv` routes; do not send users to upstream support or compatibility
 commands.
 
+`os-release` is the singular system identity source. `system-identity`
+atomically installs it as root-owned `/etc/os-release`, replacing only Arch's
+exact vendor link. It leaves the exact installed qvOS file unchanged and
+refuses foreign, modified, linked, weakly permissioned, or ambiguously owned
+identity state.
+Keep `ID=qvos` and `ID_LIKE=arch`: qvOS is the product identity and Arch is the
+compatibility base. Fresh installation and migration call this owner; the ISO
+builder derives its live identity from the same source and may add only
+Archiso's image-build metadata.
+
 The graphical and terminal identities are deliberately distinct:
 
 - `assets/qvos-wordmark-{dark,light}.svg` and
@@ -52,10 +62,12 @@ limit belongs in `compat/omarchy/inherited-seams`. qvOS-only assets belong in no
 upstream manifest.
 
 Run `qvcore/branding/check`, `qvcore/config/check`, Bash syntax and ShellCheck,
-the branding, Fastfetch/runtime-root, screensaver, installer, CLI, menu, and
-product tests, then the full qvOS suite. The branding check enforces upstream
+the system-identity fixture, branding, Fastfetch/runtime-root, screensaver,
+installer, CLI, menu, release-ISO, migration, and product tests, then the full
+qvOS suite. The branding check enforces upstream
 manifests when the development-only `upstream/master` ref is available and
 must remain usable in an installed source checkout without that ref. After live
-alignment, run the branding owner, reconcile Fastfetch, verify permissions and
-residue, render Fastfetch, and inspect a fullscreen screenshot when the visible
-result changes.
+alignment, run the migration with fresh privileged authorization, verify the
+root-owned system identity and private user branding, reconcile Fastfetch,
+verify permissions and residue, render Fastfetch, and inspect a fullscreen
+screenshot when the visible result changes.

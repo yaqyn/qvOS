@@ -151,8 +151,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - the inherited top-level `default/` source tree is fully retired and must
   remain absent; native defaults live with their qvCORE domain owners
 - `qvcore/branding/` owns the qvOS vector masters, the user-approved terminal
-  art, its private install/migration lifecycle, and branding commands; the
-  graphical wordmark and terminal composition are intentionally distinct
+  art, the singular system `os-release`, their safe install/migration
+  lifecycles, and branding commands; the graphical wordmark and terminal
+  composition are intentionally distinct
 - `qvcore/config/toggles/` owns toggle templates; active toggle state lives
   privately under `~/.local/state/qvos/toggles`
 - `qvcore/controls/notification/mako-core.ini` owns shared Mako policy;
@@ -292,7 +293,9 @@ Every qvOS change must leave one traceable lifecycle.
   through its native owner. The generic state compatibility route accepts only
   reviewed reboot and service-restart markers; it never recreates an active
   Omarchy state root.
-- Native installed identities use `qvos` or `qvOS`. An `omarchy` name remains
+- Native installed identities use `qvos` or `qvOS`; `/etc/os-release` uses
+  `ID=qvos` with `ID_LIKE=arch` and is installed only by the Branding owner. An
+  `omarchy` name remains
   only at a documented compatibility frontend, exact installed-source link,
   truthful upstream input, or credited package-provider boundary.
 - Use thin, absent-safe adapters only as transition seams that complete a user

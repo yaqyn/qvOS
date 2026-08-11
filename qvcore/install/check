@@ -157,6 +157,15 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
   "$root/qvcore/install/config/run" || fail "native qvOS toggle-state stage"
 # shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/branding/system-identity"' \
+  "$root/qvcore/install/config/branding.sh" ||
+  fail "fresh install does not activate the native system identity"
+grep -Fq 'mise use -g node@lts' "$root/qvcore/install/config/mise-work.sh" ||
+  fail "online installation does not select Node.js LTS"
+if rg -n 'node@latest|mise trust ~' "$root/qvcore/install/config/mise-work.sh"; then
+  fail "fresh installation uses moving Node.js Current or trusts foreign config"
+fi
+# shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/controls/install-root"' \
   "$root/qvcore/install/config/run" ||
   fail "bounded Apple display privilege stage"

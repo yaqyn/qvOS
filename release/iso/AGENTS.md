@@ -68,7 +68,9 @@ a thin adapter to this owner.
 - Pull the build-container image for every build and perform a complete
   container `pacman -Syu` before installing tools. Keep package names sorted and
   unique, reject provider-key payload drift, and validate remote checksums and
-  filenames before using downloaded archives.
+  filenames before using downloaded archives. Resolve the offline Node.js seed
+  from the first official Linux x64 LTS entry, never the moving Current
+  release, and verify the exact archive against that release's checksum list.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
   require that commit to equal `origin/OS`, and leave the embedded checkout on
   `OS` tracking `origin/OS` so the installed update guard remains usable.
@@ -110,7 +112,10 @@ a thin adapter to this owner.
   quiet finale in the live TTY.
 - Every user-visible live-media boot label, installed Limine label, volume
   label, publisher, and application name says `qvOS`. Fresh images also use
-  native `qvos` host, Plymouth, SDDM, session, and UKI identifiers. Keep only
+  native `qvos` host, Plymouth, SDDM, session, and UKI identifiers. Derive the
+  live `/etc/os-release` from `qvcore/branding/os-release`, retaining
+  `ID_LIKE=arch` only as the truthful compatibility base; Archiso may append
+  only its image ID and build version. Keep only
   truthful package-provider ABI, names and URLs, upstream provenance and review
   records, and the exact installed-source compatibility link; never recreate a
   retired internal boot identity.

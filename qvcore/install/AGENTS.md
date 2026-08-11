@@ -124,6 +124,9 @@ fallback.
 stage. Every selected reviewed configuration and hardware leaf is now native;
 keep its order explicit and call it through `run_logged`. The specialized qvOS
 MIME and corrected ASUS B9406 owners replace their superseded upstream leaves.
+Its Branding leaf installs the singular root-owned qvOS `/etc/os-release`
+through `qvcore/branding/system-identity` before reconciling private user
+branding; never write a second product identity directly from the installer.
 Thunar is the singular file manager; omit the inherited Nautilus package,
 extension, context-menu, and Yaru action-icon setup instead of preserving a
 guarded dead installer path. The inherited `default/nautilus-python/` source
@@ -245,6 +248,12 @@ payload does not own a complete local icon theme, so a missing local
 Keep Pi and GHUI in the singular fixed wrapper owner until their product
 ownership changes deliberately. Never restore a generic package-to-command
 generator or make application refresh download an npm package.
+All native wrappers and install paths share Mise's `node@lts` contract. Online
+installation selects LTS directly; the ISO resolves one official LTS archive,
+verifies its published digest, and the Mise config leaf validates and stages it
+atomically without following an existing runtime link. Create and trust
+`~/Work/.mise.toml` only when it is the exact qvOS seed. Preserve every custom,
+linked, or foreign Work config without trusting it automatically.
 
 - qvCORE is the mandatory qvOS implementation. Keep qvOS complete without
   optional Services or Development integrations. Their packages stay in their

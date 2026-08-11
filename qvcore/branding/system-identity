@@ -1,0 +1,125 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+system_root=${QVOS_BRANDING_SYSTEM_ROOT:-}
+testing=${QVOS_BRANDING_SYSTEM_TESTING:-}
+source_file="$QVOS_PATH/qvcore/branding/os-release"
+target="$system_root/etc/os-release"
+vendor_file="$system_root/usr/lib/os-release"
+expected_uid=0
+expected_gid=0
+active_staging=
+
+fail() {
+  printf 'qvOS system identity: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/branding/system-identity" >&2
+  exit 2
+}
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+cleanup_staging() {
+  [[ -z $active_staging ]] ||
+    as_root /usr/bin/rm -f -- "$active_staging" || true
+}
+trap cleanup_staging EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+source_is_safe() {
+  local mode
+
+  [[ -f $source_file && ! -L $source_file ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$source_file") || return 1
+  (( (8#$mode & 022) == 0 )) || return 1
+  /usr/bin/grep -Fqx 'NAME="qvOS"' "$source_file" &&
+    /usr/bin/grep -Fqx 'PRETTY_NAME="qvOS"' "$source_file" &&
+    /usr/bin/grep -Fqx 'ID=qvos' "$source_file" &&
+    /usr/bin/grep -Fqx 'ID_LIKE=arch' "$source_file"
+}
+
+directory_is_safe() {
+  local path=$1
+  local mode
+
+  as_root /usr/bin/test -d "$path" || return 1
+  as_root /usr/bin/test ! -L "$path" || return 1
+  [[ $(as_root /usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(as_root /usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+regular_file_is_safe() {
+  local path=$1
+
+  as_root /usr/bin/test -f "$path" || return 1
+  as_root /usr/bin/test ! -L "$path" || return 1
+  [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+    "$expected_uid:$expected_gid:644" ]]
+}
+
+target_matches_source() {
+  regular_file_is_safe "$target" &&
+    as_root /usr/bin/cmp -s -- "$source_file" "$target"
+}
+
+target_is_vendor_link() {
+  as_root /usr/bin/test -L "$target" || return 1
+  [[ $(as_root /usr/bin/readlink -- "$target") == "../usr/lib/os-release" ]] ||
+    return 1
+  regular_file_is_safe "$vendor_file" &&
+    as_root /usr/bin/grep -Fqx 'ID=arch' "$vendor_file"
+}
+
+source_is_safe || fail "the tracked identity source is missing or unsafe"
+directory_is_safe "$system_root/etc" || fail "the system configuration root is unsafe"
+
+if target_matches_source; then
+  exit 0
+fi
+if ! as_root /usr/bin/test -e "$target" &&
+  ! as_root /usr/bin/test -L "$target"; then
+  fail "refusing a missing /etc/os-release"
+fi
+target_is_vendor_link || fail "refusing a foreign or unsafe /etc/os-release"
+
+staging=$(as_root /usr/bin/mktemp --tmpdir="$system_root/etc" \
+  '.os-release.qvos.XXXXXX') || fail "could not stage the qvOS identity"
+active_staging=$staging
+as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 \
+  -- "$source_file" "$staging" || fail "could not write the qvOS identity"
+as_root /usr/bin/mv -fT -- "$staging" "$target" ||
+  fail "could not activate the qvOS identity"
+active_staging=
+target_matches_source || fail "the installed qvOS identity failed verification"
+
+echo "Installed native qvOS system identity."

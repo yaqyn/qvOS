@@ -135,6 +135,10 @@ grep -Fqx '  "$QVOS_PATH/qvcore/theme/background-restore"' \
 grep -Fqx '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
   "$root/qvcore/migrations/1786301300.sh" ||
   fail "historical compatibility backup migration"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/branding/system-identity"' \
+  "$root/qvcore/migrations/1786430282.sh" ||
+  fail "native qvOS system-identity migration"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

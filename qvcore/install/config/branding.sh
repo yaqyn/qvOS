@@ -1,4 +1,5 @@
 # shellcheck shell=bash
 
-# Install private, user-customizable qvOS terminal branding.
+# Install the root-owned product identity and private user terminal branding.
+"$QVOS_PATH/qvcore/branding/system-identity"
 "$QVOS_PATH/qvcore/branding/install"

@@ -190,6 +190,19 @@ grep -Fq 'sed -i "/^${package}$/d" "$build_cache_dir/packages.x86_64"' \
   "$builder" || fail "release ISO does not prune unsupported releng packages"
 grep -Fq 'Unsupported live-image package remains:' "$builder" ||
   fail "release ISO does not verify unsupported package removal"
+grep -Fq 'identity_source="$qvos_source/qvcore/branding/os-release"' "$builder" ||
+  fail "release ISO duplicates or omits the native qvOS system identity"
+grep -Fq '["/etc/os-release"]="0:0:644"' "$profile/profiledef.sh" ||
+  fail "release ISO system identity permissions"
+grep -Fq 'https://nodejs.org/dist/index.json' "$builder" ||
+  fail "release ISO does not resolve Node.js from official release metadata"
+grep -Fq 'select(.lts != false and ((.files // []) | index("linux-x64")))' "$builder" ||
+  fail "release ISO does not select a Linux Node.js LTS release"
+grep -Fq 'qvOS ISO progress: selected Node.js LTS %s (%s)' "$builder" ||
+  fail "release ISO does not record the selected Node.js LTS digest"
+if rg -n 'nodejs\.org/dist/latest([/"[:space:]]|$)' "$builder"; then
+  fail "release ISO caches the moving Node.js Current release"
+fi
 if rg -n 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2' \
   "$builder" "$profile"; then
   fail "release ISO activates weak package trust or unsupported T2 packages"

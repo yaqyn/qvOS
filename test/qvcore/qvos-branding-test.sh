@@ -7,6 +7,7 @@ test_home="$test_root/home"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 branding_install="$root/qvcore/branding/install"
+system_identity="$root/qvcore/branding/system-identity"
 default_art="$root/qvcore/branding/terminal-art.txt"
 
 cleanup() {
@@ -26,6 +27,58 @@ install -d "$portable_root"
 tar --exclude=.git -C "$root" -cf - . | tar -C "$portable_root" -xf -
 "$portable_root/qvcore/branding/check" >/dev/null ||
   fail "installed-source branding check without upstream Git refs"
+
+system_root="$test_root/system"
+install -d -m 0755 "$system_root/etc" "$system_root/usr/lib"
+install -m 0644 /dev/stdin "$system_root/usr/lib/os-release" <<'EOF'
+NAME="Arch Linux"
+ID=arch
+EOF
+ln -s ../usr/lib/os-release "$system_root/etc/os-release"
+run_system_identity() {
+  QVOS_PATH="$root" \
+    QVOS_BRANDING_SYSTEM_ROOT="$system_root" \
+    QVOS_BRANDING_SYSTEM_TESTING=1 \
+    "$system_identity" "$@"
+}
+
+run_system_identity >/dev/null
+[[ -f $system_root/etc/os-release && ! -L $system_root/etc/os-release ]] ||
+  fail "native system identity did not replace the Arch vendor link"
+cmp -s "$root/qvcore/branding/os-release" "$system_root/etc/os-release" ||
+  fail "native system identity content"
+[[ $(stat -c '%a' "$system_root/etc/os-release") == "644" ]] ||
+  fail "native system identity mode"
+identity_inode=$(stat -c '%i' "$system_root/etc/os-release")
+run_system_identity >/dev/null
+[[ $(stat -c '%i' "$system_root/etc/os-release") == "$identity_inode" ]] ||
+  fail "idempotent native system identity"
+
+rm -f -- "$system_root/etc/os-release"
+if run_system_identity >/dev/null 2>&1; then
+  fail "missing system identity was silently recreated"
+fi
+
+printf 'NAME="Old qvOS"\nID=qvos\n' >"$system_root/etc/os-release"
+chmod 0644 "$system_root/etc/os-release"
+modified_qvos_identity=$(<"$system_root/etc/os-release")
+if run_system_identity >/dev/null 2>&1; then
+  fail "modified qvOS system identity was overwritten"
+fi
+[[ $(<"$system_root/etc/os-release") == "$modified_qvos_identity" ]] ||
+  fail "modified qvOS system identity was not preserved"
+
+printf 'NAME="Administrator OS"\nID=foreign\n' >"$system_root/etc/os-release"
+chmod 0644 "$system_root/etc/os-release"
+foreign_identity=$(<"$system_root/etc/os-release")
+if run_system_identity >/dev/null 2>&1; then
+  fail "foreign system identity was overwritten"
+fi
+[[ $(<"$system_root/etc/os-release") == "$foreign_identity" ]] ||
+  fail "foreign system identity was not preserved"
+if run_system_identity unexpected >/dev/null 2>&1; then
+  fail "system identity accepted unexpected arguments"
+fi
 
 install -d "$test_home/.config/omarchy/branding" "$test_bin"
 printf '\033[31mlegacy ANSI\033[0m\n' \
@@ -172,4 +225,4 @@ fi
 [[ $(<"$external/about.txt") == "outside" ]] ||
   fail "symbolic-link branding target preservation"
 
-printf 'ok - qvOS branding has private native state and one preserved terminal-art owner\n'
+printf 'ok - qvOS branding owns safe system identity, private state, and terminal art\n'

@@ -123,6 +123,17 @@ rm -rf "$build_cache_dir/airootfs/etc/xdg/reflector"
 # Bring in the native qvOS profile.
 cp -r /profile/* "$build_cache_dir/"
 
+# Derive the live product identity from the same tracked source installed on
+# the target system. Archiso adds IMAGE_ID and IMAGE_VERSION during assembly.
+identity_source="$qvos_source/qvcore/branding/os-release"
+[[ -f $identity_source && ! -L $identity_source ]] || {
+  echo "Missing the native qvOS system identity." >&2
+  exit 1
+}
+rm -f -- "$build_cache_dir/airootfs/etc/os-release"
+install -m 0644 -- "$identity_source" \
+  "$build_cache_dir/airootfs/etc/os-release"
+
 # The interactive qvOS image has no remote-administration or cloud-bootstrap
 # contract. Keep SSH available for explicit recovery, but do not expose it or
 # run Archiso mirror/cloud discovery automatically on an untrusted network.
@@ -192,18 +203,32 @@ cp -r "$build_cache_dir/airootfs/root/qvos/qvcore/boot/plymouth/"* "$build_cache
 cp "$build_cache_dir/airootfs/root/qvos/release/iso/syslinux-splash.png" \
   "$build_cache_dir/syslinux/splash.png"
 
-# Download and verify Node.js binary for offline installation
-node_dist_url="https://nodejs.org/dist/latest"
+# Resolve the newest official LTS release, then verify the exact Linux archive
+# against that release's published SHA-256 inventory.
+node_release_index=$(curl --http1.1 --fail --location --retry 5 \
+  --retry-all-errors --retry-delay 2 "https://nodejs.org/dist/index.json")
+node_version=$(jq -er '
+  [
+    .[] |
+    select(.lts != false and ((.files // []) | index("linux-x64"))) |
+    .version
+  ][0]
+' <<<"$node_release_index")
+[[ $node_version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "ERROR: Node.js LTS release metadata is malformed." >&2
+  exit 1
+}
+node_dist_url="https://nodejs.org/dist/$node_version"
 node_cache_dir="/var/cache/qvos/node"
 mkdir -p "$node_cache_dir"
 
-# Get checksums and accept exactly one bounded Linux x86_64 archive name.
+# Get checksums and accept exactly the selected Linux x86_64 archive.
 node_shasums=$(curl --http1.1 --fail --location --retry 5 \
   --retry-all-errors --retry-delay 2 "$node_dist_url/SHASUMS256.txt")
+node_filename="$node_version-linux-x64.tar.gz"
 mapfile -t node_checksum_rows < <(
-  awk '$2 ~ /^node-v[0-9]+\.[0-9]+\.[0-9]+-linux-x64\.tar\.gz$/ {
-    print $1 " " $2
-  }' <<<"$node_shasums"
+  awk -v filename="$node_filename" '$2 == filename { print $1 " " $2 }' \
+    <<<"$node_shasums"
 )
 (( ${#node_checksum_rows[@]} == 1 )) || {
   echo "ERROR: Node.js checksum inventory is unexpected." >&2
@@ -214,6 +239,8 @@ read -r node_sha node_filename <<<"${node_checksum_rows[0]}"
   echo "ERROR: Node.js checksum is malformed." >&2
   exit 1
 }
+printf 'qvOS ISO progress: selected Node.js LTS %s (%s)\n' \
+  "$node_version" "$node_sha"
 node_tarball="$node_cache_dir/$node_filename"
 
 if [[ ! -f $node_tarball ]] ||

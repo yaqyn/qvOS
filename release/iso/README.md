@@ -31,7 +31,8 @@ the previous one.
 - Build with downloads explicitly allowed and no reused ISO package cache for
   the release proof. Record the qvOS input commit, provider channel, container
   image identity, resolved package inventory, artifact name and size, SHA-256,
-  build result, and retained failure-stage path when applicable.
+  selected Node.js LTS release and checksum, build result, and retained
+  failure-stage path when applicable.
 - Verify that repository and direct local package signatures are required, the
   offline cache is not group-writable, its package archives, signatures, and
   repository metadata are non-executable, the generated Archinstall
@@ -102,8 +103,9 @@ the previous one.
   together.
 - Inspect ISO metadata and every UEFI, GRUB, Syslinux, and installed Limine
   menu. All displayed product, entry, publisher, and application names must say
-  `qvOS`. Confirm the live and installed Plymouth, SDDM, session, hostname, and
-  UKI identities use `qvos` or `qvOS`; `omarchy` may remain only in truthful
+  `qvOS`. Confirm live and installed `/etc/os-release` report `ID=qvos` and
+  `ID_LIKE=arch`, and that Plymouth, SDDM, session, hostname, and UKI identities
+  use `qvos` or `qvOS`; `omarchy` may remain only in truthful
   package-provider inputs, upstream provenance and review records, the exact
   chroot compatibility signal, and the installed-source compatibility link.
 - Inspect the rendered Syslinux splash and menu palette. Its background is

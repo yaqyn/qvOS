@@ -78,13 +78,16 @@ for route in "${!branding_routes[@]}"; do
   done
 done
 
-for owner in about install lib refresh-fastfetch screensaver show-logo; do
+for owner in about install lib os-release refresh-fastfetch screensaver show-logo system-identity; do
   [[ -f $root/qvcore/branding/$owner && ! -L $root/qvcore/branding/$owner ]] ||
     fail "missing native branding owner: $owner"
 done
-for owner in about install refresh-fastfetch screensaver show-logo; do
+for owner in about install refresh-fastfetch screensaver show-logo system-identity; do
   [[ -x $root/qvcore/branding/$owner ]] || fail "branding owner mode: $owner"
 done
+expected_os_release=$'NAME="qvOS"\nPRETTY_NAME="qvOS"\nID=qvos\nID_LIKE=arch\nBUILD_ID=rolling\nANSI_COLOR="1;37"\nHOME_URL="https://github.com/Yaqyn-qvOS/qvOS"\nDOCUMENTATION_URL="https://github.com/Yaqyn-qvOS/qvOS#readme"\nSUPPORT_URL="https://github.com/Yaqyn-qvOS/qvOS/issues"\nBUG_REPORT_URL="https://github.com/Yaqyn-qvOS/qvOS/issues"'
+[[ $(<"$root/qvcore/branding/os-release") == "$expected_os_release" ]] ||
+  fail "native qvOS system identity source"
 [[ -f $root/qvcore/branding/terminal-art.txt &&
   ! -L $root/qvcore/branding/terminal-art.txt ]] ||
   fail "missing qvOS terminal art"
@@ -178,6 +181,7 @@ native_identity_paths=(
   .github/ISSUE_TEMPLATE/config.yml
   bin/qv-plymouth-preview
   bin/qv-plymouth-set
+  qvcore/branding/os-release
   qvcore/config/files/hypr/looknfeel.conf
   qvcore/config/files/qvos/themed/alacritty.toml.tpl.sample
   qvcore/shell/aliases
@@ -217,4 +221,4 @@ grep -Fq 'Description=qvOS Battery Monitor Check' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
   fail "qvOS battery service label"
 
-printf 'ok - qvOS singularly owns visible identity, terminal art, and branding state\n'
+printf 'ok - qvOS singularly owns system identity, terminal art, and branding state\n'
