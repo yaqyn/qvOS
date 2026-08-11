@@ -225,7 +225,7 @@ mkdir -p "$node_cache_dir"
 # Get checksums and accept exactly the selected Linux x86_64 archive.
 node_shasums=$(curl --http1.1 --fail --location --retry 5 \
   --retry-all-errors --retry-delay 2 "$node_dist_url/SHASUMS256.txt")
-node_filename="$node_version-linux-x64.tar.gz"
+node_filename="node-$node_version-linux-x64.tar.gz"
 mapfile -t node_checksum_rows < <(
   awk -v filename="$node_filename" '$2 == filename { print $1 " " $2 }' \
     <<<"$node_shasums"

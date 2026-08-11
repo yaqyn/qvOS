@@ -198,6 +198,8 @@ grep -Fq 'https://nodejs.org/dist/index.json' "$builder" ||
   fail "release ISO does not resolve Node.js from official release metadata"
 grep -Fq 'select(.lts != false and ((.files // []) | index("linux-x64")))' "$builder" ||
   fail "release ISO does not select a Linux Node.js LTS release"
+grep -Fq 'node_filename="node-$node_version-linux-x64.tar.gz"' "$builder" ||
+  fail "release ISO does not derive the exact official Node.js archive name"
 grep -Fq 'qvOS ISO progress: selected Node.js LTS %s (%s)' "$builder" ||
   fail "release ISO does not record the selected Node.js LTS digest"
 if rg -n 'nodejs\.org/dist/latest([/"[:space:]]|$)' "$builder"; then
