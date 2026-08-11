@@ -151,7 +151,7 @@ records identity inputs only as set or empty and never persists their values.
 Clearing an unavailable terminal is cosmetic and must never turn a completed
 installer stage into a failure.
 
-`qvcore/install/first-run/prepare` creates the compatibility marker only after it
+`qvcore/install/first-run/prepare` creates the native marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
 sudoers commands. `qvcore/install/first-run/run` owns the ordered login lifecycle,
 keeps the marker on failure, serializes concurrent starts, and removes the
@@ -160,9 +160,8 @@ Never grant passwordless access to general system, firewall, package, or file
 commands for first run. Keep notifications non-fatal after successful cleanup.
 The tracked Hyprland autostart source invokes only the native `qv-first-run`
 route; the Omarchy route is a metadata-free compatibility adapter.
-The active marker lives under `.local/state/qvos/install`; migrate the former
-`.local/state/omarchy/first-run.mode` only after validating its type, owner, and
-parents, and never leave both markers active.
+The active marker and private lock live only under `.local/state/qvos/install`;
+the retired inherited marker is not scanned or migrated.
 The native GNOME and icon owners replace the inherited GNOME theme rather than
 running after it.
 Walker startup files are ordinary native sources under

@@ -8,7 +8,6 @@ test_qvos="$test_root/qvos"
 test_bin="$test_root/bin"
 event_log="$test_root/events"
 marker="$test_home/.local/state/qvos/install/first-run.mode"
-legacy_marker="$test_home/.local/state/omarchy/first-run.mode"
 test_helper="$test_root/first-run-root"
 test_sudo="$test_root/sudo"
 
@@ -24,7 +23,6 @@ fail() {
 
 install -d \
   "$test_bin" \
-  "$test_home/.local/state/omarchy" \
   "$test_home/.local/state/qvos/install" \
   "$test_qvos/qvcore/config" \
   "$test_qvos/qvcore/install/first-run" \
@@ -78,14 +76,13 @@ run_first_run() {
 run_first_run
 [[ ! -s $event_log ]] || fail "first run mutated without its marker"
 
-: >"$legacy_marker"
-chmod 0644 "$legacy_marker"
+: >"$marker"
+chmod 0644 "$marker"
 QVOS_TEST_FAIL_PATH=qvcore/install/first-run/icons \
   run_first_run >/dev/null 2>&1 && fail "first-run owner ignored a required failure"
 [[ -f $marker ]] || fail "failed first run removed its retry marker"
 [[ $(stat -c '%a' "$marker") == "600" ]] ||
-  fail "first run did not privatize its migrated marker"
-[[ ! -e $legacy_marker ]] || fail "first run retained its legacy marker"
+  fail "first run did not privatize its marker"
 if grep -Fq "sudo:$test_helper cleanup" "$event_log"; then
   fail "failed first run removed its privilege retry path"
 fi
@@ -135,6 +132,8 @@ flock -n 8
 run_first_run
 [[ ! -s $event_log && -f $marker ]] ||
   fail "concurrent first run crossed its lock"
+[[ $(stat -c '%a' "$lock_file") == "600" ]] ||
+  fail "first-run lock is not private"
 flock -u 8
 
 rm -rf -- "${lock_file%/*}"

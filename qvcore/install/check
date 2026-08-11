@@ -338,6 +338,10 @@ if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|
   "$root/qvcore/install"; then
   fail "broad passwordless first-run command remains"
 fi
+if rg -n '\.local/state/omarchy/first-run\.mode' \
+  "$root/qvcore/install/first-run"; then
+  fail "retired first-run marker migration remains"
+fi
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/install/packaging/webapps"' \
   "$root/qvcore/install/refresh-applications" || fail "native webapps refresh wiring"

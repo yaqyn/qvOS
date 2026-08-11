@@ -9,7 +9,6 @@ helper_target="$system_root/usr/lib/qvos/first-run-root"
 sudoers_target="$system_root/etc/sudoers.d/qvos-first-run"
 legacy_sudoers="$system_root/etc/sudoers.d/first-run"
 marker="$HOME/.local/state/qvos/install/first-run.mode"
-legacy_marker="$HOME/.local/state/omarchy/first-run.mode"
 candidate=""
 marker_candidate=""
 
@@ -40,7 +39,6 @@ fi
 }
 
 marker_dir=${marker%/*}
-legacy_marker_dir=${legacy_marker%/*}
 [[ ! -L $marker_dir && ! -L $marker ]] || {
   echo "Refusing unsafe qvOS first-run state." >&2
   exit 1
@@ -54,13 +52,6 @@ mkdir -p "$marker_dir"
   echo "Refusing qvOS first-run state owned by another user." >&2
   exit 1
 }
-if [[ -e $legacy_marker || -L $legacy_marker ]]; then
-  [[ ! -L $legacy_marker_dir && ! -L $legacy_marker &&
-    -f $legacy_marker && $(stat -c '%u' "$legacy_marker") == "$UID" ]] || {
-    echo "Refusing unsafe legacy qvOS first-run state." >&2
-    exit 1
-  }
-fi
 marker_candidate=$(mktemp "$marker_dir/.first-run.XXXXXX")
 chmod 0600 "$marker_candidate"
 
@@ -137,9 +128,3 @@ if ! mv -f -- "$marker_candidate" "$marker"; then
   exit 1
 fi
 marker_candidate=""
-if [[ -e $legacy_marker ]] && ! rm -f -- "$legacy_marker"; then
-  rm -f -- "$marker"
-  remove_as_root -f -- "$sudoers_target" "$helper_target"
-  echo "Could not clean the legacy qvOS first-run state." >&2
-  exit 1
-fi
