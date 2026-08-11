@@ -166,10 +166,15 @@ runtime_config="$root/qvcore/desktop/hyprland/qvos-runtime-config"
 "$runtime_config" config cursor zoom_factor 3.5
 assert_log 'eval hl.config({ cursor = { zoom_factor = 3.5 } })' \
   "$hyprctl_log" "bounded runtime config mutation"
+: >"$hyprctl_log"
+"$runtime_config" window tiled
+assert_log 'dispatch hl.dsp.window.float({ action = "disable" })' \
+  "$hyprctl_log" "bounded runtime window action"
 for invalid_runtime in \
   'config cursor zoom_factor 11' \
   'config cursor inactive_timeout 86401' \
-  'config cursor zoom_factor 1); os.execute("true")'; do
+  'config cursor zoom_factor 1); os.execute("true")' \
+  'window floating'; do
   read -r -a invalid_args <<<"$invalid_runtime"
   : >"$hyprctl_log"
   if "$runtime_config" "${invalid_args[@]}" 2>/dev/null; then

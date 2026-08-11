@@ -259,20 +259,38 @@ fi
 pass "Codex startup uses the canonical CLI with focused sleep protection"
 
 tile_log="$test_root/tile-dispatch"
-(
-  # shellcheck disable=SC2329
-  hyprctl() {
-    case $1 in
-    activewindow) printf '{"class":"org.qvos.tmux-manager"}\n' ;;
-    dispatch) printf '%s\n' "$2" >"$tile_log" ;;
-    esac
-  }
-  HYPRLAND_INSTANCE_SIGNATURE="test"
-  export HYPRLAND_INSTANCE_SIGNATURE
+tile_bin="$test_root/tile-bin"
+install -d "$tile_bin"
+install -m 0755 /dev/stdin "$tile_bin/hyprctl" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_TEST_TILE_LOG"
+case ${1:-} in
+-j)
+  [[ ${2:-} == "activewindow" ]]
+  printf '{"class":"org.qvos.tmux-manager"}\n'
+  ;;
+dispatch)
+  [[ ${QVOS_TEST_TILE_FAIL:-false} != "true" ]]
+  ;;
+*) exit 64 ;;
+esac
+SCRIPT
+QVOS_TEST_TILE_LOG="$tile_log" \
+  HYPRLAND_INSTANCE_SIGNATURE="test" \
+  PATH="$tile_bin:/usr/bin" \
   tile_manager_terminal
-)
-[[ "$(<"$tile_log")" == "settiled" ]] || fail "manager terminal tiling"
-pass "opening a session converts the manager terminal to tiled"
+grep -Fqx -- '-j activewindow' "$tile_log" ||
+  fail "manager terminal class query"
+grep -Fqx -- 'dispatch hl.dsp.window.float({ action = "disable" })' \
+  "$tile_log" || fail "manager terminal tiling"
+: >"$tile_log"
+QVOS_TEST_TILE_FAIL=true \
+  QVOS_TEST_TILE_LOG="$tile_log" \
+  HYPRLAND_INSTANCE_SIGNATURE="test" \
+  PATH="$tile_bin:/usr/bin" \
+  tile_manager_terminal 2>/dev/null ||
+  fail "secondary tiling failure closed the manager terminal"
+pass "opening a session tiles through the native bridge without blocking tmux"
 
 jq -n --arg cwd "$project_dir" '
   {

@@ -129,12 +129,14 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   seed; active overrides live only under `~/.config/qvos/extensions/`, while the
   inherited Omarchy path is validated migration input and is never seeded
 - `qvcore/config/base/hypr/` owns the typed Lua runtime helpers and source-side
-  session, environment, appearance, and window defaults;
+  session, environment, appearance, persistent workspaces, and window defaults;
   `qvcore/config/files/hypr/` owns the complete user-editable Lua entrypoint
   and leaves. Active `.conf`, `default/hypr/`, and the former installed
   `hypr/qv` overlay are retired and must remain absent
 - `qvcore/config/files/waybar/` owns one complete native Waybar config and
-  style; `default/waybar/` and the former merge overlay are retired
+  style; its workspace buttons use the protocol-native `ext/workspaces` module
+  over typed persistent Hyprland workspace rules; `default/waybar/` and the
+  former merge overlay are retired
 - `qvcore/config/files/` owns XCompose and WirePlumber policy;
   `default/xcompose` and `default/wireplumber/` are retired
 - `qvcore/config/assistant/` owns the installed qvOS agent skill and Pi theme

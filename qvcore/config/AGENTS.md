@@ -5,7 +5,9 @@ refresh reconciliation, or installed desktop configuration.
 
 `qvcore/config/base/hypr/` is the singular source-side Hyprland Lua base. Its
 typed helpers, session autostart, environment, appearance, and default window
-rules live in five readable `.lua` files. `qvcore/config/files/hypr/` owns the
+and persistent workspace rules live in five readable `.lua` files.
+Workspaces 1 through 5 remain present for the protocol-native Waybar module;
+Waybar does not own or recreate their lifecycle. `qvcore/config/files/hypr/` owns the
 installed user-editable Lua entrypoint, bindings, monitors, input, environment,
 appearance, and autostart leaves. There is no inherited base, `.conf` runtime,
 fragment fan-out, binding layer, or qvOS overlay.

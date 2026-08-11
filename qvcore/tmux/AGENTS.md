@@ -8,6 +8,9 @@ privately under `~/.config/qvos/tmux`, transient state lives under
 `~/.local/state/qvos/tmux`, and concurrent changes serialize through its
 feature lock. Preserve exact panes, commands, working directories, focus, and
 geometry; never replay saved commands when attaching to an existing session.
+The dedicated manager terminal requests tiled state through the sibling native
+Hyprland runtime bridge. Tiling is secondary: a missing or rejected compositor
+action must report briefly and continue into tmux instead of closing the window.
 
 `qvcore/config/files/tmux/tmux.conf` is the singular default.
 `qvcore/tmux/refresh` rejects arguments, restores it through

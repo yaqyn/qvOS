@@ -10,7 +10,9 @@ recovery, and all-window closure.
 `qvos-runtime-config` is the only runtime configuration bridge. It accepts a
 small typed operation catalog, validates every value, and alone may pass a
 constructed expression to `hyprctl eval`; callers never provide Lua or an
-arbitrary expression. Persistent compositor policy remains in native Lua.
+arbitrary expression. Its fixed window-action catalog may dispatch only a
+source-owned Lua action; never translate a legacy dispatcher name at runtime.
+Persistent compositor policy remains in native Lua.
 `qvcore/desktop/launch/` owns default application, web-app, terminal-app, and
 focus-or-launch behavior. Native launchers preserve argv boundaries, use fixed
 substring window matching against fully validated Hyprland JSON, generate

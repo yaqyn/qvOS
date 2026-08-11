@@ -14,6 +14,14 @@ run_lua() {
     fail "Hyprland rejected the runtime configuration"
 }
 
+run_dispatch() {
+  local expression=$1
+
+  command -v hyprctl >/dev/null 2>&1 || fail "Hyprland control is unavailable"
+  hyprctl dispatch "$expression" >/dev/null ||
+    fail "Hyprland rejected the runtime window action"
+}
+
 case ${1:-} in
 config)
   (($# == 4)) || fail "usage: qvos-runtime-config config <section> <key> <value>" 2
@@ -69,6 +77,11 @@ monitor)
   fi
   run_lua "hl.monitor({ output = \"$output\", mode = \"$mode\", position = \"$position\", scale = $scale_literal })"
   ;;
+window)
+  (($# == 2)) || fail "usage: qvos-runtime-config window tiled" 2
+  [[ $2 == "tiled" ]] || fail "unsupported window state: $2" 2
+  run_dispatch 'hl.dsp.window.float({ action = "disable" })'
+  ;;
 workspace-layout)
   (($# == 3)) || fail "usage: qvos-runtime-config workspace-layout <workspace> <layout>" 2
   workspace=$2
@@ -79,6 +92,6 @@ workspace-layout)
   run_lua "hl.workspace_rule({ workspace = \"$workspace\", layout = \"$layout\" })"
   ;;
 *)
-  fail "usage: qvos-runtime-config {config|device|monitor|workspace-layout} ..." 2
+  fail "usage: qvos-runtime-config {config|device|monitor|window|workspace-layout} ..." 2
   ;;
 esac

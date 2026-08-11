@@ -141,6 +141,10 @@ if rg -qi 'https?://|youtube|discord|match:class .*\bzoom\b|Nautilus|davinci|jet
 fi
 grep -Fqx 'qv.window_rule("tag +floating-window", { class = [[^org\.qvos\.(bluetui|impala|wiremix|btop|terminal)$]] })' \
   "$windows" || fail "native terminal application identities"
+grep -Fqx 'for workspace_id = 1, 5 do' "$windows" ||
+  fail "native persistent workspace catalog"
+grep -Fqx '  hl.workspace_rule({ workspace = tostring(workspace_id), persistent = true })' \
+  "$windows" || fail "native persistent workspace policy"
 for command in qv-toggle-enabled qv-powerprofiles-init qv-restart-monitor-watch; do
   grep -Fq "$command" "$autostart" ||
     fail "native autostart route: $command"

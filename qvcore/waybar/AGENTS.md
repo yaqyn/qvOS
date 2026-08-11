@@ -28,7 +28,10 @@ The complete config carries only supported qvOS modules. Review upstream
 Waybar changes as capability input and port useful behavior deliberately; do
 not merge upstream keys or recreate a copied base. A reset preserves different
 active files through the shared backup transaction before restoring the native
-source.
+source. Workspace buttons use protocol-native `ext/workspaces`, never the
+Hyprland IPC module: its legacy click dispatcher is incompatible with the Lua
+configuration manager. Persistent workspace ownership belongs to the typed
+Hyprland base, while Waybar only presents and activates protocol workspaces.
 
 `qv-launch-task` is the native fallback for a classified qvOS task when the
 checked TUI runtime is unavailable. Waybar task actions must use it; never

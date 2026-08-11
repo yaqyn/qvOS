@@ -106,13 +106,16 @@ if rg -n '\beval\b|bash[[:space:]]+-c[[:space:]]+.*\$' \
   fail "desktop launch owner shell-parses caller input"
 fi
 runtime_config="$root/qvcore/desktop/hyprland/qvos-runtime-config"
-for mode in config device monitor workspace-layout; do
+for mode in config device monitor window workspace-layout; do
   grep -Fqx "$mode)" "$runtime_config" ||
     fail "Hyprland runtime config mode is missing: $mode"
 done
 runtime_eval_call="hyprctl eval \"\$expression\""
 [[ $(grep -Fc "$runtime_eval_call" "$runtime_config") == 1 ]] ||
   fail "Hyprland runtime config bypasses its bounded Lua evaluator"
+runtime_dispatch_call="hyprctl dispatch \"\$expression\""
+[[ $(grep -Fc "$runtime_dispatch_call" "$runtime_config") == 1 ]] ||
+  fail "Hyprland runtime config bypasses its bounded Lua dispatcher"
 
 while IFS= read -r inherited_path; do
   stem=${inherited_path##*/omarchy-restart-}

@@ -47,7 +47,14 @@ jq -e '
   (."modules-left" + ."modules-center" + ."modules-right"
     | index("group/prayer-clock") != null) and
   (."modules-left" + ."modules-center" + ."modules-right"
+    | index("ext/workspaces") != null) and
+  (."modules-left" + ."modules-center" + ."modules-right"
+    | index("hyprland/workspaces") == null) and
+  (."modules-left" + ."modules-center" + ."modules-right"
     | index("clock") == null) and
+  ."ext/workspaces"."on-click" == "activate" and
+  ."ext/workspaces"."sort-by-id" == true and
+  (."ext/workspaces" | has("persistent-workspaces") | not) and
   ."custom/qvos".format == "󱅾" and
   ."custom/qvos"."on-click" == "qv-menu" and
   ."custom/update".exec == "qv-update-available" and

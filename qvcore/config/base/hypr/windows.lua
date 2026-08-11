@@ -1,4 +1,8 @@
 -- qvOS window and layer rules.
+for workspace_id = 1, 5 do
+  hl.workspace_rule({ workspace = tostring(workspace_id), persistent = true })
+end
+
 qv.window_rule("suppress_event maximize", { class = [[.*]] })
 qv.window_rule("tag +default-opacity", { class = [[.*]] })
 qv.window_rule("no_focus on", {
