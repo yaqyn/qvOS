@@ -173,6 +173,11 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   mkinitcpio, and UKI identities; exact `omarchy` boot artifacts are accepted
   only as preservation-safe migration input and are removed after replacement
   verification
+- `qvcore/boot/session-start` owns qvOS login and always passes the verified
+  native Lua entrypoint explicitly to Hyprland through UWSM; generic
+  `hyprland.desktop` discovery is forbidden because it can regenerate a
+  `.conf` stub and discard qvOS configuration. A running legacy session keeps
+  its proven files until the next native login retires them exactly
 - `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
   `default/udev/` is retired
 - `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook;

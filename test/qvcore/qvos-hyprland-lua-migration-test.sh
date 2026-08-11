@@ -110,6 +110,37 @@ after=$(find "$test_home/.config/hypr" "$test_home/.local/state/qvos/hyprland" \
   -type f -exec sha256sum {} + | sort)
 [[ $after == "$before" ]] || fail "rerun changed the migrated config or backup"
 
+# A running legacy compositor keeps its proven configuration until logout.
+# The native session finalizer removes it only after the old process has ended.
+active_home="$test_root/active-home"
+active_bin="$test_root/active-bin"
+prepare_home "$active_home"
+install -d "$active_bin"
+install -m 0644 \
+  "$test_home/.local/state/qvos/hyprland/legacy-conf/config/monitors.conf" \
+  "$active_home/.config/hypr/monitors.conf"
+install -m 0755 /dev/stdin "$active_bin/Hyprland" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+install -m 0755 /dev/stdin "$active_bin/hyprctl" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "eval" ]] && exit 1
+exit 0
+SCRIPT
+HOME="$active_home" \
+  HYPRLAND_INSTANCE_SIGNATURE=qvos-legacy-test \
+  QVOS_PATH="$root" \
+  PATH="$active_bin:/usr/bin" \
+  "$root/qvcore/config/migrate-hyprland-lua" >/dev/null
+[[ -f $active_home/.config/hypr/monitors.conf &&
+  -f $active_home/.config/hypr/monitors.lua ]] ||
+  fail "active legacy session lost its loaded monitor policy"
+HOME="$active_home" QVOS_PATH="$root" PATH="$active_bin:/usr/bin" \
+  "$root/qvcore/config/finalize-hyprland-lua" >/dev/null
+[[ ! -e $active_home/.config/hypr/monitors.conf ]] ||
+  fail "native session did not retire the proven legacy monitor policy"
+
 # Unknown legacy code stops before qvOS creates migration state or Lua output.
 custom_home="$test_root/custom-home"
 prepare_home "$custom_home"

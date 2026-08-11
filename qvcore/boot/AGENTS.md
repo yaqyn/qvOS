@@ -21,6 +21,16 @@ Historical boot migrations are retired because native fresh-install and boot
 owners already converge the selected state; future transitions use only the
 native migration domain.
 
+`qvcore/boot/session-start` is the singular qvOS Hyprland login launcher. The
+installed `/usr/local/bin/qvos-session` validates and finalizes the native Lua
+configuration before starting UWSM with an explicit `--config` path and the
+Hyprland watchdog. Never route the qvOS session through generic
+`hyprland.desktop`: default config discovery can recreate a `.conf` stub and
+silently discard qvOS bindings, monitor policy, and appearance. During the
+one-time format transition, keep the already-running legacy session loaded;
+the next login retires only exact backed-up legacy files or a known generated
+stub before Lua starts.
+
 `qvcore/boot/install` singularly owns the ordered login stage. Its native leaves
 install Plymouth without an early image rebuild, install the SDDM theme,
 session, Wayland compositor config, autologin compatibility, and PAM policy,

@@ -15,6 +15,7 @@ declare -A config_profiles=()
 declare -A toggle_profiles=()
 declare -A toggle_inputs=()
 declare -A seen_profile_rows=()
+legacy_session_active=false
 
 fail() {
   printf 'qvOS Hyprland Lua migration: %s\n' "$1" >&2
@@ -320,26 +321,39 @@ publish_file 0644 "$source" "$config_root/hyprland.lua"
 Hyprland --verify-config -c "$config_root/hyprland.lua" >/dev/null ||
   fail "the published Lua configuration was rejected; legacy config remains active"
 
-# Retire the old entrypoint before its theme fragment. Any interruption from
-# here starts from the already-verified Lua tree; the fragment is then inert.
-retire_file \
-  "$config_root/hyprland.conf" \
-  "$backup_root/config/hyprland.conf" \
-  "legacy config"
-retire_file "$legacy_theme_path" "$legacy_theme_backup" "legacy theme config"
-Hyprland --verify-config -c "$config_root/hyprland.lua" >/dev/null ||
-  fail "the final Lua configuration was rejected after retiring legacy theme state"
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] &&
+  command -v hyprctl >/dev/null 2>&1 &&
+  hyprctl version >/dev/null 2>&1 &&
+  ! hyprctl eval 'return true' >/dev/null 2>&1; then
+  legacy_session_active=true
+fi
 
-for name in "${config_names[@]}"; do
-  [[ $name == "hyprland" ]] && continue
-  active="$config_root/$name.conf"
-  retire_file "$active" "$backup_root/config/$name.conf" "legacy config"
-done
-for name in "${!toggle_inputs[@]}"; do
-  active=${toggle_inputs[$name]}
-  retire_file "$active" "$backup_root/toggles/$name.conf" "legacy toggle"
-done
+if [[ $legacy_session_active == "false" ]]; then
+  # Retire the old entrypoint before its theme fragment. Any interruption from
+  # here starts from the already-verified Lua tree; the fragment is then inert.
+  retire_file \
+    "$config_root/hyprland.conf" \
+    "$backup_root/config/hyprland.conf" \
+    "legacy config"
+  retire_file "$legacy_theme_path" "$legacy_theme_backup" "legacy theme config"
+  Hyprland --verify-config -c "$config_root/hyprland.lua" >/dev/null ||
+    fail "the final Lua configuration was rejected after retiring legacy theme state"
+
+  for name in "${config_names[@]}"; do
+    [[ $name == "hyprland" ]] && continue
+    active="$config_root/$name.conf"
+    retire_file "$active" "$backup_root/config/$name.conf" "legacy config"
+  done
+  for name in "${!toggle_inputs[@]}"; do
+    active=${toggle_inputs[$name]}
+    retire_file "$active" "$backup_root/toggles/$name.conf" "legacy toggle"
+  done
+fi
 
 printf 'Migrated Hyprland to native Lua; preserved legacy files under %s.\n' \
   "$backup_root"
-printf 'The current desktop keeps its loaded settings; log in again to start from Lua.\n'
+if [[ $legacy_session_active == "true" ]]; then
+  printf 'The current desktop retains its legacy settings; log in again to start from Lua.\n'
+else
+  printf 'Log in again to start from the native Lua configuration.\n'
+fi

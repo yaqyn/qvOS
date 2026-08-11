@@ -33,6 +33,10 @@ rewrite_sddm_identity_file() {
     qvos_boot_install_text 0644 "$target" "$updated"$'\n'
 }
 
+launcher_source="$QVOS_PATH/qvcore/boot/session-start"
+launcher_target=$(qvos_boot_path /usr/local/bin/qvos-session)
+qvos_boot_install_file 0755 "$launcher_source" "$launcher_target"
+
 session_source="$QVOS_PATH/qvcore/boot/wayland-sessions/qvos.desktop"
 session_target=$(qvos_boot_path /usr/local/share/wayland-sessions/qvos.desktop)
 qvos_boot_install_file \
@@ -48,11 +52,17 @@ legacy_session=$(qvos_boot_path /usr/local/share/wayland-sessions/omarchy.deskto
 qvos_session_content=$(<"$session_source")
 legacy_qvos_content=${qvos_session_content/UWSM/uwsm}
 legacy_omarchy_content=${legacy_qvos_content//qvOS/Omarchy}
+historical_qvos_content=$'[Desktop Entry]\nName=qvOS (Hyprland uwsm)\nComment=qvOS Hyprland session managed by UWSM\nExec=uwsm start -g -1 -e -D Hyprland hyprland.desktop\nTryExec=uwsm\nType=Application'
+historical_legacy_content=${historical_qvos_content/UWSM/uwsm}
+historical_omarchy_content=${historical_legacy_content//qvOS/Omarchy}
 qvos_boot_remove_file_if_content \
   "$legacy_session" \
   "$qvos_session_content" \
   "$legacy_qvos_content" \
-  "$legacy_omarchy_content"
+  "$legacy_omarchy_content" \
+  "$historical_qvos_content" \
+  "$historical_legacy_content" \
+  "$historical_omarchy_content"
 
 legacy_login=$(qvos_boot_path /etc/sddm.conf.d/99-omarchy-login.conf)
 qvos_login=$(qvos_boot_path /etc/sddm.conf.d/99-qvos-login.conf)

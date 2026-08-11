@@ -575,6 +575,11 @@ grep -Fq 'GROUP_DESCRIPTIONS[restart]="Restart qvOS components"' \
 grep -Fq 'GROUP_DESCRIPTIONS[toggle]="Toggle qvOS features"' \
   "$root/qvcore/cli/qv" || fail "qvOS toggle help"
 grep -Fq 'Name=qvOS (Hyprland uwsm)' "$root/qvcore/boot/wayland-sessions/qvos.desktop" || fail "qvOS login session label"
+grep -Fqx 'Exec=/usr/local/bin/qvos-session' \
+  "$root/qvcore/boot/wayland-sessions/qvos.desktop" ||
+  fail "qvOS login session does not select native Lua"
+! rg -q 'hyprland\.desktop' "$root/qvcore/boot/wayland-sessions/qvos.desktop" ||
+  fail "qvOS login session delegates config discovery upstream"
 grep -Fq 'Name = "qvosUnlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||
   fail "qvOS unlock provider identity"
 grep -Fq 'NamePretty = "qvOS Unlocks"' "$root/qvcore/menu/elephant/qvos_unlocks.lua" ||

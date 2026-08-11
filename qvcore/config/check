@@ -221,7 +221,7 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in migrate-hyprland-lua neovim toggle-state user-services; do
+for owner in finalize-hyprland-lua migrate-hyprland-lua neovim toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
 [[ -f $root/qvcore/config/hyprland-conf-profiles.psv &&

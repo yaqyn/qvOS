@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+config_path="$HOME/.config/hypr/hyprland.lua"
+finalizer="$QVOS_PATH/qvcore/config/finalize-hyprland-lua"
+
+[[ $HOME == /* && $HOME != *$'\n'* && $HOME != *$'\r'* ]] || {
+  echo "qvOS session requires a safe absolute HOME" >&2
+  exit 1
+}
+[[ -x $finalizer && ! -L $finalizer ]] || {
+  echo "qvOS session finalizer is missing or unsafe: $finalizer" >&2
+  exit 1
+}
+"$finalizer"
+
+exec uwsm start \
+  -g -1 \
+  -e \
+  -D Hyprland \
+  -N "qvOS (Hyprland)" \
+  -C "qvOS Hyprland session" \
+  start-hyprland -- -- --config "$config_path"

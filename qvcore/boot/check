@@ -131,6 +131,14 @@ grep -Fq '/etc/sddm.conf.d/qvos.conf' \
   "$root/qvcore/boot/sync-theme" || fail "native SDDM selector owner"
 grep -Fq 'qvcore/boot/wayland-sessions/qvos.desktop' \
   "$root/qvcore/boot/install-sddm-session" || fail "fresh Wayland session owner"
+grep -Fq 'qvcore/boot/session-start' \
+  "$root/qvcore/boot/install-sddm-session" || fail "native Wayland launcher owner"
+grep -Fqx 'Exec=/usr/local/bin/qvos-session' \
+  "$root/qvcore/boot/wayland-sessions/qvos.desktop" ||
+  fail "qvOS session does not select the native Lua launcher"
+# shellcheck disable=SC2016
+grep -Fq -- '-- -- --config "$config_path"' \
+  "$root/qvcore/boot/session-start" || fail "native Lua config selection"
 grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
 grep -Fq "pam_gnome_keyring\\.so/d" \
