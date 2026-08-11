@@ -248,6 +248,7 @@ install_qvos() {
     echo "qvOS installation returned without a completion marker." >&2
     return 1
   }
+  validate_qvos_target_databases
 }
 
 # Set the qvOS black, grayscale, and red color scheme for the terminal
@@ -352,6 +353,87 @@ mount_qvos_target_boot() {
   }
 }
 
+seed_qvos_target_databases() {
+  local source_root=${1:-/var/cache/qvos/mirror/sync}
+  local target_root=${2:-/mnt/var/lib/pacman/sync}
+  local database
+  local repository
+  local stale
+  local temporary
+  local -a repositories=(core extra multilib omarchy)
+
+  [[ -d $source_root && ! -L $source_root ]] || {
+    echo "The qvOS repository database seed is missing or unsafe." >&2
+    return 1
+  }
+  [[ ! -e $target_root || (-d $target_root && ! -L $target_root) ]] || {
+    echo "The target Pacman database directory is unsafe." >&2
+    return 1
+  }
+
+  for repository in "${repositories[@]}"; do
+    database="$source_root/$repository.db"
+    [[ -f $database && ! -L $database && -s $database ]] || {
+      printf 'Missing safe qvOS repository database seed: %s\n' \
+        "$repository" >&2
+      return 1
+    }
+    database="$target_root/$repository.db"
+    [[ ! -e $database || (-f $database && ! -L $database) ]] || {
+      printf 'Refusing unsafe target repository database: %s\n' \
+        "$database" >&2
+      return 1
+    }
+  done
+  for stale in offline.db offline.db.sig; do
+    database="$target_root/$stale"
+    [[ ! -e $database || (-f $database && ! -L $database) ]] || {
+      printf 'Refusing unsafe stale target repository database: %s\n' \
+        "$database" >&2
+      return 1
+    }
+  done
+
+  install -d -m 0755 -- "$target_root"
+  for repository in "${repositories[@]}"; do
+    database="$target_root/$repository.db"
+    temporary=$(mktemp "$target_root/.qvos-database.XXXXXX")
+    if ! install -m 0644 -- \
+      "$source_root/$repository.db" "$temporary" ||
+      ! mv -f -- "$temporary" "$database"; then
+      rm -f -- "$temporary"
+      return 1
+    fi
+  done
+  rm -f -- "$target_root/offline.db" "$target_root/offline.db.sig"
+}
+
+validate_qvos_target_databases() {
+  local database
+  local repository
+
+  for repository in core extra multilib omarchy; do
+    database="/mnt/var/lib/pacman/sync/$repository.db"
+    [[ -f $database && ! -L $database && -s $database ]] || {
+      printf 'The installed %s repository database is missing or unsafe.\n' \
+        "$repository" >&2
+      return 1
+    }
+    arch-chroot /mnt pacman -Slq "$repository" >/dev/null || {
+      printf 'The installed %s repository database is unreadable.\n' \
+        "$repository" >&2
+      return 1
+    }
+  done
+  for database in offline.db offline.db.sig; do
+    [[ ! -e /mnt/var/lib/pacman/sync/$database &&
+      ! -L /mnt/var/lib/pacman/sync/$database ]] || {
+      echo "The installed system retains live offline repository metadata." >&2
+      return 1
+    }
+  done
+}
+
 install_base_system() {
   # Wait for Archiso's singular keyring owner. It initializes the runtime
   # keyring and populates every installed keyring package, including the
@@ -393,10 +475,10 @@ install_base_system() {
   mkdir -p /mnt/opt/packages
   bind_qvos_target /opt/packages /mnt/opt/packages
 
-  # Preserve the signed offline repository databases in the target before the
-  # native installer switches Pacman to Stable. A fresh installation can then
-  # resolve its first package operation without an unsafe partial online sync.
-  arch-chroot /mnt pacman -Sy --noconfirm
+  # Publish the exact repository snapshot that resolved the signed image
+  # packages. The native installer switches Pacman to the selected reviewed
+  # provider channel without requiring an unsafe partial online sync.
+  seed_qvos_target_databases
 
   # qvOS removes this temporary installer policy before allowing reboot.
   mkdir -p /mnt/etc/sudoers.d

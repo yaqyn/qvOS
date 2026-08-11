@@ -465,6 +465,22 @@ validate_native_iso() {
     echo "qvos-build staged an offline mirror that does not retain package signatures." >&2
     return 1
   }
+  grep -Fqx 'repository_databases=(core extra multilib omarchy)' "$builder" || {
+    echo "qvos-build staged an incomplete repository database snapshot." >&2
+    return 1
+  }
+  # shellcheck disable=SC2016
+  grep -Fq \
+    'install -m 0644 -- "$database" "$repository_sync_dir/$repository.db"' \
+    "$builder" || {
+    echo "qvos-build staged a builder that does not retain repository databases." >&2
+    return 1
+  }
+  grep -Fq '["/var/cache/qvos/mirror/sync"]="0:0:755"' \
+    "$profile/profiledef.sh" || {
+    echo "qvos-build staged unsafe repository database directory permissions." >&2
+    return 1
+  }
   grep -Fqx 'SigLevel = Required DatabaseOptional' \
     "$profile/pacman-offline.conf" || {
     echo "qvos-build staged an offline repository without required package signatures." >&2
@@ -489,6 +505,18 @@ validate_native_iso() {
     echo "qvos-build staged an installer with an unexpected completion marker." >&2
     return 1
   }
+  grep -Fq 'seed_qvos_target_databases' "$installer" || {
+    echo "qvos-build staged an installer that omits repository databases." >&2
+    return 1
+  }
+  grep -Fq 'validate_qvos_target_databases' "$installer" || {
+    echo "qvos-build staged an installer that accepts unreadable repositories." >&2
+    return 1
+  }
+  if grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer"; then
+    echo "qvos-build staged an unsafe partial target database synchronization." >&2
+    return 1
+  fi
   # shellcheck disable=SC2016
   if rg -n 'helpers/all\.sh' "$installer"; then
     echo "qvos-build staged the retired installer helper tree." >&2

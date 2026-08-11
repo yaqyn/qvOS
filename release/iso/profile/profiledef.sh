@@ -30,5 +30,6 @@ file_permissions=(
   ["/root/.gnupg"]="0:0:700"
   ["/usr/local/bin/choose-mirror"]="0:0:755"
   ["/var/cache/qvos/mirror/offline"]="0:0:755"
+  ["/var/cache/qvos/mirror/sync"]="0:0:755"
   ["/usr/local/bin/qvos-tui"]="0:0:755"
 )

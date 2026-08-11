@@ -145,6 +145,7 @@ SCRIPT
 export QVOS_TEST_PACKAGE="$test_package"
 export QVOS_TEST_STATE="$test_state"
 # shellcheck source=release/iso/builder/cache-recovery
+# shellcheck disable=SC1091
 source "$cache_recovery"
 PATH="$test_bin:$PATH" pacman_with_cache_recovery --noconfirm -Sy qvos-test \
   >/dev/null 2>&1 || fail "release ISO cache recovery retry"
@@ -180,6 +181,14 @@ grep -Fq "install -m 0644 \\" "$builder" ||
   fail "release ISO does not normalize offline package permissions"
 grep -Fq 'find "$offline_mirror_dir" -maxdepth 1 -type f -exec chmod 0644 {} +' \
   "$builder" || fail "release ISO does not normalize repository metadata permissions"
+grep -Fqx 'repository_databases=(core extra multilib omarchy)' "$builder" ||
+  fail "release ISO does not retain the resolved repository databases"
+grep -Fq 'install -m 0644 -- "$database" "$repository_sync_dir/$repository.db"' \
+  "$builder" || fail "release ISO does not stage repository database seeds"
+grep -Fq 'resolved repository database inventory is unexpected' "$builder" ||
+  fail "release ISO does not verify its repository database seed inventory"
+grep -Fq '["/var/cache/qvos/mirror/sync"]="0:0:755"' \
+  "$profile/profiledef.sh" || fail "release ISO repository database permissions"
 grep -Fq 'multi-user.target.wants/sshd.service' "$builder" ||
   fail "release ISO does not disable automatic remote administration"
 grep -Fq 'multi-user.target.wants/choose-mirror.service' "$builder" ||
@@ -280,6 +289,51 @@ printf '%s\n' 'test@example.invalid' >"$cache_test_root/user_email_address.txt"
 )
 grep -Fqx 'isolated' "$target_environment_log" ||
   fail "release ISO target environment runtime isolation"
+
+database_test_root="$cache_test_root/database-seed"
+database_source="$database_test_root/source"
+database_target="$database_test_root/target"
+mkdir -p "$database_source" "$database_target"
+for repository in core extra multilib omarchy; do
+  printf '%s database\n' "$repository" >"$database_source/$repository.db"
+done
+printf 'stale offline database\n' >"$database_target/offline.db"
+(
+  # shellcheck disable=SC1090
+  source "$installer"
+  seed_qvos_target_databases "$database_source" "$database_target"
+)
+for repository in core extra multilib omarchy; do
+  cmp -s \
+    "$database_source/$repository.db" \
+    "$database_target/$repository.db" ||
+    fail "release ISO target database seed: $repository"
+  [[ $(stat -c '%a' "$database_target/$repository.db") == "644" ]] ||
+    fail "release ISO target database permissions: $repository"
+done
+for stale_database in offline.db offline.db.sig; do
+  [[ ! -e $database_target/$stale_database &&
+    ! -L $database_target/$stale_database ]] ||
+    fail "release ISO retains temporary offline target metadata"
+done
+
+outside_database="$database_test_root/outside.db"
+printf 'outside\n' >"$outside_database"
+rm -f -- "$database_target/core.db"
+ln -s "$outside_database" "$database_target/core.db"
+set +e
+(
+  # shellcheck disable=SC1090
+  source "$installer"
+  seed_qvos_target_databases "$database_source" "$database_target"
+) >/dev/null 2>&1
+unsafe_database_status=$?
+set -e
+((unsafe_database_status != 0)) ||
+  fail "release ISO accepts a symbolic-link target database"
+[[ $(<"$outside_database") == "outside" ]] ||
+  fail "release ISO wrote through a target database link"
+
 grep -Fq 'qvos_target_mounts+=("$target")' "$installer" ||
   fail "release ISO does not record target bind mounts immediately"
 grep -Fq 'cleanup_qvos_target_mounts' "$installer" ||
@@ -295,8 +349,13 @@ if rg -n 'chroot_bash -lc|pacman .*gum' "$installer"; then
 fi
 grep -Fq 'arch-chroot /mnt mount /boot' "$installer" ||
   fail "release ISO does not remount the target ESP for native finalization"
-grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer" ||
-  fail "release ISO leaves a fresh target without package databases"
+grep -Fq 'seed_qvos_target_databases' "$installer" ||
+  fail "release ISO leaves a fresh target without repository databases"
+grep -Fq 'validate_qvos_target_databases' "$installer" ||
+  fail "release ISO accepts unreadable target repository databases"
+if grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer"; then
+  fail "release ISO retains a partial target repository synchronization"
+fi
 grep -Fq 'boot_fstype == "vfat"' "$installer" ||
   fail "release ISO does not validate the remounted target ESP"
 if rg -n 'fmask=0022|dmask=0022|chmod .*[/]boot' "$installer"; then

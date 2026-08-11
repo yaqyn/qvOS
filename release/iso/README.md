@@ -39,7 +39,10 @@ the previous one.
   offline cache is not group-writable, its package archives, signatures, and
   repository metadata are non-executable, the generated Archinstall
   configuration contains no network mirrors, and native post-install policy
-  restores the reviewed provider channel, Stable by default.
+  restores the reviewed provider channel, Stable by default. Confirm the image
+  also carries exactly one nonempty `core`, `extra`, `multilib`, and `omarchy`
+  database from the same resolution snapshot; the installer must publish and
+  validate those databases while retiring the temporary `offline` database.
 - Exercise reused-cache recovery: a Pacman-identified checksum-invalid archive
   is quarantined individually inside the ephemeral builder and fetched again.
   Ambiguous or repeated mismatches fail closed without clearing the whole cache.

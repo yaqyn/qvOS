@@ -12,8 +12,11 @@ stable | edge | rc) ;;
 esac
 qvos_source=/qvos
 package_cache_dir=/var/cache/pacman/pkg
+# Read by the sourced cache-recovery owner.
+# shellcheck disable=SC2034
 cache_quarantine_dir=$(mktemp -d /tmp/qvos-pacman-quarantine.XXXXXX)
 # shellcheck source=release/iso/builder/cache-recovery
+# shellcheck disable=SC1091
 source /builder/cache-recovery
 
 configure_pacman_transport() {
@@ -96,6 +99,7 @@ pacman-key --populate omarchy
 # Setup build locations
 build_cache_dir="/var/cache"
 offline_mirror_dir="$build_cache_dir/airootfs/var/cache/qvos/mirror/offline"
+repository_sync_dir="$build_cache_dir/airootfs/var/cache/qvos/mirror/sync"
 mkdir -p "$build_cache_dir" "$offline_mirror_dir"
 
 # Base qvOS directly on the releng profile shipped by the signed Archiso
@@ -289,8 +293,12 @@ mapfile -t all_packages < <(
 # Download packages into the reusable host cache, then copy only this build's
 # resolved package files into the offline mirror inside the ISO filesystem.
 offline_db_dir=$(mktemp -d /tmp/offlinedb.XXXXXX)
-rm -rf "$offline_mirror_dir"
-mkdir -p "$package_cache_dir" "$offline_mirror_dir" "$offline_db_dir"
+rm -rf "$offline_mirror_dir" "$repository_sync_dir"
+mkdir -p \
+  "$package_cache_dir" \
+  "$offline_mirror_dir" \
+  "$offline_db_dir" \
+  "$repository_sync_dir"
 # Pacman downloads as its unprivileged DownloadUser. The randomized root holds
 # public repository metadata only, so allow traversal while retaining root
 # ownership and write control.
@@ -307,6 +315,25 @@ if ! download_offline_packages; then
   echo "Offline package download failed after 3 attempts" >&2
   exit 1
 fi
+
+# Retain the exact online repository databases that resolved this package set.
+# The installer publishes these into the target only after Archinstall has
+# completed, so a fresh system can resolve its first signed package transaction
+# without a partial online synchronization.
+repository_databases=(core extra multilib omarchy)
+for repository in "${repository_databases[@]}"; do
+  database="$offline_db_dir/sync/$repository.db"
+  [[ -f $database && ! -L $database && -s $database ]] || {
+    echo "ERROR: resolved repository database is missing: $repository" >&2
+    exit 1
+  }
+  install -m 0644 -- "$database" "$repository_sync_dir/$repository.db"
+done
+(( $(find "$repository_sync_dir" -maxdepth 1 -type f -name '*.db' | wc -l) == \
+  ${#repository_databases[@]} )) || {
+  echo "ERROR: resolved repository database inventory is unexpected" >&2
+  exit 1
+}
 
 mapfile -t offline_package_urls < <(
   pacman --config "$online_pacman_config" --noconfirm -Sp \

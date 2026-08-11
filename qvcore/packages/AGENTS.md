@@ -60,10 +60,12 @@ removal transaction. Never use recursive package removal for this handoff.
   Omarchy package, retains every detached package signature in the offline
   mirror, and uses `Required DatabaseOptional` for that mirror. Never accept
   `TrustAll`, `SigLevel = Never`, an unsigned hardware repository, or an
-  unsigned cached package in a qvOS image. The ISO installer synchronizes the
-  target databases from that signed offline mirror before selecting the online
-  Stable configuration; a fresh target must not require a partial online sync
-  for its first package action.
+  unsigned cached package in a qvOS image. The ISO builder retains the exact
+  online repository databases that resolved the signed package set. After
+  Archinstall, the installer publishes those databases atomically, removes the
+  temporary `offline` database, and validates every repository through the
+  final provider configuration; a fresh target must not require a partial
+  online sync for its first package action.
 - A provider outage, signing-key rotation, repository rename, package removal,
   or Stable/Edge compatibility change is qvsync review input. Keep the monitored
   upstream paths in `upstream/qvsync/package-provider-paths`; every match must be
