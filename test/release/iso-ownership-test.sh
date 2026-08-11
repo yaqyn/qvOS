@@ -295,6 +295,8 @@ if rg -n 'chroot_bash -lc|pacman .*gum' "$installer"; then
 fi
 grep -Fq 'arch-chroot /mnt mount /boot' "$installer" ||
   fail "release ISO does not remount the target ESP for native finalization"
+grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer" ||
+  fail "release ISO leaves a fresh target without package databases"
 grep -Fq 'boot_fstype == "vfat"' "$installer" ||
   fail "release ISO does not validate the remounted target ESP"
 if rg -n 'fmask=0022|dmask=0022|chmod .*[/]boot' "$installer"; then

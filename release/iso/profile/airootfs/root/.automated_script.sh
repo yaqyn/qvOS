@@ -393,6 +393,11 @@ install_base_system() {
   mkdir -p /mnt/opt/packages
   bind_qvos_target /opt/packages /mnt/opt/packages
 
+  # Preserve the signed offline repository databases in the target before the
+  # native installer switches Pacman to Stable. A fresh installation can then
+  # resolve its first package operation without an unsafe partial online sync.
+  arch-chroot /mnt pacman -Sy --noconfirm
+
   # qvOS removes this temporary installer policy before allowing reboot.
   mkdir -p /mnt/etc/sudoers.d
   cat >/mnt/etc/sudoers.d/99-qvos-installer <<EOF

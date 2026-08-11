@@ -123,6 +123,10 @@ test storage. Never overwrite this development installation for rehearsal.
   target without optional Services or Development integrations.
 - Reboot from the installed disk and verify login, networking, audio, graphics,
   storage, the qvOS menu, the shared TUI, and installed source/payload parity.
+- Before updating, install and remove one harmless repository package through
+  the native `qv pkg` routes. Verify the seeded repository databases resolve
+  it, package signatures remain required, and the removal leaves no orphaned
+  test payload.
 - Exercise the read-only update preflight, then one real update when an update
   exists. Verify the branch guard, credited package-provider transaction, qvOS
   post-update hooks, configuration reconciliation, reboot handling, and a clean
