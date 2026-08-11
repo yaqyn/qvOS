@@ -600,17 +600,19 @@ run_iso_builder() {
   docker run "${docker_args[@]}" "$docker_image" /builder/build-iso.sh ||
     build_status=$?
 
-  # Docker creates the staged Archiso workspace as root. Restore ownership
-  # through the same container boundary so the host can either retain the
-  # exact failed stage or remove a successful one. Named download caches are
-  # nested mounts during the build and are not visible to this cleanup pass.
+  # Docker creates the staged Archiso workspace as root, including package
+  # directories that are intentionally not owner-writable. Restore ownership
+  # and owner access through the same container boundary so the host can either
+  # inspect the exact failed stage or remove a successful one. Named download
+  # caches are nested mounts during the build and are not visible to this pass.
   echo "qvOS ISO progress: releasing staged build cache"
   docker run \
     --rm \
     --pull=never \
     -v "$cache_root:/cache" \
     "$docker_image" \
-    chown -R "$(id -u):$(id -g)" /cache || ownership_status=$?
+    sh -c 'chown -R "$1:$2" /cache && chmod -R u+rwX /cache' \
+    qvos-cache-release "$(id -u)" "$(id -g)" || ownership_status=$?
 
   if (( ownership_status != 0 )); then
     echo "qvos-build could not release the staged build cache." >&2

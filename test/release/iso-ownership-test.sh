@@ -60,7 +60,7 @@ grep -Fq -- '-v qvos-iso-tool-cache:/var/cache/qvos' "$build" ||
   fail "native ISO does not preserve its reusable tool cache"
 grep -Fq -- '--pull=never' "$build" ||
   fail "native ISO stage ownership cleanup can pull mutable code"
-grep -Fq 'chown -R "$(id -u):$(id -g)" /cache' "$build" ||
+grep -Fq 'chown -R "$1:$2" /cache && chmod -R u+rwX /cache' "$build" ||
   fail "native ISO leaves staged build data owned by Docker"
 grep -Fq 'install -d -m 0755 "$stage_cache"' "$build" ||
   fail "native ISO blocks Pacman's sandboxed download user from its stage"

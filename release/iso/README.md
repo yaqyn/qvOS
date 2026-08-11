@@ -36,10 +36,11 @@ the previous one.
   filesystem with enough capacity for both the temporary image and published
   artifact; the private stage is deliberately colocated there.
 - Confirm the full Archiso workspace is mounted from that private stage. After
-  either success or failure, verify it is owned by the invoking user; a clean
-  build must not leave expanded image data in Docker's host filesystem or in
-  `~/.cache`. Preserve the named package and tool download caches for later
-  non-release builds, but do not mount them into the no-cache release proof.
+  either success or failure, verify it is owned and removable by the invoking
+  user, including package-created read-only directories; a clean build must
+  not leave expanded image data in Docker's host filesystem or in `~/.cache`.
+  Preserve the named package and tool download caches for later non-release
+  builds, but do not mount them into the no-cache release proof.
 - Verify that repository and direct local package signatures are required, the
   offline cache is not group-writable, its package archives, signatures, and
   repository metadata are non-executable, the generated Archinstall
