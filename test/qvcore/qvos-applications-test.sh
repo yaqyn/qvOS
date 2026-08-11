@@ -27,21 +27,6 @@ run_owner() {
     "$owner" "$@"
 }
 
-write_legacy_typora() {
-  install -m 0644 /dev/stdin "$1" <<'DESKTOP'
-[Desktop Entry]
-Name=Typora
-GenericName=Markdown Editor
-Exec=typora --enable-wayland-ime %U
-Icon=typora
-Type=Application
-StartupNotify=true
-Categories=Office;WordProcessor;
-MimeType=text/markdown;text/x-markdown;
-
-DESKTOP
-}
-
 [[ -x $owner ]] || fail "fixed application owner mode"
 [[ ! -e $root/applications && ! -L $root/applications ]] ||
   fail "inherited application tree remains"
@@ -56,11 +41,7 @@ fi
 
 fresh_home="$test_root/fresh-home"
 application_dir="$fresh_home/.local/share/applications"
-duplicate_icon_dir="$application_dir/icons"
-install -d "$duplicate_icon_dir"
-write_legacy_typora "$application_dir/typora.desktop"
-install -m 0644 "$root/qvcore/desktop/applications/icons/imv.png" \
-  "$duplicate_icon_dir/imv.png"
+install -d "$application_dir"
 run_owner "$fresh_home"
 
 for desktop in Alacritty imv mpv; do
@@ -92,9 +73,6 @@ done
 grep -Fqx \
   "icons/imv.png|$(sha256sum -- "$root/qvcore/desktop/applications/icons/imv.png" | cut -d' ' -f1)" \
   "$managed_state" || fail "managed icon state"
-[[ ! -e $application_dir/typora.desktop &&
-  ! -e $duplicate_icon_dir/imv.png ]] ||
-  fail "exact stale application cleanup"
 [[ $(find "$application_dir" -maxdepth 1 -type f -name '*.desktop' | wc -l) == 37 ]] ||
   fail "installed desktop inventory"
 [[ $(find "$application_dir" "$fresh_home/.local/share/icons" -type f \
@@ -113,16 +91,6 @@ second_hashes=$(find "$application_dir" "$fresh_home/.local/share/icons" \
   $(stat -c '%i' -- "$managed_state") == "$first_state_inode" ]] ||
   fail "idempotent application publication"
 
-legacy_home="$test_root/legacy-home"
-legacy_apps="$legacy_home/.local/share/applications"
-install -d "$legacy_apps"
-printf '[Desktop Entry]\nHidden=true\n' >"$legacy_apps/avahi-discover.desktop"
-run_owner "$legacy_home"
-cmp -s \
-  "$root/qvcore/desktop/applications/hidden/avahi-discover.desktop" \
-  "$legacy_apps/avahi-discover.desktop" ||
-  fail "legacy managed suppressor upgrade"
-
 sparse_home="$test_root/sparse-home"
 sparse_apps="$sparse_home/.local/share/applications"
 sparse_icons="$sparse_home/.local/share/icons/hicolor/48x48/apps"
@@ -139,12 +107,7 @@ done < <(
 )
 install -m 0644 "$root/qvcore/desktop/applications/icons/imv.png" \
   "$sparse_icons/imv.png"
-printf '[Desktop Entry]\nHidden=true\n' >"$sparse_apps/avahi-discover.desktop"
 run_owner "$sparse_home"
-cmp -s \
-  "$root/qvcore/desktop/applications/hidden/avahi-discover.desktop" \
-  "$sparse_apps/avahi-discover.desktop" ||
-  fail "sparse managed suppressor upgrade"
 [[ -f $sparse_home/.local/state/qvos/desktop/applications.psv ]] ||
   fail "sparse fixed-payload state"
 
@@ -168,12 +131,12 @@ fi
 custom_home="$test_root/custom-home"
 custom_apps="$custom_home/.local/share/applications"
 install -d "$custom_apps/icons"
-printf 'custom Typora\n' >"$custom_apps/typora.desktop"
-printf 'custom icon\n' >"$custom_apps/icons/imv.png"
+printf 'personal desktop entry\n' >"$custom_apps/personal.desktop"
+printf 'personal icon\n' >"$custom_apps/icons/personal.png"
 run_owner "$custom_home"
-[[ $(<"$custom_apps/typora.desktop") == "custom Typora" &&
-  $(<"$custom_apps/icons/imv.png") == "custom icon" ]] ||
-  fail "modified stale application preservation"
+[[ $(<"$custom_apps/personal.desktop") == "personal desktop entry" &&
+  $(<"$custom_apps/icons/personal.png") == "personal icon" ]] ||
+  fail "unrelated application preservation"
 
 malformed_state_home="$test_root/malformed-state-home"
 malformed_state="$malformed_state_home/.local/state/qvos/desktop/applications.psv"

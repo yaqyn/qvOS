@@ -15,7 +15,6 @@ state_expected_hash=
 state_existed=false
 transaction_active=false
 rollback_failed=false
-legacy_hidden_hash="a0260e7f35579a73f77e257e9e3795abd8b33119a17b931ca6016a07036e1670"
 
 declare -a sources=()
 declare -a destinations=()
@@ -84,16 +83,6 @@ require_safe_target() {
     [[ -f $path && ! -L $path && -O $path ]] ||
       fail "unsafe destination: $path"
   fi
-}
-
-retire_exact() {
-  local path=$1
-  local expected_hash=$2
-
-  [[ -e $path || -L $path ]] || return 0
-  [[ -f $path && ! -L $path && -O $path ]] || return 0
-  [[ $(sha256sum -- "$path" | cut -d' ' -f1) == "$expected_hash" ]] || return 0
-  unlink -- "$path"
 }
 
 cleanup() {
@@ -280,9 +269,7 @@ for ((index = 0; index < ${#sources[@]}; index++)); do
     continue
   fi
   if [[ $current_hash == "${source_hashes[$index]}" ||
-    ${previous_hashes[${identifiers[$index]}]:-} == "$current_hash" ||
-    (${sources[$index]} == "$source_root/hidden/"* &&
-      $current_hash == "$legacy_hidden_hash") ]]; then
+    ${previous_hashes[${identifiers[$index]}]:-} == "$current_hash" ]]; then
     publish_indices+=("$index")
     continue
   fi
@@ -349,13 +336,6 @@ else
   state_stage=""
 fi
 transaction_active=false
-
-retire_exact \
-  "$application_dir/typora.desktop" \
-  a9ea9330636ada89d7408b1ca382d9dd691e4ff533f180dd3edc3cff9114edbb
-retire_exact \
-  "$application_dir/icons/imv.png" \
-  479a45d0d5964484bd97a5bd98a405eb64252c2d2d9107168eb40a155a9ba572
 
 trap - EXIT HUP INT TERM
 cleanup

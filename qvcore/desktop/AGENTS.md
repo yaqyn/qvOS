@@ -33,16 +33,15 @@ and metadata-free.
 `qvcore/desktop/applications/` singularly owns the fixed base desktop entries,
 intentional package-menu suppressors, and the imv icon. Its installer validates
 the complete source and destination set before mutation, serializes refreshes,
-publishes atomically with rollback, and removes only exact retired qvOS Typora
-and duplicate-imv artifacts. Every suppressor remains a standards-valid
+and publishes atomically with rollback. Every suppressor remains a standards-valid
 `Desktop Entry` with `Type`, `Name`, and `Hidden`; do not rely on a permissive
 menu parser. Record the last installed hashes in the private, atomic
 `~/.local/state/qvos/desktop/applications.psv` manifest; replace only matching
-prior qvOS content, upgrade explicitly recognized legacy payload, and fail
-before publication on modified, foreign, malformed, or linked state. Do not
-rewrite an exact payload. Never put a Web App, optional application, service
-URL, or Windows-owned icon in this payload; optional Web Apps exist only after
-an explicit user install.
+prior qvOS content and fail before publication on modified, foreign, malformed,
+or linked state. Completed Typora, duplicate-icon, and invalid-suppressor
+convergence stays retired. Do not rewrite an exact payload. Never put a Web App,
+optional application, service URL, or Windows-owned icon in this payload;
+optional Web Apps exist only after an explicit user install.
 `qvcore/desktop/session/` owns lock, logout, wake, the delayed logout worker,
 and session-scoped Idle Lock and Nightlight toggles. Use the shared exact-process
 helper for Hypridle, validate one bounded Hyprsunset temperature before changing

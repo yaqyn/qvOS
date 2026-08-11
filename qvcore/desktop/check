@@ -255,6 +255,10 @@ if rg -ni '(typora|https?://|--app=|(omarchy|qv)-(launch-webapp|webapp-handler))
   --glob '*.desktop' --glob '*.png'; then
   fail "fresh fixed application payload contains a retired app or Web App"
 fi
+if rg -n 'legacy_hidden|retire_exact|typora\.desktop|applications/icons/imv\.png' \
+  "$root/qvcore/desktop/applications/install"; then
+  fail "fixed application owner retains pre-release convergence"
+fi
 for handler in hey zoom; do
   for path in \
     "$root/bin/qv-webapp-handler-$handler" \
