@@ -4,21 +4,21 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 export QVOS_PATH
 
-# qvos:contract=qvcore/config/files/hypr/bindings.conf
-# qvos:contract=qvcore/config/files/hypr/hyprland.conf
-# qvos:contract=qvcore/config/files/hypr/input.conf
+# qvos:contract=qvcore/config/files/hypr/bindings.lua
+# qvos:contract=qvcore/config/files/hypr/hyprland.lua
+# qvos:contract=qvcore/config/files/hypr/input.lua
 # qvos:contract=qvcore/config/base/hypr
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 
 config_owner="$QVOS_PATH/qvcore/config/refresh"
 config_paths=(
-  hypr/autostart.conf
-  hypr/bindings.conf
-  hypr/looknfeel.conf
-  hypr/hyprland.conf
-  hypr/monitors.conf
-  hypr/input.conf
+  hypr/autostart.lua
+  hypr/bindings.lua
+  hypr/looknfeel.lua
+  hypr/hyprland.lua
+  hypr/monitors.lua
+  hypr/input.lua
 )
 
 for config_path in "${config_paths[@]}"; do

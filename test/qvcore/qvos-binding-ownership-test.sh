@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -17,7 +19,8 @@ for binding in \
   'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' \
   'bindd = SUPER, code:10, Switch to workspace 1, workspace, 1' \
   'bindeld = , XF86AudioRaiseVolume, Volume up, exec, qv-swayosd-client --output-volume raise'; do
-  grep -Fqx "$binding" "$bindings" || fail "retained native capability: $binding"
+  qvos_assert_lua_binding "$bindings" "$binding" ||
+    fail "retained native capability: $binding"
 done
 
 if rg -q 'Omarchy|upstream-owned|Omarchy-owned' "$bindings"; then

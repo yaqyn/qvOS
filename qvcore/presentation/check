@@ -68,10 +68,10 @@ if rg -n 'omarchy-(launch-floating-terminal-with-presentation|show-(done|failed)
   fail "active qvOS consumer uses presentation compatibility"
 fi
 grep -Fq 'org\.qvos\.(bluetui|impala|wiremix|btop|terminal)' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "native result terminal does not float"
 ! rg -qi 'match:class .*\bzoom\b' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "retired service-specific application rule remains"
 grep -Fq "'omarchy-launch-floating-terminal-with-presentation' 'qv-launch-floating-terminal-with-presentation'" \
   "$root/qvcore/config/migrate-runtime-root" || fail "presentation config migration"

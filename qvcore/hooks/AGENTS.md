@@ -19,7 +19,7 @@ are metadata-free compatibility adapters only.
   canonical tree is absent, installs missing qvOS samples without overwriting
   custom files, atomically upgrades only exact samples listed in
   `sample-history.psv`, removes only allowlisted exact historical qvOS-managed
-  hook copies, and rewrites only the exact inherited post-boot invocation.
+  hook copies, and rewrites only the exact inherited Lua post-boot invocation.
   Preserve modified samples as user content. An exact retired qvOS-created main
   post-update hook may be removed, but a different main hook is personal
   automation and must be preserved.

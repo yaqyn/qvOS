@@ -31,6 +31,12 @@ The reserved `qvos-neovim.lua` output is always regenerated from the validated
 palette (or an explicit user template) before activation, so official Neovim
 follows Yaqyn and compatible imported themes without executing an imported
 theme's editor code or downloading theme plugins.
+The reserved `hyprland.lua` output is likewise regenerated from the validated
+palette. An imported theme may contribute colors and assets but never active
+Hyprland code, bindings, autostart, window rules, or environment policy. The
+internal `QVOS_THEME_RETAIN_LEGACY_HYPRLAND=1` handoff exists only so the
+one-time `.conf`-to-Lua migration can keep the already-loaded theme leaf until
+the native entrypoint validates; ordinary activation always removes it.
 
 - `qvcore/theme/install` owns the source-independent runtime and removes only
   inherited stock-theme symlinks. Preserve real user directories, external

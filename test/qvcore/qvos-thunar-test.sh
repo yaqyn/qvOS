@@ -3,7 +3,9 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 actions="$root/qvcore/config/files/Thunar/uca.xml"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 feature_dir="$root/qvcore/thunar"
 gtk_css="$root/qvcore/config/files/gtk-3.0/gtk.css"
 
@@ -108,9 +110,11 @@ if find "$root/qvcore" \
 fi
 pass "Thunar-owned scripts stay in one source domain"
 
-grep -Fqx "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$HOME\"" "$bindings" ||
+qvos_assert_lua_binding "$bindings" \
+  "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$HOME\"" ||
   fail "home Thunar binding"
-grep -Fqx "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$(~/.local/lib/qvos/desktop/context/qvos-active-location)\"" "$bindings" ||
+qvos_assert_lua_binding "$bindings" \
+  "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$(~/.local/lib/qvos/desktop/context/qvos-active-location)\"" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"
 

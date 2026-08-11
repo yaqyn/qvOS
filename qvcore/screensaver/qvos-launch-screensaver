@@ -18,6 +18,7 @@ fi
 qvos_root="$HOME/.local/lib/qvos"
 qvos_bin="$qvos_root/bin"
 runner="$qvos_bin/qvos-screensaver"
+runtime_config="$qvos_root/desktop/hyprland/qvos-runtime-config"
 lock_file="${XDG_RUNTIME_DIR:-/tmp}/qvos-screensaver-$UID.lock"
 
 exec 9>"$lock_file"
@@ -29,7 +30,7 @@ screensaver_count() {
   hyprctl clients -j 2>/dev/null | jq '[.[] | select((.class // "") == "org.qvos.screensaver")] | length' 2>/dev/null || printf '0\n'
 }
 
-if ! qv-cmd-present tte || [[ ! -x $runner ]]; then
+if ! qv-cmd-present tte || [[ ! -x $runner || ! -x $runtime_config ]]; then
   notify-send -u critical "qvOS Screensaver" "Screensaver runtime is unavailable" >/dev/null 2>&1 || true
   exit 1
 fi
@@ -109,7 +110,8 @@ cleanup() {
 
   trap - EXIT
   if [[ $cursor_timeout_changed == "true" ]]; then
-    hyprctl keyword cursor:inactive_timeout "$cursor_inactive_timeout" >/dev/null 2>&1 || true
+    "$runtime_config" config cursor inactive_timeout "$cursor_inactive_timeout" \
+      >/dev/null 2>&1 || true
   fi
   restore_monitor
 
@@ -137,8 +139,8 @@ for _ in {1..20}; do
 done
 
 if ((current_count > 0)) &&
-  [[ -n $cursor_inactive_timeout ]] &&
-  hyprctl keyword cursor:inactive_timeout 0.1 >/dev/null 2>&1; then
+  [[ $cursor_inactive_timeout =~ ^[0-9]+([.][0-9]+)?$ ]] &&
+  "$runtime_config" config cursor inactive_timeout 0.1 >/dev/null 2>&1; then
   cursor_timeout_changed=true
 fi
 

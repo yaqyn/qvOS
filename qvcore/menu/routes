@@ -467,7 +467,7 @@ show_style_menu() {
   *Unlock*) qv-launch-walker -m menus:qvosUnlocks --width 800 --minheight 400 ;;
   *Font*) show_font_menu ;;
   *Background*) show_background_menu ;;
-  *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.conf ;;
+  *Hyprland*) open_in_editor ~/.config/hypr/looknfeel.lua ;;
   *Screensaver*) show_screensaver_menu ;;
   *About*) show_about_menu ;;
   *) "$STYLE_BACK_MENU" ;;
@@ -476,8 +476,8 @@ show_style_menu() {
 
 show_setup_menu() {
   local options="  Audio\n  Wi-Fi\n󰂯  Bluetooth\n󱐋  Power Profile\n  System Sleep\n󰍹  Monitors"
-  [[ -f ~/.config/hypr/bindings.conf ]] && options="$options\n  Keybindings"
-  [[ -f ~/.config/hypr/input.conf ]] && options="$options\n  Input"
+  [[ -f ~/.config/hypr/bindings.lua ]] && options="$options\n  Keybindings"
+  [[ -f ~/.config/hypr/input.lua ]] && options="$options\n  Input"
   options="$options\n  Defaults\n󰐕  DNS\n  Security\n  Config"
 
   case $(menu "Setup" "$options") in
@@ -486,9 +486,9 @@ show_setup_menu() {
   *Bluetooth*) qv-launch-bluetooth ;;
   *Power*) show_setup_power_menu ;;
   *System*) show_setup_system_menu ;;
-  *Monitors*) open_in_editor ~/.config/hypr/monitors.conf ;;
-  *Keybindings*) open_in_editor ~/.config/hypr/bindings.conf ;;
-  *Input*) open_in_editor ~/.config/hypr/input.conf ;;
+  *Monitors*) open_in_editor ~/.config/hypr/monitors.lua ;;
+  *Keybindings*) open_in_editor ~/.config/hypr/bindings.lua ;;
+  *Input*) open_in_editor ~/.config/hypr/input.lua ;;
   *Defaults*) show_setup_default_menu ;;
   *DNS*) present_terminal qv-setup-dns ;;
   *Security*) show_setup_security_menu ;;

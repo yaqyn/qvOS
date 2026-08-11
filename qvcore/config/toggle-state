@@ -2,174 +2,57 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-state_home="$HOME/.local/state"
-state_parent=${state_home%/*}
-legacy_root="$state_home/omarchy/toggles"
-qvos_state_root="$state_home/qvos"
+local_root="$HOME/.local"
+state_parent="$local_root/state"
+qvos_state_root="$state_parent/qvos"
 target_root="$qvos_state_root/toggles"
-hyprland_config="$HOME/.config/hypr/hyprland.conf"
-flags_source="$QVOS_PATH/qvcore/config/toggles/flags.conf"
-flags_target="$target_root/hypr/flags.conf"
-temporary=""
+hypr_root="$target_root/hypr"
+flags_source="$QVOS_PATH/qvcore/config/toggles/flags.lua"
+flags_target="$hypr_root/flags.lua"
 
-cleanup() {
-  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+fail() {
+  printf 'qvOS toggle state: %s\n' "$1" >&2
+  exit 1
 }
-trap cleanup EXIT
 
 safe_directory() {
-  local path=$1
-
-  [[ -d $path && ! -L $path && -O $path ]]
+  [[ -d $1 && ! -L $1 && -O $1 ]]
 }
 
-validate_tree() {
-  local entry
-  local root=$1
-
-  [[ ! -e $root && ! -L $root ]] && return 0
-  safe_directory "$root" || return 1
-  while IFS= read -r -d '' entry; do
-    [[ ! -L $entry && -O $entry && (-d $entry || -f $entry) ]] || return 1
-  done < <(find -P "$root" -mindepth 1 -print0)
-}
-
-ensure_state_directory() {
-  local path=$1
+ensure_directory() {
+  local mode=$1
+  local path=$2
 
   if [[ -e $path || -L $path ]]; then
-    safe_directory "$path" || {
-      echo "Refusing unsafe qvOS state directory: $path" >&2
-      return 1
-    }
+    safe_directory "$path" || fail "refusing unsafe directory: $path"
   else
-    install -d -m 0700 "$path"
+    install -d -m "$mode" "$path"
   fi
 }
 
-preflight_legacy_merge() {
-  local entry
-  local relative
-  local target
+[[ -f $flags_source && ! -L $flags_source ]] ||
+  fail "missing native toggle-state seed"
 
-  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
-  validate_tree "$legacy_root" || {
-    echo "Refusing unsafe legacy toggle state: $legacy_root" >&2
-    return 1
-  }
-  validate_tree "$target_root" || {
-    echo "Refusing unsafe qvOS toggle state: $target_root" >&2
-    return 1
-  }
-
-  while IFS= read -r -d '' entry; do
-    relative=${entry#"$legacy_root"/}
-    target="$target_root/$relative"
-    [[ ! -e $target && ! -L $target ]] && continue
-    if [[ -d $entry ]]; then
-      [[ -d $target && ! -L $target && -O $target ]] || {
-        echo "Conflicting qvOS toggle state: $relative" >&2
-        return 1
-      }
-    elif [[ -f $target && ! -L $target && -O $target ]] &&
-      cmp -s "$entry" "$target"; then
-      continue
-    else
-      echo "Conflicting qvOS toggle state: $relative" >&2
-      return 1
-    fi
-  done < <(find -P "$legacy_root" -mindepth 1 -print0)
-}
-
-migrate_legacy_state() {
-  local entry
-  local relative
-  local target
-
-  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
-  while IFS= read -r -d '' entry; do
-    relative=${entry#"$legacy_root"/}
-    target="$target_root/$relative"
-    if [[ -d $entry ]]; then
-      [[ -e $target ]] || install -d -m 0700 "$target"
-    elif [[ -e $target ]]; then
-      rm -f -- "$entry"
-    else
-      mv -- "$entry" "$target"
-    fi
-  done < <(find -P "$legacy_root" -mindepth 1 -print0)
-  find -P "$legacy_root" -depth -type d -empty -delete
-}
-
-rewrite_hyprland_source() {
-  local backup
-  local new_source='source = ~/.local/state/qvos/toggles/hypr/*.conf'
-  local old_source='source = ~/.local/state/omarchy/toggles/hypr/*.conf'
-
-  [[ ! -e $hyprland_config && ! -L $hyprland_config ]] && return 0
-  [[ -f $hyprland_config && ! -L $hyprland_config && -O $hyprland_config ]] || {
-    echo "Refusing unsafe Hyprland config: $hyprland_config" >&2
-    return 1
-  }
-  grep -Fqx "$old_source" "$hyprland_config" || return 0
-
-  temporary=$(mktemp "$(dirname -- "$hyprland_config")/.qvos-toggle-source.XXXXXX")
-  awk -v old="$old_source" -v new="$new_source" '{
-    if ($0 == old) {
-      print new
-    } else {
-      print
-    }
-  }' "$hyprland_config" >"$temporary"
-  chmod --reference="$hyprland_config" "$temporary"
-  backup="$hyprland_config.bak.$(date +%s%N)"
-  cp -a -- "$hyprland_config" "$backup"
-  mv -f -- "$temporary" "$hyprland_config"
-  temporary=""
-}
-
-preflight_hyprland_source() {
-  [[ ! -e $hyprland_config && ! -L $hyprland_config ]] && return 0
-  [[ -f $hyprland_config && ! -L $hyprland_config && -O $hyprland_config ]] || {
-    echo "Refusing unsafe Hyprland config: $hyprland_config" >&2
-    return 1
-  }
-}
-
-[[ -f $flags_source && ! -L $flags_source ]] || {
-  echo "Missing qvOS toggle template: $flags_source" >&2
-  exit 1
-}
-ensure_state_directory "$state_parent"
-ensure_state_directory "$state_home"
-if [[ -e $qvos_state_root || -L $qvos_state_root ]]; then
-  safe_directory "$qvos_state_root" || {
-    echo "Refusing unsafe qvOS state directory: $qvos_state_root" >&2
-    exit 1
-  }
-fi
-preflight_hyprland_source
-preflight_legacy_merge
-ensure_state_directory "$qvos_state_root"
-ensure_state_directory "$target_root"
-migrate_legacy_state
-ensure_state_directory "$target_root/hypr"
+safe_directory "$HOME" || fail "refusing unsafe home directory: $HOME"
+ensure_directory 0755 "$local_root"
+ensure_directory 0700 "$state_parent"
+ensure_directory 0700 "$qvos_state_root"
+ensure_directory 0700 "$target_root"
+ensure_directory 0700 "$hypr_root"
 
 if [[ -e $flags_target || -L $flags_target ]]; then
-  [[ -f $flags_target && ! -L $flags_target && -O $flags_target ]] || {
-    echo "Refusing unsafe qvOS toggle flag: $flags_target" >&2
-    exit 1
-  }
+  [[ -f $flags_target && ! -L $flags_target && -O $flags_target ]] ||
+    fail "refusing unsafe toggle-state seed: $flags_target"
 else
   install -m 0600 "$flags_source" "$flags_target"
 fi
 
 while IFS= read -r -d '' entry; do
   if [[ -d $entry ]]; then
+    [[ ! -L $entry && -O $entry ]] || fail "refusing unsafe toggle directory: $entry"
     chmod 0700 -- "$entry"
   else
+    [[ -f $entry && ! -L $entry && -O $entry ]] || fail "refusing unsafe toggle file: $entry"
     chmod 0600 -- "$entry"
   fi
 done < <(find -P "$target_root" -print0)
-
-rewrite_hyprland_source

@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 packages=$("$root/qvcore/install/packaging/resolve" base)
 
 pass() {
@@ -15,7 +17,7 @@ fail() {
 }
 
 assert_binding() {
-  grep -Fqx "$1" "$bindings" || fail "$2"
+  qvos_assert_lua_binding "$bindings" "$1" || fail "$2"
 }
 
 assert_binding "bindd = SUPER SHIFT, A, Codex YOLO, exec, ~/.local/lib/qvos/desktop/context/qvos-launch-terminal-here codex-yolo \"\$HOME\"" "home Codex YOLO binding"
@@ -43,8 +45,8 @@ assert_binding 'bindd = SUPER, Z, Default browser, exec, qv-launch-browser' "Z d
 assert_binding 'bindd = SUPER SHIFT, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "Chromium dev browser binding"
 assert_binding 'bindd = SUPER CTRL, Z, Private default browser, exec, qv-launch-browser --private' "Z private browser binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, Z, Localhost, exec, ~/.local/lib/qvos/desktop/web/qvos-localhost-open' "Localhost binding"
-assert_binding "bindd = SUPER ALT, Z, Zoom in, exec, hyprctl keyword cursor:zoom_factor \$(hyprctl getoption cursor:zoom_factor -j | jq '.float + 1')" "relocated zoom binding"
-assert_binding 'bindd = SUPER CTRL ALT, Z, Reset zoom, exec, hyprctl keyword cursor:zoom_factor 1' "qvOS reset zoom binding"
+assert_binding "bindd = SUPER ALT, Z, Zoom in, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config config cursor zoom_factor \"\$(hyprctl getoption cursor:zoom_factor -j | jq -r '.float + 1')\"" "relocated zoom binding"
+assert_binding 'bindd = SUPER CTRL ALT, Z, Reset zoom, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config config cursor zoom_factor 1' "qvOS reset zoom binding"
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, Z, Open website, exec, ~/.local/lib/qvos/desktop/web/qvos-website-open' "prompted website binding"
 pass "the Z family owns browsers, websites, localhost, and zoom"
 
@@ -60,7 +62,7 @@ assert_binding 'bindd = SUPER SHIFT, grave, Move window to gaming workspace, mov
 assert_binding 'bindd = SUPER CTRL, grave, Steam, exec, setsid gtk-launch steam >/dev/null 2>&1' "Steam binding"
 pass "the grave family uses Shift for workspace movement and Ctrl for Steam"
 
-if grep -Eq '^bindd = SUPER SHIFT, A, (Brave Ask|Lumo),|^bindd = SUPER CTRL, A, (Brave Ask|Codex YOLO here),|^bindd = SUPER SHIFT CTRL, W, (Audio controls|Btop),|^bindd = SUPER ALT, W, Bluetooth controls,|^bindd = SUPER, D, Localhost,|^bindd = SUPER( SHIFT)?, S, Codex|^bindd = SUPER ALT, L, Localhost,' "$bindings"; then
+if rg -q 'description = \[\[(Brave Ask|Lumo|Btop)\]\]|keys = \[\[SUPER( \+ SHIFT)? \+ S\]\].*Codex|keys = \[\[SUPER \+ D\]\].*Localhost|keys = \[\[SUPER \+ ALT \+ L\]\].*Localhost' "$bindings"; then
   fail "retired application or control route"
 fi
 

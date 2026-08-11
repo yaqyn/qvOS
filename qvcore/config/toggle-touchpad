@@ -5,16 +5,17 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 # shellcheck source=qvcore/config/toggle-lib
 source "$QVOS_PATH/qvcore/config/toggle-lib"
 
-state_conf="$qvos_hypr_toggle_root/touchpad-disabled.conf"
+state_conf="$qvos_hypr_toggle_root/touchpad-disabled.lua"
 device=$(qv-hw-touchpad)
 
-[[ -n $device && $device != *$'\n'* && $device != *$'\r'* ]] || {
+[[ $device =~ ^[[:alnum:]_.:-]+$ ]] || {
   echo "No touchpad device found" >&2
   exit 1
 }
 
 enable() {
-  hyprctl keyword "device[$device]:enabled" true >/dev/null
+  "$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" \
+    device "$device" true
   qvos_toggle_remove "$state_conf"
   "$QVOS_PATH/bin/qv-swayosd-client" \
     --custom-icon input-touchpad-symbolic \
@@ -22,8 +23,9 @@ enable() {
 }
 
 disable() {
-  hyprctl keyword "device[$device]:enabled" false >/dev/null
-  printf 'device {\n  name = %s\n  enabled = false\n}\n' "$device" |
+  "$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" \
+    device "$device" false
+  printf 'qv.device("%s", false)\n' "$device" |
     qvos_toggle_write "$state_conf"
   "$QVOS_PATH/bin/qv-swayosd-client" \
     --custom-icon touchpad-disabled-symbolic \

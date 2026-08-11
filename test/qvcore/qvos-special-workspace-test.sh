@@ -3,7 +3,9 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 helper="$root/qvcore/desktop/hyprland/qvos-toggle-special-window"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 test_root="$(mktemp -d)"
 test_bin="$test_root/bin"
 dispatch_log="$test_root/dispatch"
@@ -87,10 +89,13 @@ fi
 [[ ! -s $dispatch_log ]] || fail "dispatch without active window"
 pass "a missing active window cannot change workspace state"
 
-grep -Fqx 'bindd = SUPER CTRL, SPACE, Theme background menu, exec, qv-menu background' "$bindings" ||
+qvos_assert_lua_binding "$bindings" \
+  'bindd = SUPER CTRL, SPACE, Theme background menu, exec, qv-menu background' ||
   fail "native background picker"
-grep -Fqx 'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' "$bindings" ||
+qvos_assert_lua_binding "$bindings" \
+  'bindd = SUPER, S, Toggle scratchpad, togglespecialworkspace, scratchpad' ||
   fail "native special workspace toggle"
-grep -Fqx 'bindd = SUPER CTRL, S, Move window in or out of special workspace, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-toggle-special-window' "$bindings" ||
+qvos_assert_lua_binding "$bindings" \
+  'bindd = SUPER CTRL, S, Move window in or out of special workspace, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-toggle-special-window' ||
   fail "special window transfer binding"
 pass "the native qvOS map owns background and special workspace controls"

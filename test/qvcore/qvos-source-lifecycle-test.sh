@@ -28,7 +28,9 @@ install -d "$test_bin"
 
 project="$test_root/project"
 remote="$test_root/qvos.git"
-install -d "$project/qvcore/update"
+install -d \
+  "$project/qvcore/desktop/hyprland" \
+  "$project/qvcore/update"
 git -C "$project" init -q -b OS
 install -m 0755 /dev/stdin "$project/install.sh" <<'SCRIPT'
 #!/bin/bash
@@ -38,6 +40,11 @@ printf 'one\n' >"$project/version"
 install -m 0755 /dev/stdin "$project/qvcore/update/time-sync" <<'SCRIPT'
 #!/bin/bash
 printf 'time\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+install -m 0755 /dev/stdin \
+  "$project/qvcore/desktop/hyprland/qvos-runtime-config" <<'SCRIPT'
+#!/bin/bash
+printf 'runtime-config:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 install -m 0755 "$root/qvcore/update/source-check" \
   "$project/qvcore/update/source-check"
@@ -126,7 +133,7 @@ env "${git_env[@]}" \
   "$root/qvcore/update/update-source" >/dev/null
 [[ $(git -C "$update_source" rev-parse HEAD) == "$expected_head" ]] ||
   fail "fast-forward source update"
-[[ $(<"$action_log") == $'time\nhyprctl:keyword debug:suppress_errors true\nhyprctl:keyword debug:suppress_errors false\nhyprctl:reload' ]] ||
+[[ $(<"$action_log") == $'time\nruntime-config:config debug suppress_errors true\nruntime-config:config debug suppress_errors false\nhyprctl:reload' ]] ||
   fail "source update time and Hyprland cleanup order"
 printf 'dirty\n' >"$update_source/local-change"
 : >"$action_log"

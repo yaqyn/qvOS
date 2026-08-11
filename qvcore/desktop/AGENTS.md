@@ -7,6 +7,10 @@ resets, trackpad recovery, or shared desktop launch helpers.
 `qvcore/desktop/hyprland/` owns shared compositor context, validated window and
 workspace mutations, focused-monitor detection, display scaling, monitor-event
 recovery, and all-window closure.
+`qvos-runtime-config` is the only runtime configuration bridge. It accepts a
+small typed operation catalog, validates every value, and alone may pass a
+constructed expression to `hyprctl eval`; callers never provide Lua or an
+arbitrary expression. Persistent compositor policy remains in native Lua.
 `qvcore/desktop/launch/` owns default application, web-app, terminal-app, and
 focus-or-launch behavior. Native launchers preserve argv boundaries, use fixed
 substring window matching against fully validated Hyprland JSON, generate
@@ -68,7 +72,7 @@ Focused-monitor scaling must preserve the monitor's exact placement, update
 only a singular generic adaptive rule, publish that config atomically, and roll
 the live scale back when persistence fails. Custom monitor layouts remain
 untouched. Monitor-event recovery calls the native config owners directly;
-`qvcore/config/base/hypr/autostart.conf` calls the native monitor-watch route.
+`qvcore/config/base/hypr/autostart.lua` calls the native monitor-watch route.
 Never exercise
 window, workspace, or display mutations on the live desktop merely to test a
 route.

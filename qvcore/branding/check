@@ -182,11 +182,11 @@ native_identity_paths=(
   bin/qv-plymouth-preview
   bin/qv-plymouth-set
   qvcore/branding/os-release
-  qvcore/config/files/hypr/looknfeel.conf
+  qvcore/config/files/hypr/looknfeel.lua
   qvcore/config/files/qvos/themed/alacritty.toml.tpl.sample
   qvcore/shell/aliases
   qvcore/theme/yaqyn/gum.env.conf
-  qvcore/theme/yaqyn/hyprland/windows.conf
+  qvcore/theme/templates/hyprland.lua.tpl
 )
 for path in "${native_identity_paths[@]}"; do
   [[ -f $root/$path ]] || fail "missing native identity source: $path"

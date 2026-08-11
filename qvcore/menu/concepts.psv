@@ -4,15 +4,15 @@ background||Background|Settings · Appearance|wallpaper,appearance,style|Choo
 font||Font|Settings · Appearance|typeface,appearance,style|Choose|menu:font|Install|menu:install-font
 screensaver|󱄄|Screensaver|Settings · Appearance|lock,idle,style|Start|run:qv-launch-screensaver force|Toggle|run:qv-toggle-screensaver|Edit Text|run:qv-branding-screensaver text|Set Image|run:qv-branding-screensaver image|Restore|run:qv-branding-screensaver reset
 unlock-screen|󰟵|Unlock Screen|Settings · Appearance|plymouth,boot,style|Open|run:qv-launch-walker -m menus:qvosUnlocks --width 800 --minheight 400
-look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|Edit|edit:.config/hypr/looknfeel.conf
+look-and-feel||Look & Feel|Settings · Appearance|hyprland,appearance,style|Edit|edit:.config/hypr/looknfeel.lua
 about-screen||About Screen|Settings · Appearance|branding,appearance,style|Edit Text|run:qv-branding-about text|Set Image|run:qv-branding-about image|Restore|run:qv-branding-about reset
 wifi||Wi-Fi|Settings · Connections|network,wireless|Open|run:qv-launch-wifi|Restart|present:qv-restart-wifi
 bluetooth|󰂯|Bluetooth|Settings · Connections|network,devices|Open|run:qv-launch-bluetooth|Restart|present:qv-restart-bluetooth
 dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:qv-setup-dns
 audio||Audio|Settings · Devices|sound,volume,wiremix|Open|run:qv-launch-audio|Restart|present:qv-restart-pipewire
-monitors|󰍹|Monitors|Settings · Devices|display,screen,config|Edit|edit:.config/hypr/monitors.conf
-input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.config/hypr/input.conf
-keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:qv-menu-keybindings|Edit|edit:.config/hypr/bindings.conf
+monitors|󰍹|Monitors|Settings · Devices|display,screen,config|Edit|edit:.config/hypr/monitors.lua
+input||Input|Settings · Devices|keyboard,mouse,trackpad,config|Edit|edit:.config/hypr/input.lua
+keybindings||Keybindings|Settings · Devices|shortcuts,keys,config|View|run:qv-menu-keybindings|Edit|edit:.config/hypr/bindings.lua
 hardware||Hardware|Settings · Devices|display,touchpad,gpu,restart|Control|menu:hardware|Restart|menu:update-hardware
 package|󰣇|Package|Settings · Software|pacman,aur,software|Install|terminal:qv-pkg-install|AUR|terminal:qv-pkg-aur-install|Remove|terminal:qv-pkg-remove
 web-app||Web App|Settings · Software|website,pwa|Install|present:qv-webapp-install|Remove|present:qvcore/tui/task/selectable-owner webapp-remove

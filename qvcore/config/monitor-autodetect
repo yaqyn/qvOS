@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-monitor_config="$HOME/.config/hypr/monitors.conf"
+monitor_config="$HOME/.config/hypr/monitors.lua"
 monitor_config_dir=${monitor_config%/*}
 reload_attempts=20
 mode=${1:---apply}
@@ -28,13 +28,15 @@ esac
 [[ -f $monitor_config ]] ||
   fail "the Hyprland monitor config is missing"
 
-adaptive_monitor_pattern='^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,[[:space:]]*preferred[[:space:]]*,[[:space:]]*auto[[:space:]]*,[[:space:]]*auto[[:space:]]*(#.*)?$'
 mapfile -t monitor_directives < <(
-  grep -E '^[[:space:]]*monitor[[:space:]]*=' "$monitor_config"
+  grep -E '^[[:space:]]*hl\.monitor\(\{' "$monitor_config"
 )
 
 if ((${#monitor_directives[@]} != 1)) ||
-  [[ ! ${monitor_directives[0]} =~ $adaptive_monitor_pattern ]]; then
+  ! grep -Fqx '  output = "",' "$monitor_config" ||
+  ! grep -Fqx '  mode = "preferred",' "$monitor_config" ||
+  ! grep -Fqx '  position = "auto",' "$monitor_config" ||
+  ! grep -Fqx '  scale = "auto",' "$monitor_config"; then
   printf 'Display configuration: Preserved custom layout\n'
   exit 0
 fi
@@ -100,7 +102,7 @@ fi
 
 mapfile -t toolkit_scale_directives < <(
   grep -E \
-    '^[[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,' \
+    '^[[:space:]]*hl\.env\("GDK_SCALE",[[:space:]]*"[0-9]+([.][0-9]+)?"\)' \
     "$monitor_config"
 )
 if ((${#toolkit_scale_directives[@]} != 1)); then
@@ -131,7 +133,7 @@ fail_after_rollback() {
 }
 
 sed -i -E \
-  "s|^([[:space:]]*env[[:space:]]*=[[:space:]]*GDK_SCALE[[:space:]]*,).*|\\1$monitor_scale|" \
+  "s|^([[:space:]]*hl\\.env\\(\"GDK_SCALE\",[[:space:]]*)\"[0-9]+([.][0-9]+)?\"\\)|\\1\"$monitor_scale\")|" \
   "$monitor_config"
 
 if ! hyprctl reload >/dev/null; then

@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -14,7 +16,7 @@ fail() {
 }
 
 assert_binding() {
-  grep -Fqx "$1" "$bindings" || fail "$2"
+  qvos_assert_lua_binding "$bindings" "$1" || fail "$2"
 }
 
 assert_binding 'bindd = SUPER, B, Default browser, exec, qv-launch-browser' "default browser binding"
@@ -42,12 +44,12 @@ assert_binding 'bindd = SUPER CTRL, RETURN, Default terminal here, exec, ~/.loca
 assert_binding 'bindd = SUPER SHIFT CTRL, RETURN, Tmux manager, exec, uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux manager' "Return tmux manager binding"
 pass "the Return family mirrors X"
 
-if grep -Eqi '^bindd = SUPER( SHIFT)?, (backslash|N),' "$bindings"; then
+if rg -qi 'keys = \[\[SUPER( \+ SHIFT)? \+ (backslash|N)\]\]' "$bindings"; then
   fail "retired qvOS tmux or editor family"
 fi
 
-if grep -Fvx 'bindd = SUPER SHIFT, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "$bindings" |
-  grep -Eqi '^bindd = .*exec, .*(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|$)'; then
+if grep -Fv 'description = [[Dev browser (Chromium)]]' "$bindings" |
+  grep -Eqi 'argument = \[\[(uwsm-app -- )?(brave-browser|brave-origin-beta|chromium|firefox|google-chrome|microsoft-edge|alacritty|foot|ghostty|kitty|code-oss|cursor|zeditor|nvim|helix|sublime_text|emacs)([[:space:]]|\]\])'; then
   fail "hardcoded default application"
 fi
 pass "default-app bindings are dynamic except for the Chromium dev browser"

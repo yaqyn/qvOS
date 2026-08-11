@@ -128,8 +128,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/config/files/qvos/extensions/menu.sh` owns the personal menu-extension
   seed; active overrides live only under `~/.config/qvos/extensions/`, while the
   inherited Omarchy path is validated migration input and is never seeded
-- `qvcore/config/base/hypr/` owns the source-side session, environment,
-  appearance, and window defaults; `default/hypr/` and the former installed
+- `qvcore/config/base/hypr/` owns the typed Lua runtime helpers and source-side
+  session, environment, appearance, and window defaults;
+  `qvcore/config/files/hypr/` owns the complete user-editable Lua entrypoint
+  and leaves. Active `.conf`, `default/hypr/`, and the former installed
   `hypr/qv` overlay are retired and must remain absent
 - `qvcore/config/files/waybar/` owns one complete native Waybar config and
   style; `default/waybar/` and the former merge overlay are retired
@@ -155,8 +157,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   art, the singular system `os-release`, their safe install/migration
   lifecycles, and branding commands; the graphical wordmark and terminal
   composition are intentionally distinct
-- `qvcore/config/toggles/` owns toggle templates; active toggle state lives
-  privately under `~/.local/state/qvos/toggles`
+- `qvcore/config/toggles/` owns Lua toggle templates; active toggle state lives
+  privately under `~/.local/state/qvos/toggles`, and the one-time reviewed
+  `.conf` transition is preserved under private Hyprland state
 - `qvcore/controls/notification/mako-core.ini` owns shared Mako policy;
   `qvcore/software/voxtype-config.toml` owns the optional Voxtype seed
 - `qvcore/hooks/` owns custom automation under `~/.config/qvos/hooks`; qvOS
@@ -177,7 +180,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   than carried into qvOS
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
-  native autostart call only `qv-hyprland-*` routes
+  native autostart call only `qv-hyprland-*` routes, while one typed runtime
+  bridge owns bounded `hyprctl eval` configuration changes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   one shared probe limits manager access to the active account home, while a
   fresh chroot stages units for first run; inherited unit names are migration

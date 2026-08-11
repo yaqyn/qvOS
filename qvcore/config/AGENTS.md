@@ -3,11 +3,12 @@
 Read this file completely when changing qvOS-owned Hyprland bindings, config
 refresh reconciliation, or installed desktop configuration.
 
-`qvcore/config/base/hypr/` is the singular source-side Hyprland base. It owns
-session autostart, environment, appearance, and all default window rules in
-four readable files. `qvcore/config/files/hypr/` owns installed user-editable
-configuration, including the single authoritative binding and input sources.
-There is no inherited base, fragment fan-out, binding layer, or qvOS overlay.
+`qvcore/config/base/hypr/` is the singular source-side Hyprland Lua base. Its
+typed helpers, session autostart, environment, appearance, and default window
+rules live in five readable `.lua` files. `qvcore/config/files/hypr/` owns the
+installed user-editable Lua entrypoint, bindings, monitors, input, environment,
+appearance, and autostart leaves. There is no inherited base, `.conf` runtime,
+fragment fan-out, binding layer, or qvOS overlay.
 
 Fresh qvOS has no fixed web-service bindings. Keep only generic browser,
 private-browser, localhost, and prompted-website access; users may install and
@@ -116,19 +117,25 @@ reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to
 ANSI asset are retired; runtime-root migration rewrites only their exact source
 paths and preserves the rest of an existing Fastfetch config.
 
-`toggle-state` singularly migrates safe, user-owned toggle files from
-`.local/state/omarchy/toggles` into the private
-`.local/state/qvos/toggles` tree, rejects conflicts before mutation, installs
-the inert flags file, and rewrites only the exact inherited Hyprland source
-line with a backup. Toggle templates and command implementations live under
-`qvcore/config/`; native `qv-*` routes carry metadata and matching
+`toggle-state` singularly initializes and permissions the private
+`.local/state/qvos/toggles` tree and its inert `flags.lua`. The one-time
+`migrate-hyprland-lua` owner recognizes reviewed legacy qvOS `.conf` payloads,
+backs them up privately, translates the supported monitor, NVIDIA, and toggle
+profiles, verifies the complete native Lua entrypoint, and fails before
+publication on customized legacy compositor code. It also preserves an active
+legacy theme fragment, verifies the Lua entrypoint before publication, retires
+the old main config before that fragment, and re-verifies before removing the
+remaining legacy leaves. Toggle templates and command
+implementations live under `qvcore/config/`; native `qv-*` routes carry metadata and matching
 `bin/omarchy-*` routes are metadata-free compatibility only. Keep state files
 private, validate every ancestor and reject links before mutation, and
 serialize changes through the shared toggle lock. A process launched while a
 toggle transaction is locked must close that descriptor in the child so the
 long-running process cannot retain it after the owner exits. Treat desktop
 notifications as best effort after state publication, and preserve every
-compatible custom toggle during install and update.
+compatible custom toggle during install and update. A missing toggle directory
+is inert and must not invalidate the desktop; an existing malformed toggle must
+still fail visibly instead of being ignored.
 Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`,
 the first-run and desktop-install suites, `systemd-analyze verify` after live
 alignment, and the full qvOS suite.
@@ -175,7 +182,8 @@ mutation. Revalidate every selected zone against `timedatectl list-timezones`
 immediately before sudo, return cancellation distinctly, and restart Waybar
 only after the system change succeeds.
 
-`qvcore/config/monitor-autodetect` owns display-scale reconciliation on fresh first
+`qvcore/config/monitor-autodetect` owns display-scale reconciliation in
+`~/.config/hypr/monitors.lua` on fresh first
 login and explicit Hyprland restore. Let Hyprland choose preferred modes,
 automatic placement, and PPI-based per-monitor scale. Synchronize the global
 toolkit scale from the internal display, then the focused or first active

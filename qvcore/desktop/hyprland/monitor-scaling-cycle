@@ -15,7 +15,9 @@ esac
   exit 2
 }
 
-monitor_config="$HOME/.config/hypr/monitors.conf"
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+runtime_config="$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config"
+monitor_config="$HOME/.config/hypr/monitors.lua"
 staged_config=""
 
 cleanup() {
@@ -102,34 +104,29 @@ else
   new_index=$(((current_index + 1) % ${#scales[@]}))
 fi
 new_scale=${scales[$new_index]}
-monitor_rule="$monitor,${width}x${height}@${refresh},${x}x${y},$new_scale"
-rollback_rule="$monitor,${width}x${height}@${refresh},${x}x${y},$current_scale"
+monitor_mode="${width}x${height}@${refresh}"
+monitor_position="${x}x${y}"
 
 persist_scale=false
 if [[ -f $monitor_config ]]; then
   mapfile -t active_monitor_lines < <(
-    awk '
-      /^[[:space:]]*monitor[[:space:]]*=/ &&
-      $0 !~ /,[[:space:]]*disable[[:space:]]*(#.*)?$/ { print }
-    ' "$monitor_config"
+    grep -E '^[[:space:]]*hl\.monitor\(\{' "$monitor_config"
   )
-  adaptive_pattern='^[[:space:]]*monitor[[:space:]]*=[[:space:]]*,[[:space:]]*preferred[[:space:]]*,[[:space:]]*auto[[:space:]]*,[[:space:]]*(auto|[0-9]+([.][0-9]+)?)[[:space:]]*(#.*)?$'
-  if ((${#active_monitor_lines[@]} == 1)) &&
-    [[ ${active_monitor_lines[0]} =~ $adaptive_pattern ]]; then
+  mapfile -t active_scale_lines < <(
+    grep -E '^[[:space:]]*scale[[:space:]]*=[[:space:]]*("auto"|[0-9]+([.][0-9]+)?),[[:space:]]*(--.*)?$' \
+      "$monitor_config"
+  )
+  if ((${#active_monitor_lines[@]} == 1 && ${#active_scale_lines[@]} == 1)) &&
+    grep -Fqx '  output = "",' "$monitor_config" &&
+    grep -Fqx '  mode = "preferred",' "$monitor_config" &&
+    grep -Fqx '  position = "auto",' "$monitor_config"; then
     staged_config=$(mktemp "${monitor_config%/*}/.qvos-monitor-scale.XXXXXX")
     awk -v scale="$new_scale" '
       BEGIN { changed = 0 }
-      /^[[:space:]]*monitor[[:space:]]*=/ &&
-      $0 !~ /,[[:space:]]*disable[[:space:]]*(#.*)?$/ &&
+      /^[[:space:]]*scale[[:space:]]*=[[:space:]]*("auto"|[0-9]+([.][0-9]+)?),[[:space:]]*(--.*)?$/ &&
       changed == 0 {
-        comment = ""
-        if (match($0, /[[:space:]]*#.*/)) {
-          comment = substr($0, RSTART)
-        }
-        prefix = $0
-        sub(/[[:space:]]*#.*/, "", prefix)
-        sub(/(auto|[0-9]+([.][0-9]+)?)[[:space:]]*$/, scale, prefix)
-        print prefix comment
+        sub(/("auto"|[0-9]+([.][0-9]+)?)[[:space:]]*,/, scale ",")
+        print
         changed = 1
         next
       }
@@ -141,7 +138,7 @@ if [[ -f $monitor_config ]]; then
   fi
 fi
 
-hyprctl keyword monitor "$monitor_rule" >/dev/null || {
+"$runtime_config" monitor "$monitor" "$monitor_mode" "$monitor_position" "$new_scale" || {
   echo "Hyprland could not apply display scale ${new_scale}x." >&2
   exit 1
 }
@@ -150,7 +147,9 @@ if [[ $persist_scale == "true" ]]; then
   backup="$monitor_config.bak.$(date +%s%N)"
   if ! cp -a -- "$monitor_config" "$backup" ||
     ! mv -f -- "$staged_config" "$monitor_config"; then
-    hyprctl keyword monitor "$rollback_rule" >/dev/null 2>&1 || true
+    "$runtime_config" monitor \
+      "$monitor" "$monitor_mode" "$monitor_position" "$current_scale" \
+      >/dev/null 2>&1 || true
     echo "Could not persist display scaling; restored the live scale when possible." >&2
     exit 1
   fi

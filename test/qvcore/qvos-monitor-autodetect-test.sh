@@ -5,7 +5,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
 test_home="$test_root/home"
 test_bin="$test_root/bin"
-monitor_config="$test_home/.config/hypr/monitors.conf"
+monitor_config="$test_home/.config/hypr/monitors.lua"
 monitor_json="$test_root/monitors.json"
 hyprctl_log="$test_root/hyprctl.log"
 
@@ -61,7 +61,7 @@ run_detector() {
     "$root/qvcore/config/monitor-autodetect"
 }
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
 install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 [
   {
@@ -83,16 +83,16 @@ install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 ]
 MONITORS
 output=$(run_detector)
-grep -Fqx 'env = GDK_SCALE,1' "$monitor_config" ||
+grep -Fqx 'hl.env("GDK_SCALE", "1")' "$monitor_config" ||
   fail "internal display scale did not replace the generic toolkit scale"
-grep -Fqx 'monitor=,preferred,auto,auto' "$monitor_config" ||
+grep -Fqx '  scale = "auto",' "$monitor_config" ||
   fail "adaptive monitor selection was not preserved"
 [[ $output == $'Display: eDP-1 - 1920x1080\nScale: 1x' ]] ||
   fail "detected display summary"
 [[ $(grep -c '^reload$' "$hyprctl_log") == 2 ]] ||
   fail "display detection did not validate both reloads"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
 install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 [
   {
@@ -106,60 +106,59 @@ install -m 0644 /dev/stdin "$monitor_json" <<'MONITORS'
 ]
 MONITORS
 run_detector >/dev/null
-grep -Fqx 'env = GDK_SCALE,1.6' "$monitor_config" ||
+grep -Fqx 'hl.env("GDK_SCALE", "1.6")' "$monitor_config" ||
   fail "focused external display scale fallback"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
-sed -i \
-  -e 's/^env = GDK_SCALE,2$/env = GDK_SCALE,1/' \
-  -e 's/^monitor=,preferred,auto,auto$/monitor=DP-1,2560x1440@144,0x0,1/' \
-  "$monitor_config"
-cp "$monitor_config" "$test_root/custom-before.conf"
+install -m 0644 /dev/stdin "$monitor_config" <<'CONFIG'
+hl.env("GDK_SCALE", "1")
+hl.monitor({ output = "DP-1", mode = "2560x1440@144", position = "0x0", scale = 1 })
+CONFIG
+cp "$monitor_config" "$test_root/custom-before.lua"
 : >"$hyprctl_log"
 output=$(run_detector)
-cmp -s "$test_root/custom-before.conf" "$monitor_config" ||
+cmp -s "$test_root/custom-before.lua" "$monitor_config" ||
   fail "custom display layout was modified"
 [[ $output == "Display configuration: Preserved custom layout" ]] ||
   fail "custom layout preservation summary"
 [[ ! -s $hyprctl_log ]] ||
   fail "custom layout unnecessarily queried Hyprland"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
-printf '%s\n' 'monitor=DP-2,disable' >>"$monitor_config"
-cp "$monitor_config" "$test_root/mixed-before.conf"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
+printf '%s\n' 'hl.monitor({ output = "DP-2", disabled = true })' >>"$monitor_config"
+cp "$monitor_config" "$test_root/mixed-before.lua"
 : >"$hyprctl_log"
 output=$(run_detector)
-cmp -s "$test_root/mixed-before.conf" "$monitor_config" ||
+cmp -s "$test_root/mixed-before.lua" "$monitor_config" ||
   fail "mixed custom display layout was modified"
 [[ $output == "Display configuration: Preserved custom layout" ]] ||
   fail "mixed custom layout preservation summary"
 [[ ! -s $hyprctl_log ]] ||
   fail "mixed custom layout unnecessarily queried Hyprland"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
-cp "$monitor_config" "$test_root/error-before.conf"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
+cp "$monitor_config" "$test_root/error-before.lua"
 : >"$hyprctl_log"
 if output=$(
   QVOS_MONITOR_TEST_ERRORS="invalid monitor config" run_detector 2>&1
 ); then
   fail "invalid restored configuration was accepted"
 fi
-cmp -s "$test_root/error-before.conf" "$monitor_config" ||
+cmp -s "$test_root/error-before.lua" "$monitor_config" ||
   fail "failed detection changed the monitor config"
 grep -Fq \
   'Hyprland rejected the restored configuration: invalid monitor config' \
   <<<"$output" ||
   fail "invalid restored configuration diagnostic"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
-cp "$monitor_config" "$test_root/reload-before.conf"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
+cp "$monitor_config" "$test_root/reload-before.lua"
 : >"$hyprctl_log"
 if output=$(
   QVOS_MONITOR_TEST_FAIL_RELOAD_AT=2 run_detector 2>&1
 ); then
   fail "failed detected-scale reload was accepted"
 fi
-cmp -s "$test_root/reload-before.conf" "$monitor_config" ||
+cmp -s "$test_root/reload-before.lua" "$monitor_config" ||
   fail "failed detected-scale reload did not restore the monitor config"
 [[ $(grep -c '^reload$' "$hyprctl_log") == 3 ]] ||
   fail "failed detected-scale reload did not reload the restored config"
@@ -168,8 +167,8 @@ grep -Fq \
   <<<"$output" ||
   fail "detected-scale reload failure diagnostic"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
-cp "$monitor_config" "$test_root/validation-before.conf"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
+cp "$monitor_config" "$test_root/validation-before.lua"
 : >"$hyprctl_log"
 if output=$(
   QVOS_MONITOR_TEST_ERRORS="invalid detected scale" \
@@ -178,7 +177,7 @@ if output=$(
 ); then
   fail "invalid detected scale was accepted"
 fi
-cmp -s "$test_root/validation-before.conf" "$monitor_config" ||
+cmp -s "$test_root/validation-before.lua" "$monitor_config" ||
   fail "invalid detected scale did not restore the monitor config"
 [[ $(grep -c '^configerrors$' "$hyprctl_log") == 3 ]] ||
   fail "restored monitor config was not revalidated"
@@ -206,19 +205,19 @@ PATH="$test_bin:/usr/bin" \
 QVOS_MONITOR_TEST_JSON="$monitor_json" \
 QVOS_MONITOR_TEST_LOG="$hyprctl_log" \
   "$root/bin/qv-refresh-hyprland" >/dev/null
-grep -Fqx 'env = GDK_SCALE,1' "$monitor_config" ||
+grep -Fqx 'hl.env("GDK_SCALE", "1")' "$monitor_config" ||
   fail "complete Hyprland restore did not detect the current display"
-grep -Fqx 'monitor=,preferred,auto,auto' "$monitor_config" ||
+grep -Fqx '  scale = "auto",' "$monitor_config" ||
   fail "complete Hyprland restore lost adaptive monitor selection"
 cmp -s \
-  "$root/qvcore/config/files/hypr/hyprland.conf" \
-  "$test_home/.config/hypr/hyprland.conf" ||
+  "$root/qvcore/config/files/hypr/hyprland.lua" \
+  "$test_home/.config/hypr/hyprland.lua" ||
   fail "complete Hyprland restore lost the native qvOS base"
 [[ ! -e $test_home/.config/hypr/qv.conf &&
   ! -e $test_home/.config/hypr/qv ]] ||
   fail "complete Hyprland restore recreated the retired qvOS overlay"
 
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$monitor_config"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$monitor_config"
 : >"$hyprctl_log"
 if output=$(
   HOME="$test_home" \
@@ -236,9 +235,9 @@ grep -Fq \
   <<<"$output" ||
   fail "complete restore failure diagnostic"
 
-external_monitor_config="$test_root/external-monitors.conf"
-install -m 0644 "$root/qvcore/config/files/hypr/monitors.conf" "$external_monitor_config"
-cp "$external_monitor_config" "$test_root/external-before.conf"
+external_monitor_config="$test_root/external-monitors.lua"
+install -m 0644 "$root/qvcore/config/files/hypr/monitors.lua" "$external_monitor_config"
+cp "$external_monitor_config" "$test_root/external-before.lua"
 rm "$monitor_config"
 ln -s "$external_monitor_config" "$monitor_config"
 : >"$hyprctl_log"
@@ -252,7 +251,7 @@ if output=$(
 ); then
   fail "complete Hyprland restore followed a symbolic-link monitor config"
 fi
-cmp -s "$test_root/external-before.conf" "$external_monitor_config" ||
+cmp -s "$test_root/external-before.lua" "$external_monitor_config" ||
   fail "symbolic-link restore preflight modified the external monitor config"
 [[ ! -s $hyprctl_log ]] ||
   fail "symbolic-link restore preflight reached Hyprland"

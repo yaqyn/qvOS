@@ -19,33 +19,12 @@ fail() {
 
 install -d \
   "$test_bin" \
-  "$test_home/.config/hypr" \
-  "$test_home/.local/state/omarchy/toggles/hypr" \
   "$test_home/.local/state/qvos/toggles/hypr"
-install -m 0644 /dev/stdin \
-  "$test_home/.config/hypr/hyprland.conf" <<'CONFIG'
-source = ~/.config/hypr/bindings.conf
-source = ~/.local/state/omarchy/toggles/hypr/*.conf
-# user content stays here
-CONFIG
-printf 'legacy-only\n' >"$test_home/.local/state/omarchy/toggles/suspend-off"
-printf 'shared\n' >"$test_home/.local/state/omarchy/toggles/hypr/shared.conf"
-printf 'shared\n' >"$test_home/.local/state/qvos/toggles/hypr/shared.conf"
 
 HOME="$test_home" QVOS_PATH="$root" "$root/qvcore/config/toggle-state"
-[[ ! -e $test_home/.local/state/omarchy/toggles ]] ||
-  fail "legacy toggle root survived migration"
-grep -Fqx 'legacy-only' "$test_home/.local/state/qvos/toggles/suspend-off" ||
-  fail "legacy toggle state was not preserved"
-grep -Fqx 'shared' "$test_home/.local/state/qvos/toggles/hypr/shared.conf" ||
-  fail "identical toggle state was not deduplicated"
-grep -Fqx 'source = ~/.local/state/qvos/toggles/hypr/*.conf' \
-  "$test_home/.config/hypr/hyprland.conf" ||
-  fail "active Hyprland toggle source was not migrated"
-grep -Fqx '# user content stays here' "$test_home/.config/hypr/hyprland.conf" ||
-  fail "custom Hyprland content was not preserved"
-[[ $(find "$test_home/.config/hypr" -name 'hyprland.conf.bak.*' | wc -l) == "1" ]] ||
-  fail "Hyprland toggle source backup count"
+cmp -s "$root/qvcore/config/toggles/flags.lua" \
+  "$test_home/.local/state/qvos/toggles/hypr/flags.lua" ||
+  fail "native Lua toggle seed was not installed"
 while IFS= read -r -d '' state_path; do
   if [[ -d $state_path ]]; then
     [[ $(stat -c '%a' "$state_path") == "700" ]] ||
@@ -58,13 +37,21 @@ done < <(find "$test_home/.local/state/qvos/toggles" -print0)
 
 toggle_snapshot=$(find "$test_home/.local/state/qvos/toggles" \
   -printf '%P|%m|%i|%T@\n' | sort)
-hypr_snapshot=$(find "$test_home/.config/hypr" -printf '%P|%m|%i|%T@\n' | sort)
 HOME="$test_home" QVOS_PATH="$root" "$root/qvcore/config/toggle-state"
 [[ $(find "$test_home/.local/state/qvos/toggles" \
   -printf '%P|%m|%i|%T@\n' | sort) == "$toggle_snapshot" ]] ||
-  fail "toggle-state migration is not idempotent"
-[[ $(find "$test_home/.config/hypr" -printf '%P|%m|%i|%T@\n' | sort) == \
-  "$hypr_snapshot" ]] || fail "Hyprland source migration is not idempotent"
+  fail "toggle-state initialization is not idempotent"
+
+unsafe_state_home="$test_root/unsafe-state-home"
+external_local="$test_root/external-local"
+install -d "$unsafe_state_home" "$external_local"
+ln -s "$external_local" "$unsafe_state_home/.local"
+if HOME="$unsafe_state_home" QVOS_PATH="$root" \
+  "$root/qvcore/config/toggle-state" >/dev/null 2>&1; then
+  fail "toggle-state followed a linked .local root"
+fi
+[[ -z $(find "$external_local" -mindepth 1 -print -quit) ]] ||
+  fail "toggle-state mutated through a linked .local root"
 
 HOME="$test_home" QVOS_PATH="$root" \
   "$root/qvcore/config/toggle" nested/example
@@ -134,49 +121,22 @@ HOME="$test_home" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/config/hyprland-toggle" window-no-gaps
 cmp -s \
-  "$root/qvcore/config/toggles/window-no-gaps.conf" \
-  "$test_home/.local/state/qvos/toggles/hypr/window-no-gaps.conf" ||
+  "$root/qvcore/config/toggles/window-no-gaps.lua" \
+  "$test_home/.local/state/qvos/toggles/hypr/window-no-gaps.lua" ||
   fail "native Hyprland toggle template was not applied exactly"
-[[ $(stat -c '%a' "$test_home/.local/state/qvos/toggles/hypr/window-no-gaps.conf") == "600" ]] ||
+[[ $(stat -c '%a' "$test_home/.local/state/qvos/toggles/hypr/window-no-gaps.lua") == "600" ]] ||
   fail "native Hyprland toggle is not private"
 HOME="$test_home" \
   QVOS_PATH="$root" \
   QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/config/hyprland-toggle" window-no-gaps
-[[ ! -e $test_home/.local/state/qvos/toggles/hypr/window-no-gaps.conf ]] ||
+[[ ! -e $test_home/.local/state/qvos/toggles/hypr/window-no-gaps.lua ]] ||
   fail "native Hyprland toggle template was not removed"
 [[ $(<"$hyprctl_log") == $'reload\nreload' ]] ||
   fail "Hyprland toggle reload count"
 
-unsafe_home="$test_root/unsafe-home"
-external_state="$test_root/external-state"
-install -d "$unsafe_home/.local/state/omarchy"
-printf 'external\n' >"$external_state"
-ln -s "$external_state" "$unsafe_home/.local/state/omarchy/toggles"
-if HOME="$unsafe_home" QVOS_PATH="$root" \
-  "$root/qvcore/config/toggle-state" >/dev/null 2>&1; then
-  fail "toggle-state migration accepted a symbolic-link root"
-fi
-[[ $(<"$external_state") == "external" ]] ||
-  fail "toggle-state migration followed a symbolic link"
-[[ ! -e $unsafe_home/.local/state/qvos ]] ||
-  fail "toggle-state migration mutated before completing preflight"
-
-conflict_home="$test_root/conflict-home"
-install -d \
-  "$conflict_home/.local/state/omarchy/toggles/hypr" \
-  "$conflict_home/.local/state/qvos/toggles/hypr"
-printf 'old\n' >"$conflict_home/.local/state/omarchy/toggles/hypr/custom.conf"
-printf 'new\n' >"$conflict_home/.local/state/qvos/toggles/hypr/custom.conf"
-if HOME="$conflict_home" QVOS_PATH="$root" \
-  "$root/qvcore/config/toggle-state" >/dev/null 2>&1; then
-  fail "toggle-state migration accepted conflicting state"
-fi
-[[ $(<"$conflict_home/.local/state/omarchy/toggles/hypr/custom.conf") == "old" &&
-  $(<"$conflict_home/.local/state/qvos/toggles/hypr/custom.conf") == "new" ]] ||
-  fail "toggle-state conflict changed user data"
-printf 'ok - qvOS toggle state is private, preserving, idempotent, and traversal-safe\n'
+printf 'ok - qvOS toggle state is native, private, idempotent, and traversal-safe\n'
 
 service_home="$test_root/service-home"
 unit_root="$service_home/.config/systemd/user"

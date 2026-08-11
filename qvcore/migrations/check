@@ -147,6 +147,10 @@ grep -Fqx 'QVOS_MISE_MODE=migrate-node-lts' \
 grep -Fqx 'source "$QVOS_PATH/qvcore/install/config/mise-work.sh"' \
   "$root/qvcore/migrations/1786435613.sh" ||
   fail "native Node.js LTS migration owner"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-hyprland-lua"' \
+  "$root/qvcore/migrations/1786465400.sh" ||
+  fail "native Hyprland Lua migration owner"
 if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"

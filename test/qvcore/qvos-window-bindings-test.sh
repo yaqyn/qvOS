@@ -2,7 +2,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+# shellcheck source=test/qvcore/hyprland-bindings.sh
+source "$root/test/qvcore/hyprland-bindings.sh"
 
 pass() {
   printf 'ok - %s\n' "$1"
@@ -14,7 +16,7 @@ fail() {
 }
 
 assert_binding() {
-  grep -Fqx "$1" "$bindings" || fail "$2"
+  qvos_assert_lua_binding "$bindings" "$1" || fail "$2"
 }
 
 "$root/qvcore/config/check"
@@ -48,7 +50,7 @@ assert_binding 'bindd = SUPER SHIFT, F, Tiled full screen, fullscreenstate, 0 2'
 assert_binding 'bindd = SUPER CTRL, F, Toggle window floating/tiling, togglefloating,' "toggle floating binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, F, Pop window out (float & pin), exec, qv-hyprland-window-pop' "pop window binding"
 assert_binding 'bindd = SUPER ALT, F, Full width, fullscreen, 1' "full-width binding"
-if grep -Eq '^bind[a-z]* = SUPER, (T|O),' "$bindings"; then
+if rg -q 'keys = \[\[SUPER \+ (T|O)\]\]' "$bindings"; then
   fail "redundant legacy window-state alias"
 fi
 pass "the F family singularly owns every retained window state"
@@ -64,7 +66,7 @@ for line in \
 done
 pass "native qvOS routes own interactive Hyprland controls"
 
-if grep -Eq '^bind[a-z]* = SUPER (ALT|SHIFT ALT), (A|W|D|S), .*resizeactive' "$bindings"; then
+if rg -q 'keys = \[\[SUPER \+ (ALT|SHIFT \+ ALT) \+ (A|W|D|S)\]\].*dispatcher = \[\[resizeactive\]\]' "$bindings"; then
   fail "resize binding outside Super+Ctrl+Alt+WASD"
 fi
 pass "the resize layer uses only Super+Ctrl+Alt+WASD"
@@ -81,7 +83,7 @@ for line in \
 done
 pass "arrow and punctuation controls are native qvOS bindings"
 
-if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
+if rg -q '\bunbind\b' "$bindings"; then
   fail "native binding source contains an overlay unbind"
 fi
 pass "native qvOS bindings require no override directives"

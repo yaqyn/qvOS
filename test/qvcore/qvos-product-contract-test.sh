@@ -459,14 +459,14 @@ if grep -Fq '' "$root/qvcore/menu/routes"; then
 fi
 if rg -q 'show_qvos_menu|omarchy-menu qvos|SUPER SHIFT ALT, SPACE' \
   "$root/qvcore/menu/routes" \
-  "$root/qvcore/config/files/hypr/bindings.conf" \
+  "$root/qvcore/config/files/hypr/bindings.lua" \
   "$root/qvcore/config/files/waybar/config.jsonc"; then
   fail "retired qvOS feature menu"
 fi
-grep -Fq '`qvcore/config/base/hypr/` is the singular source-side Hyprland base.' \
+grep -Fq '`qvcore/config/base/hypr/` is the singular source-side Hyprland Lua base.' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS Hyprland source ownership instruction"
-grep -Fq 'There is no inherited base, fragment fan-out, binding layer, or qvOS overlay.' \
+grep -Fq 'There is no inherited base, `.conf` runtime,' \
   "$root/qvcore/config/AGENTS.md" ||
   fail "qvOS singular binding ownership instruction"
 grep -Fq '`qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.' \
@@ -533,14 +533,14 @@ if grep -Fq 'tea.WithInput(nil)' "$root/qvcore/tui/iso_progress.go"; then
 fi
 grep -Fq 'qv-launch-update' "$root/qvcore/theme/yaqyn/mako.ini" ||
   fail "qvOS update notification TUI route"
-grep -Fqx 'windowrule = float on, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+grep -Fqx 'qv.window_rule("float on", { class = [[^org\.qvos\.tui$]] })' \
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "qvOS TUI floating window contract"
-grep -Fqx 'windowrule = size 1024 509, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+grep -Fqx 'qv.window_rule("size 1024 509", { class = [[^org\.qvos\.tui$]] })' \
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "qvOS TUI default window size"
-grep -Fqx 'windowrule = center on, match:class ^org\.qvos\.tui$' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+grep -Fqx 'qv.window_rule("center on", { class = [[^org\.qvos\.tui$]] })' \
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "qvOS TUI centered window contract"
 grep -Fqx 'exec "$QVOS_PATH/qvcore/install/first-run/run" "$@"' \
   "$root/bin/omarchy-first-run" ||

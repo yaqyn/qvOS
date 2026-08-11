@@ -35,5 +35,7 @@ case $current_layout in
 dwindle) new_layout=scrolling ;;
 *) new_layout=dwindle ;;
 esac
-hyprctl keyword workspace "$workspace_id, layout:$new_layout" >/dev/null
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+"$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" \
+  workspace-layout "$workspace_id" "$new_layout"
 notify-send -u low "󱂬    Workspace layout set to $new_layout" >/dev/null 2>&1 || true

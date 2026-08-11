@@ -7,9 +7,15 @@ source "$QVOS_PATH/qvcore/config/toggle-lib"
 
 toggle_name="internal-monitor-mirror"
 disable_toggle_name="internal-monitor-disable"
-toggle_flag="$qvos_hypr_toggle_root/$toggle_name.conf"
+toggle_flag="$qvos_hypr_toggle_root/$toggle_name.lua"
 internal=$(hyprctl monitors -j | jq -r '[.[] | select(.name | contains("eDP")).name][0] // empty')
 external=$(hyprctl monitors -j | jq -r '[.[] | select(.name | contains("eDP") | not).name][0] // empty')
+for monitor in "$internal" "$external"; do
+  [[ -z $monitor || $monitor =~ ^[[:alnum:]_.:-]+$ ]] || {
+    echo "Hyprland returned an unsafe display name" >&2
+    exit 1
+  }
+done
 
 enable() {
   [[ -n $external ]] || {
@@ -25,7 +31,7 @@ enable() {
     "$QVOS_PATH/qvcore/config/hyprland-toggle" "$disable_toggle_name"
   fi
   if "$QVOS_PATH/qvcore/config/hyprland-toggle-disabled" "$toggle_name"; then
-    printf 'monitor=%s, preferred, auto, 1, mirror, %s\n' \
+    printf 'hl.monitor({ output = "%s", mode = "preferred", position = "auto", scale = 1, mirror = "%s" })\n' \
       "$external" "$internal" | qvos_toggle_write "$toggle_flag"
     notify-send -u low "󰍹    Mirroring enabled ($external)"
     hyprctl reload

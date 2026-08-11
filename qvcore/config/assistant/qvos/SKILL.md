@@ -96,13 +96,13 @@ The installed configuration normally contains:
 
 ```text
 ~/.config/hypr/
-├── hyprland.conf
-├── bindings.conf
-├── monitors.conf
-├── input.conf
-├── looknfeel.conf
-├── envs.conf
-├── autostart.conf
+├── hyprland.lua
+├── bindings.lua
+├── monitors.lua
+├── input.lua
+├── looknfeel.lua
+├── envs.lua
+├── autostart.lua
 ├── hypridle.conf
 ├── hyprlock.conf
 └── hyprsunset.conf
@@ -111,6 +111,7 @@ The installed configuration normally contains:
 After every Hyprland edit, run:
 
 ```bash
+Hyprland --verify-config -c ~/.config/hypr/hyprland.lua
 hyprctl reload
 hyprctl configerrors
 ```
@@ -133,14 +134,15 @@ do not add an `unbind` overlay or a second binding source.
 ### Monitors
 
 Inspect active outputs with `hyprctl monitors`, then edit
-`~/.config/hypr/monitors.conf`. Preserve explicit layouts that the user did not
+`~/.config/hypr/monitors.lua`. Preserve explicit layouts that the user did not
 ask to change.
 
 ### Window rules
 
-Window-rule syntax changes between Hyprland releases. Consult the current
-official Hyprland window-rules documentation before writing a rule, then reload
-and check configuration errors.
+Window-rule and Lua APIs change between Hyprland releases. Consult the current
+official Hyprland Lua and window-rules documentation before writing a rule.
+Use the loaded `qv.window_rule(effect, match)` helper for personal rules, then
+verify the complete Lua entrypoint, reload, and check configuration errors.
 
 ## Component application
 

@@ -2,6 +2,7 @@
 context/qvos-active-location
 context/qvos-launch-editor-here
 context/qvos-launch-terminal-here
+hyprland/qvos-runtime-config
 hyprland/qvos-toggle-special-window
 open
 web/qvos-localhost-open

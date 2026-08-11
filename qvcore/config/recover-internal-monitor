@@ -5,7 +5,7 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 # shellcheck source=qvcore/config/toggle-lib
 source "$QVOS_PATH/qvcore/config/toggle-lib"
 
-toggle="$qvos_hypr_toggle_root/internal-monitor-disable.conf"
+toggle="$qvos_hypr_toggle_root/internal-monitor-disable.lua"
 qvos_toggle_safe_file "$toggle" || {
   echo "Refusing unsafe qvOS internal-monitor toggle: $toggle" >&2
   exit 1

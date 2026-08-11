@@ -49,8 +49,8 @@ activeworkspace)
   [[ ${2:-} == "-j" ]]
   cat -- "$QVOS_TEST_WORKSPACE_JSON"
   ;;
-keyword)
-  [[ ${QVOS_TEST_KEYWORD_FAIL:-false} != "true" ]]
+eval)
+  [[ ${QVOS_TEST_EVAL_FAIL:-false} != "true" ]]
   ;;
 dispatch | -q) ;;
 *) exit 64 ;;
@@ -86,6 +86,7 @@ workspace_json="$test_root/workspace.json"
 events="$test_root/events"
 export PATH="$test_bin:/usr/bin"
 export HOME="$test_home"
+export QVOS_PATH="$root"
 export QVOS_TEST_HYPRCTL_LOG="$hyprctl_log"
 export QVOS_TEST_NOTIFICATION_LOG="$notification_log"
 export QVOS_TEST_CONFIG_LOG="$config_log"
@@ -98,35 +99,40 @@ export QVOS_TEST_EVENTS="$events"
 install -m 0644 /dev/stdin "$monitor_json" <<'JSON'
 [{"name":"DP-1","width":1920,"height":1080,"refreshRate":60,"x":-1920,"y":0,"scale":1.25,"focused":true,"disabled":false}]
 JSON
-install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.conf" <<'CONFIG'
+install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.lua" <<'CONFIG'
 # Preserve this comment.
-monitor = , preferred, auto, auto # adaptive
+hl.monitor({
+  output = "",
+  mode = "preferred",
+  position = "auto",
+  scale = "auto", -- adaptive
+})
 CONFIG
 "$root/qvcore/desktop/hyprland/monitor-scaling-cycle"
 assert_log 'monitors -j' "$hyprctl_log" "focused monitor query"
-assert_log 'keyword monitor DP-1,1920x1080@60,-1920x0,1.6' \
+assert_log 'eval hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "-1920x0", scale = 1.6 })' \
   "$hyprctl_log" "scale change preserves exact placement"
-grep -Fqx 'monitor = , preferred, auto, 1.6 # adaptive' \
-  "$test_home/.config/hypr/monitors.conf" ||
+grep -Fqx '  scale = 1.6, -- adaptive' \
+  "$test_home/.config/hypr/monitors.lua" ||
   fail "adaptive scale persistence"
-grep -Fqx '# Preserve this comment.' "$test_home/.config/hypr/monitors.conf" ||
+grep -Fqx '# Preserve this comment.' "$test_home/.config/hypr/monitors.lua" ||
   fail "monitor comment preservation"
-[[ $(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.conf.bak.*' | wc -l) == "1" ]] ||
+[[ $(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.lua.bak.*' | wc -l) == "1" ]] ||
   fail "singular monitor-config backup"
 assert_log '-u low 󰍹    Display scaling set to 1.6x' \
   "$notification_log" "scale notification"
 
-install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.conf" <<'CONFIG'
-monitor=DP-1,1920x1080@60,-1920x0,1.25
+install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.lua" <<'CONFIG'
+hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "-1920x0", scale = 1.25 })
 CONFIG
-backup_count=$(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.conf.bak.*' | wc -l)
+backup_count=$(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.lua.bak.*' | wc -l)
 "$root/qvcore/desktop/hyprland/monitor-scaling-cycle" --reverse
-assert_log 'keyword monitor DP-1,1920x1080@60,-1920x0,1' \
+assert_log 'eval hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "-1920x0", scale = 1 })' \
   "$hyprctl_log" "reverse scale change"
-grep -Fqx 'monitor=DP-1,1920x1080@60,-1920x0,1.25' \
-  "$test_home/.config/hypr/monitors.conf" ||
+grep -Fqx 'hl.monitor({ output = "DP-1", mode = "1920x1080@60", position = "-1920x0", scale = 1.25 })' \
+  "$test_home/.config/hypr/monitors.lua" ||
   fail "custom monitor layout preservation"
-[[ $(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.conf.bak.*' | wc -l) == "$backup_count" ]] ||
+[[ $(find "$test_home/.config/hypr" -maxdepth 1 -name 'monitors.lua.bak.*' | wc -l) == "$backup_count" ]] ||
   fail "custom layout produced no backup"
 
 install -m 0644 /dev/stdin "$monitor_json" <<'JSON'
@@ -136,24 +142,42 @@ JSON
 if "$root/qvcore/desktop/hyprland/monitor-scaling-cycle" 2>/dev/null; then
   fail "unbounded monitor geometry rejection"
 fi
-if grep -q '^keyword ' "$hyprctl_log"; then
+if grep -q '^eval ' "$hyprctl_log"; then
   fail "invalid monitor geometry mutated Hyprland"
 fi
 
 install -m 0644 /dev/stdin "$monitor_json" <<'JSON'
 [{"name":"DP-1","width":1920,"height":1080,"refreshRate":60,"x":0,"y":0,"scale":1,"focused":true,"disabled":false}]
 JSON
-install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.conf" <<'CONFIG'
-monitor=,preferred,auto,auto
+install -m 0644 /dev/stdin "$test_home/.config/hypr/monitors.lua" <<'CONFIG'
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
 CONFIG
-config_before=$(<"$test_home/.config/hypr/monitors.conf")
-export QVOS_TEST_KEYWORD_FAIL=true
+config_before=$(<"$test_home/.config/hypr/monitors.lua")
+export QVOS_TEST_EVAL_FAIL=true
 if "$root/qvcore/desktop/hyprland/monitor-scaling-cycle" 2>/dev/null; then
   fail "failed live scaling propagated as success"
 fi
-unset QVOS_TEST_KEYWORD_FAIL
-[[ $(<"$test_home/.config/hypr/monitors.conf") == "$config_before" ]] ||
+unset QVOS_TEST_EVAL_FAIL
+[[ $(<"$test_home/.config/hypr/monitors.lua") == "$config_before" ]] ||
   fail "failed live scaling changed persisted config"
+
+runtime_config="$root/qvcore/desktop/hyprland/qvos-runtime-config"
+: >"$hyprctl_log"
+"$runtime_config" config cursor zoom_factor 3.5
+assert_log 'eval hl.config({ cursor = { zoom_factor = 3.5 } })' \
+  "$hyprctl_log" "bounded runtime config mutation"
+for invalid_runtime in \
+  'config cursor zoom_factor 11' \
+  'config cursor inactive_timeout 86401' \
+  'config cursor zoom_factor 1); os.execute("true")'; do
+  read -r -a invalid_args <<<"$invalid_runtime"
+  : >"$hyprctl_log"
+  if "$runtime_config" "${invalid_args[@]}" 2>/dev/null; then
+    fail "unsafe runtime config value was accepted: $invalid_runtime"
+  fi
+  [[ ! -s $hyprctl_log ]] ||
+    fail "unsafe runtime config value reached Hyprland: $invalid_runtime"
+done
 
 install -m 0644 /dev/stdin "$window_json" <<'JSON'
 {"address":"0x1a2B","pinned":false}
@@ -198,7 +222,7 @@ install -m 0644 /dev/stdin "$workspace_json" <<'JSON'
 JSON
 : >"$hyprctl_log"
 "$root/qvcore/desktop/hyprland/workspace-layout-toggle"
-assert_log 'keyword workspace 7, layout:scrolling' \
+assert_log 'eval hl.workspace_rule({ workspace = "7", layout = "scrolling" })' \
   "$hyprctl_log" "validated workspace-layout mutation"
 
 install -m 0644 /dev/stdin "$workspace_json" <<'JSON'
@@ -208,7 +232,7 @@ JSON
 if "$root/qvcore/desktop/hyprland/workspace-layout-toggle" 2>/dev/null; then
   fail "unbounded workspace identifier rejection"
 fi
-if grep -q '^keyword ' "$hyprctl_log"; then
+if grep -q '^eval ' "$hyprctl_log"; then
   fail "invalid workspace identifier mutated Hyprland"
 fi
 

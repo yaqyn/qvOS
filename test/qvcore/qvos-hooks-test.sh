@@ -6,7 +6,7 @@ test_root=$(mktemp -d)
 test_home="$test_root/home"
 legacy="$test_home/.config/omarchy/hooks"
 canonical="$test_home/.config/qvos/hooks"
-autostart="$test_home/.config/hypr/autostart.conf"
+autostart="$test_home/.config/hypr/autostart.lua"
 events="$test_root/events"
 
 cleanup() {
@@ -51,8 +51,8 @@ install -m 0644 "$root/qvcore/direct/post-update-hook" \
 install -m 0644 "$root/qvcore/waybar/post-update-hook" \
   "$legacy/post-update.d/qvos-waybar-overrides"
 printf '%s\n' \
-  'exec-once = sleep 2 && omarchy-hook post-boot' \
-  'exec-once = qv-first-run' >"$autostart"
+  'qv.autostart("sleep 2 && omarchy-hook post-boot")' \
+  'qv.autostart("qv-first-run")' >"$autostart"
 
 run_reconcile >/dev/null
 [[ -d $canonical && ! -L $canonical && ! -e $legacy ]] ||
@@ -64,7 +64,7 @@ for retired in qvos-base qvos-direct-tools qvos-waybar-overrides; do
 done
 [[ -x $canonical/font-set && -x $canonical/post-update ]] ||
   fail "custom hooks were not preserved"
-grep -Fqx 'exec-once = sleep 2 && qv-hook post-boot' "$autostart" ||
+grep -Fqx 'qv.autostart("sleep 2 && qv-hook post-boot")' "$autostart" ||
   fail "post-boot route was not promoted"
 for sample in \
   battery-low.d/play-warning-sound.sample \

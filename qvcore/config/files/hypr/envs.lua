@@ -1,0 +1,1 @@
+-- Hardware-specific environment variables managed during installation.

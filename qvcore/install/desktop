@@ -24,6 +24,7 @@
     qvcore/desktop/hyprland/monitor-scaling-cycle
     qvcore/desktop/hyprland/monitor-watch
     qvcore/desktop/hyprland/qvos-toggle-special-window
+    qvcore/desktop/hyprland/qvos-runtime-config
     qvcore/desktop/hyprland/window-close-all
     qvcore/desktop/hyprland/window-gaps-toggle
     qvcore/desktop/hyprland/window-pop

@@ -34,6 +34,12 @@ edit `/etc/os-release` directly or overwrite a foreign administrator identity.
 Runtime-channel migrations call their native install owner, mutate only an
 exact inherited setting after its replacement is available, and preserve weak,
 linked, foreign, or concurrently modified user configuration.
+The Hyprland format transition calls `qvcore/config/migrate-hyprland-lua` and
+never translates arbitrary `.conf` text. Its reviewed hash catalog, private
+config and theme backups, typed replacement profiles, and theme handoff must
+succeed before the Lua entrypoint is published. Retire the old main config
+before its theme fragment, then re-verify before removing remaining legacy
+leaves.
 
 Run `qvcore/migrations/check`, `qvos-migrations-test.sh`, install, update, boot,
 product, and upstream-boundary tests, Bash syntax and ShellCheck, then the full

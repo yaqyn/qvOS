@@ -7,8 +7,12 @@ source "$QVOS_PATH/qvcore/config/toggle-lib"
 
 toggle_name="internal-monitor-disable"
 mirror_toggle_name="internal-monitor-mirror"
-toggle_flag="$qvos_hypr_toggle_root/$toggle_name.conf"
+toggle_flag="$qvos_hypr_toggle_root/$toggle_name.lua"
 internal=$(hyprctl monitors -j | jq -r '[.[] | select(.name | contains("eDP")).name][0] // empty')
+[[ -z $internal || $internal =~ ^[[:alnum:]_.:-]+$ ]] || {
+  echo "Hyprland returned an unsafe internal display name" >&2
+  exit 1
+}
 
 enable() {
   if "$QVOS_PATH/qvcore/config/hyprland-toggle-enabled" "$toggle_name"; then
@@ -29,7 +33,8 @@ disable() {
   fi
   if "$QVOS_PATH/qvcore/config/hyprland-toggle-disabled" "$toggle_name" &&
     "$QVOS_PATH/qvcore/config/hyprland-toggle-disabled" "$mirror_toggle_name"; then
-    printf 'monitor=%s,disable\n' "$internal" | qvos_toggle_write "$toggle_flag"
+    printf 'hl.monitor({ output = "%s", disabled = true })\n' "$internal" |
+      qvos_toggle_write "$toggle_flag"
     notify-send -u low "󰍹    Laptop display disabled"
     hyprctl reload
   fi

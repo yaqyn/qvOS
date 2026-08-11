@@ -32,7 +32,8 @@ menus and concepts use `qv-toggle-screensaver`, never its compatibility name.
 - Hide the cursor with its inactivity timeout so pointer movement is always a
   recovery path. Capture the prior value once in the launcher, supervise every
   screensaver window, and restore it on normal, signal, input, and external
-  closure paths.
+  closure paths. Route both bounded runtime changes through
+  `qvos-runtime-config`; never restore `hyprctl keyword` mutation.
 - Keep one launcher under the runtime lock, launch one terminal per active
   monitor, restore the previously focused monitor, and close every screensaver
   window when any runner detects keyboard or pointer input.

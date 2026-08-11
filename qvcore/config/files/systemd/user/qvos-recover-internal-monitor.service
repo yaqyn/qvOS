@@ -1,7 +1,7 @@
 [Unit]
 Description=qvOS internal monitor recovery
 Before=graphical-session-pre.target
-ConditionPathExists=%h/.local/state/qvos/toggles/hypr/internal-monitor-disable.conf
+ConditionPathExists=%h/.local/state/qvos/toggles/hypr/internal-monitor-disable.lua
 
 [Service]
 Type=oneshot

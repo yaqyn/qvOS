@@ -1,0 +1,2 @@
+-- This directory contains persistent qvOS Hyprland toggle state.
+-- Keep this inert seed so ordinary state always has a stable wildcard match.

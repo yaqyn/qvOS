@@ -33,8 +33,8 @@ qvos_hypr_toggle_validate_name "$flag_name" || {
   echo "Invalid qvOS Hyprland toggle name: $flag_name" >&2
   exit 2
 }
-flag="$qvos_hypr_toggle_root/$flag_name.conf"
-flag_source="$QVOS_PATH/qvcore/config/toggles/$flag_name.conf"
+flag="$qvos_hypr_toggle_root/$flag_name.lua"
+flag_source="$QVOS_PATH/qvcore/config/toggles/$flag_name.lua"
 qvos_toggle_safe_file "$flag" || {
   echo "Refusing unsafe qvOS Hyprland toggle file: $flag" >&2
   exit 1

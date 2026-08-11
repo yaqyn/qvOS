@@ -10,7 +10,7 @@ launch_log="$test_root/launches"
 focus_log="$test_root/focus"
 effect_log="$test_root/effect"
 cursor_log="$test_root/cursor"
-cursor_keyword_log="$test_root/cursor-keywords"
+runtime_config_log="$test_root/runtime-config"
 client_poll_log="$test_root/client-polls"
 
 cleanup() {
@@ -27,7 +27,12 @@ fail() {
   exit 1
 }
 
-install -d "$test_bin" "$test_root/.local/lib/qvos/bin" "$test_root/.config/qvos/branding" "$test_root/runtime"
+install -d \
+  "$test_bin" \
+  "$test_root/.local/lib/qvos/bin" \
+  "$test_root/.local/lib/qvos/desktop/hyprland" \
+  "$test_root/.config/qvos/branding" \
+  "$test_root/runtime"
 printf 'qvOS\n' >"$test_root/.config/qvos/branding/screensaver.txt"
 chmod 0700 "$test_root/.config/qvos" "$test_root/.config/qvos/branding"
 chmod 0600 "$test_root/.config/qvos/branding/screensaver.txt"
@@ -37,6 +42,16 @@ install -m 0755 /dev/stdin "$test_root/.local/lib/qvos/bin/qvos-screensaver" <<'
 #!/bin/bash
 
 exit 0
+SCRIPT
+
+install -m 0755 /dev/stdin \
+  "$test_root/.local/lib/qvos/desktop/hyprland/qvos-runtime-config" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+[[ $# == 4 && $1 == "config" && $2 == "cursor" &&
+  $3 == "inactive_timeout" ]]
+printf 'cursor:inactive_timeout=%s\n' "$4" >>"$QVOS_TEST_RUNTIME_CONFIG_LOG"
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
@@ -89,9 +104,6 @@ cursorpos)
     printf '{"x":0,"y":0}\n'
   fi
   ;;
-keyword)
-  printf '%s=%s\n' "${2:-}" "${3:-}" >>"$QVOS_TEST_CURSOR_KEYWORD_LOG"
-  ;;
 *) exit 1 ;;
 esac
 SCRIPT
@@ -143,7 +155,7 @@ run_launcher() {
     QVOS_TEST_LAUNCH_LOG="$launch_log" \
     QVOS_TEST_FOCUS_LOG="$focus_log" \
     QVOS_TEST_CLIENT_POLL_LOG="$client_poll_log" \
-    QVOS_TEST_CURSOR_KEYWORD_LOG="$cursor_keyword_log" \
+    QVOS_TEST_RUNTIME_CONFIG_LOG="$runtime_config_log" \
     HOME="$test_root" \
     XDG_RUNTIME_DIR="$test_root/runtime" \
     PATH="$test_bin:/usr/bin" \
@@ -152,14 +164,14 @@ run_launcher() {
 
 : >"$launch_log"
 : >"$focus_log"
-: >"$cursor_keyword_log"
+: >"$runtime_config_log"
 run_launcher force
 [[ "$(wc -l <"$launch_log")" == "2" ]] || fail "monitor launch count"
 grep -F -- $'alacritty\t--class=org.qvos.screensaver' "$launch_log" >/dev/null || fail "Alacritty command"
 [[ "$(tail -n 1 "$focus_log")" == "DP-1" ]] || fail "focused monitor restoration"
 pass "screensaver launches once per monitor and restores focus"
 
-[[ $(cat "$cursor_keyword_log") == $'cursor:inactive_timeout=0.1\ncursor:inactive_timeout=7.5' ]] ||
+[[ $(cat "$runtime_config_log") == $'cursor:inactive_timeout=0.1\ncursor:inactive_timeout=7.5' ]] ||
   fail "cursor inactivity timeout lifecycle"
 pass "external screensaver closure restores the previous cursor timeout"
 

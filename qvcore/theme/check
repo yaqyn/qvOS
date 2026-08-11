@@ -114,7 +114,7 @@ expected_templates=$(
     gum.env.conf.tpl \
     helix.toml.tpl \
     hyprland-preview-share-picker.css.tpl \
-    hyprland.conf.tpl \
+    hyprland.lua.tpl \
     hyprlock.conf.tpl \
     keyboard.rgb.tpl \
     kitty.conf.tpl \
@@ -187,8 +187,8 @@ if rg -n '\b(pkill|killall)\b' "$root/qvcore/theme" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "theme owner bypasses exact process matching"
 fi
-grep -Fqx 'exec-once = qv-theme-bg-restore' \
-  "$root/qvcore/config/base/hypr/autostart.conf" ||
+grep -Fqx 'qv.autostart("qv-theme-bg-restore")' \
+  "$root/qvcore/config/base/hypr/autostart.lua" ||
   fail "native autostart bypasses the background lifecycle owner"
 
 if rg -n \
@@ -215,6 +215,11 @@ grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/install-external" ||
   fail "Git theme installation bypasses payload validation"
 grep -Fq 'qvcore/theme/validate' "$root/qvcore/theme/set" ||
   fail "theme renderer bypasses payload validation"
+grep -Fq 'QVOS_THEME_RETAIN_LEGACY_HYPRLAND' "$root/qvcore/config/migrate-hyprland-lua" ||
+  fail "Hyprland Lua migration lacks a safe theme handoff"
+# shellcheck disable=SC2016
+grep -Fq 'rm -f -- "$NEXT_THEME_PATH/hyprland.conf"' \
+  "$root/qvcore/theme/set" || fail "ordinary themes can retain legacy Hyprland code"
 grep -Fq 'managed_entries=(themes current backgrounds themed)' \
   "$root/qvcore/theme/migrate-config-root" ||
   fail "native theme compatibility-link inventory"

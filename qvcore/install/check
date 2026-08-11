@@ -389,7 +389,7 @@ fi
 
 if rg -n \
   'omarchy-(first-run|refresh-applications|reinstall(-configs|-git|-pkgs)?)([^[:alnum:]_-]|$)' \
-  "$root/qvcore/install" "$root/qvcore/config/base/hypr/autostart.conf" \
+  "$root/qvcore/install" "$root/qvcore/config/base/hypr/autostart.lua" \
   --glob '!AGENTS.md' --glob '!check' --glob '!native-paths'; then
   fail "native install lifecycle calls a compatibility route"
 fi

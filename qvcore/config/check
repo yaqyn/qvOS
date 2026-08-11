@@ -2,12 +2,12 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-bindings="$root/qvcore/config/files/hypr/bindings.conf"
-hyprland="$root/qvcore/config/files/hypr/hyprland.conf"
-input="$root/qvcore/config/files/hypr/input.conf"
+bindings="$root/qvcore/config/files/hypr/bindings.lua"
+hyprland="$root/qvcore/config/files/hypr/hyprland.lua"
+input="$root/qvcore/config/files/hypr/input.lua"
 base="$root/qvcore/config/base/hypr"
-autostart="$base/autostart.conf"
-windows="$base/windows.conf"
+autostart="$base/autostart.lua"
+windows="$base/windows.lua"
 native_manifest="$root/qvcore/config/native-paths"
 retired_manifest="$root/qvcore/config/retired-paths"
 retired_hypr_manifest="$root/qvcore/config/retired-hypr-layer.psv"
@@ -33,11 +33,16 @@ fail() {
   ! -e $root/qvcore/config/files/hypr/qv &&
   ! -L $root/qvcore/config/files/hypr/qv ]] ||
   fail "retired qvOS Hyprland overlay remains"
-[[ -f $root/qvcore/config/files/hypr/bindings.conf &&
-  ! -L $root/qvcore/config/files/hypr/bindings.conf ]] ||
+[[ -f $bindings && ! -L $bindings ]] ||
   fail "native qvOS binding source is unavailable"
+for name in autostart bindings envs hyprland input looknfeel monitors; do
+  [[ -f $root/qvcore/config/files/hypr/$name.lua &&
+    ! -L $root/qvcore/config/files/hypr/$name.lua &&
+    ! -e $root/qvcore/config/files/hypr/$name.conf ]] ||
+    fail "Hyprland user config format did not converge: $name"
+done
 [[ $(find "$base" -maxdepth 1 -type f -printf '%f\n' | sort) == \
-  $'autostart.conf\nenvs.conf\nlooknfeel.conf\nwindows.conf' ]] ||
+  $'autostart.lua\nenvs.lua\nlooknfeel.lua\nruntime.lua\nwindows.lua' ]] ||
   fail "native Hyprland base inventory changed"
 [[ ! -e $root/qvcore/config/files/systemd/user/omarchy-battery-monitor.service ]] ||
   fail "inherited battery monitor service remains"
@@ -109,25 +114,22 @@ grep -Fq 'qvcore/config/files/xcompose' \
   "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
   fail "XCompose installer omits the original installed-root migration"
 
-[[ $(grep -Fc 'source = ~/.config/hypr/bindings.conf' "$hyprland") == 1 ]] ||
+[[ $(grep -Fc 'require("~/.config/hypr/bindings.lua")' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"
-for source_path in autostart envs looknfeel windows; do
+for source_path in runtime envs looknfeel windows autostart; do
   grep -Fqx \
-    "source = ~/.local/share/qvos/qvcore/config/base/hypr/$source_path.conf" \
+    "require(\"~/.local/share/qvos/qvcore/config/base/hypr/$source_path.lua\")" \
     "$hyprland" || fail "native Hyprland base source: $source_path"
 done
-grep -Fqx 'source = ~/.config/hypr/input.conf' "$hyprland" ||
+grep -Fqx 'require("~/.config/hypr/input.lua")' "$hyprland" ||
   fail "native user input source"
 for wake_option in key_press_enables_dpms mouse_move_enables_dpms; do
-  grep -Fqx "  $wake_option = true" "$input" ||
+  grep -Fqx "    $wake_option = true," "$input" ||
     fail "native input DPMS wake default: $wake_option"
 done
-if rg -q 'default/hypr|qvcore/bindings\.conf|~/.config/hypr/qv(\.conf|/)' \
+if rg -q 'default/hypr|qvcore/bindings\.(conf|lua)|~/.config/hypr/qv(\.conf|/)' \
   "$hyprland"; then
   fail "retired Hyprland source or overlay remains active"
-fi
-if grep -Eq '^[[:space:]]*unbind[[:space:]]*=' "$bindings"; then
-  fail "native binding source still contains overlay unbinds"
 fi
 if rg -q 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?://' \
   "$bindings"; then
@@ -137,32 +139,29 @@ if rg -qi 'https?://|youtube|discord|match:class .*\bzoom\b|Nautilus|davinci|jet
   "$windows"; then
   fail "retired service-specific window rules remain"
 fi
-grep -Fqx 'windowrule = tag +floating-window, match:class ^org\.qvos\.(bluetui|impala|wiremix|btop|terminal)$' \
+grep -Fqx 'qv.window_rule("tag +floating-window", { class = [[^org\.qvos\.(bluetui|impala|wiremix|btop|terminal)$]] })' \
   "$windows" || fail "native terminal application identities"
 for command in qv-toggle-enabled qv-powerprofiles-init qv-restart-monitor-watch; do
   grep -Fq "$command" "$autostart" ||
     fail "native autostart route: $command"
 done
-if rg -n 'exec-once = .*omarchy-' "$autostart"; then
+if rg -n 'qv\.autostart\(".*omarchy-' "$autostart"; then
   fail "native autostart calls a compatibility command"
 fi
 
 duplicate_bindings=$(
-  awk -F',' '/^bind[a-z]* = / {
-    modifiers=$1
-    sub(/^bind[a-z]* = /, "", modifiers)
-    key=$2
-    gsub(/^[[:space:]]+|[[:space:]]+$/, "", modifiers)
-    gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-    print modifiers "|" key
-  }' "$bindings" |
+  sed -n 's/^qv\.bind({ keys = \[\[\([^]]*\)\]\].*/\1/p' "$bindings" |
     sort |
     uniq -d |
-    grep -Fvx '|F9' || true
+    grep -Fvx 'F9' || true
 )
 [[ -z $duplicate_bindings ]] || fail "duplicate modifier and key pairs: $duplicate_bindings"
-[[ $(grep -Ec '^binddr? = , F9, (Start|Stop) dictation \(push-to-talk\),' "$bindings") == 2 ]] ||
+[[ $(grep -Ec '^qv\.bind\(\{ keys = \[\[F9\]\], description = \[\[(Start|Stop) dictation \(push-to-talk\)\]\]' "$bindings") == 2 ]] ||
   fail "F9 press/release exception is incomplete"
+if ! grep -Fq 'description = [[Stop dictation (push-to-talk)]]' "$bindings" ||
+  ! grep -Fq 'release = true' "$bindings"; then
+  fail "F9 release binding is incomplete"
+fi
 
 grep -Fq 'Description=qvOS Battery Monitor Check' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
@@ -170,8 +169,10 @@ grep -Fq 'Description=qvOS Battery Monitor Check' \
 grep -Fq 'Description=qvOS Battery Monitor Timer' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.timer" ||
   fail "native battery monitor timer identity"
-grep -Fqx 'source = ~/.local/state/qvos/toggles/hypr/*.conf' "$hyprland" ||
+grep -Fqx 'qv.require_optional_wildcard("~/.local/state/qvos/toggles/hypr/*.lua")' "$hyprland" ||
   fail "native toggle-state source"
+grep -Fq 'if load_error == absent_error then' \
+  "$base/runtime.lua" || fail "missing toggle state is not safely optional"
 grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/battery-monitor' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
   fail "native battery monitor owner"
@@ -220,9 +221,12 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in neovim toggle-state user-services; do
+for owner in migrate-hyprland-lua neovim toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+[[ -f $root/qvcore/config/hyprland-conf-profiles.psv &&
+  ! -L $root/qvcore/config/hyprland-conf-profiles.psv ]] ||
+  fail "Hyprland legacy profile catalog"
 [[ -f $root/qvcore/config/user-systemd-lib &&
   ! -L $root/qvcore/config/user-systemd-lib ]] ||
   fail "shared user-manager probe"
@@ -252,7 +256,7 @@ if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-
   "$root/qvcore/power" \
   "$root/qvcore/screensaver" \
   "$root/qvcore/tui" \
-  "$root/qvcore/config/files/hypr/bindings.conf" \
+  "$bindings" \
   "$root/qvcore/config/files/waybar/config.jsonc" \
   "$root/qvcore/install/reinstall-configs" \
   --glob '!**/AGENTS.md' \

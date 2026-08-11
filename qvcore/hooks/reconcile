@@ -15,7 +15,7 @@ source "$QVOS_PATH/qvcore/hooks/lib"
 defaults_root="$QVOS_PATH/qvcore/hooks/defaults"
 obsolete_catalog="$QVOS_PATH/qvcore/hooks/obsolete-managed.psv"
 sample_history_catalog="$QVOS_PATH/qvcore/hooks/sample-history.psv"
-autostart="$HOME/.config/hypr/autostart.conf"
+autostart="$HOME/.config/hypr/autostart.lua"
 declare -a obsolete_targets=()
 declare -A historical_sample_hashes=()
 
@@ -157,8 +157,8 @@ if [[ -e $autostart || -L $autostart ]]; then
     qvos_hooks_error "unsafe Hyprland autostart config: $autostart"
     exit 1
   }
-  old_line='exec-once = sleep 2 && omarchy-hook post-boot'
-  new_line='exec-once = sleep 2 && qv-hook post-boot'
+  old_line='qv.autostart("sleep 2 && omarchy-hook post-boot")'
+  new_line='qv.autostart("sleep 2 && qv-hook post-boot")'
   old_count=$(grep -Fxc "$old_line" "$autostart" || true)
   new_count=$(grep -Fxc "$new_line" "$autostart" || true)
   ((old_count <= 1 && new_count <= 1)) || {

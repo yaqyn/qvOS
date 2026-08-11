@@ -16,7 +16,7 @@ mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifes
 [[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
   fail "native desktop paths are not sorted and unique"
 
-expected_runtime_paths=$'context/qvos-active-location\ncontext/qvos-launch-editor-here\ncontext/qvos-launch-terminal-here\nhyprland/qvos-toggle-special-window\nopen\nweb/qvos-localhost-open\nweb/qvos-website-open'
+expected_runtime_paths=$'context/qvos-active-location\ncontext/qvos-launch-editor-here\ncontext/qvos-launch-terminal-here\nhyprland/qvos-runtime-config\nhyprland/qvos-toggle-special-window\nopen\nweb/qvos-localhost-open\nweb/qvos-website-open'
 runtime_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest")
 [[ $runtime_paths == "$expected_runtime_paths" ]] ||
   fail "desktop runtime payload inventory is incomplete or unordered"
@@ -105,6 +105,14 @@ if rg -n '\beval\b|bash[[:space:]]+-c[[:space:]]+.*\$' \
   "$root/qvcore/desktop/launch" --glob '!AGENTS.md'; then
   fail "desktop launch owner shell-parses caller input"
 fi
+runtime_config="$root/qvcore/desktop/hyprland/qvos-runtime-config"
+for mode in config device monitor workspace-layout; do
+  grep -Fqx "$mode)" "$runtime_config" ||
+    fail "Hyprland runtime config mode is missing: $mode"
+done
+runtime_eval_call="hyprctl eval \"\$expression\""
+[[ $(grep -Fc "$runtime_eval_call" "$runtime_config") == 1 ]] ||
+  fail "Hyprland runtime config bypasses its bounded Lua evaluator"
 
 while IFS= read -r inherited_path; do
   stem=${inherited_path##*/omarchy-restart-}
@@ -254,14 +262,14 @@ for handler in hey zoom; do
   done
 done
 if rg -n 'qv-launch-webapp[[:space:]]+"https?://|uwsm-app -- Telegram -- "https?://' \
-  "$root/qvcore/config/files/hypr/bindings.conf"; then
+  "$root/qvcore/config/files/hypr/bindings.lua"; then
   fail "fresh qvOS contains fixed Web App destinations"
 fi
-grep -Fqx 'exec-once = qv-restart-monitor-watch' \
-  "$root/qvcore/config/base/hypr/autostart.conf" ||
+grep -Fqx 'qv.autostart("qv-restart-monitor-watch")' \
+  "$root/qvcore/config/base/hypr/autostart.lua" ||
   fail "native autostart bypasses the monitor-watch owner"
-grep -Fqx 'exec-once = ! qv-toggle-enabled waybar-off && qv-restart-waybar' \
-  "$root/qvcore/config/base/hypr/autostart.conf" ||
+grep -Fqx 'qv.autostart("! qv-toggle-enabled waybar-off && qv-restart-waybar")' \
+  "$root/qvcore/config/base/hypr/autostart.lua" ||
   fail "native autostart bypasses the Waybar lifecycle owner"
 if rg -n '\b(pkill|killall)\b' "$root/qvcore/desktop/session"; then
   fail "desktop session owner bypasses exact process matching"

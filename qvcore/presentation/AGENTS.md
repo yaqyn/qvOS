@@ -9,7 +9,7 @@ and `qv-show-failed`; matching Omarchy names are metadata-free compatibility
 adapters only.
 
 Its window identity is owned once in
-`qvcore/config/base/hypr/windows.conf`, which keeps only base applications and
+`qvcore/config/base/hypr/windows.lua`, which keeps only base applications and
 explicit qvOS installer capabilities. Never retain service-specific Web App or
 unowned application classes there.
 

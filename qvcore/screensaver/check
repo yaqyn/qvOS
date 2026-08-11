@@ -68,10 +68,10 @@ for class_owner in \
     fail "native screensaver class is missing: $class_owner"
 done
 grep -Fq 'org\.qvos\.screensaver' \
-  "$root/qvcore/config/base/hypr/windows.conf" ||
+  "$root/qvcore/config/base/hypr/windows.lua" ||
   fail "native screensaver class is missing from Hyprland rules"
 if rg -n 'org\.omarchy\.screensaver' \
-  "$root/qvcore/screensaver" "$root/qvcore/config/base/hypr/windows.conf" \
+  "$root/qvcore/screensaver" "$root/qvcore/config/base/hypr/windows.lua" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "native screensaver retains the inherited window class"
 fi
