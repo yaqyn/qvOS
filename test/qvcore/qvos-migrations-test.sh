@@ -458,6 +458,26 @@ grep -Fq 'migration 250 failed; correct the error and retry' \
   <<<"$strict_output" || fail "intermediate migration failure was unclear"
 printf 'ok - migration strict mode prevents masked partial failures\n'
 
+descriptor_root="$test_root/descriptor-source"
+descriptor_home="$test_root/descriptor-home"
+descriptor_log="$test_root/descriptor.log"
+install -d "$descriptor_root/qvcore/migrations"
+make_home "$descriptor_home"
+install -m 0644 /dev/stdin \
+  "$descriptor_root/qvcore/migrations/275.sh" <<'SCRIPT'
+[[ ! -e /proc/$$/fd/9 ]]
+bash -c '[[ ! -e /proc/$$/fd/9 ]]'
+printf 'isolated\n' >"$QVOS_TEST_MIGRATION_LOG"
+SCRIPT
+HOME="$descriptor_home" \
+  XDG_RUNTIME_DIR="$descriptor_home/run" \
+  QVOS_PATH="$descriptor_root" \
+  QVOS_TEST_MIGRATION_LOG="$descriptor_log" \
+  "$runner" >/dev/null
+[[ $(<"$descriptor_log") == "isolated" ]] ||
+  fail "migration lock descriptor escaped into migration descendants"
+printf 'ok - the migration lock cannot escape into launched services\n'
+
 unsafe_home="$test_root/unsafe-home"
 outside="$test_root/outside"
 make_home "$unsafe_home"

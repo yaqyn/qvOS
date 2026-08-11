@@ -61,9 +61,9 @@ done
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
   fail "update pipeline does not call the native migration owner"
 # shellcheck disable=SC2016
-grep -Fqx '  if env QVOS_PATH="$QVOS_PATH" bash -euo pipefail "$file"; then' \
+grep -Fqx '  if env QVOS_PATH="$QVOS_PATH" bash -euo pipefail "$file" 9>&-; then' \
   "$root/qvcore/migrations/run" ||
-  fail "migration runner does not enforce strict Bash execution"
+  fail "migration runner does not enforce strict isolated Bash execution"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
   "$root/qvcore/install/preflight/migrations.sh" ||
