@@ -513,6 +513,10 @@ validate_native_iso() {
     echo "qvos-build staged an installer that accepts unreadable repositories." >&2
     return 1
   }
+  grep -Fqx '  retire_qvos_target_offline_database' "$installer" || {
+    echo "qvos-build staged an installer that retains its temporary database." >&2
+    return 1
+  }
   if grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer"; then
     echo "qvos-build staged an unsafe partial target database synchronization." >&2
     return 1

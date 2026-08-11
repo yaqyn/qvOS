@@ -151,10 +151,11 @@ a thin adapter to this owner.
 - Keep the Archinstall configuration free of network mirror URLs. The base
   system resolves only through the signed offline repository; native post-install
   policy then installs the reviewed provider channel, Stable by default. Retain
-  the exact online repository databases used to resolve the image, publish them
-  atomically after Archinstall, remove the temporary `offline` database, and
-  validate every final repository before accepting completion. The first
-  installed-system package action must not require a partial online refresh.
+  the exact online repository databases used to resolve the image and publish
+  them atomically after Archinstall. Keep the temporary `offline` database
+  through native package staging; only after the final provider configuration
+  is selected may validation retire it. The first installed-system package
+  action must not require a partial online refresh.
 - Record each ISO-only bind mount immediately, unwind them in reverse order on
   every exit, restore changed CPU governors, stop package prefetch, and persist
   the private install log only after its bind is detached. A cleanup failure

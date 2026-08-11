@@ -358,7 +358,6 @@ seed_qvos_target_databases() {
   local target_root=${2:-/mnt/var/lib/pacman/sync}
   local database
   local repository
-  local stale
   local temporary
   local -a repositories=(core extra multilib omarchy)
 
@@ -385,14 +384,16 @@ seed_qvos_target_databases() {
       return 1
     }
   done
-  for stale in offline.db offline.db.sig; do
-    database="$target_root/$stale"
-    [[ ! -e $database || (-f $database && ! -L $database) ]] || {
-      printf 'Refusing unsafe stale target repository database: %s\n' \
-        "$database" >&2
-      return 1
-    }
-  done
+  database="$target_root/offline.db"
+  [[ -f $database && ! -L $database && -s $database ]] || {
+    echo "The target offline repository database is missing or unsafe." >&2
+    return 1
+  }
+  database="$target_root/offline.db.sig"
+  [[ ! -e $database || (-f $database && ! -L $database) ]] || {
+    echo "Refusing unsafe target offline repository signature." >&2
+    return 1
+  }
 
   install -d -m 0755 -- "$target_root"
   for repository in "${repositories[@]}"; do
@@ -405,6 +406,24 @@ seed_qvos_target_databases() {
       return 1
     fi
   done
+}
+
+retire_qvos_target_offline_database() {
+  local target_root=${1:-/mnt/var/lib/pacman/sync}
+  local database
+
+  [[ -d $target_root && ! -L $target_root ]] || {
+    echo "The target Pacman database directory is missing or unsafe." >&2
+    return 1
+  }
+  for database in offline.db offline.db.sig; do
+    [[ ! -e $target_root/$database ||
+      (-f $target_root/$database && ! -L $target_root/$database) ]] || {
+      echo "Refusing unsafe live offline repository metadata." >&2
+      return 1
+    }
+  done
+
   rm -f -- "$target_root/offline.db" "$target_root/offline.db.sig"
 }
 
@@ -425,6 +444,7 @@ validate_qvos_target_databases() {
       return 1
     }
   done
+  retire_qvos_target_offline_database
   for database in offline.db offline.db.sig; do
     [[ ! -e /mnt/var/lib/pacman/sync/$database &&
       ! -L /mnt/var/lib/pacman/sync/$database ]] || {
@@ -475,9 +495,10 @@ install_base_system() {
   mkdir -p /mnt/opt/packages
   bind_qvos_target /opt/packages /mnt/opt/packages
 
-  # Publish the exact repository snapshot that resolved the signed image
-  # packages. The native installer switches Pacman to the selected reviewed
-  # provider channel without requiring an unsafe partial online sync.
+  # Preserve the exact repository snapshot that resolved the signed image
+  # packages alongside the temporary offline database. Native package staging
+  # consumes the offline database first; after the installer selects the
+  # reviewed provider channel, final validation retires that temporary owner.
   seed_qvos_target_databases
 
   # qvOS removes this temporary installer policy before allowing reboot.

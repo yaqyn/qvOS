@@ -62,10 +62,11 @@ removal transaction. Never use recursive package removal for this handoff.
   `TrustAll`, `SigLevel = Never`, an unsigned hardware repository, or an
   unsigned cached package in a qvOS image. The ISO builder retains the exact
   online repository databases that resolved the signed package set. After
-  Archinstall, the installer publishes those databases atomically, removes the
-  temporary `offline` database, and validates every repository through the
-  final provider configuration; a fresh target must not require a partial
-  online sync for its first package action.
+  Archinstall, publish those databases atomically alongside the temporary
+  `offline` database so native package staging remains fully offline. Only
+  after the installer selects the final provider configuration may it validate
+  every online database and retire `offline`; a fresh target must not require a
+  partial online sync for its first package action.
 - A provider outage, signing-key rotation, repository rename, package removal,
   or Stable/Edge compatibility change is qvsync review input. Keep the monitored
   upstream paths in `upstream/qvsync/package-provider-paths`; every match must be

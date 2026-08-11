@@ -322,11 +322,46 @@ for repository in core extra multilib omarchy; do
   [[ $(stat -c '%a' "$database_target/$repository.db") == "644" ]] ||
     fail "release ISO target database permissions: $repository"
 done
+[[ -f $database_target/offline.db && ! -L $database_target/offline.db ]] ||
+  fail "release ISO removes the offline database before native packaging"
+(
+  # shellcheck disable=SC1090
+  source "$installer"
+  retire_qvos_target_offline_database "$database_target"
+)
 for stale_database in offline.db offline.db.sig; do
   [[ ! -e $database_target/$stale_database &&
     ! -L $database_target/$stale_database ]] ||
-    fail "release ISO retains temporary offline target metadata"
+    fail "release ISO retains temporary offline target metadata after handoff"
 done
+set +e
+(
+  # shellcheck disable=SC1090
+  source "$installer"
+  seed_qvos_target_databases "$database_source" "$database_target"
+) >/dev/null 2>&1
+missing_offline_status=$?
+set -e
+((missing_offline_status != 0)) ||
+  fail "release ISO accepts a target without its native offline database"
+
+outside_offline="$database_test_root/outside-offline.db"
+printf 'outside offline\n' >"$outside_offline"
+ln -s "$outside_offline" "$database_target/offline.db"
+set +e
+(
+  # shellcheck disable=SC1090
+  source "$installer"
+  retire_qvos_target_offline_database "$database_target"
+) >/dev/null 2>&1
+unsafe_offline_status=$?
+set -e
+((unsafe_offline_status != 0)) ||
+  fail "release ISO retires symbolic-link offline metadata"
+[[ -L $database_target/offline.db &&
+  $(<"$outside_offline") == "outside offline" ]] ||
+  fail "release ISO modified unsafe offline metadata"
+unlink "$database_target/offline.db"
 
 outside_database="$database_test_root/outside.db"
 printf 'outside\n' >"$outside_database"
@@ -364,6 +399,8 @@ grep -Fq 'seed_qvos_target_databases' "$installer" ||
   fail "release ISO leaves a fresh target without repository databases"
 grep -Fq 'validate_qvos_target_databases' "$installer" ||
   fail "release ISO accepts unreadable target repository databases"
+grep -Fqx '  retire_qvos_target_offline_database' "$installer" ||
+  fail "release ISO retains its temporary database after provider handoff"
 if grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer"; then
   fail "release ISO retains a partial target repository synchronization"
 fi

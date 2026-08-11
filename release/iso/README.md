@@ -41,8 +41,9 @@ the previous one.
   configuration contains no network mirrors, and native post-install policy
   restores the reviewed provider channel, Stable by default. Confirm the image
   also carries exactly one nonempty `core`, `extra`, `multilib`, and `omarchy`
-  database from the same resolution snapshot; the installer must publish and
-  validate those databases while retiring the temporary `offline` database.
+  database from the same resolution snapshot. The installer must preserve the
+  temporary `offline` database through native package staging, then validate
+  the final provider databases and retire `offline` at the handoff boundary.
 - Exercise reused-cache recovery: a Pacman-identified checksum-invalid archive
   is quarantined individually inside the ephemeral builder and fetched again.
   If Pacman already removed that exact archive, the retry remains valid and any
