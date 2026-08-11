@@ -261,7 +261,8 @@ if rg -n -- '--install-extension|int\('\''\$hex' \
   "$root/qvcore/theme/set-keyboard-f16"; then
   fail "theme data can still install editor code or enter Python source"
 fi
-grep -Eq '^for integration in .* zed; do$' "$root/qvcore/theme/set" ||
+grep -Fq 'integrations=(browser vscode obsidian keyboard zed)' \
+  "$root/qvcore/theme/set" ||
   fail "theme activation bypasses the native Zed integration"
 grep -Fq 'https://zed.dev/schema/themes/v0.2.0.json' \
   "$root/qvcore/theme/set-zed" || fail "Zed theme schema"
@@ -286,6 +287,13 @@ grep -Fq '$(/usr/bin/stat -c '\''%u:%a'\'' -- "$target") == "$EUID:644"' \
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/theme/configure"' "$root/qvcore/install/config/theme.sh" ||
   fail "fresh install does not delegate to the qvOS theme owner"
+# shellcheck disable=SC2016
+grep -Fq '[[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]' \
+  "$root/qvcore/theme/configure" ||
+  fail "fresh theme configuration does not recognize the reviewed chroot boundary"
+grep -Fq 'QVOS_THEME_SKIP_SESSION=1 qv-theme-set "Yaqyn"' \
+  "$root/qvcore/theme/configure" ||
+  fail "fresh theme configuration does not suppress target-chroot session work"
 if rg -q 'qvcore/theme/install|qvcore/install/config/theme' "$root/qvcore/install/configure"; then
   fail "qvOS install duplicates the theme owner"
 fi

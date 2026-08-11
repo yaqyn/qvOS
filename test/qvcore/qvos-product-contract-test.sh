@@ -1463,7 +1463,8 @@ assert(custom_unlock.Preview:match("/%.config/qvos/themes/custom/preview%-unlock
 LUA
 pass "dynamic Style catalogs expose Yaqyn and compatible user themes only"
 
-grep -qx 'qv-theme-set "Yaqyn"' "$root/qvcore/theme/configure" || fail "fresh install theme"
+grep -Eq '^[[:space:]]+qv-theme-set "Yaqyn"$' \
+  "$root/qvcore/theme/configure" || fail "fresh install theme"
 if rg -q 'chmod[[:space:]]+a\\+rw' \
   "$root/qvcore/theme/configure" \
   "$root/qvcore/browser/install"; then

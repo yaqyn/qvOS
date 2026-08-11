@@ -124,6 +124,10 @@ fallback.
 stage. Every selected reviewed configuration and hardware leaf is now native;
 keep its order explicit and call it through `run_logged`. The specialized qvOS
 MIME and corrected ASUS B9406 owners replace their superseded upstream leaves.
+The theme leaf translates the exact reviewed chroot signal into qvOS's offline
+theme-rendering mode: install the complete theme state and safe file or hardware
+integrations, but never probe a user bus, mutate GNOME settings, restart desktop
+components, launch a wallpaper, or run user hooks before first login.
 Its Branding leaf installs the singular root-owned qvOS `/etc/os-release`
 through `qvcore/branding/system-identity` before reconciling private user
 branding; never write a second product identity directly from the installer.

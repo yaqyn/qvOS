@@ -153,9 +153,16 @@ if "$root/qvcore/theme/validate" "$unsafe_theme" >/dev/null 2>&1; then
 fi
 rm -rf -- "$unsafe_theme"
 
-printf '#!/bin/bash\nexit 0\n' >"$test_bin/theme-command-stub"
+install -m 0755 /dev/stdin "$test_bin/theme-command-stub" <<'COMMAND'
+#!/bin/bash
+if [[ -n ${QVOS_THEME_TEST_COMMAND_LOG:-} ]]; then
+  printf '%s\n' "${0##*/}" >>"$QVOS_THEME_TEST_COMMAND_LOG"
+fi
+exit 0
+COMMAND
 printf '#!/bin/bash\nexit 1\n' >"$test_bin/pgrep"
 chmod 0755 "$test_bin/theme-command-stub" "$test_bin/pgrep"
+ln -s pgrep "$test_bin/qv-toggle-enabled"
 for command in \
   qv-hook \
   qv-restart-btop \
@@ -272,6 +279,60 @@ for browser_policy in \
     fail "bounded browser theme policy: $browser_policy"
 done
 printf 'ok - browser colors respect the root-directory and user-leaf policy boundary\n'
+
+configure_fixture="$test_root/configure-fixture"
+configure_bin="$configure_fixture/bin"
+configure_log="$configure_fixture/events"
+install -d "$configure_fixture/qvcore/theme" "$configure_bin"
+install -m 0755 /dev/stdin "$configure_fixture/qvcore/theme/install" <<'COMMAND'
+#!/bin/bash
+printf 'install\n' >>"$QVOS_THEME_CONFIGURE_LOG"
+COMMAND
+install -m 0755 /dev/stdin "$configure_bin/sudo" <<'COMMAND'
+#!/bin/bash
+printf 'sudo|%s\n' "$*" >>"$QVOS_THEME_CONFIGURE_LOG"
+COMMAND
+install -m 0755 /dev/stdin "$configure_bin/qv-theme-set" <<'COMMAND'
+#!/bin/bash
+printf 'theme|%s|%s\n' "${QVOS_THEME_SKIP_SESSION:-unset}" "$*" \
+  >>"$QVOS_THEME_CONFIGURE_LOG"
+COMMAND
+: >"$configure_log"
+HOME="$test_root" \
+  QVOS_PATH="$configure_fixture" \
+  QVOS_THEME_CONFIGURE_LOG="$configure_log" \
+  OMARCHY_CHROOT_INSTALL=1 \
+  PATH="$configure_bin:/usr/bin" \
+  "$root/qvcore/theme/configure"
+grep -Fqx 'theme|1|Yaqyn' "$configure_log" ||
+  fail "target-chroot theme configuration did not select offline rendering"
+: >"$configure_log"
+HOME="$test_root" \
+  QVOS_PATH="$configure_fixture" \
+  QVOS_THEME_CONFIGURE_LOG="$configure_log" \
+  PATH="$configure_bin:/usr/bin" \
+  "$root/qvcore/theme/configure"
+grep -Fqx 'theme|unset|Yaqyn' "$configure_log" ||
+  fail "ordinary theme configuration suppressed its user session"
+pass "fresh theme configuration translates only the reviewed chroot boundary"
+
+session_command_log="$test_root/theme-session-commands"
+: >"$session_command_log"
+session_skip_output=$(
+  HOME="$test_root" \
+    QVOS_PATH="$root" \
+    QVOS_THEME_SKIP_SESSION=1 \
+    QVOS_THEME_TEST_COMMAND_LOG="$session_command_log" \
+    QVOS_THEME_TESTING=1 \
+    QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+    PATH="$test_bin:/usr/bin" \
+    "$root/bin/qv-theme-set" "Yaqyn" 2>&1
+) || fail "offline theme rendering"
+[[ -z $session_skip_output && ! -s $session_command_log ]] ||
+  fail "offline theme rendering ran a session integration"
+[[ $(<"$test_root/.config/qvos/current/theme.name") == "yaqyn" ]] ||
+  fail "offline theme rendering did not activate Yaqyn"
+pass "offline theme rendering avoids user-session work"
 
 set +e
 yaqyn_install_output=$(

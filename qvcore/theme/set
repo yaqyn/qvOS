@@ -13,6 +13,11 @@ skip_integrations=${QVOS_THEME_SKIP_INTEGRATIONS:-0}
   echo "QVOS_THEME_SKIP_INTEGRATIONS must be 0 or 1." >&2
   exit 2
 }
+skip_session=${QVOS_THEME_SKIP_SESSION:-0}
+[[ $skip_session == "0" || $skip_session == "1" ]] || {
+  echo "QVOS_THEME_SKIP_SESSION must be 0 or 1." >&2
+  exit 2
+}
 retain_legacy_hyprland=${QVOS_THEME_RETAIN_LEGACY_HYPRLAND:-0}
 [[ $retain_legacy_hyprland == "0" || $retain_legacy_hyprland == "1" ]] || {
   echo "QVOS_THEME_RETAIN_LEGACY_HYPRLAND must be 0 or 1." >&2
@@ -138,32 +143,40 @@ run_integration() {
   fi
 }
 
-# Change background with theme
-skip_background=${QVOS_THEME_SKIP_BACKGROUND:-0}
-if [[ $skip_background != "1" ]]; then
-  run_integration "the background" "$QVOS_PATH/qvcore/theme/background-next"
-fi
+if [[ $skip_session == "0" ]]; then
+  # Change background with theme
+  skip_background=${QVOS_THEME_SKIP_BACKGROUND:-0}
+  if [[ $skip_background != "1" ]]; then
+    run_integration "the background" "$QVOS_PATH/qvcore/theme/background-next"
+  fi
 
-# Restart components to apply new theme
-if pgrep -x waybar >/dev/null; then
-  run_integration "Waybar" qv-restart-waybar
+  # Restart components to apply new theme
+  if pgrep -x waybar >/dev/null; then
+    run_integration "Waybar" qv-restart-waybar
+  fi
+  run_integration "SwayOSD" qv-restart-swayosd
+  run_integration "terminals" qv-restart-terminal
+  run_integration "Hyprland" qv-restart-hyprctl
+  run_integration "btop" qv-restart-btop
+  run_integration "OpenCode" qv-restart-opencode
+  run_integration "Mako" qv-restart-mako
+  run_integration "Helix" qv-restart-helix
 fi
-run_integration "SwayOSD" qv-restart-swayosd
-run_integration "terminals" qv-restart-terminal
-run_integration "Hyprland" qv-restart-hyprctl
-run_integration "btop" qv-restart-btop
-run_integration "OpenCode" qv-restart-opencode
-run_integration "Mako" qv-restart-mako
-run_integration "Helix" qv-restart-helix
 
 # Change app-specific themes
-for integration in foot gnome browser vscode obsidian keyboard zed; do
+integrations=(browser vscode obsidian keyboard zed)
+if [[ $skip_session == "0" ]]; then
+  integrations=(foot gnome "${integrations[@]}")
+fi
+for integration in "${integrations[@]}"; do
   run_integration "$integration integration" \
     "$QVOS_PATH/qvcore/theme/set-$integration"
 done
 
 # Call hook on theme set
-run_integration "theme hooks" qv-hook theme-set "$THEME_NAME"
+if [[ $skip_session == "0" ]]; then
+  run_integration "theme hooks" qv-hook theme-set "$THEME_NAME"
+fi
 
 if ((integration_failed)); then
   echo "The theme is active; review the integration warnings above." >&2

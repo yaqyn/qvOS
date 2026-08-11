@@ -49,6 +49,11 @@ the native entrypoint validates; ordinary activation always removes it.
   link; fresh configuration must not duplicate or force those mutations.
 - `qvcore/theme/configure` is the single fresh-install owner. The inherited install
   stage delegates to it; qvOS install code must not repeat its mutations.
+- During the reviewed ISO chroot, fresh configuration renders Yaqyn and applies
+  file and hardware integrations but skips wallpaper processes, desktop
+  restarts, GNOME settings, and user hooks. The first native login consumes the
+  completed theme state and owns session activation; never probe a user bus from
+  the target chroot.
 - Theme list, set, install, remove, update, and appearance providers read only
   the user theme directory. `qvcore/theme/name` is the shared slug validator,
   and `qvcore/theme/validate` owns payload and optional-integration validation.
@@ -78,8 +83,9 @@ the native entrypoint validates; ordinary activation always removes it.
   boundary and must not be emulated by weakening the directory.
 - Yaqyn is always present and cannot be installed over or removed. Removing an
   active custom theme first returns to Yaqyn without changing the background.
-- Theme runtime policy accepts only documented `QVOS_THEME_*` inputs; inherited
-  environment names are not a compatibility ABI.
+- Theme runtime policy accepts only documented `QVOS_THEME_*` inputs;
+  `QVOS_THEME_SKIP_SESSION=1` is the installer-owned offline rendering mode.
+  Inherited environment names are not a compatibility ABI.
 - Theme activation stages and validates a complete next tree, swaps it
   atomically, and preserves the prior tree until the name marker lands. Git
   updates require a clean checkout and restore the exact prior commit if the
