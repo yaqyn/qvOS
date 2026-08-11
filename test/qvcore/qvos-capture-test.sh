@@ -292,6 +292,31 @@ set -e
 unset MOCK_SLURP_STATUS
 pass "OCR rejects missing languages and preserves cancellation semantics"
 
+transition_binary="$test_root/process-transition/gpu-screen-recorder"
+install -D -m 0755 /usr/bin/sleep "$transition_binary"
+(
+  unset QVOS_CAPTURE_TESTING
+  # shellcheck source=qvcore/capture/lib disable=SC1091
+  source "$root/qvcore/capture/lib"
+  transition_pid=""
+  # shellcheck disable=SC2329 # Invoked by the EXIT trap.
+  cleanup_transition() {
+    [[ $transition_pid =~ ^[1-9][0-9]*$ ]] || return 0
+    kill "$transition_pid" 2>/dev/null || true
+    wait "$transition_pid" 2>/dev/null || true
+  }
+  trap cleanup_transition EXIT
+
+  bash -c 'sleep 0.2; exec "$1" 5' _ "$transition_binary" &
+  transition_pid=$!
+  transition_start=$(capture_process_start "$transition_pid") ||
+    fail "capture child process start token"
+  capture_wait_for_process_match \
+    "$transition_pid" gpu-screen-recorder "$transition_start" 20 ||
+    fail "capture child executable transition"
+)
+pass "capture startup follows the exact child through its executable transition"
+
 export MOCK_RECORDER_START_DELAY=5.2
 $screenrecord >/dev/null
 unset MOCK_RECORDER_START_DELAY

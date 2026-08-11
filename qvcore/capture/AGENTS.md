@@ -33,6 +33,9 @@ qv routes.
 - Give the recorder a bounded ten-second startup window before cleanup. Cold
   GPU initialization and a loaded system must not create a false failure, but
   an exited process or missing private output after that limit still fails.
+  Record the child process-start token immediately after launch, then tolerate
+  its bounded pre-exec transition to the expected executable. Cleanup may
+  signal that exact child instance even before its executable identity settles.
 - Capture accepts only its documented `QVOS_*` environment. Historical
   `OMARCHY_*` settings are migration input for `qvcore/config/migrate-runtime-root`,
   never runtime fallback or source authority.

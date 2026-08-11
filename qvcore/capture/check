@@ -71,6 +71,12 @@ grep -Fq '$(stat -c '\''%a'\'' "$CAPTURE_STATE_FILE") == "600"' \
 grep -Fq 'capture_process_start "$pid"' "$root/qvcore/capture/lib" ||
   fail "recording process-instance identity"
 # shellcheck disable=SC2016
+grep -Fq 'capture_process_instance_matches "$pid" "$expected_start"' \
+  "$root/qvcore/capture/lib" || fail "exact pre-exec child ownership"
+# shellcheck disable=SC2016
+grep -Fq 'capture_wait_for_process_match' \
+  "$root/qvcore/capture/screenrecord" || fail "bounded child executable transition"
+# shellcheck disable=SC2016
 grep -Fq 'read -r stat <&"$stat_fd"; } 2>/dev/null' \
   "$root/qvcore/capture/lib" || fail "race-safe procfs process identity"
 grep -Fq 'select(.focused == true and .dpmsStatus != false)' \

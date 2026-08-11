@@ -418,9 +418,8 @@ capture_process_matches() {
 
   [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
-  if [[ -n $expected_start ]]; then
-    [[ $(capture_process_start "$pid") == "$expected_start" ]] || return 1
-  fi
+  [[ -z $expected_start ]] ||
+    capture_process_instance_matches "$pid" "$expected_start" || return 1
   executable=$(readlink -e -- "/proc/$pid/exe" 2>/dev/null || true)
   [[ ${executable##*/} == "$process_name" ]] && return
 
@@ -436,6 +435,33 @@ capture_process_matches() {
   done <&"$cmdline_fd" 2>/dev/null
   exec {cmdline_fd}<&-
   [[ $matched == "true" ]]
+}
+
+capture_process_instance_matches() {
+  local pid=$1
+  local expected_start=$2
+
+  [[ $pid =~ ^[1-9][0-9]*$ && $expected_start =~ ^[1-9][0-9]*$ ]] ||
+    return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  [[ $(capture_process_start "$pid") == "$expected_start" ]]
+}
+
+capture_wait_for_process_match() {
+  local pid=$1
+  local process_name=$2
+  local expected_start=$3
+  local attempts=$4
+  local count=0
+
+  [[ $attempts =~ ^[1-9][0-9]*$ ]] || return 2
+  while capture_process_instance_matches "$pid" "$expected_start" &&
+    ((count < attempts)); do
+    capture_process_matches "$pid" "$process_name" "$expected_start" && return 0
+    sleep 0.1
+    ((count += 1))
+  done
+  return 1
 }
 
 capture_process_start() {

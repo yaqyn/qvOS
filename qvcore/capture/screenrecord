@@ -36,15 +36,19 @@ stop_only=false
 show_status=false
 owned_staging=""
 owned_recorder_pid=0
+owned_recorder_start=0
 owned_webcam_pid=0
+owned_webcam_start=0
 state_committed=false
 
 cleanup_start_failure() {
   if [[ $state_committed != "true" ]]; then
-    if capture_process_matches "$owned_recorder_pid" gpu-screen-recorder; then
+    if capture_process_instance_matches \
+      "$owned_recorder_pid" "$owned_recorder_start"; then
       kill -INT "$owned_recorder_pid" 2>/dev/null || true
     fi
-    if capture_process_matches "$owned_webcam_pid" ffplay; then
+    if capture_process_instance_matches \
+      "$owned_webcam_pid" "$owned_webcam_start"; then
       kill "$owned_webcam_pid" 2>/dev/null || true
     fi
     if [[ -n $owned_staging && -d $owned_staging && ! -L $owned_staging &&
@@ -202,8 +206,12 @@ start_webcam_overlay() {
     -an \
     9>&- </dev/null &
   owned_webcam_pid=$!
-  sleep 0.2
-  capture_process_matches "$owned_webcam_pid" ffplay || {
+  owned_webcam_start=$(capture_process_start "$owned_webcam_pid") || {
+    echo "Unable to identify the webcam process instance." >&2
+    return 1
+  }
+  capture_wait_for_process_match \
+    "$owned_webcam_pid" ffplay "$owned_webcam_start" 20 || {
     echo "Unable to start the webcam overlay." >&2
     return 1
   }
@@ -399,11 +407,9 @@ start_recording() {
   local output_dir
   local portal=${QVOS_SCREENRECORD_USE_PORTAL:-false}
   local recording
-  local recorder_start
   local region
   local target
   local wait_count=0
-  local webcam_start=0
   local -a audio_args=()
   local -a capture_args=()
 
@@ -476,33 +482,34 @@ start_recording() {
       9>&- </dev/null 2>>"$debug_log" &
   fi
   owned_recorder_pid=$!
+  owned_recorder_start=$(capture_process_start "$owned_recorder_pid") || {
+    echo "Unable to identify the recording process instance." >&2
+    return 1
+  }
 
-  while capture_process_matches "$owned_recorder_pid" gpu-screen-recorder &&
-    [[ ! -f $recording ]] && ((wait_count < 100)); do
+  while capture_process_instance_matches \
+    "$owned_recorder_pid" "$owned_recorder_start" &&
+    ((wait_count < 100)); do
+    if capture_process_matches \
+      "$owned_recorder_pid" gpu-screen-recorder "$owned_recorder_start" &&
+      [[ -f $recording ]]; then
+      break
+    fi
     sleep 0.1
     ((wait_count += 1))
   done
-  if ! capture_process_matches "$owned_recorder_pid" gpu-screen-recorder ||
+  if ! capture_process_matches \
+    "$owned_recorder_pid" gpu-screen-recorder "$owned_recorder_start" ||
     [[ ! -f $recording || -L $recording || ! -O $recording ]]; then
     echo "Screen recording did not start within ten seconds." >&2
     return 1
   fi
   chmod 0600 "$recording"
-  recorder_start=$(capture_process_start "$owned_recorder_pid") || {
-    echo "Unable to identify the recording process instance." >&2
-    return 1
-  }
-  if (( owned_webcam_pid > 0 )); then
-    webcam_start=$(capture_process_start "$owned_webcam_pid") || {
-      echo "Unable to identify the webcam process instance." >&2
-      return 1
-    }
-  fi
   capture_write_screenrecord_state \
     "$owned_recorder_pid" \
-    "$recorder_start" \
+    "$owned_recorder_start" \
     "$owned_webcam_pid" \
-    "$webcam_start" \
+    "$owned_webcam_start" \
     "$owned_staging" \
     "$recording" \
     "$final" \
@@ -513,7 +520,9 @@ start_recording() {
   state_committed=true
   owned_staging=""
   owned_recorder_pid=0
+  owned_recorder_start=0
   owned_webcam_pid=0
+  owned_webcam_start=0
   capture_signal_waybar
   capture_notify "󰻂" "Screen recording started" "Run the command again to stop and save."
   printf 'Screen recording started.\n'
