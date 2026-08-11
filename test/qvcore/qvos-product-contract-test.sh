@@ -655,6 +655,12 @@ grep -Fq 'cp --reflink=auto -- "$latest_iso" "$partial_iso"' "$iso_build" ||
   fail "qvOS ISO atomic release copy"
 grep -Fq 'qvOS ISO failed stage retained:' "$iso_build" ||
   fail "qvOS ISO publish failure stage retention"
+grep -Fq 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' \
+  "$iso_build" ||
+  fail "qvOS ISO stage is not on the selected artifact filesystem"
+if rg -q 'stage_root=.*(XDG_CACHE_HOME|HOME/.cache)' "$iso_build"; then
+  fail "qvOS ISO stage can still exhaust an unrelated home cache filesystem"
+fi
 grep -Fq 'if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out"; then' \
   "$iso_build" ||
   fail "qvOS ISO build failure stage retention"

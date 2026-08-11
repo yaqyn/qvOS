@@ -15,6 +15,7 @@ usage() {
   echo "  QVOS_SOURCE_REF        qvOS branch, tag, or commit"
   echo "  QVOS_UPDATE_REPO       public HTTPS origin embedded for installed updates"
   echo "  QVOS_PROVIDER_CHANNEL  package-provider channel (stable, edge, or rc)"
+  echo "  QVOS_ISO_RELEASE_DIR   artifact directory and private build-stage filesystem"
   echo "  QVOS_ARCH_MIRROR       optional HTTPS Arch mirror root"
   echo "  QVOS_DOCKER_NETWORK     optional Docker network, such as host"
 }
@@ -83,10 +84,9 @@ fi
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_checkout=$(cd -- "$script_dir/../.." && pwd)
-cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/qvos/iso"
-mkdir -p "$cache_root"
-stage_root=$(mktemp -d "$cache_root/stage.XXXXXX")
 release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
+mkdir -p "$release_dir"
+stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")
 preserve_stage=false
 docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
 docker_network="${QVOS_DOCKER_NETWORK:-}"

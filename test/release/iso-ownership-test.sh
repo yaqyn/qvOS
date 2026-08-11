@@ -48,6 +48,8 @@ grep -Fq -- '--noconfirm -Syu --needed archiso git sudo base-devel jq grub go' \
   fail "native ISO permits a partial build-container upgrade"
 grep -Fq -- '--pull=always' "$build" ||
   fail "native ISO reuses a stale mutable build container"
+grep -Fq 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' \
+  "$build" || fail "native ISO stage bypasses its release filesystem"
 
 # shellcheck disable=SC2016
 grep -Fq 'provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"' "$build" ||

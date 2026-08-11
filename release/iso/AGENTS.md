@@ -23,6 +23,9 @@ a thin adapter to this owner.
 - Stage the selected qvOS Git ref separately. Mount its native builder, profile,
   and complete source read-only; reject links, special files, weak package
   policy, or duplicate installers before Docker executes.
+- Create the private build stage on `QVOS_ISO_RELEASE_DIR` so large temporary
+  images use the selected artifact filesystem. Retain that exact hidden stage
+  on failure and remove it after a successful atomic publication.
 - Mount that exact staged source read-only at `/qvos`, embed it at `/root/qvos`,
   and resolve package-provider files from it before the first Omarchy package.
   Never let the builder fetch a replacement product source or keep retired

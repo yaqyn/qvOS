@@ -32,7 +32,9 @@ the previous one.
   the release proof. Record the qvOS input commit, provider channel, container
   image identity, resolved package inventory, artifact name and size, SHA-256,
   selected Node.js LTS release and checksum, build result, and retained
-  failure-stage path when applicable.
+  failure-stage path when applicable. Set `QVOS_ISO_RELEASE_DIR` to a
+  filesystem with enough capacity for both the temporary image and published
+  artifact; the private stage is deliberately colocated there.
 - Verify that repository and direct local package signatures are required, the
   offline cache is not group-writable, its package archives, signatures, and
   repository metadata are non-executable, the generated Archinstall
