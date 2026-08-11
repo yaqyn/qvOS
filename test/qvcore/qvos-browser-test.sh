@@ -27,10 +27,8 @@ install -m 0755 "$root/bin/qv-install-browser" "$fixture/bin/"
 install -m 0755 "$root/bin/qv-refresh-chromium" "$fixture/bin/"
 install -m 0755 "$root/bin/qv-remove-browser" "$fixture/bin/"
 install -m 0755 "$root/qvcore/browser/install" "$fixture/qvcore/browser/"
-install -m 0755 "$root/qvcore/browser/migrate-runtime-root" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/refresh-chromium" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/remove" "$fixture/qvcore/browser/"
-install -m 0755 "$root/qvcore/browser/retire-google-oauth" "$fixture/qvcore/browser/"
 install -m 0644 "$root/qvcore/browser/firefox-policies.json" \
   "$fixture/qvcore/browser/firefox-policies.json"
 cp -a "$root/qvcore/browser/extensions" "$fixture/qvcore/browser/"
@@ -97,115 +95,20 @@ run_browser() {
     "$@"
 }
 
-if git -C "$root" show-ref --verify --quiet refs/remotes/upstream/master; then
-  upstream_ref=upstream/master
-else
-  upstream_ref=origin/master
-fi
-mapfile -t inherited_oauth_flags < <(
-  git -C "$root" show \
-    "$upstream_ref:bin/omarchy-install-chromium-google-account" |
-    sed -n '/^[[:space:]]*echo "--oauth2-client-/{s/^[[:space:]]*echo "//;s/" >>.*$//;p}'
-)
-((${#inherited_oauth_flags[@]} == 2)) ||
-  fail "reviewed inherited Chromium OAuth fixture"
-
 chromium_flags="$test_home/.config/chromium-flags.conf"
-printf '%s\n' "${inherited_oauth_flags[@]}" '--custom-browser-flag' \
-  >"$chromium_flags"
-run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
-grep -Fqx -- '--custom-browser-flag' "$chromium_flags" ||
-  fail "Chromium OAuth retirement preserved unrelated flags"
-if grep -qE '^--oauth2-client-(id|secret)=' "$chromium_flags"; then
-  fail "inherited Chromium OAuth credentials remain"
-fi
-retired_snapshot=$(sha256sum "$chromium_flags")
-run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
-[[ $(sha256sum "$chromium_flags") == "$retired_snapshot" ]] ||
-  fail "Chromium OAuth retirement idempotence"
-
-printf '%s\n' \
-  '--oauth2-client-id=user-owned' \
-  '--oauth2-client-secret=user-owned' \
-  '--custom-browser-flag' >"$chromium_flags"
-custom_snapshot=$(sha256sum "$chromium_flags")
-run_browser "$fixture/qvcore/browser/retire-google-oauth" >/dev/null
-[[ $(sha256sum "$chromium_flags") == "$custom_snapshot" ]] ||
-  fail "user-owned Chromium OAuth preservation"
-
-external_flags="$test_root/external-chromium-flags"
-printf 'external\n' >"$external_flags"
-unlink -- "$chromium_flags"
-ln -s "$external_flags" "$chromium_flags"
-if run_browser "$fixture/qvcore/browser/retire-google-oauth" \
-  >/dev/null 2>&1; then
-  fail "linked Chromium flags accepted"
-fi
-[[ $(<"$external_flags") == "external" ]] ||
-  fail "linked Chromium flags target changed"
-unlink -- "$chromium_flags"
-
-legacy_omarchy_extension='--load-extension=~/.local/share/omarchy/default/chromium/extensions/copy-url'
-legacy_qvos_extension='--load-extension=~/.local/share/qvos/default/chromium/extensions/copy-url'
-native_extension='--load-extension=~/.local/share/qvos/qvcore/browser/extensions/copy-url'
-printf '%s\n' "$legacy_omarchy_extension" '--custom-chromium-flag' \
-  >"$chromium_flags"
-printf '%s\n' "$legacy_qvos_extension" '--custom-brave-flag' \
-  >"$test_home/.config/brave-flags.conf"
+printf '%s\n' '--custom-browser-flag' >"$chromium_flags"
 invalid_snapshot=$(sha256sum "$chromium_flags")
 if run_browser "$fixture/bin/omarchy-install-browser" unknown >/dev/null 2>&1; then
   fail "unsupported browser install"
 fi
 [[ $(sha256sum "$chromium_flags") == "$invalid_snapshot" ]] ||
-  fail "invalid browser install migrated configuration"
-run_browser "$fixture/qvcore/browser/migrate-runtime-root" >/dev/null
-for flags_file in chromium-flags.conf brave-flags.conf; do
-  grep -Fqx -- "$native_extension" "$test_home/.config/$flags_file" ||
-    fail "native Copy URL path migration: $flags_file"
-  [[ $(grep -Fxc -- "$native_extension" "$test_home/.config/$flags_file") == \
-    "1" ]] || fail "duplicate Copy URL path: $flags_file"
-done
-grep -Fqx -- '--custom-chromium-flag' "$chromium_flags" ||
-  fail "Chromium flag migration preservation"
-grep -Fqx -- '--custom-brave-flag' "$test_home/.config/brave-flags.conf" ||
-  fail "Brave flag migration preservation"
-grep -Rqx -- "$legacy_omarchy_extension" \
-  "$test_home/.config/chromium-flags.conf.qvos-backup."* ||
-  fail "Chromium flag migration backup"
-grep -Rqx -- "$legacy_qvos_extension" \
-  "$test_home/.config/brave-flags.conf.qvos-backup."* ||
-  fail "Brave flag migration backup"
-migrated_snapshot=$(sha256sum "$chromium_flags")
-backup_count=$(find "$test_home/.config" -maxdepth 1 \
-  -name '*-flags.conf.qvos-backup.*' -printf '.\n' | wc -l)
-run_browser "$fixture/qvcore/browser/migrate-runtime-root" >/dev/null
-[[ $(sha256sum "$chromium_flags") == "$migrated_snapshot" &&
-  $(find "$test_home/.config" -maxdepth 1 \
-    -name '*-flags.conf.qvos-backup.*' -printf '.\n' | wc -l) == \
-  "$backup_count" ]] || fail "Copy URL path migration idempotence"
-
-external_brave_flags="$test_root/external-brave-flags"
-printf 'preserve external brave flags\n' >"$external_brave_flags"
-unlink -- "$test_home/.config/brave-flags.conf"
-ln -s "$external_brave_flags" "$test_home/.config/brave-flags.conf"
-migration_warning=$(run_browser \
-  "$fixture/qvcore/browser/migrate-runtime-root" 2>&1 >/dev/null)
-[[ $(<"$external_brave_flags") == "preserve external brave flags" ]] ||
-  fail "linked browser flags target changed"
-grep -Fq 'Preserving unsafe browser flags file:' <<<"$migration_warning" ||
-  fail "linked browser flags preservation warning"
-unlink -- "$test_home/.config/brave-flags.conf"
-
-printf '%s\n' "${inherited_oauth_flags[@]}" '--preserve-in-backup' \
-  >"$chromium_flags"
+  fail "invalid browser install changed configuration"
 run_browser "$fixture/bin/qv-refresh-chromium" >/dev/null
 cmp -s "$fixture/qvcore/config/files/chromium-flags.conf" "$chromium_flags" ||
   fail "native Chromium refresh"
-if rg -q '^--oauth2-client-(id|secret)=' "$test_home/.config"; then
-  fail "Chromium refresh retained inherited OAuth credentials in a backup"
-fi
-grep -Rqx -- '--preserve-in-backup' "$test_home/.config" ||
-  fail "Chromium refresh sanitized backup"
+grep -Rqx -- '--custom-browser-flag' \
+  "$test_home/.config/chromium-flags.conf.bak."* ||
+  fail "Chromium refresh backup"
 if run_browser "$fixture/bin/qv-refresh-chromium" unexpected \
   >/dev/null 2>&1; then
   fail "Chromium refresh accepted unexpected arguments"
@@ -228,8 +131,6 @@ cmp -s \
   "$test_home/.config/brave-origin-beta-flags.conf" ||
   fail "Brave Origin shares the native Chromium flags"
 
-printf '%s\n' 'MOZ_ENABLE_WAYLAND=1' \
-  >"$test_home/.config/environment.d/omarchy-firefox-wayland.conf"
 run_browser "$fixture/bin/qv-install-browser" firefox >/dev/null
 grep -Fqx 'pkg-add:firefox' "$action_log" || fail "Firefox package owner"
 grep -Fqx 'policy:/usr/lib/firefox/distribution' "$action_log" ||
@@ -240,8 +141,6 @@ grep -Fqx \
 grep -Fqx 'MOZ_ENABLE_WAYLAND=1' \
   "$test_home/.config/environment.d/qvos-firefox-wayland.conf" ||
   fail "Firefox Wayland configuration"
-[[ ! -e $test_home/.config/environment.d/omarchy-firefox-wayland.conf ]] ||
-  fail "retired Firefox Wayland configuration"
 
 QVOS_TEST_DEFAULT_BROWSER=brave-browser.desktop \
   run_browser "$fixture/bin/qv-remove-browser" brave >/dev/null
@@ -260,11 +159,25 @@ grep -Fqx 'default-browser:chromium' "$action_log" ||
   fail "removed active browser fallback"
 
 printf '%s\n' 'CUSTOM_FIREFOX_SETTING=1' \
-  >"$test_home/.config/environment.d/omarchy-firefox-wayland.conf"
-run_browser "$fixture/qvcore/browser/migrate-runtime-root" --remove 2>/dev/null
+  >"$test_home/.config/environment.d/qvos-firefox-wayland.conf"
+preservation_warning=$(run_browser \
+  "$fixture/bin/qv-remove-browser" firefox 2>&1 >/dev/null)
 grep -Fqx 'CUSTOM_FIREFOX_SETTING=1' \
-  "$test_home/.config/environment.d/omarchy-firefox-wayland.conf" ||
-  fail "modified legacy Firefox environment preservation"
+  "$test_home/.config/environment.d/qvos-firefox-wayland.conf" ||
+  fail "modified native Firefox environment preservation"
+grep -Fq 'Preserving modified Firefox Wayland environment:' \
+  <<<"$preservation_warning" ||
+  fail "modified native Firefox environment warning"
+
+external_wayland="$test_root/external-firefox-wayland"
+printf '%s\n' 'EXTERNAL_FIREFOX_SETTING=1' >"$external_wayland"
+unlink -- "$test_home/.config/environment.d/qvos-firefox-wayland.conf"
+ln -s "$external_wayland" \
+  "$test_home/.config/environment.d/qvos-firefox-wayland.conf"
+run_browser "$fixture/bin/qv-remove-browser" firefox >/dev/null 2>&1
+[[ -L $test_home/.config/environment.d/qvos-firefox-wayland.conf &&
+  $(<"$external_wayland") == "EXTERNAL_FIREFOX_SETTING=1" ]] ||
+  fail "linked native Firefox environment preservation"
 
 "$root/qvcore/browser/check"
 printf 'ok - optional browser installs and removals are exact and non-destructive\n'

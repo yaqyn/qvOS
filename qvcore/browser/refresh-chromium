@@ -8,6 +8,4 @@ if (($# != 0)); then
   exit 2
 fi
 
-"$QVOS_PATH/qvcore/browser/migrate-runtime-root"
-"$QVOS_PATH/qvcore/browser/retire-google-oauth"
 "$QVOS_PATH/qvcore/config/refresh" chromium-flags.conf

@@ -79,22 +79,22 @@ for route in "${!browser_routes[@]}"; do
   done
 done
 
-for owner in migrate-runtime-root retire-google-oauth setup-policy; do
-  [[ -x $root/qvcore/browser/$owner ]] || fail "browser owner mode: $owner"
+[[ -x $root/qvcore/browser/setup-policy ]] ||
+  fail "browser owner mode: setup-policy"
+for retired_owner in migrate-runtime-root retire-google-oauth; do
+  [[ ! -e $root/qvcore/browser/$retired_owner &&
+    ! -L $root/qvcore/browser/$retired_owner ]] ||
+    fail "retired browser convergence owner remains: $retired_owner"
 done
 
 grep -Fq 'qvcore/browser/setup-policy' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses policy ownership"
-grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/install" ||
-  fail "browser installer bypasses runtime migration"
-[[ $(grep -Fc 'qvcore/browser/migrate-runtime-root' \
-  "$root/qvcore/browser/install") == "1" ]] ||
-  fail "browser installer duplicates runtime migration"
-grep -Fq 'qvcore/browser/migrate-runtime-root' \
-  "$root/qvcore/browser/refresh-chromium" ||
-  fail "Chromium refresh bypasses runtime migration"
-grep -Fq 'qvcore/browser/migrate-runtime-root' "$root/qvcore/browser/remove" ||
-  fail "browser removal bypasses exact runtime cleanup"
+if rg -n 'migrate-runtime-root|retire-google-oauth' \
+  "$root/qvcore/browser/install" \
+  "$root/qvcore/browser/refresh-chromium" \
+  "$root/qvcore/browser/remove"; then
+  fail "native browser lifecycle retains a one-time convergence owner"
+fi
 if rg -n 'rm[[:space:]]+-rf[[:space:]]+.*etc/(brave|opt)' \
   "$root/qvcore/browser/remove"; then
   fail "browser removal recursively deletes shared policy"
@@ -131,7 +131,7 @@ grep -Fqx -- \
   fail "Chromium bypasses the native Copy URL extension"
 if rg -n 'default/(chromium|firefox)' \
   "$root/qvcore/browser" "$root/qvcore/config/files/chromium-flags.conf" \
-  --glob '!AGENTS.md' --glob '!check' --glob '!migrate-runtime-root' \
+  --glob '!AGENTS.md' --glob '!check' \
   --glob '!retired-paths'; then
   fail "native browser ownership retains an inherited default"
 fi
@@ -140,4 +140,4 @@ if rg -n 'eval|new Function|innerHTML|document\.write' \
   fail "Copy URL extension contains an unsafe execution primitive"
 fi
 
-printf 'ok - browsers have one exact lifecycle without inherited OAuth credentials\n'
+printf 'ok - browsers have one exact native lifecycle without convergence engines\n'

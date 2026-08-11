@@ -23,8 +23,6 @@ chrome | brave | brave-origin | edge | firefox | zen) ;;
   ;;
 esac
 
-"$QVOS_PATH/qvcore/browser/migrate-runtime-root"
-
 setup_policy_directory() {
   "$QVOS_PATH/qvcore/browser/setup-policy" "$1"
 }

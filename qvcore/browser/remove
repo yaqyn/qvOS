@@ -34,8 +34,17 @@ remove_policy_files() {
 }
 
 remove_firefox_wayland_if_unused() {
+  local wayland_file="$HOME/.config/environment.d/qvos-firefox-wayland.conf"
+
   if qv-pkg-missing firefox && qv-pkg-missing zen-browser-bin; then
-    "$QVOS_PATH/qvcore/browser/migrate-runtime-root" --remove
+    [[ -e $wayland_file || -L $wayland_file ]] || return 0
+    if [[ ! -L $wayland_file && -f $wayland_file && -O $wayland_file ]] &&
+      [[ $(<"$wayland_file") == "MOZ_ENABLE_WAYLAND=1" ]]; then
+      unlink -- "$wayland_file"
+    else
+      printf 'Preserving modified Firefox Wayland environment: %s\n' \
+        "$wayland_file" >&2
+    fi
   fi
 }
 
