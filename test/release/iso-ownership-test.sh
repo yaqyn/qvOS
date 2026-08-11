@@ -50,6 +50,18 @@ grep -Fq -- '--pull=always' "$build" ||
   fail "native ISO reuses a stale mutable build container"
 grep -Fq 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' \
   "$build" || fail "native ISO stage bypasses its release filesystem"
+grep -Fq -- '-v "$cache_root:/var/cache"' "$build" ||
+  fail "native ISO Archiso workspace bypasses its private stage"
+grep -Fq 'using an empty one-shot build cache' "$build" ||
+  fail "native ISO no-cache mode is not explicit"
+grep -Fq -- '-v qvos-iso-pacman-cache:/var/cache/pacman/pkg' "$build" ||
+  fail "native ISO does not preserve its reusable package cache"
+grep -Fq -- '-v qvos-iso-tool-cache:/var/cache/qvos' "$build" ||
+  fail "native ISO does not preserve its reusable tool cache"
+grep -Fq -- '--pull=never' "$build" ||
+  fail "native ISO stage ownership cleanup can pull mutable code"
+grep -Fq 'chown -R "$(id -u):$(id -g)" /cache' "$build" ||
+  fail "native ISO leaves staged build data owned by Docker"
 
 # shellcheck disable=SC2016
 grep -Fq 'provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"' "$build" ||
@@ -117,6 +129,12 @@ if grep -Eq 'pacman[[:space:]].*-Scc|rm -rf.*pacman/pkg' \
   "$builder" "$cache_recovery"; then
   fail "release ISO clears the reusable package cache broadly"
 fi
+grep -Fq '[[ -d $tool_mirror_root && ! -L $tool_mirror_root ]]' "$builder" ||
+  fail "release ISO follows an unsafe reusable tool-cache mirror root"
+grep -Fq '$(readlink -- "$tool_mirror_link") == "$offline_mirror_dir"' \
+  "$builder" || fail "release ISO accepts a foreign cached offline mirror"
+grep -Fq 'unsafe qvOS tool-cache offline mirror entry' "$builder" ||
+  fail "release ISO does not reject tool-cache drift"
 
 cache_test_root=$(mktemp -d)
 trap 'rm -rf -- "$cache_test_root"' EXIT

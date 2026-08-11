@@ -562,6 +562,9 @@ run_iso_builder() {
   local iso_root="$1"
   local staged_qvos="$2"
   local out_dir="$3"
+  local cache_root="$4"
+  local build_status=0
+  local ownership_status=0
   local docker_args=(
     --rm
     --pull=always
@@ -573,6 +576,7 @@ run_iso_builder() {
     -v "$iso_root/builder:/builder:ro"
     -v "$iso_root/profile:/profile:ro"
     -v "$staged_qvos:/qvos:ro"
+    -v "$cache_root:/var/cache"
   )
 
   if [[ -n $docker_network ]]; then
@@ -588,10 +592,33 @@ run_iso_builder() {
       -v qvos-iso-pacman-cache:/var/cache/pacman/pkg
       -v qvos-iso-tool-cache:/var/cache/qvos
     )
+  else
+    echo "qvOS ISO progress: using an empty one-shot build cache"
   fi
 
   echo "qvOS ISO progress: starting build container"
-  docker run "${docker_args[@]}" "$docker_image" /builder/build-iso.sh
+  docker run "${docker_args[@]}" "$docker_image" /builder/build-iso.sh ||
+    build_status=$?
+
+  # Docker creates the staged Archiso workspace as root. Restore ownership
+  # through the same container boundary so the host can either retain the
+  # exact failed stage or remove a successful one. Named download caches are
+  # nested mounts during the build and are not visible to this cleanup pass.
+  echo "qvOS ISO progress: releasing staged build cache"
+  docker run \
+    --rm \
+    --pull=never \
+    -v "$cache_root:/cache" \
+    "$docker_image" \
+    chown -R "$(id -u):$(id -g)" /cache || ownership_status=$?
+
+  if (( ownership_status != 0 )); then
+    echo "qvos-build could not release the staged build cache." >&2
+    (( build_status == 0 )) || return "$build_status"
+    return "$ownership_status"
+  fi
+
+  return "$build_status"
 }
 
 publish_release_artifact() {
@@ -668,7 +695,8 @@ echo "qvOS ISO preflight: stage $stage_root"
 
 staged_qvos="$stage_root/qvOS"
 stage_out="$stage_root/out"
-mkdir -p "$stage_out"
+stage_cache="$stage_root/cache"
+install -d -m 0700 "$stage_out" "$stage_cache"
 
 echo "qvOS ISO progress: stage ready"
 stage_qvos_source "$staged_qvos"
@@ -681,7 +709,7 @@ if [[ $prepare_only == "true" ]]; then
   exit 0
 fi
 
-if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out"; then
+if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out" "$stage_cache"; then
   preserve_stage=true
   exit 1
 fi

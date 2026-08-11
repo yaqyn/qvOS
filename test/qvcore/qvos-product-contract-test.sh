@@ -658,10 +658,12 @@ grep -Fq 'qvOS ISO failed stage retained:' "$iso_build" ||
 grep -Fq 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' \
   "$iso_build" ||
   fail "qvOS ISO stage is not on the selected artifact filesystem"
+grep -Fq -- '-v "$cache_root:/var/cache"' "$iso_build" ||
+  fail "qvOS ISO Archiso workspace is not on the selected artifact filesystem"
 if rg -q 'stage_root=.*(XDG_CACHE_HOME|HOME/.cache)' "$iso_build"; then
   fail "qvOS ISO stage can still exhaust an unrelated home cache filesystem"
 fi
-grep -Fq 'if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out"; then' \
+grep -Fq 'if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out" "$stage_cache"; then' \
   "$iso_build" ||
   fail "qvOS ISO build failure stage retention"
 grep -Fq 'checkout_qvos_update_branch "$target"' "$iso_build" ||

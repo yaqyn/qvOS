@@ -26,6 +26,14 @@ a thin adapter to this owner.
 - Create the private build stage on `QVOS_ISO_RELEASE_DIR` so large temporary
   images use the selected artifact filesystem. Retain that exact hidden stage
   on failure and remove it after a successful atomic publication.
+- Bind the complete Archiso workspace from that private stage into the build
+  container so image construction cannot silently fill Docker's host
+  filesystem. A `--no-cache` build uses only this empty one-shot workspace;
+  normal builds may nest the two named download-cache volumes inside it. Never
+  delete or replace those reusable volumes during stage cleanup. Release the
+  stage workspace back to the invoking user through a bounded container mount
+  after every build attempt so retained failures remain inspectable and
+  successful stages remain removable.
 - Mount that exact staged source read-only at `/qvos`, embed it at `/root/qvos`,
   and resolve package-provider files from it before the first Omarchy package.
   Never let the builder fetch a replacement product source or keep retired
@@ -59,6 +67,10 @@ a thin adapter to this owner.
   removed that exact archive, quarantine any safe matching signature and retry.
   Refuse links, nested paths, ambiguous output, and broad cache deletion; a
   repeated mismatch fails the build.
+  Treat the reusable tool cache the same way: its mirror directory must be a
+  real directory and its retained offline entry must be the exact expected
+  link into the current staged Archiso tree. Reuse that exact link
+  idempotently; never follow, replace, or delete a foreign cache entry.
   The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.

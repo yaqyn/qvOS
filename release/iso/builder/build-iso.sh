@@ -370,9 +370,28 @@ repo-add --new "$offline_mirror_dir/offline.db.tar.gz" "${offline_packages[@]}"
 find "$offline_mirror_dir" -maxdepth 1 -type f -exec chmod 0644 {} +
 
 # Create a symlink to the offline mirror instead of duplicating it.
-# mkarchiso needs packages at the same path exposed inside the live image.
-mkdir -p /var/cache/qvos/mirror
-ln -s "$offline_mirror_dir" "/var/cache/qvos/mirror/offline"
+# mkarchiso needs packages at the same path exposed inside the live image. The
+# tool cache is reusable, so accept only our exact link on later builds and
+# reject any foreign cache entry rather than following or replacing it.
+tool_mirror_root=/var/cache/qvos/mirror
+tool_mirror_link="$tool_mirror_root/offline"
+if [[ -e $tool_mirror_root || -L $tool_mirror_root ]]; then
+  [[ -d $tool_mirror_root && ! -L $tool_mirror_root ]] || {
+    echo "ERROR: unsafe qvOS tool-cache mirror root" >&2
+    exit 1
+  }
+else
+  install -d -m 0755 "$tool_mirror_root"
+fi
+if [[ -e $tool_mirror_link || -L $tool_mirror_link ]]; then
+  [[ -L $tool_mirror_link &&
+    $(readlink -- "$tool_mirror_link") == "$offline_mirror_dir" ]] || {
+    echo "ERROR: unsafe qvOS tool-cache offline mirror entry" >&2
+    exit 1
+  }
+else
+  ln -s -- "$offline_mirror_dir" "$tool_mirror_link"
+fi
 
 # Copy the offline pacman.conf to the ISO's /etc directory so the live environment uses our
 # same config when booted.
