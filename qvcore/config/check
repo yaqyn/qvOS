@@ -283,7 +283,7 @@ if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-
   fail "native qvOS source still calls a config compatibility command"
 fi
 
-if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy-(battery-monitor|recover-internal-monitor)\.(service|timer)' \
+if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy_battery_notified|omarchy-(battery-monitor|recover-internal-monitor)\.(service|timer)' \
   "$root/bin" \
   "$root/qvcore/config/files" \
   "$root/qvcore/config/battery-monitor" \

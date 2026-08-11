@@ -112,6 +112,9 @@ Only manage the user systemd instance when `HOME` is the active account home.
 same home. Fresh chroot and cross-home runs deploy unit files without contacting
 a manager; first run activates them after the real session exists. The test
 override accepts only an executable temporary `systemctl` fixture.
+The battery monitor keeps its one-shot notification flag only at
+`$XDG_RUNTIME_DIR/qvos-battery-notified`; no inherited runtime flag is read,
+migrated, or removed during normal monitoring.
 
 `qvcore/config/files/fastfetch/config.jsonc` is the singular native Fastfetch source. It
 reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to

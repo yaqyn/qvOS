@@ -8,28 +8,18 @@ runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$UID}
   exit 1
 }
 notification_flag="$runtime_dir/qvos-battery-notified"
-legacy_notification_flag="$runtime_dir/omarchy_battery_notified"
 power_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../power" && pwd)
 battery_sample=$("$power_root/battery-info" sample)
 IFS=$'\t' read -r battery_level battery_state <<<"$battery_sample"
 
-[[ ! -L $notification_flag && ! -L $legacy_notification_flag ]] || {
+[[ ! -L $notification_flag ]] || {
   echo "Refusing unsafe qvOS battery notification state." >&2
   exit 1
 }
-for state_file in "$notification_flag" "$legacy_notification_flag"; do
-  [[ ! -e $state_file || (-f $state_file && -O $state_file) ]] || {
-    echo "Refusing unsafe qvOS battery notification state: $state_file" >&2
-    exit 1
-  }
-done
-if [[ -f $legacy_notification_flag ]]; then
-  if [[ -e $notification_flag ]]; then
-    rm -f -- "$legacy_notification_flag"
-  else
-    mv -- "$legacy_notification_flag" "$notification_flag"
-  fi
-fi
+[[ ! -e $notification_flag || (-f $notification_flag && -O $notification_flag) ]] || {
+  echo "Refusing unsafe qvOS battery notification state: $notification_flag" >&2
+  exit 1
+}
 [[ ! -e $notification_flag ]] || chmod 0600 -- "$notification_flag"
 
 send_notification() {
@@ -54,5 +44,5 @@ if [[ $battery_level =~ ^[0-9]+$ ]] &&
     install -m 0600 /dev/null "$notification_flag"
   fi
 else
-  rm -f -- "$notification_flag" "$legacy_notification_flag"
+  rm -f -- "$notification_flag"
 fi
