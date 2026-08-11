@@ -10,3 +10,6 @@ e5290b0a12c556cf2bbecb01e3441605dce4d602:default/chromium/extensions/yt-dlp/mani
 # Deliberate non-secret token fixture retained in qvOS test history.
 acbdb85ca9e4a746e2be9305afdb33f27f5c2925:test/qvos/qvos-dev-share-test.sh:generic-api-key:146
 acbdb85ca9e4a746e2be9305afdb33f27f5c2925:test/qvcore/qvos-dev-share-test.sh:generic-api-key:146
+
+# Public provider signing-key payload digest retained in qvOS ISO history.
+b8529c77eb063623a3cc93e0f1636b29d8a53755:release/iso/builder/build-iso.sh:generic-api-key:35
