@@ -166,14 +166,9 @@ grep -Fqx '"$QVOS_PATH/qvcore/branding/system-identity"' \
   fail "fresh install does not activate the native system identity"
 grep -Fq 'mise use -g node@lts' "$root/qvcore/install/config/mise-work.sh" ||
   fail "online installation does not select Node.js LTS"
-grep -Fq 'mise install node@lts' "$root/qvcore/install/config/mise-work.sh" ||
-  fail "existing installations cannot stage Node.js LTS before migration"
-grep -Fq 'MISE_NO_CONFIG=1' "$root/qvcore/install/config/mise-work.sh" ||
-  fail "Node.js migration loads unrelated Mise configuration"
-grep -Fq 'migrate-node-lts)' "$root/qvcore/install/config/mise-work.sh" ||
-  fail "native Mise owner lacks the inherited channel migration mode"
-if rg -n 'node@latest|mise trust ~' "$root/qvcore/install/config/mise-work.sh"; then
-  fail "fresh installation uses moving Node.js Current or trusts foreign config"
+if rg -n 'QVOS_MISE_MODE|migrate-node-lts|qvos_mise_migrate_node_lts|node@latest|mise trust ~' \
+  "$root/qvcore/install/config/mise-work.sh"; then
+  fail "Mise setup retains a migration mode, moving Current, or foreign trust"
 fi
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/controls/install-root"' \
