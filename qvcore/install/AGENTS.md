@@ -186,7 +186,10 @@ unused Bluetooth, runner, todo, and Unicode providers. Install official Neovim
 with the native minimal config seed and palette-generated theme; never restore
 `omarchy-nvim`, its setup stage, LazyVim preload, or bundled theme catalog.
 Before first-run services are enabled, run the native config toggle-state and
-user-service reconcilers. Battery monitoring and internal-monitor recovery use
+user-service reconcilers. The target chroot has no user manager: config, menu,
+Thunar, and power owners use the shared manager probe to stage units without a
+reload, and first run activates them after the desktop session exists. Battery
+monitoring and internal-monitor recovery use
 only `qvos-*` unit identities; inherited unit names and toggle roots are
 existing-system migration inputs, never fresh state.
 AC-event rules must execute only root-owned helpers under `/usr/lib/qvos`.

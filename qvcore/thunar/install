@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/config/user-systemd-lib disable=SC1091
+source "$QVOS_PATH/qvcore/config/user-systemd-lib"
 runtime_launcher="$HOME/.local/lib/qvos/thunar/launch"
 command_link="$HOME/.local/bin/thunar"
 unit_dir="$HOME/.config/systemd/user/thunar.service.d"
@@ -42,4 +45,6 @@ ExecStart=%h/.local/lib/qvos/thunar/launch --daemon
 UNIT
 fi
 
-systemctl --user daemon-reload
+if qvos_user_manager_is_active; then
+  systemctl --user daemon-reload
+fi

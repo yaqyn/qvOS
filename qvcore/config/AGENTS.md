@@ -105,8 +105,10 @@ reconciliation invoke it; never restore an active `omarchy-*` unit.
 Disable inherited timer and installable unit names before archiving them, but
 stop static helper services directly; static units are not enablement targets.
 Only manage the user systemd instance when `HOME` is the active account home.
-Cross-home fixtures may deploy files but must never contact the real manager;
-the test override accepts only an executable temporary `systemctl` fixture.
+`user-systemd-lib` singularly verifies that the reachable manager reports that
+same home. Fresh chroot and cross-home runs deploy unit files without contacting
+a manager; first run activates them after the real session exists. The test
+override accepts only an executable temporary `systemctl` fixture.
 
 `qvcore/config/files/fastfetch/config.jsonc` is the singular native Fastfetch source. It
 reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to

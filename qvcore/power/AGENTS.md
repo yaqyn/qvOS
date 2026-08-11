@@ -61,6 +61,9 @@ root-owned copy as `/usr/lib/systemd/system-sleep/qvos-unmount-fuse`; it removes
 the inherited `unmount-fuse` name only when its mode, owner, and payload hash
 all match the reviewed predecessor, and preserves every modified or unsafe
 file.
+Power installation stages its dormant user unit independently of session
+availability and reloads only a reachable manager for the same `HOME` through
+the shared config probe. A fresh chroot leaves activation to first run.
 
 ## Hibernation
 

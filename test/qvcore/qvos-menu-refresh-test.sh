@@ -97,6 +97,8 @@ ln -s "$root/qvcore/tui" "$incomplete/qvcore/tui"
 ln -s "$root/default" "$incomplete/default"
 install -m 0755 "$root/qvcore/config/refresh" \
   "$incomplete/qvcore/config/refresh"
+install -m 0644 "$root/qvcore/config/user-systemd-lib" \
+  "$incomplete/qvcore/config/user-systemd-lib"
 for config_path in \
   autostart/walker.desktop \
   elephant/desktopapplications.toml \

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/config/user-systemd-lib disable=SC1091
+source "$QVOS_PATH/qvcore/config/user-systemd-lib"
 menu_source_dir="$QVOS_PATH/qvcore/menu"
 base_source="$menu_source_dir/base"
 routes_source="$menu_source_dir/routes"
@@ -451,8 +453,6 @@ install_menu_providers() {
 }
 
 install_menu_runtime() {
-  local manager_home
-
   install -D -m 0755 "$font_install_source" "$font_install_runtime"
   install -D -m 0755 "$terminal_action_source" "$terminal_action_runtime"
   retire_menu_runtime
@@ -462,11 +462,7 @@ install_menu_runtime() {
   install -D -m 0755 "$elephant_ready_source" "$elephant_ready_runtime"
   install -D -m 0644 "$walker_ready_source" "$walker_ready_target"
 
-  if manager_home=$(
-    systemctl --user show-environment 2>/dev/null |
-      sed -n 's/^HOME=//p' |
-      head -n 1
-  ) && [[ $manager_home == "$HOME" ]]; then
+  if qvos_user_manager_is_active; then
     systemctl --user daemon-reload
   fi
 }
@@ -681,15 +677,9 @@ cleanup_legacy_menu_theme() {
 }
 
 reload_active_menu_services() {
-  local manager_home
   local service
 
-  manager_home=$(
-    systemctl --user show-environment 2>/dev/null |
-      sed -n 's/^HOME=//p' |
-      head -n 1
-  ) || return 0
-  [[ $manager_home == "$HOME" ]] || return 0
+  qvos_user_manager_is_active || return 0
 
   for service in elephant.service app-walker@autostart.service; do
     if systemctl --user is-active --quiet "$service"; then

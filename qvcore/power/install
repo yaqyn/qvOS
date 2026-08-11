@@ -2,6 +2,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/config/user-systemd-lib disable=SC1091
+source "$QVOS_PATH/qvcore/config/user-systemd-lib"
 source_dir="$QVOS_PATH/qvcore/power"
 runtime_dir="$HOME/.local/lib/qvos/power"
 qvos_bin="$HOME/.local/lib/qvos/bin"
@@ -128,6 +130,6 @@ else
   "$source_dir/hibernation/install-root"
 fi
 
-if [[ -z $system_root ]]; then
+if [[ -z $system_root ]] && qvos_user_manager_is_active; then
   /usr/bin/systemctl --user daemon-reload
 fi

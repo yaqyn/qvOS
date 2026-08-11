@@ -95,6 +95,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   layout/style source under `qvcore/menu/walker-theme/`. Install only generated
   runtime copies through `qvcore/menu/install`; never link a provider or theme
   back to an inherited source tree. Native provider identities use `qvos*`.
+- Runtime installation and service restarts use the shared config probe and
+  contact only a reachable user manager that reports the same `HOME`. A fresh
+  chroot stages menu units and lets first run start the desktop services.
 - Base installation selects official Walker, Elephant, and only the provider
   packages referenced by the native config and menu. Never restore the
   `omarchy-walker` meta-package or its unused Bluetooth, runner, todo, and

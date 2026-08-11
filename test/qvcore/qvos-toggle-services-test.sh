@@ -197,6 +197,10 @@ set -euo pipefail
 
 unit_root="$HOME/.config/systemd/user"
 case "$*" in
+"--user show-environment")
+  [[ ${QVOS_TEST_MANAGER_UNAVAILABLE:-} != "1" ]] || exit 1
+  printf 'HOME=%s\n' "${QVOS_TEST_MANAGER_HOME:-$HOME}"
+  ;;
 "--user is-enabled omarchy-battery-monitor.timer")
   [[ -f $unit_root/omarchy-battery-monitor.timer ]] && printf 'enabled\n' || printf 'disabled\n'
   ;;
@@ -216,6 +220,27 @@ case "$*" in
   ;;
 esac
 SCRIPT
+
+deferred_home="$test_root/deferred-service-home"
+deferred_unit_root="$deferred_home/.config/systemd/user"
+QVOS_TEST_MANAGER_UNAVAILABLE=1 \
+  HOME="$deferred_home" \
+  QVOS_PATH="$root" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/user-services"
+for native_unit in \
+  qvos-battery-monitor.service \
+  qvos-battery-monitor.timer \
+  qvos-recover-internal-monitor.service; do
+  cmp -s \
+    "$root/qvcore/config/files/systemd/user/$native_unit" \
+    "$deferred_unit_root/$native_unit" ||
+    fail "deferred native user service deployment: $native_unit"
+done
+[[ ! -s $systemctl_log ]] ||
+  fail "unavailable user manager received a mutation"
+printf 'ok - fresh user units stage safely without a chroot user manager\n'
 
 HOME="$service_home" \
   QVOS_PATH="$root" \

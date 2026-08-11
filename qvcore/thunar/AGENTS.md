@@ -8,7 +8,8 @@ plugin view without the wallpaper plugin, then calls the absolute system
 binary so the local compatibility command cannot recurse. `install` owns the
 exact `~/.local/bin/thunar` link and the user systemd drop-in that routes D-Bus
 activation through the same launcher. Refuse foreign objects at either owned
-path.
+path. Reload only a reachable user manager that reports the same `HOME` through
+the shared config probe; a fresh chroot stages the drop-in for first login.
 
 Keep custom-action mutation in `actions.sh` and reconcile only named qvOS
 actions. Preserve valid foreign actions and optional Proton or Devel actions.

@@ -223,6 +223,22 @@ done
 for owner in neovim toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+[[ -f $root/qvcore/config/user-systemd-lib &&
+  ! -L $root/qvcore/config/user-systemd-lib ]] ||
+  fail "shared user-manager probe"
+grep -Fq 'systemctl --user show-environment' \
+  "$root/qvcore/config/user-systemd-lib" || fail "read-only user-manager probe"
+for consumer in \
+  qvcore/config/user-services \
+  qvcore/menu/install \
+  qvcore/power/install \
+  qvcore/thunar/install; do
+  # shellcheck disable=SC2016
+  grep -Fq 'source "$QVOS_PATH/qvcore/config/user-systemd-lib"' \
+    "$root/$consumer" || fail "shared user-manager consumer: $consumer"
+  grep -Fq 'qvos_user_manager_is_active' "$root/$consumer" ||
+    fail "bounded user-manager access: $consumer"
+done
 "$root/qvcore/config/assistant/check" >/dev/null ||
   fail "native assistant integration contract"
 if rg -n 'omarchy-nvim-(setup|refresh)' \

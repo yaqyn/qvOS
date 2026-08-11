@@ -67,6 +67,7 @@
     qvcore/config/neovim
     qvcore/config/retired-neovim-signatures.psv
     qvcore/config/retired-hypr-layer.psv
+    qvcore/config/user-systemd-lib
     qvcore/config/assistant/install
     qvcore/config/files/xcompose
     qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf

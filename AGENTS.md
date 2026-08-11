@@ -179,7 +179,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
-  inherited unit names are migration input only
+  one shared probe limits manager access to the active account home, while a
+  fresh chroot stages units for first run; inherited unit names are migration
+  input only
 - Restartable long-running desktop components use stable `qvos-*` UWSM units
   so a restart stops the complete prior control group before relaunching
 - qvOS-managed installed runtime command trees expose only native names. Exact

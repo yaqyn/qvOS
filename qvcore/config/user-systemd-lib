@@ -1,0 +1,13 @@
+#!/bin/bash
+# shellcheck shell=bash
+
+qvos_user_manager_is_active() {
+  local manager_home
+
+  manager_home=$(
+    systemctl --user show-environment 2>/dev/null |
+      sed -n 's/^HOME=//p' |
+      head -n 1
+  ) || return 1
+  [[ -n $manager_home && $manager_home == "$HOME" ]]
+}

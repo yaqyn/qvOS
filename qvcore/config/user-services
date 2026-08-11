@@ -2,6 +2,8 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# shellcheck source=qvcore/config/user-systemd-lib disable=SC1091
+source "$QVOS_PATH/qvcore/config/user-systemd-lib"
 source_root="$QVOS_PATH/qvcore/config/files/systemd/user"
 unit_root="$HOME/.config/systemd/user"
 backup_root="$HOME/.local/state/qvos/backups/pre-native-user-services"
@@ -71,11 +73,9 @@ unit_is_active() {
 }
 
 configure_systemd_access() {
-  local account_home
   local systemctl_command
 
-  account_home=$(getent passwd "$UID" | cut -d: -f6)
-  if [[ -n $account_home && $HOME == "$account_home" ]]; then
+  if qvos_user_manager_is_active; then
     manage_systemd=true
     return 0
   fi
