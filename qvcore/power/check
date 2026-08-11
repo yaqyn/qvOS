@@ -122,8 +122,7 @@ if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|rem
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
   --glob '!**/check' --glob '!**/omarchy/extensions/menu.sh' \
   --glob '!**/power/event-rule' \
-  --glob '!**/power/profile-rule' --glob '!**/power/install' \
-  --glob '!**/config/migrate-runtime-root'; then
+  --glob '!**/power/profile-rule' --glob '!**/power/install'; then
   fail "native qvOS source still calls a power compatibility command"
 fi
 if rg -n 'omarchy-hibernation-' \

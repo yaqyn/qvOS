@@ -24,6 +24,6 @@ Omarchy names are metadata-free compatibility adapters only.
   Nautilus is retired and has no source or installed extension path.
 
 Run `qvcore/transcode/check`, Bash syntax, ShellCheck, the focused Transcode,
-branding, Thunar, menu, config-migration, product, install, CLI, and upstream
+branding, Thunar, menu, product, install, CLI, and upstream
 tests, then the full qvOS suite. Use fixtures for conversion commands; do not
 modify real media merely to verify source.

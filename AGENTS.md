@@ -175,6 +175,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   mkinitcpio, and UKI identities; exact `omarchy` boot artifacts are accepted
   only as preservation-safe migration input and are removed after replacement
   verification
+- the general pre-public runtime-root config rewriter and obsolete-state
+  scanner are retired after the only supported installation converged; fresh
+  install and update paths reconcile explicit native owners without scanning
+  unrelated user trees
 - `qvcore/boot/session-start` owns qvOS login and always passes the verified
   native Lua entrypoint explicitly to Hyprland through UWSM; generic
   `hyprland.desktop` discovery is forbidden because it can regenerate a

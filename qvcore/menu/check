@@ -131,13 +131,6 @@ grep -Fqx 'exec "$QVOS_PATH/qvcore/share/share" "$@"' \
 grep -Fqx 'exec "$QVOS_PATH/qvcore/share/share" "$@"' \
   "$root/bin/omarchy-share" || fail "compatibility Share adapter owner"
 
-grep -Fq "'omarchy-launch-walker' 'qv-launch-walker'" \
-  "$root/qvcore/config/migrate-runtime-root" || fail "Walker config migration"
-grep -Fq "'omarchy-menu-keybindings' 'qv-menu-keybindings'" \
-  "$root/qvcore/config/migrate-runtime-root" || fail "keybinding config migration"
-grep -Fq "'omarchy-menu' 'qv-menu'" \
-  "$root/qvcore/config/migrate-runtime-root" || fail "menu config migration"
-
 mapfile -t base_functions < <(
   sed -nE 's/^(function[[:space:]]+)?([[:alnum:]_]+)\(\).*/\2/p' \
     "$root/qvcore/menu/base" | sort -u

@@ -44,12 +44,6 @@ grep -Fq 'ln -- "$temporary" "$destination"' "$root/qvcore/reminder/run" ||
   fail "reminder state lacks an atomic no-clobber commit"
 grep -Fq 'qvcore/controls/notification/send' "$root/qvcore/reminder/lib" ||
   fail "reminder does not use the native notification owner"
-for route in clear show; do
-  grep -Fq "'omarchy-reminder $route' 'qv-reminder $route'" \
-    "$root/qvcore/config/migrate-runtime-root" ||
-    fail "reminder binding migration: $route"
-done
-
 for frontend in qv omarchy; do
   "$root/bin/$frontend" commands --json | jq -e \
     --arg route "$frontend reminder" '

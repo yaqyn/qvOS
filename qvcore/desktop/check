@@ -203,7 +203,6 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
-  --glob '!**/config/migrate-runtime-root' \
   --glob '!**/tui/task/selectable-owner' \
   --glob '!**/desktop/webapp/lib'; then
   fail "native qvOS source still calls a launch compatibility command"

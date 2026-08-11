@@ -15,9 +15,9 @@ Keep custom-action mutation in `actions.sh` and reconcile only named qvOS
 actions. Preserve valid foreign actions and optional Proton or Devel actions.
 The Transcode action accepts one regular selected file and launches the native
 `qv-transcode` owner through the qvOS presentation route with exact arguments.
-Remove old desktop files, user units, D-Bus services, copied launchers, and
-plugin links only through exact checks in `qvcore/install/cleanup-obsolete`.
-Never delete modified or foreign state.
+Fresh qvOS never creates the retired desktop file, user unit, D-Bus services,
+copied launcher, or plugin-link tree. Current reconciliation never scans or
+deletes those historical paths; preserve all foreign state.
 
 After changes, run Bash syntax and ShellCheck, the Thunar and desktop-install
 tests, then the full qvOS suite. On live apply, run the desktop owner, reload

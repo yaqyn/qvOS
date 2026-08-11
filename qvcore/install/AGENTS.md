@@ -44,26 +44,12 @@ unsigned hardware repository after provider validation. T2 Macs require an
 unsigned third-party package set that qvOS does not manage, so both native and
 fallback ISO preflight must refuse them before disk selection; keep their
 repository, packages, kernel, graphics branch, and post-install fix absent.
-Remove obsolete qvOS state only through `qvcore/install/cleanup-obsolete`, and only
-when its former owner is absent and the installed payload is an exact known
-qvOS artifact. Preserve symbolic links, modified files, and foreign data.
-This includes the former installed `hypr/qv` overlay after its exact source
-line migrates into the singular native base. Both migration and cleanup consume
-`qvcore/config/retired-hypr-layer.psv` as the single known-payload policy;
-modified overlay files remain as preserved user compatibility state. Every
-desktop and post-update reconciliation runs the native config migration
-immediately before cleanup, and cleanup refuses an overlay that is still
-actively sourced.
-Retired Nautilus extensions are removed only when their source hash matches the
-known inherited payload; remove their matching bytecode only in that same
-verified cleanup and leave every modified or unrelated extension intact.
-The former Omarchy logo font is not a qvOS theme asset: its only consumer was
-the retired Waybar branding glyph. Keep it absent from fresh installation and
-remove installed-font and old config-root copies only when their exact
-historical hash matches; preserve modified files, links, and foreign fonts.
-Remove the three retired qvOS maintenance aliases only when they are exact
-broken links to their absent historical source commands; preserve every other
-local command or target.
+The general pre-public config and obsolete-state convergence owners are retired
+after the only supported installation reached native state. Fresh installation
+and post-update reconciliation must not scan unrelated user trees or carry
+historical Hyprland overlays, Nautilus extensions, logo fonts, maintenance
+aliases, D-Bus services, or copied Thunar launchers. Each current feature owner
+mutates only its explicit native paths and preserves foreign data.
 Do not install a global GnuPG resolver policy or force system and user service
 shutdown timeouts. The pre-public convergence code for those inherited files
 is retired; fresh qvOS carries only the system defaults.

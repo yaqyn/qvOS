@@ -61,111 +61,6 @@ fail() {
   exit 1
 }
 
-if git -C "$root" show-ref --verify --quiet refs/remotes/upstream/master; then
-  retired_source_ref=upstream/master
-elif git -C "$root" show-ref --verify --quiet refs/remotes/origin/master; then
-  retired_source_ref=origin/master
-else
-  fail "retired Nautilus fixture source"
-fi
-
-retired_font_hash=e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966
-[[ $(git -C "$root" show "$retired_source_ref:config/omarchy.ttf" | sha256sum) == \
-  "$retired_font_hash  -" ]] || fail "retired Waybar logo-font fixture"
-
-exact_font_home="$test_root/exact-font-home"
-install -d "$exact_font_home/.config" "$exact_font_home/.local/share/fonts"
-git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
-  install -m 0644 /dev/stdin "$exact_font_home/.local/share/fonts/omarchy.ttf"
-git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
-  install -m 0644 /dev/stdin "$exact_font_home/.config/omarchy.ttf"
-HOME="$exact_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
-  "$root/qvcore/install/cleanup-obsolete"
-[[ ! -e $exact_font_home/.local/share/fonts/omarchy.ttf &&
-  ! -e $exact_font_home/.config/omarchy.ttf ]] ||
-  fail "exact retired Waybar logo-font cleanup"
-pass "exact retired Waybar logo-font copies are removed"
-
-modified_font_home="$test_root/modified-font-home"
-install -d "$modified_font_home/.config" "$modified_font_home/.local/share/fonts"
-git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
-  install -m 0644 /dev/stdin "$modified_font_home/.local/share/fonts/omarchy.ttf"
-git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
-  install -m 0644 /dev/stdin "$modified_font_home/.config/omarchy.ttf"
-printf 'user modification\n' >>"$modified_font_home/.local/share/fonts/omarchy.ttf"
-printf 'user modification\n' >>"$modified_font_home/.config/omarchy.ttf"
-HOME="$modified_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
-  "$root/qvcore/install/cleanup-obsolete"
-[[ -f $modified_font_home/.local/share/fonts/omarchy.ttf &&
-  -f $modified_font_home/.config/omarchy.ttf ]] ||
-  fail "modified Waybar logo-font preservation"
-pass "modified retired Waybar logo-font copies are preserved"
-
-linked_font_home="$test_root/linked-font-home"
-linked_font_target="$test_root/linked-font-target.ttf"
-install -d "$linked_font_home/.config" "$linked_font_home/.local/share/fonts"
-git -C "$root" show "$retired_source_ref:config/omarchy.ttf" |
-  install -m 0644 /dev/stdin "$linked_font_target"
-ln -s "$linked_font_target" "$linked_font_home/.local/share/fonts/omarchy.ttf"
-ln -s "$linked_font_target" "$linked_font_home/.config/omarchy.ttf"
-HOME="$linked_font_home" QVOS_PATH="$root" PATH="$root/bin:$PATH" \
-  "$root/qvcore/install/cleanup-obsolete"
-[[ -L $linked_font_home/.local/share/fonts/omarchy.ttf &&
-  -L $linked_font_home/.config/omarchy.ttf &&
-  -f $linked_font_target ]] || fail "linked Waybar logo-font preservation"
-pass "linked retired Waybar logo-font copies are preserved"
-
-retired_command_home="$test_root/retired-command-home"
-install -d "$retired_command_home/.local/bin"
-for retired_command in \
-  omarchy-qvos-doctor \
-  omarchy-qvos-reconcile \
-  omarchy-qvos-update; do
-  ln -s "$retired_command_home/.local/share/qvos/bin/$retired_command" \
-    "$retired_command_home/.local/bin/$retired_command"
-done
-ln -s "$retired_command_home/missing-custom-owner" \
-  "$retired_command_home/.local/bin/omarchy-qvos-custom"
-HOME="$retired_command_home" QVOS_PATH="$root" \
-  "$root/qvcore/install/cleanup-obsolete"
-for retired_command in \
-  omarchy-qvos-doctor \
-  omarchy-qvos-reconcile \
-  omarchy-qvos-update; do
-  [[ ! -e $retired_command_home/.local/bin/$retired_command &&
-    ! -L $retired_command_home/.local/bin/$retired_command ]] ||
-    fail "exact retired command link cleanup: $retired_command"
-done
-[[ -L $retired_command_home/.local/bin/omarchy-qvos-custom ]] ||
-  fail "foreign broken command link preservation"
-pass "retired maintenance aliases are removed without claiming foreign links"
-
-unsafe_cleanup_home="$test_root/unsafe-cleanup-home"
-unsafe_nautilus_target="$test_root/foreign-nautilus"
-install -d \
-  "$unsafe_cleanup_home/.local/share" \
-  "$unsafe_nautilus_target/extensions"
-git -C "$root" show \
-  "$retired_source_ref:default/nautilus-python/extensions/localsend.py" |
-  install -m 0644 /dev/stdin "$unsafe_nautilus_target/extensions/localsend.py"
-ln -s "$unsafe_nautilus_target" \
-  "$unsafe_cleanup_home/.local/share/nautilus-python"
-HOME="$unsafe_cleanup_home" "$root/qvcore/install/cleanup-obsolete"
-[[ -f $unsafe_nautilus_target/extensions/localsend.py ]] ||
-  fail "linked Nautilus root preservation"
-pass "retired extension cleanup refuses a linked Nautilus root"
-
-modified_hypr_home="$test_root/modified-hypr-home"
-install -d "$modified_hypr_home/.config/hypr/qv"
-printf '# personal qvOS layer\n' >"$modified_hypr_home/.config/hypr/qv.conf"
-printf '# personal qvOS windows\n' \
-  >"$modified_hypr_home/.config/hypr/qv/windows.conf"
-HOME="$modified_hypr_home" "$root/qvcore/install/cleanup-obsolete"
-[[ -f $modified_hypr_home/.config/hypr/qv.conf &&
-  -f $modified_hypr_home/.config/hypr/qv/windows.conf ]] ||
-  fail "modified qvOS Hyprland layer preservation"
-pass "modified Hyprland compatibility state is never deleted"
-
 partial_root="$test_root/partial-source"
 partial_home="$test_root/partial-home"
 install -d \
@@ -320,10 +215,8 @@ install -d \
   "$test_root/.config/systemd/user" \
   "$test_root/.local/share/dbus-1/services" \
   "$test_root/.local/share/applications" \
-  "$test_root/.local/share/nautilus-python/extensions/__pycache__" \
   "$test_root/.local/bin" \
   "$test_root/.local/lib/qvos/bin" \
-  "$test_root/.local/lib/qvos/defaults/thunarx-3" \
   "$test_root/.local/lib/qvos/desktop/context" \
   "$test_root/.local/lib/qvos/screensaver" \
   "$test_root/.local/lib/qvos/thunar" \
@@ -365,59 +258,10 @@ touch \
   "$test_root/.local/lib/qvos/tmux/removed-feature" \
   "$test_root/.local/lib/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/waybar/prayer-data.sh"
-for retired_extension in localsend transcode; do
-  git -C "$root" show \
-    "$retired_source_ref:default/nautilus-python/extensions/$retired_extension.py" |
-    install -m 0644 /dev/stdin \
-      "$test_root/.local/share/nautilus-python/extensions/$retired_extension.py"
-  printf 'retired bytecode fixture\n' \
-    >"$test_root/.local/share/nautilus-python/extensions/__pycache__/$retired_extension.cpython-314.pyc"
-done
 install -m 0644 /dev/stdin "$test_root/.bashrc" <<'BASHRC'
 source "$HOME/.local/share/qvos/shell/aliases"
 alias hx="helix"
 BASHRC
-install -m 0644 /dev/stdin \
-  "$test_root/.local/share/applications/thunar.desktop" <<EOF
-[Desktop Entry]
-Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar %U
-[Desktop Action Home]
-Exec=$test_root/.local/share/qvos/defaults/qvos-launch-thunar %U
-EOF
-install -m 0644 /dev/stdin \
-  "$test_root/.config/systemd/user/thunar.service" <<EOF
-[Unit]
-Description=Thunar file manager
-Documentation=man:Thunar(1)
-
-[Service]
-Type=dbus
-ExecStart=$test_root/.local/share/qvos/defaults/qvos-launch-thunar --daemon
-BusName=org.xfce.FileManager
-KillMode=process
-EOF
-for plugin_name in thunar-apr.so thunar-uca.so; do
-  ln -s "/usr/lib/thunarx-3/$plugin_name" \
-    "$test_root/.local/lib/qvos/defaults/thunarx-3/$plugin_name"
-done
-for service_name in \
-  org.freedesktop.FileManager1 \
-  org.xfce.FileManager; do
-  install -m 0644 /dev/stdin \
-    "$test_root/.local/share/dbus-1/services/$service_name.service" <<EOF
-[D-BUS Service]
-Name=$service_name
-Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-service
-EOF
-done
-install -m 0644 /dev/stdin \
-  "$test_root/.local/share/dbus-1/services/org.xfce.Thunar.service" <<EOF
-[D-BUS Service]
-Name=org.xfce.Thunar
-Exec=$test_root/.local/lib/qvos/defaults/qvos-launch-thunar --gapplication-service
-# user customization
-EOF
-
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 
@@ -472,26 +316,6 @@ pass "custom hooks contain samples without duplicate qvOS system jobs"
 [[ ! -e $test_root/.local/lib/qvos/waybar/removed-feature ]] || fail "stale Waybar feature cleanup"
 pass "stale helper payloads are removed"
 
-[[ ! -e $test_root/.local/share/nautilus-python ]] ||
-  fail "exact retired Nautilus extension cleanup"
-pass "exact retired Nautilus extensions and bytecode are removed"
-
-for service_name in \
-  org.freedesktop.FileManager1.service \
-  org.xfce.FileManager.service; do
-  [[ ! -e $test_root/.local/share/dbus-1/services/$service_name ]] ||
-    fail "exact stale D-Bus service cleanup: $service_name"
-done
-[[ -f $test_root/.local/share/dbus-1/services/org.xfce.Thunar.service ]] ||
-  fail "modified D-Bus service preservation"
-pass "only exact obsolete qvOS D-Bus launchers are removed"
-
-[[ ! -e $test_root/.local/share/applications/thunar.desktop ]] ||
-  fail "obsolete qvOS Thunar desktop override cleanup"
-[[ ! -e $test_root/.config/systemd/user/thunar.service ]] ||
-  fail "obsolete qvOS Thunar service cleanup"
-[[ ! -e $test_root/.local/lib/qvos/defaults ]] ||
-  fail "obsolete qvOS Thunar plugin-root cleanup"
 [[ -L $test_root/.local/bin/thunar &&
   $(readlink -- "$test_root/.local/bin/thunar") == \
     "$test_root/.local/lib/qvos/thunar/launch" ]] ||
@@ -578,61 +402,6 @@ install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/services/proton"
 install -m 0600 /dev/null \
   "$test_root/.local/state/qvos/development/devel"
-install -d "$test_root/.config/hypr/qv"
-install -m 0644 /dev/stdin "$test_root/.config/hypr/qv.conf" <<'CONFIG'
-# qvOS specialized Hyprland configuration.
-# Core bindings now live directly in ~/.config/hypr/bindings.conf.
-
-source = ~/.config/hypr/qv/looknfeel.conf
-source = ~/.config/hypr/qv/windows.conf
-CONFIG
-install -m 0644 /dev/stdin \
-  "$test_root/.config/hypr/qv/looknfeel.conf" <<'CONFIG'
-# qvOS appearance overrides.
-
-misc {
-  # Apps that request attention should mark their workspace urgent instead of
-  # pulling focus away from the current workspace.
-  focus_on_activate = false
-}
-CONFIG
-install -m 0644 /dev/stdin \
-  "$test_root/.config/hypr/qv/windows.conf" <<'CONFIG'
-# qvOS window and layer rules.
-
-# Keep qvOS TUI windows on the shared wide floating stage.
-windowrule = float on, match:class ^org\.qvos\.tui$
-windowrule = size 1024 509, match:class ^org\.qvos\.tui$
-windowrule = center on, match:class ^org\.qvos\.tui$
-
-# Keep the tmux manager compact and separate from attached tmux sessions.
-windowrule = float on, match:class ^org\.qvos\.tmux-manager$
-windowrule = size 900 620, match:class ^org\.qvos\.tmux-manager$
-windowrule = center on, match:class ^org\.qvos\.tmux-manager$
-
-# qvOS screensaver owns the screen while active.
-windowrule = fullscreen on, match:class org.omarchy.screensaver
-windowrule = float on, match:class org.omarchy.screensaver
-windowrule = animation slide, match:class org.omarchy.screensaver
-
-# Steam and Steam-launched games live on workspace G.
-windowrule = workspace name:G silent, match:class ^([Ss]team|steamwebhelper|steam_app_[0-9]+)$
-
-# Keep Thunar dialogs and file-operation popups detached from tiled folder windows.
-windowrule = float on, match:class ^thunar$, match:modal 1
-windowrule = center on, match:class ^thunar$, match:modal 1
-windowrule = float on, match:class ^thunar$, match:title ^(File Operation Progress|Confirm to replace files|.*(Rename|Copy|Move|Delete).*)$
-windowrule = center on, match:class ^thunar$, match:title ^(File Operation Progress|Confirm to replace files|.*(Rename|Copy|Move|Delete).*)$
-CONFIG
-install -m 0644 /dev/stdin \
-  "$test_root/.config/hypr/hyprland.conf" <<'CONFIG'
-source = ~/.config/hypr/qv.conf
-CONFIG
-HOME="$test_root" "$root/qvcore/install/cleanup-obsolete"
-[[ -f $test_root/.config/hypr/qv.conf &&
-  -f $test_root/.config/hypr/qv/looknfeel.conf &&
-  -f $test_root/.config/hypr/qv/windows.conf ]] ||
-  fail "actively sourced stock Hyprland layer preservation"
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
 [[ $(find "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos" \
@@ -645,9 +414,6 @@ grep -Fq 'Exec=/usr/bin/custom-file-manager' \
 grep -Fq 'Environment=USER_CUSTOM=1' \
   "$test_root/.config/systemd/user/thunar.service" ||
   fail "custom Thunar service preservation"
-[[ ! -e $test_root/.config/hypr/qv.conf &&
-  ! -e $test_root/.config/hypr/qv ]] ||
-  fail "exact retired qvOS Hyprland layer cleanup"
 [[ ! -e $test_root/.local/lib/qvos/tui/.qvos-tui.STALE1 ]] ||
   fail "stale TUI build cleanup"
 [[ -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||

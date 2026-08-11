@@ -11,7 +11,6 @@ fail() {
 }
 
 for owner in \
-  cleanup-obsolete \
   migrate-source-root \
   migrate-structure \
   refresh-applications \
@@ -22,6 +21,9 @@ for owner in \
   system-tuning; do
   [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
 done
+[[ ! -e $root/qvcore/install/cleanup-obsolete &&
+  ! -L $root/qvcore/install/cleanup-obsolete ]] ||
+  fail "pre-release obsolete-state convergence owner remains"
 [[ ! -e $root/qvcore/install/retire-inherited-system-policy &&
   ! -L $root/qvcore/install/retire-inherited-system-policy ]] ||
   fail "pre-release inherited system-policy cleanup owner remains"
@@ -306,19 +308,6 @@ done
 ! rg -q 'packaging/fonts\.sh|config/files/omarchy\.ttf' \
   "$root/qvcore/install/packaging/all.sh" ||
   fail "fresh install retains the retired Waybar logo font"
-grep -Fq 'e55e67119e82f56f92d90cbf54b7ccc1b2946b32c535a29370439d7ef5215966' \
-  "$root/qvcore/install/cleanup-obsolete" ||
-  fail "retired Waybar logo-font cleanup hash"
-grep -Fq "target=\"\$HOME/.config/omarchy.ttf\"" \
-  "$root/qvcore/install/cleanup-obsolete" ||
-  fail "retired config-root logo-font cleanup"
-for retired_command in \
-  omarchy-qvos-doctor \
-  omarchy-qvos-reconcile \
-  omarchy-qvos-update; do
-  grep -Fq "$retired_command" "$root/qvcore/install/cleanup-obsolete" ||
-    fail "retired qvOS maintenance alias cleanup: $retired_command"
-done
 for package_stage in preflight/pacman.sh post-install/pacman.sh; do
   grep -Fq 'qvcore/packages/provider-files' \
     "$root/qvcore/install/$package_stage" ||
@@ -388,21 +377,5 @@ if rg -n \
   --glob '!AGENTS.md' --glob '!check' --glob '!native-paths'; then
   fail "native install lifecycle calls a compatibility route"
 fi
-
-for reconciler in \
-  "$root/qvcore/install/desktop" \
-  "$root/qvcore/install/post-update-hook"; do
-  # These are literal source lines, not variable references.
-  # shellcheck disable=SC2016
-  migration_line=$(grep -nF '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
-    "$reconciler" | tail -n 1 | cut -d: -f1)
-  # shellcheck disable=SC2016
-  cleanup_line=$(grep -nF '"$QVOS_PATH/qvcore/install/cleanup-obsolete"' \
-    "$reconciler" | tail -n 1 | cut -d: -f1)
-  [[ -n $migration_line && -n $cleanup_line ]] ||
-    fail "config migration and cleanup wiring: ${reconciler#"$root/"}"
-  ((migration_line < cleanup_line)) ||
-    fail "config cleanup runs before migration: ${reconciler#"$root/"}"
-done
 
 printf 'ok - qvOS owns the complete install and reinstall lifecycle\n'

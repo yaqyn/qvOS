@@ -43,7 +43,6 @@ if rg -n 'omarchy-transcode(-ascii)?' \
   "$root/qvcore/thunar" \
   --glob '!**/AGENTS.md' \
   --glob '!**/check' \
-  --glob '!**/migrate-runtime-root' \
   --glob '!**/native-paths'; then
   fail "active qvOS consumer uses Transcode compatibility"
 fi

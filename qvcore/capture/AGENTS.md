@@ -37,14 +37,14 @@ qv routes.
   its bounded pre-exec transition to the expected executable. Cleanup may
   signal that exact child instance even before its executable identity settles.
 - Capture accepts only its documented `QVOS_*` environment. Historical
-  `OMARCHY_*` settings are migration input for `qvcore/config/migrate-runtime-root`,
-  never runtime fallback or source authority.
+  `OMARCHY_*` settings are unsupported and never runtime fallback or source
+  authority.
 - The Waybar indicator calls `qvcore/capture/status` directly and performs no
   process discovery of its own. Inactive status stays invisible; active,
   recoverable, and unsafe state remain distinguishable.
 
 Run `qvcore/capture/check`, Bash syntax, ShellCheck, the focused Capture, CLI,
-menu, config-migration, product, install, and upstream tests, then the full
+menu, product, install, and upstream tests, then the full
 qvOS suite. Use fixture capture tools for failure and recovery coverage. After
 live alignment, apply desktop/config reconciliation, verify inactive status,
 and use a real screenshot for any changed visual behavior. Do not start a real

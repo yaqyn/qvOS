@@ -59,13 +59,10 @@
     qvcore/direct/post-update-hook
     qvcore/direct/tool
     qvcore/direct/update
-    qvcore/install/cleanup-obsolete
     qvcore/install/migrate-structure
     qvcore/install/post-update-hook
-    qvcore/config/migrate-runtime-root
     qvcore/config/neovim
     qvcore/config/retired-neovim-signatures.psv
-    qvcore/config/retired-hypr-layer.psv
     qvcore/config/user-systemd-lib
     qvcore/config/assistant/install
     qvcore/config/files/xcompose
@@ -232,8 +229,6 @@
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"
 
-  "$QVOS_PATH/qvcore/config/migrate-runtime-root"
-  "$QVOS_PATH/qvcore/install/cleanup-obsolete"
   "$QVOS_PATH/qvcore/windows/reconcile"
 
   for feature in direct tmux; do

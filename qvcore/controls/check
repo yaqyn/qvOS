@@ -91,8 +91,7 @@ if rg -n 'omarchy-(audio|brightness|notification|swayosd)-|omarchy-toggle-notifi
   "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/README.md' \
   --glob '!**/check' \
-  --glob '!**/native-paths' --glob '!**/owner-contracts.psv' \
-  --glob '!**/config/migrate-runtime-root'; then
+  --glob '!**/native-paths' --glob '!**/owner-contracts.psv'; then
   fail "native qvOS source still calls a desktop-control compatibility command"
 fi
 

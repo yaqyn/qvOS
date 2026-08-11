@@ -10,7 +10,6 @@ autostart="$base/autostart.lua"
 windows="$base/windows.lua"
 native_manifest="$root/qvcore/config/native-paths"
 retired_manifest="$root/qvcore/config/retired-paths"
-retired_hypr_manifest="$root/qvcore/config/retired-hypr-layer.psv"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -77,9 +76,11 @@ grep -Fqx '<?xml version="1.0" encoding="UTF-8"?>' \
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
   $'config/\ndefault/hypr/\ndefault/omarchy-skill/\ndefault/pi/\ndefault/wireplumber/\ndefault/xcompose' ]] ||
   fail "retired config inventory changed"
-[[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_hypr_manifest") == \
-  $'qv.conf|51609b3bfb93e29350f57a527176b08c3c322d02b2d5b7cb8b583437a9849d0e\nqv/looknfeel.conf|200b286673249f4b340ba8b77b68718e7a1bc5a531e287d041618c1af8867f3a\nqv/windows.conf|588592b7f9bb36d46c963d80ab54bf01fbc79b0f2fd38cd75f4644c6f0d91a91' ]] ||
-  fail "retired Hyprland payload policy changed"
+for retired_owner in migrate-runtime-root retired-hypr-layer.psv; do
+  [[ ! -e $root/qvcore/config/$retired_owner &&
+    ! -L $root/qvcore/config/$retired_owner ]] ||
+    fail "pre-release runtime config convergence owner remains: $retired_owner"
+done
 
 [[ ! -e $root/qvcore/config/files/Typora && ! -L $root/qvcore/config/files/Typora ]] ||
   fail "retired Typora configuration source remains"
@@ -275,7 +276,6 @@ if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-
   "$root/qvcore/install/reinstall-configs" \
   --glob '!**/AGENTS.md' \
   --glob '!**/check' \
-  --glob '!**/migrate-runtime-root' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/retired-paths' \

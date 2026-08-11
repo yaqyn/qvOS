@@ -22,6 +22,6 @@ unowned application classes there.
   Validate explicit statuses and propagate the command status unchanged.
 
 Run `qvcore/presentation/check`, the focused presentation, package, menu,
-Thunar, TUI, product, and config-migration tests, Bash syntax, ShellCheck, and
+Thunar, TUI, and product tests, Bash syntax, ShellCheck, and
 the full qvOS suite. Fixture terminal executors must prove exact argument
 boundaries without opening a real terminal.

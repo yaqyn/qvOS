@@ -115,9 +115,8 @@ override accepts only an executable temporary `systemctl` fixture.
 
 `qvcore/config/files/fastfetch/config.jsonc` is the singular native Fastfetch source. It
 reads `~/.config/qvos/branding/about.txt`, whose lifecycle belongs to
-`qvcore/branding/install`. The former specialized Fastfetch copy and legacy
-ANSI asset are retired; runtime-root migration rewrites only their exact source
-paths and preserves the rest of an existing Fastfetch config.
+`qvcore/branding/install`. The former specialized Fastfetch copy, legacy ANSI
+asset, and runtime-root rewrite layer are retired.
 
 `toggle-state` singularly initializes and permissions the private
 `.local/state/qvos/toggles` tree and its inert `flags.lua`. Toggle templates
@@ -136,39 +135,22 @@ Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`
 the first-run and desktop-install suites, `systemd-analyze verify` after live
 alignment, and the full qvOS suite.
 
-`migrate-runtime-root` changes only exact retired qvOS path, session policy,
-and promoted command literals in named active configs. Back up each changed
-regular user-owned file, preserve all other content, refuse links and foreign
-ownership, and remain a no-op after success. Keep its inherited migration stub
-thin and its implementation native. It rewrites the former Hyprland base to
-`qvcore/config/base/hypr/`, folds input into the installed user source, and
-retires the former `hypr/qv` source line only when every present payload is an
-exact known qvOS file listed in `retired-hypr-layer.psv`. Preserve modified
-compatibility layers, and collapse duplicate exact native input source lines
-created by older layered configs. Cleanup consumes the same manifest; never
-duplicate its hash policy. No migrated file requires a systemd daemon reload.
-Existing input configs missing a DPMS wake preference receive only the missing
-keyboard or pointer default so either device can wake a dark display. Preserve
-every explicit true or false value and all other custom input settings.
-It also rewrites exact active terminal, lock-screen, preview-picker, SwayOSD,
-and Waybar theme references from `.config/omarchy/current` to the native
-`.config/qvos/current` owner, using the same adjacent-backup and idempotence
-contract. Theme-directory movement and compatibility links remain exclusively
-owned by `qvcore/theme/migrate-config-root`.
+The general pre-public runtime-root rewriter and retired Hyprland overlay
+manifest are removed after the only supported installation converged. Fresh
+install and post-update reconciliation use current native sources and do not
+scan or rewrite unrelated active user configuration. The native Lua input
+source keeps both keyboard and pointer DPMS wake defaults enabled. Theme data
+movement and its reviewed compatibility links remain exclusively owned by
+`qvcore/theme/migrate-config-root`.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM
-examples use `QVOS_SCREENSHOT_DIR` and `QVOS_SCREENRECORD_DIR`. Migrate only
-their exact inherited command, indicator, and variable literals.
-The same migration rewrites exact retired Waybar weather, idle, notification,
-and module identifiers to their singular native owners; customized values are
-otherwise preserved.
+examples use `QVOS_SCREENSHOT_DIR` and `QVOS_SCREENRECORD_DIR`.
 
 Config commands use metadata-bearing `qv-*` adapters and one owner here.
 Desktop lock, logout, and wake owners live under `qvcore/desktop/session/`.
 Interactive monitor, window, and workspace controls live under
-`qvcore/desktop/hyprland/`; config owns their native bindings and exact
-saved-config migration only.
+`qvcore/desktop/hyprland/`; config owns their native bindings.
 Retain matching metadata-free `omarchy-*` files only as external and
 saved-config compatibility routes. Native bindings, menus, sleep guards,
 screensavers, reinstall flows, and TUI tasks must call the qv route.

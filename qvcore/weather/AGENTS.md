@@ -17,10 +17,7 @@ presentation owner and calls only `qv-weather-icon`.
   request for the icon inside status.
 - Keep direct icon failure silent for Waybar. Status prints exactly
   `Weather unavailable` and returns failure so notifications remain truthful.
-- Existing exact Waybar command literals migrate through the shared native
-  config owner. Preserve customized or absent weather configuration.
-
-Run `qvcore/weather/check`, `qvos-weather-test.sh`, Waybar, config migration,
+Run `qvcore/weather/check`, `qvos-weather-test.sh`, Waybar,
 CLI, product, upstream-overlay, Bash syntax, ShellCheck, and the full qvOS
 suite. Use provider fixtures for behavior tests; do not depend on the live
 network or location.

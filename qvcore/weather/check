@@ -51,12 +51,6 @@ if rg -n 'weather/icon|qv-weather-icon|omarchy-weather-icon' \
   "$root/qvcore/weather/status"; then
   fail "weather status makes a second icon request"
 fi
-for command in icon status; do
-  grep -Fq "'omarchy-weather-$command' 'qv-weather-$command'" \
-    "$root/qvcore/config/migrate-runtime-root" ||
-    fail "weather config migration: $command"
-done
-
 for frontend in qv omarchy; do
   for command in icon status; do
     "$root/bin/$frontend" commands --json | jq -e \

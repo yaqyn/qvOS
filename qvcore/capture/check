@@ -88,11 +88,6 @@ for variable in QVOS_SCREENSHOT_DIR QVOS_SCREENRECORD_DIR; do
   grep -Fq "$variable" "$root/qvcore/config/files/uwsm/default" ||
     fail "qvOS Capture environment: $variable"
 done
-grep -Fq "'omarchy-capture-screenshot' 'qv-capture-screenshot'" \
-  "$root/qvcore/config/migrate-runtime-root" || fail "screenshot config migration"
-grep -Fq "'omarchy-capture-screenrecording' 'qv-capture-screenrecording'" \
-  "$root/qvcore/config/migrate-runtime-root" || fail "recording config migration"
-
 for frontend in qv omarchy; do
   for route in \
     'capture screenshot|qv-capture-screenshot' \

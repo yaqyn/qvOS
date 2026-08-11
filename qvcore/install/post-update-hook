@@ -18,11 +18,8 @@ while IFS= read -r -d '' source_file; do
   fi
 done < <(find "$config_source" -type f -print0 | sort -z)
 
-# QVOS_PATH is initialized before this Bash process-substitution loop.
+# QVOS_PATH is initialized by this owner before the desktop subshell is sourced.
 # shellcheck disable=SC2031
-"$QVOS_PATH/qvcore/config/migrate-runtime-root"
-# shellcheck disable=SC2031
-"$QVOS_PATH/qvcore/install/cleanup-obsolete"
 "$QVOS_PATH/qvcore/theme/migrate-config-root"
 
 if [[ -f $theme_name_path ]]; then
