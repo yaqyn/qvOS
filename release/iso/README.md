@@ -13,6 +13,10 @@ artifact outside Git; it can contain machine and installation details.
   the only executable ISO inputs. Complete both qvsync review ledgers and record
   the exact reviewed Omarchy and Omarchy ISO baselines without making either
   upstream an executable build dependency.
+- Use `--pre-public` only for development rehearsal before that commit is the
+  public `OS` head. The builder must reject an unflagged image when its pinned
+  commit differs from the public update branch; a pre-public image is never a
+  releasable artifact and its updater may refuse the unpublished shallow source.
 - Keep optional Services and Development integrations out of the image. Their
   lifecycle never gates base readiness; qvCORE itself is the image's mandatory
   qvOS implementation.

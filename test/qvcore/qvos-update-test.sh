@@ -453,6 +453,8 @@ pass "package update stages preserve exact targets and options"
 availability_work="$test_root/availability-work"
 availability_remote="$test_root/availability.git"
 availability_peer="$test_root/availability-peer"
+availability_behind="$test_root/availability-behind"
+availability_unpublished="$test_root/availability-unpublished"
 install -d "$availability_work"
 git -C "$availability_work" init -q -b OS
 git -C "$availability_work" config user.name 'qvOS Test'
@@ -489,16 +491,46 @@ set -e
 (( ahead_status == 1 )) || fail "local-ahead availability status"
 grep -Fq 'locally ahead' <<<"$ahead_output" || fail "local-ahead availability output"
 
+git clone -q --no-local --depth 1 --branch OS \
+  "$availability_work" "$availability_unpublished"
+git -C "$availability_unpublished" remote set-url origin \
+  https://github.com/Yaqyn-qvOS/qvOS.git
+set +e
+unpublished_output=$(env "${availability_git_env[@]}" \
+  QVOS_PATH="$availability_unpublished" \
+  "$root/qvcore/update/update-available" 2>&1)
+unpublished_status=$?
+set -e
+(( unpublished_status == 2 )) || fail "unpublished shallow availability status"
+grep -Fq 'not fast-forward compatible with official OS' \
+  <<<"$unpublished_output" || fail "unpublished shallow availability result"
+
 git clone -q "$availability_remote" "$availability_peer"
 git -C "$availability_peer" config user.name 'qvOS Test'
 git -C "$availability_peer" config user.email test@qvos.invalid
 printf 'remote\n' >>"$availability_peer/version"
 git -C "$availability_peer" commit -qam remote
 git -C "$availability_peer" push -q origin OS
-available_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
+set +e
+divergent_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
+  "$root/qvcore/update/update-available" 2>&1)
+divergent_status=$?
+set -e
+(( divergent_status == 2 )) || fail "divergent availability status"
+grep -Fq 'not fast-forward compatible with official OS' \
+  <<<"$divergent_output" || fail "divergent availability result"
+
+git clone -q --no-local --depth 1 --branch OS \
+  "$availability_remote" "$availability_behind"
+git -C "$availability_behind" remote set-url origin \
+  https://github.com/Yaqyn-qvOS/qvOS.git
+printf 'remote again\n' >>"$availability_peer/version"
+git -C "$availability_peer" commit -qam 'remote again'
+git -C "$availability_peer" push -q origin OS
+available_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_behind" \
   "$root/qvcore/update/update-available")
 grep -Fq 'qvOS update available' <<<"$available_output" || fail "remote update output"
-pass "qvOS update availability follows the official OS commit"
+pass "qvOS update availability offers only provable official fast-forwards"
 
 # Manual owners validate systemd, firmware, and snapshot handoffs without mutation.
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'

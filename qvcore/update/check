@@ -107,6 +107,13 @@ grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
   fail "native migration owner in update pipeline"
 grep -Fq 'ls-remote --heads origin refs/heads/OS' \
   "$root/qvcore/update/update-available" || fail "official OS availability check"
+grep -Fq 'fetch --force --no-tags --no-write-fetch-head' \
+  "$root/qvcore/update/update-available" || fail "fast-forward availability fetch"
+# shellcheck disable=SC2016
+grep -Fq 'update-ref -d "$remote_check_ref"' \
+  "$root/qvcore/update/update-available" || fail "temporary availability ref cleanup"
+grep -Fq 'not fast-forward compatible with official OS' \
+  "$root/qvcore/update/update-available" || fail "divergent availability refusal"
 if rg -n 'rev-list --tags|describe --tags|ls-remote --tags' \
   "$root/qvcore/update/update-available"; then
   fail "tag-based update availability remains"

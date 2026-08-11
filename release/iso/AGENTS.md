@@ -52,8 +52,12 @@ a thin adapter to this owner.
   native qvOS owner and its tests deliberately. Do not weaken guards, patch
   cached output, or make a reviewed upstream commit executable build input.
 - During pre-public development, run full image builds and embedded audits on
-  request or for release candidates. For ISO changes, run fast staging and
-  contract checks immediately and report any deferred full build.
+  request or for release candidates. Use explicit `--pre-public` only when the
+  pinned commit is not yet the public `OS` head; the resulting image is a
+  development artifact whose updater may refuse that unpublished shallow
+  source. A build without that flag must prove the pinned commit equals the
+  public update branch before staging proceeds. For ISO changes, run fast
+  staging and contract checks immediately and report any deferred full build.
 - Unflagged image builds use the installed qvOS Stable package channel.
   `--dev` selects Edge and `--rc` selects RC only for those explicit reviewed
   image workflows; never make a development channel the production default.
@@ -93,7 +97,7 @@ a thin adapter to this owner.
   from the first official Linux x64 LTS entry, never the moving Current
   release, and verify the exact archive against that release's checksum list.
 - For release verification, pin `QVOS_SOURCE_REF` to the intended qvOS commit,
-  require that commit to equal `origin/OS`, and leave the embedded checkout on
+  omit `--pre-public`, require that commit to equal the public `origin/OS`, and leave the embedded checkout on
   `OS` tracking `origin/OS` so the installed update guard remains usable.
   `QVOS_SOURCE_REPO` is only the build transfer source; embed the public,
   credential-free HTTPS `QVOS_UPDATE_REPO` as `origin`, use a shallow

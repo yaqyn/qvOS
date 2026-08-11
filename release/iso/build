@@ -4,11 +4,12 @@ set -eEuo pipefail
 
 allow_downloads=false
 no_cache=false
+pre_public=false
 prepare_only=false
 provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"
 
 usage() {
-  echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--dev|--rc]"
+  echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--pre-public] [--dev|--rc]"
   echo
   echo "Environment:"
   echo "  QVOS_SOURCE_REPO       qvOS git repository or local git path"
@@ -44,6 +45,9 @@ while (( $# > 0 )); do
     ;;
   --prepare-only)
     prepare_only=true
+    ;;
+  --pre-public)
+    pre_public=true
     ;;
   --dev)
     provider_channel=edge
@@ -293,12 +297,48 @@ checkout_qvos_update_branch() {
   git -C "$target" branch --set-upstream-to=origin/OS OS >/dev/null
 }
 
+validate_public_update_commit() {
+  local target="$1"
+  local public_commit
+  local public_line
+  local public_ref
+  local selected_commit
+  local extra
+
+  selected_commit=$(git -C "$target" rev-parse HEAD)
+  if [[ $pre_public == "true" ]]; then
+    echo "qvos-build: --pre-public skips the public OS commit gate." >&2
+    echo "qvos-build: this artifact is development-only and its updater may refuse the source." >&2
+    return 0
+  fi
+
+  if ! public_line=$(retry_git_transfer \
+    ls-remote --heads "$qvos_update_repo" refs/heads/OS); then
+    echo "qvos-build could not read the public qvOS OS branch." >&2
+    return 1
+  fi
+  read -r public_commit public_ref extra <<<"$public_line"
+  if [[ ! $public_commit =~ ^[0-9a-f]{40}$ ||
+    $public_ref != "refs/heads/OS" || -n ${extra:-} ]]; then
+    echo "qvos-build received an invalid public qvOS OS branch." >&2
+    return 1
+  fi
+  if [[ $selected_commit != "$public_commit" ]]; then
+    echo "qvos-build requires the pinned qvOS commit to equal the public OS branch." >&2
+    echo "Selected: $selected_commit" >&2
+    echo "Public OS: $public_commit" >&2
+    echo "Use --pre-public only for a non-releasable development image." >&2
+    return 1
+  fi
+}
+
 stage_qvos_source() {
   local target="$1"
 
   echo "qvOS ISO progress: fresh-cloning qvOS source $qvos_source_ref"
   clone_git_source "$qvos_source_repo" "$qvos_source_ref" "$target" || return
   checkout_qvos_update_branch "$target" || return
+  validate_public_update_commit "$target" || return
   sanitize_qvos_checkout "$target" || return
 }
 

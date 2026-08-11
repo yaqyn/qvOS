@@ -305,6 +305,10 @@ Every qvOS change must leave one traceable lifecycle.
   `omarchy` name remains
   only at a documented compatibility frontend, exact installed-source link,
   truthful upstream input, or credited package-provider boundary.
+- An unflagged ISO build must prove its pinned commit is the public `OS` head.
+  `--pre-public` is only for development rehearsal; its unpublished shallow
+  source is not releasable and update availability must fail closed unless an
+  official fast-forward can be proven.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.

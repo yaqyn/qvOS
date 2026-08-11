@@ -642,6 +642,8 @@ grep -Fq 'provider_channel=edge' "$iso_build" ||
   fail "qvOS ISO explicit Edge image channel"
 grep -Fq 'provider_channel=rc' "$iso_build" ||
   fail "qvOS ISO explicit RC image channel"
+grep -Fq -- '--pre-public)' "$iso_build" ||
+  fail "qvOS ISO explicit pre-public source gate"
 grep -Fq 'docker_args+=(--network "$docker_network")' "$iso_build" ||
   fail "qvOS ISO explicit Docker network option"
 grep -Fq -- '--pull=always' "$iso_build" ||
@@ -668,6 +670,8 @@ grep -Fq 'if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out" "$stage
   fail "qvOS ISO build failure stage retention"
 grep -Fq 'checkout_qvos_update_branch "$target"' "$iso_build" ||
   fail "qvOS ISO attached update branch"
+grep -Fq 'validate_public_update_commit "$target"' "$iso_build" ||
+  fail "qvOS ISO public update commit gate"
 grep -Fq 'sanitize_qvos_checkout "$target"' "$iso_build" ||
   fail "qvOS ISO checkout sanitation"
 grep -Fq 'remote set-url origin "$qvos_update_repo"' "$iso_build" ||
@@ -956,6 +960,8 @@ source <(sed -n '/^clone_git_source() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
 source <(sed -n '/^checkout_qvos_update_branch() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
+source <(sed -n '/^validate_public_update_commit() {$/,/^}$/p' "$iso_build")
+# shellcheck disable=SC1090
 source <(sed -n '/^sanitize_qvos_checkout() {$/,/^}$/p' "$iso_build")
 # shellcheck disable=SC1090
 source <(sed -n '/^stage_qvos_source() {$/,/^}$/p' "$iso_build")
@@ -983,7 +989,9 @@ qvos_source_repo="$iso_source_fixture"
 qvos_source_ref="$iso_source_commit"
 # shellcheck disable=SC2034
 qvos_update_repo="https://example.invalid/Yaqyn-qvOS/qvOS.git"
-stage_qvos_source "$iso_source_stage" >/dev/null
+# shellcheck disable=SC2034
+pre_public=true
+stage_qvos_source "$iso_source_stage" >/dev/null 2>&1
 [[ $(git -C "$iso_source_stage" rev-parse HEAD) == "$iso_source_commit" ]] ||
   fail "qvOS ISO staged commit identity"
 [[ $(git -C "$iso_source_stage" branch --show-current) == "OS" ]] ||
@@ -1021,6 +1029,25 @@ grep -Fq 'pinned qvOS source commit to equal origin/OS' \
   <<<"$iso_mismatch_output" ||
   fail "qvOS ISO mismatched commit failure"
 pass "qvOS ISO embeds the exact origin/OS commit on its usable update branch"
+
+iso_public_remote="$test_root/iso-public.git"
+git clone -q --bare "$iso_source_fixture" "$iso_public_remote"
+# shellcheck disable=SC2034
+qvos_update_repo="$iso_public_remote"
+# shellcheck disable=SC2034
+pre_public=false
+validate_public_update_commit "$iso_source_stage"
+git -C "$iso_public_remote" update-ref refs/heads/OS "$iso_mismatch_commit"
+set +e
+iso_public_mismatch_output=$(validate_public_update_commit "$iso_source_stage" 2>&1)
+iso_public_mismatch_status=$?
+set -e
+(( iso_public_mismatch_status != 0 )) ||
+  fail "qvOS ISO accepted a pinned commit absent from the public OS head"
+grep -Fq 'pinned qvOS commit to equal the public OS branch' \
+  <<<"$iso_public_mismatch_output" ||
+  fail "qvOS ISO public commit mismatch failure"
+pass "qvOS ISO release builds require the exact public update commit"
 
 publish_fixture="$test_root/iso-publish"
 publish_bin="$publish_fixture/bin"
