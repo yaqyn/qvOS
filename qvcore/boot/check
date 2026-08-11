@@ -141,6 +141,9 @@ grep -Fqx 'Exec=/usr/local/bin/qvos-session' \
 # shellcheck disable=SC2016
 grep -Fq -- '-- -- --config "$config_path"' \
   "$root/qvcore/boot/session-start" || fail "native Lua config selection"
+if rg -n 'hyprland\.conf|generated_stub' "$root/qvcore/boot/session-start"; then
+  fail "native session launcher mutates retired Hyprland configuration"
+fi
 grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
 grep -Fq "pam_gnome_keyring\\.so/d" \
