@@ -4,19 +4,11 @@ set -euo pipefail
 source_path=${QVOS_PATH:-$HOME/.local/share/qvos}
 source_path=$(readlink -f -- "$source_path" 2>/dev/null || true)
 QVOS_PATH="$source_path"
-runtime_config="$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config"
 
 "$QVOS_PATH/qvcore/update/source-check" "$QVOS_PATH"
 
-reload_hyprland() {
-  "$runtime_config" config debug suppress_errors false &>/dev/null || true
-  hyprctl reload &>/dev/null || true
-}
-trap reload_hyprland EXIT
-
 echo -e "\e[32mUpdate qvOS source\e[0m"
 "$QVOS_PATH/qvcore/update/time-sync"
-"$runtime_config" config debug suppress_errors true &>/dev/null || true
 
 timeout --foreground 180 \
   git -C "$QVOS_PATH" \

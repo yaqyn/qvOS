@@ -4,6 +4,9 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
 lock_file="$runtime_root/qvos-update.lock"
+runtime_config="$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config"
+hyprland_errors_suppressed=false
+hyprland_reload=false
 
 (( $# == 0 )) || {
   echo "Usage: qvcore/update/run" >&2
@@ -72,6 +75,25 @@ failure_message() {
 }
 trap failure_message ERR
 
+# Keep the active compositor on its already-loaded settings while source,
+# migrations, and config reconciliation move as one transaction. A source-only
+# reload can otherwise consume owners removed by the new commit before their
+# migration has published the replacement configuration.
+# shellcheck disable=SC2329
+restore_hyprland() {
+  local status=$?
+
+  trap - EXIT
+  if [[ $hyprland_errors_suppressed == "true" ]]; then
+    "$runtime_config" config debug suppress_errors false &>/dev/null || true
+  fi
+  if (( status == 0 )) && [[ $hyprland_reload == "true" ]]; then
+    hyprctl reload &>/dev/null || true
+  fi
+  exit "$status"
+}
+trap restore_hyprland EXIT
+
 if "$QVOS_PATH/qvcore/update/snapshot" create; then
   snapshot_status=0
 else
@@ -81,5 +103,10 @@ if (( snapshot_status != 0 && snapshot_status != 127 )); then
   failure_message "$snapshot_status"
 fi
 
+if [[ -x $runtime_config ]] &&
+  "$runtime_config" config debug suppress_errors true &>/dev/null; then
+  hyprland_errors_suppressed=true
+fi
 "$QVOS_PATH/qvcore/update/update-source"
 "$QVOS_PATH/qvcore/update/perform"
+hyprland_reload=true

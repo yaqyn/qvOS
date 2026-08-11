@@ -13,8 +13,7 @@ command is a thin compatibility adapter. Native update owners resolve source
 only through `QVOS_PATH` and never propagate `OMARCHY_PATH`. Require a clean
 non-symbolic checkout on branch `OS`, accept only the official qvOS origin, and
 pull `origin/OS` with fast-forward-only semantics and bounded network time.
-Never autostash, reset, merge another branch, or conceal source changes. Always
-restore Hyprland error reporting after an attempted pull.
+Never autostash, reset, merge another branch, or conceal source changes.
 qvOS has one installed source channel: official `origin/OS`. The inherited
 branch and channel switchers are retired; experimental upstream refs belong in
 separate development checkouts and never mutate the installed OS.
@@ -30,7 +29,11 @@ private fixed qvOS state log, creates an optional pre-update snapshot, updates
 source, then delegates once to `perform`. Reject links, foreign ownership, and
 caller-selected log paths. The TUI may capture the same pipeline once but must
 use the same log owner and qvOS environment names. Never restore a predictable
-`/tmp` log or a second update engine.
+`/tmp` log or a second update engine. Suppress compositor config errors before
+the source changes and retain the already-loaded settings through migrations
+and post-update reconciliation. Restore error reporting on every exit, reload
+only after complete success, and never reload a newly pulled source before its
+replacement configuration has been published.
 
 `perform` owns stage ordering only. Package mutation belongs to
 `qvcore/packages/`, migration to `qvcore/migrations/run`, and post-update hooks

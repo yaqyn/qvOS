@@ -100,6 +100,13 @@ grep -Fq 'log_path="$state_root/update.log"' "$root/qvcore/update/log-path" ||
   fail "private qvOS update log path"
 grep -Fq 'trap restore_idle EXIT' "$root/qvcore/update/perform" ||
   fail "update no-idle cleanup trap"
+grep -Fq 'trap restore_hyprland EXIT' "$root/qvcore/update/run" ||
+  fail "transaction-wide Hyprland cleanup trap"
+grep -Fq 'hyprland_reload=true' "$root/qvcore/update/run" ||
+  fail "post-reconciliation Hyprland reload"
+if rg -n 'hyprctl reload|suppress_errors' "$root/qvcore/update/update-source"; then
+  fail "source-only update still mutates active Hyprland configuration"
+fi
 grep -Fq 'restart-walker-required' "$root/qvcore/update/analyze-log" ||
   fail "Walker package restart analysis"
 # shellcheck disable=SC2016

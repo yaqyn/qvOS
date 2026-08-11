@@ -133,8 +133,8 @@ env "${git_env[@]}" \
   "$root/qvcore/update/update-source" >/dev/null
 [[ $(git -C "$update_source" rev-parse HEAD) == "$expected_head" ]] ||
   fail "fast-forward source update"
-[[ $(<"$action_log") == $'time\nruntime-config:config debug suppress_errors true\nruntime-config:config debug suppress_errors false\nhyprctl:reload' ]] ||
-  fail "source update time and Hyprland cleanup order"
+[[ $(<"$action_log") == "time" ]] ||
+  fail "source update leaves active Hyprland state to the transaction owner"
 printf 'dirty\n' >"$update_source/local-change"
 : >"$action_log"
 set +e

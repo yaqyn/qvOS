@@ -198,7 +198,11 @@ pass "update analysis marks exact Walker transitions and fails closed on initram
 
 # Captured engine mode must serialize snapshot, source, and pipeline stages.
 engine="$test_root/engine"
-install -d "$engine/qvcore/update" "$test_root/engine-home" "$test_root/runtime"
+install -d \
+  "$engine/qvcore/desktop/hyprland" \
+  "$engine/qvcore/update" \
+  "$test_root/engine-home" \
+  "$test_root/runtime"
 install -m 0755 "$root/qvcore/update/log-path" "$engine/qvcore/update/log-path"
 install -m 0755 /dev/stdin "$engine/qvcore/update/snapshot" <<'SCRIPT'
 #!/bin/bash
@@ -215,6 +219,15 @@ install -m 0755 /dev/stdin "$engine/qvcore/update/perform" <<'SCRIPT'
 printf 'perform\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 exit "${QVOS_TEST_PERFORM_STATUS:-0}"
 SCRIPT
+install -m 0755 /dev/stdin \
+  "$engine/qvcore/desktop/hyprland/qvos-runtime-config" <<'SCRIPT'
+#!/bin/bash
+printf 'runtime-config:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
+#!/bin/bash
+printf 'hyprctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
 engine_log=$(HOME="$test_root/engine-home" QVOS_PATH="$engine" \
   "$engine/qvcore/update/log-path" prepare)
 : >"$action_log"
@@ -224,8 +237,9 @@ HOME="$test_root/engine-home" \
   QVOS_TEST_ACTION_LOG="$action_log" \
   QVOS_UPDATE_CAPTURED=1 \
   QVOS_UPDATE_LOG_PATH="$engine_log" \
+  PATH="$test_bin:/usr/bin" \
   "$root/qvcore/update/run"
-[[ $(<"$action_log") == $'snapshot\tcreate\nupdate-source\t\nperform\t' ]] ||
+[[ $(<"$action_log") == $'snapshot\tcreate\nruntime-config:config debug suppress_errors true\nupdate-source\t\nperform\t\nruntime-config:config debug suppress_errors false\nhyprctl:reload' ]] ||
   fail "native engine stage order"
 
 : >"$action_log"
@@ -236,10 +250,12 @@ HOME="$test_root/engine-home" \
   QVOS_TEST_SNAPSHOT_STATUS=127 \
   QVOS_UPDATE_CAPTURED=1 \
   QVOS_UPDATE_LOG_PATH="$engine_log" \
+  PATH="$test_bin:/usr/bin" \
   "$root/qvcore/update/run"
 grep -Fqx $'perform\t' "$action_log" || fail "optional snapshot absence"
 
 set +e
+: >"$action_log"
 engine_failure=$(
   HOME="$test_root/engine-home" \
     XDG_RUNTIME_DIR="$test_root/runtime" \
@@ -248,12 +264,15 @@ engine_failure=$(
     QVOS_TEST_UPDATE_SOURCE_STATUS=9 \
     QVOS_UPDATE_CAPTURED=1 \
     QVOS_UPDATE_LOG_PATH="$engine_log" \
+    PATH="$test_bin:/usr/bin" \
     "$root/qvcore/update/run" 2>&1
 )
 engine_failure_status=$?
 set -e
 (( engine_failure_status == 9 )) || fail "native engine failure status"
 grep -Fq "$engine_log" <<<"$engine_failure" || fail "native engine failure log guidance"
+[[ $(<"$action_log") == $'snapshot\tcreate\nruntime-config:config debug suppress_errors true\nupdate-source\t\nruntime-config:config debug suppress_errors false' ]] ||
+  fail "failed source update restored errors without reloading partial config"
 
 exec 8>>"$test_root/runtime/qvos-update.lock"
 flock -n 8 || fail "update lock fixture"
@@ -265,6 +284,7 @@ lock_output=$(
     QVOS_TEST_ACTION_LOG="$action_log" \
     QVOS_UPDATE_CAPTURED=1 \
     QVOS_UPDATE_LOG_PATH="$engine_log" \
+    PATH="$test_bin:/usr/bin" \
     "$root/qvcore/update/run" 2>&1
 )
 lock_status=$?
