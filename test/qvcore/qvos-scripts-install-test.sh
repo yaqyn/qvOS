@@ -155,17 +155,6 @@ fi
   fail "screensaver runtime rollback residue"
 pass "failed screensaver replacement restores the complete prior runtime"
 
-modified_screensaver_home="$test_root/modified-screensaver-home"
-install -d "$modified_screensaver_home/.local/lib/qvos/bin"
-printf 'custom compatibility wrapper\n' \
-  >"$modified_screensaver_home/.local/lib/qvos/bin/omarchy-launch-screensaver"
-HOME="$modified_screensaver_home" QVOS_PATH="$root" \
-  "$root/qvcore/screensaver/install" >/dev/null 2>&1
-[[ $(<"$modified_screensaver_home/.local/lib/qvos/bin/omarchy-launch-screensaver") == \
-  "custom compatibility wrapper" ]] ||
-  fail "modified screensaver compatibility wrapper preservation"
-pass "modified screensaver runtime compatibility remains user-owned"
-
 downstream_failure_home="$test_root/downstream-failure-home"
 power_blocker="$test_root/power-blocker"
 install -d "$downstream_failure_home/.local/lib/qvos/screensaver"
@@ -222,35 +211,6 @@ install -d \
   "$test_root/.local/lib/qvos/thunar" \
   "$test_root/.local/lib/qvos/tmux" \
   "$test_root/.local/lib/qvos/waybar"
-install -m 0755 /dev/stdin \
-  "$test_root/.local/lib/qvos/bin/omarchy-launch-screensaver" <<'SCRIPT'
-#!/bin/bash
-set -euo pipefail
-
-# omarchy:summary=Launch the qvOS screensaver
-# omarchy:args=[force]
-
-launcher="$HOME/.local/lib/qvos/bin/qvos-launch-screensaver"
-
-if [[ ! -x $launcher ]]; then
-  printf 'omarchy-launch-screensaver: launcher is missing: %s\n' "$launcher" >&2
-  exit 1
-fi
-
-exec "$launcher" "$@"
-SCRIPT
-[[ $(sha256sum "$test_root/.local/lib/qvos/bin/omarchy-launch-screensaver" |
-  cut -d ' ' -f 1) == \
-  "48ddc02d70230fbe7d18d8329a5caeb0e23b40591a23662bca328cefdc26eb76" ]] ||
-  fail "retired screensaver runtime fixture"
-for retired_alias_entry in \
-  omarchy-launch-screensaver:qvos-launch-screensaver \
-  omarchy-screensaver:qvos-screensaver; do
-  alias_name=${retired_alias_entry%%:*}
-  owner_name=${retired_alias_entry#*:}
-  ln -s "$test_root/.local/lib/qvos/bin/$owner_name" \
-    "$test_root/.local/bin/$alias_name"
-done
 touch \
   "$test_root/.local/lib/qvos/desktop/context/removed-helper" \
   "$test_root/.local/lib/qvos/screensaver/removed-launcher" \
@@ -468,11 +428,11 @@ done
 for retired_alias in omarchy-launch-screensaver omarchy-screensaver; do
   [[ ! -e $test_root/.local/bin/$retired_alias &&
     ! -L $test_root/.local/bin/$retired_alias ]] ||
-    fail "$retired_alias runtime alias cleanup"
+    fail "$retired_alias runtime alias creation"
 done
 [[ ! -e $test_root/.local/lib/qvos/bin/omarchy-launch-screensaver &&
   ! -L $test_root/.local/lib/qvos/bin/omarchy-launch-screensaver ]] ||
-  fail "retired copied screensaver adapter cleanup"
+  fail "retired copied screensaver adapter creation"
 pass "screensaver commands and user links are installed"
 
 for command_name in \

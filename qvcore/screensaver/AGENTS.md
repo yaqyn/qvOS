@@ -12,9 +12,8 @@ Branding owner; never restore active Omarchy branding state.
 Public `qv-launch-screensaver` and `qv-screensaver` commands carry metadata;
 matching `omarchy-*` commands are metadata-free source compatibility adapters.
 Only native `qv-*` runtime aliases point to the two installed `qvos-*` owners;
-exact retired Omarchy aliases and the known copied adapter are removed while
-modified or foreign runtime files are preserved. `org.qvos.screensaver` is the
-only runtime window class; keep
+the external compatibility adapters are never copied or linked into the
+installed runtime. `org.qvos.screensaver` is the only runtime window class; keep
 the launcher, close transaction, tests, and native Hyprland rules
 synchronized.
 `qvcore/screensaver/close` is the singular close transaction shared by the
