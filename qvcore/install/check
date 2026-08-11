@@ -12,7 +12,6 @@ fail() {
 
 for owner in \
   migrate-source-root \
-  migrate-structure \
   refresh-applications \
   reinstall \
   reinstall-configs \
@@ -27,6 +26,9 @@ done
 [[ ! -e $root/qvcore/install/retire-inherited-system-policy &&
   ! -L $root/qvcore/install/retire-inherited-system-policy ]] ||
   fail "pre-release inherited system-policy cleanup owner remains"
+[[ ! -e $root/qvcore/install/migrate-structure &&
+  ! -L $root/qvcore/install/migrate-structure ]] ||
+  fail "pre-release Services and Development structure migrator remains"
 
 declare -A route_owners=(
   [first-run]=qvcore/install/first-run/run

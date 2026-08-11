@@ -16,10 +16,10 @@ Proton is currently the only qvOS-owned Service.
   never install packages or tools, change services, or inspect or replace
   authentication.
 - Write enrollment only after complete verification to
-  `~/.local/state/qvos/services/proton`. Migrate the exact former
-  `qvos/qvcore/proton` marker atomically; reject links, foreign ownership,
-  malformed parents, and conflicting new state. Keep the category private at
-  `0700` and its empty enrollment marker at `0600`.
+  `~/.local/state/qvos/services/proton`. Keep the category private at `0700`
+  and its empty enrollment marker at `0600`. The pre-release
+  `qvos/qvcore/proton` transition is retired; current Service operations never
+  inspect or recreate that state root.
 - Install only missing pieces and reuse compatible software. Uninstall only an
   enrolled Service and preserve cloud data, profiles, credentials, sessions,
   personal files, and unrelated software.

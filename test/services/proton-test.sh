@@ -25,7 +25,6 @@ fail() {
 install -d \
   "$source_root/services/proton/skill/agents" \
   "$source_root/qvcore/direct" \
-  "$source_root/qvcore/install" \
   "$source_root/qvcore/thunar" \
   "$test_bin" \
   "$packages" \
@@ -34,7 +33,6 @@ cp "$root/services/proton/manage" "$source_root/services/proton/manage"
 cp "$root/services/proton/skill/SKILL.md" "$source_root/services/proton/skill/SKILL.md"
 cp "$root/services/proton/skill/agents/openai.yaml" \
   "$source_root/services/proton/skill/agents/openai.yaml"
-cp "$root/qvcore/install/migrate-structure" "$source_root/qvcore/install/migrate-structure"
 cp "$root/qvcore/thunar/actions.sh" "$source_root/qvcore/thunar/actions.sh"
 cp "$root/qvcore/thunar/proton-drive-upload" "$source_root/qvcore/thunar/proton-drive-upload"
 printf '<?xml version="1.0" encoding="UTF-8"?><actions/>\n' >"$thunar_config"

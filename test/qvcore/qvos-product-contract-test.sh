@@ -292,8 +292,15 @@ grep -Fq 'qvos/services/proton' "$root/services/proton/manage" ||
   fail "Proton state ownership"
 grep -Fq 'qvos/development/devel' "$root/development/devel/manage" ||
   fail "Devel state ownership"
-[[ -x $root/qvcore/install/migrate-structure ]] ||
-  fail "legacy integration migration owner"
+[[ ! -e $root/qvcore/install/migrate-structure &&
+  ! -L $root/qvcore/install/migrate-structure ]] ||
+  fail "pre-release integration structure migrator remains"
+if rg -n 'migrate-structure|state/qvos/qvcore|qvdev-tools' \
+  "$root/qvcore/install/desktop" \
+  "$root/services/proton/manage" \
+  "$root/development/devel/manage"; then
+  fail "current integration lifecycle retains pre-release structure state"
+fi
 for retired_qvcore_source in \
   bin/omarchy-install-qvcore \
   bin/omarchy-qvcore-remove \

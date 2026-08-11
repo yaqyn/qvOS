@@ -23,7 +23,6 @@ fail() {
 install -d \
   "$source_root/development/devel" \
   "$source_root/qvcore/direct" \
-  "$source_root/qvcore/install" \
   "$source_root/qvcore/thunar" \
   "$test_bin" \
   "$installed_packages" \
@@ -31,7 +30,6 @@ install -d \
   "$(dirname -- "$thunar_config")"
 cp "$root/development/devel/manage" "$source_root/development/devel/manage"
 cp "$root/development/devel/packages.tsv" "$source_root/development/devel/packages.tsv"
-cp "$root/qvcore/install/migrate-structure" "$source_root/qvcore/install/migrate-structure"
 cp "$root/qvcore/thunar/actions.sh" "$source_root/qvcore/thunar/actions.sh"
 cp "$root/qvcore/thunar/codex" "$source_root/qvcore/thunar/codex"
 printf '<?xml version="1.0" encoding="UTF-8"?><actions/>\n' >"$thunar_config"
@@ -136,14 +134,9 @@ run_devel remove --yes >/dev/null
 [[ -z $(find "$installed_packages" -type f -print -quit) ]] ||
   fail "Devel Pacman removal"
 
-install -d "$test_root/home/.local/state/qvos/qvcore"
-install -m 0644 /dev/null "$test_root/home/.local/state/qvos/qvcore/qvdev"
 if run_devel invalid >/dev/null 2>&1; then
   fail "Devel invalid action"
 fi
-[[ -f $test_root/home/.local/state/qvos/qvcore/qvdev &&
-  ! -e $test_root/home/.local/state/qvos/development/devel ]] ||
-  fail "Devel invalid action migrated enrollment state"
 
 if awk -F '\t' '$1 == "aur" { found = 1 } END { exit !found }' \
   "$root/development/devel/packages.tsv"; then

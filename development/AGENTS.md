@@ -15,10 +15,10 @@ bundle. qvOS and qvCORE remain complete without it.
   Devel workstation. It may refresh the qvOS-owned workbench integration, but
   must never install or remove packages or direct tools.
 - Write enrollment only after verification to
-  `~/.local/state/qvos/development/devel`. Migrate the exact former
-  `qvos/qvcore/qvdev` marker and managed-tool root atomically; reject links,
-  foreign ownership, malformed parents, and conflicting new state. Keep the
-  category private at `0700` and its empty enrollment marker at `0600`.
+  `~/.local/state/qvos/development/devel`. Keep the category private at `0700`
+  and its empty enrollment marker at `0600`. The pre-release
+  `qvos/qvcore/qvdev` and `qvdev-tools` transitions are retired; current Devel
+  operations never inspect or recreate those paths.
 - Devel owns its package manifest, `devel` direct-tool scope, and Codex
   workbench integration. Codex itself remains base-owned and must survive
   Devel removal.

@@ -3,7 +3,6 @@ set -euo pipefail
 
 # qvos:contract=services/proton/skill
 # qvos:contract=qvcore/direct/tool
-# qvos:contract=qvcore/install/migrate-structure
 # qvos:contract=qvcore/thunar/actions.sh
 # qvos:contract=qvcore/thunar/proton-drive-upload
 
@@ -864,8 +863,6 @@ if (($# == 2)); then
   }
   remove_assume_yes=1
 fi
-
-"$qvcore_dir/install/migrate-structure" --proton
 
 if [[ $1 == "remove" ]]; then
   remove_local_proton

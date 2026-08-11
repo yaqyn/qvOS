@@ -59,7 +59,6 @@
     qvcore/direct/post-update-hook
     qvcore/direct/tool
     qvcore/direct/update
-    qvcore/install/migrate-structure
     qvcore/install/post-update-hook
     qvcore/config/neovim
     qvcore/config/retired-neovim-signatures.psv
@@ -211,7 +210,6 @@
     fi
   done
 
-  "$QVOS_PATH/qvcore/install/migrate-structure" --all
   "$QVOS_PATH/qvcore/hooks/reconcile"
 
   "$QVOS_PATH/qvcore/branding/install"

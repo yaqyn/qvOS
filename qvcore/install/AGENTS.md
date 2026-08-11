@@ -50,6 +50,10 @@ and post-update reconciliation must not scan unrelated user trees or carry
 historical Hyprland overlays, Nautilus extensions, logo fonts, maintenance
 aliases, D-Bus services, or copied Thunar launchers. Each current feature owner
 mutates only its explicit native paths and preserves foreign data.
+The pre-release Services/Development structure migrator is also retired after
+the only supported installation converged. Base reconciliation and optional
+owners use only native enrollment and runtime paths; they never scan or recreate
+the former `qvos/qvcore` state root or `qvdev-tools` runtime root.
 Do not install a global GnuPG resolver policy or force system and user service
 shutdown timeouts. The pre-public convergence code for those inherited files
 is retired; fresh qvOS carries only the system defaults.
