@@ -74,56 +74,25 @@ fi
 printf '1\n' >"$power_root/BAT0/present"
 printf 'ok - power-supply detection covers USB-C and validates presence state\n'
 
-legacy_home="$test_root/legacy-home"
-legacy_bin="$legacy_home/.local/lib/qvos/bin"
-install -d "$legacy_bin"
-sed 's/Usage: qv system/Usage: omarchy system/g' \
-  "$root/qvcore/power/inhibit-sleep" \
-  >"$legacy_bin/omarchy-system-inhibit-sleep"
-sed \
-  -e 's/Usage: qv system/Usage: omarchy system/g' \
-  -e 's/qv-toggle-enabled/omarchy-toggle-enabled/g' \
-  "$root/qvcore/power/suspend-if-safe" \
-  >"$legacy_bin/omarchy-system-suspend-if-safe"
-chmod 0755 "$legacy_bin"/omarchy-system-*
-[[ $(sha256sum "$legacy_bin/omarchy-system-inhibit-sleep" | cut -d ' ' -f 1) == \
-  "3a6afde2549cd64888507c5d5ad534e368b29711a9cde1d916199d3c137715b5" ]] ||
-  fail "legacy inhibit owner fixture"
-[[ $(sha256sum "$legacy_bin/omarchy-system-suspend-if-safe" | cut -d ' ' -f 1) == \
-  "2e11eb00125215d89cfd545af7d3974e45b6e70bc9e27d9806e145bf26b16e88" ]] ||
-  fail "legacy suspend owner fixture"
-HOME="$legacy_home" \
+install_home="$test_root/install-home"
+install_bin="$install_home/.local/lib/qvos/bin"
+HOME="$install_home" \
 QVOS_PATH="$root" \
-OMARCHY_PATH="$test_root/stale-source" \
 QVOS_POWER_TESTING=1 \
-QVOS_POWER_SYSTEM_ROOT="$test_root/legacy-system" \
+QVOS_POWER_SYSTEM_ROOT="$test_root/install-system" \
   "$root/qvcore/power/install"
 for command_name in \
   qv-system-inhibit-sleep \
   qv-system-suspend-if-safe; do
-  [[ -L $legacy_bin/$command_name ]] ||
-    fail "native sleep owner conversion: $command_name"
+  [[ -L $install_bin/$command_name ]] ||
+    fail "native sleep owner installation: $command_name"
 done
 for retired_command in \
   omarchy-system-inhibit-sleep \
   omarchy-system-suspend-if-safe; do
-  [[ ! -e $legacy_bin/$retired_command && ! -L $legacy_bin/$retired_command ]] ||
-    fail "retired sleep owner cleanup: $retired_command"
+  [[ ! -e $install_bin/$retired_command && ! -L $install_bin/$retired_command ]] ||
+    fail "retired sleep owner entered the runtime: $retired_command"
 done
-
-custom_legacy_home="$test_root/custom-legacy-home"
-custom_legacy_command="$custom_legacy_home/.local/lib/qvos/bin/omarchy-system-inhibit-sleep"
-install -D -m 0755 /dev/stdin "$custom_legacy_command" <<'SCRIPT'
-#!/bin/bash
-echo "custom sleep wrapper"
-SCRIPT
-HOME="$custom_legacy_home" \
-QVOS_PATH="$root" \
-QVOS_POWER_TESTING=1 \
-QVOS_POWER_SYSTEM_ROOT="$test_root/custom-legacy-system" \
-  "$root/qvcore/power/install" 2>/dev/null
-grep -Fqx 'echo "custom sleep wrapper"' "$custom_legacy_command" ||
-  fail "modified compatibility sleep wrapper preservation"
 
 modified_home="$test_root/modified-home"
 modified_command="$modified_home/.local/lib/qvos/bin/qv-system-inhibit-sleep"
@@ -133,7 +102,6 @@ echo "user-owned sleep wrapper"
 SCRIPT
 if HOME="$modified_home" \
   QVOS_PATH="$root" \
-  OMARCHY_PATH="$test_root/stale-source" \
   QVOS_POWER_TESTING=1 \
   QVOS_POWER_SYSTEM_ROOT="$test_root/modified-system" \
   "$root/qvcore/power/install" >/dev/null 2>&1; then
@@ -141,7 +109,7 @@ if HOME="$modified_home" \
 fi
 grep -Fq 'user-owned sleep wrapper' "$modified_command" ||
   fail "modified sleep owner was not preserved"
-printf 'ok - sleep runtime migration converts exact owners and preserves modifications\n'
+printf 'ok - native sleep runtime installation preserves modified targets\n'
 
 run_info() {
   QVOS_UPOWER_LOG="$upower_log" \

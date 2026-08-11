@@ -198,10 +198,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   absent
 - Restartable long-running desktop components use stable `qvos-*` UWSM units
   so a restart stops the complete prior control group before relaunching
-- qvOS-managed installed runtime command trees expose only native names. Exact
-  retired Omarchy aliases may be removed after active configuration migrates;
-  modified user files remain preserved, and thin source adapters remain the
-  bounded external compatibility surface
+- qvOS-managed installed runtime command trees expose only native names;
+  retired Omarchy runtime aliases remain absent, and thin source adapters are
+  the bounded external compatibility surface
 - desktop application, browser, web-app, and terminal launching belongs to
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;
