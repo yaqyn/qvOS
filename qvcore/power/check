@@ -137,15 +137,6 @@ event_compatibility=$(
 )
 [[ $event_compatibility == $'omarchy-powerprofiles-set\nomarchy-wifi-powersave' ]] ||
   fail "AC-event migration accepts an unexpected compatibility command"
-for owner in profile-rule wifi-rule; do
-  grep -Fqx "\"\$QVOS_PATH/qvcore/power/$owner\" --existing" \
-    "$root/qvcore/migrations/1786205077.sh" ||
-    fail "root-owned AC-event migration omits $owner"
-done
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/power/hibernation/setup" --force' \
-  "$root/qvcore/migrations/1786216856.sh" ||
-  fail "native hibernation migration owner"
 # shellcheck disable=SC2016
 grep -Fq '"${system_root:-/}" "$etc_root" "$run_root"' \
   "$root/qvcore/power/hibernation/root" ||

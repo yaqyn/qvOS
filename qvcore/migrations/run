@@ -7,12 +7,11 @@ local_root="$HOME/.local"
 state_parent="$local_root/state"
 qvos_state_root="$state_parent/qvos"
 state_root="$qvos_state_root/migrations"
-legacy_root="$state_parent/omarchy/migrations"
-legacy_parent=${legacy_root%/*}
 lock_file="$state_root/.lock"
 mode=run
 temporary=""
 migrations=()
+declare -A migration_sources=()
 
 cleanup() {
   [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
@@ -78,6 +77,7 @@ validate_migration_sources() {
     [[ -f $file && ! -L $file ]] ||
       fail "refusing unsafe native migration: $file"
     migrations+=("$file")
+    migration_sources["$name"]=1
   done < <(find -P "$migration_root" -maxdepth 1 -name '*.sh' -print0 | sort -z)
 }
 
@@ -93,6 +93,7 @@ validate_qvos_state() {
     elif [[ $name =~ ^[0-9]+\.sh$ ]]; then
       safe_marker "$entry" ||
         fail "refusing unsafe migration marker: $entry"
+      chmod 0600 -- "$entry"
     elif [[ $name == .qvos-migration.?????? ]] && safe_marker "$entry"; then
       rm -f -- "$entry"
     else
@@ -101,39 +102,24 @@ validate_qvos_state() {
   done < <(find -P "$state_root" -mindepth 1 -maxdepth 1 -print0)
 }
 
-validate_legacy_state() {
+prune_retired_markers() {
   local entry
-  local relative
+  local name
+  local removed=0
 
-  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
-  safe_directory "$legacy_root" ||
-    fail "refusing unsafe legacy migration state: $legacy_root"
   while IFS= read -r -d '' entry; do
-    relative=${entry#"$legacy_root"/}
-    if [[ -d $entry ]]; then
-      [[ $relative == "skipped" && ! -L $entry && -O $entry ]] ||
-        fail "refusing unexpected legacy migration directory: $entry"
-    else
-      [[ $relative =~ ^(skipped/)?[0-9]+(_[a-z0-9][a-z0-9_-]*)?\.sh$ ]] ||
-        fail "refusing unexpected legacy migration state: $entry"
+    name=${entry##*/}
+    if [[ ! -v migration_sources[$name] ]]; then
       safe_marker "$entry" ||
-        fail "refusing unsafe legacy migration marker: $entry"
+        fail "refusing unsafe retired migration marker: $entry"
+      rm -f -- "$entry"
+      ((removed += 1))
     fi
-  done < <(find -P "$legacy_root" -mindepth 1 -print0)
-}
-
-adopt_legacy_marker() {
-  local name=$1
-  local legacy="$legacy_root/$name"
-
-  [[ -f $legacy ]] || return 0
-  record_marker "$state_root/$name"
-}
-
-remove_legacy_state() {
-  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
-  find -P "$legacy_root" -depth -mindepth 1 -delete
-  rmdir -- "$legacy_root"
+  done < <(find -P "$state_root" -mindepth 1 -maxdepth 1 \
+    -type f -name '*.sh' -print0)
+  if ((removed > 0)); then
+    printf 'Retired %d obsolete qvOS migration marker(s).\n' "$removed"
+  fi
 }
 
 case ${1:-} in
@@ -157,8 +143,6 @@ validate_migration_sources
 validate_existing_directory "$HOME"
 validate_existing_directory "$local_root"
 validate_existing_directory "$state_parent"
-validate_existing_directory "$legacy_parent"
-validate_legacy_state
 ensure_directory 0755 "$local_root"
 ensure_directory 0700 "$state_parent"
 ensure_directory 0700 "$qvos_state_root"
@@ -173,6 +157,7 @@ exec 9>>"$lock_file"
 chmod 0600 -- "$lock_file"
 flock -n 9 || fail "another migration run is active"
 validate_qvos_state
+prune_retired_markers
 
 for file in "${migrations[@]}"; do
   name=${file##*/}
@@ -181,8 +166,6 @@ for file in "${migrations[@]}"; do
     record_marker "$marker"
     continue
   fi
-  [[ -e $marker ]] && continue
-  adopt_legacy_marker "$name"
   [[ -e $marker ]] && continue
 
   printf 'Running qvOS migration: %s\n' "${name%.sh}"
@@ -197,5 +180,4 @@ for file in "${migrations[@]}"; do
   record_marker "$marker"
 done
 
-remove_legacy_state
 printf 'qvOS migrations are current.\n'

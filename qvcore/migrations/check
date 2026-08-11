@@ -22,6 +22,7 @@ for owner in run add check; do
   [[ -x $root/qvcore/migrations/$owner ]] ||
     fail "native migration owner mode: $owner"
 done
+shopt -s nullglob
 for migration in "$root"/qvcore/migrations/[0-9]*.sh; do
   [[ -f $migration && ! -L $migration && ! -x $migration ]] ||
     fail "native migration source mode: $migration"
@@ -68,94 +69,9 @@ grep -Fqx '  if env QVOS_PATH="$QVOS_PATH" bash -euo pipefail "$file" 9>&-; then
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run" --mark-current' \
   "$root/qvcore/install/preflight/migrations.sh" ||
   fail "fresh-install migration seeding"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
-  "$root/qvcore/migrations/1786219736.sh" ||
-  fail "desktop session compatibility migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/desktop/webapp/migrate"' \
-  "$root/qvcore/migrations/1786227147.sh" ||
-  fail "custom Web App compatibility migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/browser/migrate-runtime-root"' \
-  "$root/qvcore/migrations/1786263924.sh" ||
-  fail "native browser-default migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/install/retire-inherited-system-policy"' \
-  "$root/qvcore/migrations/1786268843.sh" ||
-  fail "native inherited system-policy cleanup migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/assistant/install"' \
-  "$root/qvcore/migrations/1786270317.sh" ||
-  fail "native assistant integration migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/boot/migrate-identity"' \
-  "$root/qvcore/migrations/1786276491.sh" ||
-  fail "native boot-identity migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/install/system-tuning" all' \
-  "$root/qvcore/migrations/1786280697.sh" ||
-  fail "native system-tuning migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/security/install"' \
-  "$root/qvcore/migrations/1786280698.sh" ||
-  fail "passwordless timezone retirement migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/install/hardware/identity" migrate' \
-  "$root/qvcore/migrations/1786280699.sh" ||
-  fail "native installed hardware-identity migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/packages/add" "${official_packages[@]}"' \
-  "$root/qvcore/migrations/1786297116.sh" ||
-  fail "official application package migration"
-if rg -q 'pacman -R(ns|s)' "$root/qvcore/migrations/1786297116.sh"; then
-  fail "application package migration uses recursive removal"
-fi
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/boot/install-limine-snapper"' \
-  "$root/qvcore/migrations/1786298208.sh" ||
-  fail "historical mkinitcpio identity migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
-  "$root/qvcore/migrations/1786299191.sh" ||
-  fail "DPMS input-wake migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/controls/install-root"' \
-  "$root/qvcore/migrations/1786300103.sh" ||
-  fail "bounded Apple display privilege migration"
-# shellcheck disable=SC2016
-grep -Fqx '  "$QVOS_PATH/qvcore/desktop/restart/monitor-watch"' \
-  "$root/qvcore/migrations/1786300872.sh" ||
-  fail "native desktop unit migration"
-# shellcheck disable=SC2016
-grep -Fqx '  "$QVOS_PATH/qvcore/theme/background-restore"' \
-  "$root/qvcore/migrations/1786300872.sh" ||
-  fail "native wallpaper-unit migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
-  "$root/qvcore/migrations/1786301300.sh" ||
-  fail "historical compatibility backup migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/branding/system-identity"' \
-  "$root/qvcore/migrations/1786430282.sh" ||
-  fail "native qvOS system-identity migration"
-# shellcheck disable=SC2016
-grep -Fqx 'QVOS_MISE_MODE=migrate-node-lts' \
-  "$root/qvcore/migrations/1786435613.sh" ||
-  fail "native Node.js LTS migration mode"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$QVOS_PATH/qvcore/install/config/mise-work.sh"' \
-  "$root/qvcore/migrations/1786435613.sh" ||
-  fail "native Node.js LTS migration owner"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-hyprland-lua"' \
-  "$root/qvcore/migrations/1786465400.sh" ||
-  fail "native Hyprland Lua migration owner"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/boot/install-sddm-session"' \
-  "$root/qvcore/migrations/1786466500.sh" ||
-  fail "native Hyprland Lua session migration owner"
-if rg -q 'STATE_DIR=.*state/omarchy|gum confirm.*Migration|/migrations/\*\.sh' \
+grep -Fq 'prune_retired_markers' "$root/qvcore/migrations/run" ||
+  fail "retired native migration markers do not converge"
+if rg -q 'state/omarchy|legacy_(root|marker|state)|gum confirm.*Migration|/migrations/\*\.sh' \
   "$root/bin/omarchy-migrate" "$root/qvcore/migrations/run"; then
   fail "inherited migration runner behavior remains"
 fi

@@ -92,9 +92,6 @@ grep -Fq "'omarchy-capture-screenshot' 'qv-capture-screenshot'" \
   "$root/qvcore/config/migrate-runtime-root" || fail "screenshot config migration"
 grep -Fq "'omarchy-capture-screenrecording' 'qv-capture-screenrecording'" \
   "$root/qvcore/config/migrate-runtime-root" || fail "recording config migration"
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
-  "$root/qvcore/migrations/1786199374.sh" || fail "native Capture migration owner"
 
 for frontend in qv omarchy; do
   for route in \

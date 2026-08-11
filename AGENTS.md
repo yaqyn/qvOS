@@ -255,7 +255,11 @@ This copies the selected source from
 belong in fresh-install owners, never in a replayable qvOS update path.
 `qvcore/migrations/run` serializes execution, fails closed, and records private
 atomic markers under `~/.local/state/qvos/migrations`. Fresh installation marks
-current migrations without executing them through its exact native owner.
+current migrations without executing them through its exact native owner. When
+the supported upgrade floor advances, delete migrations that every supported
+installation has completed; the runner removes only their exact safe empty
+qvOS markers. Pre-release transition migrations must be retired before the
+first public baseline, and the runner never reads inherited Omarchy state.
 
 Create migrations with `qv dev add migration`. Numeric migration files are
 `0644`, have no shebang, start with a concise `echo`, use `$QVOS_PATH`, and are

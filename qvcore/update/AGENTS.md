@@ -56,10 +56,11 @@ owner. Never invoke these mutations during source-only verification.
 
 `qvcore/migrations/run` is the update pipeline's only migration engine. It reads
 only native numeric owners, serializes runs, keeps private atomic qvOS markers,
-and stops the update on failure without allowing a skip. Update paths call the
-owner directly; `qv migrate` is the native frontend and `omarchy-migrate` is a
-metadata-free compatibility frontend to that same engine. No path may read or
-replay the retired top-level Omarchy migration tree.
+prunes only safe empty markers for retired native owners, and stops the update
+on failure without allowing a skip. Update paths call the owner directly;
+`qv migrate` is the native frontend and `omarchy-migrate` is a metadata-free
+compatibility frontend to that same engine. No path may read or replay an
+Omarchy migration tree or state root.
 
 `qvcore/update/state` owns only `reboot-required` and validated
 `restart-<service>-required` markers under the private qvOS update-state

@@ -79,9 +79,5 @@ grep -Fqx 'AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;' "$quirk_file" ||
 grep -Fqx 'install/' \
   "$root/qvcore/install/retired-paths" ||
   fail "inherited install tree is not retired"
-# shellcheck disable=SC2016
-grep -Fqx 'source "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
-  "$root/qvcore/migrations/1785755403.sh" ||
-  fail "existing-system touchpad migration"
 
 printf 'ok - ASUS B9406 touchpad quirk is native, active, exact, and update-safe\n'

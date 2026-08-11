@@ -14,10 +14,10 @@ name never grants `OMARCHY_PATH` source authority.
 `omarchy-keyring` is the only retained provider-branded package requirement.
 Application and meta-package selection uses official upstream package names;
 qvOS owns the corresponding config and theme instead of depending on
-`omarchy-nvim`, `omarchy-walker`, or future provider-branded app bundles.
-When an existing installation retires such a bundle, its native migration must
-install and mark every replacement as explicit before one exact nonrecursive
-removal transaction. Never use recursive package removal for this handoff.
+`omarchy-nvim`, `omarchy-walker`, or future provider-branded app bundles. The
+one pre-release handoff to official packages is complete and its transition
+code is retired; prevent those bundles from entering fresh manifests instead
+of carrying a permanent removal path.
 
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may

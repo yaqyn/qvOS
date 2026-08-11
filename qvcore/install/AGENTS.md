@@ -68,10 +68,11 @@ Do not install a global GnuPG resolver policy or force five-second system and
 user service shutdown timeouts. The native retirement owner removes only exact
 reviewed predecessors, loads the restored systemd defaults transactionally,
 recovers an interrupted transaction, and preserves modified or unsafe policy.
-Fresh install seeds only numeric owners from `qvcore/migrations/` through
-`qvcore/migrations/run --mark-current`; it never executes existing-system
-migrations or records the retired Omarchy marker tree. This seeding runs before
-the installed account has a login session and must not require `/run/user/$UID`.
+Fresh install marks only the current supported numeric owners from
+`qvcore/migrations/` through `qvcore/migrations/run --mark-current`; an empty
+compacted baseline is valid. It never executes existing-system migrations or
+reads or records a retired Omarchy marker tree. This seeding runs before the
+installed account has a login session and must not require `/run/user/$UID`.
 
 The complete installer implementation lives under `qvcore/install/`, with
 login leaves under `qvcore/boot/login/`. The top-level `install.sh` is the only

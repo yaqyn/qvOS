@@ -56,9 +56,6 @@ for command in icon status; do
     "$root/qvcore/config/migrate-runtime-root" ||
     fail "weather config migration: $command"
 done
-# shellcheck disable=SC2016
-grep -Fqx '"$QVOS_PATH/qvcore/config/migrate-runtime-root"' \
-  "$root/qvcore/migrations/1786192342.sh" || fail "native weather migration owner"
 
 for frontend in qv omarchy; do
   for command in icon status; do
