@@ -417,15 +417,23 @@ EOF
 }
 
 chroot_bash() {
-  HOME="/home/$QVOS_USER" \
-    arch-chroot -u "$QVOS_USER" /mnt/ \
-    env --unset=XDG_RUNTIME_DIR \
+  arch-chroot -u "$QVOS_USER" /mnt/ \
+    env -i \
+    HOME="/home/$QVOS_USER" \
+    LANG=C.UTF-8 \
+    LOGNAME="$QVOS_USER" \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/bin \
+    SHELL=/bin/bash \
+    TERM=linux \
+    USER="$QVOS_USER" \
+    XDG_CONFIG_HOME="/home/$QVOS_USER/.config" \
+    XDG_DATA_HOME="/home/$QVOS_USER/.local/share" \
+    XDG_CACHE_HOME="/home/$QVOS_USER/.cache" \
+    XDG_STATE_HOME="/home/$QVOS_USER/.local/state" \
     OMARCHY_CHROOT_INSTALL=1 \
     QVOS_PROVIDER_CHANNEL="$QVOS_PROVIDER_CHANNEL" \
     QVOS_USER_NAME="$(<user_full_name.txt)" \
     QVOS_USER_EMAIL="$(<user_email_address.txt)" \
-    USER="$QVOS_USER" \
-    HOME="/home/$QVOS_USER" \
     /bin/bash "$@"
 }
 

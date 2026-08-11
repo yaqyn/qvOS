@@ -47,16 +47,28 @@ printf '%s' "$1" >>"$QVOS_TEST_EVENT_LOG"
 shift
 printf '\t%s' "$@" >>"$QVOS_TEST_EVENT_LOG"
 printf '\n' >>"$QVOS_TEST_EVENT_LOG"
+if [[ -n ${QVOS_TEST_MISE_MUTATE_CONFIG:-} ]]; then
+  printf '# concurrent user edit\n' >>"$QVOS_TEST_MISE_MUTATE_CONFIG"
+fi
+[[ -z ${QVOS_TEST_MISE_FAIL:-} ]] || exit 42
 SCRIPT
 
 run_owner() {
   local home=$1
+  local config_home=${QVOS_TEST_XDG_CONFIG_HOME:-$home/.config}
   shift
 
   HOME="$home" \
     PATH="$test_bin:/usr/bin" \
+    XDG_CACHE_HOME="$home/.cache" \
+    XDG_CONFIG_HOME="$config_home" \
+    XDG_DATA_HOME="$home/.local/share" \
+    XDG_STATE_HOME="$home/.local/state" \
+    QVOS_MISE_MODE="${QVOS_MISE_MODE:-install}" \
     QVOS_NODE_PACKAGE_DIR="$package_dir" \
     QVOS_TEST_EVENT_LOG="$event_log" \
+    QVOS_TEST_MISE_FAIL="${QVOS_TEST_MISE_FAIL:-}" \
+    QVOS_TEST_MISE_MUTATE_CONFIG="${QVOS_TEST_MISE_MUTATE_CONFIG:-}" \
     bash -euo pipefail -c 'source "$1"' _ "$owner" "$@"
 }
 
@@ -90,6 +102,99 @@ grep -Fqx $'use\t-g\tnode@lts' "$event_log" ||
   fail "online installation does not select Node.js LTS"
 grep -Fq 'preserved the existing Mise work configuration' \
   "$test_root/custom-warning" || fail "custom Mise preservation notice"
+
+migration_home="$test_root/migration-home"
+migration_config="$migration_home/.config/mise/config.toml"
+install -d "${migration_config%/*}"
+printf '%s\n' \
+  '[tools]' \
+  'python = "3.13"' \
+  'node = "latest"' >"$migration_config"
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts run_owner "$migration_home"
+grep -Fqx $'install\tnode@lts' "$event_log" ||
+  fail "inherited Node.js LTS runtime installation"
+grep -Fqx 'python = "3.13"' "$migration_config" ||
+  fail "Mise migration unrelated tool preservation"
+grep -Fqx 'node = "lts"' "$migration_config" ||
+  fail "inherited Node.js channel migration"
+! grep -Fq 'node = "latest"' "$migration_config" ||
+  fail "inherited Node.js Current channel remains"
+migration_snapshot=$(stat -c '%i|%Y' "$migration_config")
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts run_owner "$migration_home"
+[[ ! -s $event_log && $(stat -c '%i|%Y' "$migration_config") == \
+  "$migration_snapshot" ]] || fail "Node.js channel migration idempotence"
+
+custom_channel_home="$test_root/custom-channel-home"
+custom_channel_config="$custom_channel_home/.config/mise/config.toml"
+install -d "${custom_channel_config%/*}"
+printf '%s\n' '[tools]' 'node = "24.18.0"' >"$custom_channel_config"
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts run_owner "$custom_channel_home"
+[[ ! -s $event_log && $(<"$custom_channel_config") == \
+  $'[tools]\nnode = "24.18.0"' ]] ||
+  fail "custom Node.js channel preservation"
+
+weak_global_home="$test_root/weak-global-home"
+weak_global_config="$weak_global_home/.config/mise/config.toml"
+install -d "${weak_global_config%/*}"
+printf '%s\n' '[tools]' 'node = "latest"' >"$weak_global_config"
+chmod 0666 "$weak_global_config"
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts run_owner "$weak_global_home" \
+  2>"$test_root/weak-global-warning"
+[[ ! -s $event_log && $(stat -c '%a' "$weak_global_config") == "666" ]] ||
+  fail "weak Mise global config preservation"
+
+linked_global_home="$test_root/linked-global-home"
+linked_global_config="$test_root/linked-global-config.toml"
+install -d "$linked_global_home/.config/mise"
+printf '%s\n' '[tools]' 'node = "latest"' >"$linked_global_config"
+ln -s "$linked_global_config" \
+  "$linked_global_home/.config/mise/config.toml"
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts run_owner "$linked_global_home" \
+  2>"$test_root/linked-global-warning"
+[[ ! -s $event_log && $(<"$linked_global_config") == \
+  $'[tools]\nnode = "latest"' ]] || fail "linked Mise global config preservation"
+
+failed_migration_home="$test_root/failed-migration-home"
+failed_migration_config="$failed_migration_home/.config/mise/config.toml"
+install -d "${failed_migration_config%/*}"
+printf '%s\n' '[tools]' 'node = "latest"' >"$failed_migration_config"
+: >"$event_log"
+if QVOS_MISE_MODE=migrate-node-lts QVOS_TEST_MISE_FAIL=1 \
+  run_owner "$failed_migration_home" >"$test_root/failed-migration-output" 2>&1; then
+  fail "failed Node.js LTS installation was accepted"
+fi
+[[ $(<"$failed_migration_config") == $'[tools]\nnode = "latest"' ]] ||
+  fail "failed Node.js LTS installation changed the global config"
+! compgen -G "${failed_migration_config%/*}/.config.toml.qvos.*" >/dev/null ||
+  fail "failed Node.js LTS installation left a staged config"
+
+concurrent_home="$test_root/concurrent-home"
+concurrent_config="$concurrent_home/.config/mise/config.toml"
+install -d "${concurrent_config%/*}"
+printf '%s\n' '[tools]' 'node = "latest"' >"$concurrent_config"
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts \
+  QVOS_TEST_MISE_MUTATE_CONFIG="$concurrent_config" \
+  run_owner "$concurrent_home" 2>"$test_root/concurrent-warning"
+grep -Fqx 'node = "latest"' "$concurrent_config" ||
+  fail "concurrently modified Node.js channel preservation"
+grep -Fqx '# concurrent user edit' "$concurrent_config" ||
+  fail "concurrent Mise user edit preservation"
+grep -Fq 'changed during migration' "$test_root/concurrent-warning" ||
+  fail "concurrent Mise migration preservation notice"
+
+: >"$event_log"
+QVOS_MISE_MODE=migrate-node-lts \
+  QVOS_TEST_XDG_CONFIG_HOME=relative-config \
+  run_owner "$test_root/relative-xdg-home" 2>"$test_root/relative-xdg-warning"
+[[ ! -s $event_log ]] || fail "relative XDG path triggered a Mise mutation"
+grep -Fq 'relative XDG path' "$test_root/relative-xdg-warning" ||
+  fail "relative XDG path preservation notice"
 
 weak_home="$test_root/weak-home"
 install -d "$weak_home/Work"
@@ -143,4 +248,4 @@ fi
 [[ $(<"$external_runtime/sentinel") == "preserve" ]] ||
   fail "linked Node.js runtime target was modified"
 
-printf 'ok - qvOS installs one bounded Node.js LTS and trusts only its Mise config\n'
+printf 'ok - qvOS installs one bounded Node.js LTS and migrates only exact inherited state\n'

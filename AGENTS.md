@@ -100,7 +100,8 @@ Install stage files follow this pattern:
   `QVOS_ONLINE_INSTALL`, `QVOS_PROVIDER_CHANNEL`, `QVOS_USER_NAME`,
   `QVOS_USER_EMAIL`, `/var/log/qvos-install.log`); translate external builder
   inputs at the ISO boundary and preserve `OMARCHY_CHROOT_INSTALL` only as the
-  reviewed ISO-builder input
+  reviewed ISO-builder input; the ISO handoff uses an explicit clean environment
+  with target-account XDG paths
 - keep hardware-specific install logic under `qvcore/install/config/hardware/`
 - prefer helper commands for package and command checks where available
 

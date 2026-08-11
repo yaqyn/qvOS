@@ -31,6 +31,9 @@ failure enabled: they have no shebang, start with a concise `echo`, use
 inherited public commands are metadata-only adapters and never own state.
 System-identity migrations call `qvcore/branding/system-identity`; they never
 edit `/etc/os-release` directly or overwrite a foreign administrator identity.
+Runtime-channel migrations call their native install owner, mutate only an
+exact inherited setting after its replacement is available, and preserve weak,
+linked, foreign, or concurrently modified user configuration.
 
 Run `qvcore/migrations/check`, `qvos-migrations-test.sh`, install, update, boot,
 product, and upstream-boundary tests, Bash syntax and ShellCheck, then the full

@@ -122,7 +122,10 @@ a thin adapter to this owner.
 - The staged target installer exports only qvOS names for source ownership,
   provider channel, and user metadata. Pass the validated provider input as
   `QVOS_PROVIDER_CHANNEL` and user data as `QVOS_USER_NAME` and
-  `QVOS_USER_EMAIL`. Preserve only
+  `QVOS_USER_EMAIL`. Use an explicit clean chroot environment and bind XDG
+  config, data, cache, and state paths to that target account so live-media
+  state cannot escape into the installed user.
+  Preserve only
   `OMARCHY_CHROOT_INSTALL` as the exact upstream chroot-mode signal; never
   restore `OMARCHY_PATH` or `OMARCHY_INSTALL` as installer roots.
 - Put Gum in the Archinstall target bootstrap and execute the tracked native

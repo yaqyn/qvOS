@@ -138,9 +138,125 @@ qvos_mise_install_offline_node() {
   mise use -g node@"$node_version"
 }
 
-qvos_mise_install_work_config
-if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
-  qvos_mise_install_offline_node
-else
-  mise use -g node@lts
-fi
+qvos_mise_node_setting() {
+  local expected=$1
+  local config=$2
+
+  awk -v expected="$expected" '
+    /^\[[^]]+\][[:space:]]*$/ {
+      in_tools = ($0 == "[tools]")
+    }
+    in_tools && /^[[:space:]]*node[[:space:]]*=/ {
+      count++
+      value = $0
+      sub(/^[[:space:]]*node[[:space:]]*=[[:space:]]*/, "", value)
+      sub(/[[:space:]]*$/, "", value)
+      if (value != "\"" expected "\"") {
+        invalid = 1
+      }
+    }
+    END { exit !(count == 1 && invalid == 0) }
+  ' "$config"
+}
+
+qvos_mise_managed_global_config() {
+  local config_home=$1
+  local config_dir=$2
+  local config=$3
+
+  qvos_mise_safe_directory "$config_home" &&
+    qvos_mise_safe_directory "$config_dir" &&
+    [[ -f $config && ! -L $config && -O $config &&
+      $(stat -c '%a' -- "$config") == "644" ]]
+}
+
+qvos_mise_migrate_node_lts() {
+  local config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+  local config_dir="$config_home/mise"
+  local config="$config_dir/config.toml"
+  local config_hash
+  local pending=""
+
+  [[ $config_home == /* ]] || {
+    printf 'qvOS preserved the Mise global configuration under a relative XDG path.\n' >&2
+    return 0
+  }
+  [[ -e $config || -L $config ]] || return 0
+  qvos_mise_managed_global_config "$config_home" "$config_dir" "$config" || {
+    printf 'qvOS preserved the custom or unsafe Mise global configuration: %s\n' \
+      "$config" >&2
+    return 0
+  }
+  qvos_mise_node_setting latest "$config" || return 0
+  config_hash=$(sha256sum -- "$config" | cut -d' ' -f1) || return 1
+
+  # Install first so an unavailable runtime or network leaves the working
+  # inherited selection untouched. The exact source edit is then atomic.
+  if ! env \
+    --unset=MISE_CACHE_DIR \
+    --unset=MISE_CONFIG_DIR \
+    --unset=MISE_CONFIG_FILE \
+    --unset=MISE_DATA_DIR \
+    --unset=MISE_DOWNLOADS_DIR \
+    --unset=MISE_GLOBAL_CONFIG_FILE \
+    --unset=MISE_INSTALL_PATH \
+    --unset=MISE_INSTALLS_DIR \
+    --unset=MISE_SHIMS_DIR \
+    --unset=MISE_STATE_DIR \
+    MISE_NO_CONFIG=1 \
+    XDG_CONFIG_HOME="$config_home" \
+    mise install node@lts; then
+    qvos_mise_fail "could not install the Node.js LTS runtime"
+  fi
+
+  if ! qvos_mise_managed_global_config "$config_home" "$config_dir" "$config" ||
+    [[ $(sha256sum -- "$config" | cut -d' ' -f1) != "$config_hash" ]]; then
+    printf 'qvOS preserved the Mise global configuration changed during migration: %s\n' \
+      "$config" >&2
+    return 0
+  fi
+  pending=$(mktemp "$config_dir/.config.toml.qvos.XXXXXX") || return 1
+  if ! awk '
+      /^\[[^]]+\][[:space:]]*$/ {
+        in_tools = ($0 == "[tools]")
+      }
+      in_tools && /^[[:space:]]*node[[:space:]]*=[[:space:]]*"latest"[[:space:]]*$/ {
+        sub(/"latest"[[:space:]]*$/, "\"lts\"")
+      }
+      { print }
+    ' "$config" >"$pending" ||
+    ! chmod 0644 -- "$pending"; then
+    rm -f -- "$pending"
+    return 1
+  fi
+  if ! qvos_mise_managed_global_config "$config_home" "$config_dir" "$config" ||
+    [[ $(sha256sum -- "$config" | cut -d' ' -f1) != "$config_hash" ]]; then
+    rm -f -- "$pending"
+    printf 'qvOS preserved the Mise global configuration changed during migration: %s\n' \
+      "$config" >&2
+    return 0
+  fi
+  qvos_mise_node_setting lts "$pending" || {
+    rm -f -- "$pending"
+    qvos_mise_fail "could not prepare the Node.js LTS configuration"
+  }
+  mv -fT -- "$pending" "$config"
+  printf 'Migrated the inherited Mise Node.js channel from Current to LTS.\n'
+}
+
+case ${QVOS_MISE_MODE:-install} in
+install)
+  qvos_mise_install_work_config
+  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+    qvos_mise_install_offline_node
+  else
+    mise use -g node@lts
+  fi
+  ;;
+migrate-node-lts)
+  qvos_mise_migrate_node_lts
+  ;;
+*)
+  qvos_mise_fail "unknown setup mode: $QVOS_MISE_MODE"
+  ;;
+esac

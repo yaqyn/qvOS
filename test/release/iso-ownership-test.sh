@@ -228,8 +228,56 @@ if rg -n 'pacman-key --(init|populate)' "$installer"; then
 fi
 grep -Fq "    --offline \\" "$installer" ||
   fail "release ISO invokes Archinstall as an online install"
-grep -Fq "env --unset=XDG_RUNTIME_DIR \\" "$installer" ||
-  fail "release ISO leaks the live session runtime into the target chroot"
+grep -Fq "env -i \\" "$installer" ||
+  fail "release ISO does not sanitize the target installer environment"
+for target_environment in \
+  'HOME="/home/$QVOS_USER"' \
+  'XDG_CONFIG_HOME="/home/$QVOS_USER/.config"' \
+  'XDG_DATA_HOME="/home/$QVOS_USER/.local/share"' \
+  'XDG_CACHE_HOME="/home/$QVOS_USER/.cache"' \
+  'XDG_STATE_HOME="/home/$QVOS_USER/.local/state"'; do
+  grep -Fq "$target_environment" "$installer" ||
+    fail "release ISO target environment: $target_environment"
+done
+target_environment_log="$cache_test_root/target-environment.log"
+target_installer="$cache_test_root/target-installer"
+install -m 0755 /dev/stdin "$test_bin/arch-chroot" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+[[ $1 == "-u" && $3 == "/mnt/" ]] || exit 64
+shift 3
+exec "$@"
+SCRIPT
+install -m 0644 /dev/stdin "$target_installer" <<'SCRIPT'
+[[ $HOME == "/home/tester" && $USER == "tester" && $LOGNAME == "tester" ]]
+[[ $XDG_CONFIG_HOME == "/home/tester/.config" ]]
+[[ $XDG_DATA_HOME == "/home/tester/.local/share" ]]
+[[ $XDG_CACHE_HOME == "/home/tester/.cache" ]]
+[[ $XDG_STATE_HOME == "/home/tester/.local/state" ]]
+[[ $QVOS_PROVIDER_CHANNEL == "stable" ]]
+[[ $QVOS_USER_NAME == "Test User" && $QVOS_USER_EMAIL == "test@example.invalid" ]]
+for absent in LIVE_MEDIA_ONLY MISE_DATA_DIR XDG_RUNTIME_DIR; do
+  [[ ! -v $absent ]]
+done
+printf 'isolated\n' >"$1"
+SCRIPT
+printf '%s\n' 'Test User' >"$cache_test_root/user_full_name.txt"
+printf '%s\n' 'test@example.invalid' >"$cache_test_root/user_email_address.txt"
+(
+  cd "$cache_test_root"
+  export LIVE_MEDIA_ONLY=leak
+  export MISE_DATA_DIR=/live-media/mise
+  export QVOS_PROVIDER_CHANNEL=stable
+  export QVOS_USER=tester
+  export XDG_RUNTIME_DIR=/run/live-media
+  PATH="$test_bin:/usr/bin"
+  # shellcheck disable=SC1090
+  source "$installer"
+  chroot_bash "$target_installer" "$target_environment_log"
+)
+grep -Fqx 'isolated' "$target_environment_log" ||
+  fail "release ISO target environment runtime isolation"
 grep -Fq 'qvos_target_mounts+=("$target")' "$installer" ||
   fail "release ISO does not record target bind mounts immediately"
 grep -Fq 'cleanup_qvos_target_mounts' "$installer" ||

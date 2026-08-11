@@ -765,6 +765,17 @@ for qvos_source_root_contract in \
   grep -Fq "$qvos_source_root_contract" "$iso_installer" ||
     fail "qvOS ISO canonical source root: $qvos_source_root_contract"
 done
+grep -Fq "    env -i \\" "$iso_installer" ||
+  fail "qvOS ISO target environment isolation"
+for target_environment in \
+  'HOME="/home/$QVOS_USER"' \
+  'XDG_CONFIG_HOME="/home/$QVOS_USER/.config"' \
+  'XDG_DATA_HOME="/home/$QVOS_USER/.local/share"' \
+  'XDG_CACHE_HOME="/home/$QVOS_USER/.cache"' \
+  'XDG_STATE_HOME="/home/$QVOS_USER/.local/state"'; do
+  grep -Fq "$target_environment" "$iso_installer" ||
+    fail "qvOS ISO target environment: $target_environment"
+done
 grep -Fq 'source "$QVOS_INSTALL/helpers/run"' "$iso_installer" ||
   fail "qvOS ISO native helper owner"
 if rg -q 'helpers/all\.sh|OMARCHY_(USER|MIRROR|PATH|INSTALL)=' \

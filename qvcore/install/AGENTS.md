@@ -253,7 +253,10 @@ installation selects LTS directly; the ISO resolves one official LTS archive,
 verifies its published digest, and the Mise config leaf validates and stages it
 atomically without following an existing runtime link. Create and trust
 `~/Work/.mise.toml` only when it is the exact qvOS seed. Preserve every custom,
-linked, or foreign Work config without trusting it automatically.
+linked, or foreign Work config without trusting it automatically. Existing
+systems migrate only the exact inherited global `node = "latest"` selection:
+install LTS before atomically changing that one setting, and preserve custom,
+linked, weak, relative-XDG, or concurrently modified global configuration.
 
 - qvCORE is the mandatory qvOS implementation. Keep qvOS complete without
   optional Services or Development integrations. Their packages stay in their
