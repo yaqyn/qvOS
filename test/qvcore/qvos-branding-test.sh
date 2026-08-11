@@ -80,14 +80,7 @@ if run_system_identity unexpected >/dev/null 2>&1; then
   fail "system identity accepted unexpected arguments"
 fi
 
-install -d "$test_home/.config/omarchy/branding" "$test_bin"
-printf '\033[31mlegacy ANSI\033[0m\n' \
-  >"$test_home/.config/omarchy/branding/about-fastfetch.ansi"
-printf 'custom About\n' >"$test_home/.config/omarchy/branding/about.txt"
-printf 'custom screensaver\n' \
-  >"$test_home/.config/omarchy/branding/screensaver.txt"
-printf 'historical backup\n' \
-  >"$test_home/.config/omarchy/branding/about.txt.bak.1"
+install -d "$test_home" "$test_bin"
 : >"$event_log"
 
 run_owner() {
@@ -108,36 +101,31 @@ if run_owner "$root/qvcore/branding/refresh-fastfetch" unexpected \
 fi
 
 run_owner "$branding_install" >/dev/null
-[[ $(<"$test_home/.config/qvos/branding/about.txt") == "custom About" ]] ||
-  fail "plain legacy About preservation"
-[[ $(<"$test_home/.config/qvos/branding/screensaver.txt") == \
-  "custom screensaver" ]] || fail "legacy screensaver preservation"
-[[ ! -e $test_home/.config/omarchy/branding ]] ||
-  fail "legacy branding state remains active"
+cmp -s "$default_art" "$test_home/.config/qvos/branding/about.txt" ||
+  fail "native About default"
+cmp -s "$default_art" "$test_home/.config/qvos/branding/screensaver.txt" ||
+  fail "native screensaver default"
 [[ $(stat -c '%a' "$test_home/.config/qvos/branding") == "700" ]] ||
   fail "private branding directory mode"
 for target in about.txt screensaver.txt; do
   [[ $(stat -c '%a' "$test_home/.config/qvos/branding/$target") == "600" ]] ||
     fail "private branding file mode: $target"
 done
-backup_root="$test_home/.local/state/qvos/branding-backups"
-[[ $(find "$backup_root" -maxdepth 1 -type f | wc -l) == "2" ]] ||
-  fail "unsafe ANSI and historical backup preservation"
-if rg -l $'\033' "$test_home/.config/qvos/branding"; then
-  fail "terminal control sequences migrated into active branding"
-fi
-
 state_before=$(find "$test_home" -type f -printf '%P|%m|%i|%T@\n' | sort)
 run_owner "$branding_install" >/dev/null
 [[ $(find "$test_home" -type f -printf '%P|%m|%i|%T@\n' | sort) == \
   "$state_before" ]] || fail "idempotent branding install"
 
+printf 'custom About\n' >"$test_home/.config/qvos/branding/about.txt"
+printf 'custom screensaver\n' \
+  >"$test_home/.config/qvos/branding/screensaver.txt"
 run_owner "$branding_install" --reset-defaults >/dev/null
 for target in about.txt screensaver.txt; do
   cmp -s "$default_art" "$test_home/.config/qvos/branding/$target" ||
     fail "default terminal art reset: $target"
 done
-[[ $(find "$backup_root" -maxdepth 1 -type f | wc -l) == "4" ]] ||
+backup_root="$test_home/.local/state/qvos/branding-backups"
+[[ $(find "$backup_root" -maxdepth 1 -type f | wc -l) == "2" ]] ||
   fail "custom qvOS branding backup on reset"
 
 install -m 0755 /dev/stdin "$test_bin/qv-menu-file" <<'SCRIPT'

@@ -125,6 +125,10 @@ if rg -n 'omarchy-branding-(about|screensaver)|omarchy-(refresh-fastfetch|show-l
   --glob '!**/AGENTS.md' --glob '!**/check' --glob '!**/native-paths'; then
   fail "native qvOS source calls a branding compatibility route"
 fi
+if rg -n '(\.config/omarchy/branding|legacy_(root|about|screensaver))' \
+  "$root/qvcore/branding/install"; then
+  fail "branding installer retains pre-release state convergence"
+fi
 
 if rg -n '^# omarchy:summary=.*Omarchy' "$root/bin" "$root/qvcore"; then
   fail "public command help still brands qvOS as Omarchy"

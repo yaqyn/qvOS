@@ -9,7 +9,6 @@ qvos_config="$config_parent/qvos"
 target_root="$qvos_config/branding"
 about_target="$target_root/about.txt"
 screensaver_target="$target_root/screensaver.txt"
-legacy_root="$config_parent/omarchy/branding"
 backup_parent="$HOME/.local/state"
 qvos_state="$backup_parent/qvos"
 backup_root="$qvos_state/branding-backups"
@@ -74,22 +73,6 @@ validate_target() {
   }
 }
 
-validate_legacy_tree() {
-  local entry
-
-  [[ ! -e $legacy_root && ! -L $legacy_root ]] && return 0
-  qvos_branding_safe_directory "$legacy_root" || {
-    echo "Refusing unsafe legacy branding directory: $legacy_root" >&2
-    return 1
-  }
-  while IFS= read -r -d '' entry; do
-    qvos_branding_safe_file "$entry" || {
-      echo "Refusing unsafe legacy branding file: $entry" >&2
-      return 1
-    }
-  done < <(find -P "$legacy_root" -mindepth 1 -maxdepth 1 -print0)
-}
-
 ensure_backup_root() {
   ensure_parent_directory "$HOME/.local"
   ensure_parent_directory "$backup_parent"
@@ -120,42 +103,13 @@ copy_backup() {
   printf 'Preserved qvOS branding as %s.\n' "$QVOS_BRANDING_BACKUP_PATH"
 }
 
-archive_legacy() {
-  local entry=$1
-
-  ensure_backup_root
-  next_backup_path legacy
-  mv -- "$entry" "$QVOS_BRANDING_BACKUP_PATH"
-  chmod 0600 -- "$QVOS_BRANDING_BACKUP_PATH"
-  printf 'Preserved legacy branding %s as %s.\n' \
-    "$entry" "$QVOS_BRANDING_BACKUP_PATH"
-}
-
-select_legacy_about() {
-  local candidate
-
-  for candidate in \
-    "$legacy_root/about-fastfetch.ansi" \
-    "$legacy_root/about.txt"; do
-    [[ -e $candidate ]] || continue
-    qvos_branding_valid_text "$candidate" || continue
-    printf '%s\n' "$candidate"
-    return 0
-  done
-  return 1
-}
-
 install_target() {
-  local legacy_source=$1
-  local target=$2
+  local target=$1
   local source=$default_art
 
   if [[ $reset_defaults != "true" && -e $target ]]; then
     chmod 0600 -- "$target"
     return 0
-  fi
-  if [[ $reset_defaults != "true" && -n $legacy_source ]]; then
-    source=$legacy_source
   fi
   if [[ $reset_defaults == "true" && -e $target ]] &&
     ! cmp -s "$target" "$default_art"; then
@@ -174,46 +128,13 @@ validate_optional_directory "$qvos_config"
 validate_optional_directory "$target_root"
 validate_target "$about_target"
 validate_target "$screensaver_target"
-validate_legacy_tree
 
 ensure_parent_directory "$config_parent"
 qvos_branding_ensure_directory 0700 "$qvos_config"
 qvos_branding_ensure_directory 0700 "$target_root"
 
-legacy_about=""
-legacy_screensaver=""
-if [[ $reset_defaults != "true" && ! -e $about_target ]]; then
-  legacy_about=$(select_legacy_about || true)
-fi
-if [[ $reset_defaults != "true" && ! -e $screensaver_target ]] &&
-  qvos_branding_valid_text "$legacy_root/screensaver.txt" 2>/dev/null; then
-  legacy_screensaver="$legacy_root/screensaver.txt"
-fi
-
-install_target "$legacy_about" "$about_target"
-install_target "$legacy_screensaver" "$screensaver_target"
-
-if [[ -d $legacy_root && ! -L $legacy_root ]]; then
-  while IFS= read -r -d '' entry; do
-    case ${entry##*/} in
-    about-fastfetch.ansi | about.txt)
-      target=$about_target
-      ;;
-    screensaver.txt)
-      target=$screensaver_target
-      ;;
-    *)
-      target=""
-      ;;
-    esac
-    if [[ -n $target ]] && cmp -s "$entry" "$target"; then
-      rm -f -- "$entry"
-    else
-      archive_legacy "$entry"
-    fi
-  done < <(find -P "$legacy_root" -mindepth 1 -maxdepth 1 -type f -print0)
-  rmdir -- "$legacy_root"
-fi
+install_target "$about_target"
+install_target "$screensaver_target"
 
 chmod 0700 -- "$qvos_config" "$target_root"
 chmod 0600 -- "$about_target" "$screensaver_target"

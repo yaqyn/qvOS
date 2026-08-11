@@ -37,11 +37,11 @@ The graphical and terminal identities are deliberately distinct:
 
 `install` singularly owns user branding state. Active files are private at
 `~/.config/qvos/branding/{about,screensaver}.txt` with `0700` directories and
-`0600` files. Preserve valid legacy customization, reject unsafe links and
-foreign or unbounded files, archive conflicts under the private
-`~/.local/state/qvos/branding-backups`, and remove only the validated inactive
-`~/.config/omarchy/branding` tree. `--reset-defaults` is an explicit operation
-and backs up different qvOS content before replacement.
+`0600` files. Reject unsafe links and foreign or unbounded files.
+`--reset-defaults` is an explicit operation and backs up different qvOS content
+under private `~/.local/state/qvos/branding-backups` before replacement.
+Historical Omarchy branding migration is complete; this owner never reads or
+mutates that external tree.
 
 `qvcore/config/files/fastfetch/config.jsonc` is the one installed Fastfetch
 source and reads the native About file. Never restore a second config layer,
