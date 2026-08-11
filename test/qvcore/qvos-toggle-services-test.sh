@@ -142,38 +142,15 @@ service_home="$test_root/service-home"
 unit_root="$service_home/.config/systemd/user"
 install -d "$unit_root" "$test_bin"
 : >"$systemctl_log"
-for legacy_unit in \
-  omarchy-battery-monitor.service \
-  omarchy-battery-monitor.timer \
-  omarchy-recover-internal-monitor.service; do
-  printf 'legacy %s\n' "$legacy_unit" >"$unit_root/$legacy_unit"
-done
-printf 'old service backup\n' >"$unit_root/omarchy-battery-monitor.service.bak.1"
-printf 'old timer backup\n' >"$unit_root/omarchy-battery-monitor.timer.bak.1"
 
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 #!/bin/bash
 set -euo pipefail
 
-unit_root="$HOME/.config/systemd/user"
 case "$*" in
 "--user show-environment")
   [[ ${QVOS_TEST_MANAGER_UNAVAILABLE:-} != "1" ]] || exit 1
   printf 'HOME=%s\n' "${QVOS_TEST_MANAGER_HOME:-$HOME}"
-  ;;
-"--user is-enabled omarchy-battery-monitor.timer")
-  [[ -f $unit_root/omarchy-battery-monitor.timer ]] && printf 'enabled\n' || printf 'disabled\n'
-  ;;
-"--user is-enabled omarchy-recover-internal-monitor.service")
-  [[ -f $unit_root/omarchy-recover-internal-monitor.service ]] && printf 'enabled\n' || printf 'disabled\n'
-  ;;
-"--user is-enabled "* | "--user is-active "*)
-  if [[ $* == "--user is-active omarchy-battery-monitor.timer" &&
-    -f $unit_root/omarchy-battery-monitor.timer ]]; then
-    printf 'active\n'
-  else
-    printf 'inactive\n'
-  fi
   ;;
 *)
   printf '%s\n' "$*" >>"$QVOS_TEST_SYSTEMCTL_LOG"
@@ -215,27 +192,8 @@ for native_unit in \
   cmp -s "$root/qvcore/config/files/systemd/user/$native_unit" "$unit_root/$native_unit" ||
     fail "native user service was not deployed exactly: $native_unit"
 done
-if find "$unit_root" -maxdepth 1 -name 'omarchy-*' -print -quit | grep -q .; then
-  fail "legacy user-service files remain active"
-fi
-backup_root="$service_home/.local/state/qvos/backups/pre-native-user-services"
-[[ $(find "$backup_root" -maxdepth 1 -type f | wc -l) == "5" ]] ||
-  fail "legacy user-service archive count"
-while IFS= read -r -d '' backup; do
-  [[ $(stat -c '%a' "$backup") == "600" ]] ||
-    fail "legacy user-service archive is not private"
-done < <(find "$backup_root" -maxdepth 1 -type f -print0)
-expected_systemctl=$(printf '%s\n' \
-  '--user daemon-reload' \
-  '--user enable qvos-battery-monitor.timer' \
-  '--user start qvos-battery-monitor.timer' \
-  '--user enable qvos-recover-internal-monitor.service' \
-  '--user disable --now omarchy-battery-monitor.timer' \
-  '--user stop omarchy-battery-monitor.service' \
-  '--user disable --now omarchy-recover-internal-monitor.service' \
-  '--user daemon-reload')
-[[ $(<"$systemctl_log") == "$expected_systemctl" ]] ||
-  fail "user-service state migration order"
+[[ $(<"$systemctl_log") == '--user daemon-reload' ]] ||
+  fail "changed user-service deployment reload"
 
 service_snapshot=$(find "$service_home" -printf '%P|%m|%i|%T@\n' | sort)
 systemctl_snapshot=$(<"$systemctl_log")
@@ -255,19 +213,19 @@ unsafe_unit_root="$unsafe_service_home/.config/systemd/user"
 unsafe_target="$test_root/unsafe-service-target"
 install -d "$unsafe_unit_root"
 printf 'external service\n' >"$unsafe_target"
-ln -s "$unsafe_target" "$unsafe_unit_root/omarchy-battery-monitor.service"
+ln -s "$unsafe_target" "$unsafe_unit_root/qvos-battery-monitor.service"
 if HOME="$unsafe_service_home" \
   QVOS_PATH="$root" \
   QVOS_USER_SERVICES_TESTING=1 \
   QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/config/user-services" >/dev/null 2>&1; then
-  fail "user-service migration accepted a symbolic-link legacy unit"
+  fail "user-service deployment accepted a symbolic-link native unit"
 fi
 [[ $(<"$unsafe_target") == "external service" ]] ||
-  fail "user-service migration followed a symbolic link"
-[[ ! -e $unsafe_unit_root/qvos-battery-monitor.service ]] ||
-  fail "user-service migration mutated before completing preflight"
+  fail "user-service deployment followed a symbolic link"
+[[ ! -e $unsafe_unit_root/qvos-battery-monitor.timer ]] ||
+  fail "user-service deployment mutated before completing preflight"
 
 grep -Fq 'NoNewPrivileges=yes' \
   "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" ||
@@ -275,4 +233,4 @@ grep -Fq 'NoNewPrivileges=yes' \
 grep -Fq 'ConditionPathExists=%h/.local/state/qvos/toggles/' \
   "$root/qvcore/config/files/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "monitor recovery native state condition"
-printf 'ok - qvOS user services migrate atomically with native identity and preserved state\n'
+printf 'ok - qvOS user services deploy atomically with native identity\n'

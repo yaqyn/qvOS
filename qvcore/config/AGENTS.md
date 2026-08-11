@@ -101,12 +101,10 @@ includes. Preserve other customized regular files and reject symbolic-link
 targets.
 qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
 subtree and execute one native owner under
-`qvcore/config/`. `user-services` atomically deploys those units, preserves the
-enabled and active state of exact inherited units, disables their old names,
-and archives safe old files privately. First run and every post-update desktop
-reconciliation invoke it; never restore an active `omarchy-*` unit.
-Disable inherited timer and installable unit names before archiving them, but
-stop static helper services directly; static units are not enablement targets.
+`qvcore/config/`. `user-services` atomically deploys those native unit files
+and reloads the active account manager only after a changed
+deployment. First run and every post-update desktop reconciliation invoke it;
+the retired inherited unit and backup scan is absent.
 Only manage the user systemd instance when `HOME` is the active account home.
 `user-systemd-lib` singularly verifies that the reachable manager reports that
 same home. Fresh chroot and cross-home runs deploy unit files without contacting

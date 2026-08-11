@@ -278,8 +278,7 @@ if rg -n 'omarchy-(battery-monitor|hw-recover-internal-monitor|hyprland-monitor-
   --glob '!**/check' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
-  --glob '!**/retired-paths' \
-  --glob '!**/user-services'; then
+  --glob '!**/retired-paths'; then
   fail "native qvOS source still calls a config compatibility command"
 fi
 
@@ -298,7 +297,8 @@ if rg -n '\.local/state/omarchy/toggles|default/hypr/toggles|omarchy_battery_not
   "$root/qvcore/config/toggle-lib" \
   "$root/qvcore/config/toggle-touchpad" \
   "$root/qvcore/config/toggle-touchscreen" \
-  "$root/qvcore/config/toggles"; then
+  "$root/qvcore/config/toggles" \
+  "$root/qvcore/config/user-services"; then
   fail "retired toggle or user-service identity remains active"
 fi
 

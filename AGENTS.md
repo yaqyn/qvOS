@@ -194,8 +194,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   bridge owns bounded `hyprctl eval` configuration changes
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   one shared probe limits manager access to the active account home, while a
-  fresh chroot stages units for first run; inherited unit names are migration
-  input only
+  fresh chroot stages units for first run; retired inherited unit names remain
+  absent
 - Restartable long-running desktop components use stable `qvos-*` UWSM units
   so a restart stops the complete prior control group before relaunching
 - qvOS-managed installed runtime command trees expose only native names. Exact

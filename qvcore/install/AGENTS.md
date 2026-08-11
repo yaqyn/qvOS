@@ -184,8 +184,8 @@ user-service reconcilers. The target chroot has no user manager: config, menu,
 Thunar, and power owners use the shared manager probe to stage units without a
 reload, and first run activates them after the desktop session exists. Battery
 monitoring and internal-monitor recovery use
-only `qvos-*` unit identities; inherited unit names and toggle roots are
-existing-system migration inputs, never fresh state.
+only `qvos-*` unit identities. Retired inherited unit names and toggle roots
+remain absent and are not existing-system reconciliation inputs.
 AC-event rules must execute only root-owned helpers under `/usr/lib/qvos`.
 Install or update those helpers through their qvOS owner before atomically
 replacing a known udev rule; never embed a home, source-checkout, or
