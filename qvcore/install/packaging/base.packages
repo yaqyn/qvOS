@@ -137,8 +137,9 @@ zoxide
 # qvos:gaming-base:start
 # Gaming-ready runtime.
 # Reviewed from Linutil core/tabs/system-setup/gaming-setup.sh at
-# commit 104b2ad73595 (2026-07-28). Hardware-specific Vulkan drivers
-# remain owned by optional gaming-app installers.
+# commit a8b7fa652d30 (2026-08-10), normalized to current Arch package
+# names with matching PipeWire JACK support. Hardware-specific Vulkan
+# drivers remain owned by optional gaming-app installers.
 dbus
 git
 gnutls

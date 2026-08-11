@@ -147,7 +147,7 @@ func filterISOInstallerExitMessages(model tea.Model, msg tea.Msg) tea.Msg {
 }
 
 func ensureISOInstallerRuntime() error {
-	for _, commandName := range []string{"findmnt", "loadkeys", "lspci", "lsblk", "openssl", "timedatectl"} {
+	for _, commandName := range []string{"findmnt", "loadkeys", "localectl", "lspci", "lsblk", "openssl", "timedatectl"} {
 		if _, err := exec.LookPath(commandName); err != nil {
 			return fmt.Errorf("qvOS ISO installer requires %s", commandName)
 		}
@@ -158,6 +158,33 @@ func ensureISOInstallerRuntime() error {
 	}
 	if isoT2Pattern.Match(out) {
 		return fmt.Errorf("qvOS cannot safely install on T2 Macs because their required third-party packages are not verifiably signed")
+	}
+	if err := validateISOKeyboardChoices(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateISOKeyboardChoices() error {
+	out, err := exec.Command("localectl", "list-keymaps").Output()
+	if err != nil {
+		return fmt.Errorf("qvOS ISO installer could not inspect keyboard layouts: %w", err)
+	}
+
+	supported := make(map[string]struct{})
+	for _, line := range strings.Split(string(out), "\n") {
+		if keymap := strings.TrimSpace(line); keymap != "" {
+			supported[keymap] = struct{}{}
+		}
+	}
+	if len(supported) == 0 {
+		return fmt.Errorf("qvOS ISO installer found no supported keyboard layouts")
+	}
+
+	for _, choice := range isoKeyboardChoices() {
+		if _, ok := supported[choice.Value]; !ok {
+			return fmt.Errorf("qvOS ISO installer keyboard layout %s (%s) is not supported", choice.Label, choice.Value)
+		}
 	}
 	return nil
 }
@@ -1596,7 +1623,6 @@ func isoKeyboardChoices() []isoChoice {
 		{"Azerbaijani", "azerty"},
 		{"Belarusian", "by"},
 		{"Belgian", "be-latin1"},
-		{"Bosnian", "ba"},
 		{"Bulgarian", "bg-cp1251"},
 		{"Croatian", "croat"},
 		{"Czech", "cz"},
@@ -1622,7 +1648,6 @@ func isoKeyboardChoices() []isoChoice {
 		{"Italian", "it"},
 		{"Japanese", "jp106"},
 		{"Kazakh", "kazakh"},
-		{"Khmer (Cambodia)", "khmer"},
 		{"Kyrgyz", "kyrgyz"},
 		{"Lao", "la-latin1"},
 		{"Latvian", "lv"},

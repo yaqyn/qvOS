@@ -1551,7 +1551,7 @@ func TestISOChoicesUseBrightnessWithoutMarkerClutter(t *testing.T) {
 
 func TestISOInstallerRejectsUnverifiedT2Hardware(t *testing.T) {
 	binDir := t.TempDir()
-	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+	for _, commandName := range []string{"findmnt", "loadkeys", "localectl", "lsblk", "openssl", "timedatectl"} {
 		path := filepath.Join(binDir, commandName)
 		if err := os.WriteFile(path, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
@@ -1571,7 +1571,7 @@ func TestISOInstallerRejectsUnverifiedT2Hardware(t *testing.T) {
 
 func TestISOInstallerFailsClosedWhenPCIInspectionFails(t *testing.T) {
 	binDir := t.TempDir()
-	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+	for _, commandName := range []string{"findmnt", "loadkeys", "localectl", "lsblk", "openssl", "timedatectl"} {
 		path := filepath.Join(binDir, commandName)
 		if err := os.WriteFile(path, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
@@ -1586,6 +1586,44 @@ func TestISOInstallerFailsClosedWhenPCIInspectionFails(t *testing.T) {
 	err := ensureISOInstallerRuntime()
 	if err == nil || !strings.Contains(err.Error(), "could not inspect PCI hardware") {
 		t.Fatalf("PCI inspection error = %v", err)
+	}
+}
+
+func TestISOInstallerRejectsUnsupportedKeyboardCatalog(t *testing.T) {
+	binDir := t.TempDir()
+	for _, commandName := range []string{"findmnt", "loadkeys", "lsblk", "openssl", "timedatectl"} {
+		path := filepath.Join(binDir, commandName)
+		if err := os.WriteFile(path, []byte("#!/bin/bash\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(
+		filepath.Join(binDir, "lspci"),
+		[]byte("#!/bin/bash\nexit 0\n"),
+		0o755,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(binDir, "localectl"),
+		[]byte("#!/bin/bash\nprintf 'us\\n'\n"),
+		0o755,
+	); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	err := ensureISOInstallerRuntime()
+	if err == nil || !strings.Contains(err.Error(), "Azerbaijani (azerty) is not supported") {
+		t.Fatalf("keyboard catalog preflight error = %v", err)
+	}
+}
+
+func TestISOKeyboardCatalogOmitsUnsupportedKeymaps(t *testing.T) {
+	for _, choice := range isoKeyboardChoices() {
+		if choice.Value == "ba" || choice.Value == "khmer" {
+			t.Fatalf("unsupported keyboard layout remains: %#v", choice)
+		}
 	}
 }
 

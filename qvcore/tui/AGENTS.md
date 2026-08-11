@@ -181,6 +181,9 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   password confirmation reaches the drive page. Reject unsupported username and machine-name
   characters while typing, keep full name and email unset, prefill Machine Name
   with `qvOS`, require disk encryption, and use the signed standard Arch kernel.
+  Before setup, require `localectl` to return a non-empty keymap catalog and
+  reject any curated keyboard choice absent from it; never offer a layout that
+  the live system cannot apply.
   Runtime preflight must inspect PCI hardware and refuse T2 Macs before setup if
   their required third-party packages remain outside a verifiably signed qvOS
   provider boundary; inability to inspect PCI hardware also fails closed. Step
