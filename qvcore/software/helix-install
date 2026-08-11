@@ -9,10 +9,7 @@ config_file="$HOME/.config/helix/config.toml"
 theme_dir="$HOME/.config/helix/themes"
 theme_source="$HOME/.config/qvos/current/theme/helix.toml"
 theme_link="$theme_dir/qvos.toml"
-legacy_link="$theme_dir/omarchy.toml"
-legacy_theme_source="$HOME/.config/omarchy/current/theme/helix.toml"
 expected_config='theme = "qvos"'
-legacy_config='theme = "omarchy"'
 theme_link_created=0
 
 # shellcheck source=qvcore/defaults/lib
@@ -46,13 +43,7 @@ elif [[ ! -L $theme_link || $(readlink -- "$theme_link") != "$theme_source" ]]; 
   exit 1
 fi
 
-migrate_config=0
-if [[ -f $config_file && ! -L $config_file ]] &&
-  [[ $(awk 'END { print NR }' "$config_file") == "1" ]] &&
-  [[ $(<"$config_file") == "$legacy_config" ]]; then
-  qvos_defaults_check_target "$config_file"
-  migrate_config=1
-elif [[ ! -e $config_file && ! -L $config_file ]]; then
+if [[ ! -e $config_file && ! -L $config_file ]]; then
   qvos_defaults_check_target "$config_file"
 fi
 
@@ -77,24 +68,11 @@ if [[ ! -e $theme_link && ! -L $theme_link ]]; then
   theme_link_created=1
 fi
 
-if ((migrate_config)) || [[ ! -e $config_file && ! -L $config_file ]]; then
-  config_mode=0644
-  if ((migrate_config)); then
-    config_mode=$(stat -c '%a' -- "$config_file")
-  fi
+if [[ ! -e $config_file && ! -L $config_file ]]; then
   printf '%s\n' "$expected_config" |
-    qvos_defaults_atomic_write "$config_file" "$config_mode"
+    qvos_defaults_atomic_write "$config_file" 0644
 else
   echo "Preserving existing Helix configuration."
-fi
-
-if [[ -L $legacy_link ]] &&
-  [[ $(readlink -- "$legacy_link") == "$theme_source" ||
-    $(readlink -- "$legacy_link") == "$legacy_theme_source" ]] &&
-  [[ -f $config_file && ! -L $config_file ]] &&
-  [[ $(awk 'END { print NR }' "$config_file") == "1" ]] &&
-  [[ $(<"$config_file") == "$expected_config" ]]; then
-  rm -f -- "$legacy_link"
 fi
 
 if [[ $mode == "install" ]]; then

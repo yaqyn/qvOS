@@ -158,9 +158,6 @@ pass "terminal preflight fails before packages on unsafe managed paths"
 helix_home="$test_root/helix-home"
 prepare_theme "$helix_home"
 install -d "$helix_home/.config/helix/themes"
-printf 'theme = "omarchy"\n' >"$helix_home/.config/helix/config.toml"
-ln -s "$helix_home/.config/qvos/current/theme/helix.toml" \
-  "$helix_home/.config/helix/themes/omarchy.toml"
 export HOME="$helix_home"
 before_packages=$(wc -l <"$package_log")
 "$source_root/qvcore/software/helix-install" --check
@@ -168,49 +165,39 @@ before_packages=$(wc -l <"$package_log")
   fail "Helix preflight installed a package"
 "$source_root/qvcore/software/helix-install" >/dev/null
 [[ $(<"$HOME/.config/helix/config.toml") == 'theme = "qvos"' ]] ||
-  fail "Helix legacy config migration"
+  fail "Helix native config installation"
 [[ $(readlink -- "$HOME/.config/helix/themes/qvos.toml") == \
   "$HOME/.config/qvos/current/theme/helix.toml" ]] ||
   fail "Helix qvOS theme link"
-[[ ! -e $HOME/.config/helix/themes/omarchy.toml &&
-  ! -L $HOME/.config/helix/themes/omarchy.toml ]] ||
-  fail "exact Helix legacy link cleanup"
 [[ ! -e $HOME/.bashrc ]] || fail "Helix installer edited Bash configuration"
-pass "Helix migrates only its exact legacy seed and never edits the shell"
+pass "Helix installs only native configuration and never edits the shell"
 
 reconcile_helix_home="$test_root/reconcile-helix-home"
 prepare_theme "$reconcile_helix_home"
 install -d "$reconcile_helix_home/.config/helix/themes"
-printf 'theme = "omarchy"\n' >"$reconcile_helix_home/.config/helix/config.toml"
-ln -s "$reconcile_helix_home/.config/omarchy/current/theme/helix.toml" \
-  "$reconcile_helix_home/.config/helix/themes/omarchy.toml"
 before_packages=$(wc -l <"$package_log")
 HOME="$reconcile_helix_home" \
   "$source_root/qvcore/software/helix-install" --reconcile
 [[ $(wc -l <"$package_log") == "$before_packages" ]] ||
   fail "Helix reconciliation installed a package"
 [[ $(<"$reconcile_helix_home/.config/helix/config.toml") == 'theme = "qvos"' ]] ||
-  fail "Helix package-free configuration migration"
+  fail "Helix package-free configuration"
 [[ $(readlink -- "$reconcile_helix_home/.config/helix/themes/qvos.toml") == \
   "$reconcile_helix_home/.config/qvos/current/theme/helix.toml" ]] ||
   fail "Helix package-free native theme link"
-[[ ! -e $reconcile_helix_home/.config/helix/themes/omarchy.toml &&
-  ! -L $reconcile_helix_home/.config/helix/themes/omarchy.toml ]] ||
-  fail "Helix package-free legacy link cleanup"
 pass "Helix configuration reconciles without touching packages"
 
 custom_helix_home="$test_root/custom-helix-home"
 prepare_theme "$custom_helix_home"
 install -d "$custom_helix_home/.config/helix/themes"
 printf 'theme = "custom"\n' >"$custom_helix_home/.config/helix/config.toml"
-ln -s "$custom_helix_home/.config/qvos/current/theme/helix.toml" \
-  "$custom_helix_home/.config/helix/themes/omarchy.toml"
+printf 'custom theme\n' >"$custom_helix_home/.config/helix/themes/custom.toml"
 HOME="$custom_helix_home" "$source_root/qvcore/software/helix-install" >/dev/null
 [[ $(<"$custom_helix_home/.config/helix/config.toml") == 'theme = "custom"' ]] ||
   fail "custom Helix config preservation"
-[[ -L $custom_helix_home/.config/helix/themes/omarchy.toml ]] ||
-  fail "custom Helix legacy theme preservation"
-pass "Helix preserves custom configuration and its referenced legacy theme"
+[[ $(<"$custom_helix_home/.config/helix/themes/custom.toml") == \
+  "custom theme" ]] || fail "custom Helix theme preservation"
+pass "Helix preserves custom configuration and themes"
 
 unsafe_helix_home="$test_root/unsafe-helix-home"
 prepare_theme "$unsafe_helix_home"

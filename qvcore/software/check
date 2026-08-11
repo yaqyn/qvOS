@@ -109,6 +109,10 @@ if rg -n 'omazed|setsid|gtk-launch|xdg-terminals\.list[[:space:]]*<<|alias[[:spa
   "$root/qvcore/software/zed-install"; then
   fail "editor or terminal owner retains duplicate state, shell, or launch behavior"
 fi
+if rg -n 'legacy_(config|link|theme)|omarchy\.toml|theme = "omarchy"' \
+  "$root/qvcore/software/helix-install"; then
+  fail "Helix installer retains pre-release theme convergence"
+fi
 grep -Fq 'qv-pkg-add helix' "$root/qvcore/software/helix-install" ||
   fail "Helix package boundary"
 # shellcheck disable=SC2016

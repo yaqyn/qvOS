@@ -224,8 +224,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - Active Omarchy config compatibility roots contain only reviewed relative
   links; exact historical backups move intact into private qvOS feature state
 - btop, Mako, and an installed Helix consume the native current-theme tree;
-  migration rewrites only exact inherited links and the exact Helix seed while
-  preserving custom application configuration
+  Helix reconciliation creates only missing native state and preserves custom
+  application configuration
 - `qvcore/desktop/applications/` owns fixed desktop entries, package-menu
   suppressors, and the imv icon; the inherited top-level `applications/` tree
   is retired

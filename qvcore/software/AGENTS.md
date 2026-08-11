@@ -29,9 +29,10 @@ downloads, launches, or reboot handoff.
   inventory and application refresh installs it only when Foot is present.
   Helix tracks the rendered theme through the
   `qvos` theme name; its `hx` alias belongs to the qvOS shell overlay, not the
-  installer. Its package-free reconciliation mode rewrites only the exact
-  inherited one-line theme seed and either known legacy theme-link target;
-  desktop updates invoke it only when Helix is installed. Zed installs only
+  installer. Its package-free reconciliation mode creates only missing native
+  configuration and preserves every existing file; desktop updates invoke it
+  only when Helix is installed. Historical Omarchy seed and link convergence
+  is retired. Zed installs only
   `zed`, delegates its generated local theme to
   `qvcore/theme/set-zed`, preserves existing settings, and never restores the
   retired Omazed helper or launches the editor.
