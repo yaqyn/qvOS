@@ -22,9 +22,16 @@ quarantine_corrupt_cache_entries() {
 
   for path in "${corrupt_paths[@]}"; do
     if [[ $path != "$cache_dir/"* || $path == *.sig ||
-      ! -f $path || -L $path || ${path#"$cache_dir/"} == */* ]]; then
+      ${path#"$cache_dir/"} == */* ]]; then
       echo "Refusing unsafe Pacman cache recovery target: $path" >&2
       return 2
+    fi
+
+    if [[ -e $path || -L $path ]]; then
+      [[ -f $path && ! -L $path ]] || {
+        echo "Refusing unsafe Pacman cache recovery target: $path" >&2
+        return 2
+      }
     fi
 
     signature="$path.sig"
@@ -35,8 +42,12 @@ quarantine_corrupt_cache_entries() {
       }
       mv -- "$signature" "$quarantine_dir/"
     fi
-    mv -- "$path" "$quarantine_dir/"
-    echo "Quarantined checksum-invalid Pacman cache entry: ${path##*/}" >&2
+    if [[ -f $path ]]; then
+      mv -- "$path" "$quarantine_dir/"
+      echo "Quarantined checksum-invalid Pacman cache entry: ${path##*/}" >&2
+    else
+      echo "Pacman already removed checksum-invalid cache entry: ${path##*/}" >&2
+    fi
   done
 }
 

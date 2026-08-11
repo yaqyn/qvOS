@@ -154,6 +154,17 @@ PATH="$test_bin:$PATH" pacman_with_cache_recovery --noconfirm -Sy qvos-test \
 (( $(find "$cache_quarantine_dir" -maxdepth 1 -type f | wc -l) == 2 )) ||
   fail "release ISO stale-cache quarantine inventory"
 
+removed_package="$package_cache_dir/qvos-removed-1-1-any.pkg.tar.zst"
+removed_log="$cache_test_root/removed.log"
+install -m 0644 /dev/null "$removed_package.sig"
+printf ':: File %s is corrupted (invalid or corrupted package (checksum)).\n' \
+  "$removed_package" >"$removed_log"
+quarantine_corrupt_cache_entries "$removed_log" >/dev/null 2>&1 ||
+  fail "release ISO rejects an exact cache entry Pacman already removed"
+[[ ! -e $removed_package.sig &&
+  -f $cache_quarantine_dir/${removed_package##*/}.sig ]] ||
+  fail "release ISO leaves the removed cache entry signature behind"
+
 unsafe_package="$cache_test_root/outside.pkg.tar.zst"
 unsafe_log="$cache_test_root/unsafe.log"
 install -m 0644 /dev/null "$unsafe_package"

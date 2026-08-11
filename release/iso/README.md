@@ -45,7 +45,9 @@ the previous one.
   validate those databases while retiring the temporary `offline` database.
 - Exercise reused-cache recovery: a Pacman-identified checksum-invalid archive
   is quarantined individually inside the ephemeral builder and fetched again.
-  Ambiguous or repeated mismatches fail closed without clearing the whole cache.
+  If Pacman already removed that exact archive, the retry remains valid and any
+  matching safe signature is quarantined. Ambiguous or repeated mismatches fail
+  closed without clearing the whole cache.
 - Confirm the live image does not contain inherited cloud bootstrap, mirror
   discovery, or a parallel DHCP client, and does not start SSH. Networking has
   one systemd-networkd/iwd owner and remains client-only until the user
