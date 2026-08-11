@@ -79,6 +79,11 @@ install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 #!/bin/bash
 printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
 
+if [[ ${QVOS_TEST_REQUIRE_ACTIVE_POLICY:-} == "1" &&
+  ! -f $QVOS_TEST_SUDOERS_ROOT/99-qvos-installer ]]; then
+  exit 99
+fi
+
 map_policy() {
   local path=$1
 
@@ -96,8 +101,10 @@ cat)
   cat -- "$mapped"
   ;;
 rm)
-  mapped=$(map_policy "${4:-}") || exit 1
-  rm -f -- "$mapped"
+  for path in "${@:4}"; do
+    mapped=$(map_policy "$path") || exit 1
+    rm -f -- "$mapped"
+  done
   ;;
 *) exit 0 ;;
 esac
@@ -126,6 +133,7 @@ run_finished() {
     QVOS_INSTALL_LOG_FILE="$test_root/install.log" \
     QVOS_INSTALL_COMPLETION_MARKER="$completion_marker" \
     QVOS_TEST_EVENT_LOG="$event_log" \
+    QVOS_TEST_REQUIRE_ACTIVE_POLICY="${QVOS_TEST_REQUIRE_ACTIVE_POLICY:-}" \
     QVOS_TEST_SUDOERS_ROOT="$sudoers_root" \
     USER="$(id -un)" \
     PATH="$test_bin:/usr/bin" \
@@ -141,6 +149,7 @@ for policy in 99-qvos-installer 99-omarchy-installer; do
     >"$sudoers_root/$policy"
 done
 : >"$event_log"
+QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
 OMARCHY_CHROOT_INSTALL=1 \
 QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null
@@ -197,6 +206,25 @@ fi
   fail "ISO completion followed a symbolic-link marker"
 
 rm -f -- "$completion_marker"
+for policy in 99-qvos-installer 99-omarchy-installer; do
+  printf '%s\n' \
+    'root ALL=(ALL:ALL) NOPASSWD: ALL' \
+    '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' \
+    "$(id -un) ALL=(ALL:ALL) NOPASSWD: ALL" \
+    >"$sudoers_root/$policy"
+done
+printf 'modified legacy policy\n' >"$sudoers_root/99-omarchy-installer"
+if QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
+  OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_TUI_BIN="$test_bin/qvos-tui" \
+  run_finished >/dev/null 2>&1; then
+  fail "modified legacy installer policy was accepted"
+fi
+[[ -f $sudoers_root/99-qvos-installer &&
+  $(<"$sudoers_root/99-omarchy-installer") == "modified legacy policy" ]] ||
+  fail "installer policy validation partially revoked authorization"
+
+rm -f -- "$completion_marker" "$sudoers_root/99-omarchy-installer"
 printf 'modified\n' >"$sudoers_root/99-qvos-installer"
 if OMARCHY_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \

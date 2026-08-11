@@ -106,7 +106,9 @@ reviewed ISO builder's `OMARCHY_CHROOT_INSTALL` remains an upstream environment
 input only. Translate its credited mirror channel and user metadata into qvOS
 names before invoking any native stage; never accept inherited names inside
 the installer. The finished owner removes the native temporary policy and its
-exact legacy predecessor without extending either into persistent state.
+exact legacy predecessor without extending either into persistent state. It
+validates every candidate before one final removal so an unsafe predecessor or
+interrupted cleanup cannot revoke the active installer authorization halfway.
 The ISO gives Archinstall ownership of Gum as the target-side presentation
 bootstrap, then executes the tracked native `install.sh` directly under the
 installed account. Do not add a hidden pre-installer Pacman transaction or
@@ -145,6 +147,12 @@ the failed installer process from the validated `QVOS_PATH`; signals stop
 promptly with conventional exit codes. `run_logged` transports only the exact
 stage path into its clean shell and clears positional parameters before sourcing;
 an installer leaf must never observe the helper's path as its own `$1`.
+Presentation must prefer inherited terminal descriptors and treat every size
+probe as optional under strict error handling; an ISO target user may inherit
+the live console while being unable to reopen `/dev/tty`. Environment logging
+records identity inputs only as set or empty and never persists their values.
+Clearing an unavailable terminal is cosmetic and must never turn a completed
+installer stage into a failure.
 
 `qvcore/install/first-run/prepare` creates the compatibility marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`

@@ -1,5 +1,13 @@
 # shellcheck shell=bash
 
+qvos_boot_authorize() {
+  if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]; then
+    sudo -n /usr/bin/true
+  else
+    sudo -v
+  fi
+}
+
 qvos_boot_init() {
   local canonical_root
   local mode
@@ -7,7 +15,7 @@ qvos_boot_init() {
 
   QVOS_BOOT_SYSTEM_ROOT=
   if [[ -z $requested_root ]]; then
-    sudo -v
+    qvos_boot_authorize
     return
   fi
 
@@ -36,7 +44,7 @@ qvos_boot_init() {
   }
 
   QVOS_BOOT_SYSTEM_ROOT=$canonical_root
-  sudo -v
+  qvos_boot_authorize
 }
 
 qvos_boot_path() {

@@ -5,20 +5,22 @@ if ! command -v gum &>/dev/null; then
   qv-pkg-add gum
 fi
 
-# Get terminal size from /dev/tty (works in all scenarios: direct, sourced, or piped)
-if [[ -e /dev/tty ]]; then
-  TERM_SIZE=$(stty size 2>/dev/null </dev/tty)
+# Prefer an inherited terminal descriptor. During ISO installation, the target
+# user can inherit the live console while lacking permission to reopen
+# /dev/tty. Every terminal probe is optional under the installer's strict
+# error handling.
+TERM_SIZE=""
+if [[ -t 0 ]]; then
+  TERM_SIZE=$(stty size 2>/dev/null || true)
+elif [[ -r /dev/tty ]]; then
+  TERM_SIZE=$(stty size 2>/dev/null </dev/tty || true)
+fi
 
-  if [[ -n $TERM_SIZE ]]; then
-    read -r TERM_HEIGHT TERM_WIDTH <<<"$TERM_SIZE"
-    export TERM_HEIGHT TERM_WIDTH
-  else
-    # Fallback to reasonable defaults if stty fails
-    export TERM_WIDTH=80
-    export TERM_HEIGHT=24
-  fi
+if [[ -n $TERM_SIZE ]]; then
+  read -r TERM_HEIGHT TERM_WIDTH <<<"$TERM_SIZE"
+  export TERM_HEIGHT TERM_WIDTH
 else
-  # No terminal available (e.g., non-interactive environment)
+  # Use predictable dimensions without a readable controlling terminal.
   export TERM_WIDTH=80
   export TERM_HEIGHT=24
 fi

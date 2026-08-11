@@ -253,9 +253,14 @@ if rg -n 'Nautilus action icons|nautilus-python/extensions' \
   "$root/qvcore/install/post-install"; then
   fail "Nautilus install integration remains"
 fi
-grep -Eq '^env \| grep -E ".*QVOS_PATH.*QVOS_INSTALL.*"' \
-  "$root/qvcore/install/preflight/show-env.sh" ||
-  fail "native install environment reporting"
+show_env="$root/qvcore/install/preflight/show-env.sh"
+for variable in QVOS_PATH QVOS_INSTALL QVOS_USER_NAME QVOS_USER_EMAIL; do
+  grep -Fq "$variable" "$show_env" ||
+    fail "native install environment reporting: $variable"
+done
+if rg -n 'env \|.*QVOS_USER_(NAME|EMAIL)' "$show_env"; then
+  fail "native install log exposes personal identity"
+fi
 if rg -n \
   'OMARCHY_(INSTALL_LOG_FILE|ONLINE_INSTALL|START_TIME|END_TIME|START_EPOCH|END_EPOCH|DURATION|MINS|SECS)|/var/(log/omarchy-install\.log|tmp/omarchy-install-completed)' \
   "$root/boot.sh" \

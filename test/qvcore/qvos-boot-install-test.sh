@@ -6,6 +6,7 @@ test_root=$(mktemp -d)
 test_bin="$test_root/bin"
 system_root="$test_root/system"
 action_log="$test_root/actions.log"
+sudo_auth_log="$test_root/sudo-auth.log"
 swap_failure_marker="$test_root/swap-failed"
 package_installed_marker="$test_root/packages-installed"
 test_user=$(id -un)
@@ -24,6 +25,7 @@ run_boot() {
   QVOS_BOOT_TESTING=1 \
     QVOS_BOOT_TEST_ROOT="$system_root" \
     QVOS_TEST_ACTION_LOG="$action_log" \
+    QVOS_TEST_SUDO_AUTH_LOG="$sudo_auth_log" \
     QVOS_TEST_PACKAGES_INSTALLED_MARKER="$package_installed_marker" \
     QVOS_TEST_SWAP_FAILURE_MARKER="$swap_failure_marker" \
     QVOS_PATH="$root" \
@@ -41,6 +43,11 @@ install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 set -euo pipefail
 
 if [[ ${1:-} == "-v" ]]; then
+  printf '%s\n' '-v' >>"$QVOS_TEST_SUDO_AUTH_LOG"
+  exit 0
+fi
+if [[ ${1:-} == "-n" && ${2:-} == "/usr/bin/true" && $# == 2 ]]; then
+  printf '%s\n' '-n /usr/bin/true' >>"$QVOS_TEST_SUDO_AUTH_LOG"
   exit 0
 fi
 if [[ ${QVOS_TEST_FAIL_THEME_SWAP:-} == "1" && $1 == "mv" &&
@@ -52,6 +59,23 @@ if [[ ${QVOS_TEST_FAIL_THEME_SWAP:-} == "1" && $1 == "mv" &&
 fi
 exec "$@"
 SCRIPT
+
+: >"$sudo_auth_log"
+run_init() {
+  QVOS_BOOT_TESTING=1 \
+    QVOS_BOOT_TEST_ROOT="$system_root" \
+    QVOS_TEST_SUDO_AUTH_LOG="$sudo_auth_log" \
+    PATH="$test_bin:/usr/bin" \
+    bash -c 'source "$1"; qvos_boot_init' _ \
+    "$root/qvcore/boot/install-lib"
+}
+run_init
+[[ $(<"$sudo_auth_log") == "-v" ]] ||
+  fail "interactive boot authorization"
+: >"$sudo_auth_log"
+OMARCHY_CHROOT_INSTALL=1 run_init
+[[ $(<"$sudo_auth_log") == "-n /usr/bin/true" ]] ||
+  fail "noninteractive ISO boot authorization"
 
 install -m 0755 /dev/stdin "$test_bin/qvos-test-boot-command" <<'SCRIPT'
 #!/bin/bash

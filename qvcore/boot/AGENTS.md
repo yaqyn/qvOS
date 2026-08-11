@@ -63,7 +63,11 @@ watcher otherwise exits successfully without monitoring later snapshots.
 Preserve the root-only Snapper policy from `qvcore/boot/snapper-root.conf` and
 disabled btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
 require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
-non-writable permissions before redirecting any system path.
+non-writable permissions before redirecting any system path. Normal boot
+commands validate an interactive sudo ticket. The reviewed ISO chroot cannot
+prompt and must instead prove its temporary authorization with
+`sudo -n /usr/bin/true`; never let credential validation block a no-input
+target install or weaken the commands that follow.
 
 `qvcore/boot/migrate-identity` is the singular existing-system convergence
 owner and is called by its numeric native migration. It reuses the fresh-install

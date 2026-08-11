@@ -114,6 +114,8 @@ grep -Fq 'qvcore/boot/limine/limine.conf' \
 grep -Fq 'qvcore/boot/snapper-root.conf' \
   "$root/qvcore/boot/install-limine-snapper" ||
   fail "fresh Snapper policy owner"
+grep -Fq 'sudo -n /usr/bin/true' "$root/qvcore/boot/install-lib" ||
+  fail "ISO boot authorization is noninteractive"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" plymouth' \
   "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"

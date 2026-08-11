@@ -13,6 +13,7 @@ remove_installer_sudoers() {
   local actual
   local expected
   local policy
+  local -a policies=()
 
   [[ -n ${USER:-} && $USER =~ ^[[:alnum:]_.@-]+$ ]] || {
     echo "qvOS install: cannot validate the temporary installer policy user" >&2
@@ -38,8 +39,11 @@ remove_installer_sudoers() {
       printf 'qvOS install: modified installer policy: %s\n' "$policy" >&2
       return 1
     }
-    sudo rm -f -- "$policy" &>/dev/null
+    policies+=("$policy")
   done
+
+  ((${#policies[@]} == 0)) ||
+    sudo rm -f -- "${policies[@]}" &>/dev/null
 }
 
 echo_in_style() {
