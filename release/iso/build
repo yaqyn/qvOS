@@ -92,6 +92,8 @@ release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
 mkdir -p "$release_dir"
 stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")
 preserve_stage=false
+stage_cache=
+stage_cache_needs_release=false
 docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
 docker_network="${QVOS_DOCKER_NETWORK:-}"
 arch_mirror="${QVOS_ARCH_MIRROR:-}"
@@ -104,12 +106,39 @@ if [[ -n $arch_mirror ]]; then
   arch_mirror=${arch_mirror%/}
 fi
 
+release_staged_cache() {
+  local cache_root=$1
+
+  [[ -n $cache_root && -d $cache_root && ! -L $cache_root ]] || {
+    echo "qvos-build cannot release an unsafe staged build cache." >&2
+    return 1
+  }
+  echo "qvOS ISO progress: releasing staged build cache"
+  docker run \
+    --rm \
+    --pull=never \
+    -v "$cache_root:/cache" \
+    "$docker_image" \
+    sh -c 'chown -R "$1:$2" /cache && chmod -R u+rwX /cache' \
+    qvos-cache-release "$(id -u)" "$(id -g)" || return
+  stage_cache_needs_release=false
+}
+
 cleanup() {
+  local status=$?
+
+  trap - EXIT
+  if [[ $stage_cache_needs_release == "true" ]] &&
+    ! release_staged_cache "$stage_cache"; then
+    preserve_stage=true
+    echo "qvos-build could not release the interrupted build cache." >&2
+  fi
   if [[ $preserve_stage == "true" ]]; then
     echo "qvOS ISO failed stage retained: $stage_root" >&2
   else
     rm -rf -- "$stage_root"
   fi
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -637,6 +666,7 @@ run_iso_builder() {
   fi
 
   echo "qvOS ISO progress: starting build container"
+  stage_cache_needs_release=true
   docker run "${docker_args[@]}" "$docker_image" /builder/build-iso.sh ||
     build_status=$?
 
@@ -645,14 +675,7 @@ run_iso_builder() {
   # and owner access through the same container boundary so the host can either
   # inspect the exact failed stage or remove a successful one. Named download
   # caches are nested mounts during the build and are not visible to this pass.
-  echo "qvOS ISO progress: releasing staged build cache"
-  docker run \
-    --rm \
-    --pull=never \
-    -v "$cache_root:/cache" \
-    "$docker_image" \
-    sh -c 'chown -R "$1:$2" /cache && chmod -R u+rwX /cache' \
-    qvos-cache-release "$(id -u)" "$(id -g)" || ownership_status=$?
+  release_staged_cache "$cache_root" || ownership_status=$?
 
   if (( ownership_status != 0 )); then
     echo "qvos-build could not release the staged build cache." >&2

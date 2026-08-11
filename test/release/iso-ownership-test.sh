@@ -62,6 +62,10 @@ grep -Fq -- '--pull=never' "$build" ||
   fail "native ISO stage ownership cleanup can pull mutable code"
 grep -Fq 'chown -R "$1:$2" /cache && chmod -R u+rwX /cache' "$build" ||
   fail "native ISO leaves staged build data owned by Docker"
+grep -Fq 'stage_cache_needs_release=true' "$build" ||
+  fail "native ISO does not track interrupted Docker ownership"
+grep -Fq '! release_staged_cache "$stage_cache"' "$build" ||
+  fail "native ISO cannot release an interrupted build stage"
 grep -Fq 'install -d -m 0755 "$stage_cache"' "$build" ||
   fail "native ISO blocks Pacman's sandboxed download user from its stage"
 if rg -n 'DisableSandbox|DownloadUser[[:space:]]*=[[:space:]]*root' "$build" "$builder"; then

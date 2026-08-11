@@ -34,7 +34,10 @@ a thin adapter to this owner.
   stage workspace back to the invoking user through a bounded container mount
   after every build attempt so retained failures remain inspectable and
   successful stages remain removable, including package-created directories
-  that were deliberately not owner-writable inside the image. Keep the
+  that were deliberately not owner-writable inside the image. Mark ownership
+  as pending before Docker starts and retry that bounded release from the EXIT
+  cleanup path, so interruption cannot strand a root-owned multi-gigabyte
+  workspace. Keep the
   randomized stage root private,
   but make its cache mount root searchable inside the container so Pacman's
   unprivileged `DownloadUser` can reach the per-transaction directories it
