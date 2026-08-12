@@ -129,6 +129,10 @@ done
 expected_helper_stage=$'# shellcheck shell=bash\n# shellcheck disable=SC1091\n\nsource "$QVOS_INSTALL/helpers/chroot.sh"\nsource "$QVOS_INSTALL/helpers/presentation.sh"\nsource "$QVOS_PATH/qvcore/install/helpers/errors"\nsource "$QVOS_INSTALL/helpers/logging.sh"'
 [[ $(<"$root/qvcore/install/helpers/run") == "$expected_helper_stage" ]] ||
   fail "native install helper stage order"
+grep -Fq \
+  "bash -Ee -o pipefail -c 'script=\$1; set --; source \"\$script\"'" \
+  "$root/qvcore/install/helpers/logging.sh" ||
+  fail "installer leaf runner is not fail-fast"
 
 # shellcheck disable=SC2016
 grep -Fqx 'export QVOS_INSTALL="$QVOS_PATH/qvcore/install"' "$root/install.sh" ||
@@ -248,6 +252,10 @@ for hardware_source in \
   qvcore/install/hardware/input/psmouse-synaptics.conf \
   qvcore/install/hardware/intel/fred.conf \
   qvcore/install/hardware/intel/iwlwifi-disable-eht.conf \
+  qvcore/install/hardware/nvidia/env-gsp.lua \
+  qvcore/install/hardware/nvidia/env-legacy.lua \
+  qvcore/install/hardware/nvidia/mkinitcpio.conf \
+  qvcore/install/hardware/nvidia/modprobe.conf \
   qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
   [[ -f $root/$hardware_source && ! -L $root/$hardware_source ]] ||
     fail "native hardware identity source: $hardware_source"
@@ -287,6 +295,10 @@ grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
 grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" tuxedo-backlight' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
   fail "Tuxedo install stage bypasses its native policy owner"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" nvidia-boot' \
+  "$root/qvcore/install/config/hardware/nvidia.sh" ||
+  fail "NVIDIA install stage bypasses its native boot-policy owner"
 if rg -n '/etc/default/limine|sudo[[:space:]]+tee|modprobe[[:space:]]+psmouse' \
   "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
   "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
@@ -297,6 +309,10 @@ fi
 if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
   fail "Tuxedo hardware policy retains direct or destructive root mutation"
+fi
+if rg -n 'sudo[[:space:]]+tee|/etc/(modprobe\.d|mkinitcpio\.conf\.d)/nvidia\.conf|(^|[[:space:]])exit[[:space:]]+[0-9]+' \
+  "$root/qvcore/install/config/hardware/nvidia.sh"; then
+  fail "NVIDIA setup retains direct boot writes or exits the sourced installer"
 fi
 if rg -n '(/lib|/usr/lib)/modules/.+\.ko|sudo[[:space:]]+rm.+\.ko' \
   "$root/qvcore/install/config/hardware"; then

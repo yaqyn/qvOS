@@ -28,6 +28,11 @@ hid_apple_target="$system_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf"
 synaptics_source="$QVOS_PATH/qvcore/install/hardware/input/psmouse-synaptics.conf"
 synaptics_target="$system_root/etc/modprobe.d/qvos-psmouse-synaptics.conf"
 
+nvidia_modprobe_source="$QVOS_PATH/qvcore/install/hardware/nvidia/modprobe.conf"
+nvidia_modprobe_target="$system_root/etc/modprobe.d/qvos-nvidia.conf"
+nvidia_mkinitcpio_source="$QVOS_PATH/qvcore/install/hardware/nvidia/mkinitcpio.conf"
+nvidia_mkinitcpio_target="$system_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf"
+
 tuxedo_source="$QVOS_PATH/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
 tuxedo_target="$system_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 
@@ -37,12 +42,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <apple-nvme|hid-apple-fkeys|intel-fred|intel-wifi7-eht|synaptics-ps2|tuxedo-backlight|z13>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|hid-apple-fkeys|intel-fred|intel-wifi7-eht|nvidia-boot|synaptics-ps2|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-apple-nvme | hid-apple-fkeys | intel-fred | intel-wifi7-eht | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
+apple-nvme | hid-apple-fkeys | intel-fred | intel-wifi7-eht | nvidia-boot | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -267,6 +272,20 @@ install_static_policy() {
     fail "could not install the native $name policy"
 }
 
+install_nvidia_boot() {
+  local modprobe_created=false
+
+  install_managed "$nvidia_modprobe_source" "$nvidia_modprobe_target" 0644 ||
+    fail "could not install the native NVIDIA modprobe policy"
+  modprobe_created=$installed_created
+  if ! install_managed \
+    "$nvidia_mkinitcpio_source" "$nvidia_mkinitcpio_target" 0644; then
+    [[ $modprobe_created == "false" ]] ||
+      remove_created "$nvidia_modprobe_source" "$nvidia_modprobe_target" 0644
+    fail "could not install the native NVIDIA initramfs policy"
+  fi
+}
+
 case $operation in
 z13)
   if qv-hw-asus-rog && qv-hw-match "GZ302"; then
@@ -301,6 +320,12 @@ intel-wifi7-eht)
   if "$QVOS_PATH/bin/qv-hw-intel-wifi7-eht"; then
     install_static_policy \
       "Intel Wi-Fi 7 EHT" "$intel_wifi_source" "$intel_wifi_target"
+  fi
+  ;;
+nvidia-boot)
+  if "$QVOS_PATH/bin/qv-hw-nvidia-gsp" ||
+    "$QVOS_PATH/bin/qv-hw-nvidia-without-gsp"; then
+    install_nvidia_boot
   fi
   ;;
 synaptics-ps2)

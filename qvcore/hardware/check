@@ -56,6 +56,10 @@ for hardware_policy in \
   qvcore/install/hardware/input/psmouse-synaptics.conf \
   qvcore/install/hardware/intel/fred.conf \
   qvcore/install/hardware/intel/iwlwifi-disable-eht.conf \
+  qvcore/install/hardware/nvidia/env-gsp.lua \
+  qvcore/install/hardware/nvidia/env-legacy.lua \
+  qvcore/install/hardware/nvidia/mkinitcpio.conf \
+  qvcore/install/hardware/nvidia/modprobe.conf \
   qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
   [[ -f $root/$hardware_policy && ! -L $root/$hardware_policy ]] ||
     fail "native hardware policy source: $hardware_policy"
@@ -79,11 +83,16 @@ grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
 grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" tuxedo-backlight' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
   fail "Tuxedo stage bypasses the transactional policy owner"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" nvidia-boot' \
+  "$root/qvcore/install/config/hardware/nvidia.sh" ||
+  fail "NVIDIA stage bypasses the transactional boot-policy owner"
 if rg -n '/etc/default/limine|sudo[[:space:]]+tee|/lib/modules/.+\.ko|modprobe[[:space:]]+psmouse' \
   "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
   "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
   "$root/qvcore/install/config/hardware/intel/fred.sh" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh" \
+  "$root/qvcore/install/config/hardware/nvidia.sh" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
   fail "hardware policy retains duplicate, direct, or destructive root mutation"
 fi
@@ -91,6 +100,18 @@ if rg -n '/etc/(modprobe\.d/(hid_apple|iwlwifi-disable-eht|blacklist-clevo-xsm-w
   "$root/qvcore/install/hardware/identity"; then
   fail "native hardware owner retains a non-qvOS installed identity"
 fi
+if rg -n '(^|[[:space:]])exit[[:space:]]+[0-9]+' \
+  "$root/qvcore/install/config/hardware/nvidia.sh"; then
+  fail "sourced NVIDIA stage can terminate the complete installer"
+fi
+for required_nvidia_contract in \
+  'Preserving modified NVIDIA environment:' \
+  'qv-pkg-add linux-headers' \
+  'qvcore/install/hardware/identity" nvidia-boot'; do
+  grep -Fq "$required_nvidia_contract" \
+    "$root/qvcore/install/config/hardware/nvidia.sh" ||
+    fail "NVIDIA setup contract: $required_nvidia_contract"
+done
 
 while IFS= read -r inherited_path; do
   route=${inherited_path##*/omarchy-hw-}

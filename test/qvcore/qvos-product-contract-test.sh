@@ -950,6 +950,33 @@ grep -Fq "Completed: $logged_script" "$logged_output" ||
   fail "installer logging omitted successful exact-path completion"
 pass "installer logging preserves exact paths without leaking transport arguments"
 
+for failure_kind in command pipeline; do
+  failure_script="$test_root/logged-$failure_kind-failure.sh"
+  failure_marker="$test_root/logged-$failure_kind-reached.marker"
+  failure_log="$test_root/logged-$failure_kind-failure.log"
+  if [[ $failure_kind == "command" ]]; then
+    failure_body='false'
+  else
+    failure_body='false | true'
+  fi
+  install -m 0644 /dev/stdin "$failure_script" <<SCRIPT
+$failure_body
+printf 'unsafe continuation\\n' >"$failure_marker"
+SCRIPT
+  (
+    set -euo pipefail
+    export QVOS_INSTALL_LOG_FILE="$failure_log"
+    # shellcheck disable=SC1091
+    source "$root/qvcore/install/helpers/logging.sh"
+    ! run_logged "$failure_script"
+  ) || fail "installer runner hid a $failure_kind failure"
+  [[ ! -e $failure_marker ]] ||
+    fail "installer runner continued after a $failure_kind failure"
+  grep -Fq "Failed: $failure_script (exit code: 1)" "$failure_log" ||
+    fail "installer runner did not log a $failure_kind failure"
+done
+pass "installer leaves fail fast on command and pipeline errors"
+
 source_permissions="$root/release/iso/source-permissions"
 [[ -x $source_permissions ]] || fail "qvOS ISO source-permissions mode"
 grep -Fq 'git -c safe.directory="$source_root"' "$source_permissions" ||

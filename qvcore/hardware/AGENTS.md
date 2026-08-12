@@ -31,11 +31,13 @@ The Framework 16 QMK HID rule lives only at
 `qvcore/hardware/framework16-qmk-hid.rules`; `default/udev/` is retired. Its
 fresh-install leaf must reject symbolic-link destinations before privileged
 installation and preserve any existing administrator-owned rule.
-Static hid_apple function-key, Synaptics PS/2, Intel FRED, BE200/BE211 EHT, and
-Tuxedo module policies install only through the native transactional hardware
-identity owner. A detected Synaptics fix is persistent and applies on the next
-boot; never issue a transient unprivileged `modprobe` from installation. Keep
-the FRED command line in its one Limine drop-in; never append it directly to
+Static hid_apple function-key, Synaptics PS/2, Intel FRED, BE200/BE211 EHT,
+NVIDIA boot, and Tuxedo module policies install only through the native
+transactional hardware identity owner. The paired NVIDIA modprobe and
+mkinitcpio files roll back a newly created first file when the second cannot be
+installed. A detected Synaptics fix is persistent and applies on the next boot;
+never issue a transient unprivileged `modprobe` from installation. Keep the
+FRED command line in its one Limine drop-in; never append it directly to
 `/etc/default/limine`. Every installed policy filename uses a native `qvos`
 identity. Do not delete unverified kernel module files to converge a hardware
 driver.

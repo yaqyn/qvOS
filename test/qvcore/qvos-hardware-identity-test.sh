@@ -9,6 +9,8 @@ hid_apple_source="$root/qvcore/install/hardware/input/hid-apple-fkeys.conf"
 synaptics_source="$root/qvcore/install/hardware/input/psmouse-synaptics.conf"
 intel_fred_source="$root/qvcore/install/hardware/intel/fred.conf"
 intel_wifi_source="$root/qvcore/install/hardware/intel/iwlwifi-disable-eht.conf"
+nvidia_modprobe_source="$root/qvcore/install/hardware/nvidia/modprobe.conf"
+nvidia_mkinitcpio_source="$root/qvcore/install/hardware/nvidia/mkinitcpio.conf"
 tuxedo_source="$root/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
 test_root=$(mktemp -d)
 test_bin="$test_root/bin"
@@ -221,6 +223,47 @@ if QVOS_TEST_LSPCI="$intel_inventory" run_stage "$modified_intel_root" \
 fi
 [[ $(<"$modified_intel_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf") == \
   "administrator policy" ]] || fail "modified Intel Wi-Fi policy was changed"
+
+nvidia_root="$test_root/nvidia"
+prepare_root "$nvidia_root"
+QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce RTX 4060 [10de:2882]' \
+  run_owner "$nvidia_root" nvidia-boot
+nvidia_modprobe_target="$nvidia_root/etc/modprobe.d/qvos-nvidia.conf"
+nvidia_mkinitcpio_target="$nvidia_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf"
+cmp -s "$nvidia_modprobe_source" "$nvidia_modprobe_target" ||
+  fail "native NVIDIA modprobe policy"
+cmp -s "$nvidia_mkinitcpio_source" "$nvidia_mkinitcpio_target" ||
+  fail "native NVIDIA initramfs policy"
+nvidia_modprobe_inode=$(stat -c '%i' "$nvidia_modprobe_target")
+nvidia_mkinitcpio_inode=$(stat -c '%i' "$nvidia_mkinitcpio_target")
+QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce RTX 4060 [10de:2882]' \
+  run_owner "$nvidia_root" nvidia-boot
+[[ $(stat -c '%i' "$nvidia_modprobe_target") == "$nvidia_modprobe_inode" &&
+  $(stat -c '%i' "$nvidia_mkinitcpio_target") == \
+  "$nvidia_mkinitcpio_inode" ]] ||
+  fail "idempotent native NVIDIA boot-policy install"
+
+nvidia_rollback_root="$test_root/nvidia-rollback"
+prepare_root "$nvidia_rollback_root"
+install -d "$nvidia_rollback_root/etc/mkinitcpio.conf.d"
+printf 'administrator policy\n' \
+  >"$nvidia_rollback_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf"
+if QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce GTX 1060 [10de:1c20]' \
+  run_owner "$nvidia_rollback_root" nvidia-boot >/dev/null 2>&1; then
+  fail "modified NVIDIA boot policy was accepted"
+fi
+[[ ! -e $nvidia_rollback_root/etc/modprobe.d/qvos-nvidia.conf &&
+  $(<"$nvidia_rollback_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf") == \
+  "administrator policy" ]] ||
+  fail "NVIDIA boot-policy failure did not roll back its new first file"
+
+unsupported_nvidia_root="$test_root/unsupported-nvidia"
+prepare_root "$unsupported_nvidia_root"
+QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce GTX 780 [10de:1004]' \
+  run_owner "$unsupported_nvidia_root" nvidia-boot
+[[ ! -e $unsupported_nvidia_root/etc/modprobe.d/qvos-nvidia.conf &&
+  ! -e $unsupported_nvidia_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf ]] ||
+  fail "NVIDIA boot policy applied to an unsupported GPU"
 
 synaptics_root="$test_root/synaptics"
 prepare_root "$synaptics_root"

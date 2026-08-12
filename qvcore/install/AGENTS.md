@@ -92,15 +92,17 @@ security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Intel FRED,
-Intel Wi-Fi EHT, and Tuxedo stage adapters only select hardware; the owner
-installs tracked native files, activates them when required, and rolls back only
-files and service state created by the current attempt. Preserve an exact
-existing native policy without replacing it, and reject modified, linked, or
-unsafe native targets before activation. A Limine argument lives only in its
-owned drop-in, never in both a drop-in and `/etc/default/limine`. Fresh
-installation never deletes unverified files from a package-owned kernel module
-tree. The completed pre-release hardware identity migration is retired; fresh
-install never scans or mutates inherited rule, unit, backup, or service names.
+Intel Wi-Fi EHT, NVIDIA, and Tuxedo stage adapters only select hardware; the
+owner installs tracked native files, activates them when required, and rolls
+back only files and service state created by the current attempt. Sourced
+hardware stages return when a GPU is unsupported; they never exit the complete
+installer. Preserve an exact existing native policy without replacing it, and
+reject modified, linked, or unsafe native targets before activation. A Limine
+argument lives only in its owned drop-in, never in both a drop-in and
+`/etc/default/limine`. Fresh installation never deletes unverified files from a
+package-owned kernel module tree. The completed pre-release hardware identity
+migration is retired; fresh install never scans or mutates inherited rule,
+unit, backup, or service names.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,
@@ -161,8 +163,10 @@ idempotent final cleanup; its failure replaces only an otherwise successful
 status and never hides the original installation failure. Online retry replaces
 the failed installer process from the validated `QVOS_PATH`; signals stop
 promptly with conventional exit codes. `run_logged` transports only the exact
-stage path into its clean shell and clears positional parameters before sourcing;
-an installer leaf must never observe the helper's path as its own `$1`.
+stage path into its clean shell, enables `errexit` and `pipefail`, and clears
+positional parameters before sourcing. A failed leaf command or pipeline must
+stop that stage and be logged as failed; an installer leaf must never observe
+the helper's path as its own `$1`.
 Presentation must prefer inherited terminal descriptors and treat every size
 probe as optional under strict error handling; an ISO target user may inherit
 the live console while being unable to reopen `/dev/tty`. Environment logging
