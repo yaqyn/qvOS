@@ -9,6 +9,18 @@ adapter. Native menus and TUI catalogs call only the qvOS route. WARP remains an
 explicit, on-demand AUR install and must require acceptance of Cloudflare's
 terms before registration.
 
+`warp-policy` is the singular privileged privacy owner for an installed WARP
+daemon. `install` publishes it root-owned, and reconciles it before WARP starts
+and after package updates. Its exact systemd drop-in makes the vendor state and
+log roots private and stops stdout and stderr from duplicating credential-like
+registration details into the journal while leaving the runtime IPC socket
+available to the desktop account. Apply the policy idempotently, restart only
+an active daemon whose effective policy is stale, and refuse a modified qvOS
+drop-in or unsafe vendor directory. Never read, copy, print, or test against
+registration contents. A live policy activation may briefly restart WARP and
+requires explicit approval; deleting or rotating a registration is a separate
+external mutation and is never implied by hardening.
+
 `dns-policy` is the singular privileged configuration owner installed
 root-owned at `/usr/lib/qvos/network/dns-policy` by `install`. It validates
 every provider and custom address again after escalation, writes only
@@ -38,5 +50,6 @@ package-cache restoration path to normal network operation.
 Run `qvcore/network/check`, `test/qvcore/qvos-dns-test.sh`, menu, TUI owner,
 install, update, migration, CLI, product, and upstream-overlay tests, then Bash
 syntax, ShellCheck, and the full qvOS suite. Live verification may install the
-root helper and inspect policy status, but never change the selected provider
-or disconnect WARP without explicit live approval.
+root helpers and inspect policy status, but never change the selected provider,
+restart or disconnect WARP, or rotate its registration without explicit live
+approval.

@@ -199,7 +199,11 @@ compatibility-link command in a root event.
 DNS policy likewise mutates only through the root-owned
 `/usr/lib/qvos/network/dns-policy` helper. Desktop reconciliation installs its
 exact source before any user can select a provider; fresh installation never
-chooses, changes, or activates a DNS provider automatically.
+chooses, changes, or activates a DNS provider automatically. The same network
+installer publishes the root-owned WARP privacy helper. It applies its exact
+systemd policy only when the optional vendor service is installed, converges
+without restarting an already-current daemon, and leaves WARP absent from a
+fresh qvOS base.
 Waybar runtime reconciliation installs only the clock and prayer modules from
 `qvcore/waybar/runtime-paths`; source policy, checks, refresh owners, hooks, and
 weather, idle, notification, and configuration owners never enter

@@ -3,19 +3,19 @@ set -euo pipefail
 
 source_path=$(readlink -f -- "${BASH_SOURCE[0]}")
 source_dir=$(cd -- "$(dirname -- "$source_path")" && pwd)
-source_helper="$source_dir/dns-policy"
 system_root=${QVOS_NETWORK_SYSTEM_ROOT:-}
 testing=${QVOS_NETWORK_TESTING:-}
-target_helper="$system_root/usr/lib/qvos/network/dns-policy"
+target_dir="$system_root/usr/lib/qvos/network"
 expected_uid=0
 expected_gid=0
+declare -a helper_names=(dns-policy warp-policy)
 
 if [[ -n $system_root && $testing != "1" ]]; then
   echo "A custom qvOS network system root is valid only in tests." >&2
   exit 2
 fi
-if [[ -z $system_root && $target_helper != "/usr/lib/qvos/network/dns-policy" ]]; then
-  echo "Invalid qvOS DNS helper destination." >&2
+if [[ -z $system_root && $target_dir != "/usr/lib/qvos/network" ]]; then
+  echo "Invalid qvOS network helper destination." >&2
   exit 1
 fi
 if [[ -n $system_root ]]; then
@@ -26,40 +26,63 @@ if [[ -n $system_root ]]; then
   expected_uid=$(id -u)
   expected_gid=$(id -g)
 fi
-[[ -f $source_helper && ! -L $source_helper && -x $source_helper ]] || {
-  echo "Missing qvOS DNS helper source: $source_helper" >&2
-  exit 1
-}
-
 helper_ready() {
+  local helper_name=$1
+  local source_helper="$source_dir/$helper_name"
+  local target_helper="$target_dir/$helper_name"
+
   [[ -f $target_helper && ! -L $target_helper ]] &&
     [[ $(stat -c '%u:%g:%a' -- "$target_helper") == \
       "$expected_uid:$expected_gid:755" ]] &&
     cmp -s "$source_helper" "$target_helper"
 }
 
-helper_ready && exit 0
-if [[ -e $target_helper || -L $target_helper ]]; then
-  [[ -f $target_helper && ! -L $target_helper ]] || {
-    echo "Refusing unsafe qvOS DNS helper: $target_helper" >&2
+for helper_name in "${helper_names[@]}"; do
+  source_helper="$source_dir/$helper_name"
+  target_helper="$target_dir/$helper_name"
+  [[ -f $source_helper && ! -L $source_helper && -x $source_helper ]] || {
+    echo "Missing qvOS network helper source: $source_helper" >&2
     exit 1
   }
-  [[ $(stat -c '%u:%g' -- "$target_helper") == \
-    "$expected_uid:$expected_gid" ]] || {
-    echo "Refusing foreign qvOS DNS helper: $target_helper" >&2
+  if [[ -e $target_helper || -L $target_helper ]]; then
+    [[ -f $target_helper && ! -L $target_helper ]] || {
+      echo "Refusing unsafe qvOS network helper: $target_helper" >&2
+      exit 1
+    }
+    [[ $(stat -c '%u:%g' -- "$target_helper") == \
+      "$expected_uid:$expected_gid" ]] || {
+      echo "Refusing foreign qvOS network helper: $target_helper" >&2
+      exit 1
+    }
+  fi
+done
+
+for helper_name in "${helper_names[@]}"; do
+  helper_ready "$helper_name" && continue
+  source_helper="$source_dir/$helper_name"
+  target_helper="$target_dir/$helper_name"
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    install -D -o "$expected_uid" -g "$expected_gid" -m 0755 \
+      "$source_helper" "$target_helper"
+  else
+    /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0755 \
+      "$source_helper" "$target_helper"
+  fi
+done
+
+for helper_name in "${helper_names[@]}"; do
+  helper_ready "$helper_name" || {
+    echo "Could not install the qvOS network helper safely: $helper_name" >&2
     exit 1
   }
-fi
+done
 
-if [[ -n $system_root ]] || ((EUID == 0)); then
-  install -D -o "$expected_uid" -g "$expected_gid" -m 0755 \
-    "$source_helper" "$target_helper"
-else
-  /usr/bin/sudo /usr/bin/install -D -o root -g root -m 0755 \
-    "$source_helper" "$target_helper"
+warp_unit="$system_root/usr/lib/systemd/system/warp-svc.service"
+if [[ -e $warp_unit || -L $warp_unit ]]; then
+  warp_helper="$target_dir/warp-policy"
+  if [[ -n $system_root ]] || ((EUID == 0)); then
+    "$warp_helper" apply
+  else
+    /usr/bin/sudo "$warp_helper" apply
+  fi
 fi
-
-helper_ready || {
-  echo "Could not install the qvOS DNS helper safely." >&2
-  exit 1
-}

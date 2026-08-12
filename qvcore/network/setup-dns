@@ -3,9 +3,11 @@ set -euo pipefail
 
 # qvos:contract=qvcore/network/dns-policy
 # qvos:contract=qvcore/network/install
+# qvos:contract=qvcore/network/warp-policy
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 policy_helper=/usr/lib/qvos/network/dns-policy
+warp_policy_helper=/usr/lib/qvos/network/warp-policy
 policy_install="$QVOS_PATH/qvcore/network/install"
 networkctl_command=/usr/bin/networkctl
 systemctl_command=/usr/bin/systemctl
@@ -13,6 +15,7 @@ sudo_command=/usr/bin/sudo
 
 if [[ ${QVOS_NETWORK_TESTING:-} == "1" ]]; then
   policy_helper=${QVOS_NETWORK_POLICY_HELPER:-$policy_helper}
+  warp_policy_helper=${QVOS_NETWORK_WARP_POLICY_HELPER:-$warp_policy_helper}
   policy_install=${QVOS_NETWORK_INSTALL:-$policy_install}
   networkctl_command=${QVOS_NETWORK_NETWORKCTL:-$networkctl_command}
   systemctl_command=${QVOS_NETWORK_SYSTEMCTL:-$systemctl_command}
@@ -28,7 +31,7 @@ reload_dns() {
   "$sudo_command" "$systemctl_command" restart systemd-resolved
 }
 
-install_policy_helper() {
+install_network_helpers() {
   [[ -x $policy_install && ! -L $policy_install ]] || {
     echo "The qvOS DNS installer is unavailable." >&2
     return 1
@@ -38,13 +41,17 @@ install_policy_helper() {
     echo "The root-owned qvOS DNS helper is unavailable." >&2
     return 1
   }
+  [[ -x $warp_policy_helper && ! -L $warp_policy_helper ]] || {
+    echo "The root-owned qvOS WARP privacy helper is unavailable." >&2
+    return 1
+  }
 }
 
 apply_dns_policy() {
   local provider=$1
   shift
 
-  install_policy_helper
+  install_network_helpers
   "$policy_helper" validate "$provider" "$@"
   "$sudo_command" "$policy_helper" apply "$provider" "$@"
   reload_dns
@@ -90,7 +97,13 @@ activate_warp() {
     qv-pkg-aur-add cloudflare-warp-nox-bin || return 1
   fi
 
+  install_network_helpers || return 1
+  "$sudo_command" "$warp_policy_helper" check || return 1
   "$sudo_command" "$systemctl_command" enable --now warp-svc.service || return 1
+  "$sudo_command" "$warp_policy_helper" check || {
+    cleanup_warp_activation
+    return 1
+  }
   if ! ensure_warp_registration; then
     cleanup_warp_activation
     return 1
@@ -143,7 +156,7 @@ if [[ $dns == "WARP" ]]; then
   exit $?
 fi
 
-install_policy_helper
+install_network_helpers
 "$policy_helper" validate "$dns" "${dns_servers[@]}"
 deactivate_warp
 "$sudo_command" "$policy_helper" apply "$dns" "${dns_servers[@]}"

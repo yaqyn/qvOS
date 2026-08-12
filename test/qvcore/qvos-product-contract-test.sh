@@ -264,6 +264,19 @@ fi
 [[ ! -e $root/qvcore/install/packaging/warp.sh ]] || fail "WARP fresh-install stage"
 grep -Fqx '    qv-pkg-aur-add cloudflare-warp-nox-bin || return 1' \
   "$root/qvcore/network/setup-dns" || fail "on-demand WARP package contract"
+[[ -x $root/qvcore/network/warp-policy ]] ||
+  fail "WARP privacy owner"
+for policy_line in \
+  'StateDirectoryMode=0700' \
+  'LogsDirectoryMode=0700' \
+  'StandardOutput=null' \
+  'StandardError=null'; do
+  grep -Fq "$policy_line" "$root/qvcore/network/warp-policy" ||
+    fail "WARP privacy policy: $policy_line"
+done
+# shellcheck disable=SC2016
+grep -Fqx '    qvcore/network/warp-policy' \
+  "$root/qvcore/install/desktop" || fail "WARP privacy owner installation"
 if rg -q -i 'qvcore/(core|warp)|state/qvos/.*/warp' \
   "$root/qvcore/network/setup-dns" "$root/qvcore/network/dns-policy"; then
   fail "DNS-owned WARP writes retired qvCORE state"
@@ -271,7 +284,7 @@ fi
 grep -Fqx 'dns|󰐕|DNS|Settings · Connections|network,warp,cloudflare,quad9|Configure|present:qv-setup-dns' \
   "$root/qvcore/menu/concepts.psv" ||
   fail "WARP remains available through DNS configuration"
-pass "WARP stays DNS-owned and installs only when selected"
+pass "WARP stays optional, DNS-owned, and private when selected"
 
 if grep -Eq '^(7zip|act|age|clang|cloudflared|cmake|codex|codex-cli|dos2unix|gdb|git-lfs|gitleaks|go-yq|hurl|hyperfine|infisical|just|lldb|llvm|lsof|mkcert|ninja|osv-scanner|pacman-contrib|pass-cli|postgresql-libs|proton-drive-cli|proton-vpn-cli|proton-vpn-daemon|protonmail-bridge|protonmail-bridge-core|ruby|rust|semgrep|sentry-cli|shellcheck|shfmt|sops|steam|strace|supabase|time|tinyxxd|valgrind|zip)$' "$base_packages" "$other_packages"; then
   fail "optional Service or Development software leaked into the base manifest"

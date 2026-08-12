@@ -211,6 +211,12 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   pre-release AC-rule, sleep-hook, and hibernation convergence is not scanned
   at runtime;
   qvOS carries no global GnuPG resolver policy or forced shutdown timeout
+- `qvcore/network/warp-policy` owns the optional WARP daemon privacy boundary;
+  its root-owned systemd drop-in keeps vendor state and logs private and stops
+  credential-like daemon output from entering the journal without restricting
+  the runtime IPC socket. Reconcile it before starting WARP and after package
+  updates, restart only stale active policy with explicit live approval, and
+  never read or expose registration data
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes, while one typed runtime

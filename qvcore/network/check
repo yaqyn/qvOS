@@ -11,7 +11,7 @@ fail() {
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
   "bin/omarchy-setup-dns" ]] || fail "native DNS inventory"
-for owner in setup-dns dns-policy install; do
+for owner in setup-dns dns-policy install warp-policy; do
   [[ -x $root/qvcore/network/$owner && ! -L $root/qvcore/network/$owner ]] ||
     fail "native network owner: $owner"
 done
@@ -43,6 +43,15 @@ grep -Fqx 'qv-setup-dns' <(
 
 grep -Fq '/usr/lib/qvos/network/dns-policy' "$root/qvcore/network/setup-dns" ||
   fail "root-owned DNS mutation boundary"
+grep -Fq '/usr/lib/qvos/network/warp-policy' "$root/qvcore/network/setup-dns" ||
+  fail "root-owned WARP privacy boundary"
+# shellcheck disable=SC2016
+grep -Fqx '  "$sudo_command" "$warp_policy_helper" check || return 1' \
+  "$root/qvcore/network/setup-dns" ||
+  fail "WARP starts before its privacy policy"
+# shellcheck disable=SC2016
+grep -Fqx '    "$warp_helper" apply' "$root/qvcore/network/install" ||
+  fail "installed WARP policy is not reconciled"
 ! rg -q 'sudo[[:space:]]+(tee|sed)|/etc/systemd/network/\*' \
   "$root/qvcore/network/setup-dns" ||
   fail "interactive DNS owner mutates system policy directly"

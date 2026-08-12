@@ -103,6 +103,7 @@
     qvcore/network/dns-policy
     qvcore/network/install
     qvcore/network/setup-dns
+    qvcore/network/warp-policy
     qvcore/power/inhibit-sleep
     qvcore/power/battery-protection
     qvcore/power/battery-protection-backend

@@ -1,0 +1,222 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+
+action=${1:-}
+case $action in
+apply | check)
+  (($# == 1)) || {
+    echo "Usage: warp-policy <apply|check>" >&2
+    exit 2
+  }
+  ;;
+*)
+  echo "Usage: warp-policy <apply|check>" >&2
+  exit 2
+  ;;
+esac
+
+system_root=${QVOS_NETWORK_SYSTEM_ROOT:-}
+testing=${QVOS_NETWORK_TESTING:-}
+expected_uid=0
+expected_gid=0
+systemctl_command=/usr/bin/systemctl
+unit_file="$system_root/usr/lib/systemd/system/warp-svc.service"
+dropin_dir="$system_root/etc/systemd/system/warp-svc.service.d"
+dropin="$dropin_dir/80-qvos-privacy.conf"
+state_dir="$system_root/var/lib/cloudflare-warp"
+log_dir="$system_root/var/log/cloudflare-warp"
+managed_header="# Managed by qvOS WARP privacy policy. Do not edit."
+policy=$managed_header$'\n[Service]\nStateDirectoryMode=0700\nLogsDirectoryMode=0700\nStandardOutput=null\nStandardError=null'
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" && $system_root == /tmp/* && -d $system_root &&
+    ! -L $system_root && $(/usr/bin/stat -c '%u' -- "$system_root") == "$UID" ]] || {
+    echo "Invalid qvOS network test root." >&2
+    exit 2
+  }
+  expected_uid=$(id -u)
+  expected_gid=$(id -g)
+  systemctl_command=${QVOS_NETWORK_SYSTEMCTL:-$systemctl_command}
+elif ((EUID != 0)); then
+  echo "qvOS WARP privacy policy must run as root." >&2
+  exit 1
+fi
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+safe_regular_file() {
+  local path=$1
+  local mode
+
+  [[ -f $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (((8#$mode & 022) == 0))
+}
+
+policy_matches() {
+  [[ -f $dropin && ! -L $dropin ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$dropin") == \
+    "$expected_uid:$expected_gid:644" ]] || return 1
+  [[ $(<"$dropin") == "$policy" ]]
+}
+
+directory_private() {
+  local path=$1
+
+  if [[ ! -e $path && ! -L $path ]]; then
+    return 0
+  fi
+  [[ -d $path && ! -L $path ]] &&
+    [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+      "$expected_uid:$expected_gid:700" ]]
+}
+
+effective_policy_matches() {
+  local settings
+
+  settings=$(
+    "$systemctl_command" show warp-svc.service \
+      -p StateDirectoryMode \
+      -p LogsDirectoryMode \
+      -p StandardOutput \
+      -p StandardError
+  ) || return 1
+  for expected in \
+    StateDirectoryMode=0700 \
+    LogsDirectoryMode=0700 \
+    StandardOutput=null \
+    StandardError=null; do
+    grep -Fqx "$expected" <<<"$settings" || return 1
+  done
+}
+
+check_policy() {
+  policy_matches || {
+    echo "The qvOS WARP privacy drop-in is missing, modified, or unsafe." >&2
+    return 1
+  }
+  directory_private "$state_dir" || {
+    echo "The Cloudflare WARP state directory is not private." >&2
+    return 1
+  }
+  directory_private "$log_dir" || {
+    echo "The Cloudflare WARP log directory is not private." >&2
+    return 1
+  }
+  effective_policy_matches || {
+    echo "The qvOS WARP privacy policy is not active in systemd." >&2
+    return 1
+  }
+}
+
+safe_regular_file "$unit_file" || {
+  echo "Missing or unsafe Cloudflare WARP service unit: $unit_file" >&2
+  exit 1
+}
+
+if [[ $action == "check" ]]; then
+  check_policy
+  exit $?
+fi
+if check_policy >/dev/null 2>&1; then
+  exit 0
+fi
+
+declare -A previous_modes=()
+for private_dir in "$state_dir" "$log_dir"; do
+  if [[ ! -e $private_dir && ! -L $private_dir ]]; then
+    continue
+  fi
+  safe_directory "$private_dir" || {
+    echo "Refusing unsafe Cloudflare WARP directory: $private_dir" >&2
+    exit 1
+  }
+  previous_modes[$private_dir]=$(/usr/bin/stat -c '%a' -- "$private_dir")
+done
+
+systemd_dir=${dropin_dir%/*}
+safe_directory "$systemd_dir" || {
+  echo "Refusing unsafe systemd policy directory: $systemd_dir" >&2
+  exit 1
+}
+if [[ -e $dropin_dir || -L $dropin_dir ]]; then
+  safe_directory "$dropin_dir" || {
+    echo "Refusing unsafe WARP service drop-in directory: $dropin_dir" >&2
+    exit 1
+  }
+else
+  /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" -m 0755 \
+    "$dropin_dir"
+fi
+
+temporary=""
+cleanup_temporary() {
+  [[ -z $temporary || ! -e $temporary ]] || /usr/bin/rm -f -- "$temporary"
+}
+trap cleanup_temporary EXIT
+
+policy_created=false
+if [[ -e $dropin || -L $dropin ]]; then
+  policy_matches || {
+    echo "Refusing modified or unsafe qvOS WARP privacy policy: $dropin" >&2
+    exit 1
+  }
+else
+  temporary=$(/usr/bin/mktemp "$dropin_dir/.80-qvos-privacy.conf.XXXXXX")
+  printf '%s\n' "$policy" >"$temporary"
+  /usr/bin/chown "$expected_uid:$expected_gid" "$temporary"
+  /usr/bin/chmod 0644 "$temporary"
+  /usr/bin/mv -T -- "$temporary" "$dropin"
+  temporary=""
+  policy_created=true
+fi
+
+service_was_active=false
+if "$systemctl_command" is-active --quiet warp-svc.service; then
+  service_was_active=true
+fi
+
+rollback() {
+  local status=$?
+  local private_dir
+
+  trap - ERR INT TERM
+  for private_dir in "${!previous_modes[@]}"; do
+    /usr/bin/chmod "${previous_modes[$private_dir]}" "$private_dir" || true
+  done
+  if [[ $policy_created == "true" ]]; then
+    /usr/bin/rm -f -- "$dropin"
+    /usr/bin/rmdir --ignore-fail-on-non-empty "$dropin_dir" 2>/dev/null || true
+  fi
+  "$systemctl_command" daemon-reload >/dev/null 2>&1 || true
+  if [[ $service_was_active == "true" ]]; then
+    "$systemctl_command" restart warp-svc.service >/dev/null 2>&1 || true
+  fi
+  echo "Could not activate the qvOS WARP privacy policy; restored the prior service policy." >&2
+  exit "$status"
+}
+
+trap rollback ERR
+for private_dir in "${!previous_modes[@]}"; do
+  /usr/bin/chmod 0700 "$private_dir"
+done
+"$systemctl_command" daemon-reload
+if [[ $service_was_active == "true" ]]; then
+  "$systemctl_command" restart warp-svc.service
+fi
+check_policy
+trap - ERR
+trap - EXIT

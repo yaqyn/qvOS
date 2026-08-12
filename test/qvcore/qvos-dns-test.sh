@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 setup_dns="$root/qvcore/network/setup-dns"
 policy="$root/qvcore/network/dns-policy"
+warp_policy="$root/qvcore/network/warp-policy"
 installer="$root/qvcore/network/install"
 test_root="$(mktemp -d)"
 system_root="$test_root/system"
@@ -150,16 +151,23 @@ install_root="$test_root/install-system"
 install -d "$install_root"
 QVOS_NETWORK_TESTING=1 QVOS_NETWORK_SYSTEM_ROOT="$install_root" \
   "$installer"
-installed_helper="$install_root/usr/lib/qvos/network/dns-policy"
-cmp -s "$policy" "$installed_helper" || fail "installed DNS helper contents"
-[[ $(stat -c '%a' "$installed_helper") == "755" ]] ||
-  fail "installed DNS helper mode"
-install_snapshot=$(stat -c '%i:%Y' "$installed_helper")
+for helper_name in dns-policy warp-policy; do
+  installed_helper="$install_root/usr/lib/qvos/network/$helper_name"
+  cmp -s "$root/qvcore/network/$helper_name" "$installed_helper" ||
+    fail "installed $helper_name helper contents"
+  [[ $(stat -c '%a' "$installed_helper") == "755" ]] ||
+    fail "installed $helper_name helper mode"
+done
+install_snapshot=$(
+  find "$install_root/usr/lib/qvos/network" -type f \
+    -printf '%f:%i:%T@\n' | sort
+)
 QVOS_NETWORK_TESTING=1 QVOS_NETWORK_SYSTEM_ROOT="$install_root" \
   "$installer"
-[[ $(stat -c '%i:%Y' "$installed_helper") == "$install_snapshot" ]] ||
+[[ $(find "$install_root/usr/lib/qvos/network" -type f \
+  -printf '%f:%i:%T@\n' | sort) == "$install_snapshot" ]] ||
   fail "current DNS helper was replaced"
-pass "root DNS helper installation converges without churn"
+pass "root network helper installation converges without churn"
 
 install -d "$test_bin"
 install -m 0755 /dev/stdin "$test_bin/qv-cmd-missing" <<'SCRIPT'
@@ -178,6 +186,10 @@ if [[ $1 == "is-active" ]]; then
 else
   exit 0
 fi
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/warp-policy" <<'SCRIPT'
+#!/bin/bash
+printf 'warp-policy\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/warp-cli" <<'SCRIPT'
 #!/bin/bash
@@ -226,6 +238,7 @@ run_setup() {
     QVOS_TEST_WARP_REGISTERED="${QVOS_TEST_WARP_REGISTERED:-0}" \
     QVOS_NETWORK_TESTING=1 \
     QVOS_NETWORK_POLICY_HELPER="$test_bin/dns-policy" \
+    QVOS_NETWORK_WARP_POLICY_HELPER="$test_bin/warp-policy" \
     QVOS_NETWORK_INSTALL="$test_bin/policy-install" \
     QVOS_NETWORK_NETWORKCTL="$test_bin/networkctl" \
     QVOS_NETWORK_SYSTEMCTL="$test_bin/systemctl" \
@@ -239,6 +252,9 @@ run_setup() {
 QVOS_TEST_WARP_MISSING=1 run_setup WARP >/dev/null
 grep -Fqx $'package\tcloudflare-warp-nox-bin' "$action_log" ||
   fail "missing WARP package install"
+policy_check_line=$(grep -nFx $'warp-policy\tcheck' "$action_log" | head -n 1 | cut -d: -f1)
+enable_line=$(grep -nFx $'systemctl\tenable --now warp-svc.service' "$action_log" | cut -d: -f1)
+((policy_check_line < enable_line)) || fail "WARP starts before privacy validation"
 grep -Fqx $'gum\tconfirm Accept Cloudflare WARP terms and register this device?' \
   "$action_log" || fail "first WARP terms confirmation"
 grep -Fqx $'warp-cli\t--accept-tos registration new' "$action_log" ||
@@ -248,6 +264,122 @@ policy_line=$(grep -nFx $'policy\tapply DHCP' "$action_log" | cut -d: -f1)
 connect_line=$(grep -nFx $'warp-cli\tconnect' "$action_log" | cut -d: -f1)
 ((policy_line < connect_line)) || fail "WARP connects before DHCP policy"
 pass "WARP installs, registers, applies DHCP policy, and connects"
+
+warp_root="$test_root/warp-system"
+warp_action_log="$test_root/warp-actions"
+install -d \
+  "$warp_root/etc/systemd/system" \
+  "$warp_root/usr/lib/systemd/system" \
+  "$warp_root/var/lib/cloudflare-warp" \
+  "$warp_root/var/log/cloudflare-warp"
+install -m 0644 /dev/stdin \
+  "$warp_root/usr/lib/systemd/system/warp-svc.service" <<'UNIT'
+[Service]
+ExecStart=/usr/bin/warp-svc
+StateDirectory=cloudflare-warp
+LogsDirectory=cloudflare-warp
+UNIT
+install -m 0755 /dev/stdin "$test_bin/warp-systemctl" <<'SCRIPT'
+#!/bin/bash
+printf 'systemctl\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+case $1 in
+is-active) [[ ${QVOS_TEST_WARP_ACTIVE:-0} == "1" ]] ;;
+restart)
+  if [[ ${QVOS_TEST_WARP_RESTART_FAIL_ONCE:-0} == "1" &&
+    ! -e ${QVOS_TEST_WARP_FAILURE_MARKER:-} ]]; then
+    : >"$QVOS_TEST_WARP_FAILURE_MARKER"
+    exit 1
+  fi
+  ;;
+show)
+  printf '%s\n' \
+    'StateDirectoryMode=0700' \
+    'LogsDirectoryMode=0700' \
+    'StandardOutput=null' \
+    'StandardError=null'
+  ;;
+esac
+SCRIPT
+: >"$warp_action_log"
+QVOS_TEST_ACTION_LOG="$warp_action_log" \
+  QVOS_TEST_WARP_ACTIVE=1 \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$warp_root" \
+  QVOS_NETWORK_SYSTEMCTL="$test_bin/warp-systemctl" \
+  "$warp_policy" apply
+warp_dropin="$warp_root/etc/systemd/system/warp-svc.service.d/80-qvos-privacy.conf"
+grep -Fqx 'StateDirectoryMode=0700' "$warp_dropin" ||
+  fail "WARP state privacy drop-in"
+grep -Fqx 'LogsDirectoryMode=0700' "$warp_dropin" ||
+  fail "WARP log privacy drop-in"
+grep -Fqx 'StandardOutput=null' "$warp_dropin" ||
+  fail "WARP journal output suppression"
+grep -Fqx 'StandardError=null' "$warp_dropin" ||
+  fail "WARP journal error suppression"
+[[ $(stat -c '%a' "$warp_root/var/lib/cloudflare-warp") == "700" &&
+  $(stat -c '%a' "$warp_root/var/log/cloudflare-warp") == "700" ]] ||
+  fail "existing WARP directories remain exposed"
+grep -Fqx $'systemctl\tdaemon-reload' "$warp_action_log" ||
+  fail "WARP systemd policy reload"
+grep -Fqx $'systemctl\trestart warp-svc.service' "$warp_action_log" ||
+  fail "active WARP policy restart"
+QVOS_TEST_ACTION_LOG="$warp_action_log" \
+  QVOS_TEST_WARP_ACTIVE=1 \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$warp_root" \
+  QVOS_NETWORK_SYSTEMCTL="$test_bin/warp-systemctl" \
+  "$warp_policy" check
+: >"$warp_action_log"
+QVOS_TEST_ACTION_LOG="$warp_action_log" \
+  QVOS_TEST_WARP_ACTIVE=1 \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$warp_root" \
+  QVOS_NETWORK_SYSTEMCTL="$test_bin/warp-systemctl" \
+  "$warp_policy" apply
+if grep -Eq $'systemctl\t(daemon-reload|restart)' "$warp_action_log"; then
+  fail "current WARP privacy policy restarted the service"
+fi
+printf 'modified\n' >>"$warp_dropin"
+if QVOS_TEST_ACTION_LOG="$warp_action_log" \
+  QVOS_TEST_WARP_ACTIVE=1 \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$warp_root" \
+  QVOS_NETWORK_SYSTEMCTL="$test_bin/warp-systemctl" \
+  "$warp_policy" apply >/dev/null 2>&1; then
+  fail "modified WARP privacy policy was overwritten"
+fi
+grep -Fqx 'modified' "$warp_dropin" ||
+  fail "modified WARP privacy policy was not preserved"
+
+warp_rollback_root="$test_root/warp-rollback-system"
+warp_rollback_log="$test_root/warp-rollback-actions"
+warp_failure_marker="$test_root/warp-restart-failed"
+install -d \
+  "$warp_rollback_root/etc/systemd/system" \
+  "$warp_rollback_root/usr/lib/systemd/system" \
+  "$warp_rollback_root/var/lib/cloudflare-warp" \
+  "$warp_rollback_root/var/log/cloudflare-warp"
+install -m 0644 "$warp_root/usr/lib/systemd/system/warp-svc.service" \
+  "$warp_rollback_root/usr/lib/systemd/system/warp-svc.service"
+: >"$warp_rollback_log"
+if QVOS_TEST_ACTION_LOG="$warp_rollback_log" \
+  QVOS_TEST_WARP_ACTIVE=1 \
+  QVOS_TEST_WARP_RESTART_FAIL_ONCE=1 \
+  QVOS_TEST_WARP_FAILURE_MARKER="$warp_failure_marker" \
+  QVOS_NETWORK_TESTING=1 \
+  QVOS_NETWORK_SYSTEM_ROOT="$warp_rollback_root" \
+  QVOS_NETWORK_SYSTEMCTL="$test_bin/warp-systemctl" \
+  "$warp_policy" apply >/dev/null 2>&1; then
+  fail "failed WARP restart retained a successful policy status"
+fi
+[[ ! -e $warp_rollback_root/etc/systemd/system/warp-svc.service.d/80-qvos-privacy.conf ]] ||
+  fail "failed WARP policy retained its new drop-in"
+[[ $(stat -c '%a' "$warp_rollback_root/var/lib/cloudflare-warp") == "755" &&
+  $(stat -c '%a' "$warp_rollback_root/var/log/cloudflare-warp") == "755" ]] ||
+  fail "failed WARP policy retained partial directory modes"
+[[ $(grep -Fxc $'systemctl\trestart warp-svc.service' "$warp_rollback_log") == "2" ]] ||
+  fail "failed WARP policy did not restore the active service"
+pass "WARP privacy policy is private, idempotent, and recoverable"
 
 : >"$action_log"
 warp_output=$(QVOS_TEST_WARP_REGISTERED=1 run_setup 2>/dev/null)

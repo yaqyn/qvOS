@@ -29,7 +29,7 @@ qvcore/
   install/     Complete native qvOS installation lifecycle.
   menu/        Native qvOS menus, search, Walker, and Elephant integration.
   migrations/  Native ordered migrations and private applied-state ownership.
-  network/     qvOS DNS policy and optional WARP routing.
+  network/     qvOS DNS policy and optional private WARP routing.
   packages/    Omarchy package-provider boundary and Stable configuration.
   power/       Telemetry, root-owned AC events, sleep guards, and battery policy.
   presentation/ qvOS terminal presentation and failure handling.
