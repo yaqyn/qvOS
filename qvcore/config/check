@@ -242,7 +242,7 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in keyboard-layout toggle-state user-services; do
+for owner in keyboard-layout toggle-state user-services wireplumber-policy; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
 # shellcheck disable=SC2016
@@ -266,6 +266,21 @@ monitor_line=${monitor_line%%:*}
 if rg -n 'sed[[:space:]].*-i|exit[[:space:]]' \
   "$root/qvcore/install/config/detect-keyboard-layout.sh"; then
   fail "sourced keyboard-layout stage retains mutation or process control"
+fi
+declare -A wireplumber_stages=(
+  [config/hardware/asus/fix-audio-mixer.sh]=asus-soft-mixer
+  [config/hardware/bluetooth.sh]=bluetooth-a2dp
+)
+for stage in "${!wireplumber_stages[@]}"; do
+  policy=${wireplumber_stages[$stage]}
+  owner_call="\"\$QVOS_PATH/qvcore/config/wireplumber-policy\" $policy"
+  grep -Fq "$owner_call" "$root/qvcore/install/$stage" ||
+    fail "WirePlumber stage bypasses its native policy owner: $stage"
+done
+if rg -n 'default-routes|install[[:space:]]+-D|\.config/wireplumber' \
+  "$root/qvcore/install/config/hardware/asus/fix-audio-mixer.sh" \
+  "$root/qvcore/install/config/hardware/bluetooth.sh"; then
+  fail "hardware stage retains duplicate or destructive WirePlumber mutation"
 fi
 for retired_owner in \
   finalize-hyprland-lua \

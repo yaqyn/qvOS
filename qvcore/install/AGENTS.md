@@ -115,6 +115,10 @@ module tree. The completed pre-release hardware identity migration is retired;
 fresh install never scans or mutates inherited rule, unit, backup, or service
 names. A target-chroot install writes policy for the installed system but never
 reloads or triggers the builder's udev manager.
+Bluetooth and ASUS audio stages delegate their optional WirePlumber leaves to
+the singular config owner before service activation. Preserve custom policy
+and saved route state; fresh installation and reruns never reset a live mixer
+as a configuration side effect.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,

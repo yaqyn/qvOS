@@ -105,6 +105,12 @@ native seed unchanged. Preserve every other customized regular file and reject
 symbolic-link, non-file, and foreign-owned targets. Completed pre-release
 include and restart-comment convergence is retired and never runs during fresh
 installation or update.
+`wireplumber-policy` singularly seeds the optional Bluetooth A2DP and ASUS soft
+mixer leaves. It shares the config-refresh lock, validates every user-owned
+directory, publishes without clobbering a concurrent target, preserves custom
+regular files, and rejects links or foreign ownership. Hardware installer
+leaves only select a policy; they never duplicate its write, erase WirePlumber
+route state, or mutate a live mixer during image construction or reruns.
 qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
 subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those native unit files

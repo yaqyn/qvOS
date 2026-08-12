@@ -16,8 +16,11 @@ fail() {
 
 install -d \
   "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d" \
+  "$fixture/qvcore/config" \
   "$test_bin" \
   "$test_home"
+install -m 0755 "$root/qvcore/config/wireplumber-policy" \
+  "$fixture/qvcore/config/wireplumber-policy"
 install -m 0644 \
   "$root/qvcore/config/files/xcompose" \
   "$fixture/qvcore/config/files/xcompose"
@@ -31,14 +34,6 @@ install -m 0644 \
 install -m 0755 /dev/stdin "$test_bin/qv-hw-asus-rog" <<'STUB'
 #!/bin/bash
 exit 0
-STUB
-install -m 0755 /dev/stdin "$test_bin/aplay" <<'STUB'
-#!/bin/bash
-exit 0
-STUB
-install -m 0755 /dev/stdin "$test_bin/amixer" <<'STUB'
-#!/bin/bash
-printf 'amixer:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
 install -m 0755 /dev/stdin "$test_bin/sudo" <<'STUB'
 #!/bin/bash
