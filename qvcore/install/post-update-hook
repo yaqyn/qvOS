@@ -20,7 +20,7 @@ done < <(find "$config_source" -type f -print0 | sort -z)
 
 # QVOS_PATH is initialized by this owner before the desktop subshell is sourced.
 # shellcheck disable=SC2031
-"$QVOS_PATH/qvcore/theme/migrate-config-root"
+"$QVOS_PATH/qvcore/theme/config-root"
 
 if [[ -f $theme_name_path ]]; then
   current_theme=$(<"$theme_name_path")

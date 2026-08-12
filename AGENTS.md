@@ -235,9 +235,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/theme/templates/` owns built-in color templates; compatible user
   overrides remain under `~/.config/qvos/themed/`
 - `~/.config/qvos` owns active theme state; matching `~/.config/omarchy`
-  theme paths are migration compatibility links only
+  theme paths are exact interoperability links only; current owners never
+  adopt historical theme directories
 - Active Omarchy config compatibility roots contain only reviewed relative
-  links; exact historical backups move intact into private qvOS feature state
+  links; current owners never scan or move historical compatibility state
 - btop, Mako, and an installed Helix consume the native current-theme tree;
   Helix reconciliation creates only missing native state and preserves custom
   application configuration

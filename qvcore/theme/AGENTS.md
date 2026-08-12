@@ -13,13 +13,12 @@ centered qvOS wordmark artwork. Keep graphical wallpaper assets here; terminal
 art remains independently owned by `qvcore/branding/terminal-art.txt`.
 
 The `~/.config/qvos/{themes,current,backgrounds,themed}` namespace owns all
-theme data and active state. `qvcore/theme/migrate-config-root` moves each safe
-legacy directory atomically after a complete conflict preflight, then leaves
-only relative `~/.config/omarchy/` compatibility links. Preserve conflicts and
-unrecognized links without partial migration. Move only exact
-`themes.bak.<timestamp>` directories into private qvOS theme-backup state;
-never delete or reinterpret their contents. Omarchy-format describes the
-accepted theme payload, never qvOS state ownership.
+theme data and active state. `qvcore/theme/config-root` creates missing native
+directories, four exact relative `~/.config/omarchy/` interoperability links,
+and missing native btop/Mako links. It never adopts, moves, archives, or deletes
+historical state; a real object or unrecognized link at a compatibility name
+fails closed and remains untouched. Omarchy-format describes the accepted
+theme payload, never qvOS state ownership.
 Native commands are `qv-theme-*` and `qv-plymouth-set-by-theme`; matching
 `omarchy-*` files are metadata-free compatibility adapters only. Implement
 behavior under `qvcore/theme/`, and keep native qvOS consumers off the adapters.
@@ -37,15 +36,14 @@ Hyprland code, bindings, autostart, window rules, or environment policy.
 Activation always removes any imported legacy Hyprland fragment before
 generating the native Lua theme.
 
-- `qvcore/theme/install` owns the source-independent runtime and removes only
-  inherited stock-theme symlinks. Preserve real user directories, external
-  links, and backups. It owns and may replace only the Yaqyn runtime link.
-- Every install and post-update path runs the config-root migration before
+- `qvcore/theme/install` owns the source-independent runtime. Preserve every
+  other user theme directory, external link, broken link, and backup. It owns
+  and may replace only the Yaqyn runtime link.
+- Every install and post-update path runs config-root reconciliation before
   reading or writing theme state. Native owners and installed configs use only
   `~/.config/qvos`; the old paths are compatibility links, never fallbacks.
-- The same migration safely creates missing btop and Mako theme links and
-  rewrites only their exact inherited targets. Preserve every custom file or
-  link; fresh configuration must not duplicate or force those mutations.
+- The same owner safely creates missing btop and Mako theme links. Preserve
+  every custom file or link; current configuration never rewrites them.
 - `qvcore/theme/configure` is the single fresh-install owner. The inherited install
   stage delegates to it; qvOS install code must not repeat its mutations.
 - During the reviewed ISO chroot, fresh configuration renders Yaqyn and applies

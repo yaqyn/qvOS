@@ -1,0 +1,92 @@
+#!/bin/bash
+set -euo pipefail
+
+config_root="$HOME/.config"
+compatibility_root="$config_root/omarchy"
+native_root="$config_root/qvos"
+managed_entries=(themes current backgrounds themed)
+integration_specs=(
+  "$HOME/.config/btop/themes/current.theme|$HOME/.config/qvos/current/theme/btop.theme"
+  "$HOME/.config/mako/config|$HOME/.config/qvos/current/theme/mako.ini"
+)
+
+fail() {
+  printf 'Could not reconcile qvOS theme paths: %s\n' "$1" >&2
+  exit 1
+}
+
+validate_owned_directory() {
+  local label=$1
+  local path=$2
+
+  [[ -d $path && ! -L $path && -O $path ]] ||
+    fail "$label is not a real user-owned directory: $path"
+}
+
+validate_parent_chain() {
+  local current
+  local path=$1
+
+  current=$(dirname -- "$path")
+  while [[ $current != "$HOME" ]]; do
+    if [[ -e $current || -L $current ]]; then
+      validate_owned_directory "a managed theme parent" "$current"
+    fi
+    current=$(dirname -- "$current")
+    [[ $current == "$HOME" || $current == "$HOME/"* ]] ||
+      fail "a managed theme path escaped HOME: $path"
+  done
+}
+
+validate_owned_directory "the home directory" "$HOME"
+for directory in "$config_root" "$native_root" "$compatibility_root"; do
+  if [[ -e $directory || -L $directory ]]; then
+    validate_owned_directory "a managed theme root" "$directory"
+  fi
+done
+
+for entry in "${managed_entries[@]}"; do
+  native_path="$native_root/$entry"
+  compatibility_path="$compatibility_root/$entry"
+  expected_link="../qvos/$entry"
+
+  if [[ -e $native_path || -L $native_path ]]; then
+    validate_owned_directory "the native $entry path" "$native_path"
+  fi
+  if [[ -e $compatibility_path || -L $compatibility_path ]]; then
+    [[ -L $compatibility_path &&
+      $(readlink -- "$compatibility_path") == "$expected_link" ]] ||
+      fail "the compatibility $entry path conflicts with qvOS: $compatibility_path"
+  fi
+done
+
+for spec in "${integration_specs[@]}"; do
+  IFS='|' read -r target _ <<<"$spec"
+  if [[ ! -e $target && ! -L $target ]]; then
+    validate_parent_chain "$target"
+  fi
+done
+
+[[ -d $config_root ]] || install -d -m 0755 "$config_root"
+[[ -d $native_root ]] || install -d -m 0700 "$native_root"
+[[ -d $compatibility_root ]] || install -d -m 0755 "$compatibility_root"
+for entry in "${managed_entries[@]}"; do
+  native_path="$native_root/$entry"
+  compatibility_path="$compatibility_root/$entry"
+  expected_link="../qvos/$entry"
+
+  [[ -d $native_path ]] || install -d -m 0755 "$native_path"
+  if [[ ! -e $compatibility_path && ! -L $compatibility_path ]]; then
+    ln -s -- "$expected_link" "$compatibility_path" ||
+      fail "could not create the compatibility link: $compatibility_path"
+  fi
+done
+
+for spec in "${integration_specs[@]}"; do
+  IFS='|' read -r target source <<<"$spec"
+  if [[ ! -e $target && ! -L $target ]]; then
+    install -d -m 0755 "$(dirname -- "$target")"
+    ln -s -- "$source" "$target" ||
+      fail "could not create the native theme-integration link: $target"
+  fi
+done

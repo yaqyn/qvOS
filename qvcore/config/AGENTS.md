@@ -139,9 +139,10 @@ The general pre-public runtime-root rewriter and retired Hyprland overlay
 manifest are removed after the only supported installation converged. Fresh
 install and post-update reconciliation use current native sources and do not
 scan or rewrite unrelated active user configuration. The native Lua input
-source keeps both keyboard and pointer DPMS wake defaults enabled. Theme data
-movement and its reviewed compatibility links remain exclusively owned by
-`qvcore/theme/migrate-config-root`.
+source keeps both keyboard and pointer DPMS wake defaults enabled. Native theme
+directories and their reviewed compatibility links remain exclusively owned by
+`qvcore/theme/config-root`; current configuration never adopts historical
+theme state.
 
 Capture bindings and Waybar actions use native `qv-capture-*` routes. The
 recording indicator executes `qvcore/capture/status` directly, and active UWSM

@@ -7,26 +7,18 @@ runtime_dir="$HOME/.local/lib/qvos/theme/yaqyn"
 target="$HOME/.config/qvos/themes/yaqyn"
 themes_dir="$HOME/.config/qvos/themes"
 backup_dir="$HOME/.local/state/qvos/theme-backups"
-retired_catalog=$(realpath -m -- "$QVOS_PATH/themes")
 
 if [[ ! -d $source_dir ]]; then
   echo "Missing Yaqyn theme source: $source_dir" >&2
   exit 1
 fi
-[[ -x $QVOS_PATH/qvcore/theme/migrate-config-root ]] || {
-  echo "Missing qvOS theme migration owner." >&2
+[[ -x $QVOS_PATH/qvcore/theme/config-root ]] || {
+  echo "Missing qvOS theme config-root owner." >&2
   exit 1
 }
-"$QVOS_PATH/qvcore/theme/migrate-config-root"
+"$QVOS_PATH/qvcore/theme/config-root"
 
 mkdir -p "$themes_dir"
-while IFS= read -r -d '' theme_link; do
-  link_target=$(realpath -m -- "$theme_link")
-  if [[ $link_target == "$retired_catalog/"* ]]; then
-    rm -f -- "$theme_link"
-  fi
-done < <(find "$themes_dir" -mindepth 1 -maxdepth 1 -type l -print0)
-
 if [[ -e $target || -L $target ]]; then
   target_link=""
   [[ -L $target ]] && target_link=$(readlink -- "$target")

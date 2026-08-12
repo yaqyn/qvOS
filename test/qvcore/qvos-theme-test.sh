@@ -23,14 +23,14 @@ install -d \
 printf 'legacy\n' >"$conflict_home/.config/omarchy/themes/personal/marker"
 printf 'native\n' >"$conflict_home/.config/qvos/themes/personal/marker"
 if HOME="$conflict_home" QVOS_PATH="$root" \
-  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1; then
-  fail "conflicting theme-root migration"
+  "$root/qvcore/theme/config-root" >/dev/null 2>&1; then
+  fail "conflicting theme compatibility path"
 fi
 [[ $(<"$conflict_home/.config/omarchy/themes/personal/marker") == "legacy" &&
   $(<"$conflict_home/.config/qvos/themes/personal/marker") == "native" &&
   ! -L $conflict_home/.config/omarchy/themes ]] ||
-  fail "conflicting theme-root preservation"
-pass "conflicting native and compatibility theme state is preserved"
+  fail "conflicting theme path preservation"
+pass "real compatibility-path state is preserved and rejected"
 
 linked_root_home="$test_root/linked-root-home"
 linked_root_target="$test_root/linked-root-target"
@@ -38,8 +38,8 @@ install -d "$linked_root_home/.config/omarchy" "$linked_root_target"
 printf 'external\n' >"$linked_root_target/marker"
 ln -s "$linked_root_target" "$linked_root_home/.config/omarchy/themes"
 if HOME="$linked_root_home" QVOS_PATH="$root" \
-  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1; then
-  fail "linked theme-root migration"
+  "$root/qvcore/theme/config-root" >/dev/null 2>&1; then
+  fail "unrecognized theme compatibility link"
 fi
 [[ -L $linked_root_home/.config/omarchy/themes &&
   $(<"$linked_root_target/marker") == "external" &&
@@ -48,46 +48,33 @@ fi
 pass "unrecognized compatibility-root links are preserved"
 
 themes_dir="$test_root/.config/qvos/themes"
-legacy_themes_dir="$test_root/.config/omarchy/themes"
 external_theme="$test_root/external/linked"
 test_bin="$test_root/bin"
 install -d \
-  "$legacy_themes_dir" \
+  "$themes_dir" \
   "$test_bin" \
-  "$(dirname -- "$external_theme")" \
-  "$test_root/.config/btop/themes" \
-  "$test_root/.config/mako"
-cp -a "$root/qvcore/theme/yaqyn" "$legacy_themes_dir/personal"
+  "$(dirname -- "$external_theme")"
+cp -a "$root/qvcore/theme/yaqyn" "$themes_dir/personal"
 cp -a "$root/qvcore/theme/yaqyn" "$external_theme"
-printf 'personal\n' >"$legacy_themes_dir/personal/marker"
+printf 'personal\n' >"$themes_dir/personal/marker"
 printf 'linked\n' >"$external_theme/marker"
-mkdir -p "$legacy_themes_dir/yaqyn"
-printf 'old yaqyn\n' >"$legacy_themes_dir/yaqyn/marker"
-mkdir -p "$test_root/.config/omarchy/themes.bak.123"
-printf 'historical theme data\n' \
-  >"$test_root/.config/omarchy/themes.bak.123/marker"
-ln -s "$external_theme" "$legacy_themes_dir/linked"
-ln -s "$root/themes/tokyo-night" "$legacy_themes_dir/tokyo-night"
-ln -s "$test_root/missing-theme" "$legacy_themes_dir/broken"
-ln -s "$test_root/.config/omarchy/current/theme/btop.theme" \
-  "$test_root/.config/btop/themes/current.theme"
-ln -s "$test_root/.config/omarchy/current/theme/mako.ini" \
-  "$test_root/.config/mako/config"
+mkdir -p "$themes_dir/yaqyn"
+printf 'old yaqyn\n' >"$themes_dir/yaqyn/marker"
+ln -s "$external_theme" "$themes_dir/linked"
+ln -s "$test_root/missing-theme" "$themes_dir/broken"
 
 HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/install" >/dev/null
-for migrated_entry in themes current backgrounds themed; do
-  compatibility_path="$test_root/.config/omarchy/$migrated_entry"
+for managed_entry in themes current backgrounds themed; do
+  compatibility_path="$test_root/.config/omarchy/$managed_entry"
   [[ -L $compatibility_path &&
-    $(readlink -- "$compatibility_path") == "../qvos/$migrated_entry" ]] ||
-    fail "native theme compatibility link: $migrated_entry"
+    $(readlink -- "$compatibility_path") == "../qvos/$managed_entry" ]] ||
+    fail "native theme compatibility link: $managed_entry"
 done
-HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/migrate-config-root"
+HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/config-root"
 [[ -L $themes_dir/yaqyn ]] || fail "Yaqyn runtime link"
 [[ -f $themes_dir/personal/marker ]] || fail "personal theme data preservation"
 [[ -L $themes_dir/linked && -f $themes_dir/linked/marker ]] ||
   fail "external compatible theme link preservation"
-[[ ! -e $themes_dir/tokyo-night && ! -L $themes_dir/tokyo-night ]] ||
-  fail "retired stock theme link cleanup"
 [[ -L $themes_dir/broken ]] || fail "unrelated broken theme link preservation"
 [[ $(readlink -- "$test_root/.config/btop/themes/current.theme") == \
   "$test_root/.config/qvos/current/theme/btop.theme" ]] ||
@@ -97,12 +84,7 @@ HOME="$test_root" QVOS_PATH="$root" "$root/qvcore/theme/migrate-config-root"
   fail "native Mako theme integration"
 compgen -G "$test_root/.local/state/qvos/theme-backups/yaqyn.*/marker" >/dev/null ||
   fail "prior Yaqyn data backup"
-grep -Fqx 'historical theme data' \
-  "$test_root/.local/state/qvos/theme-backups/legacy-omarchy-themes.bak.123/marker" ||
-  fail "historical compatibility-root theme backup"
-[[ ! -e $test_root/.config/omarchy/themes.bak.123 ]] ||
-  fail "active compatibility root retained an archived theme backup"
-pass "legacy theme state migrates once into native qvOS ownership"
+pass "native theme roots retain exact compatibility and application links"
 
 custom_integration_home="$test_root/custom-integration-home"
 custom_integration_target="$test_root/custom-integration-target"
@@ -111,13 +93,13 @@ printf 'custom integration\n' >"$custom_integration_target"
 ln -s "$custom_integration_target" \
   "$custom_integration_home/.config/btop/themes/current.theme"
 HOME="$custom_integration_home" QVOS_PATH="$root" \
-  "$root/qvcore/theme/migrate-config-root" >/dev/null 2>&1
+  "$root/qvcore/theme/config-root" >/dev/null 2>&1
 [[ -L $custom_integration_home/.config/btop/themes/current.theme &&
   $(readlink -- "$custom_integration_home/.config/btop/themes/current.theme") == \
     "$custom_integration_target" &&
   $(<"$custom_integration_target") == "custom integration" ]] ||
   fail "custom application-theme integration preservation"
-pass "theme migration preserves custom application integrations"
+pass "theme reconciliation preserves custom application integrations"
 
 theme_list=$(HOME="$test_root" QVOS_PATH="$root" "$root/bin/qv-theme-list")
 [[ $theme_list == $'Linked\nPersonal\nYaqyn' ]] || fail "Yaqyn and custom theme list"

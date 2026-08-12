@@ -17,12 +17,12 @@ for owner in \
   background-set \
   backgrounds \
   colors-from-alacritty \
+  config-root \
   configure \
   current \
   install \
   install-external \
   list \
-  migrate-config-root \
   name \
   refresh \
   remove \
@@ -175,7 +175,7 @@ if rg -n '\.config/omarchy/(themes|current|backgrounds|themed)|omarchy/current/t
   --glob '!**/check' \
   --glob '!**/config/neovim' \
   --glob '!**/software/helix-install' \
-  --glob '!**/theme/migrate-config-root'; then
+  --glob '!**/theme/config-root'; then
   fail "native qvOS owner retains the compatibility theme-state root"
 fi
 if rg -n 'OMARCHY_THEME_' "$root/qvcore/theme" \
@@ -212,29 +212,36 @@ fi
 grep -Fq 'rm -f -- "$NEXT_THEME_PATH/hyprland.conf"' \
   "$root/qvcore/theme/set" || fail "ordinary themes can retain legacy Hyprland code"
 grep -Fq 'managed_entries=(themes current backgrounds themed)' \
-  "$root/qvcore/theme/migrate-config-root" ||
+  "$root/qvcore/theme/config-root" ||
   fail "native theme compatibility-link inventory"
 # shellcheck disable=SC2016
 grep -Fq 'expected_link="../qvos/$entry"' \
-  "$root/qvcore/theme/migrate-config-root" ||
+  "$root/qvcore/theme/config-root" ||
   fail "native theme compatibility-link target"
 # shellcheck disable=SC2016
-grep -Fq '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
+grep -Fq '"$QVOS_PATH/qvcore/theme/config-root"' \
   "$root/qvcore/theme/install" ||
-  fail "theme install bypasses config-root migration"
+  fail "theme install bypasses config-root reconciliation"
 grep -Fq '.config/qvos/current/theme/btop.theme' \
-  "$root/qvcore/theme/migrate-config-root" ||
-  fail "theme migration bypasses the native btop integration"
+  "$root/qvcore/theme/config-root" ||
+  fail "theme config root bypasses the native btop integration"
 grep -Fq '.config/qvos/current/theme/mako.ini' \
-  "$root/qvcore/theme/migrate-config-root" ||
-  fail "theme migration bypasses the native Mako integration"
+  "$root/qvcore/theme/config-root" ||
+  fail "theme config root bypasses the native Mako integration"
+[[ ! -e $root/qvcore/theme/migrate-config-root &&
+  ! -L $root/qvcore/theme/migrate-config-root ]] ||
+  fail "retired theme-state migrator remains"
+if rg -n 'themes\.bak|legacy|historical|mv[[:space:]]' \
+  "$root/qvcore/theme/config-root"; then
+  fail "theme config root retains pre-release state adoption"
+fi
 if rg -n 'ln -s(nf|fn|f)[[:space:]]' "$root/qvcore/theme/configure"; then
   fail "fresh theme configuration duplicates integration-link ownership"
 fi
 # shellcheck disable=SC2016
-grep -Fq '"$QVOS_PATH/qvcore/theme/migrate-config-root"' \
+grep -Fq '"$QVOS_PATH/qvcore/theme/config-root"' \
   "$root/qvcore/install/post-update-hook" ||
-  fail "post-update bypasses config-root migration"
+  fail "post-update bypasses config-root reconciliation"
 grep -Fq 'source_dir/templates' "$root/qvcore/theme/set-templates" ||
   fail "theme renderer bypasses the native template owner"
 if rg -n 'default/themed' "$root/qvcore/theme/set-templates"; then
