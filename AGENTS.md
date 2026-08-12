@@ -351,6 +351,11 @@ Every qvOS change must leave one traceable lifecycle.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
   Verify fresh install, update, removal, and live behavior where applicable.
+- Update availability combines the official qvOS source head with a read-only
+  check of the configured package repositories. Package security updates must
+  remain discoverable when source is current; availability checks may refresh
+  only private temporary metadata and must never partially sync the live Pacman
+  database.
 - Preserve useful upstream capability through explicit review and native ports.
   Omit it when unsafe, incompatible, unwanted, or out of scope, and state why.
 

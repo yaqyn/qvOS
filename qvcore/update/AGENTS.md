@@ -41,13 +41,17 @@ to their hook owner. Any no-idle tag must be removed through an EXIT trap after
 success, failure, or interruption. Initramfs log analysis fails closed before
 restart when success cannot be proven.
 
-`update-available` compares the installed commit with the official remote OS
+`update-available` aggregates two independent read-only owners so package
+security updates remain visible even when qvOS source is current.
+`source-available` compares the installed commit with the official remote OS
 head using bounded network time. Equal and provably locally-ahead source are
 current. When the remote SHA differs, fetch it into one process-private ref,
 delete that ref on exit, and offer an update only when the installed commit is
 its ancestor. Fail closed on divergent or unpublished shallow history because
 the fast-forward-only updater cannot reconcile it. Tags are not the release or
-availability authority.
+availability authority. One failed probe must not conceal a positively proven
+update from the other owner; when neither proves an update, any probe failure
+fails the aggregate check closed.
 
 `snapshot`, `time-sync`, and `firmware` are native qvOS owners. Snapshot config
 names are validated; time sync verifies the service after restarting it; and

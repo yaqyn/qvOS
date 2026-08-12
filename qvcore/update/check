@@ -29,6 +29,7 @@ owners=(
   run
   snapshot
   source-check
+  source-available
   state
   time-sync
   update-available
@@ -112,17 +113,21 @@ grep -Fq 'restart-walker-required' "$root/qvcore/update/analyze-log" ||
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/migrations/run"' "$root/qvcore/update/perform" ||
   fail "native migration owner in update pipeline"
+grep -Fq 'qvcore/packages/update-available' \
+  "$root/qvcore/update/update-available" || fail "package availability aggregation"
+grep -Fq 'qvcore/update/source-available' \
+  "$root/qvcore/update/update-available" || fail "source availability aggregation"
 grep -Fq 'ls-remote --heads origin refs/heads/OS' \
-  "$root/qvcore/update/update-available" || fail "official OS availability check"
+  "$root/qvcore/update/source-available" || fail "official OS availability check"
 grep -Fq 'fetch --force --no-tags --no-write-fetch-head' \
-  "$root/qvcore/update/update-available" || fail "fast-forward availability fetch"
+  "$root/qvcore/update/source-available" || fail "fast-forward availability fetch"
 # shellcheck disable=SC2016
 grep -Fq 'update-ref -d "$remote_check_ref"' \
-  "$root/qvcore/update/update-available" || fail "temporary availability ref cleanup"
+  "$root/qvcore/update/source-available" || fail "temporary availability ref cleanup"
 grep -Fq 'not fast-forward compatible with official OS' \
-  "$root/qvcore/update/update-available" || fail "divergent availability refusal"
+  "$root/qvcore/update/source-available" || fail "divergent availability refusal"
 if rg -n 'rev-list --tags|describe --tags|ls-remote --tags' \
-  "$root/qvcore/update/update-available"; then
+  "$root/qvcore/update/source-available"; then
   fail "tag-based update availability remains"
 fi
 grep -Fq 'pull --ff-only --no-rebase origin OS' \
@@ -132,7 +137,7 @@ grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/qvos-update" ||
 grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/update-source" ||
   fail "source updater source contract"
 # shellcheck disable=SC2016
-grep -Fq '/source-check" "$source_path"' "$root/qvcore/update/update-available" ||
+grep -Fq '/source-check" "$source_path"' "$root/qvcore/update/source-available" ||
   fail "availability source contract"
 if rg -n -- '--autostash|reset --merge|pull( |.* )origin master' \
   "$root/qvcore/update/update-source"; then

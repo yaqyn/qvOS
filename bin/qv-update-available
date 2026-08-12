@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# qv:summary=Check whether the official qvOS OS branch has an update
+# qv:summary=Check for qvOS source or package updates
 # qv:hidden=true
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}

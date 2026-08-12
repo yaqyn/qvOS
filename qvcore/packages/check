@@ -48,7 +48,7 @@ for operation in "${operations[@]}"; do
     fail "package compatibility adapter ownership: $operation"
 done
 
-for owner in update-aur update-keyring remove-orphans update-system; do
+for owner in update-aur update-available update-keyring remove-orphans update-system; do
   [[ -x $root/qvcore/packages/$owner ]] ||
     fail "native package-update owner mode: $owner"
 done
@@ -245,6 +245,17 @@ gpg --show-keys --with-colons "$provider_key" 2>/dev/null |
   fail "Omarchy signing key fingerprint drifted"
 grep -Fq 'pacman -Syu --noconfirm' "$root/qvcore/packages/update-system" ||
   fail "native package full-upgrade stage"
+package_availability="$root/qvcore/packages/update-available"
+grep -Fq 'fakeroot -- pacman -Sy --noconfirm' "$package_availability" ||
+  fail "package availability does not use isolated repository metadata"
+# shellcheck disable=SC2016
+grep -Fq 'pacman -Qu --color never --dbpath "$database_path"' \
+  "$package_availability" || fail "package availability comparison"
+grep -Fq 'local_database=/var/lib/pacman/local' "$package_availability" ||
+  fail "package availability installed-database owner"
+if rg -n 'sudo|/var/lib/pacman/sync|pacman -Syu' "$package_availability"; then
+  fail "package availability mutates or synchronizes the live package database"
+fi
 if rg -n 'pacman -Syyu|for pkg in|xargs|eval' \
   "$root/qvcore/packages/update-system" \
   "$root/qvcore/packages/remove-orphans"; then

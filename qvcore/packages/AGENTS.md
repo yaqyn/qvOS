@@ -80,6 +80,12 @@ of carrying a permanent removal path.
   only when foreign packages exist and AUR is reachable. Remove all verified
   orphans in one argument-safe transaction and report failures honestly.
   Their inherited raw stage commands are retired, not compatibility APIs.
+- `qvcore/packages/update-available` owns the non-mutating package probe used by
+  the public update indicator. It synchronizes only a private user-owned cache,
+  links the read-only installed package database, and never runs a partial sync
+  against `/var/lib/pacman`. Bound its network time, serialize its cache, refuse
+  an active Pacman transaction, and preserve the public availability exit-code
+  contract: `0` available, `1` current, `2` unavailable or unsafe.
 
 Run `qvcore/packages/check`, Bash syntax, ShellCheck, the package, security,
 source-lifecycle, qvsync, and full qvOS suites. Package upgrades and live channel

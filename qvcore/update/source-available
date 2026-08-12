@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euo pipefail
+
+source_path=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_path=$(readlink -f -- "$source_path" 2>/dev/null || true)
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/update/source-available" >&2
+  exit 2
+}
+[[ -d $source_path && ! -L $source_path ]] || {
+  echo "qvOS update check: live source checkout is unavailable." >&2
+  exit 2
+}
+if ! "$(dirname -- "${BASH_SOURCE[0]}")/source-check" "$source_path" >/dev/null; then
+  exit 2
+fi
+
+local_head=$(git -C "$source_path" rev-parse --verify HEAD 2>/dev/null) || {
+  echo "qvOS update check: live source commit is unavailable." >&2
+  exit 2
+}
+remote_line=$(
+  timeout --foreground 30 \
+    git -C "$source_path" \
+    -c http.lowSpeedLimit=1024 \
+    -c http.lowSpeedTime=10 \
+    ls-remote --heads origin refs/heads/OS 2>/dev/null
+) || {
+  echo "qvOS update check: official OS branch is unreachable." >&2
+  exit 2
+}
+read -r remote_head remote_ref extra <<<"$remote_line"
+[[ $remote_head =~ ^[0-9a-f]{40}$ && $remote_ref == "refs/heads/OS" && -z ${extra:-} ]] || {
+  echo "qvOS update check: official OS branch returned an invalid commit." >&2
+  exit 2
+}
+
+if [[ $local_head == "$remote_head" ]]; then
+  printf 'qvOS source is up to date (%s)\n' "${local_head:0:8}"
+  exit 1
+fi
+
+remote_check_ref="refs/qvos/update-check/$$-$RANDOM"
+# shellcheck disable=SC2329
+cleanup() {
+  git -C "$source_path" update-ref -d "$remote_check_ref" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+if git -C "$source_path" show-ref --verify --quiet "$remote_check_ref"; then
+  echo "qvOS update check: temporary comparison ref already exists." >&2
+  exit 2
+fi
+if ! timeout --foreground 30 \
+  git -C "$source_path" \
+  -c http.lowSpeedLimit=1024 \
+  -c http.lowSpeedTime=10 \
+  fetch --force --no-tags --no-write-fetch-head \
+  origin "+refs/heads/OS:$remote_check_ref" >/dev/null 2>&1; then
+  echo "qvOS update check: could not fetch the official OS branch." >&2
+  exit 2
+fi
+fetched_head=$(git -C "$source_path" rev-parse --verify "$remote_check_ref" 2>/dev/null) || {
+  echo "qvOS update check: fetched OS commit is unavailable." >&2
+  exit 2
+}
+[[ $fetched_head =~ ^[0-9a-f]{40}$ ]] || {
+  echo "qvOS update check: fetched OS commit is invalid." >&2
+  exit 2
+}
+
+if [[ $local_head == "$fetched_head" ]]; then
+  printf 'qvOS source is up to date (%s)\n' "${local_head:0:8}"
+  exit 1
+fi
+if git -C "$source_path" merge-base --is-ancestor "$local_head" "$fetched_head" 2>/dev/null; then
+  printf 'qvOS source update available (%s)\n' "${fetched_head:0:8}"
+  exit 0
+fi
+if git -C "$source_path" merge-base --is-ancestor "$fetched_head" "$local_head" 2>/dev/null; then
+  printf 'qvOS source is locally ahead (%s)\n' "${local_head:0:8}"
+  exit 1
+fi
+
+echo "qvOS update check: installed source is not fast-forward compatible with official OS." >&2
+exit 2

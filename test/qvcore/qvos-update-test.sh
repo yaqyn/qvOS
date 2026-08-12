@@ -469,7 +469,110 @@ grep -Fqx 'yay:-Sua --noconfirm --cleanafter --ignore gcc14,gcc14-libs' "$action
   fail "AUR update arguments"
 pass "package update stages preserve exact targets and options"
 
-# Availability follows the official OS commit, not upstream tags.
+# Read-only package availability uses private metadata and rejects unsafe state.
+package_check_home="$test_root/package-check-home"
+package_check_cache="$package_check_home/cache"
+package_check_log="$test_root/package-check.log"
+install -d "$package_check_home"
+install -m 0755 /dev/stdin "$test_bin/fakeroot" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--" ]] || exit 9
+shift
+printf 'fakeroot' >>"$QVOS_TEST_PACKAGE_CHECK_LOG"
+printf '\t%s' "$@" >>"$QVOS_TEST_PACKAGE_CHECK_LOG"
+printf '\n' >>"$QVOS_TEST_PACKAGE_CHECK_LOG"
+"$@"
+SCRIPT
+install -m 0755 /dev/stdin "$test_bin/pacman" <<'SCRIPT'
+#!/bin/bash
+case ${1:-} in
+-Sy)
+  printf 'sync\n' >>"$QVOS_TEST_PACKAGE_CHECK_LOG"
+  exit "${QVOS_TEST_PACKAGE_SYNC_STATUS:-0}"
+  ;;
+-Qu)
+  printf 'query\n' >>"$QVOS_TEST_PACKAGE_CHECK_LOG"
+  printf '%s' "${QVOS_TEST_PACKAGE_UPDATES:-}"
+  [[ -n ${QVOS_TEST_PACKAGE_UPDATES:-} ]]
+  ;;
+*) exit 8 ;;
+esac
+SCRIPT
+: >"$package_check_log"
+set +e
+package_current=$(
+  HOME="$package_check_home" \
+    XDG_CACHE_HOME="$package_check_cache" \
+    QVOS_TEST_PACKAGE_CHECK_LOG="$package_check_log" \
+    PATH="$test_bin:/usr/bin" \
+    "$root/qvcore/packages/update-available"
+)
+package_current_status=$?
+set -e
+(( package_current_status == 1 )) || fail "package current status"
+[[ $package_current == "qvOS packages are up to date" ]] ||
+  fail "package current output"
+package_database="$package_check_cache/qvos/packages/availability-db"
+[[ -L $package_database/local &&
+  $(readlink -f -- "$package_database/local") == "/var/lib/pacman/local" ]] ||
+  fail "package availability installed-database link"
+[[ $(stat -c '%a' "$package_check_cache/qvos") == "700" &&
+  $(stat -c '%a' "$package_check_cache/qvos/packages") == "700" &&
+  $(stat -c '%a' "$package_database") == "700" &&
+  $(stat -c '%a' "$package_check_cache/qvos/packages/availability.lock") == "600" ]] ||
+  fail "package availability private state modes"
+grep -Fq $'fakeroot\tpacman\t-Sy\t--noconfirm\t--disable-sandbox-filesystem\t--dbpath\t' \
+  "$package_check_log" || fail "package availability isolated sync arguments"
+grep -Fq $'\t--logfile\t/dev/null' "$package_check_log" ||
+  fail "package availability private sync log"
+
+install -m 0600 /dev/null "$package_database/db.lck"
+set +e
+HOME="$package_check_home" \
+  XDG_CACHE_HOME="$package_check_cache" \
+  QVOS_TEST_PACKAGE_CHECK_LOG="$package_check_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/packages/update-available" >/dev/null
+stale_package_lock_status=$?
+set -e
+(( stale_package_lock_status == 1 )) || fail "stale private package lock recovery"
+[[ ! -e $package_database/db.lck && ! -L $package_database/db.lck ]] ||
+  fail "stale private package lock cleanup"
+
+: >"$package_check_log"
+package_updates=$(HOME="$package_check_home" \
+  XDG_CACHE_HOME="$package_check_cache" \
+  QVOS_TEST_PACKAGE_CHECK_LOG="$package_check_log" \
+  QVOS_TEST_PACKAGE_UPDATES=$'alpha 1 -> 2\nbeta 2 -> 3\nignored 3 -> 4 [ignored]\n' \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/packages/update-available")
+[[ $package_updates == "qvOS package updates available (2)" ]] ||
+  fail "package available count"
+
+unsafe_cache="$test_root/unsafe-package-cache"
+install -d "$unsafe_cache/qvos/packages"
+ln -s "$test_root/unsafe-target" "$unsafe_cache/qvos/packages/availability.lock"
+set +e
+unsafe_package_output=$(HOME="$package_check_home" XDG_CACHE_HOME="$unsafe_cache" \
+  QVOS_TEST_PACKAGE_CHECK_LOG="$package_check_log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/packages/update-available" 2>&1)
+unsafe_package_status=$?
+set -e
+(( unsafe_package_status == 2 )) || fail "unsafe package cache status"
+grep -Fq 'refusing unsafe cache lock' <<<"$unsafe_package_output" ||
+  fail "unsafe package cache output"
+set +e
+relative_package_output=$(HOME="$package_check_home" XDG_CACHE_HOME=relative \
+  QVOS_TEST_PACKAGE_CHECK_LOG="$package_check_log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/packages/update-available" 2>&1)
+relative_package_status=$?
+set -e
+(( relative_package_status == 2 )) || fail "relative package cache status"
+grep -Fq 'cache path must be absolute' <<<"$relative_package_output" ||
+  fail "relative package cache output"
+pass "package availability is read-only, private, bounded, and link-safe"
+
+# Source availability follows the official OS commit, not upstream tags.
 availability_work="$test_root/availability-work"
 availability_remote="$test_root/availability.git"
 availability_peer="$test_root/availability-peer"
@@ -495,17 +598,29 @@ availability_git_env=(
 
 set +e
 current_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
-  "$root/qvcore/update/update-available")
+  "$root/qvcore/update/source-available")
 current_status=$?
 set -e
 (( current_status == 1 )) || fail "current availability status"
-grep -Fq 'qvOS is up to date' <<<"$current_output" || fail "current availability output"
+grep -Fq 'qvOS source is up to date' <<<"$current_output" || fail "current availability output"
+
+printf 'dirty\n' >"$availability_work/untracked"
+set +e
+dirty_availability=$(env "${availability_git_env[@]}" \
+  QVOS_PATH="$availability_work" \
+  "$root/qvcore/update/source-available" 2>&1)
+dirty_availability_status=$?
+set -e
+(( dirty_availability_status == 2 )) || fail "dirty availability status"
+grep -Fq 'source has local changes' <<<"$dirty_availability" ||
+  fail "dirty availability output"
+unlink -- "$availability_work/untracked"
 
 printf 'local\n' >>"$availability_work/version"
 git -C "$availability_work" commit -qam local
 set +e
 ahead_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
-  "$root/qvcore/update/update-available")
+  "$root/qvcore/update/source-available")
 ahead_status=$?
 set -e
 (( ahead_status == 1 )) || fail "local-ahead availability status"
@@ -518,7 +633,7 @@ git -C "$availability_unpublished" remote set-url origin \
 set +e
 unpublished_output=$(env "${availability_git_env[@]}" \
   QVOS_PATH="$availability_unpublished" \
-  "$root/qvcore/update/update-available" 2>&1)
+  "$root/qvcore/update/source-available" 2>&1)
 unpublished_status=$?
 set -e
 (( unpublished_status == 2 )) || fail "unpublished shallow availability status"
@@ -533,7 +648,7 @@ git -C "$availability_peer" commit -qam remote
 git -C "$availability_peer" push -q origin OS
 set +e
 divergent_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
-  "$root/qvcore/update/update-available" 2>&1)
+  "$root/qvcore/update/source-available" 2>&1)
 divergent_status=$?
 set -e
 (( divergent_status == 2 )) || fail "divergent availability status"
@@ -548,9 +663,80 @@ printf 'remote again\n' >>"$availability_peer/version"
 git -C "$availability_peer" commit -qam 'remote again'
 git -C "$availability_peer" push -q origin OS
 available_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_behind" \
-  "$root/qvcore/update/update-available")
-grep -Fq 'qvOS update available' <<<"$available_output" || fail "remote update output"
+  "$root/qvcore/update/source-available")
+grep -Fq 'qvOS source update available' <<<"$available_output" || fail "remote update output"
 pass "qvOS update availability offers only provable official fast-forwards"
+
+# The public status combines source and package probes without masking updates.
+aggregate_fixture="$test_root/aggregate-fixture"
+install -d \
+  "$aggregate_fixture/qvcore/packages" \
+  "$aggregate_fixture/qvcore/update"
+install -m 0755 "$root/qvcore/update/update-available" \
+  "$aggregate_fixture/qvcore/update/update-available"
+for owner in \
+  "$aggregate_fixture/qvcore/update/source-available" \
+  "$aggregate_fixture/qvcore/packages/update-available"; do
+  install -m 0755 /dev/stdin "$owner" <<'SCRIPT'
+#!/bin/bash
+case ${0##*/} in
+source-available)
+  printf '%s\n' "${QVOS_TEST_SOURCE_OUTPUT:-source current}"
+  exit "${QVOS_TEST_SOURCE_STATUS:-1}"
+  ;;
+update-available)
+  printf '%s\n' "${QVOS_TEST_PACKAGE_OUTPUT:-packages current}"
+  exit "${QVOS_TEST_PACKAGE_STATUS:-1}"
+  ;;
+esac
+SCRIPT
+done
+aggregate_owner="$aggregate_fixture/qvcore/update/update-available"
+
+set +e
+aggregate_current=$(QVOS_TEST_SOURCE_STATUS=1 QVOS_TEST_PACKAGE_STATUS=1 \
+  "$aggregate_owner" 2>&1)
+aggregate_current_status=$?
+set -e
+(( aggregate_current_status == 1 )) || fail "aggregate current status"
+[[ $aggregate_current == $'source current\npackages current' ]] ||
+  fail "aggregate current output"
+
+aggregate_package=$(QVOS_TEST_SOURCE_STATUS=1 QVOS_TEST_PACKAGE_STATUS=0 \
+  QVOS_TEST_PACKAGE_OUTPUT='package update' "$aggregate_owner")
+[[ $aggregate_package == "package update" ]] || fail "aggregate package update"
+
+set +e
+aggregate_mixed=$(QVOS_TEST_SOURCE_STATUS=2 QVOS_TEST_PACKAGE_STATUS=0 \
+  QVOS_TEST_SOURCE_OUTPUT='source unavailable' \
+  QVOS_TEST_PACKAGE_OUTPUT='package update' "$aggregate_owner" 2>&1)
+aggregate_mixed_status=$?
+set -e
+(( aggregate_mixed_status == 0 )) || fail "aggregate proven update status"
+grep -Fq 'package update' <<<"$aggregate_mixed" ||
+  fail "aggregate proven update output"
+grep -Fq 'source unavailable' <<<"$aggregate_mixed" ||
+  fail "aggregate partial failure output"
+
+set +e
+aggregate_abnormal=$(QVOS_TEST_SOURCE_STATUS=7 QVOS_TEST_PACKAGE_STATUS=0 \
+  QVOS_TEST_SOURCE_OUTPUT='source crashed' \
+  QVOS_TEST_PACKAGE_OUTPUT='package update' "$aggregate_owner" 2>&1)
+aggregate_abnormal_status=$?
+set -e
+(( aggregate_abnormal_status == 0 )) || fail "aggregate abnormal probe status"
+grep -Fq 'source crashed' <<<"$aggregate_abnormal" ||
+  fail "aggregate abnormal probe output"
+
+set +e
+aggregate_failed=$(QVOS_TEST_SOURCE_STATUS=2 QVOS_TEST_PACKAGE_STATUS=1 \
+  QVOS_TEST_SOURCE_OUTPUT='source unavailable' "$aggregate_owner" 2>&1)
+aggregate_failed_status=$?
+set -e
+(( aggregate_failed_status == 2 )) || fail "aggregate failure status"
+grep -Fq 'source unavailable' <<<"$aggregate_failed" ||
+  fail "aggregate failure output"
+pass "qvOS update status combines source and package evidence fail-closed"
 
 # Manual owners validate systemd, firmware, and snapshot handoffs without mutation.
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'

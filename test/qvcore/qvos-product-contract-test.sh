@@ -553,7 +553,9 @@ grep -Fqx '"$QVOS_PATH/qvcore/menu/install" --install' \
   "$root/qvcore/install/first-run/run" ||
   fail "qvOS first-run menu reconciliation"
 grep -Fq 'ls-remote --heads origin refs/heads/OS' \
-  "$root/qvcore/update/update-available" || fail "qvOS update status"
+  "$root/qvcore/update/source-available" || fail "qvOS source update status"
+grep -Fq 'qvcore/packages/update-available' \
+  "$root/qvcore/update/update-available" || fail "qvOS package update status"
 grep -Fq 'Update qvOS source' "$root/qvcore/update/update-source" ||
   fail "qvOS source update progress"
 grep -Fq '# qv:summary=Update qvOS and system packages safely' \

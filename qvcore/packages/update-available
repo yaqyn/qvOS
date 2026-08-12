@@ -1,0 +1,110 @@
+#!/bin/bash
+set -euo pipefail
+
+(( $# == 0 )) || {
+  echo "Usage: qvcore/packages/update-available" >&2
+  exit 2
+}
+
+cache_parent=${XDG_CACHE_HOME:-$HOME/.cache}
+[[ $cache_parent == /* ]] || {
+  echo "qvOS package update check: cache path must be absolute." >&2
+  exit 2
+}
+qvos_cache="$cache_parent/qvos"
+package_cache="$qvos_cache/packages"
+database_path="$package_cache/availability-db"
+lock_path="$package_cache/availability.lock"
+database_lock="$database_path/db.lck"
+local_database=/var/lib/pacman/local
+
+fail() {
+  printf 'qvOS package update check: %s\n' "$1" >&2
+  exit 2
+}
+
+safe_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+ensure_directory() {
+  local mode=$1
+  local path=$2
+
+  if [[ -e $path || -L $path ]]; then
+    safe_directory "$path" || fail "refusing unsafe cache directory: $path"
+  else
+    install -d -m "$mode" -- "$path"
+  fi
+}
+
+[[ -d $HOME && ! -L $HOME && -O $HOME ]] ||
+  fail "refusing unsafe home directory: $HOME"
+[[ -d $local_database && ! -L $local_database ]] ||
+  fail "the installed package database is unavailable"
+
+ensure_directory 0755 "$cache_parent"
+ensure_directory 0700 "$qvos_cache"
+ensure_directory 0700 "$package_cache"
+ensure_directory 0700 "$database_path"
+chmod 0700 -- "$qvos_cache" "$package_cache" "$database_path"
+
+if [[ -e $lock_path || -L $lock_path ]]; then
+  [[ -f $lock_path && ! -L $lock_path && -O $lock_path ]] ||
+    fail "refusing unsafe cache lock: $lock_path"
+fi
+exec 9>>"$lock_path"
+chmod 0600 -- "$lock_path"
+flock -w 10 9 || fail "another package update check is still running"
+
+# shellcheck disable=SC2329
+cleanup() {
+  if [[ -f $database_lock && ! -L $database_lock && -O $database_lock ]]; then
+    unlink -- "$database_lock" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+if [[ -e $database_lock || -L $database_lock ]]; then
+  [[ -f $database_lock && ! -L $database_lock && -O $database_lock ]] ||
+    fail "refusing unsafe temporary database lock"
+  unlink -- "$database_lock"
+fi
+
+if [[ -e $database_path/local || -L $database_path/local ]]; then
+  [[ -L $database_path/local &&
+    $(readlink -f -- "$database_path/local" 2>/dev/null) == "$local_database" ]] ||
+    fail "refusing unsafe installed-database link"
+else
+  ln -s -- "$local_database" "$database_path/local"
+fi
+
+[[ ! -e /var/lib/pacman/db.lck && ! -L /var/lib/pacman/db.lck ]] ||
+  fail "the package manager is currently busy"
+
+command -v fakeroot >/dev/null 2>&1 || fail "fakeroot is unavailable"
+if ! timeout --foreground 60 \
+  fakeroot -- pacman -Sy --noconfirm \
+  --disable-sandbox-filesystem \
+  --dbpath "$database_path" \
+  --logfile /dev/null >/dev/null 2>&1; then
+  fail "could not refresh temporary repository metadata"
+fi
+
+set +e
+updates=$(pacman -Qu --color never --dbpath "$database_path" 2>/dev/null)
+query_status=$?
+set -e
+(( query_status == 0 || query_status == 1 )) ||
+  fail "could not compare installed and repository packages"
+
+mapfile -t update_lines < <(
+  printf '%s\n' "$updates" | sed '/^[[:space:]]*$/d; /\[[^]]*\][[:space:]]*$/d'
+)
+if ((${#update_lines[@]} > 0)); then
+  printf 'qvOS package updates available (%d)\n' "${#update_lines[@]}"
+  exit 0
+fi
+
+echo "qvOS packages are up to date"
+exit 1

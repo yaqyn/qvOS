@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+export LC_COLLATE=C
 
 test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$test_dir/../.." && pwd)"
