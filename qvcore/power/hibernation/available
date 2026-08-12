@@ -23,9 +23,7 @@ image_size_file="$system_root/sys/power/image_size"
 swaps_file="$system_root/proc/swaps"
 swap_file="$system_root/swap/swapfile"
 qvos_hook="$system_root/etc/mkinitcpio.conf.d/80-qvos-resume.conf"
-legacy_hook="$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf"
 qvos_resume="$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
-legacy_resume="$system_root/etc/limine-entry-tool.d/resume.conf"
 resume_pattern='^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$'
 
 safe_owned_file() {
@@ -53,6 +51,5 @@ swap_size_kib=$(awk -v target="$swap_file" '
 [[ $swap_size_kib =~ ^[0-9]+$ ]] || exit 1
 swap_size=$((swap_size_kib * 1024))
 
-((swap_size > image_size)) &&
-  { valid_hook "$qvos_hook" || valid_hook "$legacy_hook"; } &&
-  { valid_resume "$qvos_resume" || valid_resume "$legacy_resume"; }
+((swap_size > image_size)) && valid_hook "$qvos_hook" &&
+  valid_resume "$qvos_resume"

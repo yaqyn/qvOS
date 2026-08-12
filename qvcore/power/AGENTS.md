@@ -88,11 +88,12 @@ linked, foreign-owned, or writable file that is present.
 
 Removal may delete `/swap/swapfile` and its subvolume only after explicit user
 confirmation, exact ownership checks, successful boot-policy removal and
-rebuild, and proof that the subvolume contains no unrelated data. Historical
-Omarchy resume and sleep files are migration inputs only and may be removed
-only when their complete content matches the known generated form. Fixture
-roots and tool overrides require `QVOS_HIBERNATION_TESTING=1` and caller-owned
-paths beneath one `/tmp` system root.
+rebuild, and proof that the subvolume contains no unrelated data. Completed
+pre-release Omarchy resume and sleep convergence is retired. The transaction
+validates, snapshots, installs, and removes only its native qvOS files;
+unrelated historical names are not runtime inputs. Fixture roots and tool
+overrides require `QVOS_HIBERNATION_TESTING=1` and caller-owned paths beneath
+one `/tmp` system root.
 
 ## Battery protection contract
 

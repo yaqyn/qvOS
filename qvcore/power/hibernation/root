@@ -99,18 +99,12 @@ limine_default="$etc_root/default/limine"
 mkinit_dir="$etc_root/mkinitcpio.conf.d"
 limine_dir="$etc_root/limine-entry-tool.d"
 qvos_hook="$mkinit_dir/80-qvos-resume.conf"
-legacy_hook="$mkinit_dir/omarchy_resume.conf"
 qvos_resume="$limine_dir/80-qvos-resume.conf"
-legacy_resume="$limine_dir/resume.conf"
 qvos_rtc="$limine_dir/80-qvos-rtc-alarm.conf"
-legacy_rtc="$limine_dir/rtc-alarm.conf"
 root_payload_dir="$system_root/usr/lib/qvos/power"
 keyboard_payload="$root_payload_dir/keyboard-backlight"
 keyboard_dir="$system_root/usr/lib/systemd/system-sleep"
 qvos_keyboard="$keyboard_dir/qvos-keyboard-backlight"
-legacy_keyboard="$keyboard_dir/keyboard-backlight"
-legacy_lid="$etc_root/systemd/logind.conf.d/lid.conf"
-legacy_sleep="$etc_root/systemd/sleep.conf.d/hibernate.conf"
 lock_file="$run_root/qvos-hibernation.lock"
 transaction_root=""
 transaction_active=false
@@ -185,33 +179,11 @@ validate_managed_files() {
     }
   fi
   owned_line_file "$qvos_hook" '^HOOKS\+\=\(resume\)$' || return 1
-  owned_line_file "$legacy_hook" '^HOOKS\+\=\(resume\)$' || return 1
   owned_line_file "$qvos_resume" '^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$' || return 1
-  owned_line_file "$legacy_resume" '^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$' || return 1
   owned_line_file "$qvos_rtc" '^KERNEL_CMDLINE\[default\]\+=" rtc_cmos\.use_acpi_alarm=1"$' || return 1
-  owned_line_file "$legacy_rtc" '^KERNEL_CMDLINE\[default\]\+=" rtc_cmos\.use_acpi_alarm=1"$' || return 1
 
   [[ ! -e $qvos_keyboard && ! -L $qvos_keyboard ]] ||
     { safe_file "$qvos_keyboard" && cmp -s "$keyboard_payload" "$qvos_keyboard"; } ||
-    return 1
-  if [[ -e $legacy_keyboard || -L $legacy_keyboard ]]; then
-    [[ -f $legacy_keyboard && ! -L $legacy_keyboard ]] || return 1
-    legacy_keyboard_hash=$(sha256sum -- "$legacy_keyboard")
-    legacy_keyboard_hash=${legacy_keyboard_hash%% *}
-    if { ! safe_file "$legacy_keyboard" ||
-      ! cmp -s "$keyboard_payload" "$legacy_keyboard"; } &&
-      [[ $legacy_keyboard_hash != \
-        "f313a81e47401f0d38b8602e5997f52c5286d5e97f74027564ddd515b3d16511" ]]; then
-      return 1
-    fi
-  fi
-  [[ ! -e $legacy_lid && ! -L $legacy_lid ]] ||
-    { safe_file "$legacy_lid" &&
-      [[ $(<"$legacy_lid") == $'[Login]\nHandleLidSwitch=suspend-then-hibernate' ]]; } ||
-    return 1
-  [[ ! -e $legacy_sleep && ! -L $legacy_sleep ]] ||
-    { safe_file "$legacy_sleep" &&
-      [[ $(<"$legacy_sleep") == $'[Sleep]\nHibernateDelaySec=90min\nSuspendEstimationSec=0' ]]; } ||
     return 1
 
   swap_mentions=$(awk -v file="${swap_file#"$system_root"}" '
@@ -231,12 +203,7 @@ snapshot_target() {
   [[ -z ${transaction_seen[$target]:-} ]] || return 0
   transaction_seen[$target]=1
   if [[ -e $target || -L $target ]]; then
-    if [[ $target == "$legacy_keyboard" ]]; then
-      [[ -f $target && ! -L $target ]] || {
-        echo "Refusing unsafe hibernation transaction target: $target" >&2
-        return 1
-      }
-    elif ! safe_file "$target"; then
+    if ! safe_file "$target"; then
       echo "Refusing unsafe hibernation transaction target: $target" >&2
       return 1
     fi
@@ -330,11 +297,7 @@ begin_transaction() {
   transaction_root=$(mktemp -d "$run_root/qvos-hibernation.XXXXXX")
   for target in \
     "$fstab" "$limine_default" \
-    "$qvos_hook" "$legacy_hook" \
-    "$qvos_resume" "$legacy_resume" \
-    "$qvos_rtc" "$legacy_rtc" \
-    "$qvos_keyboard" "$legacy_keyboard" \
-    "$legacy_lid" "$legacy_sleep"; do
+    "$qvos_hook" "$qvos_resume" "$qvos_rtc" "$qvos_keyboard"; do
     snapshot_target "$target"
   done
   transaction_active=true
@@ -375,9 +338,7 @@ build_limine_candidate() {
   local old_rtc=""
 
   [[ ! -f $qvos_resume ]] || old_resume=$(<"$qvos_resume")
-  [[ ! -f $legacy_resume ]] || old_resume=$(<"$legacy_resume")
   [[ ! -f $qvos_rtc ]] || old_rtc=$(<"$qvos_rtc")
-  [[ ! -f $legacy_rtc ]] || old_rtc=$(<"$legacy_rtc")
   if [[ -f $limine_default ]]; then
     awk -v resume="$old_resume" -v rtc="$old_rtc" '
       (resume != "" && $0 == resume) || (rtc != "" && $0 == rtc) { next }
@@ -514,12 +475,6 @@ if [[ $action == "apply" ]]; then
   else
     remove_if_present "$qvos_rtc" && changed=true || true
   fi
-  for legacy in \
-    "$legacy_hook" "$legacy_resume" "$legacy_rtc" "$legacy_keyboard" \
-    "$legacy_lid" "$legacy_sleep"; do
-    remove_if_present "$legacy" && changed=true || true
-  done
-
   if [[ $changed == "false" ]]; then
     finish_transaction
     exit 10
@@ -545,11 +500,7 @@ if [[ -f $limine_default ]]; then
     changed=true || true
 fi
 for managed in \
-  "$qvos_hook" "$legacy_hook" \
-  "$qvos_resume" "$legacy_resume" \
-  "$qvos_rtc" "$legacy_rtc" \
-  "$qvos_keyboard" "$legacy_keyboard" \
-  "$legacy_lid" "$legacy_sleep"; do
+  "$qvos_hook" "$qvos_resume" "$qvos_rtc" "$qvos_keyboard"; do
   remove_if_present "$managed" && changed=true || true
 done
 

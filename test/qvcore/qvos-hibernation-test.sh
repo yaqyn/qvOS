@@ -36,34 +36,17 @@ KERNEL_CMDLINE[default]+=" quiet"
 KERNEL_CMDLINE[default]+=" resume=/dev/mapper/test resume_offset=123"
 CONFIG
 printf 'HOOKS+=(resume)\n' \
-  >"$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf"
+  >"$system_root/etc/mkinitcpio.conf.d/80-qvos-resume.conf"
 printf 'KERNEL_CMDLINE[default]+=" resume=/dev/mapper/test resume_offset=123"\n' \
+  >"$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
+printf 'foreign historical hook\n' \
+  >"$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf"
+printf 'foreign historical resume policy\n' \
   >"$system_root/etc/limine-entry-tool.d/resume.conf"
-printf '%s\n' '[Login]' 'HandleLidSwitch=suspend-then-hibernate' \
+printf '%s\n' '[Login]' 'HandleLidSwitch=ignore' \
   >"$system_root/etc/systemd/logind.conf.d/lid.conf"
-printf '%s\n' '[Sleep]' 'HibernateDelaySec=90min' 'SuspendEstimationSec=0' \
+printf 'foreign sleep policy\n' \
   >"$system_root/etc/systemd/sleep.conf.d/hibernate.conf"
-install -m 0644 /dev/stdin \
-  "$system_root/usr/lib/systemd/system-sleep/keyboard-backlight" <<'SCRIPT'
-#!/bin/bash
-
-# Turn off keyboard backlight before hibernate to prevent hang on power-off.
-# The ASUS keyboard controller can block S4 shutdown if LEDs are active.
-
-if [[ $1 == "pre" && $2 == "hibernate" ]]; then
-  device=""
-  for candidate in /sys/class/leds/*kbd_backlight*; do
-    if [[ -e "$candidate" ]]; then
-      device="$(basename "$candidate")"
-      break
-    fi
-  done
-
-  if [[ -n "$device" ]]; then
-    brightnessctl -d "$device" set 0 >/dev/null 2>&1
-  fi
-fi
-SCRIPT
 printf '4096\n' >"$system_root/sys/power/image_size"
 printf 's2idle [deep]\n' >"$system_root/sys/power/mem_sleep"
 printf 'MemTotal:        8192 kB\n' >"$system_root/proc/meminfo"
@@ -133,7 +116,12 @@ hibernation_env=(
 
 fresh_system_root="$test_root/fresh-system"
 cp -a -- "$system_root" "$fresh_system_root"
-rm -- "$fresh_system_root/etc/default/limine"
+rm -- \
+  "$fresh_system_root/etc/default/limine" \
+  "$fresh_system_root/etc/mkinitcpio.conf.d/80-qvos-resume.conf" \
+  "$fresh_system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf" \
+  "$fresh_system_root/etc/limine-entry-tool.d/80-qvos-resume.conf" \
+  "$fresh_system_root/etc/limine-entry-tool.d/resume.conf"
 fresh_hibernation_env=(
   "QVOS_PATH=$root"
   QVOS_HIBERNATION_TESTING=1
@@ -169,14 +157,17 @@ grep -Fqx 'TARGET_OS_NAME="qvOS"' "$system_root/etc/default/limine" ||
 if grep -Fq 'resume=' "$system_root/etc/default/limine"; then
   fail "duplicate Limine resume policy"
 fi
-for legacy in \
-  "$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf" \
-  "$system_root/etc/limine-entry-tool.d/resume.conf" \
-  "$system_root/etc/systemd/logind.conf.d/lid.conf" \
-  "$system_root/etc/systemd/sleep.conf.d/hibernate.conf" \
-  "$system_root/usr/lib/systemd/system-sleep/keyboard-backlight"; do
-  [[ ! -e $legacy && ! -L $legacy ]] || fail "legacy hibernation state: $legacy"
-done
+[[ $(<"$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf") == \
+  "foreign historical hook" ]] || fail "historical hook preservation"
+[[ $(<"$system_root/etc/limine-entry-tool.d/resume.conf") == \
+  "foreign historical resume policy" ]] ||
+  fail "historical resume policy preservation"
+grep -Fqx 'HandleLidSwitch=ignore' \
+  "$system_root/etc/systemd/logind.conf.d/lid.conf" ||
+  fail "unrelated logind policy preservation"
+grep -Fqx 'foreign sleep policy' \
+  "$system_root/etc/systemd/sleep.conf.d/hibernate.conf" ||
+  fail "unrelated sleep policy preservation"
 keyboard="$system_root/usr/lib/systemd/system-sleep/qvos-keyboard-backlight"
 [[ -x $keyboard && $(stat -c '%a' "$keyboard") == "755" ]] ||
   fail "root-owned executable keyboard sleep helper"
@@ -184,7 +175,7 @@ env "${hibernation_env[@]}" \
   "$root/qvcore/power/hibernation/available" ||
   fail "native hibernation availability"
 [[ $(<"$rebuild_log") == "rebuild" ]] || fail "single hibernation rebuild"
-printf 'ok - legacy hibernation converges on singular native boot policy\n'
+printf 'ok - hibernation updates only singular native boot policy\n'
 
 state_before=$(find "$system_root/etc" "$system_root/swap" \
   -type f -printf '%p|%m|' -exec sha256sum {} \; | sort)
@@ -228,11 +219,17 @@ env "${hibernation_env[@]}" QVOS_TEST_CONFIRM_STATUS=0 \
   PATH="$test_bin:/usr/bin" "$root/qvcore/power/hibernation/remove" >/dev/null
 [[ ! -e $system_root/swap && ! -L $system_root/swap ]] ||
   fail "removed hibernation storage"
-if find "$system_root/etc/mkinitcpio.conf.d" \
-  "$system_root/etc/limine-entry-tool.d" \
-  -type f -name '*resume*' -print -quit | grep -q .; then
-  fail "removed hibernation boot policy"
-fi
+for managed in \
+  "$system_root/etc/mkinitcpio.conf.d/80-qvos-resume.conf" \
+  "$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf" \
+  "$system_root/etc/limine-entry-tool.d/80-qvos-rtc-alarm.conf"; do
+  [[ ! -e $managed && ! -L $managed ]] || fail "removed hibernation boot policy"
+done
+[[ $(<"$system_root/etc/mkinitcpio.conf.d/omarchy_resume.conf") == \
+  "foreign historical hook" ]] || fail "historical hook removal side effect"
+[[ $(<"$system_root/etc/limine-entry-tool.d/resume.conf") == \
+  "foreign historical resume policy" ]] ||
+  fail "historical resume removal side effect"
 ! env "${hibernation_env[@]}" \
   "$root/qvcore/power/hibernation/available" ||
   fail "removed hibernation remained available"
@@ -254,22 +251,22 @@ if env "${hibernation_env[@]}" \
 fi
 printf 'ok - hibernation public owners reject ambiguous arguments before mutation\n'
 
-foreign_lid="$system_root/etc/systemd/logind.conf.d/lid.conf"
-printf '%s\n' '[Login]' 'HandleLidSwitch=ignore' >"$foreign_lid"
+foreign_resume="$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
+printf 'foreign native resume policy\n' >"$foreign_resume"
 set +e
 env "${hibernation_env[@]}" \
   "$root/qvcore/power/hibernation/setup" --force --no-rebuild \
   >/dev/null 2>&1
 foreign_status=$?
 set -e
-((foreign_status == 1)) || fail "foreign sleep policy rejection status"
-grep -Fqx 'HandleLidSwitch=ignore' "$foreign_lid" ||
-  fail "foreign sleep policy preservation"
+((foreign_status == 1)) || fail "foreign native policy rejection status"
+grep -Fqx 'foreign native resume policy' "$foreign_resume" ||
+  fail "foreign native policy preservation"
 [[ ! -e $system_root/swap && ! -L $system_root/swap ]] ||
-  fail "foreign sleep policy preflight created storage"
-printf 'ok - modified administrator sleep policy fails before any mutation\n'
+  fail "foreign native policy preflight created storage"
+printf 'ok - modified native hibernation policy fails before any mutation\n'
 
-rm -- "$foreign_lid"
+rm -- "$foreign_resume"
 chmod 0664 "$system_root/etc/fstab"
 set +e
 env "${hibernation_env[@]}" \

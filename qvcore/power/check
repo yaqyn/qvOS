@@ -124,6 +124,11 @@ if rg -n 'omarchy|legacy_(root|profile|wifi|sleep)' \
   "$root/qvcore/power/event-rule" "$root/qvcore/power/root-install"; then
   fail "retired power convergence remains active"
 fi
+if rg -n 'omarchy|legacy_(hook|resume|rtc|keyboard|lid|sleep)' \
+  "$root/qvcore/power/hibernation/root" \
+  "$root/qvcore/power/hibernation/available"; then
+  fail "retired hibernation convergence remains active"
+fi
 # shellcheck disable=SC2016
 grep -Fq '"${system_root:-/}" "$etc_root" "$run_root"' \
   "$root/qvcore/power/hibernation/root" ||

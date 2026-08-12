@@ -38,6 +38,9 @@ leaves in `qvcore/boot/login/`. The hibernation leaf calls the native power
 owner with `--no-rebuild`, so the later Limine package step remains the only
 fresh-install UKI rebuild. Hibernation must accept a safely absent
 `/etc/default/limine`; the later Limine owner singularly creates that file.
+The hibernation transaction owns only native qvOS resume and sleep artifacts;
+its completed pre-release Omarchy convergence is retired and must not return as
+a boot input.
 Active Plymouth, SDDM, session, mkinitcpio, and UKI
 identifiers use `qvos`. Legacy `omarchy` boot artifacts are migration input
 only: create and verify the native replacement first, remove an old theme or
