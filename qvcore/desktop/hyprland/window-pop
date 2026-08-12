@@ -49,18 +49,9 @@ window_record=$(jq -er '
   exit 1
 }
 IFS=$'\t' read -r address pinned <<<"$window_record"
-
-if [[ $pinned == "true" ]]; then
-  exec hyprctl -q --batch \
-    "dispatch pin address:$address; dispatch togglefloating address:$address; dispatch tagwindow -pop address:$address"
-fi
-
-hyprctl dispatch togglefloating "address:$address" >/dev/null
-hyprctl dispatch resizeactive exact "$width" "$height" "address:$address" >/dev/null
+runtime_config="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/qvos-runtime-config"
 if [[ -n $x ]]; then
-  hyprctl dispatch moveactive "$x" "$y" "address:$address" >/dev/null
+  exec "$runtime_config" window pop "$address" "$pinned" "$width" "$height" "$x" "$y"
 else
-  hyprctl dispatch centerwindow "address:$address" >/dev/null
+  exec "$runtime_config" window pop "$address" "$pinned" "$width" "$height"
 fi
-exec hyprctl -q --batch \
-  "dispatch pin address:$address; dispatch alterzorder top address:$address; dispatch tagwindow +pop address:$address"

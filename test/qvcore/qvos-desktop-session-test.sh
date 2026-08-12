@@ -50,7 +50,7 @@ run_hyprland_owner() {
 
 : >"$hyprctl_log"
 run_hyprland_owner '[{"address":"0x1"},{"address":"0xAbC"}]'
-[[ $(<"$hyprctl_log") == $'dispatch|closewindow|address:0x1\ndispatch|closewindow|address:0xAbC\ndispatch|workspace|1' ]] ||
+[[ $(<"$hyprctl_log") == $'dispatch|hl.dsp.window.close({ window = "address:0x1" })\ndispatch|hl.dsp.window.close({ window = "address:0xAbC" })\ndispatch|hl.dsp.focus({ workspace = "1" })' ]] ||
   fail "validated all-window close order"
 
 : >"$hyprctl_log"
@@ -67,14 +67,16 @@ printf 'ok - all-window closure validates the full client inventory before mutat
 : >"$hyprctl_log"
 QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
   QVOS_TEST_CLIENTS_JSON='[{"class":"org.qvos.screensaver","address":"0x2"},{"class":"app","address":"unrelated"}]' \
+  QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/screensaver/close"
-[[ $(<"$hyprctl_log") == 'dispatch|closewindow|address:0x2' ]] ||
+[[ $(<"$hyprctl_log") == 'dispatch|hl.dsp.window.close({ window = "address:0x2" })' ]] ||
   fail "bounded screensaver close"
 
 : >"$hyprctl_log"
 if QVOS_TEST_HYPRCTL_LOG="$hyprctl_log" \
   QVOS_TEST_CLIENTS_JSON='[{"class":"org.qvos.screensaver","address":"0x2"},{"class":"org.qvos.screensaver","address":"unsafe"}]' \
+  QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/screensaver/close" >/dev/null 2>&1; then
   fail "invalid screensaver window inventory accepted"
@@ -88,6 +90,8 @@ for owner in lock logout logout-worker wake; do
 done
 install -D -m 0755 "$root/qvcore/desktop/hyprland/window-close-all" \
   "$source_root/qvcore/desktop/hyprland/window-close-all"
+install -D -m 0755 "$root/qvcore/desktop/hyprland/qvos-runtime-config" \
+  "$source_root/qvcore/desktop/hyprland/qvos-runtime-config"
 install -D -m 0644 "$root/qvcore/desktop/restart/process-lib" \
   "$source_root/qvcore/desktop/restart/process-lib"
 install -D -m 0755 /dev/stdin \
@@ -222,7 +226,7 @@ run_session_owner logout
 grep -Fq "nohup:$source_root/qvcore/desktop/session/logout-worker" \
   "$session_log" || fail "fixed logout worker scheduling"
 grep -Fqx 'sleep:1' "$session_log" || fail "application shutdown grace"
-grep -Fqx 'dispatch|workspace|1' "$hyprctl_log" ||
+grep -Fqx 'dispatch|hl.dsp.focus({ workspace = "1" })' "$hyprctl_log" ||
   fail "logout window cleanup"
 : >"$session_log"
 run_session_owner logout-worker

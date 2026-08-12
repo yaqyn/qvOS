@@ -299,6 +299,7 @@ pass "qvOS update engine orders and reports its transaction safely"
 # The pipeline always removes no-idle and stops at the first failed stage.
 pipeline="$test_root/pipeline"
 install -d \
+  "$pipeline/qvcore/desktop/hyprland" \
   "$pipeline/qvcore/direct" \
   "$pipeline/qvcore/install" \
   "$pipeline/qvcore/migrations" \
@@ -341,6 +342,11 @@ install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
 #!/bin/bash
 printf 'hyprctl:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
+install -m 0755 /dev/stdin \
+  "$pipeline/qvcore/desktop/hyprland/qvos-runtime-config" <<'SCRIPT'
+#!/bin/bash
+printf 'runtime-config:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
 install -m 0755 /dev/stdin "$test_bin/qv-hook" <<'SCRIPT'
 #!/bin/bash
 printf 'hook:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
@@ -351,7 +357,7 @@ SCRIPT
 QVOS_PATH="$pipeline" QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" "$root/qvcore/update/perform"
 expected_pipeline=$(printf '%s\n' \
-  'hyprctl:dispatch tagwindow +noidle' \
+  'runtime-config:window tag add noidle' \
   update-keyring \
   available-reset \
   update-system \
@@ -364,10 +370,10 @@ expected_pipeline=$(printf '%s\n' \
   'hook:post-update' \
   analyze-log \
   restart \
-  'hyprctl:dispatch tagwindow -- -noidle')
+  'runtime-config:window tag remove noidle')
 [[ $(<"$action_log") == "$expected_pipeline" ]] ||
   fail "native update pipeline stage order"
-[[ $(tail -n 1 "$action_log") == 'hyprctl:dispatch tagwindow -- -noidle' ]] ||
+[[ $(tail -n 1 "$action_log") == 'runtime-config:window tag remove noidle' ]] ||
   fail "successful no-idle cleanup"
 
 : >"$action_log"
@@ -387,7 +393,7 @@ QVOS_PATH="$pipeline" QVOS_TEST_ACTION_LOG="$action_log" \
 pipeline_failure_status=$?
 set -e
 (( pipeline_failure_status != 0 )) || fail "pipeline stage failure status"
-[[ $(tail -n 1 "$action_log") == 'hyprctl:dispatch tagwindow -- -noidle' ]] ||
+[[ $(tail -n 1 "$action_log") == 'runtime-config:window tag remove noidle' ]] ||
   fail "failed no-idle cleanup"
 ! grep -Fq 'migrations' "$action_log" || fail "pipeline continued after failure"
 pass "qvOS update cleanup runs after success and failure"

@@ -133,7 +133,7 @@ pass "desktop launch owners and compatibility adapters are singular"
 export QVOS_TEST_CLIENTS_JSON='[{"address":"0xabc","class":"Org.QvOS.Wiremix","title":null}]'
 unlink -- "$setsid_log" 2>/dev/null || true
 "$launch_root/or-focus" wiremix fixture-command 'argument with spaces'
-assert_args "$focus_log" focuswindow address:0xabc
+assert_args "$focus_log" 'hl.dsp.focus({ window = "address:0xabc" })'
 [[ ! -e $setsid_log ]] || fail "matching launch started a duplicate"
 pass "focus-or-launch validates and focuses an exact existing client"
 
@@ -221,7 +221,7 @@ pass "web-app launch rejects malformed, credential-bearing, and ambiguous URLs"
 
 export QVOS_TEST_CLIENTS_JSON='[{"address":"0xdef","class":"Example App","title":"Example"}]'
 "$launch_root/or-focus-webapp" 'example app' 'https://example.com/app'
-assert_args "$focus_log" focuswindow address:0xdef
+assert_args "$focus_log" 'hl.dsp.focus({ window = "address:0xdef" })'
 [[ ! -e $setsid_log ]] || fail "existing web app launched a duplicate"
 pass "web-app focus reuses validated client matching"
 

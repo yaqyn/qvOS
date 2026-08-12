@@ -32,6 +32,10 @@ source. Workspace buttons use protocol-native `ext/workspaces`, never the
 Hyprland IPC module: its legacy click dispatcher is incompatible with the Lua
 configuration manager. Persistent workspace ownership belongs to the typed
 Hyprland base, while Waybar only presents and activates protocol workspaces.
+The ext-workspace protocol exposes active, urgent, and hidden state but not
+window occupancy; do not restore dead `.empty` styling or sacrifice working
+activation for the incompatible IPC module. Keep the grayscale visual ladder
+explicit for inactive, hover, active, and urgent states.
 
 `qv-launch-task` is the native fallback for a classified qvOS task when the
 checked TUI runtime is unavailable. Waybar task actions must use it; never

@@ -55,6 +55,8 @@ jq -e '
   ."ext/workspaces"."on-click" == "activate" and
   ."ext/workspaces"."sort-by-id" == true and
   (."ext/workspaces" | has("persistent-workspaces") | not) and
+  ."modules-right" == ["group/tray-expander", "network", "pulseaudio", "cpu", "battery"] and
+  ."group/tray-expander".modules == ["custom/expand-icon", "bluetooth", "tray"] and
   ."custom/qvos".format == "󱅾" and
   ."custom/qvos"."on-click" == "qv-menu" and
   ."custom/update".exec == "qv-update-available" and
@@ -74,10 +76,20 @@ jq -e '
 workspace_style=$(sed -n \
   '/^window#waybar #workspaces button {/,/^}/p' \
   "$root/qvcore/theme/yaqyn/waybar.css")
-grep -Fq '  color: @foreground;' <<<"$workspace_style" ||
-  fail "normal workspace foreground"
-grep -Fq '  opacity: 0.55;' <<<"$workspace_style" ||
+grep -Fq '  color: @muted;' <<<"$workspace_style" ||
+  fail "inactive workspace foreground"
+grep -Fq '  opacity: 0.3;' <<<"$workspace_style" ||
   fail "normal workspace opacity"
+hover_style=$(sed -n \
+  '/^window#waybar #workspaces button:hover {/,/^}/p' \
+  "$root/qvcore/theme/yaqyn/waybar.css")
+grep -Fq '  opacity: 0.45;' <<<"$hover_style" ||
+  fail "hovered workspace opacity"
+active_style=$(sed -n \
+  '/^window#waybar #workspaces button\.active {/,/^}/p' \
+  "$root/qvcore/theme/yaqyn/waybar.css")
+grep -Fq '  opacity: 0.7;' <<<"$active_style" ||
+  fail "active workspace opacity"
 urgent_style=$(sed -n \
   '/^window#waybar #workspaces button\.urgent,/,/^}/p' \
   "$root/qvcore/theme/yaqyn/waybar.css")
@@ -87,6 +99,12 @@ grep -Fq '  opacity: 1;' <<<"$urgent_style" ||
   fail "urgent workspace opacity"
 grep -Fq '#custom-qvos {' "$root/qvcore/theme/yaqyn/waybar.css" ||
   fail "native qvOS menu style"
+grep -Fq '#custom-qvos:hover {' "$root/qvcore/theme/yaqyn/waybar.css" ||
+  fail "native qvOS menu hover style"
+if rg -q '#workspaces button\.empty' "$source_style" \
+  "$root/qvcore/theme/yaqyn/waybar.css"; then
+  fail "unavailable ext-workspace empty state"
+fi
 
 idle_json=$(PATH="$test_bin:/usr/bin" QVOS_TEST_HYPRIDLE=0 \
   "$root/qvcore/waybar/idle-status")

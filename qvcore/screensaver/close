@@ -5,6 +5,12 @@ set -euo pipefail
   echo "Usage: qvcore/screensaver/close" >&2
   exit 2
 }
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+runtime_config="$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config"
+[[ -x $runtime_config ]] || {
+  echo "qvOS Hyprland runtime control is unavailable." >&2
+  exit 1
+}
 
 clients_json=$(hyprctl clients -j 2>/dev/null) || {
   echo "Could not read Hyprland clients while closing the qvOS screensaver." >&2
@@ -26,7 +32,7 @@ mapfile -t addresses < <(
 )
 status=0
 for address in "${addresses[@]}"; do
-  hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || status=1
+  "$runtime_config" window close "$address" >/dev/null 2>&1 || status=1
 done
 
 ((status == 0)) || {

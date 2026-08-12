@@ -72,15 +72,15 @@ special_closed='[{"focused":true,"activeWorkspace":{"name":"1"},"specialWorkspac
 special_open='[{"focused":true,"activeWorkspace":{"name":"1"},"specialWorkspace":{"name":"special:scratchpad"}}]'
 
 run_helper "$normal_window" "$special_closed"
-assert_dispatches $'dispatch movetoworkspacesilent special:scratchpad,address:0x123\ndispatch togglespecialworkspace scratchpad\ndispatch focuswindow address:0x123' "move in and open special workspace"
+assert_dispatches $'dispatch hl.dsp.window.move({ workspace = "special:scratchpad", follow = false, window = "address:0x123" })\ndispatch hl.dsp.workspace.toggle_special("scratchpad")\ndispatch hl.dsp.focus({ window = "address:0x123" })' "move in and open special workspace"
 pass "moving a window in opens special and restores its focus"
 
 run_helper "$normal_window" "$special_open"
-assert_dispatches $'dispatch movetoworkspacesilent special:scratchpad,address:0x123\ndispatch focuswindow address:0x123' "move into visible special workspace"
+assert_dispatches $'dispatch hl.dsp.window.move({ workspace = "special:scratchpad", follow = false, window = "address:0x123" })\ndispatch hl.dsp.focus({ window = "address:0x123" })' "move into visible special workspace"
 pass "an already-visible special workspace is not toggled closed"
 
 run_helper "$special_window" "$special_open"
-assert_dispatches $'dispatch movetoworkspacesilent 1,address:0x123\ndispatch togglespecialworkspace scratchpad\ndispatch focuswindow address:0x123' "move out and close special workspace"
+assert_dispatches $'dispatch hl.dsp.window.move({ workspace = "1", follow = false, window = "address:0x123" })\ndispatch hl.dsp.workspace.toggle_special("scratchpad")\ndispatch hl.dsp.focus({ window = "address:0x123" })' "move out and close special workspace"
 pass "moving a window out closes special and restores its focus"
 
 if run_helper '{"address":"0x0","workspace":{"name":"1"}}' "$special_closed" >/dev/null 2>&1; then

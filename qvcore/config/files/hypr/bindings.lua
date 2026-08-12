@@ -201,8 +201,8 @@ qv.bind({ keys = [[SUPER + SHIFT + UP]], description = [[Swap window up]], dispa
 qv.bind({ keys = [[SUPER + SHIFT + DOWN]], description = [[Swap window down]], dispatcher = [[swapwindow]], argument = [[d]] })
 
 -- Cycle windows and monitors.
-qv.bind({ keys = [[ALT + TAB]], description = [[Focus on next window]], dispatcher = [[exec]], argument = [[hyprctl dispatch cyclenext && hyprctl dispatch bringactivetotop]] })
-qv.bind({ keys = [[ALT + SHIFT + TAB]], description = [[Focus on previous window]], dispatcher = [[exec]], argument = [[hyprctl dispatch cyclenext prev && hyprctl dispatch bringactivetotop]] })
+qv.bind({ keys = [[ALT + TAB]], description = [[Focus on next window]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config window cycle next]] })
+qv.bind({ keys = [[ALT + SHIFT + TAB]], description = [[Focus on previous window]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config window cycle previous]] })
 qv.bind({ keys = [[CTRL + ALT + TAB]], description = [[Focus on next monitor]], dispatcher = [[focusmonitor]], argument = [[+1]] })
 qv.bind({ keys = [[CTRL + ALT + SHIFT + TAB]], description = [[Focus on previous monitor]], dispatcher = [[focusmonitor]], argument = [[-1]] })
 

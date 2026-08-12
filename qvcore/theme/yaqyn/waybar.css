@@ -12,21 +12,28 @@ window#waybar {
 #custom-qvos {
   color: @muted;
   opacity: 0.45;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+#custom-qvos:hover {
+  color: @bright;
+  opacity: 1;
 }
 
 window#waybar #workspaces button {
-  color: @foreground;
-  opacity: 0.55;
-}
-
-window#waybar #workspaces button.empty {
   color: @muted;
   opacity: 0.3;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+window#waybar #workspaces button:hover {
+  color: @foreground;
+  opacity: 0.45;
 }
 
 window#waybar #workspaces button.active {
   color: @bright;
-  opacity: 0.75;
+  opacity: 0.7;
 }
 
 window#waybar #workspaces button.urgent,

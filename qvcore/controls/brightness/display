@@ -22,7 +22,8 @@ off | on) ;;
 esac
 
 if [[ $step == "off" || $step == "on" ]]; then
-  hyprctl dispatch dpms "$step" >/dev/null 2>&1
+  QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+  "$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" display-power "$step"
   exit
 fi
 

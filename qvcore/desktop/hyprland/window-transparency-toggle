@@ -19,4 +19,5 @@ address=$(jq -er '
   echo "No valid active Hyprland window was found." >&2
   exit 1
 }
-hyprctl dispatch setprop "address:$address" opaque toggle >/dev/null
+runtime_config="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/qvos-runtime-config"
+exec "$runtime_config" window opaque-toggle "$address"

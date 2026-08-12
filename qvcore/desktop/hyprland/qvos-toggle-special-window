@@ -5,6 +5,7 @@ set -euo pipefail
 
 special_workspace="special:scratchpad"
 special_workspace_name="scratchpad"
+runtime_config="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/qvos-runtime-config"
 active_window="$(hyprctl activewindow -j)"
 window_address="$(jq -r '.address // empty' <<<"$active_window")"
 window_workspace="$(jq -r '.workspace.name // empty' <<<"$active_window")"
@@ -18,7 +19,7 @@ monitors="$(hyprctl monitors -j)"
 special_workspace_visible="$(jq -r --arg workspace "$special_workspace" 'any(.[]; .specialWorkspace.name == $workspace)' <<<"$monitors")"
 
 focus_window() {
-  hyprctl dispatch focuswindow "address:$window_address"
+  "$runtime_config" window focus "$window_address"
 }
 
 if [[ $window_workspace == "$special_workspace" ]]; then
@@ -28,15 +29,15 @@ if [[ $window_workspace == "$special_workspace" ]]; then
     exit 1
   fi
 
-  hyprctl dispatch movetoworkspacesilent "$target_workspace,address:$window_address"
+  "$runtime_config" window move-workspace "$window_address" "$target_workspace" silent
   if [[ $special_workspace_visible == "true" ]]; then
-    hyprctl dispatch togglespecialworkspace "$special_workspace_name"
+    "$runtime_config" workspace special-toggle "$special_workspace_name"
   fi
   focus_window
 else
-  hyprctl dispatch movetoworkspacesilent "$special_workspace,address:$window_address"
+  "$runtime_config" window move-workspace "$window_address" "$special_workspace" silent
   if [[ $special_workspace_visible == "false" ]]; then
-    hyprctl dispatch togglespecialworkspace "$special_workspace_name"
+    "$runtime_config" workspace special-toggle "$special_workspace_name"
   fi
   focus_window
 fi

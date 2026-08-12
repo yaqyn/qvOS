@@ -49,9 +49,17 @@ install -m 0755 /dev/stdin \
 #!/bin/bash
 set -euo pipefail
 
-[[ $# == 4 && $1 == "config" && $2 == "cursor" &&
-  $3 == "inactive_timeout" ]]
-printf 'cursor:inactive_timeout=%s\n' "$4" >>"$QVOS_TEST_RUNTIME_CONFIG_LOG"
+case ${1:-} in
+config)
+  [[ $# == 4 && $2 == "cursor" && $3 == "inactive_timeout" ]]
+  printf 'cursor:inactive_timeout=%s\n' "$4" >>"$QVOS_TEST_RUNTIME_CONFIG_LOG"
+  ;;
+focus-monitor)
+  [[ $# == 2 ]]
+  printf '%s\n' "$2" >>"$QVOS_TEST_FOCUS_LOG"
+  ;;
+*) exit 1 ;;
+esac
 SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/hyprctl" <<'SCRIPT'
@@ -67,7 +75,7 @@ clients)
     polls=0
     [[ -f $QVOS_TEST_CLIENT_POLL_LOG ]] && polls="$(wc -l <"$QVOS_TEST_CLIENT_POLL_LOG")"
     if ((count > 0 && polls == 0)); then
-      jq -cn --argjson count "$count" '[range(0; $count) | {class: "org.qvos.screensaver", address: ("0x" + (.|tostring))}]'
+      jq -cn --argjson count "$count" '[range(1; $count + 1) | {class: "org.qvos.screensaver", address: ("0x" + (.|tostring))}]'
       printf 'active\n' >>"$QVOS_TEST_CLIENT_POLL_LOG"
     else
       printf '[]\n'
@@ -82,19 +90,7 @@ getoption)
   printf '{"float":7.5}\n'
   ;;
 dispatch)
-  case $2 in
-  focusmonitor) printf '%s\n' "$3" >>"$QVOS_TEST_FOCUS_LOG" ;;
-  exec)
-    shift 2
-    [[ ${1:-} == "--" ]] && shift
-    printf '%s' "${1:-}" >>"$QVOS_TEST_LAUNCH_LOG"
-    shift || true
-    printf '\t%s' "$@" >>"$QVOS_TEST_LAUNCH_LOG"
-    printf '\n' >>"$QVOS_TEST_LAUNCH_LOG"
-    ;;
-  closewindow) : ;;
-  *) exit 1 ;;
-  esac
+  :
   ;;
 cursorpos)
   if [[ -s ${QVOS_TEST_CURSOR_LOG:-} ]]; then
@@ -138,6 +134,16 @@ for command_name in walker notify-send; do
 #!/bin/bash
 
 exit 0
+SCRIPT
+done
+
+for command_name in alacritty ghostty foot kitty; do
+  install -m 0755 /dev/stdin "$test_bin/$command_name" <<'SCRIPT'
+#!/bin/bash
+
+printf '%s' "${0##*/}" >>"$QVOS_TEST_LAUNCH_LOG"
+printf '\t%s' "$@" >>"$QVOS_TEST_LAUNCH_LOG"
+printf '\n' >>"$QVOS_TEST_LAUNCH_LOG"
 SCRIPT
 done
 

@@ -208,7 +208,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes, while one typed runtime
-  bridge owns bounded `hyprctl eval` configuration changes
+  bridge owns every bounded shell-side `hyprctl eval` and Lua dispatcher action;
+  native shell/config callers never issue legacy dispatcher tokens directly
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   one shared probe limits manager access to the active account home, while a
   fresh chroot stages units for first run; retired inherited unit names remain

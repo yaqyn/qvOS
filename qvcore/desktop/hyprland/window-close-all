@@ -21,11 +21,12 @@ if ! jq -e '
 fi
 
 mapfile -t addresses < <(jq -r '.[].address' <<<"$clients_json")
+runtime_config="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/qvos-runtime-config"
 status=0
 for address in "${addresses[@]}"; do
-  hyprctl dispatch closewindow "address:$address" >/dev/null || status=1
+  "$runtime_config" window close "$address" >/dev/null || status=1
 done
-hyprctl dispatch workspace 1 >/dev/null || status=1
+"$runtime_config" workspace focus 1 >/dev/null || status=1
 
 ((status == 0)) || {
   echo "Could not close every Hyprland window or select workspace 1." >&2

@@ -102,7 +102,7 @@ cursor_inactive_timeout="$(
 cursor_timeout_changed=false
 
 restore_monitor() {
-  [[ -n $focused ]] && hyprctl dispatch focusmonitor "$focused" >/dev/null 2>&1 || true
+  [[ -n $focused ]] && "$runtime_config" focus-monitor "$focused" >/dev/null 2>&1 || true
 }
 
 cleanup() {
@@ -128,8 +128,11 @@ if ((${#monitors[@]} == 0)); then
 fi
 
 for monitor in "${monitors[@]}"; do
-  hyprctl dispatch focusmonitor "$monitor" >/dev/null
-  hyprctl dispatch exec -- "${command[@]}" >/dev/null
+  "$runtime_config" focus-monitor "$monitor" >/dev/null
+  (
+    exec 9>&-
+    exec "${command[@]}"
+  ) >/dev/null 2>&1 &
 done
 
 for _ in {1..20}; do

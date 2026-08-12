@@ -11,11 +11,13 @@ noidle_applied=false
 
 restore_idle() {
   [[ $noidle_applied == "true" ]] || return 0
-  hyprctl dispatch tagwindow -- -noidle &>/dev/null || true
+  "$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" \
+    window tag remove noidle &>/dev/null || true
 }
 trap restore_idle EXIT
 
-if hyprctl dispatch tagwindow +noidle &>/dev/null; then
+if "$QVOS_PATH/qvcore/desktop/hyprland/qvos-runtime-config" \
+  window tag add noidle &>/dev/null; then
   noidle_applied=true
 fi
 

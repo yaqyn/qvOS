@@ -99,7 +99,7 @@ qvos_launch_focus_or_run() {
   }
 
   if [[ -n $address ]]; then
-    hyprctl dispatch focuswindow "address:$address"
+    "$launch_lib_dir/../hyprland/qvos-runtime-config" window focus "$address"
   else
     exec setsid -- "$@"
   fi

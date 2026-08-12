@@ -34,8 +34,10 @@ menus and concepts use `qv-toggle-screensaver`, never its compatibility name.
   closure paths. Route both bounded runtime changes through
   `qvos-runtime-config`; never restore `hyprctl keyword` mutation.
 - Keep one launcher under the runtime lock, launch one terminal per active
-  monitor, restore the previously focused monitor, and close every screensaver
-  window when any runner detects keyboard or pointer input.
+  monitor with exact argv and without a shell string, close the lock descriptor
+  in each child, restore the previously focused monitor through the typed
+  runtime bridge, and close every screensaver window when any runner detects
+  keyboard or pointer input.
 - Preserve the Hypridle ordering: screensaver first, lock second, then guarded
   suspend. Do not restore external state from an unsupervised per-monitor
   runner.

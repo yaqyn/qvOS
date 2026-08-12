@@ -26,10 +26,6 @@
   min-width: 9px;
 }
 
-#workspaces button.empty {
-  opacity: 0.5;
-}
-
 #cpu,
 #battery,
 #pulseaudio,

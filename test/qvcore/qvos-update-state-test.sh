@@ -82,8 +82,12 @@ clients)
   ;;
 dispatch)
   case ${2:-} in
-  closewindow) printf 'close-windows\n' >>"$QVOS_TEST_POWER_LOG" ;;
-  workspace) printf 'workspace:%s\n' "${3:-}" >>"$QVOS_TEST_POWER_LOG" ;;
+  'hl.dsp.window.close({ window = "address:0x1" })')
+    printf 'close-windows\n' >>"$QVOS_TEST_POWER_LOG"
+    ;;
+  'hl.dsp.focus({ workspace = "1" })')
+    printf 'workspace:1\n' >>"$QVOS_TEST_POWER_LOG"
+    ;;
   *) exit 1 ;;
   esac
   ;;

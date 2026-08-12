@@ -22,6 +22,27 @@ run_dispatch() {
     fail "Hyprland rejected the runtime window action"
 }
 
+validate_address() {
+  local address=$1
+
+  [[ $address =~ ^0x[0-9A-Fa-f]+$ && $address != "0x0" ]] ||
+    fail "invalid window address" 2
+}
+
+validate_monitor() {
+  local monitor=$1
+
+  [[ ${#monitor} -le 128 && $monitor =~ ^[[:alnum:]_.:-]+$ ]] ||
+    fail "invalid monitor name" 2
+}
+
+validate_workspace() {
+  local workspace=$1
+
+  [[ ${#workspace} -le 128 && $workspace =~ ^[[:alnum:]_.:+/-]+$ ]] ||
+    fail "invalid workspace selector" 2
+}
+
 case ${1:-} in
 config)
   (($# == 4)) || fail "usage: qvos-runtime-config config <section> <key> <value>" 2
@@ -77,10 +98,151 @@ monitor)
   fi
   run_lua "hl.monitor({ output = \"$output\", mode = \"$mode\", position = \"$position\", scale = $scale_literal })"
   ;;
+display-power)
+  (($# == 2)) || fail "usage: qvos-runtime-config display-power <on|off>" 2
+  action=$2
+  [[ $action == "on" || $action == "off" ]] || fail "invalid display-power action" 2
+  run_dispatch "hl.dsp.dpms({ action = \"$action\" })"
+  ;;
+focus-monitor)
+  (($# == 2)) || fail "usage: qvos-runtime-config focus-monitor <monitor>" 2
+  monitor=$2
+  validate_monitor "$monitor"
+  run_dispatch "hl.dsp.focus({ monitor = \"$monitor\" })"
+  ;;
+shortcut)
+  (($# == 2)) || fail "usage: qvos-runtime-config shortcut paste" 2
+  [[ $2 == "paste" ]] || fail "unsupported shortcut action: $2" 2
+  run_dispatch 'hl.dsp.send_shortcut({ mods = "SHIFT", key = "Insert", window = "activewindow" })'
+  ;;
 window)
-  (($# == 2)) || fail "usage: qvos-runtime-config window tiled" 2
-  [[ $2 == "tiled" ]] || fail "unsupported window state: $2" 2
-  run_dispatch 'hl.dsp.window.float({ action = "disable" })'
+  action=${2:-}
+  case $action in
+  tiled)
+    (($# == 2)) || fail "usage: qvos-runtime-config window tiled" 2
+    run_dispatch 'hl.dsp.window.float({ action = "disable" })'
+    ;;
+  close | focus | opaque-toggle)
+    (($# == 3)) || fail "usage: qvos-runtime-config window $action <address>" 2
+    address=$3
+    validate_address "$address"
+    case $action in
+    close)
+      run_dispatch "hl.dsp.window.close({ window = \"address:$address\" })"
+      ;;
+    focus)
+      run_dispatch "hl.dsp.focus({ window = \"address:$address\" })"
+      ;;
+    opaque-toggle)
+      run_dispatch "hl.dsp.window.set_prop({ prop = \"opaque\", value = \"toggle\", window = \"address:$address\" })"
+      ;;
+    esac
+    ;;
+  cycle)
+    (($# == 3)) || fail "usage: qvos-runtime-config window cycle <next|previous>" 2
+    direction=$3
+    case $direction in
+    next) next=true ;;
+    previous) next=false ;;
+    *) fail "invalid window-cycle direction" 2 ;;
+    esac
+    run_dispatch "hl.dsp.window.cycle_next({ next = $next })"
+    run_dispatch 'hl.dsp.window.bring_to_top()'
+    ;;
+  move-workspace)
+    (($# == 5)) ||
+      fail "usage: qvos-runtime-config window move-workspace <address> <workspace> <follow|silent>" 2
+    address=$3
+    workspace=$4
+    movement=$5
+    validate_address "$address"
+    validate_workspace "$workspace"
+    case $movement in
+    follow) follow=true ;;
+    silent) follow=false ;;
+    *) fail "invalid workspace movement" 2 ;;
+    esac
+    run_dispatch "hl.dsp.window.move({ workspace = \"$workspace\", follow = $follow, window = \"address:$address\" })"
+    ;;
+  tag)
+    (($# == 4 || $# == 5)) ||
+      fail "usage: qvos-runtime-config window tag <add|remove> <tag> [address]" 2
+    operation=$3
+    tag=$4
+    address=${5:-}
+    [[ $tag =~ ^[[:alnum:]_.-]{1,64}$ ]] || fail "invalid window tag" 2
+    case $operation in
+    add) tag="+$tag" ;;
+    remove) tag="-$tag" ;;
+    *) fail "invalid window-tag action" 2 ;;
+    esac
+    if [[ -n $address ]]; then
+      validate_address "$address"
+      run_dispatch "hl.dsp.window.tag({ tag = \"$tag\", window = \"address:$address\" })"
+    else
+      run_dispatch "hl.dsp.window.tag({ tag = \"$tag\" })"
+    fi
+    ;;
+  pop)
+    (($# == 6 || $# == 8)) ||
+      fail "usage: qvos-runtime-config window pop <address> <true|false> <width> <height> [x y]" 2
+    address=$3
+    pinned=$4
+    width=$5
+    height=$6
+    validate_address "$address"
+    [[ $pinned == "true" || $pinned == "false" ]] || fail "invalid pinned state" 2
+    [[ $width =~ ^[1-9][0-9]{2,4}$ && $height =~ ^[1-9][0-9]{2,4}$ ]] ||
+      fail "invalid pop-out geometry" 2
+    ((10#$width <= 32768 && 10#$height <= 32768)) || fail "pop-out geometry is out of range" 2
+    if (($# == 8)); then
+      x=$7
+      y=$8
+      [[ $x =~ ^-?[0-9]{1,5}$ && $y =~ ^-?[0-9]{1,5}$ ]] ||
+        fail "invalid pop-out position" 2
+      x_magnitude=${x#-}
+      y_magnitude=${y#-}
+      ((10#$x_magnitude <= 65535 && 10#$y_magnitude <= 65535)) ||
+        fail "pop-out position is out of range" 2
+    fi
+    if [[ $pinned == "true" ]]; then
+      run_dispatch "hl.dsp.window.pin({ action = \"disable\", window = \"address:$address\" })"
+      run_dispatch "hl.dsp.window.float({ action = \"disable\", window = \"address:$address\" })"
+      run_dispatch "hl.dsp.window.tag({ tag = \"-pop\", window = \"address:$address\" })"
+      exit 0
+    fi
+    run_dispatch "hl.dsp.window.float({ action = \"enable\", window = \"address:$address\" })"
+    run_dispatch "hl.dsp.window.resize({ x = $width, y = $height, relative = false, window = \"address:$address\" })"
+    if (($# == 8)); then
+      run_dispatch "hl.dsp.window.move({ x = $x, y = $y, relative = false, window = \"address:$address\" })"
+    else
+      run_dispatch "hl.dsp.window.center({ window = \"address:$address\" })"
+    fi
+    run_dispatch "hl.dsp.window.pin({ action = \"enable\", window = \"address:$address\" })"
+    run_dispatch "hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:$address\" })"
+    run_dispatch "hl.dsp.window.tag({ tag = \"+pop\", window = \"address:$address\" })"
+    ;;
+  *) fail "unsupported window action: $action" 2 ;;
+  esac
+  ;;
+workspace)
+  action=${2:-}
+  case $action in
+  focus)
+    (($# == 3)) || fail "usage: qvos-runtime-config workspace focus <workspace>" 2
+    workspace=$3
+    validate_workspace "$workspace"
+    run_dispatch "hl.dsp.focus({ workspace = \"$workspace\" })"
+    ;;
+  special-toggle)
+    (($# == 3)) || fail "usage: qvos-runtime-config workspace special-toggle <name>" 2
+    workspace=$3
+    [[ ${#workspace} -le 64 && $workspace =~ ^[[:alnum:]_.-]+$ ]] ||
+      fail "invalid special-workspace name" 2
+    run_dispatch "hl.dsp.workspace.toggle_special(\"$workspace\")"
+    ;;
+  *) fail "unsupported workspace action: $action" 2 ;;
+  esac
   ;;
 workspace-layout)
   (($# == 3)) || fail "usage: qvos-runtime-config workspace-layout <workspace> <layout>" 2
@@ -92,6 +254,6 @@ workspace-layout)
   run_lua "hl.workspace_rule({ workspace = \"$workspace\", layout = \"$layout\" })"
   ;;
 *)
-  fail "usage: qvos-runtime-config {config|device|monitor|window|workspace-layout} ..." 2
+  fail "usage: qvos-runtime-config {config|device|display-power|focus-monitor|monitor|shortcut|window|workspace|workspace-layout} ..." 2
   ;;
 esac

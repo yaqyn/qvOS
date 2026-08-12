@@ -174,7 +174,10 @@ for invalid_runtime in \
   'config cursor zoom_factor 11' \
   'config cursor inactive_timeout 86401' \
   'config cursor zoom_factor 1); os.execute("true")' \
-  'window floating'; do
+  'window floating' \
+  'window close 0x0' \
+  'window tag add noidle;os.execute' \
+  'focus-monitor DP-1);os.execute'; do
   read -r -a invalid_args <<<"$invalid_runtime"
   : >"$hyprctl_log"
   if "$runtime_config" "${invalid_args[@]}" 2>/dev/null; then
@@ -190,10 +193,12 @@ JSON
 : >"$hyprctl_log"
 "$root/qvcore/desktop/hyprland/window-pop" 1110 700 -20 30
 for command in \
-  'dispatch togglefloating address:0x1a2B' \
-  'dispatch resizeactive exact 1110 700 address:0x1a2B' \
-  'dispatch moveactive -20 30 address:0x1a2B' \
-  '-q --batch dispatch pin address:0x1a2B; dispatch alterzorder top address:0x1a2B; dispatch tagwindow +pop address:0x1a2B'; do
+  'dispatch hl.dsp.window.float({ action = "enable", window = "address:0x1a2B" })' \
+  'dispatch hl.dsp.window.resize({ x = 1110, y = 700, relative = false, window = "address:0x1a2B" })' \
+  'dispatch hl.dsp.window.move({ x = -20, y = 30, relative = false, window = "address:0x1a2B" })' \
+  'dispatch hl.dsp.window.pin({ action = "enable", window = "address:0x1a2B" })' \
+  'dispatch hl.dsp.window.alter_zorder({ mode = "top", window = "address:0x1a2B" })' \
+  'dispatch hl.dsp.window.tag({ tag = "+pop", window = "address:0x1a2B" })'; do
   assert_log "$command" "$hyprctl_log" "validated pop-out mutation: $command"
 done
 
@@ -219,7 +224,7 @@ install -m 0644 /dev/stdin "$window_json" <<'JSON'
 JSON
 : >"$hyprctl_log"
 "$root/qvcore/desktop/hyprland/window-transparency-toggle"
-assert_log 'dispatch setprop address:0x55 opaque toggle' \
+assert_log 'dispatch hl.dsp.window.set_prop({ prop = "opaque", value = "toggle", window = "address:0x55" })' \
   "$hyprctl_log" "validated transparency mutation"
 
 install -m 0644 /dev/stdin "$workspace_json" <<'JSON'
