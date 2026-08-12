@@ -58,7 +58,7 @@ dmi_match() {
 
 pci_output() {
   qv-cmd-present lspci || return 1
-  lspci 2>/dev/null
+  lspci -nn 2>/dev/null
 }
 
 intel_ptl() {
@@ -83,6 +83,19 @@ intel_sof() {
     if [[ $normalized =~ (multimedia\ audio\ controller|audio\ device).*intel ]]; then
       return 0
     fi
+  done < <(pci_output || true)
+  return 1
+}
+
+intel_wifi7_eht() {
+  local line
+  local normalized
+
+  while IFS= read -r line; do
+    normalized=${line,,}
+    [[ $normalized == *"network controller"* ||
+      $normalized == *"wireless"* ]] || continue
+    [[ $normalized =~ \[8086:(e440|272b)\] ]] && return 0
   done < <(pci_output || true)
   return 1
 }
@@ -241,6 +254,10 @@ intel-sof)
   require_no_arguments "$@"
   intel_sof
   ;;
+intel-wifi7-eht)
+  require_no_arguments "$@"
+  intel_wifi7_eht
+  ;;
 match)
   require_one_argument "$@"
   dmi_match "$1"
@@ -259,6 +276,11 @@ surface)
   require_no_arguments "$@"
   [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Microsoft Corporation" ]] &&
     dmi_match "Surface"
+  ;;
+tuxedo)
+  require_no_arguments "$@"
+  vendor=$(dmi_value sys_vendor 2>/dev/null || true)
+  [[ ${vendor,,} == *"tuxedo"* || ${vendor,,} == *"slimbook"* ]]
   ;;
 touchpad | touchscreen)
   require_no_arguments "$@"

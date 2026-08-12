@@ -18,18 +18,26 @@ apple_source="$QVOS_PATH/qvcore/install/hardware/apple/qvos-nvme-suspend-fix.ser
 apple_target="$system_root/etc/systemd/system/qvos-nvme-suspend-fix.service"
 apple_service=qvos-nvme-suspend-fix.service
 
+intel_fred_source="$QVOS_PATH/qvcore/install/hardware/intel/fred.conf"
+intel_fred_target="$system_root/etc/limine-entry-tool.d/intel-panther-lake-fred.conf"
+intel_wifi_source="$QVOS_PATH/qvcore/install/hardware/intel/iwlwifi-disable-eht.conf"
+intel_wifi_target="$system_root/etc/modprobe.d/iwlwifi-disable-eht.conf"
+
+tuxedo_source="$QVOS_PATH/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
+tuxedo_target="$system_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf"
+
 fail() {
   printf 'qvOS hardware identity: %s\n' "$1" >&2
   exit 1
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <z13|apple-nvme>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|intel-fred|intel-wifi7-eht|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-z13 | apple-nvme) operation=$1 ;;
+apple-nvme | intel-fred | intel-wifi7-eht | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -245,6 +253,15 @@ install_apple() {
   fi
 }
 
+install_static_policy() {
+  local name=$1
+  local source=$2
+  local target=$3
+
+  install_managed "$source" "$target" 0644 ||
+    fail "could not install the native $name policy"
+}
+
 case $operation in
 z13)
   if qv-hw-asus-rog && qv-hw-match "GZ302"; then
@@ -263,6 +280,24 @@ apple-nvme)
       echo "Warning: NVMe device not found at expected PCI address (0000:01:00.0)"
       echo "This fix may not be needed for this MacBook model"
     fi
+  fi
+  ;;
+intel-fred)
+  if "$QVOS_PATH/bin/qv-hw-intel-ptl"; then
+    install_static_policy \
+      "Intel Panther Lake FRED" "$intel_fred_source" "$intel_fred_target"
+  fi
+  ;;
+intel-wifi7-eht)
+  if "$QVOS_PATH/bin/qv-hw-intel-wifi7-eht"; then
+    install_static_policy \
+      "Intel Wi-Fi 7 EHT" "$intel_wifi_source" "$intel_wifi_target"
+  fi
+  ;;
+tuxedo-backlight)
+  if "$QVOS_PATH/bin/qv-hw-tuxedo"; then
+    install_static_policy \
+      "Tuxedo backlight" "$tuxedo_source" "$tuxedo_target"
   fi
   ;;
 esac

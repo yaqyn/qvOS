@@ -1,3 +1,5 @@
 # qvOS capabilities that never exposed an inherited Omarchy binary ABI.
+hw-intel-wifi7-eht
+hw-tuxedo
 restart-monitor-watch
 theme-bg-restore

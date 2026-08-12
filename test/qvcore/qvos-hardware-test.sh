@@ -112,6 +112,14 @@ run_detect external-monitors || fail "connected external monitor detector"
 printf 'Framework\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 printf 'Laptop 16 (AMD Ryzen 7040 Series)\n' >"$fixture/sys/class/dmi/id/product_name"
 run_detect framework16 || fail "Framework 16 detector"
+printf 'TUXEDO Computers GmbH\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+run_detect tuxedo || fail "Tuxedo laptop detector"
+printf 'Slimbook\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+run_detect tuxedo || fail "Slimbook-compatible Tuxedo detector"
+printf 'Framework\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+if run_detect tuxedo >/dev/null 2>&1; then
+  fail "unrelated vendor reported Tuxedo compatibility"
+fi
 printf 'Microsoft Corporation\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 printf 'Surface Laptop\n' >"$fixture/sys/class/dmi/id/product_family"
 run_detect surface || fail "Surface detector"
@@ -138,6 +146,14 @@ printf 'vendor_id : GenuineIntel\n' >"$fixture/proc/cpuinfo"
 run_detect intel || fail "Intel CPU detector"
 QVOS_TEST_LSPCI='00:1f.3 Multimedia audio controller: Intel Corporation Device' \
   run_detect intel-sof || fail "Intel SOF detector"
+QVOS_TEST_LSPCI='00:14.3 Network controller: Intel Corporation Device [8086:272b]' \
+  run_detect intel-wifi7-eht || fail "Intel BE200 EHT detector"
+QVOS_TEST_LSPCI='00:14.3 Network controller: Intel Corporation Device [8086:e440]' \
+  run_detect intel-wifi7-eht || fail "Intel BE211 EHT detector"
+if QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Corporation Device [8086:272b]' \
+  run_detect intel-wifi7-eht >/dev/null 2>&1; then
+  fail "Intel EHT detector ignored the PCI controller class"
+fi
 QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce RTX 4060' \
   run_detect nvidia-gsp || fail "NVIDIA GSP detector"
 QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce GTX 1060' \
@@ -174,5 +190,22 @@ QVOS_PATH="$root" \
 QVOS_HARDWARE_TESTING=1 \
 QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
   "$root/bin/omarchy-hw-intel" || fail "hardware compatibility adapter"
+QVOS_TEST_LSPCI='00:14.3 Network controller: Intel Corporation Device [8086:272b]' \
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+QVOS_TEST_COMMANDS=lspci \
+  "$root/bin/qv-hw-intel-wifi7-eht" || fail "qvOS-only Intel EHT adapter"
+[[ ! -e $root/bin/omarchy-hw-intel-wifi7-eht ]] ||
+  fail "qvOS-only Intel EHT detector has an inherited adapter"
+printf 'TUXEDO Computers GmbH\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+  "$root/bin/qv-hw-tuxedo" || fail "qvOS-only Tuxedo adapter"
+[[ ! -e $root/bin/omarchy-hw-tuxedo ]] ||
+  fail "qvOS-only Tuxedo detector has an inherited adapter"
 
 printf 'ok - hardware detection is bounded, fixture-safe, and read-only\n'

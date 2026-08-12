@@ -225,7 +225,10 @@ for hardware_source in \
   qvcore/install/hardware/asus/z13-touchpad \
   qvcore/install/hardware/asus/z13-touchpad.rules \
   qvcore/install/hardware/apple/nvme-suspend \
-  qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service; do
+  qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service \
+  qvcore/install/hardware/intel/fred.conf \
+  qvcore/install/hardware/intel/iwlwifi-disable-eht.conf \
+  qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
   [[ -f $root/$hardware_source && ! -L $root/$hardware_source ]] ||
     fail "native hardware identity source: $hardware_source"
 done
@@ -245,6 +248,36 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad"' \
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend"' \
   "$root/qvcore/install/config/run" || fail "native Apple NVMe install stage"
+# shellcheck disable=SC2016
+for stage_contract in \
+  'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
+  'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht'; do
+  stage=${stage_contract%%|*}
+  expected_call=${stage_contract#*|}
+  [[ $(<"$root/$stage") == "$expected_call" ]] ||
+    fail "Intel hardware stage bypasses its native owner: $stage"
+done
+# shellcheck disable=SC2016
+grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
+  "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
+  fail "Tuxedo install stage bypasses its native detector"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" tuxedo-backlight' \
+  "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
+  fail "Tuxedo install stage bypasses its native policy owner"
+if rg -n '/etc/default/limine|sudo[[:space:]]+tee' \
+  "$root/qvcore/install/config/hardware/intel/fred.sh" \
+  "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"; then
+  fail "Intel hardware policy retains direct or duplicated root mutation"
+fi
+if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
+  "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
+  fail "Tuxedo hardware policy retains direct or destructive root mutation"
+fi
+if rg -n '(/lib|/usr/lib)/modules/.+\.ko|sudo[[:space:]]+rm.+\.ko' \
+  "$root/qvcore/install/config/hardware"; then
+  fail "fresh hardware setup deletes an unverified kernel module"
+fi
 [[ ! -e $root/qvcore/install/config/hardware/apple/fix-t2.sh ]] ||
   fail "retired unsigned T2 configuration owner remains"
 [[ ! -e $root/qvcore/install/config/hardware/intel/ptl-kernel.sh ]] ||
