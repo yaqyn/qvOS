@@ -8,7 +8,6 @@ testing=${QVOS_POWER_TESTING:-}
 target_dir="$system_root/usr/lib/qvos/power"
 sleep_dir="$system_root/usr/lib/systemd/system-sleep"
 sleep_hook="$sleep_dir/qvos-unmount-fuse"
-legacy_sleep_hook="$sleep_dir/unmount-fuse"
 expected_uid=0
 expected_gid=0
 temporary=""
@@ -117,28 +116,6 @@ install_sleep_hook() {
   temporary=""
 }
 
-legacy_sleep_hook_needs_retirement() {
-  local hash
-
-  [[ -e $legacy_sleep_hook || -L $legacy_sleep_hook ]] || return 1
-  [[ -f $legacy_sleep_hook && ! -L $legacy_sleep_hook ]] || return 1
-  [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$legacy_sleep_hook") == \
-    "$expected_uid:$expected_gid:755" ]] || return 1
-  hash=$(/usr/bin/sha256sum -- "$legacy_sleep_hook")
-  hash=${hash%% *}
-  [[ $hash == "ab7034106e456e93dfb01c6948706c0bfcf0f19e6c9b4c2335b5fb1b3e7ec177" ]]
-}
-
-retire_legacy_sleep_hook() {
-  [[ -e $legacy_sleep_hook || -L $legacy_sleep_hook ]] || return 0
-  if legacy_sleep_hook_needs_retirement; then
-    /usr/bin/rm -f -- "$legacy_sleep_hook"
-  else
-    printf 'Preserving modified or unsafe inherited sleep hook: %s\n' \
-      "$legacy_sleep_hook" >&2
-  fi
-}
-
 system_helpers_ready() {
   local helper
   local mode
@@ -160,8 +137,7 @@ system_helpers_ready() {
   [[ -f $sleep_hook && ! -L $sleep_hook ]] || return 1
   [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$sleep_hook") == \
     "$expected_uid:$expected_gid:755" ]] || return 1
-  /usr/bin/cmp -s "$source_dir/unmount-fuse" "$sleep_hook" || return 1
-  ! legacy_sleep_hook_needs_retirement
+  /usr/bin/cmp -s "$source_dir/unmount-fuse" "$sleep_hook"
 }
 
 if [[ -z $system_root && $EUID != 0 ]]; then
@@ -180,4 +156,3 @@ install_system_helper supply-lib 0644
 install_system_helper profiles-set 0755
 install_system_helper wifi-powersave 0755
 install_sleep_hook
-retire_legacy_sleep_hook

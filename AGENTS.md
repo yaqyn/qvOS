@@ -186,8 +186,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   mutates retired `.conf` state
 - `qvcore/hardware/framework16-qmk-hid.rules` owns the Framework HID policy;
   `default/udev/` is retired
-- `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook; qvOS
-  carries no global GnuPG resolver policy or forced shutdown timeout
+- `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook; completed
+  pre-release AC-rule and sleep-hook convergence is not scanned at runtime;
+  qvOS carries no global GnuPG resolver policy or forced shutdown timeout
 - `qvcore/desktop/hyprland/` owns validated monitor scaling and event recovery,
   focused-window mutations, and workspace-layout changes; qvOS bindings and
   native autostart call only `qv-hyprland-*` routes, while one typed runtime

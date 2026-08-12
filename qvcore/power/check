@@ -98,9 +98,6 @@ for helper in profiles-set supply-lib wifi-powersave; do
 done
 grep -Fq 'qvos-unmount-fuse' "$root/qvcore/power/root-install" ||
   fail "root helper installer omits the native FUSE sleep hook"
-grep -Fq 'ab7034106e456e93dfb01c6948706c0bfcf0f19e6c9b4c2335b5fb1b3e7ec177' \
-  "$root/qvcore/power/root-install" ||
-  fail "native FUSE sleep hook omits exact inherited cleanup"
 grep -Fq '/usr/lib/qvos/power/profiles-set' "$root/qvcore/power/event-rule" ||
   fail "power-profile rule bypasses its root-owned helper"
 grep -Fq '/usr/lib/qvos/power/wifi-powersave' "$root/qvcore/power/event-rule" ||
@@ -115,7 +112,6 @@ if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|rem
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' --glob '!**/power/check' \
   --glob '!**/check' --glob '!**/omarchy/extensions/menu.sh' \
-  --glob '!**/power/event-rule' \
   --glob '!**/power/profile-rule'; then
   fail "native qvOS source still calls a power compatibility command"
 fi
@@ -124,12 +120,10 @@ if rg -n 'omarchy-hibernation-' \
   --glob '!AGENTS.md' --glob '!native-paths'; then
   fail "active qvOS interface calls hibernation compatibility"
 fi
-event_compatibility=$(
-  rg -o 'omarchy-(powerprofiles-set|wifi-powersave)' \
-    "$root/qvcore/power/event-rule" | sort -u
-)
-[[ $event_compatibility == $'omarchy-powerprofiles-set\nomarchy-wifi-powersave' ]] ||
-  fail "AC-event migration accepts an unexpected compatibility command"
+if rg -n 'omarchy|legacy_(root|profile|wifi|sleep)' \
+  "$root/qvcore/power/event-rule" "$root/qvcore/power/root-install"; then
+  fail "retired power convergence remains active"
+fi
 # shellcheck disable=SC2016
 grep -Fq '"${system_root:-/}" "$etc_root" "$run_root"' \
   "$root/qvcore/power/hibernation/root" ||

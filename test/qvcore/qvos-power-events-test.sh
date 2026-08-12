@@ -56,19 +56,6 @@ printf 'iw|%s\n' "$*" >>"$QVOS_TEST_POWER_EVENT_LOG"
 [[ ${QVOS_TEST_IW_FAIL:-} != "1" ]]
 SCRIPT
 
-legacy_profile="${root%/*}/omarchy/bin/omarchy-powerprofiles-set"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
-  "$legacy_profile" >"$profile_rule"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
-  "$legacy_profile" >>"$profile_rule"
-
-legacy_wifi="$root/bin/omarchy-wifi-powersave"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-wifi-powersave-on %s on"\n' \
-  "$legacy_wifi" >"$wifi_rule"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-wifi-powersave-off %s off"\n' \
-  "$legacy_wifi" >>"$wifi_rule"
-legacy_wifi_content=$(<"$wifi_rule")
-
 run_event_owner() {
   QVOS_PATH="$root" \
   QVOS_POWER_TESTING=1 \
@@ -104,48 +91,11 @@ sleep_hook="$sleep_dir/qvos-unmount-fuse"
 cmp -s "$root/qvcore/power/unmount-fuse" "$sleep_hook" ||
   fail "root-owned FUSE sleep hook payload"
 
-install -m 0755 /dev/stdin "$sleep_dir/unmount-fuse" <<'SCRIPT'
-#!/bin/bash
-
-# Lazy-unmount gvfsd-fuse filesystems before suspend/hibernate to prevent the
-# kernel's process freeze from timing out. FUSE daemons (like gvfsd-fuse from
-# Nautilus) can block in uninterruptible sleep during freeze, causing suspend
-# to silently fail. After wake, restart gvfs so the FUSE mount is restored.
-
-if [[ $1 == "pre" ]]; then
-  while IFS=' ' read -r _ mountpoint fstype _; do
-    if [[ $fstype == fuse.gvfsd-fuse ]]; then
-      mountpoint=$(printf '%b' "$mountpoint")
-      fusermount3 -uz "$mountpoint" 2>/dev/null || fusermount -uz "$mountpoint" 2>/dev/null || true
-    fi
-  done < /proc/mounts
-fi
-
-if [[ $1 == "post" ]]; then
-  # Run in background — user.slice is still frozen at this point, so a
-  # synchronous restart would block the thaw for up to 90 seconds.
-  (
-    sleep 5
-    for uid_dir in /run/user/*; do
-      uid=$(basename "$uid_dir")
-      if [[ -S $uid_dir/bus ]]; then
-        sudo -u "#$uid" env \
-          DBUS_SESSION_BUS_ADDRESS="unix:path=$uid_dir/bus" \
-          XDG_RUNTIME_DIR="$uid_dir" \
-          systemctl --user restart gvfs-daemon.service 2>/dev/null || true
-      fi
-    done
-  ) &
-fi
-SCRIPT
-run_event_owner "$root/qvcore/power/root-install" >/dev/null
-[[ ! -e $sleep_dir/unmount-fuse && ! -L $sleep_dir/unmount-fuse ]] ||
-  fail "exact inherited FUSE sleep hook remains"
-printf 'custom sleep hook\n' >"$sleep_dir/unmount-fuse"
+printf 'foreign sleep hook\n' >"$sleep_dir/unmount-fuse"
 chmod 0755 "$sleep_dir/unmount-fuse"
 run_event_owner "$root/qvcore/power/root-install" >/dev/null
-[[ $(<"$sleep_dir/unmount-fuse") == "custom sleep hook" ]] ||
-  fail "modified inherited FUSE sleep hook preservation"
+[[ $(<"$sleep_dir/unmount-fuse") == "foreign sleep hook" ]] ||
+  fail "foreign sleep hook preservation"
 
 grep -Fq "$helper_root/profiles-set autodetect" "$profile_rule" ||
   fail "power-profile rule root helper"
@@ -180,8 +130,8 @@ if rg -q '/home/|\.local/share/(qvos|omarchy)|omarchy-' \
 fi
 /usr/bin/udevadm verify --resolve-names=never --no-summary --no-style \
   "$profile_rule" "$wifi_rule" >/dev/null || fail "generated udev rule syntax"
-[[ $(find "$rules_dir" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "2" ]] ||
-  fail "known AC-event rule backups"
+[[ $(find "$rules_dir" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "0" ]] ||
+  fail "fresh AC-event rule backup side effect"
 
 : >"$event_log"
 QVOS_POWER_TESTING=1 \
@@ -282,8 +232,6 @@ fi
   fail "foreign Wi-Fi rule preservation"
 
 rollback_rule="$rules_dir/rollback-wifi.rules"
-printf '%s\n' "$legacy_wifi_content" >"$rollback_rule"
-rollback_before=$(<"$rollback_rule")
 if QVOS_PATH="$root" \
   QVOS_POWER_TESTING=1 \
   QVOS_POWER_SYSTEM_ROOT="$system_root" \
@@ -294,8 +242,8 @@ if QVOS_PATH="$root" \
   "$root/qvcore/power/wifi-rule" >/dev/null 2>&1; then
   fail "Wi-Fi trigger failure was hidden"
 fi
-[[ $(<"$rollback_rule") == "$rollback_before" ]] ||
-  fail "Wi-Fi rule activation rollback"
+[[ ! -e $rollback_rule && ! -L $rollback_rule ]] ||
+  fail "new Wi-Fi rule activation rollback"
 
 outside="$test_root/outside-helper"
 printf 'outside\n' >"$outside"

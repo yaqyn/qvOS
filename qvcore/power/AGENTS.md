@@ -36,9 +36,11 @@ is the singular owner of root copies under `/usr/lib/qvos/power/`.
 It verifies an exact safe payload without privilege first so routine desktop
 reconciliation never prompts for sudo when the root helpers are already current.
 `event-rule` owns the shared atomic udev transaction; `profile-rule` and
-`wifi-rule` select only their fixed policy. Accept only exact known qvOS or
-Omarchy predecessors, keep a root-owned backup, and restore the prior rule when
-reload or activation fails. Both policies run in bounded transient services.
+`wifi-rule` select only their fixed policy. Install into an absent path or accept
+only the exact native qvOS payload; preserve and reject every different file.
+Restore a newly installed rule when reload or activation fails. Completed
+pre-release Omarchy rule convergence is retired and must not return. Both
+policies run in bounded transient services.
 Wi-Fi derives the effective mode from every supported external supply instead
 of trusting a single event's online value.
 
@@ -57,10 +59,9 @@ installed runtime contains only native links; thin source adapters remain the
 sole external compatibility boundary.
 `unmount-fuse` is the singular system-sleep owner for lazily unmounting gvfs
 before sleep and restarting it after wake. `root-install` deploys its fixed
-root-owned copy as `/usr/lib/systemd/system-sleep/qvos-unmount-fuse`; it removes
-the inherited `unmount-fuse` name only when its mode, owner, and payload hash
-all match the reviewed predecessor, and preserves every modified or unsafe
-file.
+root-owned copy as `/usr/lib/systemd/system-sleep/qvos-unmount-fuse`. The
+pre-release inherited `unmount-fuse` identity is retired and is no longer a
+runtime scan or mutation input.
 Power installation stages its dormant user unit independently of session
 availability and reloads only a reachable manager for the same `HOME` through
 the shared config probe. A fresh chroot leaves activation to first run.

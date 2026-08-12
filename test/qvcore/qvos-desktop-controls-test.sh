@@ -324,13 +324,7 @@ printf 'ok - power profiles autodetect AC safely and use explicit fallbacks\n'
 rules_root="$test_root/rules"
 profile_rule="$rules_root/99-power-profile.rules"
 profile_system_root="$test_root/profile-system"
-legacy_command="${root%/*}/omarchy/bin/omarchy-powerprofiles-set"
 install -d "$rules_root"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
-  "$legacy_command" >"$profile_rule"
-printf 'SUBSYSTEM=="power_supply", ATTR{type}=="USB", RUN+="/usr/bin/systemd-run --no-block --collect --unit=omarchy-power-profile --property=After=power-profiles-daemon.service %s"\n' \
-  "$legacy_command" >>"$profile_rule"
-legacy_profile_content=$(<"$profile_rule")
 QVOS_POWER_TESTING=1 QVOS_POWER_SYSTEM_ROOT="$profile_system_root" \
 QVOS_POWER_PROFILE_RULE="$profile_rule" \
   "$root/qvcore/power/profile-rule" >/dev/null
@@ -340,13 +334,13 @@ grep -Fq "$profile_helper autodetect" "$profile_rule" ||
 if grep -Eq 'omarchy|--unit=' "$profile_rule"; then
   fail "native power-profile rule retained its legacy path or fixed unit"
 fi
-[[ $(find "$rules_root" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "1" ]] ||
-  fail "power-profile rule backup"
+[[ $(find "$rules_root" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "0" ]] ||
+  fail "fresh power-profile rule backup side effect"
 QVOS_POWER_TESTING=1 QVOS_POWER_SYSTEM_ROOT="$profile_system_root" \
 QVOS_POWER_PROFILE_RULE="$profile_rule" \
   "$root/qvcore/power/profile-rule" >/dev/null
-[[ $(find "$rules_root" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "1" ]] ||
-  fail "idempotent power-profile rule backup"
+[[ $(find "$rules_root" -maxdepth 1 -name '*.qvos-backup.*' | wc -l) == "0" ]] ||
+  fail "idempotent power-profile rule backup side effect"
 
 unknown_rule="$rules_root/unknown.rules"
 printf 'user-owned rule\n' >"$unknown_rule"
@@ -358,8 +352,6 @@ fi
 [[ $(<"$unknown_rule") == "user-owned rule" ]] || fail "unknown power-profile rule preservation"
 
 rollback_rule="$rules_root/rollback.rules"
-printf '%s\n' "$legacy_profile_content" >"$rollback_rule"
-rollback_before=$(<"$rollback_rule")
 udevadm_count="$test_root/udevadm-count"
 if QVOS_POWER_TESTING=1 QVOS_POWER_SYSTEM_ROOT="$profile_system_root" \
   QVOS_POWER_PROFILE_RULE="$rollback_rule" \
@@ -367,8 +359,8 @@ if QVOS_POWER_TESTING=1 QVOS_POWER_SYSTEM_ROOT="$profile_system_root" \
     "$root/qvcore/power/profile-rule" >/dev/null 2>&1; then
   fail "power-profile rule hid a reload failure"
 fi
-[[ $(<"$rollback_rule") == "$rollback_before" ]] ||
-  fail "power-profile rule reload rollback"
+[[ ! -e $rollback_rule && ! -L $rollback_rule ]] ||
+  fail "new power-profile rule reload rollback"
 printf 'ok - power-profile rule installation is atomic, preservation-safe, and reversible\n'
 
 : >"$log"
