@@ -37,6 +37,9 @@ hid_apple_target="$system_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf"
 synaptics_source="$QVOS_PATH/qvcore/install/hardware/input/psmouse-synaptics.conf"
 synaptics_target="$system_root/etc/modprobe.d/qvos-psmouse-synaptics.conf"
 
+framework_source="$QVOS_PATH/qvcore/hardware/framework16-qmk-hid.rules"
+framework_target="$system_root/etc/udev/rules.d/50-qvos-framework16-qmk-hid.rules"
+
 nvidia_modprobe_source="$QVOS_PATH/qvcore/install/hardware/nvidia/modprobe.conf"
 nvidia_modprobe_target="$system_root/etc/modprobe.d/qvos-nvidia.conf"
 nvidia_mkinitcpio_source="$QVOS_PATH/qvcore/install/hardware/nvidia/mkinitcpio.conf"
@@ -57,12 +60,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <apple-nvme|apple-spi-keyboard|asus-b9406-display|asus-b9406-touchpad|asus-ptl-backlight|hid-apple-fkeys|intel-fred|intel-wifi7-eht|lenovo-yoga-pro7-bass|nvidia-boot|surface-keyboard|synaptics-ps2|tuxedo-backlight|z13>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|apple-spi-keyboard|asus-b9406-display|asus-b9406-touchpad|asus-ptl-backlight|framework16-qmk|hid-apple-fkeys|intel-fred|intel-wifi7-eht|lenovo-yoga-pro7-bass|nvidia-boot|surface-keyboard|synaptics-ps2|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-apple-nvme | apple-spi-keyboard | asus-b9406-display | asus-b9406-touchpad | asus-ptl-backlight | hid-apple-fkeys | intel-fred | intel-wifi7-eht | lenovo-yoga-pro7-bass | nvidia-boot | surface-keyboard | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
+apple-nvme | apple-spi-keyboard | asus-b9406-display | asus-b9406-touchpad | asus-ptl-backlight | framework16-qmk | hid-apple-fkeys | intel-fred | intel-wifi7-eht | lenovo-yoga-pro7-bass | nvidia-boot | surface-keyboard | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -190,10 +193,20 @@ install_managed() {
   active_staging=$staging
   if ! as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" \
     -m "$mode" -- "$source" "$staging" ||
-    ! as_root /usr/bin/mv -f -- "$staging" "$target"; then
+    ! as_root /usr/bin/mv -Tn -- "$staging" "$target"; then
     as_root /usr/bin/rm -f -- "$staging" || true
     active_staging=
     return 1
+  fi
+  if root_exists "$staging"; then
+    as_root /usr/bin/rm -f -- "$staging" || return 1
+    active_staging=
+    file_matches "$source" "$target" "$mode" || {
+      printf 'Refusing concurrently installed hardware policy: %s\n' \
+        "$target" >&2
+      return 1
+    }
+    return
   fi
   active_staging=
   installed_created=true
@@ -233,9 +246,34 @@ install_z13() {
   install_managed "$z13_source" "$z13_target" 0644 ||
     fail "could not install the native ASUS Z13 touchpad policy"
   target_created=$installed_created
+  [[ $target_created == "true" ]] || return 0
+  [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]] || return 0
   if ! reload_udev; then
     rollback_z13 "$target_created"
     fail "could not activate the native ASUS Z13 touchpad policy"
+  fi
+}
+
+rollback_framework() {
+  local created=$1
+
+  [[ $created == "false" ]] ||
+    remove_created "$framework_source" "$framework_target" 0644
+  reload_udev >/dev/null 2>&1 || true
+}
+
+install_framework() {
+  local target_created=false
+
+  install_managed "$framework_source" "$framework_target" 0644 ||
+    fail "could not install the native Framework 16 QMK HID policy"
+  target_created=$installed_created
+  [[ $target_created == "true" ]] || return 0
+  [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]] || return 0
+  if ! reload_udev ||
+    ! as_root "$udevadm_command" trigger --subsystem-match=hidraw; then
+    rollback_framework "$target_created"
+    fail "could not activate the native Framework 16 QMK HID policy"
   fi
 }
 
@@ -458,6 +496,11 @@ asus-ptl-backlight)
     install_static_policy \
       "ASUS Panther Lake backlight" \
       "$asus_ptl_backlight_source" "$asus_ptl_backlight_target"
+  fi
+  ;;
+framework16-qmk)
+  if "$QVOS_PATH/bin/qv-hw-framework16"; then
+    install_framework
   fi
   ;;
 hid-apple-fkeys)

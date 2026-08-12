@@ -45,16 +45,25 @@ done
   ! -L $root/qvcore/hardware/framework16-qmk-hid.rules ]] ||
   fail "native Framework HID policy source"
 framework_installer="$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
-grep -Fq 'qvcore/hardware/framework16-qmk-hid.rules' "$framework_installer" ||
-  fail "Framework HID installer bypasses its native source"
 # shellcheck disable=SC2016
-grep -Fq 'sudo test -L "$rule"' "$framework_installer" ||
-  fail "Framework HID installer does not reject symbolic-link targets"
+grep -Fqx '"$QVOS_PATH/qvcore/install/hardware/identity" framework16-qmk' \
+  "$framework_installer" ||
+  fail "Framework HID installer bypasses the transactional owner"
 # shellcheck disable=SC2016
-grep -Fq 'sudo mv -Tn "$candidate" "$rule"' "$framework_installer" ||
-  fail "Framework HID installer does not publish without clobbering"
-if rg -n 'default/udev|sudo cp ' "$framework_installer"; then
-  fail "Framework HID installer retains an inherited or unsafe copy path"
+grep -Fq 'framework_source="$QVOS_PATH/qvcore/hardware/framework16-qmk-hid.rules"' \
+  "$root/qvcore/install/hardware/identity" ||
+  fail "Framework HID owner bypasses its native source"
+# shellcheck disable=SC2016
+grep -Fq 'framework_target="$system_root/etc/udev/rules.d/50-qvos-framework16-qmk-hid.rules"' \
+  "$root/qvcore/install/hardware/identity" ||
+  fail "Framework HID rule lacks a native installed identity"
+# shellcheck disable=SC2016
+grep -Fq '/usr/bin/mv -Tn -- "$staging" "$target"' \
+  "$root/qvcore/install/hardware/identity" ||
+  fail "hardware policy publication can clobber a concurrent target"
+if rg -n 'default/udev|sudo[[:space:]]+(cp|install|mv|udevadm)' \
+  "$framework_installer"; then
+  fail "Framework HID installer retains inherited or direct root mutation"
 fi
 
 for hardware_policy in \

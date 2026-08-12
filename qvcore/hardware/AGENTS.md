@@ -32,8 +32,11 @@ arbitrary display devices are not sufficient for the NVIDIA-only switch owner.
 
 The Framework 16 QMK HID rule lives only at
 `qvcore/hardware/framework16-qmk-hid.rules`; `default/udev/` is retired. Its
-fresh-install leaf must reject symbolic-link destinations before privileged
-installation and preserve any existing administrator-owned rule.
+fresh-install leaf delegates to the transactional hardware identity owner. The
+owner publishes the native rule without clobbering a concurrent winner,
+preserves modified or linked administrator state, and triggers only the hidraw
+subsystem after a newly created live rule. Target-chroot construction persists
+udev policy without reloading or triggering the builder's device manager.
 Static Apple SPI, ASUS display and touchpad, hid_apple function-key, Synaptics
 PS/2, Intel FRED, BE200/BE211 EHT, Lenovo speaker, NVIDIA boot, and Tuxedo
 module policies install only through the native transactional hardware
@@ -50,6 +53,9 @@ transient unprivileged `modprobe` from installation. Keep every boot argument
 in its one Limine drop-in; never append it directly to `/etc/default/limine`.
 Every installed policy filename uses a native `qvos` identity. Do not delete
 unverified kernel module files or historical policy paths during fresh install.
+All missing-policy publication is no-clobber: accept an exact concurrent winner
+and reject every other object rather than overwriting a target that appeared
+after preflight.
 
 List every promoted inherited detector in `native-paths` and removed policy
 prefix in `retired-paths`, sorted and unique.

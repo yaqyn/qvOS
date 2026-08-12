@@ -18,6 +18,7 @@ nvidia_modprobe_source="$root/qvcore/install/hardware/nvidia/modprobe.conf"
 nvidia_mkinitcpio_source="$root/qvcore/install/hardware/nvidia/mkinitcpio.conf"
 lenovo_yoga_source="$root/qvcore/install/hardware/lenovo/yoga-pro7-bass.conf"
 tuxedo_source="$root/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
+framework_source="$root/qvcore/hardware/framework16-qmk-hid.rules"
 test_root=$(mktemp -d)
 test_bin="$test_root/bin"
 event_log="$test_root/events.log"
@@ -36,7 +37,8 @@ install -d "$test_bin"
 install -m 0755 /dev/stdin "$test_bin/udevadm" <<'SCRIPT'
 #!/bin/bash
 printf 'udevadm|%s\n' "$*" >>"$QVOS_TEST_HARDWARE_LOG"
-[[ ${QVOS_TEST_UDEVADM_FAIL:-0} != "1" ]]
+[[ ${QVOS_TEST_UDEVADM_FAIL:-0} != "1" ]] || exit 1
+[[ ${QVOS_TEST_UDEVADM_FAIL_TRIGGER:-0} != "1" || ${1:-} != "trigger" ]]
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 #!/bin/bash
@@ -181,6 +183,83 @@ run_stage "$fresh_root" "$root/qvcore/install/config/hardware/fix-fkeys.sh"
 if run_owner "$fresh_root" migrate >/dev/null 2>&1; then
   fail "retired hardware migration mode remains available"
 fi
+
+concurrent_root="$test_root/concurrent"
+prepare_root "$concurrent_root"
+for _ in {1..12}; do
+  run_owner "$concurrent_root" hid-apple-fkeys &
+done
+wait
+cmp -s "$hid_apple_source" \
+  "$concurrent_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf" ||
+  fail "concurrent hardware policy publication"
+if find "$concurrent_root" -name '*.qvos.*' -print -quit | grep -q .; then
+  fail "concurrent hardware publication left staging files"
+fi
+
+framework_root="$test_root/framework"
+prepare_root "$framework_root"
+install -d "$framework_root/sys/class/dmi/id"
+printf 'Framework\n' >"$framework_root/sys/class/dmi/id/sys_vendor"
+printf 'Laptop 16 (AMD Ryzen 7040 Series)\n' \
+  >"$framework_root/sys/class/dmi/id/product_name"
+: >"$event_log"
+run_stage "$framework_root" \
+  "$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
+framework_target="$framework_root/etc/udev/rules.d/50-qvos-framework16-qmk-hid.rules"
+cmp -s "$framework_source" "$framework_target" ||
+  fail "native Framework HID policy"
+[[ $(<"$event_log") == $'udevadm|control --reload-rules\nudevadm|trigger --subsystem-match=hidraw' ]] ||
+  fail "Framework HID activation is not subsystem-bounded"
+framework_inode=$(stat -c '%i' "$framework_target")
+: >"$event_log"
+run_stage "$framework_root" \
+  "$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
+[[ $(stat -c '%i' "$framework_target") == "$framework_inode" &&
+  ! -s $event_log ]] ||
+  fail "idempotent Framework HID policy install"
+
+framework_rollback_root="$test_root/framework-rollback"
+prepare_root "$framework_rollback_root"
+install -d "$framework_rollback_root/sys/class/dmi/id"
+printf 'Framework\n' \
+  >"$framework_rollback_root/sys/class/dmi/id/sys_vendor"
+printf 'Laptop 16\n' \
+  >"$framework_rollback_root/sys/class/dmi/id/product_name"
+if QVOS_TEST_UDEVADM_FAIL_TRIGGER=1 run_stage "$framework_rollback_root" \
+  "$root/qvcore/install/config/hardware/framework/qmk-hid.sh" \
+  >/dev/null 2>&1; then
+  fail "Framework HID activation failure was hidden"
+fi
+[[ ! -e $framework_rollback_root/etc/udev/rules.d/50-qvos-framework16-qmk-hid.rules ]] ||
+  fail "failed Framework HID activation left policy behind"
+
+framework_chroot_root="$test_root/framework-chroot"
+prepare_root "$framework_chroot_root"
+install -d "$framework_chroot_root/sys/class/dmi/id"
+printf 'Framework\n' \
+  >"$framework_chroot_root/sys/class/dmi/id/sys_vendor"
+printf 'Laptop 16\n' \
+  >"$framework_chroot_root/sys/class/dmi/id/product_name"
+: >"$event_log"
+QVOS_CHROOT_INSTALL=1 run_stage "$framework_chroot_root" \
+  "$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
+cmp -s "$framework_source" \
+  "$framework_chroot_root/etc/udev/rules.d/50-qvos-framework16-qmk-hid.rules" ||
+  fail "target-chroot Framework HID policy"
+[[ ! -s $event_log ]] ||
+  fail "target-chroot Framework policy activated the builder's udev manager"
+
+z13_chroot_root="$test_root/z13-chroot"
+prepare_root "$z13_chroot_root"
+: >"$event_log"
+QVOS_CHROOT_INSTALL=1 QVOS_TEST_Z13=1 run_stage "$z13_chroot_root" \
+  "$root/qvcore/install/hardware/asus/z13-touchpad"
+cmp -s "$z13_source" \
+  "$z13_chroot_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules" ||
+  fail "target-chroot ASUS Z13 policy"
+[[ ! -s $event_log ]] ||
+  fail "target-chroot ASUS policy reloaded the builder's udev manager"
 
 intel_root="$test_root/intel"
 prepare_root "$intel_root"
@@ -570,14 +649,15 @@ existing_root="$test_root/existing"
 prepare_root "$existing_root"
 install -m 0644 "$z13_source" \
   "$existing_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules"
-if QVOS_TEST_UDEVADM_FAIL=1 \
-  QVOS_TEST_Z13=1 run_stage "$existing_root" \
-  "$root/qvcore/install/hardware/asus/z13-touchpad" >/dev/null 2>&1; then
-  fail "existing-policy activation failure was hidden"
-fi
+: >"$event_log"
+QVOS_TEST_UDEVADM_FAIL=1 \
+QVOS_TEST_Z13=1 run_stage "$existing_root" \
+  "$root/qvcore/install/hardware/asus/z13-touchpad"
 cmp -s "$z13_source" \
   "$existing_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules" ||
-  fail "existing native hardware policy was rolled back"
+  fail "existing native hardware policy changed"
+[[ ! -s $event_log ]] ||
+  fail "existing native hardware policy was unnecessarily reactivated"
 
 service_rollback_root="$test_root/service-rollback"
 prepare_root "$service_rollback_root"

@@ -16,7 +16,6 @@ fail() {
 
 install -d \
   "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d" \
-  "$fixture/qvcore/hardware" \
   "$test_bin" \
   "$test_home"
 install -m 0644 \
@@ -28,15 +27,8 @@ install -m 0644 \
 install -m 0644 \
   "$root/qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf" \
   "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf"
-install -m 0644 \
-  "$root/qvcore/hardware/framework16-qmk-hid.rules" \
-  "$fixture/qvcore/hardware/framework16-qmk-hid.rules"
 
 install -m 0755 /dev/stdin "$test_bin/qv-hw-asus-rog" <<'STUB'
-#!/bin/bash
-exit 0
-STUB
-install -m 0755 /dev/stdin "$test_bin/qv-hw-framework16" <<'STUB'
 #!/bin/bash
 exit 0
 STUB
@@ -51,16 +43,6 @@ STUB
 install -m 0755 /dev/stdin "$test_bin/sudo" <<'STUB'
 #!/bin/bash
 printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
-if [[ ${1:-} == "test" && ${2:-} == "-L" ]]; then
-  [[ ${QVOS_TEST_RULE_SYMLINK:-0} == "1" ]]
-  exit
-fi
-if [[ ${1:-} == "test" && ${2:-} == "-e" ]]; then
-  if [[ ${3:-} == *.qvos-new ]]; then
-    exit 1
-  fi
-  exit 1
-fi
 exit 0
 STUB
 : >"$action_log"
@@ -194,37 +176,6 @@ asus_policy="$test_home/.config/wireplumber/wireplumber.conf.d/alsa-soft-mixer.c
 cmp -s \
   "$fixture/qvcore/config/files/wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf" \
   "$asus_policy" || fail "ASUS audio policy install"
-
-qmk_leaf="$root/qvcore/install/config/hardware/framework/qmk-hid.sh"
-HOME="$test_home" \
-  QVOS_PATH="$fixture" \
-  QVOS_TEST_ACTION_LOG="$action_log" \
-  PATH="$test_bin:/usr/bin" \
-  bash -c 'set -euo pipefail; source "$1"' _ "$qmk_leaf"
-grep -Fqx \
-  "sudo:install -D -o root -g root -m 0644 $fixture/qvcore/hardware/framework16-qmk-hid.rules /etc/udev/rules.d/50-framework16-qmk-hid.rules.qvos-new" \
-  "$action_log" || fail "Framework HID native policy install"
-grep -Fqx \
-  'sudo:mv -Tn /etc/udev/rules.d/50-framework16-qmk-hid.rules.qvos-new /etc/udev/rules.d/50-framework16-qmk-hid.rules' \
-  "$action_log" || fail "Framework HID no-clobber publication"
-grep -Fqx 'sudo:udevadm control --reload-rules' "$action_log" ||
-  fail "Framework HID rule reload"
-grep -Fqx 'sudo:udevadm trigger' "$action_log" ||
-  fail "Framework HID device trigger"
-
-: >"$action_log"
-if QVOS_TEST_RULE_SYMLINK=1 \
-  HOME="$test_home" \
-  QVOS_PATH="$fixture" \
-  QVOS_TEST_ACTION_LOG="$action_log" \
-  PATH="$test_bin:/usr/bin" \
-  bash -c 'set -euo pipefail; source "$1"' _ "$qmk_leaf" \
-  >/dev/null 2>&1; then
-  fail "Framework HID symbolic-link rejection"
-fi
-if grep -Fq 'sudo:install ' "$action_log"; then
-  fail "Framework HID symbolic-link mutation"
-fi
 
 "$root/qvcore/config/check"
 "$root/qvcore/hardware/check"

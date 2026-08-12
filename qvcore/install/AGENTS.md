@@ -97,7 +97,7 @@ native PATH-safe power command owner instead.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,
-Intel FRED,
+Framework 16 QMK HID, Intel FRED,
 Intel Wi-Fi EHT, Apple SPI, ASUS display and touchpad, Lenovo speaker, NVIDIA,
 and Tuxedo stage adapters only select hardware; the owner installs tracked
 native files, activates them when required, and rolls back only files and
@@ -113,7 +113,8 @@ writing on missing or ambiguous evidence.
 Fresh installation never deletes unverified files from a package-owned kernel
 module tree. The completed pre-release hardware identity migration is retired;
 fresh install never scans or mutates inherited rule, unit, backup, or service
-names.
+names. A target-chroot install writes policy for the installed system but never
+reloads or triggers the builder's udev manager.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,
