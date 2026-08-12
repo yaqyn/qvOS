@@ -43,7 +43,9 @@ its completed pre-release Omarchy convergence is retired and must not return as
 a boot input.
 Active Plymouth, SDDM, session, mkinitcpio, and UKI
 identifiers use `qvos`. Completed pre-release theme, selector, login, and
-session convergence is retired and is not scanned at runtime. The shared atomic
+session convergence is retired and is not scanned at runtime. The direct-boot
+owner recognizes and creates only the native `qvOS` firmware label; its
+completed pre-release label transition is likewise retired. The shared atomic
 theme sync owner stages the new payload, switches its Plymouth or SDDM selector,
 and commits only after both succeed; any publication or selector failure
 restores the prior native theme. The exact inherited mkinitcpio and UKI

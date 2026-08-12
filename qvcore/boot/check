@@ -183,6 +183,12 @@ grep -Fq 'sanitize_limine_cmdline' \
   fail "native Limine drop-in command-line ownership"
 grep -Fq -- '-name "qvos*.efi"' "$root/qvcore/boot/config-direct-boot" ||
   fail "native qvOS direct-boot UKI selection"
+grep -Fq 'qvOS([[:space:]]|$)' "$root/qvcore/boot/config-direct-boot" ||
+  fail "native qvOS direct-boot label detection"
+if rg -n 'qvOS\|Omarchy|\(qvOS\|Omarchy\)' \
+  "$root/qvcore/boot/config-direct-boot"; then
+  fail "retired direct-boot label convergence remains active"
+fi
 if rg -n \
   'CUSTOM_UKI_NAME="omarchy"|plymouth-set-default-theme omarchy|-name "omarchy\*\.efi"' \
   "$root/qvcore/boot" --glob '!AGENTS.md' --glob '!check'; then

@@ -1098,7 +1098,7 @@ if compgen -G "$release_dir/.qvos-iso.partial.*" >/dev/null; then
 fi
 pass "qvOS ISO stages one pinned source and publishes without clobbering artifacts"
 
-grep -Fq '(qvOS|Omarchy)([[:space:]]|$)' "$root/qvcore/boot/config-direct-boot" || fail "current and legacy EFI label detection"
+grep -Fq 'qvOS([[:space:]]|$)' "$root/qvcore/boot/config-direct-boot" || fail "native EFI label detection"
 grep -Fq -- '--label "qvOS"' "$root/qvcore/boot/config-direct-boot" || fail "qvOS EFI label"
 grep -Fxq 'TARGET_OS_NAME="qvOS"' "$root/qvcore/boot/limine/default.conf" || fail "qvOS Limine OS name"
 grep -Fxq 'interface_branding:' "$root/qvcore/boot/limine/limine.conf" || fail "qvOS Limine empty header"

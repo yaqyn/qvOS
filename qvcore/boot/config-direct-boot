@@ -29,7 +29,7 @@ fi
 
 existing_entry=$(
   awk '
-    /^Boot[0-9A-Fa-f]+\*? (qvOS|Omarchy)([[:space:]]|$)/ {
+    /^Boot[0-9A-Fa-f]+\*? qvOS([[:space:]]|$)/ {
       print
       exit
     }
