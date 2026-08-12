@@ -143,6 +143,10 @@ if rg -n 'sudo (tee|sed|cp|rm)|rm[[:space:]]+-rf[[:space:]]+/(etc|usr)' \
   "$root/qvcore/gaming/hybrid-gpu-"*; then
   fail "Hybrid GPU owner contains an unsafe direct root mutation"
 fi
+if rg -n 'legacy_(sleep|delay)|validate_legacy|d604e7c490382956|29e4646cf5dcbeac|\$sleep_dir/force-igpu|\$delay_dir/delay-start\.conf' \
+  "$root/qvcore/gaming/hybrid-gpu-apply"; then
+  fail "retired Hybrid GPU convergence remains active"
+fi
 
 install_packages=$(QVOS_PATH="$root" "$root/qvcore/gaming/retroarch-packages")
 [[ -z $(printf '%s\n' "$install_packages" | sort | uniq -d) ]] ||

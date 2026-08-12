@@ -50,11 +50,13 @@ a non-NVIDIA integrated display controller and an NVIDIA display controller,
 confirm before package or policy mutation, and refuse pending or unsupported
 modes. Install fixed root-owned payloads under
 `/usr/lib/qvos/gaming/hybrid-gpu/`; the root helper serializes changes, preserves
-unrelated valid JSON fields, stages files atomically, accepts only exact qvOS or
-known inherited hooks, restores files and service enablement on failure, and
-never starts the daemon before the requested reboot. Integrated mode alone owns
-the qvOS sleep hook and startup delay. Hybrid mode removes only exact managed
-copies. Never execute a user-writable checkout from system sleep or systemd.
+unrelated valid JSON fields, stages files atomically, accepts only exact qvOS
+policy, restores files and service enablement on failure, and never starts the
+daemon before the requested reboot. Integrated mode alone owns the qvOS sleep
+hook and startup delay. Hybrid mode removes only exact managed copies. The
+completed pre-release inherited-hook transition is retired, so the current
+owner never scans or mutates those historical system paths. Never execute a
+user-writable checkout from system sleep or systemd.
 Use fixture roots for all mutations; source verification must never install the
 package, change the live GPU, enable `supergfxd`, or reboot.
 

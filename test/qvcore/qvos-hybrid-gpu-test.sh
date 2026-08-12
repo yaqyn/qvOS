@@ -96,10 +96,18 @@ install -D -m 0644 /dev/stdin "$system_root/etc/supergfxd.conf" <<'CONFIG'
   "custom_qvos_test": 42
 }
 CONFIG
-install -D -m 0755 "$helper_dir/force-igpu" \
-  "$system_root/usr/lib/systemd/system-sleep/force-igpu"
-install -D -m 0644 "$helper_dir/delay-start.conf" \
-  "$system_root/etc/systemd/system/supergfxd.service.d/delay-start.conf"
+historical_sleep="$system_root/usr/lib/systemd/system-sleep/force-igpu"
+historical_delay="$system_root/etc/systemd/system/supergfxd.service.d/delay-start.conf"
+install -D -m 0755 /dev/stdin "$historical_sleep" <<'SCRIPT'
+#!/bin/bash
+printf 'foreign\n'
+SCRIPT
+install -D -m 0644 /dev/stdin "$historical_delay" <<'POLICY'
+[Service]
+ExecStartPre=/usr/bin/true
+POLICY
+historical_sleep_hash=$(sha256sum -- "$historical_sleep")
+historical_delay_hash=$(sha256sum -- "$historical_delay")
 
 run_root_owner "$system_root" integrated
 config="$system_root/etc/supergfxd.conf"
@@ -113,10 +121,9 @@ cmp -s "$helper_dir/force-igpu" "$sleep_policy" ||
   fail "Integrated sleep policy"
 cmp -s "$helper_dir/delay-start.conf" "$delay_policy" ||
   fail "Integrated service delay"
-[[ ! -e $system_root/usr/lib/systemd/system-sleep/force-igpu ]] ||
-  fail "inherited sleep policy retirement"
-[[ ! -e $system_root/etc/systemd/system/supergfxd.service.d/delay-start.conf ]] ||
-  fail "inherited service delay retirement"
+[[ $(sha256sum -- "$historical_sleep") == "$historical_sleep_hash" &&
+  $(sha256sum -- "$historical_delay") == "$historical_delay_hash" ]] ||
+  fail "native Hybrid GPU policy mutated historical paths"
 [[ $(<"$service_state") == "enabled" ]] ||
   fail "supergfxd service enablement"
 
@@ -135,6 +142,9 @@ jq -e '.custom_qvos_test == 42' "$config" >/dev/null ||
   fail "Hybrid mode sleep policy removal"
 [[ ! -e $delay_policy && ! -L $delay_policy ]] ||
   fail "Hybrid mode service delay removal"
+[[ $(sha256sum -- "$historical_sleep") == "$historical_sleep_hash" &&
+  $(sha256sum -- "$historical_delay") == "$historical_delay_hash" ]] ||
+  fail "Hybrid mode mutated historical policy paths"
 
 run_root_owner "$system_root" integrated
 printf 'foreign\n' >"$sleep_policy"

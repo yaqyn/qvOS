@@ -82,11 +82,9 @@ run_root="$system_root/run"
 config_file="$etc_root/supergfxd.conf"
 sleep_dir="$system_root/usr/lib/systemd/system-sleep"
 sleep_file="$sleep_dir/qvos-hybrid-gpu"
-legacy_sleep="$sleep_dir/force-igpu"
 service_root="$etc_root/systemd/system"
 delay_dir="$service_root/supergfxd.service.d"
 delay_file="$delay_dir/80-qvos-integrated-delay.conf"
-legacy_delay="$delay_dir/delay-start.conf"
 lock_file="$run_root/qvos-hybrid-gpu.lock"
 transaction_root=""
 transaction_active=false
@@ -144,19 +142,6 @@ validate_managed_target() {
   safe_file "$target" && cmp -s "$expected" "$target"
 }
 
-validate_legacy_target() {
-  local target=$1
-  local expected=$2
-  local inherited_hash=$3
-  local target_hash
-
-  [[ ! -e $target && ! -L $target ]] && return 0
-  safe_file "$target" || return 1
-  cmp -s "$expected" "$target" && return 0
-  target_hash=$(sha256sum -- "$target")
-  [[ ${target_hash%% *} == "$inherited_hash" ]]
-}
-
 validate_targets() {
   if [[ -e $config_file || -L $config_file ]]; then
     if ! safe_file "$config_file" ||
@@ -169,22 +154,8 @@ validate_targets() {
     echo "Refusing modified qvOS Hybrid GPU sleep policy: $sleep_file" >&2
     return 1
   }
-  validate_legacy_target \
-    "$legacy_sleep" \
-    "$sleep_payload" \
-    d604e7c4903829563e45fc52188fc5602c3f1bc66e247f0a2cc0a974ed6e57db || {
-    echo "Refusing modified inherited Hybrid GPU sleep policy: $legacy_sleep" >&2
-    return 1
-  }
   validate_managed_target "$delay_file" "$delay_payload" || {
     echo "Refusing modified qvOS Hybrid GPU service policy: $delay_file" >&2
-    return 1
-  }
-  validate_legacy_target \
-    "$legacy_delay" \
-    "$delay_payload" \
-    29e4646cf5dcbeacd12eb82e8beac3a9aa61a44ec43c3c91be9e1f3005065c61 || {
-    echo "Refusing modified inherited Hybrid GPU service policy: $legacy_delay" >&2
     return 1
   }
 }
@@ -198,9 +169,7 @@ snapshot_targets() {
   for target in \
     "$config_file" \
     "$sleep_file" \
-    "$legacy_sleep" \
-    "$delay_file" \
-    "$legacy_delay"; do
+    "$delay_file"; do
     backup=-
     if [[ -e $target || -L $target ]]; then
       backup="$transaction_root/backup-${#transaction_targets[@]}"
@@ -298,8 +267,6 @@ target_is_ready() {
     [[ ! -e $sleep_file && ! -L $sleep_file &&
       ! -e $delay_file && ! -L $delay_file ]] || return 1
   fi
-  [[ ! -e $legacy_sleep && ! -L $legacy_sleep &&
-    ! -e $legacy_delay && ! -L $legacy_delay ]] || return 1
   "$systemctl" is-enabled --quiet supergfxd.service
 }
 
@@ -343,9 +310,6 @@ else
   remove_managed "$sleep_file"
   remove_managed "$delay_file"
 fi
-remove_managed "$legacy_sleep"
-remove_managed "$legacy_delay"
-
 "$systemctl" daemon-reload
 "$systemctl" enable supergfxd.service
 [[ $prior_enabled == "true" ]] || enabled_changed=true
