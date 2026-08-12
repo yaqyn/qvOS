@@ -42,12 +42,13 @@ The hibernation transaction owns only native qvOS resume and sleep artifacts;
 its completed pre-release Omarchy convergence is retired and must not return as
 a boot input.
 Active Plymouth, SDDM, session, mkinitcpio, and UKI
-identifiers use `qvos`. Legacy `omarchy` boot artifacts are migration input
-only: create and verify the native replacement first, remove an old theme or
-config only when its complete content is recognized, and preserve modified or
-unsafe artifacts with a warning. The shared atomic theme sync owner installs
-the new payload, switches its Plymouth or SDDM selector, and only then retires
-recognized legacy content; a failed copy restores the prior native theme.
+identifiers use `qvos`. Completed pre-release theme, selector, login, and
+session convergence is retired and is not scanned at runtime. The shared atomic
+theme sync owner stages the new payload, switches its Plymouth or SDDM selector,
+and commits only after both succeed; any publication or selector failure
+restores the prior native theme. The exact inherited mkinitcpio and UKI
+identities remain preservation-safe migration input until their root state is
+verified separately.
 Treat Snapper's non-zero empty `list-configs` result as fresh state, then let
 the required root `create-config` operation surface any real failure.
 Use Snapper's native `--no-dbus` mode only for the reviewed chroot installer
@@ -61,6 +62,9 @@ exact unquoted resume, resume-offset, and RTC token forms owned by native qvOS
 drop-ins. Parse token boundaries without evaluation, preserve safe escaped
 foreign arguments, reject shell-expanding or structurally ambiguous base input,
 then append each validated drop-in once.
+Fresh Archinstall autologin may name `hyprland-uwsm`; the native session owner
+rewrites only that exact generic seed to `qvos` and preserves every custom
+session or theme selection.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed

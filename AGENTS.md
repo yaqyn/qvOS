@@ -172,9 +172,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/boot/snapper-root.conf` owns the pre-update recovery policy installed
   by the Limine/Snapper boot owner; `default/snapper/` is retired
 - active boot presentation uses native `qvos` Plymouth, SDDM, session,
-  mkinitcpio, and UKI identities; exact `omarchy` boot artifacts are accepted
-  only as preservation-safe migration input and are removed after replacement
-  verification
+  mkinitcpio, and UKI identities; completed pre-release theme and session
+  convergence is not scanned at runtime, while exact inherited mkinitcpio and
+  UKI artifacts remain preservation-safe migration input until separately
+  verified
 - the general pre-public runtime-root config rewriter and obsolete-state
   scanner are retired after the only supported installation converged; fresh
   install and update paths reconcile explicit native owners without scanning

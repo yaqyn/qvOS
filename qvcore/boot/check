@@ -144,6 +144,11 @@ grep -Fq -- '-- -- --config "$config_path"' \
 if rg -n 'hyprland\.conf|generated_stub' "$root/qvcore/boot/session-start"; then
   fail "native session launcher mutates retired Hyprland configuration"
 fi
+if rg -n 'omarchy|legacy_' \
+  "$root/qvcore/boot/sync-theme" \
+  "$root/qvcore/boot/install-sddm-session"; then
+  fail "retired boot presentation convergence remains active"
+fi
 grep -Fq 'qvcore/boot/sddm-hyprland.conf' \
   "$root/qvcore/boot/install-sddm-wayland" || fail "fresh SDDM compositor owner"
 grep -Fq "pam_gnome_keyring\\.so/d" \

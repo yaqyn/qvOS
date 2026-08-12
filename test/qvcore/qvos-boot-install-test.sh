@@ -164,44 +164,11 @@ for command_name in \
   ln -s qvos-test-boot-command "$test_bin/$command_name"
 done
 
-seed_legacy_plymouth_theme() {
-  local target=$1
-  local source_file
-  local source_name
-  local target_name
-
-  install -d "$target"
-  for source_file in "$root/qvcore/boot/plymouth/"*; do
-    source_name=${source_file##*/}
-    case $source_name in
-    qvos.plymouth)
-      target_name=omarchy.plymouth
-      sed \
-        -e 's#/themes/qvos#/themes/omarchy#g' \
-        -e 's/qvos\.script/omarchy.script/g' \
-        "$source_file" >"$target/$target_name"
-      ;;
-    qvos.script)
-      target_name=omarchy.script
-      sed '1s/.*/# Omarchy Plymouth Theme Script/' \
-        "$source_file" >"$target/$target_name"
-      ;;
-    *)
-      install -m 0644 "$source_file" "$target/$source_name"
-      ;;
-    esac
-  done
-}
-
 install -d "$system_root/usr/share/plymouth/themes/qvos"
 printf 'stale\n' >"$system_root/usr/share/plymouth/themes/qvos/stale"
-install -d "$system_root/usr/share/plymouth/themes/omarchy"
-seed_legacy_plymouth_theme "$system_root/usr/share/plymouth/themes/omarchy"
 run_boot "$root/qvcore/boot/install-plymouth"
 [[ ! -e $system_root/usr/share/plymouth/themes/qvos/stale ]] ||
   fail "Plymouth stale native payload cleanup"
-[[ ! -e $system_root/usr/share/plymouth/themes/omarchy ]] ||
-  fail "exact legacy Plymouth theme cleanup"
 for source_file in "$root/qvcore/boot/plymouth/"*; do
   cmp -s \
     "$source_file" \
@@ -212,40 +179,34 @@ if grep -Eq '^(limine-mkinitcpio|mkinitcpio)' "$action_log"; then
   fail "fresh Plymouth install rebuilt boot images early"
 fi
 
-seed_legacy_plymouth_theme "$system_root/usr/share/plymouth/themes/omarchy"
+printf 'prior native payload\n' \
+  >"$system_root/usr/share/plymouth/themes/qvos/prior"
 export QVOS_TEST_FAIL_PLYMOUTH_SELECT=1
 if run_boot "$root/qvcore/boot/install-plymouth" >/dev/null 2>&1; then
   fail "failed Plymouth selection reported success"
 fi
 unset QVOS_TEST_FAIL_PLYMOUTH_SELECT
-[[ -d $system_root/usr/share/plymouth/themes/omarchy ]] ||
-  fail "legacy Plymouth theme retired before native selection"
+[[ $(<"$system_root/usr/share/plymouth/themes/qvos/prior") == \
+  "prior native payload" ]] ||
+  fail "failed Plymouth selection did not restore the prior native theme"
 run_boot "$root/qvcore/boot/install-plymouth"
-[[ ! -e $system_root/usr/share/plymouth/themes/omarchy ]] ||
-  fail "legacy Plymouth theme remained after native selection"
+[[ ! -e $system_root/usr/share/plymouth/themes/qvos/prior ]] ||
+  fail "successful Plymouth selection retained the prior native payload"
 
 : >"$action_log"
 run_boot "$root/qvcore/boot/refresh-plymouth"
 [[ $(grep -c '^limine-mkinitcpio$' "$action_log") == "1" ]] ||
   fail "Plymouth refresh image rebuild"
 
-install -d "$system_root/usr/share/plymouth/themes/omarchy"
-printf 'modified\n' >"$system_root/usr/share/plymouth/themes/omarchy/custom"
 printf 'stale\n' >"$system_root/usr/share/plymouth/themes/qvos/stale"
 install -d "$system_root/usr/share/sddm/themes/qvos"
 printf 'stale\n' >"$system_root/usr/share/sddm/themes/qvos/stale"
-install -d "$system_root/usr/share/sddm/themes/omarchy"
-printf 'modified\n' >"$system_root/usr/share/sddm/themes/omarchy/custom"
 : >"$action_log"
 run_boot "$root/qvcore/boot/plymouth-reset"
 [[ ! -e $system_root/usr/share/plymouth/themes/qvos/stale ]] ||
   fail "Plymouth reset bypassed the shared refresh owner"
 [[ ! -e $system_root/usr/share/sddm/themes/qvos/stale ]] ||
   fail "Plymouth reset bypassed the shared SDDM owner"
-[[ $(<"$system_root/usr/share/plymouth/themes/omarchy/custom") == "modified" ]] ||
-  fail "modified legacy Plymouth theme was removed"
-[[ $(<"$system_root/usr/share/sddm/themes/omarchy/custom") == "modified" ]] ||
-  fail "modified legacy SDDM theme was removed"
 [[ $(grep -c '^limine-mkinitcpio$' "$action_log") == "1" ]] ||
   fail "Plymouth reset duplicated the image rebuild"
 
@@ -265,25 +226,7 @@ printf '%s\n' \
   '-password optional pam_gnome_keyring.so' \
   >"$system_root/etc/pam.d/sddm"
 install -d "$system_root/usr/local/share/wayland-sessions" \
-  "$system_root/etc/sddm.conf.d" \
-  "$system_root/var/lib/sddm"
-sed 's/qvOS/Omarchy/g; s/UWSM/uwsm/g' \
-  "$root/qvcore/boot/wayland-sessions/qvos.desktop" \
-  >"$system_root/usr/local/share/wayland-sessions/omarchy.desktop"
-printf '%s\n' \
-  '[Theme]' \
-  'Current=omarchy' \
-  '' \
-  '[Users]' \
-  'RememberLastUser=true' \
-  'RememberLastSession=true' \
-  >"$system_root/etc/sddm.conf.d/99-omarchy-login.conf"
-printf '[Theme]\nCurrent=omarchy\n' \
-  >"$system_root/etc/sddm.conf.d/zz-omarchy.conf"
-printf '[Theme]\nCurrent=qvos\n' \
-  >"$system_root/etc/sddm.conf.d/zz-qvos-sddm.conf"
-printf '[Last]\nSession=omarchy.desktop\n' \
-  >"$system_root/var/lib/sddm/state.conf"
+  "$system_root/etc/sddm.conf.d"
 : >"$action_log"
 run_boot "$root/qvcore/boot/install-sddm"
 cmp -s \
@@ -296,8 +239,6 @@ cmp -s \
   fail "SDDM qvOS native session launcher install"
 [[ $(stat -c '%a' "$system_root/usr/local/bin/qvos-session") == "755" ]] ||
   fail "SDDM qvOS native session launcher mode"
-[[ ! -e $system_root/usr/local/share/wayland-sessions/omarchy.desktop ]] ||
-  fail "exact legacy SDDM session cleanup"
 cmp -s \
   "$root/qvcore/boot/sddm-hyprland.conf" \
   "$system_root/usr/share/sddm/hyprland.conf" ||
@@ -313,17 +254,6 @@ grep -Fqx 'Session=qvos' \
   fail "SDDM native session"
 grep -Fqx 'Current=qvos' "$system_root/etc/sddm.conf.d/qvos.conf" ||
   fail "SDDM native theme selection"
-[[ ! -e $system_root/etc/sddm.conf.d/zz-omarchy.conf &&
-  ! -e $system_root/etc/sddm.conf.d/zz-qvos-sddm.conf ]] ||
-  fail "duplicate SDDM theme configuration cleanup"
-[[ -f $system_root/etc/sddm.conf.d/99-qvos-login.conf &&
-  ! -e $system_root/etc/sddm.conf.d/99-omarchy-login.conf ]] ||
-  fail "legacy SDDM login configuration migration"
-if rg -q '^Current=' "$system_root/etc/sddm.conf.d/99-qvos-login.conf"; then
-  fail "SDDM login state duplicates native theme ownership"
-fi
-grep -Fqx 'Session=qvos.desktop' "$system_root/var/lib/sddm/state.conf" ||
-  fail "SDDM state identity migration"
 [[ $(<"$system_root/etc/pam.d/sddm") == 'auth optional pam_unix.so' ]] ||
   fail "SDDM keyring PAM cleanup"
 grep -Fqx $'systemctl\tenable\tsddm.service' "$action_log" ||
@@ -397,24 +327,7 @@ sed -i 's/^Session=custom-session$/Session=hyprland-uwsm/' \
 run_boot "$root/qvcore/boot/install-sddm-session"
 grep -Fqx 'Session=qvos' \
   "$system_root/etc/sddm.conf.d/autologin.conf" ||
-  fail "SDDM legacy session migration"
-
-external_login="$test_root/external-login"
-printf 'foreign\n' >"$external_login"
-rm -f -- "$system_root/etc/sddm.conf.d/99-qvos-login.conf"
-ln -s "$external_login" "$system_root/etc/sddm.conf.d/99-qvos-login.conf"
-printf '%s\n' \
-  '[Theme]' \
-  'Current=omarchy' \
-  '' \
-  '[Users]' \
-  'RememberLastUser=true' \
-  'RememberLastSession=true' \
-  >"$system_root/etc/sddm.conf.d/99-omarchy-login.conf"
-run_boot "$root/qvcore/boot/install-sddm-session" >/dev/null 2>&1
-[[ -f $system_root/etc/sddm.conf.d/99-omarchy-login.conf &&
-  $(<"$external_login") == "foreign" ]] ||
-  fail "unsafe native SDDM login target did not preserve legacy state"
+  fail "SDDM Archinstall session reconciliation"
 
 external_pam="$test_root/external-pam"
 printf 'foreign\n' >"$external_pam"
