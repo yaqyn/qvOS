@@ -108,6 +108,9 @@ if rg -n '/usr/lib/chromium/initial_preferences|sudo[[:space:]]+tee' \
   "$root/qvcore/install/config/theme.sh"; then
   fail "installer theme stage writes root-owned Chromium state directly"
 fi
+if rg -n 'SingletonLock' "$root/qvcore/install/config/theme.sh"; then
+  fail "installer theme stage removes a live Chromium profile lock"
+fi
 if rg -n 'migrate-runtime-root|retire-google-oauth' \
   "$root/qvcore/browser/install" \
   "$root/qvcore/browser/refresh-chromium" \

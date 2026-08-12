@@ -262,6 +262,55 @@ for browser_policy in \
 done
 printf 'ok - browser colors respect the root-directory and user-leaf policy boundary\n'
 
+browser_refresh_bin="$test_root/browser-refresh-bin"
+browser_refresh_log="$test_root/browser-refresh.log"
+install -d "$browser_refresh_bin"
+install -m 0755 /dev/stdin "$browser_refresh_bin/qv-cmd-present" <<'COMMAND'
+#!/bin/bash
+[[ $# == 1 && $1 == "chromium" ]]
+COMMAND
+install -m 0755 /dev/stdin "$browser_refresh_bin/pgrep" <<'COMMAND'
+#!/bin/bash
+[[ $* == "-x chromium" ]]
+COMMAND
+install -m 0755 /dev/stdin "$browser_refresh_bin/chromium" <<'COMMAND'
+#!/bin/bash
+printf '%s\n' "$*" >>"$QVOS_THEME_BROWSER_REFRESH_LOG"
+COMMAND
+: >"$browser_refresh_log"
+HOME="$test_root" \
+PATH="$browser_refresh_bin:/usr/bin" \
+QVOS_THEME_TESTING=1 \
+QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+QVOS_THEME_BROWSER_REFRESH_LOG="$browser_refresh_log" \
+QVOS_THEME_SKIP_SESSION=1 \
+  "$root/qvcore/theme/set-browser"
+[[ ! -s $browser_refresh_log ]] ||
+  fail "offline browser theme rendering refreshed a host-session process"
+HOME="$test_root" \
+PATH="$browser_refresh_bin:/usr/bin" \
+QVOS_THEME_TESTING=1 \
+QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+QVOS_THEME_BROWSER_REFRESH_LOG="$browser_refresh_log" \
+  "$root/qvcore/theme/set-browser"
+[[ $(<"$browser_refresh_log") == \
+  "--refresh-platform-policy --no-startup-window" ]] ||
+  fail "interactive browser theme rendering did not refresh Chromium exactly"
+policy_snapshot=$(sha256sum \
+  "$policy_root/etc/chromium/policies/managed/color.json")
+if HOME="$test_root" \
+  PATH="$browser_refresh_bin:/usr/bin" \
+  QVOS_THEME_TESTING=1 \
+  QVOS_THEME_BROWSER_POLICY_ROOT="$policy_root" \
+  QVOS_THEME_SKIP_SESSION=invalid \
+  "$root/qvcore/theme/set-browser" >/dev/null 2>&1; then
+  fail "browser theme owner accepted an invalid session mode"
+fi
+[[ $(sha256sum "$policy_root/etc/chromium/policies/managed/color.json") == \
+  "$policy_snapshot" ]] ||
+  fail "invalid browser theme session mode changed policy"
+pass "offline browser theming never crosses into the host session"
+
 configure_fixture="$test_root/configure-fixture"
 configure_bin="$configure_fixture/bin"
 configure_log="$configure_fixture/events"

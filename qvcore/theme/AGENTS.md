@@ -49,8 +49,10 @@ generating the native Lua theme.
 - During the reviewed ISO chroot, fresh configuration renders Yaqyn and applies
   file and hardware integrations but skips wallpaper processes, desktop
   restarts, GNOME settings, and user hooks. The first native login consumes the
-  completed theme state and owns session activation; never probe a user bus from
-  the target chroot.
+  completed theme state and owns session activation. Browser policy files are
+  rendered offline, but the browser owner must return before process discovery
+  or refresh; never probe the host PID namespace or a user bus from the target
+  chroot.
 - Theme list, set, install, remove, update, and appearance providers read only
   the user theme directory. `qvcore/theme/name` is the shared slug validator,
   and `qvcore/theme/validate` owns payload and optional-integration validation.

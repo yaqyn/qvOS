@@ -153,7 +153,9 @@ control in the sourced leaf.
 The theme leaf translates the exact reviewed chroot signal into qvOS's offline
 theme-rendering mode: install the complete theme state and safe file or hardware
 integrations, but never probe a user bus, mutate GNOME settings, restart desktop
-components, launch a wallpaper, or run user hooks before first login.
+components, inspect host-session browser processes, launch a wallpaper, or run
+user hooks before first login. Never delete a Chromium profile lock as an
+installer workaround.
 Its Branding leaf installs the singular root-owned qvOS `/etc/os-release`
 through `qvcore/branding/system-identity` before reconciling private user
 branding; never write a second product identity directly from the installer.

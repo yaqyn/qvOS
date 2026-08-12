@@ -292,6 +292,17 @@ grep -Fq '[[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]' \
 grep -Fq 'QVOS_THEME_SKIP_SESSION=1 qv-theme-set "Yaqyn"' \
   "$root/qvcore/theme/configure" ||
   fail "fresh theme configuration does not suppress target-chroot session work"
+# shellcheck disable=SC2016
+grep -Fq 'if [[ $skip_session == "1" ]]' \
+  "$root/qvcore/theme/set-browser" ||
+  fail "offline browser theme rendering can inspect session processes"
+if rg -n 'SingletonLock' \
+  "$root/qvcore/install/config/theme.sh" \
+  "$root/qvcore/theme" \
+  --glob '!AGENTS.md' \
+  --glob '!check'; then
+  fail "theme installation mutates a live Chromium profile lock"
+fi
 if rg -q 'qvcore/theme/install|qvcore/install/config/theme' "$root/qvcore/install/configure"; then
   fail "qvOS install duplicates the theme owner"
 fi

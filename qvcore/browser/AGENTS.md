@@ -40,6 +40,10 @@ delegate each selected operation once through the shared TUI.
   appearance preference into Chromium's root-owned directory without following
   links or replacing foreign state. The installer theme stage delegates to this
   browser owner and never writes `/usr/lib/chromium` directly.
+- Offline theme rendering updates browser policy files without discovering or
+  refreshing host-session processes through the target chroot. Fresh install
+  never deletes Chromium profile locks; removing a live `SingletonLock` is not
+  a browser lifecycle operation.
 - Fresh browser installs and Chromium refresh write only the native Copy URL
   extension path. Do not restore an inherited runtime-root migration to normal
   install, refresh, removal, or update paths.

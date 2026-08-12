@@ -5,6 +5,12 @@ set -euo pipefail
 CHROMIUM_THEME="$HOME/.config/qvos/current/theme/chromium.theme"
 testing=${QVOS_THEME_TESTING:-}
 policy_root=${QVOS_THEME_BROWSER_POLICY_ROOT:-}
+skip_session=${QVOS_THEME_SKIP_SESSION:-0}
+
+if [[ $skip_session != "0" && $skip_session != "1" ]]; then
+  echo "QVOS_THEME_SKIP_SESSION must be 0 or 1." >&2
+  exit 2
+fi
 
 if [[ -n $policy_root && $testing != "1" ]]; then
   echo "A custom browser-policy root is valid only in tests." >&2
@@ -107,6 +113,10 @@ for target in "${policy_targets[@]}"; do
   fi
 done
 trap - HUP INT TERM
+
+if [[ $skip_session == "1" ]]; then
+  exit 0
+fi
 
 refresh_running_browser() {
   local process="$1"
