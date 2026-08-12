@@ -8,7 +8,8 @@ Readline behavior, shell environment, or existing-user Bash reconciliation.
 source to the source-independent runtime and reconciles only exact qvOS source
 lines in an existing `.bashrc`. Preserve every unrelated user line, reject
 linked or foreign paths, back up a changed existing file, publish atomically,
-and do not rewrite exact runtime or Bash content.
+and do not rewrite exact runtime or Bash content. Historical Omarchy and retired
+qvOS source lines are not active migration input and must remain unrecognized.
 
 The default shell remains small. Do not restore raw drive-formatting helpers,
 pattern-based process killing, forced worktree deletion, legacy tmux layouts,
@@ -24,6 +25,6 @@ retired and must remain absent.
 
 Run `qvcore/shell/check`, Bash syntax and ShellCheck, the shell, install,
 source-lifecycle, product, CLI, Transcode, and upstream-overlay tests, then the
-full qvOS suite. After live alignment, run `qvcore/shell/install` and verify the
-exact source-line migration, backup, runtime parity, permissions, and a clean
-interactive Bash startup without changing the user's unrelated shell content.
+full qvOS suite. After live alignment, run `qvcore/shell/install` and verify
+exact native source-line deduplication, backup, runtime parity, permissions,
+and a clean interactive Bash startup without changing unrelated user content.

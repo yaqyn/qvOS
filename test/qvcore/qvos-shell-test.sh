@@ -39,49 +39,78 @@ HOME="$fresh_home" QVOS_PATH="$root" TERM=dumb \
   'source "$HOME/.local/share/qvos/qvcore/shell/files/rc"; alias cy >/dev/null; alias hx >/dev/null; complete -p qv >/dev/null' ||
   fail "fresh shell startup"
 
-legacy_home="$test_root/legacy-home"
-install -d "$legacy_home"
-install -m 0644 /dev/stdin "$legacy_home/.bashrc" <<'BASHRC'
-source ~/.local/share/qvos/default/bash/rc
-source "$HOME/.local/share/qvos/shell/aliases"
-alias hx="helix"
+native_home="$test_root/native-home"
+install -d "$native_home"
+install -m 0644 /dev/stdin "$native_home/.bashrc" <<'BASHRC'
+source "$HOME/.local/share/qvos/qvcore/shell/files/rc"
+source "$HOME/.local/share/qvos/qvcore/shell/files/rc"
+source "$HOME/.local/lib/qvos/shell/aliases"
 export PERSONAL_SHELL_VALUE=preserve
 BASHRC
-run_owner "$legacy_home"
-runtime_aliases="$legacy_home/.local/lib/qvos/shell/aliases"
+run_owner "$native_home"
+runtime_aliases="$native_home/.local/lib/qvos/shell/aliases"
 cmp -s "$root/qvcore/shell/aliases" "$runtime_aliases" ||
   fail "runtime alias publication"
 [[ $(stat -c '%a' -- "$runtime_aliases") == "644" ]] ||
   fail "runtime alias mode"
 # shellcheck disable=SC2016
 [[ $(grep -Fxc 'source "$HOME/.local/share/qvos/qvcore/shell/files/rc"' \
-  "$legacy_home/.bashrc") == 1 ]] || fail "legacy Bash source migration"
-if rg -n 'default/bash|\.local/share/qvos/shell/aliases|alias hx="helix"' \
-  "$legacy_home/.bashrc"; then
-  fail "legacy Bash source residue"
+  "$native_home/.bashrc") == 1 ]] || fail "native Bash source deduplication"
+# shellcheck disable=SC2016
+if grep -Fqx 'source "$HOME/.local/lib/qvos/shell/aliases"' \
+  "$native_home/.bashrc"; then
+  fail "native Bash configuration duplicates runtime aliases"
 fi
-grep -Fqx 'export PERSONAL_SHELL_VALUE=preserve' "$legacy_home/.bashrc" ||
+grep -Fqx 'export PERSONAL_SHELL_VALUE=preserve' "$native_home/.bashrc" ||
   fail "personal Bash content preservation"
-compgen -G "$legacy_home/.bashrc.bak.*" >/dev/null ||
-  fail "legacy Bash backup"
+compgen -G "$native_home/.bashrc.bak.*" >/dev/null ||
+  fail "native Bash backup"
 
-first_hashes=$(find "$legacy_home" -type f -exec sha256sum {} + | sort)
-first_inodes=$(find "$legacy_home" -type f -exec stat -c '%i %n' {} + | sort)
-run_owner "$legacy_home"
-[[ $(find "$legacy_home" -type f -exec sha256sum {} + | sort) == \
+first_hashes=$(find "$native_home" -type f -exec sha256sum {} + | sort)
+first_inodes=$(find "$native_home" -type f -exec stat -c '%i %n' {} + | sort)
+run_owner "$native_home"
+[[ $(find "$native_home" -type f -exec sha256sum {} + | sort) == \
   "$first_hashes" ]] || fail "idempotent shell content"
-[[ $(find "$legacy_home" -type f -exec stat -c '%i %n' {} + | sort) == \
+[[ $(find "$native_home" -type f -exec stat -c '%i %n' {} + | sort) == \
   "$first_inodes" ]] || fail "idempotent shell publication"
 
 custom_home="$test_root/custom-home"
 install -d "$custom_home"
-printf 'export CUSTOM_ONLY=yes\n' >"$custom_home/.bashrc"
+install -m 0644 /dev/stdin "$custom_home/.bashrc" <<'BASHRC'
+export CUSTOM_ONLY=yes
+source "$HOME/.local/lib/qvos/shell/aliases"
+source "$HOME/.local/lib/qvos/shell/aliases"
+BASHRC
 run_owner "$custom_home"
 # shellcheck disable=SC2016
 [[ $(grep -Fxc 'source "$HOME/.local/lib/qvos/shell/aliases"' \
   "$custom_home/.bashrc") == 1 ]] || fail "custom Bash runtime source"
 grep -Fqx 'export CUSTOM_ONLY=yes' "$custom_home/.bashrc" ||
   fail "custom Bash content preservation"
+compgen -G "$custom_home/.bashrc.bak.*" >/dev/null ||
+  fail "custom Bash backup"
+
+historical_home="$test_root/historical-home"
+install -d "$historical_home"
+install -m 0644 /dev/stdin "$historical_home/.bashrc" <<'BASHRC'
+source ~/.local/share/qvos/default/bash/rc
+source "$HOME/.local/share/omarchy/default/bash/rc"
+source "$HOME/.local/share/qvos/shell/aliases"
+alias hx="helix"
+BASHRC
+run_owner "$historical_home"
+for preserved_line in \
+  'source ~/.local/share/qvos/default/bash/rc' \
+  "source \"\$HOME/.local/share/omarchy/default/bash/rc\"" \
+  "source \"\$HOME/.local/share/qvos/shell/aliases\"" \
+  'alias hx="helix"'; do
+  grep -Fqx "$preserved_line" "$historical_home/.bashrc" ||
+    fail "historical Bash content preservation: $preserved_line"
+done
+# shellcheck disable=SC2016
+[[ $(grep -Fxc 'source "$HOME/.local/lib/qvos/shell/aliases"' \
+  "$historical_home/.bashrc") == 1 ]] ||
+  fail "historical Bash file receives only the native runtime source"
 
 unsafe_home="$test_root/unsafe-home"
 outside="$test_root/outside-bashrc"

@@ -47,7 +47,6 @@ fi
 pass "native qvCORE source resolution uses QVOS_PATH only"
 
 if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
-  --glob '!**/qvcore/shell/install' \
   "$root/bin" \
   "$root/qvcore/config/files" \
   "$root/development" \
@@ -55,8 +54,6 @@ if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|
   "$root/services"; then
   fail "generated runtime payload still occupies the canonical source root"
 fi
-grep -Fq 'legacy_runtime_source=' "$root/qvcore/shell/install" ||
-  fail "legacy shell runtime cleanup"
 grep -Fq 'mkdir -p "$HOME/.local/lib/qvos"' "$root/qvcore/install/desktop" ||
   fail "native qvOS runtime root"
 grep -Fq 'runtime_root="$lib_root/qvos"' \

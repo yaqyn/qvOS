@@ -42,6 +42,10 @@ if rg -n '(default/bash|\$OMARCHY_PATH/qvcore/shell|_omarchy_complete)' \
   "$files" "$root/qvcore/shell/aliases"; then
   fail "retired shell implementation remains active"
 fi
+if rg -n '(default/bash/rc|\.local/share/(omarchy/default/bash|qvos/shell)/aliases?|legacy_(omarchy|qvos|runtime)|alias hx="helix")' \
+  "$root/qvcore/shell/install"; then
+  fail "retired shell reconciliation remains active"
+fi
 if rg -n '(^|[[:space:]])(format-drive|iso2sd|fip|dip|tdl|tdlm|tsl|ga|gd)[(=]' \
   "$root/qvcore/shell" --glob '!AGENTS.md' --glob '!check'; then
   fail "unsafe or duplicate legacy shell helper remains"

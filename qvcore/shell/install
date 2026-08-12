@@ -13,12 +13,7 @@ staged_runtime=
 # shellcheck disable=SC2016
 runtime_source='source "$HOME/.local/lib/qvos/shell/aliases"'
 # shellcheck disable=SC2016
-legacy_runtime_source='source "$HOME/.local/share/qvos/shell/aliases"'
-# shellcheck disable=SC2016
 native_rc_source='source "$HOME/.local/share/qvos/qvcore/shell/files/rc"'
-legacy_qvos_rc_source='source ~/.local/share/qvos/default/bash/rc'
-legacy_omarchy_rc_source='source ~/.local/share/omarchy/default/bash/rc'
-legacy_helix_alias='alias hx="helix"'
 
 cleanup() {
   [[ -z $staged_bashrc || (! -e $staged_bashrc && ! -L $staged_bashrc) ]] ||
@@ -97,22 +92,13 @@ if [[ ! -f $runtime_file ]] || ! cmp -s -- "$source_file" "$runtime_file" ||
 fi
 
 has_native_rc=false
-if grep -Fqx "$native_rc_source" "$bashrc" ||
-  grep -Fqx "$legacy_qvos_rc_source" "$bashrc" ||
-  grep -Fqx "$legacy_omarchy_rc_source" "$bashrc"; then
-  has_native_rc=true
-fi
+grep -Fqx "$native_rc_source" "$bashrc" && has_native_rc=true
 staged_bashrc=$(mktemp "$(dirname -- "$bashrc")/.bashrc.XXXXXX")
 awk \
   -v has_native_rc="$has_native_rc" \
-  -v legacy_helix="$legacy_helix_alias" \
-  -v legacy_omarchy_rc="$legacy_omarchy_rc_source" \
-  -v legacy_qvos_rc="$legacy_qvos_rc_source" \
-  -v legacy_runtime="$legacy_runtime_source" \
   -v native_rc="$native_rc_source" \
   -v runtime="$runtime_source" '
-    $0 == legacy_helix || $0 == legacy_runtime { next }
-    $0 == legacy_omarchy_rc || $0 == legacy_qvos_rc || $0 == native_rc {
+    $0 == native_rc {
       if (!native_seen) print native_rc
       native_seen = 1
       next

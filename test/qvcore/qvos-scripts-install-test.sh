@@ -219,8 +219,9 @@ touch \
   "$test_root/.local/lib/qvos/waybar/removed-feature"
 install -m 0755 /dev/null "$test_root/.local/lib/qvos/waybar/prayer-data.sh"
 install -m 0644 /dev/stdin "$test_root/.bashrc" <<'BASHRC'
-source "$HOME/.local/share/qvos/shell/aliases"
-alias hx="helix"
+source "$HOME/.local/lib/qvos/shell/aliases"
+source "$HOME/.local/lib/qvos/shell/aliases"
+export PERSONAL_SHELL_VALUE=preserve
 BASHRC
 HOME="$test_root" QVOS_PATH="$root" OMARCHY_PATH="$test_root/stale-source" \
   bash -c 'source "$1"' _ "$root/qvcore/install/desktop"
@@ -618,14 +619,8 @@ grep -Fqx \
 [[ $(grep -Fxc 'source "$HOME/.local/lib/qvos/shell/aliases"' \
   "$test_root/.bashrc") == "1" ]] ||
   fail "duplicate runtime shell source line"
-# shellcheck disable=SC2016
-if grep -Fqx 'source "$HOME/.local/share/qvos/shell/aliases"' \
-  "$test_root/.bashrc"; then
-  fail "obsolete runtime shell source line"
-fi
-if grep -Fqx 'alias hx="helix"' "$test_root/.bashrc"; then
-  fail "obsolete Helix alias remains in Bash configuration"
-fi
+grep -Fqx 'export PERSONAL_SHELL_VALUE=preserve' "$test_root/.bashrc" ||
+  fail "personal Bash content preservation"
 grep -Fqx 'alias hx=helix' "$test_root/.local/lib/qvos/shell/aliases" ||
   fail "runtime Helix alias"
 compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
