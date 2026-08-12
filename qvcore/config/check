@@ -154,6 +154,12 @@ for command in qv-toggle-enabled qv-powerprofiles-init qv-restart-monitor-watch;
   grep -Fq "$command" "$autostart" ||
     fail "native autostart route: $command"
 done
+[[ $(grep -Fc 'qv.autostart("uwsm finalize")' "$autostart") == 1 ]] ||
+  fail "native UWSM environment finalization"
+if rg -n 'systemctl --user import-environment|dbus-update-activation-environment.*--all' \
+  "$autostart"; then
+  fail "native autostart publishes the complete process environment"
+fi
 if rg -n 'qv\.autostart\(".*omarchy-' "$autostart"; then
   fail "native autostart calls a compatibility command"
 fi

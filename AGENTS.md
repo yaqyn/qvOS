@@ -130,6 +130,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited Omarchy path is validated migration input and is never seeded
 - `qvcore/config/base/hypr/` owns the typed Lua runtime helpers and source-side
   session, environment, appearance, persistent workspaces, and window defaults;
+  session autostart finalizes only UWSM's bounded compositor-variable allowlist
+  and never imports the complete process environment into systemd or D-Bus;
   `qvcore/config/files/hypr/` owns the complete user-editable Lua entrypoint
   and leaves. Active `.conf`, `default/hypr/`, and the former installed
   `hypr/qv` overlay are retired and must remain absent

@@ -6,6 +6,11 @@ refresh reconciliation, or installed desktop configuration.
 `qvcore/config/base/hypr/` is the singular source-side Hyprland Lua base. Its
 typed helpers, session autostart, environment, appearance, and default window
 and persistent workspace rules live in five readable `.lua` files.
+Session autostart calls `uwsm finalize` once before launching desktop services;
+UWSM alone publishes its bounded compositor-variable allowlist to systemd and
+D-Bus and cleans it on session stop. Never import the complete compositor
+environment or use `dbus-update-activation-environment --all`: either can
+persist secrets, machine-local variables, and retired product state.
 Workspaces 1 through 5 remain present for the protocol-native Waybar module;
 Waybar does not own or recreate their lifecycle. `qvcore/config/files/hypr/` owns the
 installed user-editable Lua entrypoint, bindings, monitors, input, environment,
