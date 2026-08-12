@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 qvos_boot_authorize() {
-  if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]; then
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
     sudo -n /usr/bin/true
   else
     sudo -v

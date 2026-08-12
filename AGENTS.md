@@ -97,10 +97,9 @@ Install stage files follow this pattern:
   are retired and must never be accepted or exported by qvOS owners
 - use qvOS-owned installer state and environment (`QVOS_INSTALL_LOG_FILE`,
   `QVOS_ONLINE_INSTALL`, `QVOS_PROVIDER_CHANNEL`, `QVOS_USER_NAME`,
-  `QVOS_USER_EMAIL`, `/var/log/qvos-install.log`); translate external builder
-  inputs at the ISO boundary and preserve `OMARCHY_CHROOT_INSTALL` only as the
-  reviewed ISO-builder input; the ISO handoff uses an explicit clean environment
-  with target-account XDG paths
+  `QVOS_USER_EMAIL`, `QVOS_CHROOT_INSTALL`, `/var/log/qvos-install.log`); the
+  native ISO handoff sets the exact chroot signal in an explicit clean
+  environment with target-account XDG paths
 - keep hardware-specific install logic under `qvcore/install/hardware/`; fresh
   owners install only native qvOS policy and never rescan retired pre-release
   hardware identities

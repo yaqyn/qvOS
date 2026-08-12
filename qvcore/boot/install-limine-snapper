@@ -42,7 +42,7 @@ enable_system_unit() {
 
   if declare -F chrootable_systemctl_enable >/dev/null; then
     chrootable_systemctl_enable "$unit"
-  elif [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+  elif [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
     sudo systemctl enable "$unit"
   else
     sudo systemctl enable --now "$unit"
@@ -52,7 +52,7 @@ enable_system_unit() {
 disable_system_unit() {
   local unit=$1
 
-  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
     sudo systemctl disable "$unit"
   else
     sudo systemctl disable --now "$unit"
@@ -388,7 +388,7 @@ install_limine() {
     limine-mkinitcpio-hook \
     limine-snapper-sync
 
-  [[ -z ${OMARCHY_CHROOT_INSTALL:-} ]] || snapper_args+=(--no-dbus)
+  [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]] || snapper_args+=(--no-dbus)
   # Snapper reports an empty fresh-install inventory with a non-zero status.
   # The following create-config call remains authoritative and must surface a
   # real failure.

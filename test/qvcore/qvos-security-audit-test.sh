@@ -443,7 +443,7 @@ PACMAN
 cp "$offline_system_root/etc/pacman.conf" \
   "$test_root/offline-pacman-original.conf"
 offline_output=$(
-  OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_CHROOT_INSTALL=1 \
     QVOS_SECURITY_TESTING=1 \
     QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
     QVOS_PATH="$root" \
@@ -467,7 +467,7 @@ fi
 
 printf 'Server = file:///tmp/untrusted/\n' \
   >>"$offline_system_root/etc/pacman.conf"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
   QVOS_PATH="$root" \
@@ -485,7 +485,7 @@ session include system-auth
 PAM
 cp "$root/qvcore/packages/provider/omarchy/pacman-rc.conf" \
   "$offline_system_root/etc/pacman.conf"
-OMARCHY_CHROOT_INSTALL=1 \
+QVOS_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \
   QVOS_SECURITY_SYSTEM_ROOT="$offline_system_root" \
   QVOS_PATH="$root" \
@@ -700,10 +700,10 @@ grep -Fq 'desired_options=$(awk' "$boot_mount" ||
 grep -Fq 'restore_prior_policy' "$boot_mount" ||
   fail "EFI policy reload failure restores the prior fstab"
 # shellcheck disable=SC2016
-grep -Fq '[[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]' "$boot_mount" ||
+grep -Fq '[[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]' "$boot_mount" ||
   fail "ISO chroot defers live mount-unit validation"
 # shellcheck disable=SC2016
-grep -Fq '[[ -z $system_root && ${OMARCHY_CHROOT_INSTALL:-} != "1" ]]' \
+grep -Fq '[[ -z $system_root && ${QVOS_CHROOT_INSTALL:-} != "1" ]]' \
   "$installer" || fail "ISO chroot defers live security activation"
 
 ambiguous_boot_root="$test_root/ambiguous-boot-system"

@@ -147,7 +147,7 @@ install -d "$chroot_root/sys/class/dmi/id" \
 printf 'MacBook9,1\n' >"$chroot_root/sys/class/dmi/id/product_name"
 : >"$chroot_root/sys/bus/pci/devices/0000:01:00.0/d3cold_allowed"
 : >"$event_log"
-OMARCHY_CHROOT_INSTALL=1 run_stage "$chroot_root" \
+QVOS_CHROOT_INSTALL=1 run_stage "$chroot_root" \
   "$root/qvcore/install/hardware/apple/nvme-suspend"
 grep -Fqx 'systemctl|enable qvos-nvme-suspend-fix.service' "$event_log" ||
   fail "target-chroot Apple NVMe enable"

@@ -202,7 +202,7 @@ for policy in 99-qvos-installer 99-omarchy-installer; do
 done
 : >"$event_log"
 QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
-OMARCHY_CHROOT_INSTALL=1 \
+QVOS_CHROOT_INSTALL=1 \
 QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null
 [[ -f $completion_marker ]] || fail "ISO completion marker"
@@ -238,7 +238,7 @@ grep -Fqx 'sudo:reboot' "$event_log" ||
   fail "accepted non-ISO reboot did not reach the system owner"
 
 : >"$event_log"
-OMARCHY_CHROOT_INSTALL=1 \
+QVOS_CHROOT_INSTALL=1 \
 QVOS_TEST_GUM_STATUS=0 \
   run_finished >/dev/null
 [[ -f $completion_marker ]] || fail "fallback chroot completion marker"
@@ -249,7 +249,7 @@ fi
 rm -f -- "$completion_marker"
 symlink_target="$test_root/symlink-target"
 ln -s "$symlink_target" "$completion_marker"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null 2>&1; then
   fail "ISO completion accepted a symbolic-link marker"
@@ -267,7 +267,7 @@ for policy in 99-qvos-installer 99-omarchy-installer; do
 done
 printf 'modified legacy policy\n' >"$sudoers_root/99-omarchy-installer"
 if QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
-  OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null 2>&1; then
   fail "modified legacy installer policy was accepted"
@@ -278,7 +278,7 @@ fi
 
 rm -f -- "$completion_marker" "$sudoers_root/99-omarchy-installer"
 printf 'modified\n' >"$sudoers_root/99-qvos-installer"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null 2>&1; then
   fail "modified ISO installer policy was accepted"

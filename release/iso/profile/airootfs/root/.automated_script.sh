@@ -538,7 +538,7 @@ chroot_bash() {
     XDG_DATA_HOME="/home/$QVOS_USER/.local/share" \
     XDG_CACHE_HOME="/home/$QVOS_USER/.cache" \
     XDG_STATE_HOME="/home/$QVOS_USER/.local/state" \
-    OMARCHY_CHROOT_INSTALL=1 \
+    QVOS_CHROOT_INSTALL=1 \
     QVOS_PROVIDER_CHANNEL="$QVOS_PROVIDER_CHANNEL" \
     QVOS_USER_NAME="$(<user_full_name.txt)" \
     QVOS_USER_EMAIL="$(<user_email_address.txt)" \

@@ -448,14 +448,14 @@ grep -Fq 'will not overwrite an existing release artifact' "$build" ||
   fail "release ISO can overwrite an existing artifact"
 grep -Fq 'if ! ln -- "$partial_iso" "$target_iso"; then' "$build" ||
   fail "release ISO publication is not atomic and no-clobbering"
-if rg -n 'source .*\|\| bash|python3\.[0-9]+/site-packages|OMARCHY_(USER|MIRROR|PATH|INSTALL)=' \
+if rg -n 'source .*\|\| bash|python3\.[0-9]+/site-packages|OMARCHY_[A-Z_]+=' \
   "$installer" "$builder"; then
   fail "release ISO retains a fragile installer fallback or inherited identity"
 fi
 [[ $(
-  rg -o 'OMARCHY_[A-Z_]+' "$installer" "$builder" | sed 's/.*://' | sort -u
-) == "OMARCHY_CHROOT_INSTALL" ]] ||
-  fail "release ISO retains an unreviewed inherited environment contract"
+  rg -o 'QVOS_CHROOT_INSTALL' "$installer" "$builder" | sed 's/.*://' | sort -u
+) == "QVOS_CHROOT_INSTALL" ]] ||
+  fail "release ISO lacks its native target-chroot signal"
 
 grep -Fq 'QVOS_PROVIDER_CHANNEL="$QVOS_PROVIDER_CHANNEL"' "$installer" ||
   fail "release ISO provider-channel boundary translation"

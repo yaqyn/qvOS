@@ -10,7 +10,7 @@ sudo chown "$USER:$policy_group" /etc/chromium/policies/managed/color.json
 sudo chmod 0644 /etc/chromium/policies/managed/color.json
 
 "$QVOS_PATH/qvcore/theme/install"
-if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]; then
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
   QVOS_THEME_SKIP_SESSION=1 qv-theme-set "Yaqyn"
 else
   qv-theme-set "Yaqyn"

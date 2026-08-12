@@ -6,6 +6,13 @@ set -eEo pipefail
 
 # Define the native source and installer roots.
 export QVOS_PATH="${QVOS_PATH:-$HOME/.local/share/qvos}"
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | "1") ;;
+*)
+  echo "Invalid qvOS chroot-install signal." >&2
+  exit 2
+  ;;
+esac
 export QVOS_INSTALL="$QVOS_PATH/qvcore/install"
 export QVOS_INSTALL_LOG_FILE="${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}"
 export PATH="$QVOS_PATH/bin:$PATH"

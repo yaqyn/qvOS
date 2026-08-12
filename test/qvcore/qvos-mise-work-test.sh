@@ -67,7 +67,7 @@ run_owner() {
 offline_home="$test_root/offline-home"
 install -d "$offline_home"
 : >"$event_log"
-OMARCHY_CHROOT_INSTALL=1 run_owner "$offline_home"
+QVOS_CHROOT_INSTALL=1 run_owner "$offline_home"
 runtime="$offline_home/.local/share/mise/installs/node/24.1.2"
 [[ -x $runtime/bin/node && -L $runtime/bin/npm && -L $runtime/bin/npx ]] ||
   fail "offline Node.js LTS runtime"
@@ -78,7 +78,7 @@ grep -Fqx $'trust\t'"$offline_home/Work/.mise.toml" "$event_log" ||
 grep -Fqx $'use\t-g\tnode@24.1.2' "$event_log" ||
   fail "offline Node.js selection"
 runtime_inode=$(stat -c '%i' "$runtime")
-OMARCHY_CHROOT_INSTALL=1 run_owner "$offline_home"
+QVOS_CHROOT_INSTALL=1 run_owner "$offline_home"
 [[ $(stat -c '%i' "$runtime") == "$runtime_inode" ]] ||
   fail "idempotent offline Node.js extraction"
 
@@ -109,7 +109,7 @@ multiple_home="$test_root/multiple-home"
 install -d "$multiple_home"
 cp "$package_dir/$archive_root.tar.gz" \
   "$package_dir/node-v22.1.0-linux-x64.tar.gz"
-if OMARCHY_CHROOT_INSTALL=1 run_owner "$multiple_home" \
+if QVOS_CHROOT_INSTALL=1 run_owner "$multiple_home" \
   >"$test_root/multiple-output" 2>&1; then
   fail "multiple offline Node.js archives were accepted"
 fi
@@ -124,7 +124,7 @@ tar -czf "$unsafe_package_dir/node-v24.1.2-linux-x64.tar.gz" \
   -C "$unsafe_fixture" unexpected-root
 if HOME="$unsafe_home" PATH="$test_bin:/usr/bin" \
   QVOS_NODE_PACKAGE_DIR="$unsafe_package_dir" \
-  QVOS_TEST_EVENT_LOG="$event_log" OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_TEST_EVENT_LOG="$event_log" QVOS_CHROOT_INSTALL=1 \
   bash -euo pipefail -c 'source "$1"' _ "$owner" \
   >"$test_root/unsafe-output" 2>&1; then
   fail "unsafe offline Node.js archive layout was accepted"
@@ -140,7 +140,7 @@ install -d \
 printf 'preserve\n' >"$external_runtime/sentinel"
 ln -s "$external_runtime" \
   "$linked_home/.local/share/mise/installs/node/24.1.2"
-if OMARCHY_CHROOT_INSTALL=1 run_owner "$linked_home" \
+if QVOS_CHROOT_INSTALL=1 run_owner "$linked_home" \
   >"$test_root/linked-output" 2>&1; then
   fail "linked Node.js runtime was accepted"
 fi

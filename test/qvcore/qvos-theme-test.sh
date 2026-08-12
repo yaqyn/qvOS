@@ -283,7 +283,7 @@ COMMAND
 HOME="$test_root" \
   QVOS_PATH="$configure_fixture" \
   QVOS_THEME_CONFIGURE_LOG="$configure_log" \
-  OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_CHROOT_INSTALL=1 \
   PATH="$configure_bin:/usr/bin" \
   "$root/qvcore/theme/configure"
 grep -Fqx 'theme|1|Yaqyn' "$configure_log" ||

@@ -217,7 +217,7 @@ if "$root/qvcore/packages/provider-files" edge >/dev/null 2>&1 ||
 fi
 for channel in edge rc; do
   mapfile -t iso_files < <(
-    OMARCHY_CHROOT_INSTALL=1 \
+    QVOS_CHROOT_INSTALL=1 \
       "$root/qvcore/packages/provider-files" "$channel"
   )
   [[ ${iso_files[*]} == \

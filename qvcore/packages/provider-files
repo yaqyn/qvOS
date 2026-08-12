@@ -7,13 +7,15 @@ if (($# != 1)); then
 fi
 
 channel=$1
+# These are literal Pacman template variables, expanded by Pacman after install.
+# shellcheck disable=SC2016
 case $channel in
 stable)
   expected_mirror='https://stable-mirror.omarchy.org/$repo/os/$arch'
   expected_repository='https://pkgs.omarchy.org/stable/$arch'
   ;;
 edge | rc)
-  [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]] || {
+  [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]] || {
     echo "Omarchy $channel is restricted to reviewed ISO-builder use." >&2
     exit 2
   }

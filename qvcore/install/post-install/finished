@@ -61,7 +61,7 @@ mark_install_complete() {
   : >"$completion_marker"
 }
 
-if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $tui && -x $tui ]]; then
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" && -n $tui && -x $tui ]]; then
   QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
   remove_installer_sudoers
   mark_install_complete
@@ -107,7 +107,7 @@ if ! gum confirm \
 fi
 
 clear
-if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
   mark_install_complete
 else
   sudo reboot 2>/dev/null

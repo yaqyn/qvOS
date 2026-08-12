@@ -61,6 +61,16 @@ fail() {
   exit 1
 }
 
+if HOME="$test_root/invalid-chroot-home" \
+  QVOS_PATH="$root" \
+  QVOS_CHROOT_INSTALL=invalid \
+  bash "$root/install.sh" >"$test_root/invalid-chroot.log" 2>&1; then
+  fail "invalid native chroot signal accepted"
+fi
+grep -Fqx 'Invalid qvOS chroot-install signal.' \
+  "$test_root/invalid-chroot.log" || fail "invalid native chroot signal error"
+pass "native installer rejects an invalid chroot signal before staging"
+
 partial_root="$test_root/partial-source"
 partial_home="$test_root/partial-home"
 install -d \

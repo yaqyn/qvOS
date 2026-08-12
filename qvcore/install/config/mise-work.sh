@@ -139,7 +139,7 @@ qvos_mise_install_offline_node() {
 }
 
 qvos_mise_install_work_config
-if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
   qvos_mise_install_offline_node
 else
   mise use -g node@lts

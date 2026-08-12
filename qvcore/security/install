@@ -150,7 +150,7 @@ read -r \
     }
   ' "$pacman_config"
 )
-if [[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]] &&
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]] &&
   ((omarchy_sections == 0 && omarchy_siglevels == 0 &&
     offline_sections == 1 && offline_siglevels == 1 &&
     offline_expected_siglevels == 1 && offline_servers == 1 &&
@@ -256,7 +256,7 @@ fi
 
 "$QVOS_PATH/qvcore/security/boot-mount"
 
-if [[ -z $system_root && ${OMARCHY_CHROOT_INSTALL:-} != "1" ]]; then
+if [[ -z $system_root && ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
   if ((docker_changed)) &&
     /usr/bin/systemctl is-active --quiet docker.service; then
     if ((EUID == 0)); then

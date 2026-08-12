@@ -229,7 +229,7 @@ install_apple() {
     fail "could not load the native Apple NVMe suspend policy"
   fi
 
-  if [[ -z ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+  if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
     if ! systemctl_action enable --now "$apple_service"; then
       rollback_apple "$target_created" "$native_enabled_before"
       fail "could not enable the native Apple NVMe suspend policy"

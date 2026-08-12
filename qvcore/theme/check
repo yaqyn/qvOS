@@ -286,7 +286,7 @@ grep -Fq '$(/usr/bin/stat -c '\''%u:%a'\'' -- "$target") == "$EUID:644"' \
 grep -Fqx '"$QVOS_PATH/qvcore/theme/configure"' "$root/qvcore/install/config/theme.sh" ||
   fail "fresh install does not delegate to the qvOS theme owner"
 # shellcheck disable=SC2016
-grep -Fq '[[ ${OMARCHY_CHROOT_INSTALL:-} == "1" ]]' \
+grep -Fq '[[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]' \
   "$root/qvcore/theme/configure" ||
   fail "fresh theme configuration does not recognize the reviewed chroot boundary"
 grep -Fq 'QVOS_THEME_SKIP_SESSION=1 qv-theme-set "Yaqyn"' \

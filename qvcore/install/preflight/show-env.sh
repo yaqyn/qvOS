@@ -5,7 +5,7 @@ gum log --level info "Installation Environment:"
 
 for name in \
   HOME \
-  OMARCHY_CHROOT_INSTALL \
+  QVOS_CHROOT_INSTALL \
   QVOS_INSTALL \
   QVOS_INSTALL_LOG_FILE \
   QVOS_ONLINE_INSTALL \

@@ -44,6 +44,13 @@ if [[ -n $compatibility_source_refs ]]; then
 fi
 pass "native qvCORE source resolution uses QVOS_PATH only"
 
+if rg --hidden -n 'OMARCHY_CHROOT_INSTALL' \
+  --glob '!.git/**' \
+  "$root/qvcore" "$root/release" "$root/install.sh" "$root/boot.sh"; then
+  fail "native install or ISO source retains the inherited chroot signal"
+fi
+pass "target chroot mode has one native qvOS environment signal"
+
 if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|thunar|tmux|tui|waybar|windows|devel-tools|defaults)(/|$)' \
   "$root/bin" \
   "$root/qvcore/config/files" \
@@ -864,7 +871,7 @@ grep -Fq 'stop_log_output' "$iso_installer" ||
   fail "qvOS live-media shared progress teardown"
 grep -Fq 'release/iso/source-permissions' "$iso_builder" ||
   fail "qvOS ISO tracked executable-mode integration"
-grep -Fq 'if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then' \
+grep -Fq 'if [[ ${QVOS_CHROOT_INSTALL:-} == "1" && -n $qvos_tui && -x $qvos_tui ]]; then' \
   "$root/qvcore/install/helpers/logging.sh" ||
   fail "qvOS target install progress ownership"
 grep -Fq 'QVOS_ISO_PROGRESS_PID=$!' \
@@ -894,7 +901,7 @@ SCRIPT
   PATH="$progress_bin:/usr/bin"
   export PATH
   export QVOS_TEST_PROGRESS_LOG="$progress_log"
-  export OMARCHY_CHROOT_INSTALL=1
+  export QVOS_CHROOT_INSTALL=1
   export QVOS_INSTALL_LOG_FILE="$test_root/target-install.log"
   # shellcheck disable=SC1091
   source "$root/qvcore/install/helpers/logging.sh"

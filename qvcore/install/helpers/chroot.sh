@@ -1,6 +1,6 @@
-# The reviewed ISO builder sets OMARCHY_CHROOT_INSTALL=1 for target chroot mode.
+# The native qvOS ISO builder sets QVOS_CHROOT_INSTALL=1 for target chroot mode.
 chrootable_systemctl_enable() {
-  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
     sudo systemctl enable "$1"
   else
     sudo systemctl enable --now "$1"

@@ -73,7 +73,7 @@ run_init
 [[ $(<"$sudo_auth_log") == "-v" ]] ||
   fail "interactive boot authorization"
 : >"$sudo_auth_log"
-OMARCHY_CHROOT_INSTALL=1 run_init
+QVOS_CHROOT_INSTALL=1 run_init
 [[ $(<"$sudo_auth_log") == "-n /usr/bin/true" ]] ||
   fail "noninteractive ISO boot authorization"
 
@@ -378,7 +378,7 @@ install -D -m 0644 /dev/null \
 export QVOS_TEST_PACMAN_ENTRIES=1
 export QVOS_TEST_PACKAGES_MISSING=1
 export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 unset QVOS_TEST_PACKAGES_MISSING QVOS_TEST_PACMAN_ENTRIES \
   QVOS_TEST_SNAPPER_EMPTY_STATUS
 grep -Fqx 'KERNEL_CMDLINE[default]+="root=UUID=test foo=a&b pipe=one|two slash=\value escaped=keep\ value"' \
@@ -454,7 +454,7 @@ grep -Fqx $'systemctl\tenable\tlimine-snapper-sync.service' "$action_log" ||
 grep -Fqx $'efibootmgr\t-b\t0007\t-B' "$action_log" ||
   fail "legacy EFI entry cleanup"
 : >"$action_log"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 if grep -q '^limine-update' "$action_log"; then
   fail "unchanged Limine header forced a second UKI rebuild"
 fi
@@ -467,7 +467,7 @@ grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
 printf 'KERNEL_CMDLINE[default]+=" extra=2"\n' \
   >"$system_root/etc/limine-entry-tool.d/10-extra.conf"
 : >"$action_log"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 [[ $(grep -c '^limine-update$' "$action_log") == "1" ]] ||
   fail "changed Limine inputs did not rebuild exactly once"
 grep -Fqx 'KERNEL_CMDLINE[default]+=" extra=2"' \
@@ -479,7 +479,7 @@ prepare_limine_root \
   "$system_root" \
   'root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77 quiet'
 : >"$action_log"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 grep -Fqx \
   'KERNEL_CMDLINE[default]+="root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77 quiet"' \
   "$system_root/etc/default/limine" ||
@@ -490,7 +490,7 @@ prepare_limine_root "$system_root" 'root=UUID=interrupted quiet'
 : >"$action_log"
 export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
 export QVOS_TEST_SNAPPER_CREATE_FAIL=1
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
   fail "failed Snapper creation reported boot success"
 fi
@@ -500,7 +500,7 @@ if grep -q '^[[:space:]]*cmdline:' "$system_root/boot/limine.conf"; then
 fi
 install -D -m 0644 /dev/stdin \
   "$system_root/boot/EFI/Linux/qvos_linux.efi" <<<"existing qvOS UKI"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 unset QVOS_TEST_SNAPPER_EMPTY_STATUS
 grep -Fqx \
   'KERNEL_CMDLINE[default]+="root=UUID=interrupted quiet"' \
@@ -515,7 +515,7 @@ printf '%s\n' \
   'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)' \
   >"$system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf"
 : >"$action_log"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 [[ ! -e $system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf ]] ||
   fail "historical mkinitcpio hook identity remains"
 
@@ -524,7 +524,7 @@ prepare_limine_root "$system_root" 'root=UUID=modified-hooks quiet'
 printf '%s\n' 'HOOKS=(base custom filesystems)' \
   >"$system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf"
 legacy_hook_warning=$(
-  OMARCHY_CHROOT_INSTALL=1 \
+  QVOS_CHROOT_INSTALL=1 \
     run_boot "$root/qvcore/boot/install-limine-snapper" 2>&1 >/dev/null
 )
 [[ -f $system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf ]] ||
@@ -536,14 +536,14 @@ grep -Fq 'Preserving modified or unsafe legacy boot artifact:' \
 system_root="$test_root/limine-fallback"
 prepare_limine_root "$system_root" 'root=UUID=fallback quiet'
 : >"$action_log"
-OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 [[ $(grep -c '^limine-update$' "$action_log") == "1" ]] ||
   fail "Limine missing-entry fallback rebuild"
 
 system_root="$test_root/limine-invalid"
 prepare_limine_root "$system_root" ''
 : >"$action_log"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
   fail "Limine accepted an empty kernel command line"
 fi
@@ -559,7 +559,7 @@ system_root="$test_root/limine-unsafe-cmdline"
 # shellcheck disable=SC2016
 prepare_limine_root "$system_root" 'root=UUID=test unsafe=$(id)'
 : >"$action_log"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
   fail "Limine accepted shell-expanding kernel input"
 fi
@@ -572,7 +572,7 @@ prepare_limine_root "$system_root" 'root=UUID=test quiet'
 printf 'KERNEL_CMDLINE[default]+=" resume=foreign"\n' \
   >"$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
 : >"$action_log"
-if OMARCHY_CHROOT_INSTALL=1 \
+if QVOS_CHROOT_INSTALL=1 \
   run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
   fail "Limine accepted an invalid native resume drop-in"
 fi

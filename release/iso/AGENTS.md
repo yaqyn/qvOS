@@ -153,9 +153,8 @@ a thin adapter to this owner.
   `QVOS_USER_EMAIL`. Use an explicit clean chroot environment and bind XDG
   config, data, cache, and state paths to that target account so live-media
   state cannot escape into the installed user.
-  Preserve only
-  `OMARCHY_CHROOT_INSTALL` as the exact upstream chroot-mode signal; never
-  restore `OMARCHY_PATH` or `OMARCHY_INSTALL` as installer roots.
+  Set `QVOS_CHROOT_INSTALL=1` as the exact native chroot-mode signal; never
+  restore an inherited environment name or installer root.
 - Put Gum in the Archinstall target bootstrap and execute the tracked native
   `install.sh` directly as the installed user. Never insert a hidden target
   Pacman transaction or a login-shell/source layer between Archinstall and the

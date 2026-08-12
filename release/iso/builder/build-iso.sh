@@ -71,7 +71,7 @@ pacman-key --add "$provider_key"
 pacman-key --lsign-key "$provider_fingerprint"
 
 # Resolve the exact signed qvOS provider inputs before the first provider package.
-provider_output=$(OMARCHY_CHROOT_INSTALL=1 \
+provider_output=$(QVOS_CHROOT_INSTALL=1 \
   "$qvos_source/qvcore/packages/provider-files" "$provider_channel")
 mapfile -t provider_files <<<"$provider_output"
 (( ${#provider_files[@]} == 2 )) || {

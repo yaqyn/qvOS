@@ -84,7 +84,7 @@ start_install_log() {
   echo "=== qvOS Installation Started: $qvos_install_start_time ===" \
     >>"$QVOS_INSTALL_LOG_FILE"
   qvos_tui=$(command -v qvos-tui 2>/dev/null || true)
-  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} && -n $qvos_tui && -x $qvos_tui ]]; then
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" && -n $qvos_tui && -x $qvos_tui ]]; then
     QVOS_TUI_FULLSCREEN=1 "$qvos_tui" \
       --iso-progress \
       --log "$QVOS_INSTALL_LOG_FILE" \

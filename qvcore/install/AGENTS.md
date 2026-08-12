@@ -93,11 +93,11 @@ Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,
 `QVOS_ONLINE_INSTALL`, `QVOS_PROVIDER_CHANNEL`, `QVOS_USER_NAME`,
 `QVOS_USER_EMAIL`, `/var/tmp/qvos-install-completed`, and the exact
-`99-qvos-installer` and `99-qvos-installer-reboot` temporary policies. The
-reviewed ISO builder's `OMARCHY_CHROOT_INSTALL` remains an upstream environment
-input only. Translate its credited mirror channel and user metadata into qvOS
-names before invoking any native stage; never accept inherited names inside
-the installer. The finished owner removes the native temporary policy and its
+`99-qvos-installer` and `99-qvos-installer-reboot` temporary policies.
+`QVOS_CHROOT_INSTALL=1` is the only native target-chroot signal; reject every
+other non-empty value before invoking a stage. The ISO passes the credited
+mirror channel and user metadata only through qvOS names; never accept
+inherited environment names inside the installer. The finished owner removes the native temporary policy and its
 exact legacy predecessor without extending either into persistent state. It
 validates every candidate before one final removal so an unsafe predecessor or
 interrupted cleanup cannot revoke the active installer authorization halfway.
