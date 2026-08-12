@@ -92,17 +92,18 @@ security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Intel FRED,
-Intel Wi-Fi EHT, NVIDIA, and Tuxedo stage adapters only select hardware; the
-owner installs tracked native files, activates them when required, and rolls
-back only files and service state created by the current attempt. Sourced
-hardware stages return when a GPU is unsupported; they never exit the complete
-installer. Preserve an exact existing native policy without replacing it, and
-reject modified, linked, or unsafe native targets before activation. A Limine
-argument lives only in its owned drop-in, never in both a drop-in and
-`/etc/default/limine`. Fresh installation never deletes unverified files from a
-package-owned kernel module tree. The completed pre-release hardware identity
-migration is retired; fresh install never scans or mutates inherited rule,
-unit, backup, or service names.
+Intel Wi-Fi EHT, Apple SPI, ASUS display and touchpad, Lenovo speaker, NVIDIA,
+and Tuxedo stage adapters only select hardware; the owner installs tracked
+native files, activates them when required, and rolls back only files and
+service state created by the current attempt. Sourced hardware stages return
+when a GPU is unsupported; they never exit the complete installer. Preserve an
+exact existing native policy without replacing it, and reject modified,
+linked, or unsafe native targets before activation. A Limine argument lives
+only in its owned drop-in, never in both a drop-in and `/etc/default/limine`.
+Fresh installation never deletes unverified files from a package-owned kernel
+module tree. The completed pre-release hardware identity migration is retired;
+fresh install never scans or mutates inherited rule, unit, backup, or service
+names.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,

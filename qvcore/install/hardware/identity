@@ -13,10 +13,19 @@ active_staging=
 
 z13_source="$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad.rules"
 z13_target="$system_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules"
+asus_b9406_touchpad_source="$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad.quirks"
+asus_b9406_touchpad_target="$system_root/usr/share/libinput/99-qvos-asus-b9406-touchpad.quirks"
+asus_b9406_display_source="$QVOS_PATH/qvcore/install/hardware/asus/b9406-display.conf"
+asus_b9406_display_target="$system_root/etc/limine-entry-tool.d/90-qvos-asus-b9406-display.conf"
+asus_ptl_backlight_source="$QVOS_PATH/qvcore/install/hardware/asus/ptl-backlight.conf"
+asus_ptl_backlight_target="$system_root/etc/limine-entry-tool.d/90-qvos-asus-ptl-backlight.conf"
 
 apple_source="$QVOS_PATH/qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service"
 apple_target="$system_root/etc/systemd/system/qvos-nvme-suspend-fix.service"
 apple_service=qvos-nvme-suspend-fix.service
+apple_spi_macbook8_source="$QVOS_PATH/qvcore/install/hardware/apple/spi-macbook8.conf"
+apple_spi_modern_source="$QVOS_PATH/qvcore/install/hardware/apple/spi-modern.conf"
+apple_spi_target="$system_root/etc/mkinitcpio.conf.d/qvos-apple-spi.conf"
 
 intel_fred_source="$QVOS_PATH/qvcore/install/hardware/intel/fred.conf"
 intel_fred_target="$system_root/etc/limine-entry-tool.d/90-qvos-intel-fred.conf"
@@ -33,6 +42,9 @@ nvidia_modprobe_target="$system_root/etc/modprobe.d/qvos-nvidia.conf"
 nvidia_mkinitcpio_source="$QVOS_PATH/qvcore/install/hardware/nvidia/mkinitcpio.conf"
 nvidia_mkinitcpio_target="$system_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf"
 
+lenovo_yoga_source="$QVOS_PATH/qvcore/install/hardware/lenovo/yoga-pro7-bass.conf"
+lenovo_yoga_target="$system_root/etc/modprobe.d/qvos-lenovo-yoga-pro7-bass.conf"
+
 tuxedo_source="$QVOS_PATH/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
 tuxedo_target="$system_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 
@@ -42,12 +54,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <apple-nvme|hid-apple-fkeys|intel-fred|intel-wifi7-eht|nvidia-boot|synaptics-ps2|tuxedo-backlight|z13>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|apple-spi-keyboard|asus-b9406-display|asus-b9406-touchpad|asus-ptl-backlight|hid-apple-fkeys|intel-fred|intel-wifi7-eht|lenovo-yoga-pro7-bass|nvidia-boot|synaptics-ps2|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-apple-nvme | hid-apple-fkeys | intel-fred | intel-wifi7-eht | nvidia-boot | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
+apple-nvme | apple-spi-keyboard | asus-b9406-display | asus-b9406-touchpad | asus-ptl-backlight | hid-apple-fkeys | intel-fred | intel-wifi7-eht | lenovo-yoga-pro7-bass | nvidia-boot | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -306,6 +318,41 @@ apple-nvme)
     fi
   fi
   ;;
+apple-spi-keyboard)
+  if "$QVOS_PATH/bin/qv-hw-apple-spi-keyboard"; then
+    product_name=$(/usr/bin/cat -- \
+      "$system_root/sys/class/dmi/id/product_name" 2>/dev/null || true)
+    if [[ $product_name == "MacBook8,1" ]]; then
+      apple_spi_source=$apple_spi_macbook8_source
+    else
+      apple_spi_source=$apple_spi_modern_source
+    fi
+    install_static_policy \
+      "Apple SPI keyboard" "$apple_spi_source" "$apple_spi_target"
+  fi
+  ;;
+asus-b9406-display)
+  if "$QVOS_PATH/bin/qv-hw-asus-expertbook-b9406"; then
+    install_static_policy \
+      "ASUS B9406 display" \
+      "$asus_b9406_display_source" "$asus_b9406_display_target"
+  fi
+  ;;
+asus-b9406-touchpad)
+  if "$QVOS_PATH/bin/qv-hw-asus-expertbook-b9406"; then
+    install_static_policy \
+      "ASUS B9406 touchpad" \
+      "$asus_b9406_touchpad_source" "$asus_b9406_touchpad_target"
+  fi
+  ;;
+asus-ptl-backlight)
+  if "$QVOS_PATH/bin/qv-hw-asus-expertbook-b9406" ||
+    "$QVOS_PATH/bin/qv-hw-asus-zenbook-ux5406aa"; then
+    install_static_policy \
+      "ASUS Panther Lake backlight" \
+      "$asus_ptl_backlight_source" "$asus_ptl_backlight_target"
+  fi
+  ;;
 hid-apple-fkeys)
   install_static_policy \
     "hid_apple function-key" "$hid_apple_source" "$hid_apple_target"
@@ -320,6 +367,12 @@ intel-wifi7-eht)
   if "$QVOS_PATH/bin/qv-hw-intel-wifi7-eht"; then
     install_static_policy \
       "Intel Wi-Fi 7 EHT" "$intel_wifi_source" "$intel_wifi_target"
+  fi
+  ;;
+lenovo-yoga-pro7-bass)
+  if "$QVOS_PATH/bin/qv-hw-lenovo-yoga-pro7"; then
+    install_static_policy \
+      "Lenovo Yoga Pro 7 bass" "$lenovo_yoga_source" "$lenovo_yoga_target"
   fi
   ;;
 nvidia-boot)

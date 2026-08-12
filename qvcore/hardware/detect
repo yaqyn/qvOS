@@ -217,9 +217,15 @@ hyprland_device() {
 }
 
 case $action in
+apple-spi-keyboard)
+  require_no_arguments "$@"
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Apple Inc." ]] &&
+    [[ $(dmi_value product_name 2>/dev/null || true) =~ ^MacBook(8,1|9,1|10,1)$|^MacBookPro(13,[123]|14,[123])$ ]]
+  ;;
 asus-expertbook-b9406)
   require_no_arguments "$@"
-  dmi_match "B9406" && intel_ptl
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "ASUSTeK COMPUTER INC." ]] &&
+    dmi_match "B9406" && intel_ptl
   ;;
 asus-rog)
   require_no_arguments "$@"
@@ -228,7 +234,8 @@ asus-rog)
   ;;
 asus-zenbook-ux5406aa)
   require_no_arguments "$@"
-  dmi_match "UX5406AA" && intel_ptl
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "ASUSTeK COMPUTER INC." ]] &&
+    dmi_match "UX5406AA" && intel_ptl
   ;;
 dell-xps-haptic-touchpad)
   require_no_arguments "$@"
@@ -267,6 +274,11 @@ intel-sof)
 intel-wifi7-eht)
   require_no_arguments "$@"
   intel_wifi7_eht
+  ;;
+lenovo-yoga-pro7)
+  require_no_arguments "$@"
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "LENOVO" &&
+    $(dmi_value product_name 2>/dev/null || true) == "Yoga Pro 7 14IAH10" ]]
   ;;
 match)
   require_one_argument "$@"

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# qv:summary=Detect the Lenovo Yoga Pro 7 14IAH10
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+exec "$QVOS_PATH/qvcore/hardware/detect" lenovo-yoga-pro7 "$@"

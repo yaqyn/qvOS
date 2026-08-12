@@ -13,8 +13,9 @@ existed; it matches only Intel vendor/device IDs `e440` and `272b` in a network
 or wireless controller record. The Tuxedo detector likewise owns the new
 native-only vendor match used by its driver setup. The Synaptics PS/2 detector
 requires both the kernel's `SynPS/2` identity and a touchpad record, so it never
-applies a `psmouse` option to an I2C-only device. None invents an Omarchy
-adapter.
+applies a `psmouse` option to an I2C-only device. Apple SPI and Lenovo Yoga
+detectors require the exact vendor and supported model family rather than an
+unbounded product-name substring. None invents an Omarchy adapter.
 
 Validate action arity before probing. Treat caller-provided DMI matches as
 bounded fixed strings, terminate option parsing, and suppress expected errors
@@ -31,16 +32,16 @@ The Framework 16 QMK HID rule lives only at
 `qvcore/hardware/framework16-qmk-hid.rules`; `default/udev/` is retired. Its
 fresh-install leaf must reject symbolic-link destinations before privileged
 installation and preserve any existing administrator-owned rule.
-Static hid_apple function-key, Synaptics PS/2, Intel FRED, BE200/BE211 EHT,
-NVIDIA boot, and Tuxedo module policies install only through the native
-transactional hardware identity owner. The paired NVIDIA modprobe and
-mkinitcpio files roll back a newly created first file when the second cannot be
-installed. A detected Synaptics fix is persistent and applies on the next boot;
-never issue a transient unprivileged `modprobe` from installation. Keep the
-FRED command line in its one Limine drop-in; never append it directly to
-`/etc/default/limine`. Every installed policy filename uses a native `qvos`
-identity. Do not delete unverified kernel module files to converge a hardware
-driver.
+Static Apple SPI, ASUS display and touchpad, hid_apple function-key, Synaptics
+PS/2, Intel FRED, BE200/BE211 EHT, Lenovo speaker, NVIDIA boot, and Tuxedo
+module policies install only through the native transactional hardware
+identity owner. The paired NVIDIA modprobe and mkinitcpio files roll back a
+newly created first file when the second cannot be installed. A detected
+Synaptics fix is persistent and applies on the next boot; never issue a
+transient unprivileged `modprobe` from installation. Keep every boot argument
+in its one Limine drop-in; never append it directly to `/etc/default/limine`.
+Every installed policy filename uses a native `qvos` identity. Do not delete
+unverified kernel module files or historical policy paths during fresh install.
 
 List every promoted inherited detector in `native-paths` and removed policy
 prefix in `retired-paths`, sorted and unique.

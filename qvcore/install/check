@@ -248,6 +248,11 @@ for hardware_source in \
   qvcore/install/hardware/asus/z13-touchpad.rules \
   qvcore/install/hardware/apple/nvme-suspend \
   qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service \
+  qvcore/install/hardware/apple/spi-macbook8.conf \
+  qvcore/install/hardware/apple/spi-modern.conf \
+  qvcore/install/hardware/asus/b9406-display.conf \
+  qvcore/install/hardware/asus/b9406-touchpad.quirks \
+  qvcore/install/hardware/asus/ptl-backlight.conf \
   qvcore/install/hardware/input/hid-apple-fkeys.conf \
   qvcore/install/hardware/input/psmouse-synaptics.conf \
   qvcore/install/hardware/intel/fred.conf \
@@ -256,6 +261,7 @@ for hardware_source in \
   qvcore/install/hardware/nvidia/env-legacy.lua \
   qvcore/install/hardware/nvidia/mkinitcpio.conf \
   qvcore/install/hardware/nvidia/modprobe.conf \
+  qvcore/install/hardware/lenovo/yoga-pro7-bass.conf \
   qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
   [[ -f $root/$hardware_source && ! -L $root/$hardware_source ]] ||
     fail "native hardware identity source: $hardware_source"
@@ -278,15 +284,27 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend"' \
   "$root/qvcore/install/config/run" || fail "native Apple NVMe install stage"
 # shellcheck disable=SC2016
 for stage_contract in \
+  'qvcore/install/config/hardware/asus/fix-asus-ptl-b9406-display.sh|"$QVOS_PATH/qvcore/install/hardware/identity" asus-b9406-display' \
+  'qvcore/install/config/hardware/asus/fix-asus-ptl-display-backlight.sh|"$QVOS_PATH/qvcore/install/hardware/identity" asus-ptl-backlight' \
   'qvcore/install/config/hardware/fix-fkeys.sh|"$QVOS_PATH/qvcore/install/hardware/identity" hid-apple-fkeys' \
   'qvcore/install/config/hardware/fix-synaptic-touchpad.sh|"$QVOS_PATH/qvcore/install/hardware/identity" synaptics-ps2' \
   'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
-  'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht'; do
+  'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht' \
+  'qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh|"$QVOS_PATH/qvcore/install/hardware/identity" lenovo-yoga-pro7-bass' \
+  'qvcore/install/hardware/asus/b9406-touchpad|"$QVOS_PATH/qvcore/install/hardware/identity" asus-b9406-touchpad'; do
   stage=${stage_contract%%|*}
   expected_call=${stage_contract#*|}
   [[ $(<"$root/$stage") == "$expected_call" ]] ||
     fail "hardware stage bypasses its native owner: $stage"
 done
+# shellcheck disable=SC2016
+grep -Fq 'if "$QVOS_PATH/bin/qv-hw-apple-spi-keyboard"; then' \
+  "$root/qvcore/install/config/hardware/apple/fix-spi-keyboard.sh" ||
+  fail "Apple SPI install stage bypasses its native detector"
+# shellcheck disable=SC2016
+grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" apple-spi-keyboard' \
+  "$root/qvcore/install/config/hardware/apple/fix-spi-keyboard.sh" ||
+  fail "Apple SPI install stage bypasses its native policy owner"
 # shellcheck disable=SC2016
 grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
@@ -300,11 +318,18 @@ grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" nvidia-boot' \
   "$root/qvcore/install/config/hardware/nvidia.sh" ||
   fail "NVIDIA install stage bypasses its native boot-policy owner"
 if rg -n '/etc/default/limine|sudo[[:space:]]+tee|modprobe[[:space:]]+psmouse' \
+  "$root/qvcore/install/config/hardware/apple/fix-spi-keyboard.sh" \
+  "$root/qvcore/install/config/hardware/asus/fix-asus-ptl-b9406-display.sh" \
+  "$root/qvcore/install/config/hardware/asus/fix-asus-ptl-display-backlight.sh" \
   "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
   "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
   "$root/qvcore/install/config/hardware/intel/fred.sh" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"; then
   fail "hardware policy retains direct, transient, or duplicated root mutation"
+fi
+if rg -n 'sudo[[:space:]]+tee|qv-hw-match[[:space:]]+"Yoga Pro 7' \
+  "$root/qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh"; then
+  fail "Lenovo audio setup bypasses bounded native policy ownership"
 fi
 if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then

@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+owner="$root/qvcore/install/hardware/asus/b9406-touchpad"
+source_file="$root/qvcore/install/hardware/asus/b9406-touchpad.quirks"
 test_root=$(mktemp -d)
 system_root="$test_root/system"
 test_bin="$test_root/bin"
-owner="$root/qvcore/install/hardware/asus/b9406-touchpad"
-quirk_file="$system_root/usr/share/libinput/99-qvos-asus-b9406-touchpad.quirks"
-legacy_file="$system_root/etc/libinput/asus-expertbook-b9406.quirks"
+target="$system_root/usr/share/libinput/99-qvos-asus-b9406-touchpad.quirks"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -19,65 +19,62 @@ fail() {
   exit 1
 }
 
-install -d "$system_root" "$test_bin"
-install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
+install -d "$system_root/sys/class/dmi/id" "$test_bin"
+install -m 0755 /dev/stdin "$test_bin/qv-cmd-present" <<'SCRIPT'
 #!/bin/bash
-set -euo pipefail
-
-command_name=$1
-shift
-arguments=("$@")
-target_index=$((${#arguments[@]} - 1))
-target=${arguments[$target_index]}
-[[ $target == /* ]] || exit 2
-arguments[$target_index]="$QVOS_TEST_SYSTEM_ROOT$target"
-
-case $command_name in
-install) exec /usr/bin/install "${arguments[@]}" ;;
-rm) exec /usr/bin/rm "${arguments[@]}" ;;
-*) exit 2 ;;
-esac
+[[ $# == 1 && $1 == "lspci" ]]
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/qv-hw-asus-expertbook-b9406" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/lspci" <<'SCRIPT'
 #!/bin/bash
-[[ ${QVOS_TEST_ASUS_B9406:-0} == "1" ]]
+printf '%s\n' "${QVOS_TEST_LSPCI:-}"
 SCRIPT
 
 run_owner() {
-  QVOS_TEST_SYSTEM_ROOT="$system_root" \
-    PATH="$test_bin:/usr/bin" \
-    bash -c 'source "$1"' _ "$owner"
+  QVOS_PATH="$root" \
+  QVOS_INSTALL_HARDWARE_TESTING=1 \
+  QVOS_INSTALL_HARDWARE_SYSTEM_ROOT="$system_root" \
+  QVOS_HARDWARE_TESTING=1 \
+  QVOS_HARDWARE_FIXTURE_ROOT="$system_root" \
+  QVOS_TEST_LSPCI="${QVOS_TEST_LSPCI:-}" \
+  PATH="$test_bin:/usr/bin" \
+    bash -euc 'source "$1"' _ "$owner"
 }
 
-install -D -m 0644 /dev/null "$legacy_file"
-run_owner
-[[ -f $legacy_file && ! -e $quirk_file ]] ||
-  fail "non-ASUS hardware changed the touchpad policy"
+printf 'Other Vendor\n' >"$system_root/sys/class/dmi/id/sys_vendor"
+printf 'ExpertBook B9406\n' >"$system_root/sys/class/dmi/id/product_name"
+QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Panther Lake Graphics' \
+  run_owner
+[[ ! -e $target ]] || fail "non-ASUS hardware changed the touchpad policy"
 
-QVOS_TEST_ASUS_B9406=1 run_owner
-[[ ! -e $legacy_file ]] || fail "broken inherited libinput path cleanup"
-[[ -f $quirk_file && ! -L $quirk_file ]] || fail "native libinput quirk install"
-[[ $(stat -c '%a' "$quirk_file") == "644" ]] || fail "native libinput quirk mode"
-grep -Fqx 'MatchBus=i2c' "$quirk_file" || fail "touchpad bus match"
-grep -Fqx 'MatchVendor=0x093A' "$quirk_file" || fail "touchpad vendor match"
-grep -Fqx 'MatchProduct=0x4F05' "$quirk_file" || fail "touchpad product match"
-grep -Fqx 'MatchDMIModalias=dmi:*svnASUS*:pn*B9406*' "$quirk_file" ||
+printf 'ASUSTeK COMPUTER INC.\n' >"$system_root/sys/class/dmi/id/sys_vendor"
+QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Panther Lake Graphics' \
+  run_owner
+cmp -s "$source_file" "$target" || fail "native libinput quirk install"
+[[ $(stat -c '%a' "$target") == "644" ]] || fail "native libinput quirk mode"
+grep -Fqx 'MatchBus=i2c' "$target" || fail "touchpad bus match"
+grep -Fqx 'MatchVendor=0x093A' "$target" || fail "touchpad vendor match"
+grep -Fqx 'MatchProduct=0x4F05' "$target" || fail "touchpad product match"
+grep -Fqx 'MatchDMIModalias=dmi:*svnASUS*:pn*B9406*' "$target" ||
   fail "touchpad DMI match"
-grep -Fqx 'AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;' "$quirk_file" ||
+grep -Fqx 'AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;' "$target" ||
   fail "touchpad pressure-axis correction"
-if rg -q '^MatchUdevType=' "$quirk_file"; then
+if rg -q '^MatchUdevType=' "$target"; then
   fail "incorrect touchpad udev type constraint"
 fi
 
-printf 'stale\n' >"$quirk_file"
-QVOS_TEST_ASUS_B9406=1 run_owner
-grep -Fqx 'AttrEventCode=-ABS_MT_PRESSURE;-ABS_PRESSURE;' "$quirk_file" ||
-  fail "native quirk convergence"
+inode=$(stat -c '%i' "$target")
+QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Panther Lake Graphics' \
+  run_owner
+[[ $(stat -c '%i' "$target") == "$inode" ]] || fail "idempotent quirk install"
+
+printf 'administrator quirk\n' >"$target"
+if QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Panther Lake Graphics' \
+  run_owner >/dev/null 2>&1; then
+  fail "modified native touchpad policy was accepted"
+fi
+[[ $(<"$target") == "administrator quirk" ]] ||
+  fail "modified native touchpad policy was replaced"
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
-grep -Fqx 'install/' \
-  "$root/qvcore/install/retired-paths" ||
-  fail "inherited install tree is not retired"
-
-printf 'ok - ASUS B9406 touchpad quirk is native, active, exact, and update-safe\n'
+printf 'ok - ASUS B9406 touchpad quirk is native, exact, and preservation-safe\n'

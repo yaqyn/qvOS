@@ -5,12 +5,18 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 owner="$root/qvcore/install/hardware/identity"
 z13_source="$root/qvcore/install/hardware/asus/z13-touchpad.rules"
 apple_source="$root/qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service"
+apple_spi_macbook8_source="$root/qvcore/install/hardware/apple/spi-macbook8.conf"
+apple_spi_modern_source="$root/qvcore/install/hardware/apple/spi-modern.conf"
+asus_b9406_display_source="$root/qvcore/install/hardware/asus/b9406-display.conf"
+asus_b9406_touchpad_source="$root/qvcore/install/hardware/asus/b9406-touchpad.quirks"
+asus_ptl_backlight_source="$root/qvcore/install/hardware/asus/ptl-backlight.conf"
 hid_apple_source="$root/qvcore/install/hardware/input/hid-apple-fkeys.conf"
 synaptics_source="$root/qvcore/install/hardware/input/psmouse-synaptics.conf"
 intel_fred_source="$root/qvcore/install/hardware/intel/fred.conf"
 intel_wifi_source="$root/qvcore/install/hardware/intel/iwlwifi-disable-eht.conf"
 nvidia_modprobe_source="$root/qvcore/install/hardware/nvidia/modprobe.conf"
 nvidia_mkinitcpio_source="$root/qvcore/install/hardware/nvidia/mkinitcpio.conf"
+lenovo_yoga_source="$root/qvcore/install/hardware/lenovo/yoga-pro7-bass.conf"
 tuxedo_source="$root/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
 test_root=$(mktemp -d)
 test_bin="$test_root/bin"
@@ -223,6 +229,73 @@ if QVOS_TEST_LSPCI="$intel_inventory" run_stage "$modified_intel_root" \
 fi
 [[ $(<"$modified_intel_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf") == \
   "administrator policy" ]] || fail "modified Intel Wi-Fi policy was changed"
+
+asus_root="$test_root/asus"
+prepare_root "$asus_root"
+install -d "$asus_root/sys/class/dmi/id"
+printf 'ASUSTeK COMPUTER INC.\n' >"$asus_root/sys/class/dmi/id/sys_vendor"
+printf 'ExpertBook B9406\n' >"$asus_root/sys/class/dmi/id/product_name"
+asus_inventory='00:02.0 VGA compatible controller: Intel Panther Lake Graphics [8086:1234]'
+QVOS_TEST_LSPCI="$asus_inventory" run_stage "$asus_root" \
+  "$root/qvcore/install/config/hardware/asus/fix-asus-ptl-b9406-display.sh"
+QVOS_TEST_LSPCI="$asus_inventory" run_stage "$asus_root" \
+  "$root/qvcore/install/config/hardware/asus/fix-asus-ptl-display-backlight.sh"
+QVOS_TEST_LSPCI="$asus_inventory" run_stage "$asus_root" \
+  "$root/qvcore/install/hardware/asus/b9406-touchpad"
+cmp -s "$asus_b9406_display_source" \
+  "$asus_root/etc/limine-entry-tool.d/90-qvos-asus-b9406-display.conf" ||
+  fail "native ASUS B9406 display policy"
+cmp -s "$asus_ptl_backlight_source" \
+  "$asus_root/etc/limine-entry-tool.d/90-qvos-asus-ptl-backlight.conf" ||
+  fail "native ASUS Panther Lake backlight policy"
+cmp -s "$asus_b9406_touchpad_source" \
+  "$asus_root/usr/share/libinput/99-qvos-asus-b9406-touchpad.quirks" ||
+  fail "native ASUS B9406 touchpad policy"
+
+apple_spi_root="$test_root/apple-spi"
+prepare_root "$apple_spi_root"
+install -d "$apple_spi_root/sys/class/dmi/id"
+printf 'Apple Inc.\n' >"$apple_spi_root/sys/class/dmi/id/sys_vendor"
+printf 'MacBookPro14,3\n' >"$apple_spi_root/sys/class/dmi/id/product_name"
+: >"$event_log"
+run_stage "$apple_spi_root" \
+  "$root/qvcore/install/config/hardware/apple/fix-spi-keyboard.sh"
+cmp -s "$apple_spi_modern_source" \
+  "$apple_spi_root/etc/mkinitcpio.conf.d/qvos-apple-spi.conf" ||
+  fail "native modern Apple SPI keyboard policy"
+grep -Fqx 'qv-pkg-add|macbook12-spi-driver-dkms' "$event_log" ||
+  fail "Apple SPI driver package request"
+
+apple_spi_old_root="$test_root/apple-spi-old"
+prepare_root "$apple_spi_old_root"
+install -d "$apple_spi_old_root/sys/class/dmi/id"
+printf 'Apple Inc.\n' >"$apple_spi_old_root/sys/class/dmi/id/sys_vendor"
+printf 'MacBook8,1\n' >"$apple_spi_old_root/sys/class/dmi/id/product_name"
+run_owner "$apple_spi_old_root" apple-spi-keyboard
+cmp -s "$apple_spi_macbook8_source" \
+  "$apple_spi_old_root/etc/mkinitcpio.conf.d/qvos-apple-spi.conf" ||
+  fail "native MacBook8,1 SPI keyboard policy"
+
+lenovo_root="$test_root/lenovo"
+prepare_root "$lenovo_root"
+install -d "$lenovo_root/sys/class/dmi/id"
+printf 'LENOVO\n' >"$lenovo_root/sys/class/dmi/id/sys_vendor"
+printf 'Yoga Pro 7 14IAH10\n' >"$lenovo_root/sys/class/dmi/id/product_name"
+run_stage "$lenovo_root" \
+  "$root/qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh"
+cmp -s "$lenovo_yoga_source" \
+  "$lenovo_root/etc/modprobe.d/qvos-lenovo-yoga-pro7-bass.conf" ||
+  fail "native Lenovo Yoga Pro 7 speaker policy"
+
+foreign_model_root="$test_root/foreign-model"
+prepare_root "$foreign_model_root"
+install -d "$foreign_model_root/sys/class/dmi/id"
+printf 'Other Vendor\n' >"$foreign_model_root/sys/class/dmi/id/sys_vendor"
+printf 'Yoga Pro 7 14IAH10\n' >"$foreign_model_root/sys/class/dmi/id/product_name"
+run_stage "$foreign_model_root" \
+  "$root/qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh"
+[[ ! -e $foreign_model_root/etc/modprobe.d/qvos-lenovo-yoga-pro7-bass.conf ]] ||
+  fail "Lenovo speaker policy applied by model substring alone"
 
 nvidia_root="$test_root/nvidia"
 prepare_root "$nvidia_root"

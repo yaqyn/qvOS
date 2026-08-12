@@ -1,5 +1,7 @@
 # qvOS capabilities that never exposed an inherited Omarchy binary ABI.
+hw-apple-spi-keyboard
 hw-intel-wifi7-eht
+hw-lenovo-yoga-pro7
 hw-synaptics-ps2
 hw-tuxedo
 restart-monitor-watch

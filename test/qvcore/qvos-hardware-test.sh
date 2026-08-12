@@ -112,6 +112,20 @@ run_detect external-monitors || fail "connected external monitor detector"
 printf 'Framework\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 printf 'Laptop 16 (AMD Ryzen 7040 Series)\n' >"$fixture/sys/class/dmi/id/product_name"
 run_detect framework16 || fail "Framework 16 detector"
+printf 'Apple Inc.\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'MacBookPro14,3\n' >"$fixture/sys/class/dmi/id/product_name"
+run_detect apple-spi-keyboard || fail "Apple SPI keyboard detector"
+printf 'Other Vendor\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+if run_detect apple-spi-keyboard >/dev/null 2>&1; then
+  fail "non-Apple system reported an Apple SPI keyboard"
+fi
+printf 'LENOVO\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'Yoga Pro 7 14IAH10\n' >"$fixture/sys/class/dmi/id/product_name"
+run_detect lenovo-yoga-pro7 || fail "Lenovo Yoga Pro 7 detector"
+printf 'IdeaPad\n' >"$fixture/sys/class/dmi/id/product_name"
+if run_detect lenovo-yoga-pro7 >/dev/null 2>&1; then
+  fail "unrelated Lenovo model reported the Yoga Pro 7 quirk"
+fi
 printf 'TUXEDO Computers GmbH\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 run_detect tuxedo || fail "Tuxedo laptop detector"
 printf 'Slimbook\n' >"$fixture/sys/class/dmi/id/sys_vendor"
@@ -212,6 +226,24 @@ QVOS_TEST_COMMANDS=lspci \
   "$root/bin/qv-hw-intel-wifi7-eht" || fail "qvOS-only Intel EHT adapter"
 [[ ! -e $root/bin/omarchy-hw-intel-wifi7-eht ]] ||
   fail "qvOS-only Intel EHT detector has an inherited adapter"
+printf 'Apple Inc.\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'MacBook9,1\n' >"$fixture/sys/class/dmi/id/product_name"
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+  "$root/bin/qv-hw-apple-spi-keyboard" || fail "qvOS-only Apple SPI adapter"
+[[ ! -e $root/bin/omarchy-hw-apple-spi-keyboard ]] ||
+  fail "qvOS-only Apple SPI detector has an inherited adapter"
+printf 'LENOVO\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'Yoga Pro 7 14IAH10\n' >"$fixture/sys/class/dmi/id/product_name"
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+  "$root/bin/qv-hw-lenovo-yoga-pro7" || fail "qvOS-only Lenovo adapter"
+[[ ! -e $root/bin/omarchy-hw-lenovo-yoga-pro7 ]] ||
+  fail "qvOS-only Lenovo detector has an inherited adapter"
 printf '%s\n' \
   'N: Name="SynPS/2 Synaptics TouchPad"' \
   >"$fixture/proc/bus/input/devices"
