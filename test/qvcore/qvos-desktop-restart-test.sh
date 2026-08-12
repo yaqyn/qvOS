@@ -36,17 +36,8 @@ install -m 0755 /dev/stdin "$test_bin/systemctl" <<'SCRIPT'
 printf 'systemctl' >>"$QVOS_RESTART_TEST_LOG"
 printf '|%s' "$@" >>"$QVOS_RESTART_TEST_LOG"
 printf '\n' >>"$QVOS_RESTART_TEST_LOG"
-if [[ $* == *'list-units'* ]]; then
-  [[ ${QVOS_TEST_SYSTEMD_LIST_FAILURE:-0} != "1" ]] || exit 1
-  printf '%s' "${QVOS_TEST_SYSTEMD_UNITS:-}"
-  exit 0
-fi
 if [[ $* == *'--property=Description'* ]]; then
-  case $* in
-  *waybar*) printf 'waybar\n' ;;
-  *omarchy*) printf 'omarchy-hyprland-monitor-watch\n' ;;
-  *) printf 'qv-hyprland-monitor-watch\n' ;;
-  esac
+  printf 'qvOS unit\n'
   exit 0
 fi
 if [[ $* == *'--property=LoadState'* ]]; then
@@ -150,29 +141,17 @@ grep -Fqx 'uwsm|-u|qvos-waybar.scope|-d|qvOS Waybar|-S|both|--|waybar' "$log" ||
 printf 'ok - Waybar restart survives its matching owner basename\n'
 
 : >"$log"
-QVOS_TEST_SYSTEMD_UNITS=$'app-Hyprland-waybar-deadbeef.scope loaded active running waybar\n' \
-  run_owner waybar
-grep -Fqx 'systemctl|--user|stop|--|app-Hyprland-waybar-deadbeef.scope' "$log" ||
-  fail "retired Waybar scope cleanup"
-printf 'ok - Waybar restart stops complete inherited module scopes\n'
-
-: >"$log"
-if QVOS_TEST_SYSTEMD_LIST_FAILURE=1 run_owner waybar; then
-  fail "Waybar restart hid user-unit discovery failure"
-fi
-if grep -Fq 'uwsm|' "$log"; then
-  fail "Waybar restarted after incomplete prior-unit discovery"
-fi
-printf 'ok - Waybar restart fails closed when prior-unit discovery fails\n'
-
-: >"$log"
-QVOS_TEST_SYSTEMD_UNITS=$'app-Hyprland-omarchy\\x2dhyprland\\x2dmonitor\\x2dwatch@deadbeef.service loaded active running monitor\n' \
-  run_owner monitor-watch
-grep -Fqx 'systemctl|--user|stop|--|app-Hyprland-omarchy\x2dhyprland\x2dmonitor\x2dwatch@deadbeef.service' "$log" ||
-  fail "inherited monitor-watch service cleanup"
+run_owner monitor-watch
 grep -Fqx 'uwsm|-t|service|-u|qvos-monitor-watch.service|-d|qvOS monitor watcher|-p|Restart=on-failure|-S|both|--|qv-hyprland-monitor-watch' "$log" ||
   fail "native monitor-watch relaunch"
 printf 'ok - monitor watching uses one restartable qvOS service\n'
+
+if rg -n 'list-units|app-\*-|legacy_patterns|legacy_pattern' \
+  "$root/qvcore/desktop/restart/waybar" \
+  "$root/qvcore/desktop/restart/monitor-watch" \
+  "$root/qvcore/desktop/restart/user-unit-lib"; then
+  fail "desktop restarts retain inherited transient-unit discovery"
+fi
 
 : >"$log"
 run_owner pipewire

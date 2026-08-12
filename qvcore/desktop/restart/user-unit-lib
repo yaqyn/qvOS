@@ -1,26 +1,5 @@
 # shellcheck shell=bash
 
-qvos_user_units_matching() {
-  local unit_type=$1
-  local pattern=$2
-  local listing
-  local unit
-  local _rest
-
-  [[ $unit_type == "scope" || $unit_type == "service" ]] || return 2
-  listing=$(systemctl --user list-units \
-    --all \
-    --type="$unit_type" \
-    --no-legend \
-    --plain \
-    "$pattern") || return
-
-  while IFS=' ' read -r unit _rest; do
-    [[ -n $unit && $unit == *."$unit_type" ]] || continue
-    printf '%s\n' "$unit"
-  done <<<"$listing"
-}
-
 qvos_user_unit_property() {
   local unit=$1
   local property=$2

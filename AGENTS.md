@@ -207,6 +207,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   absent
 - Restartable long-running desktop components use stable `qvos-*` UWSM units
   so a restart stops the complete prior control group before relaunching
+- Waybar and monitor-watch restarts stop only their stable qvOS unit and exact
+  process; completed transient-unit convergence is not a runtime scan
 - qvOS-managed installed runtime command trees expose only native names;
   retired Omarchy runtime aliases remain absent, and thin source adapters are
   the bounded external compatibility surface

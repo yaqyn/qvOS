@@ -161,6 +161,12 @@ rg -q '^# qv:summary=' "$root/bin/qv-restart-monitor-watch" ||
 if rg -n '\b(pkill|killall)\b' "$restart_root" --glob '!process-lib'; then
   fail "restart owner bypasses the self-safe process helper"
 fi
+if rg -n 'list-units|app-\*-|legacy_patterns|legacy_pattern' \
+  "$restart_root/waybar" \
+  "$restart_root/monitor-watch" \
+  "$restart_root/user-unit-lib"; then
+  fail "desktop restarts retain inherited transient-unit discovery"
+fi
 
 if rg -n 'omarchy-restart-' \
   "$root/qvcore" \

@@ -4,16 +4,12 @@ set -euo pipefail
 # qvos:contract=qvcore/desktop/restart/process-lib
 # qvos:contract=qvcore/desktop/restart/user-unit-lib
 restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=qvcore/desktop/restart/process-lib
+# shellcheck source=qvcore/desktop/restart/process-lib disable=SC1091
 source "$restart_root/process-lib"
-# shellcheck source=qvcore/desktop/restart/user-unit-lib
+# shellcheck source=qvcore/desktop/restart/user-unit-lib disable=SC1091
 source "$restart_root/user-unit-lib"
 
 fixed_unit="qvos-monitor-watch.service"
-legacy_patterns=(
-  'app-*-omarchy\x2dhyprland\x2dmonitor\x2dwatch@*.service'
-  'app-*-qv\x2dhyprland\x2dmonitor\x2dwatch@*.service'
-)
 
 (($# == 0)) || {
   echo "Usage: qv restart monitor-watch" >&2
@@ -25,16 +21,6 @@ command -v uwsm-app >/dev/null || {
 }
 
 qvos_user_unit_stop "$fixed_unit"
-for pattern in "${legacy_patterns[@]}"; do
-  legacy_units=$(qvos_user_units_matching service "$pattern")
-  while IFS= read -r unit; do
-    [[ -n $unit ]] || continue
-    description=$(qvos_user_unit_property "$unit" Description)
-    [[ $description == "omarchy-hyprland-monitor-watch" ||
-      $description == "qv-hyprland-monitor-watch" ]] || continue
-    qvos_user_unit_stop "$unit"
-  done <<<"$legacy_units"
-done
 qvos_process_stop_exact monitor-watch
 
 setsid uwsm-app \
