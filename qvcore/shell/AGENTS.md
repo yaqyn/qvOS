@@ -18,8 +18,10 @@ belong to their validated qvOS domain owners or an optional Development
 integration. `cy` and `hx` are the intentional qvOS aliases.
 
 Completion prefers the native `qv` frontend and supports `omarchy` only as the
-external compatibility command. Native shell files use `QVOS_PATH`; expose
-`OMARCHY_PATH=$QVOS_PATH` only as the reviewed compatibility environment.
+external compatibility command. Native shell files use only `QVOS_PATH`;
+`OMARCHY_PATH` is retired and must not be exported into shell or desktop
+sessions. The exact installed-source link remains the bounded path-level
+compatibility seam.
 The inherited top-level `default/bash/` and `default/bashrc` sources are
 retired and must remain absent.
 

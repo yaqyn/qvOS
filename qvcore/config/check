@@ -96,6 +96,9 @@ if rg -n --glob '!**/AGENTS.md' --glob '!**/check' \
   "$root/qvcore/config" "$root/qvcore/install"; then
   fail "alternate or retired config source selection remains"
 fi
+if rg -n 'OMARCHY_PATH' "$root/qvcore/config/files"; then
+  fail "retired Omarchy environment remains in installed config"
+fi
 for installer_path in \
   config/xcompose.sh \
   config/hardware/asus/fix-audio-mixer.sh \

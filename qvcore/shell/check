@@ -38,7 +38,7 @@ grep -Fqx 'source "$QVOS_PATH/qvcore/shell/files/completions"' \
 grep -Fqx 'complete -o default -F _qvos_complete qv omarchy' \
   "$files/completions" || fail "qvOS frontend completion"
 
-if rg -n '(default/bash|\$OMARCHY_PATH/qvcore/shell|_omarchy_complete)' \
+if rg -n '(default/bash|OMARCHY_PATH|_omarchy_complete)' \
   "$files" "$root/qvcore/shell/aliases"; then
   fail "retired shell implementation remains active"
 fi

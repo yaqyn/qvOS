@@ -1,11 +1,11 @@
 # Changes require a restart to take effect.
 
-# Ensure qvOS commands are in the path while preserving the inherited ABI.
+# Ensure qvOS commands are in the path.
 export QVOS_PATH=$HOME/.local/share/qvos
-export OMARCHY_PATH=$QVOS_PATH
 export PATH=$QVOS_PATH/bin:$PATH:$HOME/.local/bin
 
 # Set default terminal and editor
+# shellcheck source=/dev/null
 source ~/.config/uwsm/default
 
 # Activate mise if present on the system

@@ -36,9 +36,7 @@ compatibility_source_refs=$(
     --glob '!**/AGENTS.md' \
     --glob '!**/README.md' \
     --glob '!**/check' \
-    --glob '!*_test.go' \
-    --glob '!**/config/files/uwsm/env' \
-    --glob '!**/shell/files/envs' || true
+    --glob '!*_test.go' || true
 )
 if [[ -n $compatibility_source_refs ]]; then
   printf '%s\n' "$compatibility_source_refs" >&2
