@@ -86,6 +86,8 @@ a thin adapter to this owner.
   The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.
+  Do not cache or stage `linux-ptl` either: qvOS does not replace the standard
+  Arch kernel for one hardware generation or carry a separate kernel lifecycle.
 - The interactive live image exposes no remote-administration service and does
   not install inherited cloud bootstrap, mirror discovery, or a parallel DHCP
   client. Its one network owner is systemd-networkd with iwd. Retain SSH

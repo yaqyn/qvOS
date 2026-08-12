@@ -46,6 +46,11 @@ unsigned hardware repository after provider validation. T2 Macs require an
 unsigned third-party package set that qvOS does not manage, so both native and
 fallback ISO preflight must refuse them before disk selection; keep their
 repository, packages, kernel, graphics branch, and post-install fix absent.
+The inherited Panther Lake kernel also remains absent: never cache or install
+`linux-ptl`, remove the standard kernel to select it, or publish a hardware
+boot-order override. Keep narrowly detected Panther Lake fixes independent of
+kernel ownership and retire each workaround when the signed Arch kernel makes
+it unnecessary.
 The general pre-public config and obsolete-state convergence owners are retired
 after the only supported installation reached native state. Fresh installation
 and post-update reconciliation must not scan unrelated user trees or carry
@@ -231,7 +236,7 @@ It also caches the Limine integration packages and `inotify-tools` required by
 the native boot owner; the owner installs that set only when Limine is present.
 `qvcore/install/packaging/resolve` validates and emits them; never restore an
 inherited manifest plus additions/exclusions model or an unsupported hardware
-stack merely to preserve upstream coverage.
+stack or alternate kernel merely to preserve upstream coverage.
 Provider-branded application and meta-packages are not qvOS base packages.
 The credited repository/keyring may supply official upstream-named packages,
 but qvOS owns their selection, configuration, theme, and lifecycle.

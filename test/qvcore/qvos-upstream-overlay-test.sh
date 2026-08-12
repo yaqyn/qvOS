@@ -276,6 +276,8 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
         ;;
+      '$OMARCHY_INSTALL/config/hardware/intel/ptl-kernel.sh')
+        ;;
       '$OMARCHY_INSTALL/config/sudoless-asdcontrol.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/controls/install-root'
         ;;
@@ -293,6 +295,12 @@ native_config_steps=$(
 )
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
   fail "native configuration stage changed reviewed capability order or coverage"
+[[ ! -e $root/qvcore/install/config/hardware/intel/ptl-kernel.sh ]] ||
+  fail "retired Panther Lake kernel replacement remains"
+if rg -n 'linux-ptl|pacman[[:space:]]+-Rdd' \
+  "$root/qvcore/install/config" "$root/qvcore/install/packaging"; then
+  fail "fresh qvOS can replace the standard Arch kernel"
+fi
 # shellcheck disable=SC2016
 grep -Fqx '  "$QVOS_PATH/qvcore/power/install"' \
   "$root/qvcore/install/desktop" ||

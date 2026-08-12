@@ -254,9 +254,9 @@ grep -Fq 'qvOS ISO progress: selected Node.js LTS %s (%s)' "$builder" ||
 if rg -n 'nodejs\.org/dist/latest([/"[:space:]]|$)' "$builder"; then
   fail "release ISO caches the moving Node.js Current release"
 fi
-if rg -n 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2' \
+if rg -n 'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-(ptl|t2)' \
   "$builder" "$profile"; then
-  fail "release ISO activates weak package trust or unsupported T2 packages"
+  fail "release ISO activates weak package trust or an unsupported kernel stack"
 fi
 
 grep -Fq 'qvos-tui --iso-installer' "$installer" ||

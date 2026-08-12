@@ -477,9 +477,9 @@ validate_native_iso() {
     return 1
   fi
   if rg -n \
-    'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-t2|apple-t2|t2fanrd|tiny-dfr|vulkan-asahi' \
+    'SigLevel[[:space:]]*=[[:space:]]*Never|TrustAll|arch-mact2|linux-(ptl|t2)|apple-t2|t2fanrd|tiny-dfr|vulkan-asahi' \
     "$builder" "$profile"; then
-    echo "qvos-build staged an unsigned repository, unsupported kernel, or retired T2 package." >&2
+    echo "qvos-build staged weak package trust or an unsupported kernel stack." >&2
     return 1
   fi
 

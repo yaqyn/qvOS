@@ -22,6 +22,10 @@ of carrying a permanent removal path.
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may
   move a user to them.
+- Package availability in the credited repository does not make an alternate
+  kernel qvOS-owned. Fresh and release inventories retain the signed standard
+  Arch `linux` kernel and exclude `linux-ptl`, its headers, and hardware boot
+  overrides.
 - Credited provider files live under `qvcore/packages/provider/omarchy/` and
   require signed packages at source. `qvcore/packages/provider-files` is the
   only channel resolver; it accepts Edge or RC only in the reviewed ISO chroot

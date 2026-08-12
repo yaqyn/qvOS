@@ -37,6 +37,8 @@ all=$("$resolver" all)
 for retired_package in \
   apple-bcm-firmware \
   apple-t2-audio-config \
+  linux-ptl \
+  linux-ptl-headers \
   linux-t2 \
   linux-t2-headers \
   mariadb-libs \

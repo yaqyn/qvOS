@@ -389,19 +389,23 @@ grep -Fqx 'inotify-tools' "$other_packages" ||
   fail "Limine snapshot monitoring dependency is unavailable offline"
 grep -Fq 'inotify-tools' "$root/qvcore/boot/install-limine-snapper" ||
   fail "Limine owner does not install its persistent watcher dependency"
-for unsupported_t2_package in \
+for unsupported_kernel_package in \
   apple-bcm-firmware \
   apple-t2-audio-config \
+  linux-ptl \
+  linux-ptl-headers \
   linux-t2 \
   linux-t2-headers \
   t2fanrd \
   tiny-dfr \
   vulkan-asahi; do
-  ! grep -Fqx "$unsupported_t2_package" "$other_packages" ||
-    fail "unsupported T2 package remains: $unsupported_t2_package"
+  ! grep -Fqx "$unsupported_kernel_package" "$other_packages" ||
+    fail "unsupported kernel package remains: $unsupported_kernel_package"
 done
 [[ ! -e $root/qvcore/install/config/hardware/apple/fix-t2.sh ]] ||
   fail "unsupported T2 configuration owner remains"
+[[ ! -e $root/qvcore/install/config/hardware/intel/ptl-kernel.sh ]] ||
+  fail "unsupported Panther Lake kernel owner remains"
 pass "conditional hardware packages remain available offline"
 
 keyring_home="$test_root/keyring-home"
