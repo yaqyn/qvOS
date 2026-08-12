@@ -73,10 +73,11 @@ source-root compatibility link.
 
 `qvcore/install/system-tuning` singularly owns the NOFILE and inotify defaults
 under native `qvos` filenames. It installs tracked sources atomically, applies
-only the owned sysctl file, and retires exact legacy files only after native
-readback. Preserve modified or unsafe legacy policy without creating a
-conflicting native override. Fresh install never grants wheel-wide passwordless
-timezone commands; the security owner retires that exact predecessor.
+only the owned sysctl file, preserves exact native files, and rejects modified,
+linked, or unsafe native targets. Completed pre-release tuning convergence is
+retired, so fresh installation does not inspect or mutate inherited filenames.
+Fresh install never grants wheel-wide passwordless timezone commands; the
+security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13 and Apple NVMe stage adapters only select hardware; the

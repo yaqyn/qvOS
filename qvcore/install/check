@@ -194,8 +194,7 @@ done
 [[ ! -e $root/qvcore/install/config/timezones.sh ]] ||
   fail "retired passwordless timezone policy owner remains"
 if rg -n '99-omarchy-nofile|90-omarchy-file-watchers|omarchy-tzupdate' \
-  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check' \
-  --glob '!system-tuning'; then
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "fresh install creates a retired system-policy identity"
 fi
 for tuning_source in \

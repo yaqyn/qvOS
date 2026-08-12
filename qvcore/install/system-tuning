@@ -116,20 +116,6 @@ file_matches() {
   as_root /usr/bin/cmp -s -- "$source" "$target"
 }
 
-legacy_is_safe_or_absent() {
-  local source=$1
-  local legacy=$2
-  local mode=$3
-
-  root_exists "$legacy" || return 0
-  if file_matches "$source" "$legacy" "$mode"; then
-    return 0
-  fi
-  printf 'Preserving modified or unsafe legacy system tuning: %s\n' \
-    "$legacy" >&2
-  return 1
-}
-
 install_managed() {
   local source=$1
   local target=$2
@@ -177,27 +163,12 @@ remove_created() {
   as_root /usr/bin/rm -f -- "$target"
 }
 
-retire_legacy() {
-  local source=$1
-  local legacy=$2
-  local mode=$3
-
-  root_exists "$legacy" || return 0
-  file_matches "$source" "$legacy" "$mode" || return 0
-  as_root /usr/bin/rm -f -- "$legacy"
-}
-
 install_nofile() {
   local source="$QVOS_PATH/qvcore/install/system/nofile.conf"
   local system_target="$system_root/etc/systemd/system.conf.d/99-qvos-nofile.conf"
   local user_target="$system_root/etc/systemd/user.conf.d/99-qvos-nofile.conf"
-  local legacy_system="$system_root/etc/systemd/system.conf.d/99-omarchy-nofile.conf"
-  local legacy_user="$system_root/etc/systemd/user.conf.d/99-omarchy-nofile.conf"
   local system_created=false
   local user_created=false
-
-  legacy_is_safe_or_absent "$source" "$legacy_system" 0644 || return 0
-  legacy_is_safe_or_absent "$source" "$legacy_user" 0644 || return 0
 
   ensure_directory "${system_target%/*}"
   ensure_directory "${user_target%/*}"
@@ -216,18 +187,13 @@ install_nofile() {
     [[ $system_created == "false" ]] || remove_created "$source" "$system_target" 0644
     return 1
   fi
-
-  retire_legacy "$source" "$legacy_system" 0644
-  retire_legacy "$source" "$legacy_user" 0644
 }
 
 install_file_watchers() {
   local source="$QVOS_PATH/qvcore/install/system/file-watchers.conf"
   local target="$system_root/etc/sysctl.d/90-qvos-file-watchers.conf"
-  local legacy="$system_root/etc/sysctl.d/90-omarchy-file-watchers.conf"
   local target_created=false
 
-  legacy_is_safe_or_absent "$source" "$legacy" 0644 || return 0
   ensure_directory "${target%/*}"
   install_managed "$source" "$target" 0644 ||
     fail "could not install the native file-watcher policy"
@@ -236,7 +202,6 @@ install_file_watchers() {
     [[ $target_created == "false" ]] || remove_created "$source" "$target" 0644
     fail "could not apply the native file-watcher policy"
   fi
-  retire_legacy "$source" "$legacy" 0644
 }
 
 case $operation in

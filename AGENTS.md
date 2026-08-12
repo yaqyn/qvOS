@@ -178,6 +178,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   convergence is not scanned at runtime, while exact inherited mkinitcpio and
   UKI artifacts remain preservation-safe migration input until separately
   verified
+- native NOFILE and inotify tuning use only qvOS filenames; completed
+  pre-release tuning convergence is not a fresh-install or update input
 - the general pre-public runtime-root config rewriter and obsolete-state
   scanner are retired after the only supported installation converged; fresh
   install and update paths reconcile explicit native owners without scanning

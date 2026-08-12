@@ -39,16 +39,7 @@ run_owner() {
 }
 
 exact_root="$test_root/exact"
-install -d \
-  "$exact_root/etc/systemd/system.conf.d" \
-  "$exact_root/etc/systemd/user.conf.d" \
-  "$exact_root/etc/sysctl.d"
-install -m 0644 "$nofile_source" \
-  "$exact_root/etc/systemd/system.conf.d/99-omarchy-nofile.conf"
-install -m 0644 "$nofile_source" \
-  "$exact_root/etc/systemd/user.conf.d/99-omarchy-nofile.conf"
-install -m 0644 "$watchers_source" \
-  "$exact_root/etc/sysctl.d/90-omarchy-file-watchers.conf"
+install -d "$exact_root"
 : >"$sysctl_log"
 run_owner "$exact_root" all
 
@@ -63,13 +54,6 @@ done
 cmp -s "$watchers_source" \
   "$exact_root/etc/sysctl.d/90-qvos-file-watchers.conf" ||
   fail "native file-watcher policy"
-for legacy in \
-  etc/systemd/system.conf.d/99-omarchy-nofile.conf \
-  etc/systemd/user.conf.d/99-omarchy-nofile.conf \
-  etc/sysctl.d/90-omarchy-file-watchers.conf; do
-  [[ ! -e $exact_root/$legacy && ! -L $exact_root/$legacy ]] ||
-    fail "exact legacy system tuning remains: $legacy"
-done
 [[ $(<"$sysctl_log") == \
   "-q -p $exact_root/etc/sysctl.d/90-qvos-file-watchers.conf" ]] ||
   fail "file-watcher policy applies only its native source"
@@ -87,19 +71,20 @@ install -d \
   "$preserve_root/etc/systemd/user.conf.d" \
   "$preserve_root/etc/sysctl.d"
 printf 'custom NOFILE policy\n' \
-  >"$preserve_root/etc/systemd/system.conf.d/99-omarchy-nofile.conf"
-install -m 0644 "$nofile_source" \
-  "$preserve_root/etc/systemd/user.conf.d/99-omarchy-nofile.conf"
+  >"$preserve_root/etc/systemd/system.conf.d/99-qvos-nofile.conf"
 printf 'fs.inotify.max_user_watches=42\n' \
-  >"$preserve_root/etc/sysctl.d/90-omarchy-file-watchers.conf"
+  >"$preserve_root/etc/sysctl.d/90-qvos-file-watchers.conf"
 : >"$sysctl_log"
-run_owner "$preserve_root" all >/dev/null 2>&1
-[[ ! -e $preserve_root/etc/systemd/system.conf.d/99-qvos-nofile.conf &&
-  ! -e $preserve_root/etc/systemd/user.conf.d/99-qvos-nofile.conf &&
-  ! -e $preserve_root/etc/sysctl.d/90-qvos-file-watchers.conf ]] ||
-  fail "modified legacy policy received a conflicting native override"
+if run_owner "$preserve_root" all >/dev/null 2>&1; then
+  fail "modified native system tuning was accepted"
+fi
+[[ $(<"$preserve_root/etc/systemd/system.conf.d/99-qvos-nofile.conf") == \
+  "custom NOFILE policy" && \
+  $(<"$preserve_root/etc/sysctl.d/90-qvos-file-watchers.conf") == \
+  "fs.inotify.max_user_watches=42" ]] ||
+  fail "modified native system tuning was changed"
 [[ ! -s $sysctl_log ]] ||
-  fail "modified legacy file-watcher policy was applied"
+  fail "modified native file-watcher policy was applied"
 
 linked_root="$test_root/linked"
 outside="$test_root/outside-nofile"
@@ -116,15 +101,29 @@ fi
 
 rollback_root="$test_root/rollback"
 install -d "$rollback_root/etc/sysctl.d"
-install -m 0644 "$watchers_source" \
-  "$rollback_root/etc/sysctl.d/90-omarchy-file-watchers.conf"
 if QVOS_TEST_SYSCTL_FAIL=1 \
   run_owner "$rollback_root" file-watchers >/dev/null 2>&1; then
   fail "file-watcher activation failure was hidden"
 fi
-[[ -f $rollback_root/etc/sysctl.d/90-omarchy-file-watchers.conf &&
-  ! -e $rollback_root/etc/sysctl.d/90-qvos-file-watchers.conf ]] ||
+[[ ! -e $rollback_root/etc/sysctl.d/90-qvos-file-watchers.conf ]] ||
   fail "file-watcher activation failure did not roll back"
+
+existing_root="$test_root/existing"
+install -d "$existing_root/etc/sysctl.d"
+install -m 0644 "$watchers_source" \
+  "$existing_root/etc/sysctl.d/90-qvos-file-watchers.conf"
+if QVOS_TEST_SYSCTL_FAIL=1 \
+  run_owner "$existing_root" file-watchers >/dev/null 2>&1; then
+  fail "existing file-watcher activation failure was hidden"
+fi
+cmp -s "$watchers_source" \
+  "$existing_root/etc/sysctl.d/90-qvos-file-watchers.conf" ||
+  fail "existing native file-watcher policy was rolled back"
+
+if rg -n '99-omarchy-nofile|90-omarchy-file-watchers' \
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
+  fail "active installer system tuning remains inherited"
+fi
 
 unsafe_root="$test_root/unsafe"
 install -d "$unsafe_root"
