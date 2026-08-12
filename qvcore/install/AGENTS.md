@@ -119,6 +119,11 @@ Bluetooth and ASUS audio stages delegate their optional WirePlumber leaves to
 the singular config owner before service activation. Preserve custom policy
 and saved route state; fresh installation and reruns never reset a live mixer
 as a configuration side effect.
+The inherited ASUS microphone gain and generic AMD card-profile presets are
+retired: they changed live user audio state, hid failures, and could target
+build-host hardware or its user session through a chroot. Keep microphone gain
+and card profiles user-controlled until model-exact persistent policy can be
+validated on supported hardware.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,

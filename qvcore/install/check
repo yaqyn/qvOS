@@ -256,6 +256,16 @@ if rg -n 'HandlePowerKey=.*ignore|disable-usb-autosuspend|usbcore autosuspend=-1
   "$root/qvcore/install/config" --glob '!power-key.sh'; then
   fail "fresh install directly edits logind or globally disables USB autosuspend"
 fi
+for retired_audio_leaf in \
+  qvcore/install/config/hardware/asus/fix-mic.sh \
+  qvcore/install/config/hardware/framework/fix-f13-amd-audio-input.sh; do
+  [[ ! -e $root/$retired_audio_leaf && ! -L $root/$retired_audio_leaf ]] ||
+    fail "retired live-audio mutation remains: $retired_audio_leaf"
+done
+if rg -n '(/proc/asound|amixer|alsactl|pactl[[:space:]]+set-card-profile)' \
+  "$root/qvcore/install/config" --glob '!AGENTS.md' --glob '!check'; then
+  fail "fresh installation mutates live audio state"
+fi
 [[ -x $root/qvcore/install/hardware/identity ]] ||
   fail "native hardware identity owner mode"
 for hardware_source in \

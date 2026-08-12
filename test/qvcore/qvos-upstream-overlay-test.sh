@@ -273,6 +273,10 @@ upstream_config_steps=$(
       '$OMARCHY_INSTALL/config/hardware/asus/fix-z13-touchpad.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad'
         ;;
+      '$OMARCHY_INSTALL/config/hardware/asus/fix-mic.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/hardware/framework/fix-f13-amd-audio-input.sh')
+        ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-suspend-nvme.sh')
         printf '%s\n' '$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend'
         ;;
