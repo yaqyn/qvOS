@@ -89,6 +89,8 @@ as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
   "$source_file" "$active_staging" || fail "could not stage preferences"
 as_root /usr/bin/mv -n -- "$active_staging" "$target" ||
   fail "could not publish preferences"
+! as_root /usr/bin/test -e "$active_staging" ||
+  fail "a Chromium preferences file appeared during publication"
 if ! as_root /usr/bin/test -f "$target" ||
   ! as_root /usr/bin/test ! -L "$target" ||
   [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$target") != \

@@ -1,0 +1,255 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
+daemon_source="$QVOS_PATH/qvcore/security/docker-daemon.json"
+resolved_source="$QVOS_PATH/qvcore/security/docker-resolved.conf"
+daemon_target="$system_root/etc/docker/daemon.json"
+resolved_target="$system_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf"
+expected_uid=0
+expected_gid=0
+daemon_candidate=
+daemon_original=
+daemon_staging=
+resolved_staging=
+daemon_changed=false
+daemon_created=false
+resolved_created=false
+
+fail() {
+  printf 'qvOS Docker policy: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+for source in "$daemon_source" "$resolved_source"; do
+  [[ -f $source && ! -L $source ]] ||
+    fail "a policy source is unavailable or unsafe: $source"
+done
+/usr/bin/jq -e '
+  type == "object" and
+  .ip == "127.0.0.1" and
+  .["default-network-opts"].bridge[
+    "com.docker.network.bridge.host_binding_ipv4"
+  ] == "127.0.0.1" and
+  .["log-driver"] == "json-file" and
+  .dns == ["172.17.0.1"] and
+  .bip == "172.17.0.1/16"
+' "$daemon_source" >/dev/null || fail "the Docker daemon source is invalid"
+[[ $(<"$resolved_source") == \
+  $'[Resolve]\nDNSStubListenerExtra=172.17.0.1' ]] ||
+  fail "the Docker resolver source is invalid"
+
+if [[ -n $system_root ]]; then
+  [[ ${QVOS_SECURITY_TESTING:-} == "1" ]] ||
+    fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ ${QVOS_SECURITY_TESTING:-} == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+cleanup() {
+  local temporary
+
+  for temporary in "$daemon_candidate" "$daemon_original"; do
+    [[ -z $temporary ]] || /usr/bin/rm -f -- "$temporary"
+  done
+  for temporary in "$daemon_staging" "$resolved_staging"; do
+    [[ -z $temporary ]] ||
+      as_root /usr/bin/rm -f -- "$temporary" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+root_exists() {
+  local path=$1
+
+  as_root /usr/bin/test -e "$path" || as_root /usr/bin/test -L "$path"
+}
+
+directory_safe() {
+  local path=$1
+  local mode
+
+  as_root /usr/bin/test -d "$path" || return 1
+  as_root /usr/bin/test ! -L "$path" || return 1
+  [[ $(as_root /usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(as_root /usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_directory() {
+  local path=$1
+  local parent
+
+  if root_exists "$path"; then
+    directory_safe "$path" || fail "unsafe managed directory: $path"
+    return
+  fi
+  parent=${path%/*}
+  [[ -n $parent ]] || parent=/
+  ensure_directory "$parent"
+  as_root /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" \
+    -m 0755 -- "$path"
+}
+
+target_regular_safe() {
+  local path=$1
+
+  as_root /usr/bin/test -f "$path" &&
+    as_root /usr/bin/test ! -L "$path" &&
+    [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+      "$expected_uid:$expected_gid:644" ]]
+}
+
+daemon_candidate=$(mktemp)
+if root_exists "$daemon_target"; then
+  target_regular_safe "$daemon_target" ||
+    fail "the Docker daemon configuration is unsafe"
+  as_root /usr/bin/cat -- "$daemon_target" |
+    /usr/bin/jq '
+      if type != "object" then error("not an object") else . end |
+      .ip = "127.0.0.1" |
+      .["default-network-opts"].bridge[
+        "com.docker.network.bridge.host_binding_ipv4"
+      ] = "127.0.0.1"
+    ' >"$daemon_candidate" ||
+    fail "the Docker daemon configuration is invalid"
+  if ! as_root /usr/bin/cmp -s -- "$daemon_candidate" "$daemon_target"; then
+    daemon_original=$(mktemp)
+    as_root /usr/bin/cat -- "$daemon_target" >"$daemon_original"
+    daemon_changed=true
+  fi
+else
+  /usr/bin/cp -- "$daemon_source" "$daemon_candidate"
+  daemon_changed=true
+  daemon_created=true
+fi
+/usr/bin/dockerd --validate --config-file="$daemon_candidate" >/dev/null ||
+  fail "Docker rejected the qvOS daemon policy"
+
+if root_exists "$resolved_target"; then
+  target_regular_safe "$resolved_target" ||
+    fail "the Docker resolver policy is unsafe"
+  as_root /usr/bin/cmp -s -- "$resolved_source" "$resolved_target" ||
+    fail "preserving modified qvOS Docker resolver policy"
+fi
+
+ensure_directory "${daemon_target%/*}"
+ensure_directory "${resolved_target%/*}"
+if [[ $daemon_changed == "true" ]]; then
+  daemon_staging=$(as_root /usr/bin/mktemp \
+    --tmpdir="${daemon_target%/*}" '.daemon.json.qvos.XXXXXX') ||
+    fail "could not stage the Docker daemon policy"
+  as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+    "$daemon_candidate" "$daemon_staging" ||
+    fail "could not stage the Docker daemon policy"
+  if [[ $daemon_created == "true" ]]; then
+    as_root /usr/bin/mv -n -- "$daemon_staging" "$daemon_target" ||
+      fail "could not publish the Docker daemon policy"
+    ! as_root /usr/bin/test -e "$daemon_staging" ||
+      fail "a Docker daemon policy appeared during publication"
+  else
+    if ! target_regular_safe "$daemon_target" ||
+      ! as_root /usr/bin/cmp -s -- "$daemon_original" "$daemon_target"; then
+      fail "the Docker daemon policy changed during publication"
+    fi
+    as_root /usr/bin/mv -f -- "$daemon_staging" "$daemon_target" ||
+      fail "could not publish the Docker daemon policy"
+  fi
+  daemon_staging=
+fi
+if ! root_exists "$resolved_target"; then
+  resolved_staging=$(as_root /usr/bin/mktemp \
+    --tmpdir="${resolved_target%/*}" '.50-qvos-docker.conf.XXXXXX') ||
+    fail "could not stage the Docker resolver policy"
+  as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+    "$resolved_source" "$resolved_staging" ||
+    fail "could not stage the Docker resolver policy"
+  as_root /usr/bin/mv -n -- "$resolved_staging" "$resolved_target" ||
+    fail "could not publish the Docker resolver policy"
+  ! as_root /usr/bin/test -e "$resolved_staging" ||
+    fail "a Docker resolver policy appeared during publication"
+  resolved_staging=
+  resolved_created=true
+fi
+
+rollback() {
+  if [[ $resolved_created == "true" ]] &&
+    target_regular_safe "$resolved_target" &&
+    as_root /usr/bin/cmp -s -- "$resolved_source" "$resolved_target"; then
+    as_root /usr/bin/rm -f -- "$resolved_target"
+  fi
+  if [[ $daemon_changed == "true" ]]; then
+    if [[ $daemon_created == "true" ]]; then
+      if target_regular_safe "$daemon_target" &&
+        as_root /usr/bin/cmp -s -- "$daemon_candidate" "$daemon_target"; then
+        as_root /usr/bin/rm -f -- "$daemon_target"
+      fi
+    else
+      as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+        "$daemon_original" "$daemon_target"
+    fi
+  fi
+}
+
+if [[ -z $system_root && ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+  if [[ $resolved_created == "true" ]] &&
+    ! as_root /usr/bin/systemctl restart systemd-resolved.service; then
+    rollback
+    as_root /usr/bin/systemctl restart systemd-resolved.service >/dev/null 2>&1 || true
+    fail "could not activate the Docker resolver policy"
+  fi
+  if [[ $daemon_changed == "true" ]] &&
+    /usr/bin/systemctl is-active --quiet docker.service &&
+    ! as_root /usr/bin/systemctl restart docker.service; then
+    rollback
+    if [[ $resolved_created == "true" ]]; then
+      as_root /usr/bin/systemctl restart systemd-resolved.service \
+        >/dev/null 2>&1 || true
+    fi
+    as_root /usr/bin/systemctl restart docker.service >/dev/null 2>&1 || true
+    fail "Docker rejected the qvOS loopback policy"
+  fi
+fi
+
+target_regular_safe "$daemon_target" ||
+  fail "the installed Docker daemon policy is unsafe"
+/usr/bin/jq -e '
+  type == "object" and
+  .ip == "127.0.0.1" and
+  .["default-network-opts"].bridge[
+    "com.docker.network.bridge.host_binding_ipv4"
+  ] == "127.0.0.1"
+' < <(as_root /usr/bin/cat -- "$daemon_target") >/dev/null ||
+  fail "the installed Docker daemon policy is not loopback-only"
+target_regular_safe "$resolved_target" ||
+  fail "the installed Docker resolver policy is unsafe"
+as_root /usr/bin/cmp -s -- "$resolved_source" "$resolved_target" ||
+  fail "the installed Docker resolver policy is stale"

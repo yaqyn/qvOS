@@ -558,6 +558,10 @@ jq -e '
   ] == "127.0.0.1"
 ' "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker/daemon.json" >/dev/null ||
   fail "Docker loopback publishing policy"
+cmp -s \
+  "$root/qvcore/security/docker-resolved.conf" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/systemd/resolved.conf.d/50-qvos-docker.conf" ||
+  fail "Docker resolver policy payload"
 pass "security baseline protects package trust without restricting desktop capabilities"
 
 tui_binary="$test_root/.local/lib/qvos/tui/qvos-tui"

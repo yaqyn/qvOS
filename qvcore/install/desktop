@@ -140,6 +140,9 @@
     qvcore/security/debug
     qvcore/security/dev-share
     qvcore/security/dev-share-firewall
+    qvcore/security/docker-daemon.json
+    qvcore/security/docker-policy
+    qvcore/security/docker-resolved.conf
     qvcore/security/install
     qvcore/security/retire-passwordless-sudo
     qvcore/shell/aliases

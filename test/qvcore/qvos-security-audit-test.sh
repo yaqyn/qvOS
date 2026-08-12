@@ -12,6 +12,9 @@ dev_share_helper="$root/qvcore/security/dev-share-firewall"
 retire_passwordless="$root/qvcore/security/retire-passwordless-sudo"
 auth_owner="$root/qvcore/security/auth"
 auth_policy="$root/qvcore/security/auth-policy"
+docker_policy="$root/qvcore/security/docker-policy"
+docker_daemon_source="$root/qvcore/security/docker-daemon.json"
+docker_resolved_source="$root/qvcore/security/docker-resolved.conf"
 debug_owner="$root/qvcore/security/debug"
 debug_adapter="$root/bin/qv-debug"
 debug_compatibility="$root/bin/omarchy-debug"
@@ -33,6 +36,7 @@ fail() {
   || fail "security audit runners are executable"
 [[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper &&
   -x $retire_passwordless && -x $auth_owner && -x $auth_policy &&
+  -x $docker_policy && -f $docker_daemon_source && -f $docker_resolved_source &&
   -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
 if rg -n 'OMARCHY_PATH' "$root/qvcore/security" --glob '!AGENTS.md'; then
@@ -600,6 +604,7 @@ QVOS_SECURITY_TESTING=1 \
   fail "security install did not retire the exact legacy passwordless rule"
 managed_security_files=(
   "$security_system_root/etc/docker/daemon.json"
+  "$security_system_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf"
   "$security_system_root/etc/fstab"
   "$security_system_root/etc/pacman.conf"
   "$security_system_root/etc/sysctl.d/60-qvos-security.conf"
@@ -661,6 +666,77 @@ jq -e '
   .bip == "172.17.0.1/16"
 ' "$security_system_root/etc/docker/daemon.json" >/dev/null \
   || fail "Docker defaults to loopback without losing inherited configuration"
+cmp -s "$docker_resolved_source" \
+  "$security_system_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf" ||
+  fail "Docker uses one native resolver policy"
+
+docker_fresh_root="$test_root/docker-fresh"
+install -d "$docker_fresh_root"
+QVOS_SECURITY_TESTING=1 \
+QVOS_SECURITY_SYSTEM_ROOT="$docker_fresh_root" \
+QVOS_PATH="$root" \
+  "$docker_policy"
+cmp -s "$docker_daemon_source" \
+  "$docker_fresh_root/etc/docker/daemon.json" ||
+  fail "fresh Docker daemon policy"
+cmp -s "$docker_resolved_source" \
+  "$docker_fresh_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf" ||
+  fail "fresh Docker resolver policy"
+docker_fresh_state=$(stat -c '%n|%u:%g:%a|%i|%y' \
+  "$docker_fresh_root/etc/docker/daemon.json" \
+  "$docker_fresh_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf")
+QVOS_SECURITY_TESTING=1 \
+QVOS_SECURITY_SYSTEM_ROOT="$docker_fresh_root" \
+QVOS_PATH="$root" \
+  "$docker_policy"
+[[ $(stat -c '%n|%u:%g:%a|%i|%y' \
+  "$docker_fresh_root/etc/docker/daemon.json" \
+  "$docker_fresh_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf") == \
+  "$docker_fresh_state" ]] || fail "idempotent Docker policy"
+
+docker_modified_root="$test_root/docker-modified"
+install -d \
+  "$docker_modified_root/etc/docker" \
+  "$docker_modified_root/etc/systemd/resolved.conf.d"
+install -m 0644 "$docker_daemon_source" \
+  "$docker_modified_root/etc/docker/daemon.json"
+printf '[Resolve]\nDNSStubListenerExtra=192.0.2.1\n' \
+  >"$docker_modified_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf"
+docker_modified_before=$(sha256sum \
+  "$docker_modified_root/etc/docker/daemon.json" \
+  "$docker_modified_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf")
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$docker_modified_root" \
+  QVOS_PATH="$root" \
+  "$docker_policy" >/dev/null 2>&1; then
+  fail "modified qvOS Docker resolver policy was accepted"
+fi
+[[ $(sha256sum \
+  "$docker_modified_root/etc/docker/daemon.json" \
+  "$docker_modified_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf") == \
+  "$docker_modified_before" ]] ||
+  fail "modified Docker resolver refusal changed state"
+
+docker_linked_root="$test_root/docker-linked"
+docker_external="$test_root/docker-external.json"
+install -d "$docker_linked_root/etc/docker"
+printf '{}\n' >"$docker_external"
+ln -s "$docker_external" "$docker_linked_root/etc/docker/daemon.json"
+if QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$docker_linked_root" \
+  QVOS_PATH="$root" \
+  "$docker_policy" >/dev/null 2>&1; then
+  fail "linked Docker daemon policy was accepted"
+fi
+[[ $(<"$docker_external") == "{}" ]] ||
+  fail "linked Docker daemon policy was followed"
+if QVOS_CHROOT_INSTALL=invalid \
+  QVOS_SECURITY_TESTING=1 \
+  QVOS_SECURITY_SYSTEM_ROOT="$test_root/docker-invalid-chroot" \
+  QVOS_PATH="$root" \
+  "$docker_policy" >/dev/null 2>&1; then
+  fail "invalid Docker chroot signal was accepted"
+fi
 [[ $(awk '$2 == "/boot" { print $4 }' "$security_system_root/etc/fstab") == \
   "rw,relatime,utf8,fmask=0077,dmask=0077" ]] ||
   fail "EFI system partition root-only mount policy"
