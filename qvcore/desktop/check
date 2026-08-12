@@ -209,8 +209,7 @@ if rg -n 'omarchy-launch-(about|audio|bluetooth|browser|editor|or-focus|or-focus
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
-  --glob '!**/tui/task/selectable-owner' \
-  --glob '!**/desktop/webapp/lib'; then
+  --glob '!**/tui/task/selectable-owner'; then
   fail "native qvOS source still calls a launch compatibility command"
 fi
 if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
@@ -219,7 +218,6 @@ if rg -n 'omarchy-webapp-(install|remove(-all)?)' \
   --glob '!**/desktop/check' \
   --glob '!**/native-paths' \
   --glob '!**/owner-contracts.psv' \
-  --glob '!**/desktop/webapp/lib' \
   --glob '!**/tui/task/selectable-owner'; then
   fail "native qvOS source still calls a Web App compatibility command"
 fi

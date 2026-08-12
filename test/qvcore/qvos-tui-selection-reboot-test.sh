@@ -179,7 +179,9 @@ run_owner "$root/qvcore/tui/task/selectable-owner" theme-remove -- Alpha
 
 install -m 0644 /dev/stdin "$test_home/.local/share/applications/My Web.desktop" <<'DESKTOP'
 [Desktop Entry]
-Exec=omarchy-launch-webapp https://example.com
+Exec=qv-launch-webapp "https://example.com"
+X-qvOS-WebApp=true
+X-qvOS-WebApp-IconOwned=true
 DESKTOP
 touch "$test_home/.local/share/applications/icons/My Web.png"
 

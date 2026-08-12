@@ -162,14 +162,23 @@ install -m 0644 /dev/stdin "$app_dir/Manual qv.desktop" <<'DESKTOP'
 [Desktop Entry]
 Exec=qv-launch-webapp "https://manual.example"
 DESKTOP
+install -m 0644 /dev/stdin "$app_dir/Historical.desktop" <<'DESKTOP'
+[Desktop Entry]
+Exec=omarchy-launch-webapp https://historical.example
+DESKTOP
 if run_owner "$owner_root/remove" Foreign >/dev/null 2>&1; then
   fail "Web App removal accepted a foreign desktop entry"
 fi
 if run_owner "$owner_root/remove" 'Manual qv' >/dev/null 2>&1; then
   fail "Web App removal accepted an unmarked manual qv launcher"
 fi
+if run_owner "$owner_root/remove" Historical >/dev/null 2>&1; then
+  fail "Web App removal accepted a historical Omarchy launcher"
+fi
 [[ -f $app_dir/Foreign.desktop ]] || fail "foreign desktop entry was removed"
 [[ -f "$app_dir/Manual qv.desktop" ]] || fail "manual qv launcher was removed"
+[[ -f $app_dir/Historical.desktop ]] ||
+  fail "historical Omarchy launcher was removed"
 run_owner "$owner_root/remove" 'Icon App' >/dev/null
 [[ ! -e $icon_app && ! -e $icon_path ]] ||
   fail "owned Web App desktop and icon removal"
@@ -179,6 +188,8 @@ run_owner "$owner_root/remove" --all >/dev/null
 [[ -f $app_dir/Foreign.desktop ]] || fail "remove-all deleted a foreign desktop entry"
 [[ -f "$app_dir/Manual qv.desktop" ]] ||
   fail "remove-all deleted an unmarked manual qv launcher"
+[[ -f $app_dir/Historical.desktop ]] ||
+  fail "remove-all deleted a historical Omarchy launcher"
 if [[ -n $(run_owner "$owner_root/remove" --list) ]]; then
   fail "remove-all left a managed Web App"
 fi

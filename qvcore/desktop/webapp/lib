@@ -70,7 +70,6 @@ qvos_webapp_desktop_exec_url() {
 qvos_webapp_managed_desktop() {
   local desktop_file=$1
   local exec_count=0
-  local legacy_url
   local line
   local marker_count=0
   local marker_true=false
@@ -89,16 +88,8 @@ qvos_webapp_managed_desktop() {
   done <"$desktop_file"
   ((exec_count == 1)) || return 1
 
-  case $qvos_webapp_exec_line in
-  'Exec=qv-launch-webapp '*)
-    ((marker_count == 1)) && [[ $marker_true == "true" ]]
-    ;;
-  'Exec=omarchy-launch-webapp '*)
-    legacy_url=${qvos_webapp_exec_line#Exec=omarchy-launch-webapp }
-    ((marker_count == 0)) && qvos_web_validate_url "$legacy_url" 2048 true
-    ;;
-  *) return 1 ;;
-  esac
+  [[ $qvos_webapp_exec_line == 'Exec=qv-launch-webapp '* &&
+    $marker_count == 1 && $marker_true == "true" ]]
 }
 
 qvos_webapp_list() {

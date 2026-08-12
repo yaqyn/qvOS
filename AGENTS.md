@@ -223,7 +223,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;
   installation and removal preserve foreign files, while fresh qvOS contains
-  no preinstalled Web Apps, fixed service URLs, or service protocol handlers
+  no preinstalled Web Apps, fixed service URLs, or service protocol handlers.
+  Permanent inventory accepts only marked native qvOS launchers and treats
+  historical Omarchy launch entries as foreign user data
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - `qvcore/packages/provider/omarchy/` owns the credited Omarchy mirror and
