@@ -2,6 +2,17 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+export QVOS_PATH
+config_manifest="$QVOS_PATH/qvcore/config/seed-files"
+config_owner="$QVOS_PATH/qvcore/config/refresh"
+shell_owner="$QVOS_PATH/qvcore/shell/reset"
+menu_owner="$QVOS_PATH/qvcore/menu/refresh-walker"
+service_owner="$QVOS_PATH/qvcore/config/user-services"
+optional_policies=(
+  wireplumber/wireplumber.conf.d/alsa-soft-mixer.conf
+  wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf
+)
+existing_optional_policies=()
 
 usage() {
   echo "Usage: qv reinstall configs [--yes]" >&2
@@ -24,13 +35,47 @@ if [[ ${1:-} != "--yes" ]] &&
 fi
 
 echo "Resetting qvOS-managed configs"
-install -d -- "$HOME/.config"
-cp -a "$QVOS_PATH/qvcore/config/files/." "$HOME/.config/"
-cp "$QVOS_PATH/qvcore/shell/files/bashrc" "$HOME/.bashrc"
-printf '%s\n' '[[ -f ~/.bashrc ]] && . ~/.bashrc' >"$HOME/.bash_profile"
+[[ -f $config_manifest && ! -L $config_manifest ]] || {
+  echo "Missing or unsafe qvOS config manifest." >&2
+  exit 1
+}
+mapfile -t config_paths <"$config_manifest"
+(( ${#config_paths[@]} > 0 )) || {
+  echo "The qvOS config manifest is empty." >&2
+  exit 1
+}
+[[ $(printf '%s\n' "${config_paths[@]}" | LC_ALL=C sort -u) == \
+  $(printf '%s\n' "${config_paths[@]}") ]] || {
+  echo "The qvOS config manifest must be sorted and unique." >&2
+  exit 1
+}
+
+for config_path in "${config_paths[@]}"; do
+  "$config_owner" --preflight "$config_path"
+done
+"$shell_owner" --preflight
+"$menu_owner" --preflight
+"$service_owner" --preflight-reset
+for config_path in "${optional_policies[@]}"; do
+  target="$HOME/.config/$config_path"
+  if [[ -e $target || -L $target ]]; then
+    "$config_owner" --preflight "$config_path"
+    existing_optional_policies+=("$config_path")
+  fi
+done
+
+for config_path in "${config_paths[@]}"; do
+  "$config_owner" "$config_path"
+done
+"$shell_owner"
+"$menu_owner"
+"$service_owner" --reset
+for config_path in "${existing_optional_policies[@]}"; do
+  "$config_owner" "$config_path"
+done
 
 bash "$QVOS_PATH/qvcore/install/config/theme.sh"
 
-qv-refresh-hyprland
-qv-refresh-limine
-qv-refresh-plymouth
+"$QVOS_PATH/qvcore/config/refresh-hyprland"
+"$QVOS_PATH/qvcore/boot/refresh-limine"
+"$QVOS_PATH/qvcore/boot/refresh-plymouth"

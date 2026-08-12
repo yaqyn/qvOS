@@ -32,11 +32,14 @@ complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.
 
 Resolve and validate the complete native package manifest before changing
-mirrors or invoking Pacman. A config reset copies from `$QVOS_PATH`, runs
-the native theme configuration directly, and finishes through the shared
-Hyprland reconciliation owner. Its Bash source comes only from
-`qvcore/shell/files/bashrc`; the inherited top-level shell defaults are
-retired.
+mirrors or invoking Pacman. A config reset preflights every base, menu,
+user-service, existing optional WirePlumber, and Bash target before changing a
+user file, then delegates each restoration to its native owner. It preserves
+private recovery copies, never recursively copies the config tree or rewrites
+`.bash_profile`, runs the native theme configuration directly, and finishes
+through the shared Hyprland and boot presentation owners. Its Bash source comes
+only from `qvcore/shell/files/bashrc`; the inherited top-level shell defaults
+are retired.
 Resolve package-provider files only through
 `qvcore/packages/provider-files`. Installed and online qvOS use Stable; Edge and
 RC are accepted only inside the reviewed ISO chroot. Provider source requires

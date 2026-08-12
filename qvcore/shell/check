@@ -19,7 +19,8 @@ fail() {
 expected_files=$'bashrc\ncompletions\nenvs\ninit\ninputrc\nrc\nsettings'
 [[ $(find "$files" -maxdepth 1 -type f -printf '%f\n' | sort) == \
   "$expected_files" ]] || fail "native shell file inventory"
-[[ -x $root/qvcore/shell/install && -x $root/qvcore/shell/seed &&
+[[ -x $root/qvcore/shell/install && -x $root/qvcore/shell/reset &&
+  -x $root/qvcore/shell/seed &&
   -x $root/qvcore/shell/check ]] ||
   fail "shell owner mode"
 [[ $(find "$files" "$root/qvcore/shell/aliases" -type f \
@@ -67,7 +68,11 @@ if rg -n '(^|[[:space:]])cp[[:space:]].*qvcore/shell/files/bashrc' \
   "$root/qvcore/install/config/config.sh"; then
   fail "fresh installer directly overwrites Bash configuration"
 fi
-grep -Fq 'qvcore/shell/files/bashrc' \
-  "$root/qvcore/install/reinstall-configs" || fail "reset Bash source"
+grep -Fq 'qvcore/shell/reset' \
+  "$root/qvcore/install/reinstall-configs" || fail "reset Bash owner"
+if rg -n '\.bash_profile|cp[[:space:]].*qvcore/shell/files/bashrc' \
+  "$root/qvcore/install/reinstall-configs"; then
+  fail "config reset bypasses native Bash ownership"
+fi
 
 printf 'ok - qvOS shell is native, minimal, preserving, and source-independent\n'

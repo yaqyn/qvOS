@@ -9,6 +9,23 @@ unit_root="$HOME/.config/systemd/user"
 temporary=""
 changed=false
 manage_systemd=false
+mode=install
+
+usage() {
+  echo "Usage: user-services [--preflight-reset|--reset]" >&2
+  exit 2
+}
+
+case ${1:-} in
+"")
+  (($# == 0)) || usage
+  ;;
+--preflight-reset | --reset)
+  (($# == 1)) || usage
+  mode=${1#--}
+  ;;
+*) usage ;;
+esac
 
 native_units=(
   qvos-battery-monitor.service
@@ -101,7 +118,30 @@ for unit in "${native_units[@]}"; do
   }
 done
 
+if [[ $mode == "preflight-reset" || $mode == "reset" ]]; then
+  for unit in "${native_units[@]}"; do
+    "$QVOS_PATH/qvcore/config/refresh" --preflight "systemd/user/$unit"
+  done
+  [[ $mode == "reset" ]] || exit 0
+fi
+
 configure_systemd_access
+if [[ $mode == "reset" ]]; then
+  for unit in "${native_units[@]}"; do
+    target="$unit_root/$unit"
+    if [[ ! -f $target ]] ||
+      ! cmp -s -- "$source_root/$unit" "$target" ||
+      [[ $(stat -c '%a' -- "$target") != "644" ]]; then
+      changed=true
+    fi
+    "$QVOS_PATH/qvcore/config/refresh" "systemd/user/$unit"
+  done
+  if [[ $manage_systemd == "true" && $changed == "true" ]]; then
+    systemctl --user daemon-reload
+  fi
+  exit 0
+fi
+
 ensure_directory 0755 "$HOME/.config"
 ensure_directory 0755 "$HOME/.config/systemd"
 ensure_directory 0755 "$unit_root"

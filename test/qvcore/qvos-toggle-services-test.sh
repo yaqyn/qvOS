@@ -210,6 +210,66 @@ HOME="$service_home" \
 [[ $(<"$systemctl_log") == "$systemctl_snapshot" ]] ||
   fail "idempotent user-service reconciliation touched systemd"
 
+printf 'custom user service\n' >"$unit_root/qvos-battery-monitor.service"
+chmod 0600 "$unit_root/qvos-battery-monitor.service"
+service_snapshot=$(find "$service_home" -printf '%P|%m|%i|%T@\n' | sort)
+HOME="$service_home" \
+  QVOS_PATH="$root" \
+  QVOS_USER_SERVICES_TESTING=1 \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/user-services" --preflight-reset
+[[ $(find "$service_home" -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$service_snapshot" ]] || fail "user-service reset preflight mutated state"
+[[ $(<"$systemctl_log") == "$systemctl_snapshot" ]] ||
+  fail "user-service reset preflight touched systemd"
+
+HOME="$service_home" \
+  QVOS_PATH="$root" \
+  QVOS_USER_SERVICES_TESTING=1 \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/user-services" --reset
+cmp -s \
+  "$root/qvcore/config/files/systemd/user/qvos-battery-monitor.service" \
+  "$unit_root/qvos-battery-monitor.service" ||
+  fail "explicit user-service reset value"
+[[ $(stat -c '%a' "$unit_root/qvos-battery-monitor.service") == "644" ]] ||
+  fail "explicit user-service reset mode"
+[[ $(<"$systemctl_log") == $'--user daemon-reload\n--user daemon-reload' ]] ||
+  fail "user-service reset reload count"
+mapfile -t service_backups < <(
+  backup_root="$service_home/.local/state/qvos/config-backups/refresh"
+  for path_file in "$backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == \
+      "systemd/user/qvos-battery-monitor.service" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
+)
+(( ${#service_backups[@]} == 1 )) || fail "one private user-service backup"
+grep -Fqx 'custom user service' "${service_backups[0]}" ||
+  fail "user-service reset backup value"
+unit_snapshot=$(find "$unit_root" -printf '%P|%m|%i|%T@\n' | sort)
+backup_snapshot=$(
+  find "$service_home/.local/state/qvos/config-backups/refresh" \
+    ! -name .lock -printf '%P|%m|%i|%T@\n' | sort
+)
+systemctl_snapshot=$(<"$systemctl_log")
+HOME="$service_home" \
+  QVOS_PATH="$root" \
+  QVOS_USER_SERVICES_TESTING=1 \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/config/user-services" --reset
+[[ $(find "$unit_root" -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$unit_snapshot" ]] || fail "exact user-service reset changed a unit"
+[[ $(find "$service_home/.local/state/qvos/config-backups/refresh" \
+  ! -name .lock -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$backup_snapshot" ]] || fail "exact user-service reset changed recovery state"
+[[ $(<"$systemctl_log") == "$systemctl_snapshot" ]] ||
+  fail "exact user-service reset touched systemd"
+
 unsafe_service_home="$test_root/unsafe-service-home"
 unsafe_unit_root="$unsafe_service_home/.config/systemd/user"
 unsafe_target="$test_root/unsafe-service-target"

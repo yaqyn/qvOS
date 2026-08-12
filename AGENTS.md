@@ -162,7 +162,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   menu runtime publishes as one exact native inventory, and current install
   never scans historical menu state
 - `qvcore/config/files/nvim/` owns the minimal official Neovim seed;
-  fresh install and explicit config reset copy it directly, while normal
+  fresh install seeds it only when missing and explicit config reset restores
+  it through the shared transaction, while normal
   desktop reconciliation preserves existing Neovim configuration
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never

@@ -525,8 +525,22 @@ grep -Fq 'ln -s qvos "$QVOS_COMPAT_TARGET"' "$root/boot.sh" ||
   fail "fresh-install source compatibility link"
 grep -Fq 'qvcore/install/packaging/resolve' "$root/qvcore/install/reinstall-packages" ||
   fail "native package resolver"
-grep -Fq 'qv-refresh-hyprland' "$root/qvcore/install/reinstall-configs" ||
-  fail "config reset reconciliation"
+for owner in \
+  qvcore/config/refresh \
+  qvcore/config/refresh-hyprland \
+  qvcore/config/user-services \
+  qvcore/menu/refresh-walker \
+  qvcore/shell/reset \
+  qvcore/boot/refresh-limine \
+  qvcore/boot/refresh-plymouth; do
+  grep -Fq "$owner" "$root/qvcore/install/reinstall-configs" ||
+    fail "config reset bypasses native owner: $owner"
+done
+if rg -n \
+  'cp[[:space:]]+-[A-Za-z]*[aR].*qvcore/config/files|\.bash_profile|(^|[[:space:]])qv-refresh-' \
+  "$root/qvcore/install/reinstall-configs"; then
+  fail "config reset retains a recursive copy, login-shell overwrite, or PATH route"
+fi
 if rg -n 'NOPASSWD: /(usr/)?bin/(systemctl|ufw|ufw-docker|gtk-update-icon-cache|rm)' \
   "$root/qvcore/install"; then
   fail "broad passwordless first-run command remains"

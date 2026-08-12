@@ -1,0 +1,145 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_file="$QVOS_PATH/qvcore/shell/files/bashrc"
+target_file="$HOME/.bashrc"
+backup_root="$HOME/.local/state/qvos/shell-backups"
+mode=apply
+staging=""
+
+usage() {
+  echo "Usage: shell/reset [--preflight]" >&2
+  exit 2
+}
+
+case ${1:-} in
+"")
+  (($# == 0)) || usage
+  ;;
+--preflight)
+  (($# == 1)) || usage
+  mode=preflight
+  ;;
+*) usage ;;
+esac
+
+fail() {
+  printf 'qvOS shell reset: %s\n' "$1" >&2
+  exit 1
+}
+
+cleanup() {
+  [[ -z $staging || (! -e $staging && ! -L $staging) ]] ||
+    rm -f -- "$staging"
+}
+trap cleanup EXIT
+
+safe_owned_directory() {
+  local directory=$1
+  local directory_mode
+
+  [[ -d $directory && ! -L $directory && -O $directory ]] || return 1
+  directory_mode=$(stat -c '%a' -- "$directory") || return 1
+  (( (8#$directory_mode & 022) == 0 ))
+}
+
+safe_owned_file() {
+  local file=$1
+  local file_mode
+
+  [[ -f $file && ! -L $file && -O $file ]] || return 1
+  file_mode=$(stat -c '%a' -- "$file") || return 1
+  (( (8#$file_mode & 022) == 0 ))
+}
+
+validate_optional_directory() {
+  local directory=$1
+
+  [[ ! -e $directory && ! -L $directory ]] ||
+    safe_owned_directory "$directory" ||
+    fail "refusing unsafe backup directory: $directory"
+}
+
+validate_reset() {
+  local directory
+
+  [[ $HOME == /* ]] || fail "HOME must be absolute"
+  safe_owned_directory "$HOME" || fail "refusing unsafe home directory"
+  safe_owned_file "$source_file" || fail "missing or unsafe Bash source"
+  [[ $(stat -c '%a' -- "$source_file") == "644" ]] ||
+    fail "the Bash source has an unsafe mode"
+  if [[ -e $target_file || -L $target_file ]]; then
+    safe_owned_file "$target_file" ||
+      fail "refusing unsafe Bash configuration"
+  fi
+  for directory in \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$backup_root"; do
+    validate_optional_directory "$directory"
+  done
+}
+
+ensure_directory() {
+  local directory=$1
+
+  if [[ -e $directory || -L $directory ]]; then
+    safe_owned_directory "$directory" ||
+      fail "refusing unsafe backup directory: $directory"
+  else
+    install -d -m 0700 -- "$directory"
+  fi
+}
+
+validate_reset
+[[ $mode == "apply" ]] || exit 0
+
+for directory in \
+  "$HOME/.local" \
+  "$HOME/.local/state" \
+  "$HOME/.local/state/qvos" \
+  "$backup_root"; do
+  ensure_directory "$directory"
+done
+chmod 0700 -- "$HOME/.local/state/qvos" "$backup_root"
+exec {reset_lock_fd}>"$backup_root/.lock"
+chmod 0600 -- "$backup_root/.lock"
+flock "$reset_lock_fd"
+validate_reset
+
+if [[ -f $target_file ]] && cmp -s -- "$source_file" "$target_file"; then
+  [[ $(stat -c '%a' -- "$target_file") == "644" ]] ||
+    chmod 0644 -- "$target_file"
+  exit 0
+fi
+
+staging=$(mktemp "$HOME/.bashrc.qvos-reset.XXXXXX")
+install -m 0644 -- "$source_file" "$staging"
+if [[ -e $target_file || -L $target_file ]]; then
+  backup_file=$(mktemp "$backup_root/bashrc-reset.XXXXXX")
+  if ! cp -a -- "$target_file" "$backup_file"; then
+    rm -f -- "$backup_file"
+    fail "could not preserve the Bash configuration"
+  fi
+  cmp -s -- "$backup_file" "$target_file" ||
+    fail "Bash configuration changed while preserving it"
+  mv -fT -- "$staging" "$target_file"
+  staging=""
+  exit 0
+fi
+
+mv -Tn -- "$staging" "$target_file"
+if [[ -e $staging || -L $staging ]]; then
+  rm -f -- "$staging"
+  staging=""
+  safe_owned_file "$target_file" ||
+    fail "a concurrent process installed an unsafe Bash configuration"
+  cmp -s -- "$source_file" "$target_file" ||
+    fail "a concurrent process installed a different Bash configuration"
+  [[ $(stat -c '%a' -- "$target_file") == "644" ]] ||
+    chmod 0644 -- "$target_file"
+  exit 0
+fi
+staging=""

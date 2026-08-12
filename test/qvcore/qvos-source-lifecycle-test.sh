@@ -266,23 +266,44 @@ config_home="$test_root/config-home"
 install -d \
   "$config_source/qvcore/config" \
   "$config_source/qvcore/config/files/example" \
+  "$config_source/qvcore/boot" \
   "$config_source/qvcore/install/config" \
+  "$config_source/qvcore/menu" \
+  "$config_source/qvcore/shell" \
   "$config_source/qvcore/shell/files" \
   "$config_home"
 printf 'configured\n' >"$config_source/qvcore/config/files/example/value"
+printf 'safe replacement\n' >"$config_source/qvcore/config/files/example/zblocked"
 printf 'bashrc\n' >"$config_source/qvcore/shell/files/bashrc"
+printf '%s\n' example/value example/zblocked \
+  >"$config_source/qvcore/config/seed-files"
+install -m 0755 "$root/qvcore/config/refresh" \
+  "$config_source/qvcore/config/refresh"
+install -m 0755 "$root/qvcore/shell/reset" \
+  "$config_source/qvcore/shell/reset"
 install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+install -m 0755 /dev/stdin "$config_source/qvcore/menu/refresh-walker" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--preflight" ]] && exit 0
+printf 'menu\n' >>"$QVOS_TEST_ACTION_LOG"
+SCRIPT
+install -m 0755 /dev/stdin "$config_source/qvcore/config/user-services" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--preflight-reset" ]] && exit 0
+[[ ${1:-} == "--reset" ]] || exit 2
+printf 'services\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
 exit 1
 SCRIPT
-for command in \
-  qv-refresh-hyprland \
-  qv-refresh-limine \
-  qv-refresh-plymouth; do
-  install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
+for owner in \
+  qvcore/config/refresh-hyprland \
+  qvcore/boot/refresh-limine \
+  qvcore/boot/refresh-plymouth; do
+  install -m 0755 /dev/stdin "$config_source/$owner" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "${0##*/}" >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
@@ -309,6 +330,27 @@ set -e
 (( cancelled_config_status == 130 )) || fail "config reset cancellation status"
 [[ ! -e $config_home/.config && ! -s $action_log ]] ||
   fail "config reset cancellation mutation"
+
+blocked_target="$test_root/config-reset-outside"
+printf 'preserve outside\n' >"$blocked_target"
+install -d "$config_home/.config/example"
+ln -s "$blocked_target" "$config_home/.config/example/zblocked"
+set +e
+HOME="$config_home" \
+  QVOS_PATH="$config_source" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/install/reinstall-configs" --yes >/dev/null 2>&1
+unsafe_config_status=$?
+set -e
+(( unsafe_config_status == 1 )) || fail "config reset unsafe preflight status"
+[[ ! -e $config_home/.config/example/value &&
+  ! -e $config_home/.bashrc && ! -L $config_home/.bashrc &&
+  ! -s $action_log ]] || fail "config reset changed state before full preflight"
+grep -Fqx 'preserve outside' "$blocked_target" ||
+  fail "config reset followed an unsafe target"
+rm -- "$config_home/.config/example/zblocked"
+
 HOME="$config_home" \
   QVOS_PATH="$config_source" \
   QVOS_TEST_ACTION_LOG="$action_log" \
@@ -316,9 +358,14 @@ HOME="$config_home" \
   "$root/qvcore/install/reinstall-configs" --yes >/dev/null
 [[ $(<"$config_home/.config/example/value") == "configured" ]] ||
   fail "config reset source"
-[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth' ]] ||
+[[ $(<"$config_home/.config/example/zblocked") == "safe replacement" ]] ||
+  fail "config reset second source"
+[[ $(<"$config_home/.bashrc") == "bashrc" &&
+  ! -e $config_home/.bash_profile && ! -L $config_home/.bash_profile ]] ||
+  fail "config reset Bash ownership"
+[[ $(<"$action_log") == $'menu\nservices\ntheme\nrefresh-hyprland\nrefresh-limine\nrefresh-plymouth' ]] ||
   fail "config reset owner order"
-pass "config reset copies the native seed and reconciles native Hyprland config"
+pass "config reset delegates native owners without rewriting login-shell state"
 
 package_source="$test_root/package-source"
 install -d "$package_source/qvcore/install/packaging"

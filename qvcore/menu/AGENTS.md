@@ -138,8 +138,9 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   before handing them to Walker. Active qvOS config and owners use only the
   native routes.
 - `qvcore/menu/refresh-walker` owns explicit restoration of Walker startup,
-  Walker, and Elephant config. Preflight every source before the first backup,
-  restore through `qvcore/config/refresh`, then reconcile the menu once. The
+  Walker, and Elephant config. Preflight every menu source and every refresh
+  target before the first backup, restore through `qvcore/config/refresh`, then
+  reconcile the menu once. Its internal preflight mode is mutation-free. The
   native command is `qv-refresh-walker`; its Omarchy name is compatibility
   only. Fresh install receives startup files from `qvcore/config/files/` and
   never creates a Pacman hook that executes a user-writable checkout. qvOS

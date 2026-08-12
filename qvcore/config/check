@@ -113,6 +113,10 @@ grep -Fqx '"$QVOS_PATH/qvcore/config/refresh" hypr/hypridle.conf' \
   fail "Hypridle refresh bypasses the singular native source"
 grep -Fq "\$HOME/.local/state/qvos/config-backups/refresh" "$refresh" ||
   fail "config refresh does not own private recovery state"
+grep -Fq -- '--preflight' "$refresh" ||
+  fail "config refresh lacks mutation-free preflight"
+grep -Fq 'validate_optional_directory "$current" "config"' "$refresh" ||
+  fail "config refresh does not validate target ancestors"
 if rg -n 'target_file\.bak|\.config/.+\.bak' "$refresh"; then
   fail "config refresh writes recovery data beside active configuration"
 fi
@@ -275,6 +279,10 @@ done
 for owner in keyboard-layout seed toggle-state user-services wireplumber-policy; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+grep -Fq -- '--preflight-reset' "$root/qvcore/config/user-services" ||
+  fail "user-service reset lacks complete preflight"
+grep -Fq 'qvcore/config/refresh' "$root/qvcore/config/user-services" ||
+  fail "user-service reset bypasses private config recovery"
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/config/seed"' \
   "$root/qvcore/install/config/config.sh" ||

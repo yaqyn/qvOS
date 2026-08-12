@@ -54,6 +54,17 @@ custom $config_path
 EOF
 done
 
+preflight_snapshot=$(find "$test_home" -printf '%P|%m|%i|%T@\n' | sort)
+HOME="$test_home" \
+  QVOS_PATH="$root" \
+  OMARCHY_PATH="$test_root/stale-source" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/menu/refresh-walker" --preflight
+[[ $(find "$test_home" -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$preflight_snapshot" ]] || fail "Walker refresh preflight mutated state"
+[[ ! -s $systemctl_log ]] || fail "Walker refresh preflight touched services"
+
 HOME="$test_home" \
   QVOS_PATH="$root" \
   OMARCHY_PATH="$test_root/stale-source" \

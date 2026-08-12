@@ -2,12 +2,25 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-if (($# != 1)); then
+mode=apply
+
+usage() {
   printf 'Usage: qv refresh config <config-path>\n' >&2
   exit 2
-fi
+}
 
-config_path=$1
+case ${1:-} in
+--preflight)
+  (($# == 2)) || usage
+  mode=preflight
+  config_path=$2
+  ;;
+*)
+  (($# == 1)) || usage
+  config_path=$1
+  ;;
+esac
+
 [[ $config_path =~ ^[A-Za-z0-9][A-Za-z0-9@._/-]*$ &&
   $config_path != *..* ]] || {
   printf 'qvOS config refresh: invalid config path: %s\n' "$config_path" >&2
@@ -16,7 +29,8 @@ config_path=$1
 
 source_root="$QVOS_PATH/qvcore/config/files"
 source_file="$source_root/$config_path"
-target_file="$HOME/.config/$config_path"
+target_root="$HOME/.config"
+target_file="$target_root/$config_path"
 target_dir=${target_file%/*}
 backup_root="$HOME/.local/state/qvos/config-backups/refresh"
 backup_entry=""
@@ -29,7 +43,8 @@ fail() {
 }
 
 cleanup() {
-  [[ -z $staged_file ]] || rm -f -- "$staged_file"
+  [[ -z $staged_file || (! -e $staged_file && ! -L $staged_file) ]] ||
+    rm -f -- "$staged_file"
   if [[ -n $backup_entry && $backup_ready == false ]]; then
     [[ ! -e $backup_entry/path && ! -L $backup_entry/path ]] ||
       rm -f -- "$backup_entry/path"
@@ -40,25 +55,108 @@ cleanup() {
 }
 trap cleanup EXIT
 
+safe_owned_directory() {
+  local directory=$1
+  local directory_mode
+
+  [[ -d $directory && ! -L $directory && -O $directory ]] || return 1
+  directory_mode=$(stat -c '%a' -- "$directory") || return 1
+  (( (8#$directory_mode & 022) == 0 ))
+}
+
+safe_owned_file() {
+  local file=$1
+  local file_mode
+
+  [[ -f $file && ! -L $file && -O $file ]] || return 1
+  file_mode=$(stat -c '%a' -- "$file") || return 1
+  (( (8#$file_mode & 022) == 0 ))
+}
+
+validate_optional_directory() {
+  local directory=$1
+  local label=$2
+
+  [[ ! -e $directory && ! -L $directory ]] ||
+    safe_owned_directory "$directory" ||
+    fail "refusing unsafe $label directory: $directory"
+}
+
+validate_target_tree() {
+  local component
+  local current=$target_root
+  local relative=${target_dir#"$target_root"}
+  local -a components=()
+
+  validate_optional_directory "$target_root" "config"
+  IFS=/ read -r -a components <<<"${relative#/}"
+  for component in "${components[@]}"; do
+    [[ -n $component ]] || continue
+    current="$current/$component"
+    validate_optional_directory "$current" "config"
+  done
+
+  if [[ -e $target_file || -L $target_file ]]; then
+    safe_owned_file "$target_file" ||
+      fail "refusing unsafe config target: $target_file"
+  fi
+}
+
+validate_backup_tree() {
+  local directory
+
+  for directory in \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$backup_root"; do
+    validate_optional_directory "$directory" "backup"
+  done
+}
+
+validate_refresh() {
+  [[ $HOME == /* ]] || fail "HOME must be absolute"
+  safe_owned_directory "$HOME" ||
+    fail "refusing unsafe home directory: $HOME"
+  [[ -d $source_root && ! -L $source_root ]] ||
+    fail "missing or unsafe config source root"
+  safe_owned_file "$source_file" ||
+    fail "unknown or unsafe config: $config_path" 2
+
+  canonical_source_root=$(readlink -f -- "$source_root") ||
+    fail "could not resolve the config source root"
+  canonical_source=$(readlink -f -- "$source_file") ||
+    fail "could not resolve config: $config_path"
+  [[ $canonical_source == "$canonical_source_root/"* ]] ||
+    fail "config escapes its source root: $config_path" 2
+
+  validate_target_tree
+  validate_backup_tree
+}
+
+ensure_directory() {
+  local mode_value=$1
+  local directory=$2
+
+  if [[ -e $directory || -L $directory ]]; then
+    safe_owned_directory "$directory" ||
+      fail "refusing unsafe directory: $directory"
+  else
+    install -d -m "$mode_value" -- "$directory"
+  fi
+}
+
 ensure_private_backup_root() {
   local directory
-  local -a directories=(
-    "$HOME/.local"
-    "$HOME/.local/state"
-    "$HOME/.local/state/qvos"
-    "$HOME/.local/state/qvos/config-backups"
-    "$backup_root"
-  )
 
-  [[ -d $HOME && ! -L $HOME && -O $HOME ]] ||
-    fail "refusing unsafe home directory: $HOME"
-  for directory in "${directories[@]}"; do
-    if [[ -e $directory || -L $directory ]]; then
-      [[ -d $directory && ! -L $directory && -O $directory ]] ||
-        fail "refusing unsafe backup directory: $directory"
-    else
-      install -d -m 0700 -- "$directory"
-    fi
+  for directory in \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$backup_root"; do
+    ensure_directory 0700 "$directory"
   done
   chmod 0700 -- \
     "$HOME/.local/state/qvos" \
@@ -66,30 +164,42 @@ ensure_private_backup_root() {
     "$backup_root"
 }
 
-if [[ ! -f $source_file || -L $source_file ]]; then
-  fail "unknown config: $config_path" 2
-fi
-canonical_source_root=$(readlink -f -- "$source_root") ||
-  fail "could not resolve the config source root"
-canonical_source=$(readlink -f -- "$source_file") ||
-  fail "could not resolve config: $config_path"
-[[ $canonical_source == "$canonical_source_root/"* ]] ||
-  fail "config escapes its source root: $config_path" 2
+ensure_target_tree() {
+  local component
+  local current=$target_root
+  local relative=${target_dir#"$target_root"}
+  local -a components=()
+
+  ensure_directory 0755 "$target_root"
+  IFS=/ read -r -a components <<<"${relative#/}"
+  for component in "${components[@]}"; do
+    [[ -n $component ]] || continue
+    current="$current/$component"
+    ensure_directory 0755 "$current"
+  done
+}
+
+validate_refresh
+[[ $mode == "apply" ]] || exit 0
 
 ensure_private_backup_root
 exec {refresh_lock_fd}>"$backup_root/.lock"
 chmod 0600 -- "$backup_root/.lock"
 flock "$refresh_lock_fd"
+validate_refresh
+ensure_target_tree
 
+source_mode=$(stat -c '%a' -- "$source_file")
 if [[ -e $target_file || -L $target_file ]]; then
-  [[ -f $target_file || -L $target_file ]] ||
-    fail "refusing non-file config target: $target_file"
-  cmp -s "$source_file" "$target_file" && exit 0
+  if cmp -s -- "$source_file" "$target_file"; then
+    [[ $(stat -c '%a' -- "$target_file") == "$source_mode" ]] ||
+      chmod "$source_mode" -- "$target_file"
+    exit 0
+  fi
 fi
 
-mkdir -p "$target_dir"
 staged_file=$(mktemp "$target_dir/.qvos-refresh.XXXXXX")
-install -m "$(stat -c '%a' -- "$source_file")" "$source_file" "$staged_file"
+install -m "$source_mode" -- "$source_file" "$staged_file"
 
 if [[ -e $target_file || -L $target_file ]]; then
   backup_key=$(printf '%s' "$config_path" | sha256sum)
@@ -100,13 +210,30 @@ if [[ -e $target_file || -L $target_file ]]; then
   chmod 0600 -- "$backup_entry/path"
   cp -a -- "$target_file" "$backup_entry/value"
   backup_ready=true
+  cmp -s -- "$backup_entry/value" "$target_file" ||
+    fail "config changed while preserving it: $target_file"
+
+  if ! mv -fT -- "$staged_file" "$target_file"; then
+    if [[ ! -e $target_file && ! -L $target_file ]] &&
+      ! cp -a -- "$backup_entry/value" "$target_file"; then
+      fail "could not install $config_path or restore its private backup"
+    fi
+    fail "could not install $config_path"
+  fi
+  staged_file=""
+  exit 0
 fi
 
-if ! mv -f -- "$staged_file" "$target_file"; then
-  if [[ ! -e $target_file && ! -L $target_file && $backup_ready == true ]] &&
-    ! cp -a -- "$backup_entry/value" "$target_file"; then
-    fail "could not install $config_path or restore its private backup"
-  fi
-  fail "could not install $config_path"
+mv -Tn -- "$staged_file" "$target_file"
+if [[ -e $staged_file || -L $staged_file ]]; then
+  rm -f -- "$staged_file"
+  staged_file=""
+  safe_owned_file "$target_file" ||
+    fail "a concurrent process installed an unsafe config target"
+  cmp -s -- "$source_file" "$target_file" ||
+    fail "a concurrent process installed a different config target"
+  [[ $(stat -c '%a' -- "$target_file") == "$source_mode" ]] ||
+    chmod "$source_mode" -- "$target_file"
+  exit 0
 fi
 staged_file=""

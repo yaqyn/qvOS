@@ -4,6 +4,8 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 config_owner="$root/qvcore/config/seed"
 shell_owner="$root/qvcore/shell/seed"
+shell_reset_owner="$root/qvcore/shell/reset"
+refresh_owner="$root/qvcore/config/refresh"
 manifest="$root/qvcore/config/seed-files"
 test_root=$(mktemp -d)
 
@@ -133,6 +135,71 @@ fi
 grep -Fqx 'outside Bash' "$unsafe_shell_outside" ||
   fail "Bash seed followed a linked target"
 printf 'ok - Bash seed is missing-only, concurrent, and link-safe\n'
+
+refresh_home="$test_root/refresh-home"
+install -d -m 0700 "$refresh_home/.config/btop"
+printf 'custom btop\n' >"$refresh_home/.config/btop/btop.conf"
+refresh_snapshot=$(find "$refresh_home" -printf '%P|%m|%i|%T@\n' | sort)
+HOME="$refresh_home" QVOS_PATH="$root" \
+  "$refresh_owner" --preflight btop/btop.conf
+[[ $(find "$refresh_home" -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$refresh_snapshot" ]] || fail "config refresh preflight mutated state"
+HOME="$refresh_home" QVOS_PATH="$root" \
+  "$refresh_owner" btop/btop.conf
+cmp -s "$root/qvcore/config/files/btop/btop.conf" \
+  "$refresh_home/.config/btop/btop.conf" || fail "config refresh value"
+mapfile -t refresh_backups < <(
+  find "$refresh_home/.local/state/qvos/config-backups/refresh" \
+    -mindepth 2 -maxdepth 2 -type f -name value -print
+)
+(( ${#refresh_backups[@]} == 1 )) || fail "one private config refresh backup"
+grep -Fqx 'custom btop' "${refresh_backups[0]}" ||
+  fail "config refresh backup value"
+
+unsafe_refresh_home="$test_root/unsafe-refresh-home"
+unsafe_refresh_outside="$test_root/unsafe-refresh-outside"
+install -d -m 0700 "$unsafe_refresh_home/.config" "$unsafe_refresh_outside"
+ln -s "$unsafe_refresh_outside" "$unsafe_refresh_home/.config/btop"
+if HOME="$unsafe_refresh_home" QVOS_PATH="$root" \
+  "$refresh_owner" --preflight btop/btop.conf >/dev/null 2>&1; then
+  fail "config refresh accepted a linked target parent"
+fi
+[[ -z $(find "$unsafe_refresh_outside" -mindepth 1 -print -quit) &&
+  ! -e $unsafe_refresh_home/.local && ! -L $unsafe_refresh_home/.local ]] ||
+  fail "config refresh preflight changed unsafe state"
+printf 'ok - config refresh preflights privately and rejects unsafe ancestors\n'
+
+reset_home="$test_root/reset-home"
+install -d -m 0700 "$reset_home"
+printf 'custom Bash\n' >"$reset_home/.bashrc"
+printf 'custom login shell\n' >"$reset_home/.bash_profile"
+reset_snapshot=$(find "$reset_home" -printf '%P|%m|%i|%T@\n' | sort)
+HOME="$reset_home" QVOS_PATH="$root" "$shell_reset_owner" --preflight
+[[ $(find "$reset_home" -printf '%P|%m|%i|%T@\n' | sort) == \
+  "$reset_snapshot" ]] || fail "Bash reset preflight mutated state"
+HOME="$reset_home" QVOS_PATH="$root" "$shell_reset_owner"
+cmp -s "$root/qvcore/shell/files/bashrc" "$reset_home/.bashrc" ||
+  fail "explicit Bash reset"
+grep -Fqx 'custom login shell' "$reset_home/.bash_profile" ||
+  fail "Bash reset changed login-shell state"
+mapfile -t reset_backups < <(
+  find "$reset_home/.local/state/qvos/shell-backups" \
+    -maxdepth 1 -type f -name 'bashrc-reset.*' -print
+)
+(( ${#reset_backups[@]} == 1 )) || fail "one private Bash reset backup"
+grep -Fqx 'custom Bash' "${reset_backups[0]}" || fail "Bash reset backup value"
+bash_reset_inode=$(stat -c '%i' "$reset_home/.bashrc")
+login_reset_hash=$(sha256sum "$reset_home/.bash_profile")
+HOME="$reset_home" QVOS_PATH="$root" "$shell_reset_owner"
+mapfile -t exact_reset_backups < <(
+  find "$reset_home/.local/state/qvos/shell-backups" \
+    -maxdepth 1 -type f -name 'bashrc-reset.*' -print
+)
+[[ $(stat -c '%i' "$reset_home/.bashrc") == "$bash_reset_inode" &&
+  $(sha256sum "$reset_home/.bash_profile") == "$login_reset_hash" &&
+  ${#exact_reset_backups[@]} == 1 ]] ||
+  fail "exact Bash reset was not idempotent"
+printf 'ok - explicit Bash reset is private, preserving, and idempotent\n'
 
 "$root/qvcore/config/check"
 "$root/qvcore/shell/check"

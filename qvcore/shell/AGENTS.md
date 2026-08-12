@@ -17,6 +17,11 @@ home, source, and any existing target, publishes without clobbering a
 concurrent file, and preserves every existing Bash configuration. The fresh
 installer delegates to this owner before normal shell reconciliation; config
 installation never copies a Bash file directly.
+`reset` is the explicit destructive counterpart. It preflights without
+mutation, rejects unsafe state or targets, serializes publication, preserves a
+changed `.bashrc` privately, and restores only the native Bash entrypoint. It
+never creates or rewrites `.bash_profile`; login-shell ownership remains with
+the account rather than qvOS config reset.
 
 The default shell remains small. Do not restore raw drive-formatting helpers,
 pattern-based process killing, forced worktree deletion, legacy tmux layouts,

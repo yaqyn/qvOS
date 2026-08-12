@@ -2,21 +2,42 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+mode=apply
 
-(( $# == 0 )) || {
+usage() {
   echo "Usage: qv refresh walker" >&2
   exit 2
 }
 
+case ${1:-} in
+"")
+  (($# == 0)) || usage
+  ;;
+--preflight)
+  (($# == 1)) || usage
+  mode=preflight
+  ;;
+*) usage ;;
+esac
+
 "$QVOS_PATH/qvcore/menu/install" --preflight
 
-for config_path in \
-  autostart/walker.desktop \
-  elephant/calc.toml \
-  elephant/desktopapplications.toml \
-  elephant/symbols.toml \
-  systemd/user/app-walker@autostart.service.d/restart.conf \
-  walker/config.toml; do
+config_paths=(
+  autostart/walker.desktop
+  elephant/calc.toml
+  elephant/desktopapplications.toml
+  elephant/symbols.toml
+  systemd/user/app-walker@autostart.service.d/restart.conf
+  walker/config.toml
+)
+
+for config_path in "${config_paths[@]}"; do
+  "$QVOS_PATH/qvcore/config/refresh" --preflight "$config_path"
+done
+
+[[ $mode == "apply" ]] || exit 0
+
+for config_path in "${config_paths[@]}"; do
   "$QVOS_PATH/qvcore/config/refresh" "$config_path"
 done
 

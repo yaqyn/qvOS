@@ -52,16 +52,19 @@ compatibility adapters after their feature owner is promoted.
 `qvcore/config/refresh` is the singular atomic file-restoration transaction.
 It reads only `qvcore/config/files/`; the alternate top-level source and
 `--owned` selector are retired. Validate a bounded relative path, reject
-linked or escaping sources and non-file targets, skip exact matches, stage in
-the destination directory, serialize publication, preserve each replaced value
+linked or escaping sources, unsafe target ancestors, and linked, foreign, or
+writable targets; skip exact matches, stage in the destination directory,
+serialize publication, preserve each replaced value
 under private `~/.local/state/qvos/config-backups/refresh` state, and restore
 that backup if publication fails. Never place refresh backups beside active
 configuration. `qv-refresh-config` owns metadata and
 `omarchy-refresh-config` is compatibility only. Native owners call the
 transaction directly and never route back through the compatibility command.
 The bounded path alphabet includes `@` for systemd template-instance
-directories; traversal, links, escaping sources, and non-file targets remain
-invalid.
+directories; traversal and unsafe paths remain invalid. The internal
+`--preflight` mode performs the same source, target, parent, and recovery-state
+checks without creating state, so multi-file owners can fail before their first
+mutation. Missing-target publication never clobbers a concurrent writer.
 
 `qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.
 Its native command carries metadata and its matching Omarchy command is a
@@ -123,7 +126,9 @@ subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those native unit files
 and reloads the active account manager only after a changed
 deployment. First run and every post-update desktop reconciliation invoke it;
-the retired inherited unit and backup scan is absent.
+the retired inherited unit and backup scan is absent. Explicit config reset
+preflights all units, restores them through the shared backup transaction, and
+reloads the manager once only when a unit changed.
 Only manage the user systemd instance when `HOME` is the active account home.
 `user-systemd-lib` singularly verifies that the reachable manager reports that
 same home. Fresh chroot and cross-home runs deploy unit files without contacting
