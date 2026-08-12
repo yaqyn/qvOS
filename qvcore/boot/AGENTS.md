@@ -56,6 +56,11 @@ An interrupted run may have already installed the qvOS skin before generated
 entries exist. Retry may recover its kernel command line only from an exact
 re-render of the native Limine defaults plus the current validated drop-ins;
 never source defaults or accept a partial or foreign recovery file.
+Before rendering the captured or recovered base command line, remove only the
+exact unquoted resume, resume-offset, and RTC token forms owned by native qvOS
+drop-ins. Parse token boundaries without evaluation, preserve safe escaped
+foreign arguments, reject shell-expanding or structurally ambiguous base input,
+then append each validated drop-in once.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed

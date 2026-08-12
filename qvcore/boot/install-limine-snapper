@@ -2,10 +2,13 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+# shellcheck source=qvcore/boot/install-lib disable=SC1091
 source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 defaults_staging=
+qvos_resume_dropin=false
+qvos_rtc_dropin=false
 
 restore_mkinitcpio_hooks() {
   local active
@@ -111,6 +114,69 @@ append_limine_dropins() {
   fi
 }
 
+validate_qvos_limine_dropins() {
+  local content
+  local path
+  local resume_pattern='^KERNEL_CMDLINE\[default\]\+=" resume=/dev/[A-Za-z0-9._/+:-]+ resume_offset=[1-9][0-9]*"$'
+
+  path=$(qvos_boot_path /etc/limine-entry-tool.d/80-qvos-resume.conf)
+  if qvos_boot_root_exists "$path"; then
+    qvos_boot_require_regular "$path" || return 1
+    content=$(qvos_boot_read_file "$path")
+    [[ $content =~ $resume_pattern ]] || {
+      echo "Error: invalid native qvOS Limine resume drop-in: $path" >&2
+      return 1
+    }
+    qvos_resume_dropin=true
+  fi
+
+  path=$(qvos_boot_path /etc/limine-entry-tool.d/80-qvos-rtc-alarm.conf)
+  if qvos_boot_root_exists "$path"; then
+    qvos_boot_require_regular "$path" || return 1
+    content=$(qvos_boot_read_file "$path")
+    [[ $content == \
+      'KERNEL_CMDLINE[default]+=" rtc_cmos.use_acpi_alarm=1"' ]] || {
+      echo "Error: invalid native qvOS Limine RTC drop-in: $path" >&2
+      return 1
+    }
+    qvos_rtc_dropin=true
+  fi
+}
+
+qvos_limine_dropin_token() {
+  local token=$1
+
+  if [[ $qvos_resume_dropin == "true" ]] &&
+    { [[ $token =~ ^resume=/dev/[A-Za-z0-9._/+:-]+$ ]] ||
+      [[ $token =~ ^resume_offset=[1-9][0-9]*$ ]]; }; then
+    return 0
+  fi
+  [[ $qvos_rtc_dropin == "true" &&
+    $token == "rtc_cmos.use_acpi_alarm=1" ]]
+}
+
+validate_limine_cmdline_embedding() {
+  local input=$1
+
+  [[ $input != *'"'* && $input != *'$'* && $input != *'`'* &&
+    $input != *\\\\* && ${input: -1} != "\\" ]]
+}
+
+sanitize_limine_cmdline() {
+  local input=$1
+  local token
+  local -a retained=()
+  local -a tokens=()
+
+  read -r -a tokens <<<"$input"
+  for token in "${tokens[@]}"; do
+    qvos_limine_dropin_token "$token" || retained+=("$token")
+  done
+
+  local IFS=" "
+  printf '%s\n' "${retained[*]}"
+}
+
 recover_limine_cmdline() {
   local defaults=$1
   local efi=$2
@@ -179,6 +245,8 @@ install_limine() {
   local -a candidates
   local -a snapper_args=()
 
+  validate_qvos_limine_dropins
+
   qvos_hooks_content=$'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
   legacy_hooks_content=${qvos_hooks_content%%$'\n'*}
   hooks_config=$(qvos_boot_path /etc/mkinitcpio.conf.d/qvos_hooks.conf)
@@ -245,6 +313,14 @@ install_limine() {
     echo "Error: Limine kernel command line is implausibly large" >&2
     return 1
   }
+  validate_limine_cmdline_embedding "$cmdline" || {
+    echo "Error: Limine kernel command line cannot be represented safely" >&2
+    return 1
+  }
+  if ! cmdline=$(sanitize_limine_cmdline "$cmdline") || [[ -z $cmdline ]]; then
+    echo "Error: Limine kernel command line has no safe base arguments" >&2
+    return 1
+  fi
 
   defaults_staging=$(mktemp)
   chmod 0600 "$defaults_staging"

@@ -173,6 +173,9 @@ grep -Fqx 'CUSTOM_UKI_NAME="qvos"' "$root/qvcore/boot/limine/default.conf" ||
 grep -Fq '/etc/mkinitcpio.conf.d/qvos_hooks.conf' \
   "$root/qvcore/boot/install-limine-snapper" ||
   fail "native qvOS mkinitcpio identity"
+grep -Fq 'sanitize_limine_cmdline' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "native Limine drop-in command-line ownership"
 grep -Fq -- '-name "qvos*.efi"' "$root/qvcore/boot/config-direct-boot" ||
   fail "native qvOS direct-boot UKI selection"
 if rg -n \

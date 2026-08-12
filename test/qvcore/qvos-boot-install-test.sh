@@ -451,7 +451,11 @@ prepare_limine_root() {
 system_root="$test_root/limine-hook"
 prepare_limine_root \
   "$system_root" \
-  'root=UUID=test foo=a&b pipe=one|two slash=\value'
+  'root=UUID=test resume=/dev/mapper/test resume_offset=123 rtc_cmos.use_acpi_alarm=1 foo=a&b pipe=one|two slash=\value escaped=keep\ value'
+printf 'KERNEL_CMDLINE[default]+=" resume=/dev/mapper/test resume_offset=123"\n' \
+  >"$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
+printf 'KERNEL_CMDLINE[default]+=" rtc_cmos.use_acpi_alarm=1"\n' \
+  >"$system_root/etc/limine-entry-tool.d/80-qvos-rtc-alarm.conf"
 printf '%s' \
   $'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n' \
   >"$system_root/etc/mkinitcpio.conf.d/omarchy_hooks.conf"
@@ -464,9 +468,16 @@ export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
 OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 unset QVOS_TEST_PACKAGES_MISSING QVOS_TEST_PACMAN_ENTRIES \
   QVOS_TEST_SNAPPER_EMPTY_STATUS
-grep -Fqx 'KERNEL_CMDLINE[default]+="root=UUID=test foo=a&b pipe=one|two slash=\value"' \
+grep -Fqx 'KERNEL_CMDLINE[default]+="root=UUID=test foo=a&b pipe=one|two slash=\value escaped=keep\ value"' \
   "$system_root/etc/default/limine" ||
   fail "Limine literal kernel command line rendering"
+for token in \
+  'resume=/dev/mapper/test' \
+  'resume_offset=123' \
+  'rtc_cmos.use_acpi_alarm=1'; do
+  [[ $(grep -Fc "$token" "$system_root/etc/default/limine") == "1" ]] ||
+    fail "singular Limine drop-in token: $token"
+done
 grep -Fqx 'KERNEL_CMDLINE[default]+=" extra=1"' \
   "$system_root/etc/default/limine" ||
   fail "Limine drop-in merge"
@@ -528,6 +539,17 @@ OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 grep -Fqx 'KERNEL_CMDLINE[default]+=" extra=2"' \
   "$system_root/etc/default/limine" ||
   fail "changed Limine drop-in did not reach native defaults"
+
+system_root="$test_root/limine-foreign-resume"
+prepare_limine_root \
+  "$system_root" \
+  'root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77 quiet'
+: >"$action_log"
+OMARCHY_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
+grep -Fqx \
+  'KERNEL_CMDLINE[default]+="root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77 quiet"' \
+  "$system_root/etc/default/limine" ||
+  fail "foreign base resume policy preservation"
 
 system_root="$test_root/limine-interrupted"
 prepare_limine_root "$system_root" 'root=UUID=interrupted quiet'
@@ -598,6 +620,31 @@ for hook in 90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook; do
   [[ -f $system_root/usr/share/libalpm/hooks/$hook ]] ||
     fail "failure-path mkinitcpio hook restoration: $hook"
 done
+
+system_root="$test_root/limine-unsafe-cmdline"
+# shellcheck disable=SC2016
+prepare_limine_root "$system_root" 'root=UUID=test unsafe=$(id)'
+: >"$action_log"
+if OMARCHY_CHROOT_INSTALL=1 \
+  run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
+  fail "Limine accepted shell-expanding kernel input"
+fi
+if grep -q '^pacman' "$action_log"; then
+  fail "unsafe Limine input reached package mutation"
+fi
+
+system_root="$test_root/limine-invalid-native-dropin"
+prepare_limine_root "$system_root" 'root=UUID=test quiet'
+printf 'KERNEL_CMDLINE[default]+=" resume=foreign"\n' \
+  >"$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
+: >"$action_log"
+if OMARCHY_CHROOT_INSTALL=1 \
+  run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
+  fail "Limine accepted an invalid native resume drop-in"
+fi
+if grep -q '^pacman' "$action_log"; then
+  fail "invalid native drop-in reached package mutation"
+fi
 
 system_root="$test_root/no-limine"
 install -d -m 0700 "$system_root/usr/share/libalpm/hooks"
