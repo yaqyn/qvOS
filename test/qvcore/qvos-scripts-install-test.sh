@@ -633,8 +633,15 @@ grep -Fqx 'export PERSONAL_SHELL_VALUE=preserve' "$test_root/.bashrc" ||
   fail "personal Bash content preservation"
 grep -Fqx 'alias hx=helix' "$test_root/.local/lib/qvos/shell/aliases" ||
   fail "runtime Helix alias"
-compgen -G "$test_root/.bashrc.bak.*" >/dev/null ||
-  fail "Bash configuration backup"
+shell_backup_root="$test_root/.local/state/qvos/shell-backups"
+[[ -d $shell_backup_root && ! -L $shell_backup_root &&
+  $(stat -c '%a' "$shell_backup_root") == "700" ]] ||
+  fail "private Bash configuration backup directory"
+[[ $(find "$shell_backup_root" -maxdepth 1 -type f -name 'bashrc.*' | wc -l) == "1" ]] ||
+  fail "private Bash configuration backup"
+if compgen -G "$test_root/.bashrc.bak.*" >/dev/null; then
+  fail "Bash configuration backup leaked beside active configuration"
+fi
 pass "Bash loads the source-independent qvOS shell overlay"
 
 [[ "$(stat -c '%a' "$test_root/.local/lib/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"

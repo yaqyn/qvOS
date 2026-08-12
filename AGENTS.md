@@ -149,7 +149,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited terminal-specific screensaver defaults are retired
 - `qvcore/shell/` owns the native Bash defaults and source-independent alias
   payload; permanent reconciliation recognizes only exact current qvOS source
-  lines and never scans historical Omarchy or retired qvOS shell layouts
+  lines and never scans historical Omarchy or retired qvOS shell layouts;
+  changed Bash recovery values live privately under
+  `~/.local/state/qvos/shell-backups`, never beside `.bashrc`
 - `qvcore/browser/` owns browser policy and the local Copy URL extension;
   inherited browser defaults are retired and no browser owner seeds a Web App
 - `qvcore/menu/` owns every qvOS Elephant provider and the generated Walker

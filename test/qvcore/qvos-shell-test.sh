@@ -47,6 +47,7 @@ source "$HOME/.local/share/qvos/qvcore/shell/files/rc"
 source "$HOME/.local/lib/qvos/shell/aliases"
 export PERSONAL_SHELL_VALUE=preserve
 BASHRC
+cp "$native_home/.bashrc" "$test_root/native-bashrc-before"
 run_owner "$native_home"
 runtime_aliases="$native_home/.local/lib/qvos/shell/aliases"
 cmp -s "$root/qvcore/shell/aliases" "$runtime_aliases" ||
@@ -63,8 +64,19 @@ if grep -Fqx 'source "$HOME/.local/lib/qvos/shell/aliases"' \
 fi
 grep -Fqx 'export PERSONAL_SHELL_VALUE=preserve' "$native_home/.bashrc" ||
   fail "personal Bash content preservation"
-compgen -G "$native_home/.bashrc.bak.*" >/dev/null ||
-  fail "native Bash backup"
+native_backup_root="$native_home/.local/state/qvos/shell-backups"
+[[ -d $native_backup_root && ! -L $native_backup_root &&
+  $(stat -c '%a' "$native_home/.local/state/qvos") == "700" &&
+  $(stat -c '%a' "$native_backup_root") == "700" ]] ||
+  fail "private native Bash backup directory"
+mapfile -t native_backups < <(find "$native_backup_root" -maxdepth 1 \
+  -type f -name 'bashrc.*' -print)
+(( ${#native_backups[@]} == 1 )) || fail "private native Bash backup"
+cmp -s "$test_root/native-bashrc-before" "${native_backups[0]}" ||
+  fail "private native Bash backup content"
+if compgen -G "$native_home/.bashrc.bak.*" >/dev/null; then
+  fail "native Bash backup leaked beside active configuration"
+fi
 
 first_hashes=$(find "$native_home" -type f -exec sha256sum {} + | sort)
 first_inodes=$(find "$native_home" -type f -exec stat -c '%i %n' {} + | sort)
@@ -81,14 +93,22 @@ export CUSTOM_ONLY=yes
 source "$HOME/.local/lib/qvos/shell/aliases"
 source "$HOME/.local/lib/qvos/shell/aliases"
 BASHRC
+cp "$custom_home/.bashrc" "$test_root/custom-bashrc-before"
 run_owner "$custom_home"
 # shellcheck disable=SC2016
 [[ $(grep -Fxc 'source "$HOME/.local/lib/qvos/shell/aliases"' \
   "$custom_home/.bashrc") == 1 ]] || fail "custom Bash runtime source"
 grep -Fqx 'export CUSTOM_ONLY=yes' "$custom_home/.bashrc" ||
   fail "custom Bash content preservation"
-compgen -G "$custom_home/.bashrc.bak.*" >/dev/null ||
-  fail "custom Bash backup"
+custom_backup_root="$custom_home/.local/state/qvos/shell-backups"
+mapfile -t custom_backups < <(find "$custom_backup_root" -maxdepth 1 \
+  -type f -name 'bashrc.*' -print)
+(( ${#custom_backups[@]} == 1 )) || fail "private custom Bash backup"
+cmp -s "$test_root/custom-bashrc-before" "${custom_backups[0]}" ||
+  fail "private custom Bash backup content"
+if compgen -G "$custom_home/.bashrc.bak.*" >/dev/null; then
+  fail "custom Bash backup leaked beside active configuration"
+fi
 
 historical_home="$test_root/historical-home"
 install -d "$historical_home"

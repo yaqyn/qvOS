@@ -6,6 +6,7 @@ source_file="$QVOS_PATH/qvcore/shell/aliases"
 runtime_file="$HOME/.local/lib/qvos/shell/aliases"
 runtime_dir=${runtime_file%/*}
 bashrc="$HOME/.bashrc"
+backup_root="$HOME/.local/state/qvos/shell-backups"
 bashrc_existed=0
 backup_done=0
 staged_bashrc=
@@ -34,17 +35,34 @@ require_safe_directory() {
 
 backup_bashrc() {
   local backup_file
-  local backup_suffix=0
 
   if ((bashrc_existed && backup_done == 0)); then
-    backup_file="$bashrc.bak.$(date +%s)"
-    while [[ -e $backup_file || -L $backup_file ]]; do
-      ((backup_suffix += 1))
-      backup_file="$bashrc.bak.$(date +%s).$backup_suffix"
-    done
-    cp -a "$bashrc" "$backup_file"
+    backup_file=$(mktemp "$backup_root/bashrc.XXXXXX")
+    if ! cp -a -- "$bashrc" "$backup_file"; then
+      rm -f -- "$backup_file"
+      echo "Could not preserve the Bash configuration privately." >&2
+      exit 1
+    fi
     backup_done=1
   fi
+}
+
+ensure_private_backup_root() {
+  local directory
+  local -a directories=(
+    "$HOME/.local/state"
+    "$HOME/.local/state/qvos"
+    "$backup_root"
+  )
+
+  for directory in "${directories[@]}"; do
+    if [[ -e $directory || -L $directory ]]; then
+      require_safe_directory "$directory"
+    else
+      install -d -m 0700 -- "$directory"
+    fi
+  done
+  chmod 0700 -- "$HOME/.local/state/qvos" "$backup_root"
 }
 
 [[ -f $source_file && ! -L $source_file ]] || {
@@ -67,6 +85,7 @@ for directory in \
     install -d -m 0755 -- "$directory"
   fi
 done
+ensure_private_backup_root
 if [[ -e $runtime_file || -L $runtime_file ]]; then
   [[ -f $runtime_file && ! -L $runtime_file && -O $runtime_file ]] || {
     echo "Unsafe qvOS shell runtime: $runtime_file" >&2
