@@ -416,6 +416,23 @@ cmp -s \
   "$root/qvcore/boot/snapper-root.conf" \
   "$system_root/etc/snapper/configs/root" ||
   fail "Snapper root-only policy install"
+grep -Fqx 'NUMBER_CLEANUP="yes"' \
+  "$system_root/etc/snapper/configs/root" ||
+  fail "Snapper number cleanup activation"
+grep -Fqx 'NUMBER_LIMIT="5"' \
+  "$system_root/etc/snapper/configs/root" ||
+  fail "Snapper recovery limit"
+grep -Fqx 'TIMELINE_CREATE="no"' \
+  "$system_root/etc/snapper/configs/root" ||
+  fail "Snapper timeline creation disable"
+grep -Fqx 'TIMELINE_CLEANUP="yes"' \
+  "$system_root/etc/snapper/configs/root" ||
+  fail "Snapper retired timeline cleanup activation"
+for period in HOURLY DAILY WEEKLY MONTHLY QUARTERLY YEARLY; do
+  grep -Fqx "TIMELINE_LIMIT_${period}=\"0\"" \
+    "$system_root/etc/snapper/configs/root" ||
+    fail "Snapper retired timeline limit: $period"
+done
 for hook in 90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook; do
   [[ -f $system_root/usr/share/libalpm/hooks/$hook ]] ||
     fail "mkinitcpio hook restoration: $hook"

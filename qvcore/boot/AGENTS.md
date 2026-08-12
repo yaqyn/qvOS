@@ -83,8 +83,10 @@ the native package owner so a retry skips packages already present without
 depending on a still-populated synchronization database. Include
 `inotify-tools` with the integration packages because the enabled snapshot
 watcher otherwise exits successfully without monitoring later snapshots.
-Preserve the root-only Snapper policy from `qvcore/boot/snapper-root.conf` and
-disabled btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
+Preserve the root-only Snapper policy from `qvcore/boot/snapper-root.conf`,
+including explicit number cleanup with five retained recovery snapshots,
+disabled timeline creation, zero-retention cleanup for historical timeline
+snapshots, and disabled btrfs quotas; `default/snapper/` is retired. Fixture roots are test-only:
 require `QVOS_BOOT_TESTING=1`, a canonical caller-owned `/tmp` directory, and
 non-writable permissions before redirecting any system path. Normal boot
 commands validate an interactive sudo ticket. The reviewed ISO chroot cannot
