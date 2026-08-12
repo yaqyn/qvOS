@@ -183,6 +183,18 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
   "$root/qvcore/install/config/run" || fail "native qvOS toggle-state stage"
 # shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/seed"' \
+  "$root/qvcore/install/config/config.sh" ||
+  fail "fresh config stage bypasses the preserving seed owner"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/shell/seed"' \
+  "$root/qvcore/install/config/config.sh" ||
+  fail "fresh config stage bypasses the preserving Bash seed owner"
+if rg -n 'cp[[:space:]]+-[A-Za-z]*[aR].*qvcore/config/files|cp[[:space:]].*qvcore/shell/files/bashrc' \
+  "$root/qvcore/install/config/config.sh"; then
+  fail "fresh config stage can overwrite an existing user configuration"
+fi
+# shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/branding/system-identity"' \
   "$root/qvcore/install/config/branding.sh" ||
   fail "fresh install does not activate the native system identity"

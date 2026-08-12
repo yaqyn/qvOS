@@ -1,0 +1,151 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_root="$QVOS_PATH/qvcore/config/files"
+manifest="$QVOS_PATH/qvcore/config/seed-files"
+target_root="$HOME/.config"
+lock_root="$HOME/.local/state/qvos/config-backups/refresh"
+staging=""
+
+fail() {
+  printf 'qvOS config seed: %s\n' "$1" >&2
+  exit 1
+}
+
+cleanup() {
+  [[ -z $staging ]] || rm -f -- "$staging"
+}
+trap cleanup EXIT
+
+safe_owned_directory() {
+  local mode
+
+  [[ -d $1 && ! -L $1 && -O $1 ]] || return 1
+  mode=$(stat -c '%a' -- "$1") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+safe_owned_file() {
+  local mode
+
+  [[ -f $1 && ! -L $1 && -O $1 ]] || return 1
+  mode=$(stat -c '%a' -- "$1") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_directory() {
+  local mode=$1
+  local directory=$2
+
+  if [[ -e $directory || -L $directory ]]; then
+    safe_owned_directory "$directory" ||
+      fail "refusing unsafe directory: $directory"
+  else
+    install -d -m "$mode" -- "$directory"
+  fi
+}
+
+ensure_lock_root() {
+  local directory
+
+  safe_owned_directory "$HOME" || fail "refusing unsafe home directory: $HOME"
+  for directory in \
+    "$HOME/.local" \
+    "$HOME/.local/state" \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$lock_root"; do
+    ensure_directory 0700 "$directory"
+  done
+  chmod 0700 -- \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$lock_root"
+}
+
+ensure_target_parent() {
+  local parent=$1
+  local relative=${parent#"$target_root"}
+  local component
+  local current=$target_root
+  local -a components=()
+
+  ensure_directory 0755 "$target_root"
+  IFS=/ read -r -a components <<<"${relative#/}"
+  for component in "${components[@]}"; do
+    [[ -n $component ]] || continue
+    current="$current/$component"
+    ensure_directory 0755 "$current"
+  done
+}
+
+validate_target_parent() {
+  local parent=$1
+  local relative=${parent#"$target_root"}
+  local component
+  local current=$target_root
+  local -a components=()
+
+  if [[ -e $current || -L $current ]]; then
+    safe_owned_directory "$current" ||
+      fail "refusing unsafe directory: $current"
+  fi
+  IFS=/ read -r -a components <<<"${relative#/}"
+  for component in "${components[@]}"; do
+    [[ -n $component ]] || continue
+    current="$current/$component"
+    if [[ -e $current || -L $current ]]; then
+      safe_owned_directory "$current" ||
+        fail "refusing unsafe directory: $current"
+    fi
+  done
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+[[ $HOME == /* ]] || fail "HOME must be absolute"
+[[ -f $manifest && ! -L $manifest ]] || fail "missing or unsafe seed manifest"
+ensure_lock_root
+exec {config_lock_fd}>"$lock_root/.lock"
+chmod 0600 -- "$lock_root/.lock"
+flock "$config_lock_fd"
+
+mapfile -t seed_files <"$manifest"
+(( ${#seed_files[@]} > 0 )) || fail "the seed manifest is empty"
+[[ $(printf '%s\n' "${seed_files[@]}" | LC_ALL=C sort -u) == \
+  $(printf '%s\n' "${seed_files[@]}") ]] ||
+  fail "the seed manifest must be sorted and unique"
+
+for relative in "${seed_files[@]}"; do
+  [[ $relative =~ ^[A-Za-z0-9@._+-]+(/[A-Za-z0-9@._+-]+)*$ ]] ||
+    fail "invalid seed path: $relative"
+  source_file="$source_root/$relative"
+  target_file="$target_root/$relative"
+  [[ -f $source_file && ! -L $source_file ]] ||
+    fail "missing or unsafe seed source: $relative"
+  [[ $(stat -c '%a' -- "$source_file") == "644" ]] ||
+    fail "invalid seed source mode: $relative"
+  validate_target_parent "${target_file%/*}"
+  if [[ -e $target_file || -L $target_file ]]; then
+    safe_owned_file "$target_file" ||
+      fail "refusing unsafe config target: $target_file"
+  fi
+done
+
+for relative in "${seed_files[@]}"; do
+  source_file="$source_root/$relative"
+  target_file="$target_root/$relative"
+  [[ ! -e $target_file && ! -L $target_file ]] || continue
+  ensure_target_parent "${target_file%/*}"
+  staging=$(mktemp "${target_file%/*}/.qvos-config-seed.XXXXXX")
+  install -m 0644 -- "$source_file" "$staging"
+  mv -Tn -- "$staging" "$target_file"
+  if [[ -e $staging || -L $staging ]]; then
+    rm -f -- "$staging"
+    staging=""
+    safe_owned_file "$target_file" ||
+      fail "a concurrent process installed an unsafe config target"
+    continue
+  fi
+  staging=""
+done

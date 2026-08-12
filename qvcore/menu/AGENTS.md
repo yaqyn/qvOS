@@ -115,6 +115,10 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   backup archiving, generated-overlay cleanup, provider renaming, and Walker
   rewriting are retired; current installation never scans historical menu
   roots or identities.
+- The same menu owner singularly seeds missing Walker autostart, Walker config,
+  Elephant calc/desktop/symbol config, and the Walker restart drop-in. Preserve
+  safe customized files and reject links, foreign ownership, or group/world
+  writable targets. These files never belong to the base config seed.
 - Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
   Validate every native provider link before publishing runtime or changing a
   service, and preserve foreign or unsafe native targets by failing closed.

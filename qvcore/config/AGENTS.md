@@ -85,6 +85,13 @@ always call the qv route.
 All defaults installed under `~/.config` are native qvOS sources under
 `qvcore/config/files/`. Bash startup and alias ownership lives separately
 under `qvcore/shell/`; never restore it as a second config source here.
+`seed-files` is the complete base-config manifest and `seed` installs only its
+missing entries under the shared refresh lock. It preflights the full manifest,
+preserves every safe existing user file, rejects unsafe paths, and publishes
+without clobbering a concurrent target. Feature-owned menu, user-service,
+XCompose, and WirePlumber sources stay outside that manifest and are installed
+only by their owner. Fresh qvOS never pre-creates a Chromium profile or copies
+the entire source tree recursively into a user's home.
 The personal menu-extension seed lives at
 `qvcore/config/files/qvos/extensions/menu.sh`; never recreate an installed
 `~/.config/omarchy/extensions/menu.sh` source.
@@ -122,7 +129,9 @@ Only manage the user systemd instance when `HOME` is the active account home.
 same home. Fresh chroot and cross-home runs deploy unit files without contacting
 a manager; first run activates them after the real session exists. The test
 override accepts only an executable temporary `systemctl` fixture.
-The battery monitor keeps its one-shot notification flag only at
+The native user-service inventory includes SwayOSD, battery monitoring, and
+internal-monitor recovery; feature first-run leaves only enable the installed
+native unit and never rely on the broad config seed. The battery monitor keeps its one-shot notification flag only at
 `$XDG_RUNTIME_DIR/qvos-battery-notified`; no inherited runtime flag is read,
 migrated, or removed during normal monitoring.
 

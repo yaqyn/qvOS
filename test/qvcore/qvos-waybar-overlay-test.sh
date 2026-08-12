@@ -186,6 +186,7 @@ cmp -s "$source_config" "$invalid_live" ||
   fail "invalid Waybar source restart"
 
 fresh_home="$test_root/fresh-home"
+install -d -m 0700 "$fresh_home"
 PATH="$test_bin:/usr/bin" HOME="$fresh_home" QVOS_PATH="$root" \
   bash "$root/qvcore/install/config/config.sh"
 PATH="$test_bin:/usr/bin" HOME="$fresh_home" QVOS_PATH="$root" \

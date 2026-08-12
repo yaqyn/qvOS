@@ -1,5 +1,5 @@
 [Unit]
-Description=SwayOSD server
+Description=qvOS SwayOSD Server
 PartOf=graphical-session.target
 After=graphical-session.target
 

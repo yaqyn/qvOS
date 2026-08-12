@@ -43,6 +43,7 @@ config_paths=(
   autostart/walker.desktop
   elephant/calc.toml
   elephant/desktopapplications.toml
+  elephant/symbols.toml
   systemd/user/app-walker@autostart.service.d/restart.conf
   walker/config.toml
 )
@@ -110,6 +111,7 @@ install -m 0644 "$root/qvcore/config/user-systemd-lib" \
 for config_path in \
   autostart/walker.desktop \
   elephant/desktopapplications.toml \
+  elephant/symbols.toml \
   systemd/user/app-walker@autostart.service.d/restart.conf \
   walker/config.toml; do
   install -D -m 0644 "$root/qvcore/config/files/$config_path" \

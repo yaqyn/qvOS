@@ -1,2 +1,2 @@
 systemctl --user daemon-reload
-systemctl --user enable --now swayosd-server.service
+systemctl --user enable --now qvos-swayosd-server.service

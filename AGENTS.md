@@ -126,7 +126,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/config/files/` is the singular source for installed user config;
   `config/` is retired and must remain absent. Atomic refresh recovery values
   live privately under `~/.local/state/qvos/config-backups/refresh`, never
-  beside active configuration
+  beside active configuration. `qvcore/config/seed-files` assigns the complete
+  base inventory to a missing-only, preserving seed transaction; menu,
+  user-service, XCompose, and WirePlumber files remain feature-owned and never
+  enter a recursive fresh-install copy
 - `qvcore/config/files/qvos/extensions/menu.sh` owns the personal menu-extension
   seed; active overrides live only under `~/.config/qvos/extensions/`, while the
   inherited Omarchy path is validated migration input and is never seeded

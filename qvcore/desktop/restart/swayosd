@@ -7,7 +7,7 @@ restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$restart_root/process-lib"
 
 systemctl --user daemon-reload
-systemctl --user stop swayosd-server.service || true
+systemctl --user stop qvos-swayosd-server.service || true
 qvos_process_signal_exact swayosd-server TERM
-systemctl --user reset-failed swayosd-server.service || true
-systemctl --user enable --now swayosd-server.service
+systemctl --user reset-failed qvos-swayosd-server.service || true
+systemctl --user enable --now qvos-swayosd-server.service

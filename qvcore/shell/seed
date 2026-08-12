@@ -1,0 +1,47 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_file="$QVOS_PATH/qvcore/shell/files/bashrc"
+target_file="$HOME/.bashrc"
+staging=""
+
+fail() {
+  printf 'qvOS shell seed: %s\n' "$1" >&2
+  exit 1
+}
+
+cleanup() {
+  [[ -z $staging ]] || rm -f -- "$staging"
+}
+trap cleanup EXIT
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+[[ $HOME == /* && -d $HOME && ! -L $HOME && -O $HOME ]] ||
+  fail "refusing unsafe home directory"
+home_mode=$(stat -c '%a' -- "$HOME")
+(( (8#$home_mode & 022) == 0 )) || fail "refusing writable home directory"
+[[ -f $source_file && ! -L $source_file &&
+  $(stat -c '%a' -- "$source_file") == "644" ]] ||
+  fail "missing or unsafe Bash seed"
+
+if [[ -e $target_file || -L $target_file ]]; then
+  [[ -f $target_file && ! -L $target_file && -O $target_file ]] ||
+    fail "refusing unsafe Bash configuration"
+  target_mode=$(stat -c '%a' -- "$target_file")
+  (( (8#$target_mode & 022) == 0 )) ||
+    fail "refusing writable Bash configuration"
+  exit 0
+fi
+
+staging=$(mktemp "$HOME/.bashrc.qvos.XXXXXX")
+install -m 0644 -- "$source_file" "$staging"
+mv -Tn -- "$staging" "$target_file"
+if [[ -e $staging || -L $staging ]]; then
+  rm -f -- "$staging"
+  staging=""
+  [[ -f $target_file && ! -L $target_file && -O $target_file ]] ||
+    fail "a concurrent process installed an unsafe Bash configuration"
+  exit 0
+fi
+staging=""

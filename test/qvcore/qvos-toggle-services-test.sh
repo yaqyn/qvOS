@@ -169,7 +169,8 @@ QVOS_TEST_MANAGER_UNAVAILABLE=1 \
 for native_unit in \
   qvos-battery-monitor.service \
   qvos-battery-monitor.timer \
-  qvos-recover-internal-monitor.service; do
+  qvos-recover-internal-monitor.service \
+  qvos-swayosd-server.service; do
   cmp -s \
     "$root/qvcore/config/files/systemd/user/$native_unit" \
     "$deferred_unit_root/$native_unit" ||
@@ -188,7 +189,8 @@ HOME="$service_home" \
 for native_unit in \
   qvos-battery-monitor.service \
   qvos-battery-monitor.timer \
-  qvos-recover-internal-monitor.service; do
+  qvos-recover-internal-monitor.service \
+  qvos-swayosd-server.service; do
   cmp -s "$root/qvcore/config/files/systemd/user/$native_unit" "$unit_root/$native_unit" ||
     fail "native user service was not deployed exactly: $native_unit"
 done
@@ -233,4 +235,9 @@ grep -Fq 'NoNewPrivileges=yes' \
 grep -Fq 'ConditionPathExists=%h/.local/state/qvos/toggles/' \
   "$root/qvcore/config/files/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "monitor recovery native state condition"
+grep -Fq 'ExecStart=/usr/bin/swayosd-server' \
+  "$root/qvcore/config/files/systemd/user/qvos-swayosd-server.service" ||
+  fail "SwayOSD native user-service owner"
+[[ ! -e $root/qvcore/config/files/systemd/user/swayosd-server.service ]] ||
+  fail "inherited SwayOSD user-service identity remains"
 printf 'ok - qvOS user services deploy atomically with native identity\n'

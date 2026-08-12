@@ -19,7 +19,8 @@ fail() {
 expected_files=$'bashrc\ncompletions\nenvs\ninit\ninputrc\nrc\nsettings'
 [[ $(find "$files" -maxdepth 1 -type f -printf '%f\n' | sort) == \
   "$expected_files" ]] || fail "native shell file inventory"
-[[ -x $root/qvcore/shell/install && -x $root/qvcore/shell/check ]] ||
+[[ -x $root/qvcore/shell/install && -x $root/qvcore/shell/seed &&
+  -x $root/qvcore/shell/check ]] ||
   fail "shell owner mode"
 [[ $(find "$files" "$root/qvcore/shell/aliases" -type f \
   ! -perm 0644 -print -quit) == "" ]] || fail "shell source modes"
@@ -59,8 +60,13 @@ if grep -Eq '^alias (c|cx|ic|ix|icx)=' "$root/qvcore/shell/aliases"; then
   fail "retired development alias remains"
 fi
 
-grep -Fq 'qvcore/shell/files/bashrc' \
-  "$root/qvcore/install/config/config.sh" || fail "fresh Bash source"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/shell/seed"' \
+  "$root/qvcore/install/config/config.sh" || fail "fresh Bash seed owner"
+if rg -n '(^|[[:space:]])cp[[:space:]].*qvcore/shell/files/bashrc' \
+  "$root/qvcore/install/config/config.sh"; then
+  fail "fresh installer directly overwrites Bash configuration"
+fi
 grep -Fq 'qvcore/shell/files/bashrc' \
   "$root/qvcore/install/reinstall-configs" || fail "reset Bash source"
 

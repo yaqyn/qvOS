@@ -46,9 +46,15 @@ provider_set_header="[providers.sets.qvos-menu]"
 walker_config="$HOME/.config/walker/config.toml"
 walker_config_source="$QVOS_PATH/qvcore/config/files/walker/config.toml"
 walker_autostart_source="$QVOS_PATH/qvcore/config/files/autostart/walker.desktop"
+walker_autostart_target="$HOME/.config/autostart/walker.desktop"
 walker_restart_source="$QVOS_PATH/qvcore/config/files/systemd/user/app-walker@autostart.service.d/restart.conf"
+walker_restart_target="$HOME/.config/systemd/user/app-walker@autostart.service.d/restart.conf"
 elephant_calc_source="$QVOS_PATH/qvcore/config/files/elephant/calc.toml"
+elephant_calc_target="$HOME/.config/elephant/calc.toml"
 elephant_desktop_source="$QVOS_PATH/qvcore/config/files/elephant/desktopapplications.toml"
+elephant_desktop_target="$HOME/.config/elephant/desktopapplications.toml"
+elephant_symbols_source="$QVOS_PATH/qvcore/config/files/elephant/symbols.toml"
+elephant_symbols_target="$HOME/.config/elephant/symbols.toml"
 walker_theme_source="$menu_source_dir/walker-theme"
 walker_theme_target="$HOME/.config/walker/themes/qvos-menu"
 walker_subtext_source="$menu_source_dir/walker-subtext.css"
@@ -91,6 +97,7 @@ require_sources() {
     "$walker_restart_source"
     "$elephant_calc_source"
     "$elephant_desktop_source"
+    "$elephant_symbols_source"
     "$walker_theme_source/layout.xml"
     "$walker_theme_source/style.css"
   )
@@ -157,8 +164,12 @@ validate_menu_paths() {
     "$HOME/.config" \
     "$HOME/.config/qvos" \
     "$extension_dir" \
+    "$HOME/.config/autostart" \
     "$HOME/.config/elephant" \
     "$provider_menu_dir" \
+    "$HOME/.config/systemd" \
+    "$HOME/.config/systemd/user" \
+    "$HOME/.config/systemd/user/app-walker@autostart.service.d" \
     "$HOME/.config/walker" \
     "$HOME/.config/walker/themes" \
     "$walker_theme_target" \
@@ -179,6 +190,87 @@ validate_menu_paths() {
       return 1
     }
   fi
+}
+
+validate_seed_target() {
+  local mode
+  local target=$1
+
+  [[ ! -e $target && ! -L $target ]] && return
+  [[ -f $target && ! -L $target && -O $target ]] || {
+    echo "Refusing unsafe qvOS menu configuration: $target" >&2
+    return 1
+  }
+  mode=$(stat -c '%a' -- "$target") || return 1
+  (( (8#$mode & 022) == 0 )) || {
+    echo "Refusing writable qvOS menu configuration: $target" >&2
+    return 1
+  }
+}
+
+validate_seed_config() {
+  local target
+
+  for target in \
+    "$walker_config" \
+    "$walker_autostart_target" \
+    "$walker_restart_target" \
+    "$elephant_calc_target" \
+    "$elephant_desktop_target" \
+    "$elephant_symbols_target"; do
+    validate_seed_target "$target" || return
+  done
+}
+
+install_missing_config() (
+  set -euo pipefail
+
+  local source=$1
+  local target=$2
+  local parent=${target%/*}
+  local staging=""
+
+  trap '[[ -z $staging ]] || rm -f -- "$staging"' EXIT
+
+  [[ ! -e $target && ! -L $target ]] || return 0
+  install -d -- "$parent"
+  staging=$(mktemp "$parent/.qvos-menu-config.XXXXXX")
+  if ! install -m 0644 -- "$source" "$staging" ||
+    ! mv -Tn -- "$staging" "$target"; then
+    rm -f -- "$staging"
+    return 1
+  fi
+  if [[ -e $staging || -L $staging ]]; then
+    rm -f -- "$staging"
+    staging=""
+    validate_seed_target "$target"
+  fi
+  staging=""
+)
+
+install_seed_config() {
+  validate_seed_config
+  install_missing_config "$walker_config_source" "$walker_config"
+  install_missing_config "$walker_autostart_source" "$walker_autostart_target"
+  install_missing_config "$walker_restart_source" "$walker_restart_target"
+  install_missing_config "$elephant_calc_source" "$elephant_calc_target"
+  install_missing_config "$elephant_desktop_source" "$elephant_desktop_target"
+  install_missing_config "$elephant_symbols_source" "$elephant_symbols_target"
+}
+
+seed_config_ready() {
+  local target
+
+  for target in \
+    "$walker_config" \
+    "$walker_autostart_target" \
+    "$walker_restart_target" \
+    "$elephant_calc_target" \
+    "$elephant_desktop_target" \
+    "$elephant_symbols_target"; do
+    [[ -f $target && ! -L $target && -O $target ]] || return 1
+    validate_seed_target "$target" >/dev/null 2>&1 || return 1
+  done
 }
 
 validate_personal_extension() {
@@ -278,12 +370,6 @@ install_menu_runtime() {
 
   if qvos_user_manager_is_active; then
     systemctl --user daemon-reload
-  fi
-}
-
-ensure_walker_config() {
-  if [[ ! -f $walker_config ]]; then
-    install -D -m 0644 "$walker_config_source" "$walker_config"
   fi
 }
 
@@ -480,12 +566,13 @@ case $mode in
 --preflight)
   require_sources
   validate_menu_paths
+  validate_seed_config
   validate_personal_extension
   validate_native_provider_links
   ;;
 --status)
   require_sources >/dev/null 2>&1 &&
-    [[ -f $walker_config ]] &&
+    seed_config_ready &&
     personal_extension_native &&
     menu_providers_ready &&
     menu_runtime_ready &&
@@ -499,7 +586,7 @@ case $mode in
   validate_native_provider_links
   install -d "$extension_dir"
   install_personal_extension
-  ensure_walker_config
+  install_seed_config
   install_menu_runtime
   install_menu_providers
   install_provider_set

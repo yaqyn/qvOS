@@ -14,6 +14,7 @@ for config_path in \
   autostart/walker.desktop \
   elephant/calc.toml \
   elephant/desktopapplications.toml \
+  elephant/symbols.toml \
   systemd/user/app-walker@autostart.service.d/restart.conf \
   walker/config.toml; do
   "$QVOS_PATH/qvcore/config/refresh" "$config_path"

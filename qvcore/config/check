@@ -11,6 +11,8 @@ windows="$base/windows.lua"
 native_manifest="$root/qvcore/config/native-paths"
 retired_manifest="$root/qvcore/config/retired-paths"
 refresh="$root/qvcore/config/refresh"
+seed="$root/qvcore/config/seed"
+seed_manifest="$root/qvcore/config/seed-files"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -65,6 +67,23 @@ for source_path in \
     ! -L $root/qvcore/config/files/$source_path ]] ||
     fail "native desktop config source is unavailable: $source_path"
 done
+[[ -x $seed && -f $seed_manifest && ! -L $seed_manifest ]] ||
+  fail "native config seed owner or manifest"
+expected_feature_files=$'autostart/walker.desktop\nelephant/calc.toml\nelephant/desktopapplications.toml\nelephant/symbols.toml\nqvos/extensions/menu.sh\nsystemd/user/app-walker@autostart.service.d/restart.conf\nsystemd/user/qvos-battery-monitor.service\nsystemd/user/qvos-battery-monitor.timer\nsystemd/user/qvos-recover-internal-monitor.service\nsystemd/user/qvos-swayosd-server.service\nwalker/config.toml\nwireplumber/wireplumber.conf.d/alsa-soft-mixer.conf\nwireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf\nxcompose'
+actual_config_files=$(find "$root/qvcore/config/files" -type f -printf '%P\n' | LC_ALL=C sort)
+declared_config_files=$(
+  {
+    cat "$seed_manifest"
+    printf '%s\n' "$expected_feature_files"
+  } | LC_ALL=C sort -u
+)
+[[ $actual_config_files == "$declared_config_files" ]] ||
+  fail "config source inventory is not singularly assigned"
+[[ $(LC_ALL=C sort -u "$seed_manifest") == $(<"$seed_manifest") ]] ||
+  fail "base config seed manifest must be sorted and unique"
+[[ ! -e $root/qvcore/config/files/chromium/Default/Preferences &&
+  ! -L $root/qvcore/config/files/chromium/Default/Preferences ]] ||
+  fail "fresh config still pre-creates a Chromium profile"
 [[ $(<"$root/qvcore/config/files/autostart/org.fcitx.Fcitx5.desktop") == \
   $'[Desktop Entry]\nType=Application\nName=Fcitx 5\nHidden=true' ]] ||
   fail "Fcitx autostart suppressor is not a valid desktop entry"
@@ -200,6 +219,17 @@ grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/battery-monitor' \
 grep -Fq 'ExecStart=%h/.local/share/qvos/qvcore/config/recover-internal-monitor' \
   "$root/qvcore/config/files/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "native monitor recovery owner"
+grep -Fq 'ExecStart=/usr/bin/swayosd-server' \
+  "$root/qvcore/config/files/systemd/user/qvos-swayosd-server.service" ||
+  fail "native SwayOSD user-service owner"
+[[ ! -e $root/qvcore/config/files/systemd/user/swayosd-server.service &&
+  ! -L $root/qvcore/config/files/systemd/user/swayosd-server.service ]] ||
+  fail "retired SwayOSD user-service identity remains"
+if rg -n '(^|[^[:alnum:]_-])swayosd-server\.service([^[:alnum:]_-]|$)' \
+  "$root/qvcore/desktop" "$root/qvcore/install" \
+  --glob '!AGENTS.md' --glob '!check'; then
+  fail "native runtime still calls the retired SwayOSD unit"
+fi
 
 config_routes=(
   battery-monitor:battery-monitor
@@ -242,9 +272,17 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in keyboard-layout toggle-state user-services wireplumber-policy; do
+for owner in keyboard-layout seed toggle-state user-services wireplumber-policy; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/config/seed"' \
+  "$root/qvcore/install/config/config.sh" ||
+  fail "fresh installer bypasses the base config seed"
+if rg -n 'cp[[:space:]]+-[A-Za-z]*[aR].*qvcore/config/files' \
+  "$root/qvcore/install/config/config.sh"; then
+  fail "fresh installer recursively copies config source"
+fi
 # shellcheck disable=SC2016
 keyboard_owner_call='"$QVOS_PATH/qvcore/config/keyboard-layout"'
 # shellcheck disable=SC2016

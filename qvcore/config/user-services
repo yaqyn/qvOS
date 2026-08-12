@@ -14,6 +14,7 @@ native_units=(
   qvos-battery-monitor.service
   qvos-battery-monitor.timer
   qvos-recover-internal-monitor.service
+  qvos-swayosd-server.service
 )
 
 cleanup() {

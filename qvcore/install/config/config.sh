@@ -1,6 +1,4 @@
-# Copy the qvOS defaults into the user configuration.
-mkdir -p ~/.config
-cp -a "$QVOS_PATH/qvcore/config/files/." ~/.config/
-
-# Use the qvOS default bashrc.
-cp "$QVOS_PATH/qvcore/shell/files/bashrc" ~/.bashrc
+# Seed only missing qvOS defaults. Feature-owned config is installed later by
+# its singular owner, and an installer rerun never overwrites user changes.
+"$QVOS_PATH/qvcore/config/seed"
+"$QVOS_PATH/qvcore/shell/seed"

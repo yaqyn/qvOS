@@ -12,6 +12,11 @@ linked or foreign paths, preserve a changed existing file privately under
 recovery files beside `.bashrc`. Do not rewrite exact runtime or Bash content.
 Historical Omarchy and retired qvOS source lines are not active migration input
 and must remain unrecognized.
+`seed` creates the native `.bashrc` only when it is absent. It validates the
+home, source, and any existing target, publishes without clobbering a
+concurrent file, and preserves every existing Bash configuration. The fresh
+installer delegates to this owner before normal shell reconciliation; config
+installation never copies a Bash file directly.
 
 The default shell remains small. Do not restore raw drive-formatting helpers,
 pattern-based process killing, forced worktree deletion, legacy tmux layouts,
