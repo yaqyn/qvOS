@@ -276,6 +276,11 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
         ;;
+      '$OMARCHY_INSTALL/config/hardware/usb-autosuspend.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/hardware/ignore-power-button.sh')
+        printf '%s\n' '$QVOS_INSTALL/config/power-key.sh'
+        ;;
       '$OMARCHY_INSTALL/config/hardware/intel/ptl-kernel.sh')
         ;;
       '$OMARCHY_INSTALL/config/sudoless-asdcontrol.sh')

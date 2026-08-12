@@ -19,12 +19,17 @@ apple_target="$system_root/etc/systemd/system/qvos-nvme-suspend-fix.service"
 apple_service=qvos-nvme-suspend-fix.service
 
 intel_fred_source="$QVOS_PATH/qvcore/install/hardware/intel/fred.conf"
-intel_fred_target="$system_root/etc/limine-entry-tool.d/intel-panther-lake-fred.conf"
+intel_fred_target="$system_root/etc/limine-entry-tool.d/90-qvos-intel-fred.conf"
 intel_wifi_source="$QVOS_PATH/qvcore/install/hardware/intel/iwlwifi-disable-eht.conf"
-intel_wifi_target="$system_root/etc/modprobe.d/iwlwifi-disable-eht.conf"
+intel_wifi_target="$system_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf"
+
+hid_apple_source="$QVOS_PATH/qvcore/install/hardware/input/hid-apple-fkeys.conf"
+hid_apple_target="$system_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf"
+synaptics_source="$QVOS_PATH/qvcore/install/hardware/input/psmouse-synaptics.conf"
+synaptics_target="$system_root/etc/modprobe.d/qvos-psmouse-synaptics.conf"
 
 tuxedo_source="$QVOS_PATH/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
-tuxedo_target="$system_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf"
+tuxedo_target="$system_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 
 fail() {
   printf 'qvOS hardware identity: %s\n' "$1" >&2
@@ -32,12 +37,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <apple-nvme|intel-fred|intel-wifi7-eht|tuxedo-backlight|z13>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|hid-apple-fkeys|intel-fred|intel-wifi7-eht|synaptics-ps2|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-apple-nvme | intel-fred | intel-wifi7-eht | tuxedo-backlight | z13) operation=$1 ;;
+apple-nvme | hid-apple-fkeys | intel-fred | intel-wifi7-eht | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -282,6 +287,10 @@ apple-nvme)
     fi
   fi
   ;;
+hid-apple-fkeys)
+  install_static_policy \
+    "hid_apple function-key" "$hid_apple_source" "$hid_apple_target"
+  ;;
 intel-fred)
   if "$QVOS_PATH/bin/qv-hw-intel-ptl"; then
     install_static_policy \
@@ -292,6 +301,12 @@ intel-wifi7-eht)
   if "$QVOS_PATH/bin/qv-hw-intel-wifi7-eht"; then
     install_static_policy \
       "Intel Wi-Fi 7 EHT" "$intel_wifi_source" "$intel_wifi_target"
+  fi
+  ;;
+synaptics-ps2)
+  if "$QVOS_PATH/bin/qv-hw-synaptics-ps2"; then
+    install_static_policy \
+      "Synaptics PS/2" "$synaptics_source" "$synaptics_target"
   fi
   ;;
 tuxedo-backlight)

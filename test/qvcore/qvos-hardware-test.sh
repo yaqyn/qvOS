@@ -159,6 +159,19 @@ QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce R
 QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce GTX 1060' \
   run_detect nvidia-without-gsp || fail "NVIDIA pre-GSP detector"
 
+install -D -m 0644 /dev/stdin "$fixture/proc/bus/input/devices" <<'EOF'
+I: Bus=0011 Vendor=0002 Product=0007 Version=01b1
+N: Name="SynPS/2 Synaptics TouchPad"
+EOF
+run_detect synaptics-ps2 || fail "Synaptics PS/2 detector"
+printf '%s\n' \
+  'I: Bus=0018 Vendor=06cb Product=cd5f Version=0100' \
+  'N: Name="SYNA2B46:00 06CB:CD5F Touchpad"' \
+  >"$fixture/proc/bus/input/devices"
+if run_detect synaptics-ps2 >/dev/null 2>&1; then
+  fail "I2C touchpad reported as a Synaptics PS/2 device"
+fi
+
 device_json='{"mice":[{"name":"usb-mouse"},{"name":"elan-touchpad"}],"touch":[{"name":"goodix-touchscreen"}],"tablets":[]}'
 touchpad=$(QVOS_TEST_HYPR_JSON="$device_json" run_detect touchpad)
 [[ $touchpad == "elan-touchpad" ]] || fail "touchpad selector"
@@ -199,6 +212,16 @@ QVOS_TEST_COMMANDS=lspci \
   "$root/bin/qv-hw-intel-wifi7-eht" || fail "qvOS-only Intel EHT adapter"
 [[ ! -e $root/bin/omarchy-hw-intel-wifi7-eht ]] ||
   fail "qvOS-only Intel EHT detector has an inherited adapter"
+printf '%s\n' \
+  'N: Name="SynPS/2 Synaptics TouchPad"' \
+  >"$fixture/proc/bus/input/devices"
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+  "$root/bin/qv-hw-synaptics-ps2" || fail "qvOS-only Synaptics PS/2 adapter"
+[[ ! -e $root/bin/omarchy-hw-synaptics-ps2 ]] ||
+  fail "qvOS-only Synaptics PS/2 detector has an inherited adapter"
 printf 'TUXEDO Computers GmbH\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 PATH="$test_bin:/usr/bin" \
 QVOS_PATH="$root" \

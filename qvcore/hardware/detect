@@ -100,6 +100,16 @@ intel_wifi7_eht() {
   return 1
 }
 
+synaptics_ps2() {
+  local devices
+  local path="$proc_root/bus/input/devices"
+
+  [[ -r $path ]] || return 1
+  devices=$(<"$path")
+  devices=${devices,,}
+  [[ $devices == *"synps/2"* && $devices == *"touchpad"* ]]
+}
+
 nvidia_match() {
   local pattern=$1
   local line
@@ -276,6 +286,10 @@ surface)
   require_no_arguments "$@"
   [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Microsoft Corporation" ]] &&
     dmi_match "Surface"
+  ;;
+synaptics-ps2)
+  require_no_arguments "$@"
+  synaptics_ps2
   ;;
 tuxedo)
   require_no_arguments "$@"

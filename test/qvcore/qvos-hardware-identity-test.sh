@@ -5,6 +5,8 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 owner="$root/qvcore/install/hardware/identity"
 z13_source="$root/qvcore/install/hardware/asus/z13-touchpad.rules"
 apple_source="$root/qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service"
+hid_apple_source="$root/qvcore/install/hardware/input/hid-apple-fkeys.conf"
+synaptics_source="$root/qvcore/install/hardware/input/psmouse-synaptics.conf"
 intel_fred_source="$root/qvcore/install/hardware/intel/fred.conf"
 intel_wifi_source="$root/qvcore/install/hardware/intel/iwlwifi-disable-eht.conf"
 tuxedo_source="$root/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
@@ -133,8 +135,10 @@ printf 'MacBookPro14,3\n' >"$fresh_root/sys/class/dmi/id/product_name"
 QVOS_TEST_Z13=1 run_stage "$fresh_root" \
   "$root/qvcore/install/hardware/asus/z13-touchpad"
 run_stage "$fresh_root" "$root/qvcore/install/hardware/apple/nvme-suspend"
+run_stage "$fresh_root" "$root/qvcore/install/config/hardware/fix-fkeys.sh"
 [[ -f $fresh_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules &&
-  -f $fresh_root/etc/systemd/system/qvos-nvme-suspend-fix.service ]] ||
+  -f $fresh_root/etc/systemd/system/qvos-nvme-suspend-fix.service &&
+  -f $fresh_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf ]] ||
   fail "fresh hardware policy installation"
 cmp -s "$z13_source" \
   "$fresh_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules" ||
@@ -142,6 +146,9 @@ cmp -s "$z13_source" \
 cmp -s "$apple_source" \
   "$fresh_root/etc/systemd/system/qvos-nvme-suspend-fix.service" ||
   fail "native Apple NVMe policy"
+cmp -s "$hid_apple_source" \
+  "$fresh_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf" ||
+  fail "native hid_apple function-key policy"
 grep -Fqx 'systemctl|enable --now qvos-nvme-suspend-fix.service' "$event_log" ||
   fail "fresh Apple NVMe activation"
 
@@ -149,14 +156,20 @@ z13_inode=$(stat -c '%i' \
   "$fresh_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules")
 apple_inode=$(stat -c '%i' \
   "$fresh_root/etc/systemd/system/qvos-nvme-suspend-fix.service")
+hid_apple_inode=$(stat -c '%i' \
+  "$fresh_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf")
 QVOS_TEST_Z13=1 run_stage "$fresh_root" \
   "$root/qvcore/install/hardware/asus/z13-touchpad"
 run_stage "$fresh_root" "$root/qvcore/install/hardware/apple/nvme-suspend"
+run_stage "$fresh_root" "$root/qvcore/install/config/hardware/fix-fkeys.sh"
 [[ $(stat -c '%i' \
   "$fresh_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules") == \
   "$z13_inode" && $(stat -c '%i' \
   "$fresh_root/etc/systemd/system/qvos-nvme-suspend-fix.service") == \
-  "$apple_inode" ]] || fail "idempotent native hardware policy install"
+  "$apple_inode" && \
+  $(stat -c '%i' \
+  "$fresh_root/etc/modprobe.d/qvos-hid-apple-fkeys.conf") == \
+  "$hid_apple_inode" ]] || fail "idempotent native hardware policy install"
 if run_owner "$fresh_root" migrate >/dev/null 2>&1; then
   fail "retired hardware migration mode remains available"
 fi
@@ -168,8 +181,8 @@ QVOS_TEST_LSPCI="$intel_inventory" run_stage "$intel_root" \
   "$root/qvcore/install/config/hardware/intel/fred.sh"
 QVOS_TEST_LSPCI="$intel_inventory" run_stage "$intel_root" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"
-intel_fred_target="$intel_root/etc/limine-entry-tool.d/intel-panther-lake-fred.conf"
-intel_wifi_target="$intel_root/etc/modprobe.d/iwlwifi-disable-eht.conf"
+intel_fred_target="$intel_root/etc/limine-entry-tool.d/90-qvos-intel-fred.conf"
+intel_wifi_target="$intel_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf"
 cmp -s "$intel_fred_source" "$intel_fred_target" ||
   fail "native Intel FRED policy"
 cmp -s "$intel_wifi_source" "$intel_wifi_target" ||
@@ -192,22 +205,50 @@ QVOS_TEST_LSPCI='00:02.0 VGA compatible controller: Intel Alder Lake Graphics' \
 QVOS_TEST_LSPCI='00:14.3 Network controller: Realtek Device [10ec:b822]' \
   run_stage "$unaffected_root" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"
-[[ ! -e $unaffected_root/etc/limine-entry-tool.d/intel-panther-lake-fred.conf &&
-  ! -e $unaffected_root/etc/modprobe.d/iwlwifi-disable-eht.conf ]] ||
+[[ ! -e $unaffected_root/etc/limine-entry-tool.d/90-qvos-intel-fred.conf &&
+  ! -e $unaffected_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf ]] ||
   fail "Intel policy applied to unaffected hardware"
 
 modified_intel_root="$test_root/modified-intel"
 prepare_root "$modified_intel_root"
 install -d "$modified_intel_root/etc/modprobe.d"
 printf 'administrator policy\n' \
-  >"$modified_intel_root/etc/modprobe.d/iwlwifi-disable-eht.conf"
+  >"$modified_intel_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf"
 if QVOS_TEST_LSPCI="$intel_inventory" run_stage "$modified_intel_root" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh" \
   >/dev/null 2>&1; then
   fail "modified Intel Wi-Fi policy was accepted"
 fi
-[[ $(<"$modified_intel_root/etc/modprobe.d/iwlwifi-disable-eht.conf") == \
+[[ $(<"$modified_intel_root/etc/modprobe.d/qvos-intel-wifi7-eht.conf") == \
   "administrator policy" ]] || fail "modified Intel Wi-Fi policy was changed"
+
+synaptics_root="$test_root/synaptics"
+prepare_root "$synaptics_root"
+install -D -m 0644 /dev/stdin \
+  "$synaptics_root/proc/bus/input/devices" <<'EOF'
+N: Name="SynPS/2 Synaptics TouchPad"
+EOF
+run_stage "$synaptics_root" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh"
+synaptics_target="$synaptics_root/etc/modprobe.d/qvos-psmouse-synaptics.conf"
+cmp -s "$synaptics_source" "$synaptics_target" ||
+  fail "native Synaptics PS/2 policy"
+synaptics_inode=$(stat -c '%i' "$synaptics_target")
+run_stage "$synaptics_root" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh"
+[[ $(stat -c '%i' "$synaptics_target") == "$synaptics_inode" ]] ||
+  fail "idempotent native Synaptics PS/2 policy install"
+
+i2c_touchpad_root="$test_root/i2c-touchpad"
+prepare_root "$i2c_touchpad_root"
+install -D -m 0644 /dev/stdin \
+  "$i2c_touchpad_root/proc/bus/input/devices" <<'EOF'
+N: Name="SYNA2B46:00 06CB:CD5F Touchpad"
+EOF
+run_stage "$i2c_touchpad_root" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh"
+[[ ! -e $i2c_touchpad_root/etc/modprobe.d/qvos-psmouse-synaptics.conf ]] ||
+  fail "Synaptics PS/2 policy applied to an I2C touchpad"
 
 tuxedo_root="$test_root/tuxedo"
 prepare_root "$tuxedo_root"
@@ -217,7 +258,7 @@ printf 'TUXEDO Computers GmbH\n' \
 : >"$event_log"
 run_stage "$tuxedo_root" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"
-tuxedo_target="$tuxedo_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf"
+tuxedo_target="$tuxedo_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 cmp -s "$tuxedo_source" "$tuxedo_target" ||
   fail "native Tuxedo backlight policy"
 grep -Fqx \
@@ -237,7 +278,7 @@ printf 'Framework\n' \
 : >"$event_log"
 run_stage "$unaffected_tuxedo_root" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"
-[[ ! -e $unaffected_tuxedo_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf &&
+[[ ! -e $unaffected_tuxedo_root/etc/modprobe.d/qvos-tuxedo-backlight.conf &&
   ! -s $event_log ]] || fail "Tuxedo policy applied to unrelated hardware"
 
 modified_tuxedo_root="$test_root/modified-tuxedo"
@@ -246,13 +287,13 @@ install -d "$modified_tuxedo_root/sys/class/dmi/id" \
   "$modified_tuxedo_root/etc/modprobe.d"
 printf 'Slimbook\n' >"$modified_tuxedo_root/sys/class/dmi/id/sys_vendor"
 printf 'administrator policy\n' \
-  >"$modified_tuxedo_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf"
+  >"$modified_tuxedo_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 if run_stage "$modified_tuxedo_root" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" \
   >/dev/null 2>&1; then
   fail "modified Tuxedo policy was accepted"
 fi
-[[ $(<"$modified_tuxedo_root/etc/modprobe.d/blacklist-clevo-xsm-wmi.conf") == \
+[[ $(<"$modified_tuxedo_root/etc/modprobe.d/qvos-tuxedo-backlight.conf") == \
   "administrator policy" ]] || fail "modified Tuxedo policy was changed"
 
 chroot_root="$test_root/chroot"
@@ -345,10 +386,12 @@ if rg -n '99-omarchy-asus-z13-touchpad|omarchy-nvme-suspend-fix' \
   "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "active installer hardware identity remains inherited"
 fi
-if rg -n '/etc/default/limine|sudo[[:space:]]+tee' \
+if rg -n '/etc/default/limine|sudo[[:space:]]+tee|modprobe[[:space:]]+psmouse' \
+  "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
   "$root/qvcore/install/config/hardware/intel/fred.sh" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"; then
-  fail "Intel static policy bypasses the native root owner"
+  fail "static hardware policy bypasses the native root owner"
 fi
 if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then

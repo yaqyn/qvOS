@@ -16,12 +16,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/system-tuning <all|nofile|file-watchers>" >&2
+  echo "Usage: qvcore/install/system-tuning <all|file-watchers|nofile|power-key>" >&2
   exit 2
 }
 
 case ${1:-} in
-all | nofile | file-watchers) operation=$1 ;;
+all | file-watchers | nofile | power-key) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -204,11 +204,21 @@ install_file_watchers() {
   fi
 }
 
+install_power_key() {
+  local source="$QVOS_PATH/qvcore/install/system/power-key.conf"
+  local target="$system_root/etc/systemd/logind.conf.d/50-qvos-power-key.conf"
+
+  install_managed "$source" "$target" 0644 ||
+    fail "could not install the native power-key policy"
+}
+
 case $operation in
 all)
   install_nofile
   install_file_watchers
+  install_power_key
   ;;
 nofile) install_nofile ;;
 file-watchers) install_file_watchers ;;
+power-key) install_power_key ;;
 esac

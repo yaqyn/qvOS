@@ -5,6 +5,7 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 owner="$root/qvcore/install/system-tuning"
 nofile_source="$root/qvcore/install/system/nofile.conf"
 watchers_source="$root/qvcore/install/system/file-watchers.conf"
+power_key_source="$root/qvcore/install/system/power-key.conf"
 test_root=$(mktemp -d)
 test_bin="$test_root/bin"
 sysctl_log="$test_root/sysctl.log"
@@ -57,6 +58,9 @@ cmp -s "$watchers_source" \
 [[ $(<"$sysctl_log") == \
   "-q -p $exact_root/etc/sysctl.d/90-qvos-file-watchers.conf" ]] ||
   fail "file-watcher policy applies only its native source"
+cmp -s "$power_key_source" \
+  "$exact_root/etc/systemd/logind.conf.d/50-qvos-power-key.conf" ||
+  fail "native power-key policy"
 
 state_before=$(find "$exact_root/etc" -type f -printf '%P|%m|%i|%T@\n' | sort)
 run_owner "$exact_root" all
@@ -69,11 +73,14 @@ preserve_root="$test_root/preserve"
 install -d \
   "$preserve_root/etc/systemd/system.conf.d" \
   "$preserve_root/etc/systemd/user.conf.d" \
+  "$preserve_root/etc/systemd/logind.conf.d" \
   "$preserve_root/etc/sysctl.d"
 printf 'custom NOFILE policy\n' \
   >"$preserve_root/etc/systemd/system.conf.d/99-qvos-nofile.conf"
 printf 'fs.inotify.max_user_watches=42\n' \
   >"$preserve_root/etc/sysctl.d/90-qvos-file-watchers.conf"
+printf 'custom power key policy\n' \
+  >"$preserve_root/etc/systemd/logind.conf.d/50-qvos-power-key.conf"
 : >"$sysctl_log"
 if run_owner "$preserve_root" all >/dev/null 2>&1; then
   fail "modified native system tuning was accepted"
@@ -81,7 +88,9 @@ fi
 [[ $(<"$preserve_root/etc/systemd/system.conf.d/99-qvos-nofile.conf") == \
   "custom NOFILE policy" && \
   $(<"$preserve_root/etc/sysctl.d/90-qvos-file-watchers.conf") == \
-  "fs.inotify.max_user_watches=42" ]] ||
+  "fs.inotify.max_user_watches=42" && \
+  $(<"$preserve_root/etc/systemd/logind.conf.d/50-qvos-power-key.conf") == \
+  "custom power key policy" ]] ||
   fail "modified native system tuning was changed"
 [[ ! -s $sysctl_log ]] ||
   fail "modified native file-watcher policy was applied"
@@ -123,6 +132,10 @@ cmp -s "$watchers_source" \
 if rg -n '99-omarchy-nofile|90-omarchy-file-watchers' \
   "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "active installer system tuning remains inherited"
+fi
+if rg -n 'HandlePowerKey=.*ignore|disable-usb-autosuspend|usbcore autosuspend=-1' \
+  "$root/qvcore/install/config" --glob '!power-key.sh'; then
+  fail "fresh install retains a direct or global inherited power policy"
 fi
 
 unsafe_root="$test_root/unsafe"

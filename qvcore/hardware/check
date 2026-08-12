@@ -15,7 +15,7 @@ expected=$'bin/omarchy-hw-asus-expertbook-b9406\nbin/omarchy-hw-asus-rog\nbin/om
 native_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
 [[ $native_paths == "$expected" ]] || fail "native detector inventory is incomplete or unordered"
 [[ -x $owner && ! -L $owner ]] || fail "native detector owner is unavailable or unsafe"
-for qvos_only_route in intel-wifi7-eht tuxedo; do
+for qvos_only_route in intel-wifi7-eht synaptics-ps2 tuxedo; do
   native_adapter="$root/bin/qv-hw-$qvos_only_route"
   [[ -x $native_adapter && ! -L $native_adapter ]] ||
     fail "qvOS-only hardware detector adapter: $qvos_only_route"
@@ -52,6 +52,8 @@ if rg -n 'default/udev|sudo cp ' "$framework_installer"; then
 fi
 
 for hardware_policy in \
+  qvcore/install/hardware/input/hid-apple-fkeys.conf \
+  qvcore/install/hardware/input/psmouse-synaptics.conf \
   qvcore/install/hardware/intel/fred.conf \
   qvcore/install/hardware/intel/iwlwifi-disable-eht.conf \
   qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
@@ -60,12 +62,14 @@ for hardware_policy in \
 done
 # shellcheck disable=SC2016
 for stage_contract in \
+  'qvcore/install/config/hardware/fix-fkeys.sh|"$QVOS_PATH/qvcore/install/hardware/identity" hid-apple-fkeys' \
+  'qvcore/install/config/hardware/fix-synaptic-touchpad.sh|"$QVOS_PATH/qvcore/install/hardware/identity" synaptics-ps2' \
   'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
   'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht'; do
   stage=${stage_contract%%|*}
   expected_call=${stage_contract#*|}
   [[ $(<"$root/$stage") == "$expected_call" ]] ||
-    fail "Intel hardware stage bypasses its transactional owner: $stage"
+    fail "hardware stage bypasses its transactional owner: $stage"
 done
 # shellcheck disable=SC2016
 grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
@@ -75,11 +79,17 @@ grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
 grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" tuxedo-backlight' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
   fail "Tuxedo stage bypasses the transactional policy owner"
-if rg -n '/etc/default/limine|sudo[[:space:]]+tee|/lib/modules/.+\.ko' \
+if rg -n '/etc/default/limine|sudo[[:space:]]+tee|/lib/modules/.+\.ko|modprobe[[:space:]]+psmouse' \
+  "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
   "$root/qvcore/install/config/hardware/intel/fred.sh" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
   fail "hardware policy retains duplicate, direct, or destructive root mutation"
+fi
+if rg -n '/etc/(modprobe\.d/(hid_apple|iwlwifi-disable-eht|blacklist-clevo-xsm-wmi)|limine-entry-tool\.d/intel-panther-lake-fred)\.conf' \
+  "$root/qvcore/install/hardware/identity"; then
+  fail "native hardware owner retains a non-qvOS installed identity"
 fi
 
 while IFS= read -r inherited_path; do

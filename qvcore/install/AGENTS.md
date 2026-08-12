@@ -78,25 +78,29 @@ helpers, and never select a source through inherited environment. Never restore
 the retired top-level `install/` tree or route an install lifecycle through the
 source-root compatibility link.
 
-`qvcore/install/system-tuning` singularly owns the NOFILE and inotify defaults
-under native `qvos` filenames. It installs tracked sources atomically, applies
-only the owned sysctl file, preserves exact native files, and rejects modified,
-linked, or unsafe native targets. Completed pre-release tuning convergence is
-retired, so fresh installation does not inspect or mutate inherited filenames.
+`qvcore/install/system-tuning` singularly owns the NOFILE, inotify, and
+power-key defaults under native `qvos` files. The power-key policy is an owned
+logind drop-in; never edit systemd's package-owned `logind.conf`. It installs
+tracked sources atomically, applies only the owned sysctl file, preserves exact
+native files, and rejects modified, linked, or unsafe native targets. Fresh
+qvOS does not globally disable USB autosuspend: a device-specific quirk must
+identify an affected device before changing its power behavior. Completed
+pre-release tuning convergence is retired, so fresh installation does not
+inspect or mutate inherited filenames.
 Fresh install never grants wheel-wide passwordless timezone commands; the
 security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
-identity. Its ASUS Z13, Apple NVMe, Intel FRED, Intel Wi-Fi EHT, and Tuxedo
-stage adapters only select hardware; the owner installs tracked native files,
-activates them when required, and rolls back only files and service state
-created by the current attempt. Preserve an exact existing native policy
-without replacing it, and reject modified, linked, or unsafe native targets
-before activation. A Limine argument lives only in its owned drop-in, never in
-both a drop-in and `/etc/default/limine`. Fresh installation never deletes
-unverified files from a package-owned kernel module tree. The completed
-pre-release hardware identity migration is retired; fresh install never scans
-or mutates inherited rule, unit, backup, or service names.
+identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Intel FRED,
+Intel Wi-Fi EHT, and Tuxedo stage adapters only select hardware; the owner
+installs tracked native files, activates them when required, and rolls back only
+files and service state created by the current attempt. Preserve an exact
+existing native policy without replacing it, and reject modified, linked, or
+unsafe native targets before activation. A Limine argument lives only in its
+owned drop-in, never in both a drop-in and `/etc/default/limine`. Fresh
+installation never deletes unverified files from a package-owned kernel module
+tree. The completed pre-release hardware identity migration is retired; fresh
+install never scans or mutates inherited rule, unit, backup, or service names.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,

@@ -215,10 +215,28 @@ if rg -n '99-omarchy-nofile|90-omarchy-file-watchers|omarchy-tzupdate' \
 fi
 for tuning_source in \
   qvcore/install/system/nofile.conf \
-  qvcore/install/system/file-watchers.conf; do
+  qvcore/install/system/file-watchers.conf \
+  qvcore/install/system/power-key.conf; do
   [[ -f $root/$tuning_source && ! -L $root/$tuning_source ]] ||
     fail "native system-tuning source: $tuning_source"
 done
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_INSTALL/config/power-key.sh"' \
+  "$root/qvcore/install/config/run" || fail "native power-key install stage"
+# shellcheck disable=SC2016
+[[ $(<"$root/qvcore/install/config/power-key.sh") == \
+  '"$QVOS_PATH/qvcore/install/system-tuning" power-key' ]] ||
+  fail "power-key stage bypasses its native owner"
+for retired_power_leaf in \
+  qvcore/install/config/hardware/ignore-power-button.sh \
+  qvcore/install/config/hardware/usb-autosuspend.sh; do
+  [[ ! -e $root/$retired_power_leaf && ! -L $root/$retired_power_leaf ]] ||
+    fail "retired global hardware policy remains: $retired_power_leaf"
+done
+if rg -n 'HandlePowerKey=.*ignore|disable-usb-autosuspend|usbcore autosuspend=-1' \
+  "$root/qvcore/install/config" --glob '!power-key.sh'; then
+  fail "fresh install directly edits logind or globally disables USB autosuspend"
+fi
 [[ -x $root/qvcore/install/hardware/identity ]] ||
   fail "native hardware identity owner mode"
 for hardware_source in \
@@ -226,6 +244,8 @@ for hardware_source in \
   qvcore/install/hardware/asus/z13-touchpad.rules \
   qvcore/install/hardware/apple/nvme-suspend \
   qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service \
+  qvcore/install/hardware/input/hid-apple-fkeys.conf \
+  qvcore/install/hardware/input/psmouse-synaptics.conf \
   qvcore/install/hardware/intel/fred.conf \
   qvcore/install/hardware/intel/iwlwifi-disable-eht.conf \
   qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf; do
@@ -250,12 +270,14 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/apple/nvme-suspend"' \
   "$root/qvcore/install/config/run" || fail "native Apple NVMe install stage"
 # shellcheck disable=SC2016
 for stage_contract in \
+  'qvcore/install/config/hardware/fix-fkeys.sh|"$QVOS_PATH/qvcore/install/hardware/identity" hid-apple-fkeys' \
+  'qvcore/install/config/hardware/fix-synaptic-touchpad.sh|"$QVOS_PATH/qvcore/install/hardware/identity" synaptics-ps2' \
   'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
   'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht'; do
   stage=${stage_contract%%|*}
   expected_call=${stage_contract#*|}
   [[ $(<"$root/$stage") == "$expected_call" ]] ||
-    fail "Intel hardware stage bypasses its native owner: $stage"
+    fail "hardware stage bypasses its native owner: $stage"
 done
 # shellcheck disable=SC2016
 grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
@@ -265,10 +287,12 @@ grep -Fq 'if "$QVOS_PATH/bin/qv-hw-tuxedo"; then' \
 grep -Fq '"$QVOS_PATH/qvcore/install/hardware/identity" tuxedo-backlight' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh" ||
   fail "Tuxedo install stage bypasses its native policy owner"
-if rg -n '/etc/default/limine|sudo[[:space:]]+tee' \
+if rg -n '/etc/default/limine|sudo[[:space:]]+tee|modprobe[[:space:]]+psmouse' \
+  "$root/qvcore/install/config/hardware/fix-fkeys.sh" \
+  "$root/qvcore/install/config/hardware/fix-synaptic-touchpad.sh" \
   "$root/qvcore/install/config/hardware/intel/fred.sh" \
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh"; then
-  fail "Intel hardware policy retains direct or duplicated root mutation"
+  fail "hardware policy retains direct, transient, or duplicated root mutation"
 fi
 if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
