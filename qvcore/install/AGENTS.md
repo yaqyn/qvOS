@@ -108,7 +108,11 @@ source the entry point through a login shell.
 Stop the install log before handing control to the finished presentation, and
 keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
 owner. Never restore inherited post-install orchestration or presentation as a
-fallback.
+fallback. Its temporary reboot privilege is installed through the singular
+`post-install/reboot-policy` owner. Validate the desktop account and complete
+sudoers payload with `visudo`, preserve every modified or unsafe target, and
+publish one root-owned policy atomically; never restore a direct sourced
+sudoers writer.
 
 `qvcore/install/config/run` singularly owns the ordered fresh-install configuration
 stage. Every selected reviewed configuration and hardware leaf is now native;

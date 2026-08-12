@@ -34,9 +34,10 @@ install -m 0644 \
   "$test_qvos/qvcore/branding/terminal-art.txt"
 : >"$event_log"
 
-install -m 0644 /dev/stdin \
-  "$test_install/post-install/allow-reboot.sh" <<'SCRIPT'
-printf 'allow-reboot\n' >>"$QVOS_TEST_EVENT_LOG"
+install -m 0755 /dev/stdin \
+  "$test_qvos/qvcore/install/post-install/reboot-policy" <<'SCRIPT'
+#!/bin/bash
+printf 'reboot-policy\n' >>"$QVOS_TEST_EVENT_LOG"
 SCRIPT
 
 run_logged() {
@@ -62,10 +63,61 @@ expected_run=$(
   printf 'run:%s\n' "$test_install/post-install/pacman.sh"
   printf 'run:%s\n' "$test_qvos/qvcore/security/install"
   printf 'run:%s\n' "$test_qvos/qvcore/controls/install-root"
-  printf '%s\n' allow-reboot stop-log finished
+  printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/reboot-policy"
+  printf '%s\n' stop-log finished
 )
 [[ $(<"$event_log") == "$expected_run" ]] ||
   fail "post-install owner order"
+
+policy_system_root="$test_root/reboot-policy-system"
+policy_target="$policy_system_root/etc/sudoers.d/99-qvos-installer-reboot"
+policy_user=$(id -un)
+install -d "$policy_system_root/etc"
+run_reboot_policy() {
+  QVOS_REBOOT_POLICY_SYSTEM_ROOT="$policy_system_root" \
+    QVOS_REBOOT_POLICY_TESTING=1 \
+    QVOS_REBOOT_POLICY_USER="${QVOS_TEST_POLICY_USER:-$policy_user}" \
+    "$root/qvcore/install/post-install/reboot-policy"
+}
+
+run_reboot_policy
+[[ $(<"$policy_target") == \
+  "$policy_user ALL=(ALL) NOPASSWD: /usr/bin/reboot" ]] ||
+  fail "installer reboot policy content"
+[[ $(stat -c '%u:%g:%a' -- "$policy_target") == \
+  "$(id -u):$(id -g):440" ]] ||
+  fail "installer reboot policy permissions"
+policy_inode=$(stat -c '%i' -- "$policy_target")
+run_reboot_policy
+[[ $(stat -c '%i' -- "$policy_target") == "$policy_inode" ]] ||
+  fail "installer reboot policy idempotence"
+
+chmod 0640 "$policy_target"
+printf 'modified policy\n' >"$policy_target"
+chmod 0440 "$policy_target"
+if run_reboot_policy >/dev/null 2>&1; then
+  fail "modified installer reboot policy acceptance"
+fi
+[[ $(<"$policy_target") == "modified policy" ]] ||
+  fail "modified installer reboot policy mutation"
+
+rm -- "$policy_target"
+policy_external="$test_root/reboot-policy-external"
+printf 'external policy\n' >"$policy_external"
+ln -s "$policy_external" "$policy_target"
+if run_reboot_policy >/dev/null 2>&1; then
+  fail "linked installer reboot policy acceptance"
+fi
+[[ $(<"$policy_external") == "external policy" ]] ||
+  fail "linked installer reboot policy target mutation"
+
+rm -- "$policy_target"
+if QVOS_TEST_POLICY_USER='unsafe user' run_reboot_policy >/dev/null 2>&1; then
+  fail "unsafe installer reboot policy account acceptance"
+fi
+[[ ! -e $policy_target && ! -L $policy_target ]] ||
+  fail "unsafe account created an installer reboot policy"
+printf 'ok - installer reboot privilege is validated, atomic, and idempotent\n'
 
 install -m 0755 \
   "$root/qvcore/install/post-install/finished" \

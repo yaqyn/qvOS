@@ -421,7 +421,7 @@ pacman_post_line=$(grep -nF 'run_logged "$QVOS_INSTALL/post-install/pacman.sh"' 
 security_post_line=$(grep -nF 'run_logged "$QVOS_PATH/qvcore/security/install"' \
   "$post_install_all" | cut -d: -f1)
 # shellcheck disable=SC2016
-allow_reboot_line=$(grep -nF 'source "$QVOS_INSTALL/post-install/allow-reboot.sh"' \
+allow_reboot_line=$(grep -nF 'run_logged "$QVOS_PATH/qvcore/install/post-install/reboot-policy"' \
   "$post_install_all" | cut -d: -f1)
 [[ $pacman_post_line =~ ^[0-9]+$ && $security_post_line =~ ^[0-9]+$ &&
   $allow_reboot_line =~ ^[0-9]+$ ]] ||

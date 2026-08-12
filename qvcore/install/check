@@ -276,9 +276,20 @@ if rg -n \
   "$root/qvcore/tui/iso_progress.go"; then
   fail "retired Omarchy installer identity remains active"
 fi
+[[ -x $root/qvcore/install/post-install/reboot-policy &&
+  ! -e $root/qvcore/install/post-install/allow-reboot.sh ]] ||
+  fail "singular native installer reboot policy owner"
 grep -Fq '/etc/sudoers.d/99-qvos-installer-reboot' \
-  "$root/qvcore/install/post-install/allow-reboot.sh" ||
+  "$root/qvcore/install/post-install/reboot-policy" ||
   fail "native installer reboot policy identity"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/reboot-policy"' \
+  "$root/qvcore/install/post-install/run" ||
+  fail "native installer reboot policy wiring"
+if rg -n 'tee .*sudoers|sudoers.*tee' \
+  "$root/qvcore/install/post-install/reboot-policy"; then
+  fail "installer reboot policy bypasses validated atomic publication"
+fi
 grep -Fq '/etc/sudoers.d/99-qvos-installer' \
   "$root/qvcore/install/post-install/finished" ||
   fail "native ISO installer policy cleanup"
