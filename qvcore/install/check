@@ -101,6 +101,22 @@ for inventory in "$manifest" "$retired_manifest"; do
   ) ]] || fail "install path inventory is not sorted and unique: $inventory"
 done
 
+declare -A expected_runtime=(
+  [direct]=$'manifest.tsv\npost-update-hook\ntool\nupdate'
+  [tmux]='qvos-tmux'
+)
+for feature in direct tmux; do
+  runtime_manifest="$root/qvcore/$feature/runtime-paths"
+  runtime_paths=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest")
+  [[ $runtime_paths == "${expected_runtime[$feature]}" ]] ||
+    fail "$feature runtime inventory is incomplete or unordered"
+  while IFS= read -r runtime_path; do
+    [[ -f $root/qvcore/$feature/$runtime_path &&
+      ! -L $root/qvcore/$feature/$runtime_path ]] ||
+      fail "$feature runtime source is unavailable or unsafe: $runtime_path"
+  done <<<"$runtime_paths"
+done
+
 if find "$root/qvcore/install" -type f -name '*.sh' -perm /111 -print -quit |
   grep -q .; then
   fail "sourced native install leaf is executable"

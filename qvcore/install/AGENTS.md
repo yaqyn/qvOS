@@ -16,8 +16,9 @@ same relative target and rejects every other object. The completed pre-release
 checkout and copied-runtime relocation is retired; historical layouts are
 preserved as conflicts, never adopted.
 Never merge runtime payloads into the Git checkout.
-Deploy desktop helpers only from `qvcore/desktop/runtime-paths`; source policy,
-checks, inventories, and source-only owners must never leak into the runtime.
+Deploy direct, desktop, and Tmux helpers only from their exact `runtime-paths`
+manifests through the shared atomic runtime publisher; source policy, checks,
+inventories, and source-only owners must never leak into the runtime.
 The desktop owner must resolve and export `QVOS_PATH` once before reading or
 running any feature owner. Native install orchestration never propagates
 `OMARCHY_PATH`; a stale compatibility environment must not select or mix

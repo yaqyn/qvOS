@@ -13,6 +13,9 @@ Hyprland runtime bridge. Tiling is secondary: a missing or rejected compositor
 action must report briefly and continue into tmux instead of closing the window.
 
 `qvcore/config/files/tmux/tmux.conf` is the singular default.
+`qvcore/tmux/runtime-paths` publishes only the session manager under
+`~/.local/lib/qvos/tmux`; policy, refresh, and native-path inventory remain in
+the installed source and must not enter runtime.
 `qvcore/tmux/refresh` rejects arguments, restores it through
 `qvcore/config/refresh`, and reloads the server through the native desktop
 restart owner only after the file succeeds.

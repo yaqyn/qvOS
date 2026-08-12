@@ -300,10 +300,15 @@ pass "retired Thunar launch state converges on its native runtime owner"
 pass "every private helper has a feature owner"
 
 for feature in direct tmux; do
-  expected_feature="$(find "$root/qvcore/$feature" -type f -printf '%P\n' | sort)"
+  expected_feature="$(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+      "$root/qvcore/$feature/runtime-paths"
+  )"
   installed_feature="$(find "$test_root/.local/lib/qvos/$feature" -type f -printf '%P\n' | sort)"
   [[ $installed_feature == "$expected_feature" ]] || fail "$feature feature inventory"
 done
+[[ ! -e $test_root/.local/lib/qvos/direct/runtime-paths ]] ||
+  fail "source-only direct-tool manifest leaked into runtime"
 expected_waybar=$(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
     "$root/qvcore/waybar/runtime-paths"
@@ -661,6 +666,12 @@ for source_only_path in \
     fail "source-only Waybar payload leaked into runtime: $source_only_path"
 done
 [[ -x $test_root/.local/lib/qvos/tmux/qvos-tmux ]] || fail "tmux command mode"
+[[ $(find "$test_root/.local/lib/qvos/tmux" -type f -printf '%P\n' | sort) == \
+  "qvos-tmux" ]] || fail "Tmux runtime inventory"
+for source_only_path in AGENTS.md native-paths refresh runtime-paths; do
+  [[ ! -e $test_root/.local/lib/qvos/tmux/$source_only_path ]] ||
+    fail "source-only Tmux payload leaked into runtime: $source_only_path"
+done
 while IFS= read -r helper; do
   [[ -x $helper ]] || fail "desktop helper mode"
 done < <(find "$test_root/.local/lib/qvos/desktop" -type f)

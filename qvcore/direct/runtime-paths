@@ -1,0 +1,5 @@
+# Source-relative qvOS direct-tool files installed into ~/.local/lib/qvos/direct.
+manifest.tsv
+post-update-hook
+tool
+update

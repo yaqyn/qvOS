@@ -57,6 +57,7 @@
     qvcore/desktop/webapp/remove
     qvcore/direct/manifest.tsv
     qvcore/direct/post-update-hook
+    qvcore/direct/runtime-paths
     qvcore/direct/tool
     qvcore/direct/update
     qvcore/install/post-update-hook
@@ -188,6 +189,7 @@
     qvcore/windows/manage
     qvcore/windows/launch
     qvcore/tmux/qvos-tmux
+    qvcore/tmux/runtime-paths
     qvcore/waybar/clock.sh
     qvcore/waybar/idle-status
     qvcore/waybar/install
@@ -207,6 +209,91 @@
     fi
   done
 
+  publish_runtime_inventory() (
+    set -euo pipefail
+    export LC_ALL=C
+
+    local source_root=$1
+    local manifest=$2
+    local runtime_root=$3
+    local runtime_name=$4
+    local backup=""
+    local previous_path=""
+    local restore=false
+    local runtime_path
+    local runtime_source
+    local staged_count=0
+    local stage
+
+    [[ -f $manifest && ! -L $manifest ]] || {
+      echo "Unsafe qvOS $runtime_name runtime manifest: $manifest" >&2
+      exit 1
+    }
+    [[ ! -L $runtime_root ]] || {
+      echo "Refusing symbolic-link qvOS $runtime_name runtime: $runtime_root" >&2
+      exit 1
+    }
+    [[ ! -e $runtime_root || -d $runtime_root ]] || {
+      echo "Refusing non-directory qvOS $runtime_name runtime: $runtime_root" >&2
+      exit 1
+    }
+
+    stage=$(mktemp -d "$HOME/.local/lib/qvos/.${runtime_name}-stage.XXXXXX")
+    # shellcheck disable=SC2329
+    cleanup_runtime_stage() {
+      local status=$?
+
+      trap - EXIT
+      [[ ! -d $stage ]] || rm -rf -- "$stage"
+      if [[ $restore == "true" && ! -e $runtime_root && -d $backup ]]; then
+        mv -- "$backup" "$runtime_root" || true
+      fi
+      exit "$status"
+    }
+    trap cleanup_runtime_stage EXIT
+
+    while IFS= read -r runtime_path; do
+      [[ $runtime_path == \#* || -z $runtime_path ]] && continue
+      [[ $runtime_path =~ ^[a-z0-9][a-z0-9._/-]*$ &&
+        $runtime_path != *..* ]] || {
+        echo "Invalid qvOS $runtime_name runtime path: $runtime_path" >&2
+        exit 1
+      }
+      [[ -z $previous_path || $runtime_path > "$previous_path" ]] || {
+        echo "Unordered or duplicate qvOS $runtime_name runtime path: $runtime_path" >&2
+        exit 1
+      }
+      previous_path=$runtime_path
+      runtime_source="$source_root/$runtime_path"
+      [[ -f $runtime_source && ! -L $runtime_source ]] || {
+        echo "Unsafe qvOS $runtime_name runtime source: $runtime_source" >&2
+        exit 1
+      }
+      install -D -m "$(stat -c '%a' -- "$runtime_source")" \
+        "$runtime_source" "$stage/$runtime_path"
+      ((staged_count += 1))
+    done <"$manifest"
+    ((staged_count > 0)) || {
+      echo "Empty qvOS $runtime_name runtime manifest: $manifest" >&2
+      exit 1
+    }
+
+    if [[ -d $runtime_root ]]; then
+      backup=$(mktemp -d "$HOME/.local/lib/qvos/.${runtime_name}-backup.XXXXXX")
+      rmdir -- "$backup"
+      mv -- "$runtime_root" "$backup"
+      restore=true
+    fi
+    mv -- "$stage" "$runtime_root"
+    stage=""
+    restore=false
+    if [[ -n $backup ]]; then
+      rm -rf -- "$backup"
+      backup=""
+    fi
+    trap - EXIT
+  )
+
   "$QVOS_PATH/qvcore/hooks/reconcile"
 
   "$QVOS_PATH/qvcore/branding/install"
@@ -223,74 +310,24 @@
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"
 
-  for feature in direct tmux; do
-    feature_source="$QVOS_PATH/qvcore/$feature"
-    feature_runtime="$HOME/.local/lib/qvos/$feature"
-
-    rm -rf -- "$feature_runtime"
-    cp -a "$feature_source" "$feature_runtime"
-  done
+  publish_runtime_inventory \
+    "$QVOS_PATH/qvcore/direct" \
+    "$QVOS_PATH/qvcore/direct/runtime-paths" \
+    "$HOME/.local/lib/qvos/direct" \
+    direct
+  publish_runtime_inventory \
+    "$QVOS_PATH/qvcore/tmux" \
+    "$QVOS_PATH/qvcore/tmux/runtime-paths" \
+    "$HOME/.local/lib/qvos/tmux" \
+    tmux
 
   "$QVOS_PATH/qvcore/waybar/install"
 
-  desktop_source="$QVOS_PATH/qvcore/desktop"
-  desktop_runtime="$HOME/.local/lib/qvos/desktop"
-  desktop_stage=$(mktemp -d "$HOME/.local/lib/qvos/.desktop-stage.XXXXXX")
-  desktop_backup=""
-  desktop_restore=false
-
-  # shellcheck disable=SC2329
-  cleanup_desktop_stage() {
-    local status=$?
-
-    if [[ -n $desktop_stage && -d $desktop_stage ]]; then
-      rm -rf -- "$desktop_stage"
-    fi
-    if [[ $desktop_restore == "true" && ! -e $desktop_runtime && -d $desktop_backup ]]; then
-      mv -- "$desktop_backup" "$desktop_runtime" || true
-    fi
-    exit "$status"
-  }
-  trap cleanup_desktop_stage EXIT
-
-  [[ ! -L $desktop_runtime ]] || {
-    echo "Refusing symbolic-link qvOS desktop runtime: $desktop_runtime" >&2
-    exit 1
-  }
-  [[ ! -e $desktop_runtime || -d $desktop_runtime ]] || {
-    echo "Refusing non-directory qvOS desktop runtime: $desktop_runtime" >&2
-    exit 1
-  }
-
-  while IFS= read -r runtime_path; do
-    [[ $runtime_path == \#* || -z $runtime_path ]] && continue
-    [[ $runtime_path =~ ^[a-z0-9][a-z0-9._/-]*$ && $runtime_path != *..* ]] || {
-      echo "Invalid qvOS desktop runtime path: $runtime_path" >&2
-      exit 1
-    }
-    runtime_source="$desktop_source/$runtime_path"
-    [[ -f $runtime_source && ! -L $runtime_source ]] || {
-      echo "Unsafe qvOS desktop runtime source: $runtime_source" >&2
-      exit 1
-    }
-    install -D -m "$(stat -c '%a' -- "$runtime_source")" \
-      "$runtime_source" "$desktop_stage/$runtime_path"
-  done <"$desktop_source/runtime-paths"
-
-  if [[ -d $desktop_runtime ]]; then
-    desktop_backup=$(mktemp -d "$HOME/.local/lib/qvos/.desktop-backup.XXXXXX")
-    rmdir -- "$desktop_backup"
-    mv -- "$desktop_runtime" "$desktop_backup"
-    desktop_restore=true
-  fi
-  mv -- "$desktop_stage" "$desktop_runtime"
-  desktop_stage=""
-  desktop_restore=false
-  if [[ -n $desktop_backup ]]; then
-    rm -rf -- "$desktop_backup"
-    desktop_backup=""
-  fi
-  trap - EXIT
+  publish_runtime_inventory \
+    "$QVOS_PATH/qvcore/desktop" \
+    "$QVOS_PATH/qvcore/desktop/runtime-paths" \
+    "$HOME/.local/lib/qvos/desktop" \
+    desktop
 
   thunar_source="$QVOS_PATH/qvcore/thunar"
   thunar_runtime="$HOME/.local/lib/qvos/thunar"
