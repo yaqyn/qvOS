@@ -18,8 +18,9 @@ source_root="$QVOS_PATH/qvcore/config/files"
 source_file="$source_root/$config_path"
 target_file="$HOME/.config/$config_path"
 target_dir=${target_file%/*}
-backup_file=""
-backup_suffix=0
+backup_root="$HOME/.local/state/qvos/config-backups/refresh"
+backup_entry=""
+backup_ready=false
 staged_file=""
 
 fail() {
@@ -29,8 +30,41 @@ fail() {
 
 cleanup() {
   [[ -z $staged_file ]] || rm -f -- "$staged_file"
+  if [[ -n $backup_entry && $backup_ready == false ]]; then
+    [[ ! -e $backup_entry/path && ! -L $backup_entry/path ]] ||
+      rm -f -- "$backup_entry/path"
+    [[ ! -e $backup_entry/value && ! -L $backup_entry/value ]] ||
+      rm -f -- "$backup_entry/value"
+    rmdir -- "$backup_entry" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
+
+ensure_private_backup_root() {
+  local directory
+  local -a directories=(
+    "$HOME/.local"
+    "$HOME/.local/state"
+    "$HOME/.local/state/qvos"
+    "$HOME/.local/state/qvos/config-backups"
+    "$backup_root"
+  )
+
+  [[ -d $HOME && ! -L $HOME && -O $HOME ]] ||
+    fail "refusing unsafe home directory: $HOME"
+  for directory in "${directories[@]}"; do
+    if [[ -e $directory || -L $directory ]]; then
+      [[ -d $directory && ! -L $directory && -O $directory ]] ||
+        fail "refusing unsafe backup directory: $directory"
+    else
+      install -d -m 0700 -- "$directory"
+    fi
+  done
+  chmod 0700 -- \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$backup_root"
+}
 
 if [[ ! -f $source_file || -L $source_file ]]; then
   fail "unknown config: $config_path" 2
@@ -41,6 +75,11 @@ canonical_source=$(readlink -f -- "$source_file") ||
   fail "could not resolve config: $config_path"
 [[ $canonical_source == "$canonical_source_root/"* ]] ||
   fail "config escapes its source root: $config_path" 2
+
+ensure_private_backup_root
+exec {refresh_lock_fd}>"$backup_root/.lock"
+chmod 0600 -- "$backup_root/.lock"
+flock "$refresh_lock_fd"
 
 if [[ -e $target_file || -L $target_file ]]; then
   [[ -f $target_file || -L $target_file ]] ||
@@ -53,17 +92,20 @@ staged_file=$(mktemp "$target_dir/.qvos-refresh.XXXXXX")
 install -m "$(stat -c '%a' -- "$source_file")" "$source_file" "$staged_file"
 
 if [[ -e $target_file || -L $target_file ]]; then
-  backup_file="$target_file.bak.$(date +%s)"
-  while [[ -e $backup_file || -L $backup_file ]]; do
-    ((backup_suffix += 1))
-    backup_file="$target_file.bak.$(date +%s).$backup_suffix"
-  done
-  mv -- "$target_file" "$backup_file"
+  backup_key=$(printf '%s' "$config_path" | sha256sum)
+  backup_key=${backup_key%% *}
+  backup_entry=$(mktemp -d "$backup_root/$backup_key.XXXXXX")
+  chmod 0700 -- "$backup_entry"
+  printf '%s\n' "$config_path" >"$backup_entry/path"
+  chmod 0600 -- "$backup_entry/path"
+  cp -a -- "$target_file" "$backup_entry/value"
+  backup_ready=true
 fi
 
-if ! mv -- "$staged_file" "$target_file"; then
-  if [[ -n $backup_file ]] && ! mv -- "$backup_file" "$target_file"; then
-    fail "could not install $config_path or restore its backup"
+if ! mv -f -- "$staged_file" "$target_file"; then
+  if [[ ! -e $target_file && ! -L $target_file && $backup_ready == true ]] &&
+    ! cp -a -- "$backup_entry/value" "$target_file"; then
+    fail "could not install $config_path or restore its private backup"
   fi
   fail "could not install $config_path"
 fi

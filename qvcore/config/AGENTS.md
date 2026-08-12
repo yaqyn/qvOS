@@ -53,8 +53,10 @@ compatibility adapters after their feature owner is promoted.
 It reads only `qvcore/config/files/`; the alternate top-level source and
 `--owned` selector are retired. Validate a bounded relative path, reject
 linked or escaping sources and non-file targets, skip exact matches, stage in
-the destination directory, preserve a unique backup, and restore that backup
-if publication fails. `qv-refresh-config` owns metadata and
+the destination directory, serialize publication, preserve each replaced value
+under private `~/.local/state/qvos/config-backups/refresh` state, and restore
+that backup if publication fails. Never place refresh backups beside active
+configuration. `qv-refresh-config` owns metadata and
 `omarchy-refresh-config` is compatibility only. Native owners call the
 transaction directly and never route back through the compatibility command.
 The bounded path alphabet includes `@` for systemd template-instance

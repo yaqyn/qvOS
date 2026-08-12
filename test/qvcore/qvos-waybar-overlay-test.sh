@@ -148,11 +148,21 @@ jq -e '."personal-setting" == true' "$custom_config" >/dev/null ||
 PATH="$test_bin:/usr/bin" HOME="$custom_home" QVOS_PATH="$root" \
   "$root/qvcore/waybar/refresh"
 cmp -s "$source_config" "$custom_config" || fail "custom Waybar reset"
-custom_backup=$(find "$custom_home/.config/waybar" -maxdepth 1 \
-  -name 'config.jsonc.bak.*' -print -quit)
-[[ -n $custom_backup ]] || fail "custom Waybar backup"
+custom_backup_root="$custom_home/.local/state/qvos/config-backups/refresh"
+mapfile -t custom_backups < <(
+  for path_file in "$custom_backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "waybar/config.jsonc" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
+)
+((${#custom_backups[@]} == 1)) || fail "one private custom Waybar backup"
+custom_backup=${custom_backups[0]}
 jq -e '."personal-setting" == true' "$custom_backup" >/dev/null ||
   fail "custom Waybar backup content"
+if compgen -G "$custom_home/.config/waybar/*.bak.*" >/dev/null; then
+  fail "custom Waybar backup polluted active configuration"
+fi
 
 invalid_root="$test_root/invalid-source"
 invalid_home="$test_root/invalid-home"

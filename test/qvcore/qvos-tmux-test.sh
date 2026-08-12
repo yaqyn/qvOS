@@ -77,14 +77,21 @@ HOME="$refresh_home" \
 cmp -s "$root/qvcore/config/files/tmux/tmux.conf" \
   "$refresh_home/.config/tmux/tmux.conf" || fail "Tmux config refresh"
 grep -Fqx 'reload' "$refresh_log" || fail "Tmux reload after refresh"
-refresh_backup=$(
-  find "$refresh_home/.config/tmux" \
-    -maxdepth 1 \
-    -name 'tmux.conf.bak.*' \
-    -print -quit
+refresh_backup_root="$refresh_home/.local/state/qvos/config-backups/refresh"
+mapfile -t refresh_backups < <(
+  for path_file in "$refresh_backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "tmux/tmux.conf" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
 )
-[[ -n $refresh_backup && $(<"$refresh_backup") == "personal tmux config" ]] ||
+((${#refresh_backups[@]} == 1)) || fail "one private Tmux config backup"
+refresh_backup=${refresh_backups[0]}
+[[ $(<"$refresh_backup") == "personal tmux config" ]] ||
   fail "Tmux config backup"
+if compgen -G "$refresh_home/.config/tmux/*.bak.*" >/dev/null; then
+  fail "Tmux backup polluted active configuration"
+fi
 if HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$refresh_source/qvcore/tmux/refresh" unexpected >/dev/null 2>&1; then
   fail "Tmux refresh accepted unexpected arguments"

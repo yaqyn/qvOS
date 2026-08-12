@@ -63,9 +63,14 @@ HOME="$test_home" \
 for config_path in "${config_paths[@]}"; do
   target="$test_home/.config/$config_path"
   mapfile -t backups < <(
-    find "${target%/*}" -maxdepth 1 -type f -name "${target##*/}.bak.*" -print
+    backup_root="$test_home/.local/state/qvos/config-backups/refresh"
+    for path_file in "$backup_root"/*/path; do
+      [[ -f $path_file ]] || continue
+      [[ $(<"$path_file") == "$config_path" ]] || continue
+      printf '%s/value\n' "${path_file%/path}"
+    done
   )
-  ((${#backups[@]} == 1)) || fail "one Walker backup: $config_path"
+  ((${#backups[@]} == 1)) || fail "one private Walker backup: $config_path"
   grep -Fqx "custom $config_path" "${backups[0]}" ||
     fail "Walker backup content: $config_path"
   if [[ $config_path != "walker/config.toml" ]]; then
@@ -73,6 +78,9 @@ for config_path in "${config_paths[@]}"; do
       fail "restored Walker config: $config_path"
   fi
 done
+if find "$test_home/.config" -name '*.bak.*' -print -quit | grep -q .; then
+  fail "Walker refresh polluted active configuration"
+fi
 grep -Fq 'theme = "qvos-menu"' "$test_home/.config/walker/config.toml" ||
   fail "reconciled Walker theme"
 grep -Fq '[providers.sets.qvos-menu]' "$test_home/.config/walker/config.toml" ||

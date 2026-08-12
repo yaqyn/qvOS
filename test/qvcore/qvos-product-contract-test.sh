@@ -156,29 +156,27 @@ HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/path.conf
 [[ $(<"$refresh_home/.config/qvos/path.conf") == "native source" ]] ||
   fail "QVOS_PATH config refresh"
-refresh_backup=$(
-  find "$refresh_home/.config/qvos" \
-    -maxdepth 1 \
-    -name 'path.conf.bak.*' \
-    -print \
-    -quit
+refresh_backup_root="$refresh_home/.local/state/qvos/config-backups/refresh"
+mapfile -t refresh_backups < <(
+  for path_file in "$refresh_backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "qvos/path.conf" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
 )
-[[ -n $refresh_backup && $(<"$refresh_backup") == "personal config" ]] ||
+((${#refresh_backups[@]} == 1)) || fail "one private qvOS config refresh backup"
+refresh_backup=${refresh_backups[0]}
+[[ $(<"$refresh_backup") == "personal config" ]] ||
   fail "qvOS config refresh backup"
-refresh_backup_count=$(
-  find "$refresh_home/.config/qvos" \
-    -maxdepth 1 \
-    -name 'path.conf.bak.*' |
-    wc -l
-)
+if find "$refresh_home/.config" -name '*.bak.*' -print -quit | grep -q .; then
+  fail "qvOS config refresh polluted active configuration"
+fi
+refresh_backup_count=$(find "$refresh_backup_root" \
+  -mindepth 1 -maxdepth 1 -type d | wc -l)
 HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/path.conf
-[[ $(
-  find "$refresh_home/.config/qvos" \
-    -maxdepth 1 \
-    -name 'path.conf.bak.*' |
-    wc -l
-) == "$refresh_backup_count" ]] || fail "idempotent config refresh backup"
+[[ $(find "$refresh_backup_root" -mindepth 1 -maxdepth 1 -type d | wc -l) == \
+  "$refresh_backup_count" ]] || fail "idempotent config refresh backup"
 HOME="$refresh_home" QVOS_PATH="$refresh_source" \
   "$root/qvcore/config/refresh" qvos/owned.conf
 [[ $(<"$refresh_home/.config/qvos/owned.conf") == "owned source" ]] ||
@@ -210,12 +208,8 @@ exit 1
 INSTALL
 printf 'current config\n' >"$refresh_home/.config/qvos/path.conf"
 printf 'future source\n' >"$refresh_source/qvcore/config/files/qvos/path.conf"
-refresh_backup_count=$(
-  find "$refresh_home/.config/qvos" \
-    -maxdepth 1 \
-    -name 'path.conf.bak.*' |
-    wc -l
-)
+refresh_backup_count=$(find "$refresh_backup_root" \
+  -mindepth 1 -maxdepth 1 -type d | wc -l)
 if HOME="$refresh_home" \
   QVOS_PATH="$refresh_source" \
   PATH="$refresh_fail_bin:/usr/bin" \
@@ -224,12 +218,8 @@ if HOME="$refresh_home" \
 fi
 [[ $(<"$refresh_home/.config/qvos/path.conf") == "current config" ]] ||
   fail "failed qvOS config staging changed the current config"
-[[ $(
-  find "$refresh_home/.config/qvos" \
-    -maxdepth 1 \
-    -name 'path.conf.bak.*' |
-    wc -l
-) == "$refresh_backup_count" ]] ||
+[[ $(find "$refresh_backup_root" -mindepth 1 -maxdepth 1 -type d | wc -l) == \
+  "$refresh_backup_count" ]] ||
   fail "failed qvOS config staging created a misleading backup"
 pass "config refreshes are bounded, atomic, idempotent, and source-scoped"
 

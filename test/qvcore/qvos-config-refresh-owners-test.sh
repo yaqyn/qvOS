@@ -21,6 +21,7 @@ pass() {
   printf 'ok - %s\n' "$1"
 }
 
+install -d -m 0700 "$test_home"
 install -D -m 0755 "$root/qvcore/config/refresh" \
   "$source_root/qvcore/config/refresh"
 for owner in refresh-hypridle refresh-hyprlock refresh-hyprsunset refresh-swayosd; do
@@ -95,6 +96,81 @@ cmp -s \
   "$test_home/.config/$template_path" ||
   fail "systemd template config refresh"
 pass "config refresh accepts bounded systemd template paths"
+
+printf 'personal lock screen\n' >"$test_home/.config/hypr/hyprlock.conf"
+run_owner "$source_root/qvcore/config/refresh" hypr/hyprlock.conf
+backup_root="$test_home/.local/state/qvos/config-backups/refresh"
+mapfile -t lock_backups < <(
+  for path_file in "$backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "hypr/hyprlock.conf" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
+)
+((${#lock_backups[@]} == 1)) || fail "one private config refresh backup"
+[[ $(<"${lock_backups[0]}") == "personal lock screen" ]] ||
+  fail "private config refresh backup content"
+[[ $(stat -c '%a' "$test_home/.local/state/qvos") == "700" &&
+  $(stat -c '%a' "$test_home/.local/state/qvos/config-backups") == "700" &&
+  $(stat -c '%a' "$backup_root") == "700" &&
+  $(stat -c '%a' "${lock_backups[0]%/value}") == "700" &&
+  $(stat -c '%a' "${lock_backups[0]%/value}/path") == "600" &&
+  $(stat -c '%a' "$backup_root/.lock") == "600" ]] ||
+  fail "private config refresh backup permissions"
+if find "$test_home/.config" -name '*.bak.*' -print -quit | grep -q .; then
+  fail "config refresh backup polluted active configuration"
+fi
+pass "config refresh preserves recovery values in private qvOS state"
+
+concurrent_path=qvos/concurrent.conf
+install -D -m 0644 /dev/stdin \
+  "$source_root/qvcore/config/files/$concurrent_path" <<'CONFIG'
+native concurrent config
+CONFIG
+install -D -m 0644 /dev/stdin \
+  "$test_home/.config/$concurrent_path" <<'CONFIG'
+personal concurrent config
+CONFIG
+run_owner "$source_root/qvcore/config/refresh" "$concurrent_path" &
+first_refresh=$!
+run_owner "$source_root/qvcore/config/refresh" "$concurrent_path" &
+second_refresh=$!
+wait "$first_refresh"
+wait "$second_refresh"
+mapfile -t concurrent_backups < <(
+  for path_file in "$backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "$concurrent_path" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
+)
+((${#concurrent_backups[@]} == 1)) ||
+  fail "concurrent refresh created duplicate recovery values"
+[[ $(<"${concurrent_backups[0]}") == "personal concurrent config" ]] ||
+  fail "concurrent config refresh backup content"
+cmp -s "$source_root/qvcore/config/files/$concurrent_path" \
+  "$test_home/.config/$concurrent_path" ||
+  fail "concurrent config refresh result"
+pass "config refresh serializes concurrent publication"
+
+unsafe_home="$test_root/unsafe-home"
+outside_state="$test_root/outside-state"
+install -d \
+  "$unsafe_home/.config/qvos" \
+  "$unsafe_home/.local/state" \
+  "$outside_state"
+printf 'preserve unsafe target\n' >"$unsafe_home/.config/qvos/concurrent.conf"
+ln -s "$outside_state" "$unsafe_home/.local/state/qvos"
+if HOME="$unsafe_home" QVOS_PATH="$source_root" \
+  "$source_root/qvcore/config/refresh" "$concurrent_path" \
+  >/dev/null 2>&1; then
+  fail "linked private state root accepted"
+fi
+[[ $(<"$unsafe_home/.config/qvos/concurrent.conf") == \
+  "preserve unsafe target" ]] || fail "unsafe state changed active config"
+[[ -z $(find "$outside_state" -mindepth 1 -print -quit) ]] ||
+  fail "unsafe state link received refresh data"
+pass "config refresh rejects linked private state before mutation"
 
 printf 'preserve before failed preflight\n' \
   >"$test_home/.config/swayosd/config.toml"

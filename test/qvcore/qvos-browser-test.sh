@@ -106,9 +106,20 @@ fi
 run_browser "$fixture/bin/qv-refresh-chromium" >/dev/null
 cmp -s "$fixture/qvcore/config/files/chromium-flags.conf" "$chromium_flags" ||
   fail "native Chromium refresh"
-grep -Rqx -- '--custom-browser-flag' \
-  "$test_home/.config/chromium-flags.conf.bak."* ||
-  fail "Chromium refresh backup"
+chromium_backup_root="$test_home/.local/state/qvos/config-backups/refresh"
+mapfile -t chromium_backups < <(
+  for path_file in "$chromium_backup_root"/*/path; do
+    [[ -f $path_file ]] || continue
+    [[ $(<"$path_file") == "chromium-flags.conf" ]] || continue
+    printf '%s/value\n' "${path_file%/path}"
+  done
+)
+((${#chromium_backups[@]} == 1)) || fail "one private Chromium refresh backup"
+grep -Fqx -- '--custom-browser-flag' "${chromium_backups[0]}" ||
+  fail "Chromium refresh backup content"
+if compgen -G "$test_home/.config/chromium-flags.conf.bak.*" >/dev/null; then
+  fail "Chromium refresh backup polluted active configuration"
+fi
 if run_browser "$fixture/bin/qv-refresh-chromium" unexpected \
   >/dev/null 2>&1; then
   fail "Chromium refresh accepted unexpected arguments"

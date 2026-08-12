@@ -10,6 +10,7 @@ autostart="$base/autostart.lua"
 windows="$base/windows.lua"
 native_manifest="$root/qvcore/config/native-paths"
 retired_manifest="$root/qvcore/config/retired-paths"
+refresh="$root/qvcore/config/refresh"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -91,6 +92,11 @@ done
 grep -Fqx '"$QVOS_PATH/qvcore/config/refresh" hypr/hypridle.conf' \
   "$root/qvcore/config/refresh-hypridle" ||
   fail "Hypridle refresh bypasses the singular native source"
+grep -Fq "\$HOME/.local/state/qvos/config-backups/refresh" "$refresh" ||
+  fail "config refresh does not own private recovery state"
+if rg -n 'target_file\.bak|\.config/.+\.bak' "$refresh"; then
+  fail "config refresh writes recovery data beside active configuration"
+fi
 if rg -n --glob '!**/AGENTS.md' --glob '!**/check' \
   -- '--owned|\$QVOS_PATH/config' \
   "$root/qvcore/config" "$root/qvcore/install"; then
