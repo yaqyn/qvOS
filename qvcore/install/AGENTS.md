@@ -91,7 +91,8 @@ Fresh install never grants wheel-wide passwordless timezone commands; the
 security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
-identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Intel FRED,
+identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,
+Intel FRED,
 Intel Wi-Fi EHT, Apple SPI, ASUS display and touchpad, Lenovo speaker, NVIDIA,
 and Tuxedo stage adapters only select hardware; the owner installs tracked
 native files, activates them when required, and rolls back only files and
@@ -100,6 +101,10 @@ when a GPU is unsupported; they never exit the complete installer. Preserve an
 exact existing native policy without replacing it, and reject modified,
 linked, or unsafe native targets before activation. A Limine argument lives
 only in its owned drop-in, never in both a drop-in and `/etc/default/limine`.
+Surface keyboard policy is generated only for documented SAM models from one
+bounded loaded pin-controller module or a verified built-in Arch AMD option,
+distinguishes old `surface_kbd` from newer `surface_hid`, and fails before
+writing on missing or ambiguous evidence.
 Fresh installation never deletes unverified files from a package-owned kernel
 module tree. The completed pre-release hardware identity migration is retired;
 fresh install never scans or mutates inherited rule, unit, backup, or service

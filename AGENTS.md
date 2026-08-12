@@ -372,6 +372,9 @@ Every qvOS change must leave one traceable lifecycle.
   database.
 - Preserve useful upstream capability through explicit review and native ports.
   Omit it when unsafe, incompatible, unwanted, or out of scope, and state why.
+- Hardware policy that affects boot-time input must use exact supported-device
+  evidence, publish through the transactional native owner, and fail before
+  writing when its required module inventory is missing or ambiguous.
 
 ## Zero Duplication
 

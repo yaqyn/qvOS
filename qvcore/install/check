@@ -291,6 +291,7 @@ for stage_contract in \
   'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
   'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht' \
   'qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh|"$QVOS_PATH/qvcore/install/hardware/identity" lenovo-yoga-pro7-bass' \
+  'qvcore/install/config/hardware/fix-surface-keyboard.sh|"$QVOS_PATH/qvcore/install/hardware/identity" surface-keyboard' \
   'qvcore/install/hardware/asus/b9406-touchpad|"$QVOS_PATH/qvcore/install/hardware/identity" asus-b9406-touchpad'; do
   stage=${stage_contract%%|*}
   expected_call=${stage_contract#*|}
@@ -331,6 +332,9 @@ if rg -n 'sudo[[:space:]]+tee|qv-hw-match[[:space:]]+"Yoga Pro 7' \
   "$root/qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh"; then
   fail "Lenovo audio setup bypasses bounded native policy ownership"
 fi
+grep -Fq 'qvos-surface-keyboard.conf' \
+  "$root/qvcore/install/hardware/identity" ||
+  fail "Surface keyboard policy lacks a native installed identity"
 if rg -n 'sudo[[:space:]]+tee|(/lib|/usr/lib)/modules/.+\.ko' \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
   fail "Tuxedo hardware policy retains direct or destructive root mutation"

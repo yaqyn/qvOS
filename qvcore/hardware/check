@@ -19,6 +19,7 @@ for qvos_only_route in \
   apple-spi-keyboard \
   intel-wifi7-eht \
   lenovo-yoga-pro7 \
+  surface-sam-keyboard \
   synaptics-ps2 \
   tuxedo; do
   native_adapter="$root/bin/qv-hw-$qvos_only_route"
@@ -84,6 +85,7 @@ for stage_contract in \
   'qvcore/install/config/hardware/intel/fred.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-fred' \
   'qvcore/install/config/hardware/intel/fix-wifi7-eht.sh|"$QVOS_PATH/qvcore/install/hardware/identity" intel-wifi7-eht' \
   'qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh|"$QVOS_PATH/qvcore/install/hardware/identity" lenovo-yoga-pro7-bass' \
+  'qvcore/install/config/hardware/fix-surface-keyboard.sh|"$QVOS_PATH/qvcore/install/hardware/identity" surface-keyboard' \
   'qvcore/install/hardware/asus/b9406-touchpad|"$QVOS_PATH/qvcore/install/hardware/identity" asus-b9406-touchpad'; do
   stage=${stage_contract%%|*}
   expected_call=${stage_contract#*|}
@@ -120,6 +122,7 @@ if rg -n '/etc/default/limine|sudo[[:space:]]+tee|/lib/modules/.+\.ko|modprobe[[
   "$root/qvcore/install/config/hardware/intel/fix-wifi7-eht.sh" \
   "$root/qvcore/install/config/hardware/lenovo/fix-yoga-pro7-bass-speakers.sh" \
   "$root/qvcore/install/config/hardware/nvidia.sh" \
+  "$root/qvcore/install/config/hardware/fix-surface-keyboard.sh" \
   "$root/qvcore/install/config/hardware/fix-tuxedo-backlight.sh"; then
   fail "hardware policy retains duplicate, direct, or destructive root mutation"
 fi
@@ -127,6 +130,9 @@ if rg -n '/etc/(modprobe\.d/(hid_apple|iwlwifi-disable-eht|blacklist-clevo-xsm-w
   "$root/qvcore/install/hardware/identity"; then
   fail "native hardware owner retains a non-qvOS installed identity"
 fi
+grep -Fq 'qvos-surface-keyboard.conf' \
+  "$root/qvcore/install/hardware/identity" ||
+  fail "Surface keyboard policy lacks a native installed identity"
 if rg -n '(^|[[:space:]])exit[[:space:]]+[0-9]+' \
   "$root/qvcore/install/config/hardware/nvidia.sh"; then
   fail "sourced NVIDIA stage can terminate the complete installer"

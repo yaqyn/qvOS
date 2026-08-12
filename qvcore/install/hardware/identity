@@ -48,18 +48,21 @@ lenovo_yoga_target="$system_root/etc/modprobe.d/qvos-lenovo-yoga-pro7-bass.conf"
 tuxedo_source="$QVOS_PATH/qvcore/install/hardware/tuxedo/blacklist-clevo-xsm-wmi.conf"
 tuxedo_target="$system_root/etc/modprobe.d/qvos-tuxedo-backlight.conf"
 
+surface_target="$system_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf"
+surface_generated_source=
+
 fail() {
   printf 'qvOS hardware identity: %s\n' "$1" >&2
   exit 1
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <apple-nvme|apple-spi-keyboard|asus-b9406-display|asus-b9406-touchpad|asus-ptl-backlight|hid-apple-fkeys|intel-fred|intel-wifi7-eht|lenovo-yoga-pro7-bass|nvidia-boot|synaptics-ps2|tuxedo-backlight|z13>" >&2
+  echo "Usage: qvcore/install/hardware/identity <apple-nvme|apple-spi-keyboard|asus-b9406-display|asus-b9406-touchpad|asus-ptl-backlight|hid-apple-fkeys|intel-fred|intel-wifi7-eht|lenovo-yoga-pro7-bass|nvidia-boot|surface-keyboard|synaptics-ps2|tuxedo-backlight|z13>" >&2
   exit 2
 }
 
 case ${1:-} in
-apple-nvme | apple-spi-keyboard | asus-b9406-display | asus-b9406-touchpad | asus-ptl-backlight | hid-apple-fkeys | intel-fred | intel-wifi7-eht | lenovo-yoga-pro7-bass | nvidia-boot | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
+apple-nvme | apple-spi-keyboard | asus-b9406-display | asus-b9406-touchpad | asus-ptl-backlight | hid-apple-fkeys | intel-fred | intel-wifi7-eht | lenovo-yoga-pro7-bass | nvidia-boot | surface-keyboard | synaptics-ps2 | tuxedo-backlight | z13) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -103,6 +106,8 @@ as_root() {
 
 cleanup_staging() {
   [[ -z $active_staging ]] || as_root /usr/bin/rm -f -- "$active_staging" || true
+  [[ -z $surface_generated_source ]] ||
+    /usr/bin/rm -f -- "$surface_generated_source" || true
 }
 trap cleanup_staging EXIT
 trap 'exit 129' HUP
@@ -298,6 +303,108 @@ install_nvidia_boot() {
   fi
 }
 
+kernel_config_state() {
+  local option=$1
+  local config
+  local line
+  local -a configs=()
+  local -a states=()
+
+  shopt -s nullglob
+  configs=("$system_root/usr/lib/modules"/*/build/.config)
+  shopt -u nullglob
+  for config in "${configs[@]}"; do
+    [[ -r $config ]] || continue
+    line=$(/usr/bin/grep -Fm1 -- "$option=" "$config" || true)
+    case $line in
+    "$option=y") states+=(y) ;;
+    "$option=m") states+=(m) ;;
+    esac
+  done
+  (( ${#states[@]} > 0 )) || return 1
+  mapfile -t states < <(/usr/bin/printf '%s\n' "${states[@]}" | /usr/bin/sort -u)
+  (( ${#states[@]} == 1 )) || return 1
+  printf '%s\n' "${states[0]}"
+}
+
+generate_surface_keyboard_policy() {
+  local config_state
+  local model
+  local module
+  local pinctrl_module
+  local platform
+  local input_driver
+  local modules_path="$system_root/proc/modules"
+  local -a pinctrl_modules=()
+  local -a policy_modules=()
+
+  [[ -r $modules_path && ! -L $modules_path ]] ||
+    fail "the loaded-module inventory is unavailable for this Surface"
+  while read -r module _; do
+    case $module in
+    pinctrl_amd | pinctrl_cannonlake | pinctrl_icelake | \
+      pinctrl_sunrisepoint | pinctrl_tigerlake)
+      pinctrl_modules+=("$module")
+      ;;
+    esac
+  done <"$modules_path"
+  if (( ${#pinctrl_modules[@]} == 1 )); then
+    pinctrl_module=${pinctrl_modules[0]}
+    if [[ $pinctrl_module == "pinctrl_amd" ]]; then
+      platform=amd
+    else
+      platform=intel
+    fi
+  elif (( ${#pinctrl_modules[@]} == 0 )) &&
+    /usr/bin/grep -m1 -Eq \
+      '^vendor_id[[:space:]]*:[[:space:]]*AuthenticAMD$' \
+      "$system_root/proc/cpuinfo" 2>/dev/null; then
+    config_state=$(kernel_config_state CONFIG_PINCTRL_AMD || true)
+    [[ $config_state == "y" ]] ||
+      fail "the AMD Surface pin-controller is neither loaded nor built into the installed kernel"
+    pinctrl_module=
+    platform=amd
+  else
+    fail "expected one supported Surface pin-controller module, found ${#pinctrl_modules[@]}"
+  fi
+
+  model=$(/usr/bin/cat -- \
+    "$system_root/sys/class/dmi/id/product_name" 2>/dev/null || true)
+  case $model in
+  "Surface Laptop" | "Surface Laptop 2") input_driver=surface_kbd ;;
+  "Surface Laptop 3" | "Surface Laptop 4" | "Surface Book 3" | \
+    "Surface Laptop Studio" | "Surface Laptop Studio 2")
+    input_driver=surface_hid
+    ;;
+  *) fail "unsupported Surface keyboard model: ${model:-unknown}" ;;
+  esac
+
+  [[ -z $pinctrl_module ]] || policy_modules+=("$pinctrl_module")
+  if [[ $platform == "intel" ]]; then
+    policy_modules+=(intel_lpss intel_lpss_pci)
+  fi
+  policy_modules+=(
+    8250_dw
+    surface_aggregator
+    surface_aggregator_registry
+    surface_aggregator_hub
+    surface_hid_core
+    "$input_driver"
+  )
+
+  surface_generated_source=$(/usr/bin/mktemp \
+    /tmp/qvos-surface-keyboard.XXXXXX) ||
+    fail "could not stage the Surface keyboard policy"
+  /usr/bin/chmod 0600 -- "$surface_generated_source"
+  printf 'MODULES=(%s)\n' "${policy_modules[*]}" >"$surface_generated_source"
+}
+
+install_surface_keyboard() {
+  generate_surface_keyboard_policy
+  install_static_policy \
+    "Surface keyboard initramfs" "$surface_generated_source" "$surface_target"
+}
+
 case $operation in
 z13)
   if qv-hw-asus-rog && qv-hw-match "GZ302"; then
@@ -379,6 +486,11 @@ nvidia-boot)
   if "$QVOS_PATH/bin/qv-hw-nvidia-gsp" ||
     "$QVOS_PATH/bin/qv-hw-nvidia-without-gsp"; then
     install_nvidia_boot
+  fi
+  ;;
+surface-keyboard)
+  if "$QVOS_PATH/bin/qv-hw-surface-sam-keyboard"; then
+    install_surface_keyboard
   fi
   ;;
 synaptics-ps2)

@@ -110,6 +110,20 @@ synaptics_ps2() {
   [[ $devices == *"synps/2"* && $devices == *"touchpad"* ]]
 }
 
+surface_sam_keyboard() {
+  local model
+
+  [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Microsoft Corporation" ]] ||
+    return 1
+  model=$(dmi_value product_name 2>/dev/null || true)
+  case $model in
+  "Surface Laptop" | "Surface Laptop 2" | "Surface Laptop 3" | \
+    "Surface Laptop 4" | "Surface Book 3" | "Surface Laptop Studio" | \
+    "Surface Laptop Studio 2") return 0 ;;
+  *) return 1 ;;
+  esac
+}
+
 nvidia_match() {
   local pattern=$1
   local line
@@ -298,6 +312,10 @@ surface)
   require_no_arguments "$@"
   [[ $(dmi_value sys_vendor 2>/dev/null || true) == "Microsoft Corporation" ]] &&
     dmi_match "Surface"
+  ;;
+surface-sam-keyboard)
+  require_no_arguments "$@"
+  surface_sam_keyboard
   ;;
 synaptics-ps2)
   require_no_arguments "$@"

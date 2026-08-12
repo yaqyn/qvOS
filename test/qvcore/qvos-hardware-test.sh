@@ -135,8 +135,14 @@ if run_detect tuxedo >/dev/null 2>&1; then
   fail "unrelated vendor reported Tuxedo compatibility"
 fi
 printf 'Microsoft Corporation\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 4\n' >"$fixture/sys/class/dmi/id/product_name"
 printf 'Surface Laptop\n' >"$fixture/sys/class/dmi/id/product_family"
 run_detect surface || fail "Surface detector"
+run_detect surface-sam-keyboard || fail "Surface SAM keyboard detector"
+printf 'Surface Pro 9\n' >"$fixture/sys/class/dmi/id/product_name"
+if run_detect surface-sam-keyboard >/dev/null 2>&1; then
+  fail "Surface SAM keyboard detector accepted an unrelated model"
+fi
 
 QVOS_TEST_COMMANDS='lspci,hyprctl,jq,supergfxctl' \
 QVOS_TEST_SUPERGFX='[Integrated, Hybrid]' run_detect hybrid-gpu ||
@@ -235,6 +241,16 @@ QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
   "$root/bin/qv-hw-apple-spi-keyboard" || fail "qvOS-only Apple SPI adapter"
 [[ ! -e $root/bin/omarchy-hw-apple-spi-keyboard ]] ||
   fail "qvOS-only Apple SPI detector has an inherited adapter"
+printf 'Microsoft Corporation\n' >"$fixture/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop Studio 2\n' >"$fixture/sys/class/dmi/id/product_name"
+PATH="$test_bin:/usr/bin" \
+QVOS_PATH="$root" \
+QVOS_HARDWARE_TESTING=1 \
+QVOS_HARDWARE_FIXTURE_ROOT="$fixture" \
+  "$root/bin/qv-hw-surface-sam-keyboard" ||
+  fail "qvOS-only Surface SAM keyboard adapter"
+[[ ! -e $root/bin/omarchy-hw-surface-sam-keyboard ]] ||
+  fail "qvOS-only Surface SAM detector has an inherited adapter"
 printf 'LENOVO\n' >"$fixture/sys/class/dmi/id/sys_vendor"
 printf 'Yoga Pro 7 14IAH10\n' >"$fixture/sys/class/dmi/id/product_name"
 PATH="$test_bin:/usr/bin" \

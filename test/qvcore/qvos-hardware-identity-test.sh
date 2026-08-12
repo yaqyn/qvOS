@@ -338,6 +338,122 @@ QVOS_TEST_LSPCI='01:00.0 VGA compatible controller: NVIDIA Corporation GeForce G
   ! -e $unsupported_nvidia_root/etc/mkinitcpio.conf.d/qvos-nvidia.conf ]] ||
   fail "NVIDIA boot policy applied to an unsupported GPU"
 
+surface_root="$test_root/surface"
+prepare_root "$surface_root"
+install -d "$surface_root/sys/class/dmi/id" "$surface_root/proc"
+printf 'Microsoft Corporation\n' >"$surface_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 3\n' >"$surface_root/sys/class/dmi/id/product_name"
+printf 'pinctrl_icelake 16384 0 - Live 0x0000000000000000\n' \
+  >"$surface_root/proc/modules"
+run_stage "$surface_root" \
+  "$root/qvcore/install/config/hardware/fix-surface-keyboard.sh"
+surface_target="$surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf"
+expected_surface_policy='MODULES=(pinctrl_icelake intel_lpss intel_lpss_pci 8250_dw surface_aggregator surface_aggregator_registry surface_aggregator_hub surface_hid_core surface_hid)'
+[[ $(<"$surface_target") == "$expected_surface_policy" ]] ||
+  fail "native Intel Surface keyboard policy"
+surface_inode=$(stat -c '%i' "$surface_target")
+run_stage "$surface_root" \
+  "$root/qvcore/install/config/hardware/fix-surface-keyboard.sh"
+[[ $(stat -c '%i' "$surface_target") == "$surface_inode" ]] ||
+  fail "idempotent Surface keyboard policy install"
+
+surface_amd_root="$test_root/surface-amd"
+prepare_root "$surface_amd_root"
+install -d "$surface_amd_root/sys/class/dmi/id" "$surface_amd_root/proc" \
+  "$surface_amd_root/usr/lib/modules/test/build"
+printf 'Microsoft Corporation\n' \
+  >"$surface_amd_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 3\n' \
+  >"$surface_amd_root/sys/class/dmi/id/product_name"
+printf 'vendor_id : AuthenticAMD\n' >"$surface_amd_root/proc/cpuinfo"
+: >"$surface_amd_root/proc/modules"
+printf 'CONFIG_PINCTRL_AMD=y\n' \
+  >"$surface_amd_root/usr/lib/modules/test/build/.config"
+run_owner "$surface_amd_root" surface-keyboard
+[[ $(<"$surface_amd_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf") == \
+  'MODULES=(8250_dw surface_aggregator surface_aggregator_registry surface_aggregator_hub surface_hid_core surface_hid)' ]] ||
+  fail "native AMD Surface keyboard policy"
+
+surface_old_root="$test_root/surface-old"
+prepare_root "$surface_old_root"
+install -d "$surface_old_root/sys/class/dmi/id" "$surface_old_root/proc"
+printf 'Microsoft Corporation\n' \
+  >"$surface_old_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 2\n' \
+  >"$surface_old_root/sys/class/dmi/id/product_name"
+printf 'pinctrl_cannonlake 16384 0 - Live 0x0000000000000000\n' \
+  >"$surface_old_root/proc/modules"
+run_owner "$surface_old_root" surface-keyboard
+grep -Fqw surface_kbd \
+  "$surface_old_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf" ||
+  fail "older Surface keyboard driver selection"
+if grep -Fqw surface_hid \
+  "$surface_old_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf"; then
+  fail "older Surface keyboard policy includes the wrong input driver"
+fi
+
+unsupported_surface_root="$test_root/unsupported-surface"
+prepare_root "$unsupported_surface_root"
+install -d "$unsupported_surface_root/sys/class/dmi/id"
+printf 'Microsoft Corporation\n' \
+  >"$unsupported_surface_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Pro 9\n' \
+  >"$unsupported_surface_root/sys/class/dmi/id/product_name"
+run_owner "$unsupported_surface_root" surface-keyboard
+[[ ! -e $unsupported_surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf ]] ||
+  fail "Surface keyboard policy applied to an unrelated model"
+
+missing_surface_root="$test_root/missing-surface-pinctrl"
+prepare_root "$missing_surface_root"
+install -d "$missing_surface_root/sys/class/dmi/id" "$missing_surface_root/proc"
+printf 'Microsoft Corporation\n' \
+  >"$missing_surface_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 4\n' \
+  >"$missing_surface_root/sys/class/dmi/id/product_name"
+: >"$missing_surface_root/proc/modules"
+if run_owner "$missing_surface_root" surface-keyboard >/dev/null 2>&1; then
+  fail "Surface keyboard policy accepted a missing pin-controller module"
+fi
+[[ ! -e $missing_surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf ]] ||
+  fail "failed Surface detection left an initramfs policy"
+
+ambiguous_surface_root="$test_root/ambiguous-surface-pinctrl"
+prepare_root "$ambiguous_surface_root"
+install -d "$ambiguous_surface_root/sys/class/dmi/id" \
+  "$ambiguous_surface_root/proc"
+printf 'Microsoft Corporation\n' \
+  >"$ambiguous_surface_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop Studio\n' \
+  >"$ambiguous_surface_root/sys/class/dmi/id/product_name"
+printf '%s\n' \
+  'pinctrl_icelake 16384 0 - Live 0x0000000000000000' \
+  'pinctrl_tigerlake 16384 0 - Live 0x0000000000000000' \
+  >"$ambiguous_surface_root/proc/modules"
+if run_owner "$ambiguous_surface_root" surface-keyboard >/dev/null 2>&1; then
+  fail "Surface keyboard policy accepted ambiguous pin-controller modules"
+fi
+[[ ! -e $ambiguous_surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf ]] ||
+  fail "ambiguous Surface detection left an initramfs policy"
+
+modified_surface_root="$test_root/modified-surface"
+prepare_root "$modified_surface_root"
+install -d "$modified_surface_root/sys/class/dmi/id" \
+  "$modified_surface_root/proc" "$modified_surface_root/etc/mkinitcpio.conf.d"
+printf 'Microsoft Corporation\n' \
+  >"$modified_surface_root/sys/class/dmi/id/sys_vendor"
+printf 'Surface Laptop 4\n' \
+  >"$modified_surface_root/sys/class/dmi/id/product_name"
+printf 'pinctrl_tigerlake 16384 0 - Live 0x0000000000000000\n' \
+  >"$modified_surface_root/proc/modules"
+printf 'administrator policy\n' \
+  >"$modified_surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf"
+if run_owner "$modified_surface_root" surface-keyboard >/dev/null 2>&1; then
+  fail "modified Surface keyboard policy was accepted"
+fi
+[[ $(<"$modified_surface_root/etc/mkinitcpio.conf.d/qvos-surface-keyboard.conf") == \
+  "administrator policy" ]] ||
+  fail "modified Surface keyboard policy was changed"
+
 synaptics_root="$test_root/synaptics"
 prepare_root "$synaptics_root"
 install -D -m 0644 /dev/stdin \

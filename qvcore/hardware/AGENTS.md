@@ -15,7 +15,9 @@ native-only vendor match used by its driver setup. The Synaptics PS/2 detector
 requires both the kernel's `SynPS/2` identity and a touchpad record, so it never
 applies a `psmouse` option to an I2C-only device. Apple SPI and Lenovo Yoga
 detectors require the exact vendor and supported model family rather than an
-unbounded product-name substring. None invents an Omarchy adapter.
+unbounded product-name substring. The Surface SAM detector likewise accepts
+only the documented Laptop, Book 3, and Laptop Studio models whose keyboard is
+routed through the Surface Aggregator Module. None invents an Omarchy adapter.
 
 Validate action arity before probing. Treat caller-provided DMI matches as
 bounded fixed strings, terminate option parsing, and suppress expected errors
@@ -35,7 +37,13 @@ installation and preserve any existing administrator-owned rule.
 Static Apple SPI, ASUS display and touchpad, hid_apple function-key, Synaptics
 PS/2, Intel FRED, BE200/BE211 EHT, Lenovo speaker, NVIDIA boot, and Tuxedo
 module policies install only through the native transactional hardware
-identity owner. The paired NVIDIA modprobe and mkinitcpio files roll back a
+identity owner. Surface initramfs keyboard support accepts exactly one loaded
+platform pin-controller from its bounded allowlist, or verifies the standard
+Arch kernel's built-in AMD controller, selects the documented model-specific
+input driver, and publishes one native generated policy through the same owner.
+Missing or ambiguous module evidence fails before writing, and unrelated
+Surface models receive no policy. The paired NVIDIA modprobe and
+mkinitcpio files roll back a
 newly created first file when the second cannot be installed. A detected
 Synaptics fix is persistent and applies on the next boot; never issue a
 transient unprivileged `modprobe` from installation. Keep every boot argument
