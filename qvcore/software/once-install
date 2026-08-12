@@ -13,4 +13,16 @@ echo "Starting the ONCE background service..."
 sudo systemctl enable --now once-background.service
 
 echo "Launching ONCE..."
-exec once
+once_status=0
+once || once_status=$?
+
+list_status=0
+installed_apps=$(once list --namespace once 2>/dev/null) || list_status=$?
+cleanup_status=0
+if ((list_status == 0)) && [[ -z ${installed_apps//[[:space:]]/} ]]; then
+  echo "No ONCE applications were deployed; stopping the idle background service."
+  sudo systemctl disable --now once-background.service || cleanup_status=$?
+fi
+
+((once_status == 0)) || exit "$once_status"
+exit "$cleanup_status"

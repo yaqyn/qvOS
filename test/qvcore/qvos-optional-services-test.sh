@@ -42,6 +42,12 @@ STUB
 install -m 0755 /dev/stdin "$test_bin/once" <<'STUB'
 #!/bin/bash
 printf 'once:<%s>\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
+if [[ ${1:-} == "list" ]]; then
+  [[ ${QVOS_TEST_ONCE_LIST_FAIL:-0} != "1" ]] || exit 7
+  printf '%s' "${QVOS_TEST_ONCE_APPS:-}"
+elif [[ ${QVOS_TEST_ONCE_TUI_FAIL:-0} == "1" ]]; then
+  exit 8
+fi
 STUB
 for unexpected in uwsm-app qv-webapp-install omarchy-webapp-install; do
   install -m 0755 /dev/stdin "$test_bin/$unexpected" <<'STUB'
@@ -94,6 +100,39 @@ done
 (( $(grep -Fxc 'sudo:<systemctl><enable><--now><once-background.service>' \
   "$action_log") == 2 )) || fail "ONCE service owner"
 (( $(grep -Fxc 'once:<>' "$action_log") == 2 )) || fail "ONCE TUI handoff"
+(( $(grep -Fxc 'once:<list --namespace once>' "$action_log") == 2 )) ||
+  fail "ONCE empty inventory verification"
+(( $(grep -Fxc \
+  'sudo:<systemctl><disable><--now><once-background.service>' \
+  "$action_log") == 2 )) || fail "ONCE idle service cleanup"
+
+: >"$action_log"
+QVOS_TEST_ONCE_APPS='deployed-app' \
+  run_installer "$fixture/bin/qv-install-once" >/dev/null
+if grep -Fq 'sudo:<systemctl><disable>' "$action_log"; then
+  fail "ONCE stopped a service with a deployed application"
+fi
+
+: >"$action_log"
+set +e
+QVOS_TEST_ONCE_TUI_FAIL=1 \
+  run_installer "$fixture/bin/qv-install-once" >/dev/null
+once_failure_status=$?
+set -e
+((once_failure_status == 8)) || fail "ONCE TUI failure status preservation"
+grep -Fqx 'sudo:<systemctl><disable><--now><once-background.service>' \
+  "$action_log" || fail "ONCE failed TUI idle service cleanup"
+
+: >"$action_log"
+set +e
+QVOS_TEST_ONCE_TUI_FAIL=1 QVOS_TEST_ONCE_LIST_FAIL=1 \
+  run_installer "$fixture/bin/qv-install-once" >/dev/null
+once_failure_status=$?
+set -e
+((once_failure_status == 8)) || fail "ONCE inventory failure status preservation"
+if grep -Fq 'sudo:<systemctl><disable>' "$action_log"; then
+  fail "ONCE disabled its service without proving an empty inventory"
+fi
 
 : >"$action_log"
 for route in qv-install-dropbox qv-install-tailscale qv-install-once; do

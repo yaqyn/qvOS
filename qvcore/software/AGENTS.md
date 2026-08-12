@@ -51,7 +51,10 @@ downloads, launches, or reboot handoff.
   never restore its retired Nautilus extension or detach the application from
   a captured install. Tailscale authentication stays native, never accepts
   advertised routes implicitly, and never creates a Web App. ONCE may open its
-  nested TUI only after its exact packaged service starts successfully.
+  nested TUI only after its exact packaged service starts successfully. After
+  the TUI exits, disable that service only when an authoritative ONCE inventory
+  succeeds and proves that no application was deployed; inventory failure
+  preserves the service, and cleanup never hides the TUI's failure status.
 
 Run `qvcore/software/check`, Bash syntax, ShellCheck, focused software/TUI tests,
 `qvcore/tui/owner-contracts --check`, and the full qvOS suite. Do not install,
