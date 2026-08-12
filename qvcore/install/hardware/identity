@@ -13,17 +13,10 @@ active_staging=
 
 z13_source="$QVOS_PATH/qvcore/install/hardware/asus/z13-touchpad.rules"
 z13_target="$system_root/etc/udev/rules.d/99-qvos-asus-z13-touchpad.rules"
-z13_legacy="$system_root/etc/udev/rules.d/99-omarchy-asus-z13-touchpad.rules"
-z13_backup="$z13_legacy.qvos-identity-backup"
 
 apple_source="$QVOS_PATH/qvcore/install/hardware/apple/qvos-nvme-suspend-fix.service"
 apple_target="$system_root/etc/systemd/system/qvos-nvme-suspend-fix.service"
-apple_legacy="$system_root/etc/systemd/system/omarchy-nvme-suspend-fix.service"
-apple_backup="$apple_legacy.qvos-identity-backup"
 apple_service=qvos-nvme-suspend-fix.service
-apple_legacy_service=omarchy-nvme-suspend-fix.service
-apple_legacy_content_qvos=$'[Unit]\nDescription=qvOS NVMe Suspend Fix for MacBook\n\n[Service]\nExecStart=/bin/bash -c \'echo 0 > /sys/bus/pci/devices/0000\\:01\\:00.0/d3cold_allowed\'\n\n[Install]\nWantedBy=multi-user.target'
-apple_legacy_content_omarchy=${apple_legacy_content_qvos/qvOS/Omarchy}
 
 fail() {
   printf 'qvOS hardware identity: %s\n' "$1" >&2
@@ -31,12 +24,12 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/hardware/identity <z13|apple-nvme|migrate>" >&2
+  echo "Usage: qvcore/install/hardware/identity <z13|apple-nvme>" >&2
   exit 2
 }
 
 case ${1:-} in
-z13 | apple-nvme | migrate) operation=$1 ;;
+z13 | apple-nvme) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -137,19 +130,6 @@ file_matches() {
   as_root /usr/bin/cmp -s -- "$source" "$target"
 }
 
-apple_legacy_matches() {
-  local target=$1
-  local content
-
-  as_root /usr/bin/test -f "$target" || return 1
-  as_root /usr/bin/test ! -L "$target" || return 1
-  [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$target") == \
-    "$expected_uid:$expected_gid:644" ]] || return 1
-  content=$(as_root /usr/bin/cat -- "$target") || return 1
-  [[ $content == "$apple_legacy_content_qvos" ||
-    $content == "$apple_legacy_content_omarchy" ]]
-}
-
 install_managed() {
   local source=$1
   local target=$2
@@ -193,44 +173,6 @@ remove_created() {
   as_root /usr/bin/rm -f -- "$target"
 }
 
-recover_source_backup() {
-  local source=$1
-  local legacy=$2
-  local backup=$3
-
-  root_exists "$backup" || return 0
-  root_exists "$legacy" && fail "ambiguous legacy hardware recovery: $legacy"
-  file_matches "$source" "$backup" 0644 ||
-    fail "unsafe legacy hardware recovery file: $backup"
-  as_root /usr/bin/mv -- "$backup" "$legacy"
-}
-
-recover_apple_backup() {
-  root_exists "$apple_backup" || return 0
-  root_exists "$apple_legacy" &&
-    fail "ambiguous legacy hardware recovery: $apple_legacy"
-  apple_legacy_matches "$apple_backup" ||
-    fail "unsafe legacy hardware recovery file: $apple_backup"
-  as_root /usr/bin/mv -- "$apple_backup" "$apple_legacy"
-}
-
-stage_legacy() {
-  local legacy=$1
-  local backup=$2
-
-  root_exists "$backup" && fail "legacy hardware backup already exists: $backup"
-  as_root /usr/bin/mv -- "$legacy" "$backup"
-}
-
-restore_backup() {
-  local legacy=$1
-  local backup=$2
-
-  root_exists "$backup" || return 0
-  root_exists "$legacy" && return 1
-  as_root /usr/bin/mv -- "$backup" "$legacy"
-}
-
 reload_udev() {
   as_root "$udevadm_command" control --reload-rules
 }
@@ -246,55 +188,26 @@ service_enabled() {
 rollback_z13() {
   local created=$1
 
-  restore_backup "$z13_legacy" "$z13_backup" || true
   [[ $created == "false" ]] || remove_created "$z13_source" "$z13_target" 0644
   reload_udev >/dev/null 2>&1 || true
 }
 
 install_z13() {
-  local mode=$1
-  local legacy_present=false
   local target_created=false
-
-  recover_source_backup "$z13_source" "$z13_legacy" "$z13_backup"
-  if root_exists "$z13_legacy"; then
-    if ! file_matches "$z13_source" "$z13_legacy" 0644; then
-      printf 'Preserving modified or unsafe legacy hardware policy: %s\n' \
-        "$z13_legacy" >&2
-      return 0
-    fi
-    legacy_present=true
-  elif [[ $mode == "migrate" ]]; then
-    return 0
-  fi
 
   install_managed "$z13_source" "$z13_target" 0644 ||
     fail "could not install the native ASUS Z13 touchpad policy"
   target_created=$installed_created
-  if [[ $legacy_present == "true" ]]; then
-    if ! stage_legacy "$z13_legacy" "$z13_backup"; then
-      rollback_z13 "$target_created"
-      fail "could not stage the inherited ASUS Z13 touchpad policy"
-    fi
-  fi
   if ! reload_udev; then
     rollback_z13 "$target_created"
     fail "could not activate the native ASUS Z13 touchpad policy"
-  fi
-  if [[ $legacy_present == "true" ]]; then
-    as_root /usr/bin/rm -f -- "$z13_backup"
   fi
 }
 
 rollback_apple() {
   local created=$1
   local native_enabled_before=$2
-  local legacy_enabled_before=$3
 
-  restore_backup "$apple_legacy" "$apple_backup" || true
-  if [[ $legacy_enabled_before == "true" ]]; then
-    systemctl_action enable "$apple_legacy_service" >/dev/null 2>&1 || true
-  fi
   if [[ $native_enabled_before == "false" ]]; then
     systemctl_action disable "$apple_service" >/dev/null 2>&1 || true
   fi
@@ -303,90 +216,39 @@ rollback_apple() {
 }
 
 install_apple() {
-  local mode=$1
-  local legacy_present=false
-  local legacy_enabled_before=false
   local native_enabled_before=false
   local target_created=false
-  local should_enable=false
 
-  recover_apple_backup
-  if root_exists "$apple_legacy"; then
-    if ! apple_legacy_matches "$apple_legacy"; then
-      printf 'Preserving modified or unsafe legacy hardware policy: %s\n' \
-        "$apple_legacy" >&2
-      return 0
-    fi
-    legacy_present=true
-    service_enabled "$apple_legacy_service" && legacy_enabled_before=true
-  elif [[ $mode == "migrate" ]]; then
-    return 0
-  fi
   service_enabled "$apple_service" && native_enabled_before=true
 
   install_managed "$apple_source" "$apple_target" 0644 ||
     fail "could not install the native Apple NVMe suspend policy"
   target_created=$installed_created
   if ! systemctl_action daemon-reload; then
-    rollback_apple "$target_created" "$native_enabled_before" \
-      "$legacy_enabled_before"
+    rollback_apple "$target_created" "$native_enabled_before"
     fail "could not load the native Apple NVMe suspend policy"
   fi
 
-  if [[ $mode == "install" || $legacy_enabled_before == "true" ]]; then
-    should_enable=true
-    if [[ $mode == "install" && -z ${OMARCHY_CHROOT_INSTALL:-} ]]; then
-      if ! systemctl_action enable --now "$apple_service"; then
-        rollback_apple "$target_created" "$native_enabled_before" \
-          "$legacy_enabled_before"
-        fail "could not enable the native Apple NVMe suspend policy"
-      fi
-    elif ! systemctl_action enable "$apple_service"; then
-      rollback_apple "$target_created" "$native_enabled_before" \
-        "$legacy_enabled_before"
+  if [[ -z ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+    if ! systemctl_action enable --now "$apple_service"; then
+      rollback_apple "$target_created" "$native_enabled_before"
       fail "could not enable the native Apple NVMe suspend policy"
     fi
+  elif ! systemctl_action enable "$apple_service"; then
+    rollback_apple "$target_created" "$native_enabled_before"
+    fail "could not enable the native Apple NVMe suspend policy"
   fi
 
-  if [[ $legacy_enabled_before == "true" ]] &&
-    ! systemctl_action disable "$apple_legacy_service"; then
-    rollback_apple "$target_created" "$native_enabled_before" \
-      "$legacy_enabled_before"
-    fail "could not retire the inherited Apple NVMe suspend service"
-  fi
-  if [[ $legacy_present == "true" ]]; then
-    if ! stage_legacy "$apple_legacy" "$apple_backup"; then
-      rollback_apple "$target_created" "$native_enabled_before" \
-        "$legacy_enabled_before"
-      fail "could not stage the inherited Apple NVMe suspend policy"
-    fi
-    if ! systemctl_action daemon-reload; then
-      rollback_apple "$target_created" "$native_enabled_before" \
-        "$legacy_enabled_before"
-      fail "could not retire the inherited Apple NVMe suspend policy"
-    fi
-  fi
-
-  if [[ $should_enable == "true" ]] && ! service_enabled "$apple_service"; then
-    rollback_apple "$target_created" "$native_enabled_before" \
-      "$legacy_enabled_before"
+  if ! service_enabled "$apple_service"; then
+    rollback_apple "$target_created" "$native_enabled_before"
     fail "native Apple NVMe suspend service did not remain enabled"
-  fi
-  if [[ $legacy_enabled_before == "true" ]] &&
-    service_enabled "$apple_legacy_service"; then
-    rollback_apple "$target_created" "$native_enabled_before" \
-      "$legacy_enabled_before"
-    fail "inherited Apple NVMe suspend service remained enabled"
-  fi
-  if [[ $legacy_present == "true" ]]; then
-    as_root /usr/bin/rm -f -- "$apple_backup"
   fi
 }
 
 case $operation in
 z13)
   if qv-hw-asus-rog && qv-hw-match "GZ302"; then
-    install_z13 install
+    install_z13
   fi
   ;;
 apple-nvme)
@@ -396,15 +258,11 @@ apple-nvme)
   if [[ $product_name =~ ^MacBook(8,1|9,1|10,1)$|^MacBookPro(13,[123]|14,[123])$ ]]; then
     echo "Detected MacBook model: $product_name"
     if [[ -f $nvme_device && ! -L $nvme_device ]]; then
-      install_apple install
+      install_apple
     else
       echo "Warning: NVMe device not found at expected PCI address (0000:01:00.0)"
       echo "This fix may not be needed for this MacBook model"
     fi
   fi
-  ;;
-migrate)
-  install_z13 migrate
-  install_apple migrate
   ;;
 esac

@@ -80,12 +80,12 @@ timezone commands; the security owner retires that exact predecessor.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13 and Apple NVMe stage adapters only select hardware; the
-owner installs tracked native files, activates them, preserves service enable
-state during migration, and retires exact inherited artifacts transactionally.
-Preserve modified or unsafe legacy policy without creating a competing qvOS
-file. Hardware migrations must remain safe on machines that never had either
-policy. The Apple migration recognizes only the two exact historically shipped
-unit descriptions; any other content is administrator-owned and preserved.
+owner installs tracked native files, activates them, and rolls back only files
+and service state created by the current attempt. Preserve an exact existing
+native policy without replacing it, and reject modified, linked, or unsafe
+native targets before activation. The completed pre-release hardware identity
+migration is retired; fresh install never scans or mutates inherited rule,
+unit, backup, or service names.
 
 Installer-owned runtime identity is qvOS-native: use
 `QVOS_INSTALL_LOG_FILE` at `/var/log/qvos-install.log`,

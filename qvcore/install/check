@@ -221,8 +221,7 @@ for retired_hardware_leaf in \
     fail "retired hardware identity leaf remains: $retired_hardware_leaf"
 done
 if rg -n '99-omarchy-asus-z13-touchpad|omarchy-nvme-suspend-fix' \
-  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check' \
-  --glob '!identity'; then
+  "$root/qvcore/install" --glob '!AGENTS.md' --glob '!check'; then
   fail "fresh install creates a retired hardware-policy identity"
 fi
 # shellcheck disable=SC2016

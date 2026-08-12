@@ -102,7 +102,9 @@ Install stage files follow this pattern:
   inputs at the ISO boundary and preserve `OMARCHY_CHROOT_INSTALL` only as the
   reviewed ISO-builder input; the ISO handoff uses an explicit clean environment
   with target-account XDG paths
-- keep hardware-specific install logic under `qvcore/install/config/hardware/`
+- keep hardware-specific install logic under `qvcore/install/hardware/`; fresh
+  owners install only native qvOS policy and never rescan retired pre-release
+  hardware identities
 - prefer helper commands for package and command checks where available
 
 Raw `command -v`, `pacman`, and `pacman-key` are acceptable in bootstrap/preflight/package-helper contexts where the helper commands may not be available yet or where direct package-manager behavior is the point of the script.
