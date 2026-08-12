@@ -180,3 +180,15 @@ the monitor file, reject symbolic-link destinations, stop the complete restore
 on any owner failure, and restore the pre-edit adaptive config if applying its
 detected scale fails. The explicit restore keeps the user's original
 monitor file in its normal timestamped backup.
+
+`qvcore/config/keyboard-layout` is the singular console-to-Hyprland input
+translator used by fresh install and explicit Hyprland restore. It accepts only
+one bounded `XKBLAYOUT` and optional `XKBVARIANT` from a regular vconsole file,
+updates exactly one native Lua input entry under the shared config-refresh lock,
+and publishes only through a same-directory atomic replacement after proving
+the target did not change. An absent or empty variant removes a stale variant.
+Preserve the target on malformed, duplicate, linked, foreign-owned, or
+concurrent input; never edit the Lua config in place or implement layout
+translation in a sourced installer leaf. Explicit Hyprland restore runs this
+owner before display detection so the display owner's one final reload validates
+and activates the complete restored configuration.

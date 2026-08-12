@@ -242,9 +242,31 @@ for mapping in "${config_routes[@]}"; do
       "$adapter" || fail "config adapter owner: $route"
   done
 done
-for owner in toggle-state user-services; do
+for owner in keyboard-layout toggle-state user-services; do
   [[ -x $root/qvcore/config/$owner ]] || fail "config lifecycle owner mode: $owner"
 done
+# shellcheck disable=SC2016
+keyboard_owner_call='"$QVOS_PATH/qvcore/config/keyboard-layout"'
+# shellcheck disable=SC2016
+monitor_owner_call='"$QVOS_PATH/qvcore/config/monitor-autodetect"'
+grep -Fqx "$keyboard_owner_call" \
+  "$root/qvcore/install/config/detect-keyboard-layout.sh" ||
+  fail "installer keyboard-layout stage bypasses its native owner"
+grep -Fqx "$keyboard_owner_call" \
+  "$root/qvcore/config/refresh-hyprland" ||
+  fail "Hyprland refresh bypasses the native keyboard-layout owner"
+keyboard_line=$(grep -Fn "$keyboard_owner_call" \
+  "$root/qvcore/config/refresh-hyprland")
+monitor_line=$(grep -Fn "$monitor_owner_call" \
+  "$root/qvcore/config/refresh-hyprland" | tail -1)
+keyboard_line=${keyboard_line%%:*}
+monitor_line=${monitor_line%%:*}
+((keyboard_line < monitor_line)) ||
+  fail "Hyprland refresh validates before importing its keyboard layout"
+if rg -n 'sed[[:space:]].*-i|exit[[:space:]]' \
+  "$root/qvcore/install/config/detect-keyboard-layout.sh"; then
+  fail "sourced keyboard-layout stage retains mutation or process control"
+fi
 for retired_owner in \
   finalize-hyprland-lua \
   hyprland-conf-profiles.psv \

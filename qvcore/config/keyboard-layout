@@ -1,0 +1,197 @@
+#!/bin/bash
+set -euo pipefail
+
+if (($# != 0)); then
+  echo "Usage: keyboard-layout" >&2
+  exit 2
+fi
+
+vconsole_config=/etc/vconsole.conf
+input_config="$HOME/.config/hypr/input.lua"
+input_dir=${input_config%/*}
+lock_root="$HOME/.local/state/qvos/config-backups/refresh"
+original=""
+staged=""
+layout=""
+variant=""
+layout_present=false
+variant_present=false
+
+fail() {
+  printf 'qvOS keyboard layout: %s\n' "$1" >&2
+  exit "${2:-1}"
+}
+
+cleanup() {
+  [[ -z $original ]] || rm -f -- "$original"
+  [[ -z $staged ]] || rm -f -- "$staged"
+}
+trap cleanup EXIT
+
+safe_owned_directory() {
+  [[ -d $1 && ! -L $1 && -O $1 ]]
+}
+
+ensure_lock_root() {
+  local directory
+  local -a directories=(
+    "$HOME/.local"
+    "$HOME/.local/state"
+    "$HOME/.local/state/qvos"
+    "$HOME/.local/state/qvos/config-backups"
+    "$lock_root"
+  )
+
+  safe_owned_directory "$HOME" ||
+    fail "refusing unsafe home directory: $HOME"
+  for directory in "${directories[@]}"; do
+    if [[ -e $directory || -L $directory ]]; then
+      safe_owned_directory "$directory" ||
+        fail "refusing unsafe config state directory: $directory"
+    else
+      install -d -m 0700 -- "$directory"
+    fi
+  done
+  chmod 0700 -- \
+    "$HOME/.local/state/qvos" \
+    "$HOME/.local/state/qvos/config-backups" \
+    "$lock_root"
+}
+
+read_vconsole_value() {
+  local key=$1
+  local allow_empty=$2
+  local raw
+  local -a assignments=()
+
+  mapfile -t assignments < <(
+    grep -E "^[[:space:]]*${key}[[:space:]]*=" "$vconsole_config" || true
+  )
+  ((${#assignments[@]} <= 1)) ||
+    fail "duplicate $key assignments in $vconsole_config"
+  ((${#assignments[@]} == 1)) || return 1
+
+  raw=${assignments[0]#*=}
+  raw=${raw#"${raw%%[![:space:]]*}"}
+  raw=${raw%"${raw##*[![:space:]]}"}
+  if [[ $raw == \"*\" ]]; then
+    [[ $raw =~ ^\"([[:alnum:]_+,-]*)\"$ ]] ||
+      fail "unsupported $key value in $vconsole_config"
+    raw=${BASH_REMATCH[1]}
+  else
+    [[ $raw =~ ^[[:alnum:]_+,-]*$ ]] ||
+      fail "unsupported $key value in $vconsole_config"
+  fi
+  [[ -n $raw || $allow_empty == "true" ]] ||
+    fail "$key must not be empty in $vconsole_config"
+
+  REPLY=$raw
+}
+
+render_input_config() {
+  local line
+  local layout_written=false
+  local variant_written=false
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    if [[ $line =~ ^([[:space:]]*kb_layout[[:space:]]*=[[:space:]]*)\"[^\"]*\"(,[[:space:]]*(--.*)?)$ ]]; then
+      printf '%s"%s"%s\n' \
+        "${BASH_REMATCH[1]}" "$layout" "${BASH_REMATCH[2]}"
+      layout_written=true
+      continue
+    fi
+    if [[ $line =~ ^[[:space:]]*kb_variant[[:space:]]*= ]]; then
+      if [[ -n $variant ]]; then
+        [[ $line =~ ^([[:space:]]*kb_variant[[:space:]]*=[[:space:]]*)\"[^\"]*\"(,[[:space:]]*(--.*)?)$ ]] ||
+          fail "the existing kb_variant entry is malformed"
+        printf '%s"%s"%s\n' \
+          "${BASH_REMATCH[1]}" "$variant" "${BASH_REMATCH[2]}"
+        variant_written=true
+      fi
+      continue
+    fi
+    if [[ -n $variant && $variant_written == "false" &&
+      $line =~ ^([[:space:]]*)kb_options[[:space:]]*= ]]; then
+      printf '%skb_variant = "%s",\n' "${BASH_REMATCH[1]}" "$variant"
+      variant_written=true
+    fi
+    printf '%s\n' "$line"
+  done <"$original" >"$staged"
+
+  [[ $layout_written == "true" ]] ||
+    fail "the Hyprland input config has no usable kb_layout entry"
+  [[ -z $variant || $variant_written == "true" ]] ||
+    fail "the Hyprland input config has no insertion point for kb_variant"
+}
+
+if [[ ${QVOS_CONFIG_TESTING:-} == "1" ]]; then
+  [[ -n ${QVOS_CONFIG_VCONSOLE:-} && $QVOS_CONFIG_VCONSOLE == /tmp/* ]] ||
+    fail "invalid keyboard-layout test source"
+  vconsole_config=$QVOS_CONFIG_VCONSOLE
+elif [[ -n ${QVOS_CONFIG_VCONSOLE:-} ]]; then
+  fail "test source override requires QVOS_CONFIG_TESTING=1"
+fi
+
+if [[ ! -e $vconsole_config && ! -L $vconsole_config ]]; then
+  exit 0
+fi
+[[ -f $vconsole_config && ! -L $vconsole_config ]] ||
+  fail "refusing unsafe console config: $vconsole_config"
+
+if read_vconsole_value XKBLAYOUT false; then
+  layout=$REPLY
+  layout_present=true
+fi
+if read_vconsole_value XKBVARIANT true; then
+  variant=$REPLY
+  variant_present=true
+fi
+[[ $variant_present == "false" || $layout_present == "true" ]] ||
+  fail "XKBVARIANT is set without XKBLAYOUT in $vconsole_config"
+[[ $layout_present == "true" ]] || exit 0
+
+ensure_lock_root
+exec {config_lock_fd}>"$lock_root/.lock"
+chmod 0600 -- "$lock_root/.lock"
+flock "$config_lock_fd"
+
+if ! safe_owned_directory "$HOME/.config" ||
+  ! safe_owned_directory "$input_dir"; then
+  fail "refusing unsafe Hyprland config directory: $input_dir"
+fi
+[[ -f $input_config && ! -L $input_config && -O $input_config ]] ||
+  fail "refusing unsafe Hyprland input config: $input_config"
+
+layout_count=$(grep -Ec '^[[:space:]]*kb_layout[[:space:]]*=' "$input_config" || true)
+variant_count=$(grep -Ec '^[[:space:]]*kb_variant[[:space:]]*=' "$input_config" || true)
+((layout_count == 1)) ||
+  fail "the Hyprland input config must contain one kb_layout entry"
+((variant_count <= 1)) ||
+  fail "the Hyprland input config contains duplicate kb_variant entries"
+if ((variant_count == 1)); then
+  variant_entry=$(grep -E '^[[:space:]]*kb_variant[[:space:]]*=' "$input_config")
+  [[ $variant_entry =~ ^[[:space:]]*kb_variant[[:space:]]*=[[:space:]]*\"[^\"]*\",[[:space:]]*(--.*)?$ ]] ||
+    fail "the existing kb_variant entry is malformed"
+fi
+if [[ -n $variant && $variant_count == 0 ]]; then
+  options_count=$(grep -Ec '^[[:space:]]*kb_options[[:space:]]*=' "$input_config" || true)
+  ((options_count == 1)) ||
+    fail "the Hyprland input config must contain one kb_options insertion point"
+fi
+
+input_mode=$(stat -c '%a' -- "$input_config")
+original=$(mktemp "$input_dir/.qvos-input-original.XXXXXX")
+staged=$(mktemp "$input_dir/.qvos-input-new.XXXXXX")
+cp -a -- "$input_config" "$original"
+render_input_config
+chmod "$input_mode" -- "$staged"
+
+if cmp -s -- "$original" "$staged"; then
+  exit 0
+fi
+[[ -f $input_config && ! -L $input_config && -O $input_config ]] ||
+  fail "the Hyprland input config changed to an unsafe target"
+cmp -s -- "$original" "$input_config" ||
+  fail "the Hyprland input config changed during layout detection"
+mv -f -- "$staged" "$input_config"
+staged=""

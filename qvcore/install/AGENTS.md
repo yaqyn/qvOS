@@ -146,6 +146,10 @@ sudoers writer.
 stage. Every selected reviewed configuration and hardware leaf is now native;
 keep its order explicit and call it through `run_logged`. The specialized qvOS
 MIME and corrected ASUS B9406 owners replace their superseded upstream leaves.
+The keyboard-layout leaf only delegates to the native config owner; that owner
+validates vconsole input and atomically updates one user-owned Lua config under
+the shared config-refresh lock. Never restore in-place text mutation or process
+control in the sourced leaf.
 The theme leaf translates the exact reviewed chroot signal into qvOS's offline
 theme-rendering mode: install the complete theme state and safe file or hardware
 integrations, but never probe a user bus, mutate GNOME settings, restart desktop
