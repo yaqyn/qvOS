@@ -5,8 +5,6 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 
 echo
 
-"$QVOS_PATH/qvcore/update/state" migrate
-
 request_reboot() {
   "$QVOS_PATH/qvcore/update/reboot-request" "$@"
 }

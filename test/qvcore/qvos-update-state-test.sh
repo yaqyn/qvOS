@@ -41,11 +41,11 @@ for marker in reboot-required restart-waybar-required; do
 done
 printf 'private update output\n' >"$state_root/update.log"
 chmod 0600 "$state_root/update.log"
-run_state migrate
+run_state set restart-waybar-required
 grep -Fqx 'private update output' "$state_root/update.log" ||
   fail "private update log changed during marker validation"
 chmod 0644 "$state_root/update.log"
-if run_state migrate >/dev/null 2>&1; then
+if run_state set restart-waybar-required >/dev/null 2>&1; then
   fail "insecure update log mode was accepted"
 fi
 chmod 0600 "$state_root/update.log"
@@ -62,33 +62,12 @@ run_state clear 're*-required'
   fail "update-marker clear-all compatibility"
 printf 'ok - update state accepts only reviewed markers and its private sibling log\n'
 
-legacy_root="$home/.local/state/omarchy"
-install -d "$legacy_root"
-for legacy_marker in reboot-required first-run.mode; do
-  install -m 0644 /dev/null "$legacy_root/$legacy_marker"
-done
-run_state migrate
-[[ -f $state_root/reboot-required ]] || fail "legacy reboot marker migration"
-[[ -f $legacy_root/first-run.mode ]] ||
-  fail "unrelated first-run compatibility state was removed"
-[[ ! -e $legacy_root/reboot-required ]] ||
-  fail "legacy reboot marker remained"
-run_state clear reboot-required
-rm -- "$legacy_root/first-run.mode"
-rmdir -- "$legacy_root"
-
-outside="$test_root/outside"
-install -d "$legacy_root" "$outside"
-printf 'preserve\n' >"$outside/marker"
-ln -s "$outside/marker" "$legacy_root/restart-waybar-required"
 if run_state migrate >/dev/null 2>&1; then
-  fail "symbolic-link legacy update marker was accepted"
+  fail "retired update-state migration mode remains available"
 fi
-[[ $(<"$outside/marker") == "preserve" ]] ||
-  fail "unsafe legacy marker changed external data"
-rm -- "$legacy_root/restart-waybar-required"
-rmdir -- "$legacy_root"
-printf 'ok - exact legacy markers migrate without touching unrelated or unsafe state\n'
+[[ ! -e $home/.local/state/omarchy ]] ||
+  fail "native update state created an inherited state root"
+printf 'ok - update state has no inherited migration surface\n'
 
 install -d "$test_bin"
 install -m 0755 /dev/stdin "$test_bin/nohup" <<'SCRIPT'

@@ -321,9 +321,9 @@ Every qvOS change must leave one traceable lifecycle.
 - New persistent state is feature-owned and private under
   `~/.local/state/qvos`. User-editable qvOS configuration is feature-owned
   under `~/.config/qvos`; completed legacy-branding backups remain private and
-  the active Branding owner reads only native state. The generic state
-  compatibility route accepts only reviewed reboot and service-restart markers;
-  it never recreates an active Omarchy state root.
+  the active Branding owner reads only native state. Update intent accepts only
+  reviewed reboot and service-restart markers under native private state; its
+  completed pre-release state-root convergence is retired.
 - Native installed identities use `qvos` or `qvOS`; `/etc/os-release` uses
   `ID=qvos` with `ID_LIKE=arch` and is installed only by the Branding owner. An
   `omarchy` name remains

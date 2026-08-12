@@ -143,6 +143,10 @@ grep -Fq '.local/state/qvos/update' "$root/qvcore/update/restart" ||
 if rg -q '\.local/state/omarchy|omarchy-state clear' "$root/qvcore/update/restart"; then
   fail "restart owner retains active Omarchy state"
 fi
+if rg -n 'state_parent/omarchy|legacy_(root|markers)|migrate_legacy|collect_legacy|migrate\)' \
+  "$root/qvcore/update/state" "$root/qvcore/update/restart"; then
+  fail "retired update-state convergence remains active"
+fi
 
 while IFS= read -r retired; do
   [[ -n $retired && $retired != \#* ]] || continue

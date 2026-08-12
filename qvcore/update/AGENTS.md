@@ -66,11 +66,10 @@ Omarchy migration tree or state root.
 `restart-<service>-required` markers under the private qvOS update-state
 directory. It accepts the separately owned regular `0600` `update.log` in that
 shared private directory without reading, changing, or deleting it. It
-atomically records markers, serializes changes, migrates exact
-safe legacy files, and removes the old state root only when empty. Reject
-arbitrary names, contents, links, and foreign ownership. `restart` invokes this
-owner before inspection and clears a service marker only after its exact
-restart command succeeds.
+atomically records markers and serializes changes. Reject arbitrary names,
+contents, links, and foreign ownership. Completed pre-release marker migration
+is retired; the owner neither scans nor recreates an inherited state root.
+`restart` clears a service marker only after its exact restart command succeeds.
 
 `qvcore/update/restart` singularly detects post-update reboot and service-restart
 requirements. Use only package-owned kernel images, inspect one running

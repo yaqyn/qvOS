@@ -181,8 +181,9 @@ can move safely together.
 
 Update and restart intent lives privately under `~/.local/state/qvos/update`.
 The native state owner accepts only reboot and validated service-restart
-markers, migrates exact legacy markers, and removes an empty Omarchy state root.
-It is not a general-purpose settings store.
+markers. Completed pre-release marker migration is retired, and the owner never
+scans or recreates an inherited state root. It is not a general-purpose
+settings store.
 
 `qvcore/security/` owns the Codex-operated Lynis audit, a small nonrestrictive
 sysctl baseline, signed-package and localhost-first container defaults, the
