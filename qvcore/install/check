@@ -390,6 +390,10 @@ if rg -n '/etc/(docker|systemd/(resolved\.conf\.d|system/docker\.service\.d))|su
   "$root/qvcore/install/config/docker.sh"; then
   fail "Docker install stage retains direct root configuration ownership"
 fi
+if rg -n '/etc/conf\.d/wireless-regdom|sudo[[:space:]]+tee|WIRELESS_REGDOM=' \
+  "$root/qvcore/install/config/hardware/set-wireless-regdom.sh"; then
+  fail "wireless region install stage retains direct root mutation"
+fi
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
 [[ ! -e $root/qvcore/install/config/walker-elephant.sh ]] ||

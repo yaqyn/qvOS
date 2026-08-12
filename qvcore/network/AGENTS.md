@@ -37,6 +37,14 @@ directives. Validate before disconnecting WARP so rejected input has no side
 effects. Do not expose registrations, identifiers, or command output that can
 contain credentials.
 
+`regdom` owns automatic wireless-region selection. The package-owned
+`/etc/conf.d/wireless-regdom` is an administrator configuration surface, so the
+owner preserves one valid active choice and otherwise atomically uncomments
+exactly one country supported by the package after deriving it from the
+validated system timezone. Never source that file as shell, append assignments,
+or create multiple active regions. A live activation failure restores the prior
+file; target-chroot installation only persists the selected region.
+
 Tailscale is an optional-software owner, not qvOS DNS policy. Its native
 authentication may enable `tailscaled`, but must not accept advertised routes,
 change qvOS DNS policy, or create an admin Web App implicitly. Users opt into

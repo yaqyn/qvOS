@@ -1,0 +1,164 @@
+#!/bin/bash
+set -euo pipefail
+
+system_root=${QVOS_NETWORK_SYSTEM_ROOT:-}
+testing=${QVOS_NETWORK_TESTING:-}
+iw_command=${QVOS_NETWORK_IW:-/usr/bin/iw}
+config="$system_root/etc/conf.d/wireless-regdom"
+zoneinfo_root="$system_root/usr/share/zoneinfo"
+localtime="$system_root/etc/localtime"
+zone_table="$zoneinfo_root/zone.tab"
+expected_uid=0
+expected_gid=0
+original=
+candidate=
+active_staging=
+
+fail() {
+  printf 'qvOS wireless region: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+if [[ $iw_command != "/usr/bin/iw" ]]; then
+  [[ $testing == "1" && $iw_command == /tmp/* &&
+    -f $iw_command && -x $iw_command && ! -L $iw_command ]] ||
+    fail "the iw override is unavailable or unsafe"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+cleanup() {
+  local temporary
+
+  for temporary in "$original" "$candidate"; do
+    [[ -z $temporary ]] || /usr/bin/rm -f -- "$temporary"
+  done
+  [[ -z $active_staging ]] ||
+    as_root /usr/bin/rm -f -- "$active_staging" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if ! as_root /usr/bin/test -f "$config" ||
+  ! as_root /usr/bin/test ! -L "$config"; then
+  fail "the wireless-regdb configuration is unavailable or unsafe"
+fi
+[[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$config") == \
+  "$expected_uid:$expected_gid:644" ]] ||
+  fail "the wireless-regdb configuration has unsafe ownership or mode"
+
+original=$(mktemp)
+as_root /usr/bin/cat -- "$config" | /usr/bin/cat >"$original"
+mapfile -t active_assignments < <(
+  /usr/bin/awk '
+    /^[[:space:]]*WIRELESS_REGDOM[[:space:]]*=/ { print }
+  ' "$original"
+)
+if ((${#active_assignments[@]} > 1)); then
+  fail "the wireless-regdb configuration has multiple active regions"
+fi
+if ((${#active_assignments[@]} == 1)); then
+  assignment=${active_assignments[0]}
+  [[ $assignment =~ ^[[:space:]]*WIRELESS_REGDOM[[:space:]]*=[[:space:]]*\"([A-Z]{2})\"[[:space:]]*$ ]] ||
+    fail "the active wireless region is malformed"
+  exit 0
+fi
+
+timezone=${QVOS_NETWORK_TIMEZONE:-}
+if [[ -n $timezone ]]; then
+  [[ $testing == "1" ]] || fail "a timezone override is valid only in tests"
+else
+  if [[ ! -e $localtime && ! -L $localtime ]]; then
+    exit 0
+  fi
+  [[ -L $localtime ]] || fail "the system timezone is not a symbolic link"
+  timezone_path=$(/usr/bin/readlink -f -- "$localtime") ||
+    fail "the system timezone link cannot be resolved"
+  [[ $timezone_path == "$zoneinfo_root/"* ]] ||
+    fail "the system timezone link escapes the zoneinfo database"
+  timezone=${timezone_path#"$zoneinfo_root/"}
+fi
+[[ $timezone =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)+$ ]] ||
+  fail "the system timezone is malformed"
+
+country=${timezone%%/*}
+if [[ ! $country =~ ^[A-Z]{2}$ ]]; then
+  [[ -f $zone_table && ! -L $zone_table ]] ||
+    fail "the timezone country table is unavailable or unsafe"
+  country=$(/usr/bin/awk -v timezone="$timezone" '
+    $3 == timezone { print $1; found++ }
+    END { if (found > 1) exit 1 }
+  ' "$zone_table") || fail "the timezone has an ambiguous country"
+fi
+[[ $country =~ ^[A-Z]{2}$ ]] || exit 0
+
+commented_assignment="#WIRELESS_REGDOM=\"$country\""
+[[ $(/usr/bin/grep -Fxc -- "$commented_assignment" "$original") == 1 ]] ||
+  fail "the wireless-regdb configuration does not support country $country"
+candidate=$(mktemp)
+/usr/bin/awk -v selected="$commented_assignment" -v country="$country" '
+  $0 == selected {
+    print "WIRELESS_REGDOM=\"" country "\""
+    changed++
+    next
+  }
+  { print }
+  END { if (changed != 1) exit 1 }
+' "$original" >"$candidate" || fail "could not render the wireless region"
+
+active_staging=$(as_root /usr/bin/mktemp --tmpdir="${config%/*}" \
+  '.wireless-regdom.qvos.XXXXXX') || fail "could not stage the wireless region"
+as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+  "$candidate" "$active_staging" || fail "could not stage the wireless region"
+as_root /usr/bin/cmp -s -- "$original" "$config" ||
+  fail "the wireless region changed during publication"
+as_root /usr/bin/mv -f -- "$active_staging" "$config" ||
+  fail "could not publish the wireless region"
+active_staging=
+
+if [[ ${QVOS_CHROOT_INSTALL:-} != "1" && -x $iw_command ]] &&
+  ! as_root "$iw_command" reg set "$country"; then
+  as_root /usr/bin/cmp -s -- "$candidate" "$config" ||
+    fail "the wireless region changed before rollback"
+  active_staging=$(as_root /usr/bin/mktemp --tmpdir="${config%/*}" \
+    '.wireless-regdom.qvos-rollback.XXXXXX') ||
+    fail "could not stage wireless-region rollback"
+  as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+    "$original" "$active_staging" || fail "could not stage wireless-region rollback"
+  as_root /usr/bin/mv -f -- "$active_staging" "$config" ||
+    fail "could not restore the prior wireless region"
+  active_staging=
+  fail "could not activate wireless region $country"
+fi
+
+as_root /usr/bin/cmp -s -- "$candidate" "$config" ||
+  fail "the installed wireless region is stale"

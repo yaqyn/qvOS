@@ -102,6 +102,7 @@
     qvcore/menu/walker-theme/style.css
     qvcore/network/dns-policy
     qvcore/network/install
+    qvcore/network/regdom
     qvcore/network/setup-dns
     qvcore/network/warp-policy
     qvcore/power/inhibit-sleep

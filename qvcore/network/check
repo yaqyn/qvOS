@@ -11,10 +11,18 @@ fail() {
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
   "bin/omarchy-setup-dns" ]] || fail "native DNS inventory"
-for owner in setup-dns dns-policy install warp-policy; do
+for owner in setup-dns dns-policy install regdom warp-policy; do
   [[ -x $root/qvcore/network/$owner && ! -L $root/qvcore/network/$owner ]] ||
     fail "native network owner: $owner"
 done
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/network/regdom"' \
+  "$root/qvcore/install/config/hardware/set-wireless-regdom.sh" ||
+  fail "wireless region install stage bypasses its native owner"
+if rg -n 'source|(^|[[:space:]])\.[[:space:]]|sudo[[:space:]]+tee|WIRELESS_REGDOM=' \
+  "$root/qvcore/install/config/hardware/set-wireless-regdom.sh"; then
+  fail "wireless region install stage retains direct configuration mutation"
+fi
 
 native="$root/bin/qv-setup-dns"
 compatibility="$root/bin/omarchy-setup-dns"
