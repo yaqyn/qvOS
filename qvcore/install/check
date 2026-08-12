@@ -293,6 +293,14 @@ fi
 grep -Fq '/etc/sudoers.d/99-qvos-installer' \
   "$root/qvcore/install/post-install/finished" ||
   fail "native ISO installer policy cleanup"
+grep -Fq 'compatibility_source_is_exact' \
+  "$root/qvcore/install/source-root" ||
+  fail "source compatibility publication lacks exact winner validation"
+# shellcheck disable=SC2016
+if grep -Fq '[[ ! -e $compatibility_source ]]' \
+  "$root/qvcore/install/source-root"; then
+  fail "source compatibility publication retains a racy conflict precheck"
+fi
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/hardware/asus/b9406-touchpad"' \
   "$root/qvcore/install/config/run" || fail "ASUS B9406 touchpad stage"

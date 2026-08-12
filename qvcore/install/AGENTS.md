@@ -11,8 +11,10 @@ The canonical installed checkout is `~/.local/share/qvos`. Preserve exactly one
 relative `~/.local/share/omarchy -> qvos` compatibility link until inherited
 paths are fully retired; reject any other object at either path. The permanent
 `source-root` owner validates the native checkout and creates only this missing
-exact link. The completed pre-release checkout and copied-runtime relocation is
-retired; historical layouts are preserved as conflicts, never adopted.
+exact link. Concurrent reconciliation accepts only an atomic winner with the
+same relative target and rejects every other object. The completed pre-release
+checkout and copied-runtime relocation is retired; historical layouts are
+preserved as conflicts, never adopted.
 Never merge runtime payloads into the Git checkout.
 Deploy desktop helpers only from `qvcore/desktop/runtime-paths`; source policy,
 checks, inventories, and source-only owners must never leak into the runtime.

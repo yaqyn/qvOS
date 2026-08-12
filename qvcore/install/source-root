@@ -24,16 +24,18 @@ fail() {
 [[ $(git -C "$canonical_source" branch --show-current 2>/dev/null || true) == "OS" ]] ||
   fail "The installed qvOS source is not on branch OS."
 
-if [[ -L $compatibility_source ]]; then
-  [[ $(readlink -- "$compatibility_source") == "qvos" ]] ||
-    fail "The inherited source compatibility link is unsafe."
+compatibility_source_is_exact() {
+  [[ -L $compatibility_source &&
+    $(readlink -- "$compatibility_source") == "qvos" ]]
+}
+
+if [[ -e $compatibility_source || -L $compatibility_source ]]; then
+  compatibility_source_is_exact ||
+    fail "The inherited source path conflicts with the canonical qvOS source."
   exit 0
 fi
-[[ ! -e $compatibility_source ]] ||
-  fail "The inherited source path conflicts with the canonical qvOS source."
 
 if ! ln -s qvos "$compatibility_source" 2>/dev/null; then
-  [[ -L $compatibility_source &&
-    $(readlink -- "$compatibility_source") == "qvos" ]] ||
+  compatibility_source_is_exact ||
     fail "Could not create the inherited source compatibility link."
 fi
