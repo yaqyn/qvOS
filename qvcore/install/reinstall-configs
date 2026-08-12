@@ -34,4 +34,3 @@ bash "$QVOS_PATH/qvcore/install/config/theme.sh"
 qv-refresh-hyprland
 qv-refresh-limine
 qv-refresh-plymouth
-"$QVOS_PATH/qvcore/config/neovim"

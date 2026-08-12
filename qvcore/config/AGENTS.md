@@ -86,12 +86,11 @@ workflow owns native skill links, the Pi extension, and exact inherited cleanup.
 Never restore `default/omarchy-skill/`, `default/pi/`, or their installer leaves.
 Official Neovim uses the small `qvcore/config/files/nvim/init.lua` seed and the
 generated current-theme colorscheme; it never requires the provider editor
-bundle, LazyVim, or downloaded theme plugins. `qvcore/config/neovim` replaces a
-recognized provider config only after staging the native seed and moves the
-complete prior config into private qvOS state. It preserves unrecognized or
-custom configs, rewrites only their exact inherited theme symlink, fails closed
-on unsafe paths, and is idempotent. Never infer ownership from a filename alone
-or delete Neovim data and caches as part of config reconciliation.
+bundle, LazyVim, or downloaded theme plugins. The singular fresh-install and
+explicit config-reset copy owns the seed; desktop reconciliation never scans or
+rewrites an existing Neovim tree. Completed provider replacement and signature
+state remain retired, while its historical private backup remains user-owned.
+Never delete Neovim data or caches as part of config reconciliation.
 XCompose and WirePlumber policy live in this tree; their inherited
 `default/xcompose` and `default/wireplumber/` sources are retired. Rerunning
 installation may replace only a missing or exact prior qvOS-generated file.

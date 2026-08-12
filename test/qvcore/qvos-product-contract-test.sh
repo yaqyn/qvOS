@@ -110,8 +110,9 @@ for retired_app_package in \
   ! grep -Fqx "$retired_app_package" "$base_packages" ||
     fail "retired or unused application package remains: $retired_app_package"
 done
-[[ -x $root/qvcore/config/neovim &&
-  -f $root/qvcore/config/files/nvim/init.lua ]] ||
+[[ -f $root/qvcore/config/files/nvim/init.lua &&
+  ! -e $root/qvcore/config/neovim &&
+  ! -e $root/qvcore/config/retired-neovim-signatures.psv ]] ||
   fail "native Neovim config lifecycle"
 grep -qx 'wtype' "$base_packages" || fail "Codex Wayland input contract"
 grep -qx 'xdg-user-dirs' "$base_packages" ||

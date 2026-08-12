@@ -268,10 +268,6 @@ printf 'bashrc\n' >"$config_source/qvcore/shell/files/bashrc"
 install -m 0644 /dev/stdin "$config_source/qvcore/install/config/theme.sh" <<'SCRIPT'
 printf 'theme\n' >>"$QVOS_TEST_ACTION_LOG"
 SCRIPT
-install -m 0755 /dev/stdin "$config_source/qvcore/config/neovim" <<'SCRIPT'
-#!/bin/bash
-printf 'neovim\n' >>"$QVOS_TEST_ACTION_LOG"
-SCRIPT
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
 #!/bin/bash
 exit 1
@@ -314,9 +310,9 @@ HOME="$config_home" \
   "$root/qvcore/install/reinstall-configs" --yes >/dev/null
 [[ $(<"$config_home/.config/example/value") == "configured" ]] ||
   fail "config reset source"
-[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth\nneovim' ]] ||
+[[ $(<"$action_log") == $'theme\nqv-refresh-hyprland\nqv-refresh-limine\nqv-refresh-plymouth' ]] ||
   fail "config reset owner order"
-pass "config reset runs the theme source directly and reconciles native Hyprland config"
+pass "config reset copies the native seed and reconciles native Hyprland config"
 
 package_source="$test_root/package-source"
 install -d "$package_source/qvcore/install/packaging"

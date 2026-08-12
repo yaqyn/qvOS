@@ -148,8 +148,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/menu/` owns every qvOS Elephant provider and the generated Walker
   menu theme; inherited Elephant and Walker defaults are retired
 - `qvcore/config/files/nvim/` owns the minimal official Neovim seed;
-  `qvcore/config/neovim` atomically backs up only recognized provider configs,
-  preserves custom configs, and keeps theming under the native qvOS palette
+  fresh install and explicit config reset copy it directly, while normal
+  desktop reconciliation preserves existing Neovim configuration
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
   restore a second config layer or active Omarchy branding state

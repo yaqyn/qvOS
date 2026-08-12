@@ -60,8 +60,6 @@
     qvcore/direct/tool
     qvcore/direct/update
     qvcore/install/post-update-hook
-    qvcore/config/neovim
-    qvcore/config/retired-neovim-signatures.psv
     qvcore/config/user-systemd-lib
     qvcore/config/assistant/install
     qvcore/config/files/xcompose
@@ -214,7 +212,6 @@
 
   "$QVOS_PATH/qvcore/branding/install"
   "$QVOS_PATH/qvcore/config/assistant/install"
-  "$QVOS_PATH/qvcore/config/neovim"
   if { [[ -e $HOME/.config/helix/config.toml ||
     -L $HOME/.config/helix/config.toml ||
     -e $HOME/.config/helix/themes ||
