@@ -115,44 +115,18 @@ grep -Fqx '<Multi_key> <space> <e> : "Yaqyn\\\\test@pm.me"' \
   "$xcompose" || fail "escaped XCompose email"
 [[ $(stat -c '%a' "$xcompose") == "644" ]] || fail "XCompose mode"
 
-sed -i 's#qvcore/config/files/xcompose#default/xcompose#' "$xcompose"
-run_leaf "$xcompose_leaf"
-grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
-  "$xcompose" || fail "exact inherited XCompose migration"
-
 printf '%s\n' \
-  'include "%H/.local/share/qvos/default/xcompose"' \
+  'include "%H/custom/xcompose"' \
   '# custom composition' >"$xcompose"
 run_leaf "$xcompose_leaf" >/dev/null
-grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
-  "$xcompose" || fail "custom XCompose include migration"
+grep -Fqx 'include "%H/custom/xcompose"' \
+  "$xcompose" || fail "custom XCompose include preservation"
 grep -Fqx '# custom composition' "$xcompose" ||
   fail "custom XCompose content preservation"
 mapfile -t xcompose_backups < <(
   find "$test_home" -maxdepth 1 -type f -name '.XCompose.qvos-backup.*' -print
 )
-((${#xcompose_backups[@]} == 1)) || fail "custom XCompose migration backup"
-grep -Fqx 'include "%H/.local/share/qvos/default/xcompose"' \
-  "${xcompose_backups[0]}" || fail "custom XCompose backup content"
-[[ $(stat -c '%a' "${xcompose_backups[0]}") == "600" ]] ||
-  fail "custom XCompose backup mode"
-
-printf '%s\n' \
-  '# Run omarchy-restart-xcompose to apply changes' \
-  'include "%H/.local/share/omarchy/default/xcompose"' \
-  '# older custom composition' >"$xcompose"
-run_leaf "$xcompose_leaf" >/dev/null
-grep -Fqx '# Run qv-restart-xcompose to apply changes' "$xcompose" ||
-  fail "original XCompose restart-comment migration"
-grep -Fqx 'include "%H/.local/share/qvos/qvcore/config/files/xcompose"' \
-  "$xcompose" || fail "original installed-root XCompose migration"
-grep -Fqx '# older custom composition' "$xcompose" ||
-  fail "original XCompose custom-content preservation"
-mapfile -t xcompose_backups < <(
-  find "$test_home" -maxdepth 1 -type f -name '.XCompose.qvos-backup.*' -print
-)
-((${#xcompose_backups[@]} == 2)) ||
-  fail "original installed-root XCompose backup"
+((${#xcompose_backups[@]} == 0)) || fail "custom XCompose created a backup"
 
 printf 'custom XCompose\n' >"$xcompose"
 run_leaf "$xcompose_leaf" >/dev/null
@@ -166,6 +140,12 @@ if run_leaf "$xcompose_leaf" >/dev/null 2>&1; then
   fail "XCompose symbolic-link rejection"
 fi
 grep -Fqx 'external' "$xcompose_external" || fail "XCompose link target mutation"
+
+retired_xcompose_restart='omarchy'"-restart-xcompose"
+if rg -n 'local/share/(qvos|omarchy)/default/xcompose' "$xcompose_leaf" ||
+  grep -Fn -- "$retired_xcompose_restart" "$xcompose_leaf"; then
+  fail "retired XCompose convergence remains active"
+fi
 
 rm -f -- "$xcompose"
 bluetooth_leaf="$root/qvcore/install/config/hardware/bluetooth.sh"

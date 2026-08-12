@@ -108,12 +108,13 @@ done
 grep -Fq 'qvcore/config/files/xcompose' \
   "$root/qvcore/install/config/xcompose.sh" ||
   fail "XCompose installer bypasses its native source"
-[[ $(grep -Fc 'local/share/qvos/default/xcompose' \
-  "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
-  fail "XCompose installer has an unexpected inherited path surface"
-[[ $(grep -Fc 'local/share/omarchy/default/xcompose' \
-  "$root/qvcore/install/config/xcompose.sh") == "1" ]] ||
-  fail "XCompose installer omits the original installed-root migration"
+retired_xcompose_restart='omarchy'"-restart-xcompose"
+if rg -n 'local/share/(qvos|omarchy)/default/xcompose' \
+  "$root/qvcore/install/config/xcompose.sh" ||
+  grep -Fn -- "$retired_xcompose_restart" \
+    "$root/qvcore/install/config/xcompose.sh"; then
+  fail "retired XCompose convergence remains active"
+fi
 
 [[ $(grep -Fc 'require("~/.config/hypr/bindings.lua")' "$hyprland") == 1 ]] ||
   fail "native binding source is not included exactly once"

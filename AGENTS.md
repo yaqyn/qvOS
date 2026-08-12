@@ -180,6 +180,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   verified
 - native NOFILE and inotify tuning use only qvOS filenames; completed
   pre-release tuning convergence is not a fresh-install or update input
+- XCompose creates one missing native seed and preserves every existing custom
+  file; retired source-include rewriting is not an installer input
 - the general pre-public runtime-root config rewriter and obsolete-state
   scanner are retired after the only supported installation converged; fresh
   install and update paths reconcile explicit native owners without scanning

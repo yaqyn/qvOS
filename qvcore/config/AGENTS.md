@@ -93,11 +93,11 @@ state remain retired, while its historical private backup remains user-owned.
 Never delete Neovim data or caches as part of config reconciliation.
 XCompose and WirePlumber policy live in this tree; their inherited
 `default/xcompose` and `default/wireplumber/` sources are retired. Rerunning
-installation may replace only a missing or exact prior qvOS-generated file.
-In a customized XCompose file, migrate one exact inherited `qvos` or original
-`omarchy` source include with a private adjacent backup; reject ambiguous
-includes. Preserve other customized regular files and reject symbolic-link
-targets.
+installation creates only a missing native XCompose seed and leaves an exact
+native seed unchanged. Preserve every other customized regular file and reject
+symbolic-link, non-file, and foreign-owned targets. Completed pre-release
+include and restart-comment convergence is retired and never runs during fresh
+installation or update.
 qvOS-managed user units use `qvos-*` filenames under its `systemd/user/`
 subtree and execute one native owner under
 `qvcore/config/`. `user-services` atomically deploys those native unit files
