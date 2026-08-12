@@ -148,14 +148,13 @@ if rg -n '(^|[^[:alnum:]_-])omarchy-[[:alnum:]_-]+' \
   "$root/qvcore/menu/base" "$root/qvcore/menu/routes"; then
   fail "native menu implementation uses an Omarchy command route"
 fi
-if rg -n 'install_qvos_menu|menu_extension_ready' \
+if rg -n -i \
+  'legacy|historical|\.config/omarchy|qvos[-_]omarchy|omarchy-default|omarchy-restart-walker|retired_(steam|entities)|migrate_personal_extension|retire_generated_menu_overlay|cleanup_legacy_menu_theme' \
   "$root/qvcore/menu/install"; then
-  fail "retired generated menu overlay remains active"
+  fail "retired menu convergence engine remains"
 fi
 grep -Fq "personal_extension=\"\$HOME/.config/qvos/extensions/menu.sh\"" \
   "$root/qvcore/menu/menu" || fail "native personal menu-extension runtime"
-grep -Fq "legacy_target_path=\"\$legacy_extension_dir/menu.sh\"" \
-  "$root/qvcore/menu/install" || fail "inherited menu-extension migration owner"
 [[ -f $root/qvcore/config/files/qvos/extensions/menu.sh &&
   ! -e $root/qvcore/config/files/omarchy ]] ||
   fail "singular native personal menu-extension source"

@@ -49,21 +49,10 @@ esac
 SCRIPT
 install -d "$test_root/.config/elephant/menus"
 
-retired_entities="$test_root/.local/lib/qvos/menu/entities.psv"
-install -D -m 0644 /dev/stdin "$retired_entities" <<'ENTITIES'
-# modified retired qvOS menu catalog
-fingerprint|present:omarchy-setup-security-fingerprint
-ENTITIES
-if HOME="$test_root" \
-  QVOS_PATH="$root" \
-  PATH="$test_bin:/usr/bin" \
-  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
-  "$root/qvcore/menu/install" --install >/dev/null 2>&1; then
-  fail "modified retired menu catalog was removed"
-fi
-grep -Fqx '# modified retired qvOS menu catalog' "$retired_entities" ||
-  fail "modified retired menu catalog preservation"
-rm -f -- "$retired_entities"
+stale_runtime="$test_root/.local/lib/qvos/menu/stale-runtime"
+install -D -m 0644 /dev/stdin "$stale_runtime" <<'RUNTIME'
+stale generated payload
+RUNTIME
 
 HOME="$test_root" \
   QVOS_PATH="$root" \
@@ -75,10 +64,38 @@ HOME="$test_root" \
   PATH="$test_bin:/usr/bin" \
   "$root/qvcore/menu/install" --status ||
   fail "installed menu status"
-[[ ! -e $retired_entities && ! -L $retired_entities ]] ||
-  fail "retired menu catalog residue"
+[[ ! -e $stale_runtime && ! -L $stale_runtime ]] ||
+  fail "stale generated menu runtime"
 [[ $(<"$systemctl_log") == $'--user restart elephant.service\n--user restart app-walker@autostart.service' ]] ||
   fail "active menu service reload"
+
+printf 'preserve prior runtime\n' \
+  >"$test_root/.local/lib/qvos/menu/runtime-sentinel"
+install -m 0755 /dev/stdin "$test_bin/mv" <<'SCRIPT'
+#!/bin/bash
+if (($# == 4)) && [[ $1 == "-T" && $2 == "--" &&
+  $3 == */.menu-stage.* && $4 == */.local/lib/qvos/menu ]]; then
+  exit 73
+fi
+exec /usr/bin/mv "$@"
+SCRIPT
+if HOME="$test_root" \
+  QVOS_PATH="$root" \
+  PATH="$test_bin:/usr/bin" \
+  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
+  "$root/qvcore/menu/install" --install >/dev/null 2>&1; then
+  fail "failed menu runtime publish reported success"
+fi
+grep -Fqx 'preserve prior runtime' \
+  "$test_root/.local/lib/qvos/menu/runtime-sentinel" ||
+  fail "failed menu runtime publish did not restore prior runtime"
+if find "$test_root/.local/lib/qvos" -maxdepth 1 \
+  \( -name '.menu-stage.*' -o -name '.menu-backup.*' \) \
+  -print -quit | grep -q .; then
+  fail "failed menu runtime publish left transaction residue"
+fi
+rm -f -- "$test_bin/mv" "$test_root/.local/lib/qvos/menu/runtime-sentinel"
+printf 'ok - menu runtime publication is exact and rollback-safe\n'
 
 printf '\n/* personal Walker theme adjustment */\n' >> \
   "$test_root/.config/walker/themes/qvos-menu/style.css"
@@ -143,21 +160,6 @@ assert any(
 PY
 pass "Walker binds Tab to a query-preserving mode reload"
 
-legacy_runtime="$test_root/.local/lib/qvos/menu/elephant/qvos_omarchy_menu.lua"
-legacy_link="$test_root/.config/elephant/menus/qvos_omarchy_menu.lua"
-install -m 0644 "$root/qvcore/menu/elephant/qvos_menu.lua" "$legacy_runtime"
-ln -s "$legacy_runtime" "$legacy_link"
-foreign_provider="$test_root/.config/elephant/menus/omarchy_background_selector.lua"
-ln -s "$test_root/foreign-provider.lua" "$foreign_provider"
-if HOME="$test_root" \
-  QVOS_PATH="$root" \
-  PATH="$test_bin:/usr/bin" \
-  "$root/qvcore/menu/install" --preflight >/dev/null 2>&1; then
-  fail "foreign retired Elephant provider was accepted"
-fi
-[[ $(readlink "$foreign_provider") == "$test_root/foreign-provider.lua" ]] ||
-  fail "foreign retired Elephant provider preservation"
-unlink -- "$foreign_provider"
 foreign_native_provider="$test_root/.config/elephant/menus/qvos_themes.lua"
 unlink -- "$foreign_native_provider"
 printf '%s\n' 'foreign provider' >"$foreign_native_provider"
@@ -172,48 +174,9 @@ grep -Fqx 'foreign provider' "$foreign_native_provider" ||
 unlink -- "$foreign_native_provider"
 ln -s "$test_root/.local/lib/qvos/menu/elephant/qvos_themes.lua" \
   "$foreign_native_provider"
-for provider in omarchy_background_selector.lua omarchy_themes.lua; do
-  ln -s "$root/default/elephant/$provider" \
-    "$test_root/.config/elephant/menus/$provider"
-done
-legacy_unlock_runtime="$test_root/.local/lib/qvos/menu/elephant/omarchy_unlocks.lua"
-install -m 0644 "$root/qvcore/menu/elephant/qvos_unlocks.lua" \
-  "$legacy_unlock_runtime"
-ln -s "$legacy_unlock_runtime" \
-  "$test_root/.config/elephant/menus/omarchy_unlocks.lua"
-sed -i \
-  -e 's/qvos-menu/qvos-omarchy-menu/g' \
-  -e 's/qvosMenu/qvosOmarchyMenu/g' \
-  -e 's/# qvOS menu provider set/# qvOS Omarchy menu provider set/g' \
-  -e 's/command = "qv-restart-walker"/command = "omarchy-restart-walker"/' \
-  -e '/^theme = /a additional_theme_location = "~/.local/share/omarchy/default/walker/themes/"' \
-  "$test_root/.config/walker/config.toml"
-mv \
-  "$test_root/.config/walker/themes/qvos-menu" \
-  "$test_root/.config/walker/themes/qvos-omarchy-menu"
-HOME="$test_root" \
-  QVOS_PATH="$root" \
-  PATH="$test_bin:/usr/bin" \
-  QVOS_TEST_SYSTEMCTL_LOG="$systemctl_log" \
-  "$root/qvcore/menu/install" --install
-HOME="$test_root" \
-  QVOS_PATH="$root" \
-  PATH="$test_bin:/usr/bin" \
-  "$root/qvcore/menu/install" --status ||
-  fail "migrated menu status"
-if [[ -e $legacy_runtime || -e $legacy_link || -L $legacy_link ||
-  -e $test_root/.config/walker/themes/qvos-omarchy-menu ]]; then
-  fail "legacy native qvOS menu namespace cleanup"
-fi
-if find "$test_root/.config/elephant/menus" -maxdepth 1 \
-  -name 'omarchy_*.lua' -print -quit | grep -q .; then
-  fail "legacy Elephant provider cleanup"
-fi
-if rg -q 'qvos-omarchy-menu|qvosOmarchyMenu|qvOS Omarchy menu provider|omarchy-restart-walker|default/walker/themes' \
-  "$test_root/.config/walker/config.toml"; then
-  fail "legacy native qvOS menu configuration cleanup"
-fi
-pass "native qvOS menu identifiers migrate without duplicate or inherited residue"
+HOME="$test_root" QVOS_PATH="$root" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/menu/install" --status || fail "native menu status"
+pass "native provider ownership is strict and generated runtime is exact"
 
 menu_provider="$root/qvcore/menu/elephant/qvos_menu.lua"
 home_entries=$(

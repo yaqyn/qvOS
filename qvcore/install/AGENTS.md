@@ -170,9 +170,9 @@ links, menu runtime, and service reloads
 remain singularly owned by `qvcore/menu/install` during first run. Never
 restore the duplicate `walker-elephant.sh` stage or a root Pacman hook that
 executes a home-directory checkout.
-The same menu owner seeds and migrates the personal extension at
-`~/.config/qvos/extensions/menu.sh`; fresh installation never creates its
-inherited Omarchy path.
+The same menu owner seeds the personal extension at
+`~/.config/qvos/extensions/menu.sh` only when absent and never scans an
+inherited menu path. Existing native personal content remains user-owned.
 Install Walker and only the official Elephant providers referenced by qvOS
 configuration explicitly; never depend on `omarchy-walker` or restore its
 unused Bluetooth, runner, todo, and Unicode providers. Install official Neovim

@@ -1155,7 +1155,7 @@ pass "qvOS-owned test entrypoints are executable"
 
 install -d \
   "$test_bin" \
-  "$test_root/.config/omarchy/extensions" \
+  "$test_root/.config/qvos/extensions" \
   "$test_root/.config/qvos/themes"
 
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
@@ -1195,23 +1195,8 @@ SCRIPT
 
 unsafe_menu_home="$test_root/unsafe-menu-home"
 external_menu="$test_root/external-menu"
-install -d \
-  "$unsafe_menu_home/.config/omarchy/extensions" \
-  "$unsafe_menu_home/.config/qvos/extensions"
+install -d "$unsafe_menu_home/.config/qvos/extensions"
 printf 'external personal menu\n' >"$external_menu"
-ln -s "$external_menu" \
-  "$unsafe_menu_home/.config/omarchy/extensions/menu.sh"
-if HOME="$unsafe_menu_home" QVOS_PATH="$root" \
-  "$root/qvcore/menu/install" --preflight \
-  >"$test_root/unsafe-personal.out" \
-  2>"$test_root/unsafe-personal.err"; then
-  fail "linked personal menu preflight"
-fi
-grep -Fq 'Refusing an unsafe inherited personal menu extension:' \
-  "$test_root/unsafe-personal.err" || fail "linked inherited menu diagnostic"
-grep -Fqx 'external personal menu' "$external_menu" ||
-  fail "linked inherited menu preservation"
-unlink -- "$unsafe_menu_home/.config/omarchy/extensions/menu.sh"
 ln -s "$external_menu" \
   "$unsafe_menu_home/.config/qvos/extensions/menu.sh"
 if HOME="$unsafe_menu_home" QVOS_PATH="$root" \
@@ -1225,122 +1210,35 @@ grep -Fq 'Refusing an unsafe personal qvOS menu extension:' \
   fail "linked native personal menu diagnostic"
 grep -Fqx 'external personal menu' "$external_menu" ||
   fail "linked native personal menu preservation"
-unlink -- "$unsafe_menu_home/.config/qvos/extensions/menu.sh"
-ln -s "$external_menu" \
-  "$unsafe_menu_home/.config/omarchy/extensions/qvos-menu.sh"
-if HOME="$unsafe_menu_home" QVOS_PATH="$root" \
-  "$root/qvcore/menu/install" --preflight \
-  >"$test_root/unsafe-overlay.out" \
-  2>"$test_root/unsafe-overlay.err"; then
-  fail "linked retired menu overlay preflight"
-fi
-grep -Fq 'Refusing an unsafe retired qvOS menu overlay:' \
-  "$test_root/unsafe-overlay.err" || fail "linked menu overlay diagnostic"
-grep -Fqx 'external personal menu' "$external_menu" ||
-  fail "linked menu overlay preservation"
 
 install -m 0600 /dev/stdin \
-  "$test_root/.config/omarchy/extensions/menu.sh" <<'MENU'
-[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"
+  "$test_root/.config/qvos/extensions/menu.sh" <<'MENU'
 show_about() { printf "personal menu\n"; }
 MENU
-cp -a \
-  "$test_root/.config/omarchy/extensions/menu.sh" \
-  "$test_root/personal-menu.before"
-git -C "$root" show \
-  e4e308a7d53263e0270e398364315e9acd66a926:qvcore/menu/extension.sh \
-  >"$test_root/.config/omarchy/extensions/qvos-menu.sh"
 HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/menu/install" --install
 grep -Fqx 'show_about() { printf "personal menu\n"; }' \
   "$test_root/.config/qvos/extensions/menu.sh" ||
-  fail "personal menu extension migration"
+  fail "personal menu extension preservation"
 [[ $(stat -c '%a' "$test_root/.config/qvos/extensions/menu.sh") == "600" ]] ||
   fail "personal menu extension mode preservation"
-[[ ! -e $test_root/.config/omarchy/extensions/menu.sh &&
-  ! -L $test_root/.config/omarchy/extensions/menu.sh ]] ||
-  fail "inherited personal menu extension retirement"
-if rg -q 'qvos-menu\.sh' "$test_root/.config/qvos/extensions/menu.sh"; then
-  fail "retired qvOS menu overlay remains sourced"
-fi
-[[ ! -e $test_root/.config/omarchy/extensions/qvos-menu.sh ]] ||
-  fail "exact generated qvOS menu overlay retirement"
-mapfile -t menu_backups < <(
-  find "$test_root/.config/qvos/extensions" -maxdepth 1 -type f \
-    -name 'menu.sh.qvos-backup.*' -print
-)
-((${#menu_backups[@]} == 1)) || fail "personal menu backup inventory"
-cmp -s "$test_root/personal-menu.before" "${menu_backups[0]}" ||
-  fail "personal menu backup content"
-install -d "$test_root/.config/omarchy/extensions"
-printf 'modified retired overlay\n' \
-  >"$test_root/.config/omarchy/extensions/qvos-menu.sh"
-HOME="$test_root" QVOS_PATH="$root" \
-  "$root/qvcore/menu/install" --install \
-  >"$test_root/modified-overlay.out" \
-  2>"$test_root/modified-overlay.err"
-grep -Fq 'Preserving a modified retired qvOS menu overlay:' \
-  "$test_root/modified-overlay.err" ||
-  fail "modified retired menu overlay diagnostic"
-grep -Fqx 'modified retired overlay' \
-  "$test_root/.config/omarchy/extensions/qvos-menu.sh" ||
-  fail "modified retired menu overlay preservation"
 HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/menu/install" --status ||
-  fail "modified inert menu overlay status"
-pass "native qvOS menu migrates personal overrides and retires only its generated overlay"
+  fail "native personal menu status"
 
-stock_menu_home="$test_root/stock-menu-home"
-install -d "$stock_menu_home/.config/omarchy/extensions"
-printf 'historical stock backup\n' \
-  >"$stock_menu_home/.config/omarchy/extensions/menu.sh.bak.123"
-printf 'historical generated backup\n' \
-  >"$stock_menu_home/.config/omarchy/extensions/menu.sh.qvos-backup.AbC123"
-git -C "$root" show \
-  74a3797cf0b57a19a458d3e96b19f48b7fbfc2de:config/omarchy/extensions/menu.sh \
-  >"$stock_menu_home/.config/omarchy/extensions/menu.sh"
-HOME="$stock_menu_home" QVOS_PATH="$root" \
+historical_menu_home="$test_root/historical-menu-home"
+historical_menu="$historical_menu_home/.config/omarchy/extensions/menu.sh"
+install -d "${historical_menu%/*}"
+printf 'historical personal menu\n' >"$historical_menu"
+HOME="$historical_menu_home" QVOS_PATH="$root" \
   PATH="$test_bin:$root/bin:/usr/bin" \
   "$root/qvcore/menu/install" --install
+grep -Fqx 'historical personal menu' "$historical_menu" ||
+  fail "historical personal menu was changed"
 cmp -s "$root/qvcore/config/files/qvos/extensions/menu.sh" \
-  "$stock_menu_home/.config/qvos/extensions/menu.sh" ||
-  fail "stock inherited menu replacement"
-[[ ! -e $stock_menu_home/.config/omarchy/extensions/menu.sh &&
-  ! -L $stock_menu_home/.config/omarchy/extensions/menu.sh ]] ||
-  fail "stock inherited menu retirement"
-grep -Fqx 'historical stock backup' \
-  "$stock_menu_home/.local/state/qvos/menu-backups/legacy-extensions/menu.sh.bak.123" ||
-  fail "historical stock menu-backup archive"
-grep -Fqx 'historical generated backup' \
-  "$stock_menu_home/.local/state/qvos/menu-backups/legacy-extensions/menu.sh.qvos-backup.AbC123" ||
-  fail "historical generated menu-backup archive"
-[[ ! -e $stock_menu_home/.config/omarchy/extensions ]] ||
-  fail "empty inherited menu-extension root retirement"
-pass "stock inherited menu state converges to the native qvOS default"
-
-conflict_menu_home="$test_root/conflict-menu-home"
-install -d \
-  "$conflict_menu_home/.config/omarchy/extensions" \
-  "$conflict_menu_home/.config/qvos/extensions"
-printf 'custom inherited menu\n' \
-  >"$conflict_menu_home/.config/omarchy/extensions/menu.sh"
-printf 'custom native menu\n' \
-  >"$conflict_menu_home/.config/qvos/extensions/menu.sh"
-if HOME="$conflict_menu_home" QVOS_PATH="$root" \
-  "$root/qvcore/menu/install" --preflight \
-  >"$test_root/conflicting-menu.out" \
-  2>"$test_root/conflicting-menu.err"; then
-  fail "conflicting personal menu extensions preflight"
-fi
-grep -Fq 'Both qvOS and inherited personal menu extensions contain custom content' \
-  "$test_root/conflicting-menu.err" || fail "personal menu conflict diagnostic"
-grep -Fqx 'custom inherited menu' \
-  "$conflict_menu_home/.config/omarchy/extensions/menu.sh" ||
-  fail "conflicting inherited menu preservation"
-grep -Fqx 'custom native menu' \
-  "$conflict_menu_home/.config/qvos/extensions/menu.sh" ||
-  fail "conflicting native menu preservation"
-pass "conflicting personal menu state fails before mutation"
+  "$historical_menu_home/.config/qvos/extensions/menu.sh" ||
+  fail "native personal menu seed"
+pass "native personal menu is preservation-safe and ignores historical roots"
 
 for menu_adapter in qv-menu omarchy-menu; do
   menu_output=$(

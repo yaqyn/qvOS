@@ -109,29 +109,19 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   possible. Keep every built-in function in exactly one of
   `base` or `routes`; neither module may call an Omarchy command route. The
   metadata-bearing `qv-menu` adapter is native and `omarchy-menu` delegates only.
-- `qvcore/menu/install` migrates a safe inherited personal extension into the
-  native path without changing custom content or mode. It replaces only known
-  stock predecessors, accepts a native default as the destination for custom
-  inherited content, and fails before mutation when both paths are customized.
-  Never reinstall the former generated `qvos-menu.sh` override: back up and
-  remove only its exact source line, delete only the reviewed generated-overlay
-  hash, and leave any modified overlay preserved but inert. Reject links,
-  foreign ownership, and unsafe personal extension targets before cleanup.
-  Archive exact historical `menu.sh.bak.<timestamp>` and
-  `menu.sh.qvos-backup.<token>` files into private qvOS menu-backup state so
-  the active Omarchy compatibility root carries no inert stock backups.
+- `qvcore/menu/install` seeds the native personal extension only when it is
+  absent. Preserve every existing regular user-owned native extension byte for
+  byte and reject unsafe targets. Completed pre-release extension adoption,
+  backup archiving, generated-overlay cleanup, provider renaming, and Walker
+  rewriting are retired; current installation never scans historical menu
+  roots or identities.
 - Native qvOS provider, Walker set, and theme identifiers use `qvos-menu`.
-  Treat former `qvos-omarchy-menu` artifacts as generated migration residue:
-  remove only their exact owned block, link, and theme while preserving foreign
-  files and user-selected themes.
-- Exact legacy provider links, the inherited Walker source hint, and the
-  `omarchy-restart-walker` emergency route are migration input only. Remove or
-  rewrite them during menu reconciliation while preserving foreign links,
-  providers, custom themes, and unrelated Walker configuration.
+  Validate every native provider link before publishing runtime or changing a
+  service, and preserve foreign or unsafe native targets by failing closed.
 - The menu runtime under `~/.local/lib/qvos/menu` is generated payload, not
-  user configuration. Retire obsolete payload files only when their exact
-  reviewed hash matches; refuse links, foreign ownership, and modified
-  lookalikes so cleanup cannot erase an administrator's evidence.
+  user configuration. Build its complete native inventory in a sibling stage,
+  publish it as one directory replacement, and restore the prior runtime on a
+  failed publish; never accumulate per-file retirement tables.
 - Launch every TUI-backed menu action through the checked
   `~/.local/lib/qvos/tui` payload. Menu state may come from its delegated
   owner, but every repository owner resolves only through `QVOS_PATH`; no

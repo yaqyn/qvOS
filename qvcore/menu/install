@@ -11,23 +11,6 @@ menu_owner="$menu_source_dir/menu"
 personal_extension_source="$QVOS_PATH/qvcore/config/files/qvos/extensions/menu.sh"
 extension_dir="$HOME/.config/qvos/extensions"
 target_path="$extension_dir/menu.sh"
-legacy_extension_dir="$HOME/.config/omarchy/extensions"
-legacy_target_path="$legacy_extension_dir/menu.sh"
-legacy_qvos_target_path="$legacy_extension_dir/qvos-menu.sh"
-legacy_backup_root="$HOME/.local/state/qvos/menu-backups/legacy-extensions"
-legacy_extension_backups=()
-# Exact generated overlay installed before the native menu promotion.
-legacy_qvos_target_hash="bbe35b8874f031d6118492ac08f0f19814aa272a4c6c72364a477e1062b95405"
-# Exact stock menu-extension files that contain no user customization.
-legacy_stock_extension_hashes=(
-  0017edb84ff30cc838582ae19843dff7523f867b05f80645f89c9fa4ec29b7c2
-  36e836660032d7fd66777a58a2cc719a8dca7424b6ecf279b4d7e9443544e513
-  ddc57399d297c1561a263990ccc24f04e45591a51285bbc4924d9e5be26d4a42
-  7ac9d68ef8179f483a0ae2b3127c7f03929a377c59f458d1ef243e39131ae054
-  55c5d4f3127471959ef8cd4813d4edf54052d8c63b45eb056625f63d9baa5048
-  9b0bbaa8ebe0d54349d1af977cea73cfbd926c8a6c0a366bc8cf8ff576518685
-  fcf552727705655f75dee6b79ac9dd34c38da55cecf3fd476337d77bf93cdf31
-)
 provider_source_dir="$menu_source_dir/elephant"
 menu_runtime_dir="$HOME/.local/lib/qvos/menu"
 provider_runtime_dir="$menu_runtime_dir/elephant"
@@ -44,10 +27,6 @@ font_install_source="$menu_source_dir/font-install"
 font_install_runtime="$menu_runtime_dir/font-install"
 terminal_action_source="$menu_source_dir/terminal-action"
 terminal_action_runtime="$menu_runtime_dir/terminal-action"
-retired_steam_remove_runtime="$menu_runtime_dir/steam-remove"
-retired_steam_remove_hash="4435fcd69490cc49fe4079391157fe2d7347b20c9b3357d7e1ab512df091a407"
-retired_entities_runtime="$menu_runtime_dir/entities.psv"
-retired_entities_hash="80bee250c5d8334cc89c9a026d60684de014daeeadc35f7610565ae7c80a2c80"
 task_catalog_source="$QVOS_PATH/qvcore/tui/task/actions.psv"
 task_launch_source="$QVOS_PATH/qvcore/tui/task/launch"
 task_run_source="$QVOS_PATH/qvcore/tui/task/run"
@@ -64,20 +43,14 @@ provider_set_source="$menu_source_dir/walker-provider-set.toml"
 provider_set_start="# qvOS menu provider set start"
 provider_set_end="# qvOS menu provider set end"
 provider_set_header="[providers.sets.qvos-menu]"
-legacy_provider_set_start="# qvOS Omarchy menu provider set start"
-legacy_provider_set_end="# qvOS Omarchy menu provider set end"
-legacy_provider_set_header="[providers.sets.qvos-omarchy-menu]"
 walker_config="$HOME/.config/walker/config.toml"
 walker_config_source="$QVOS_PATH/qvcore/config/files/walker/config.toml"
 walker_autostart_source="$QVOS_PATH/qvcore/config/files/autostart/walker.desktop"
 walker_restart_source="$QVOS_PATH/qvcore/config/files/systemd/user/app-walker@autostart.service.d/restart.conf"
 elephant_calc_source="$QVOS_PATH/qvcore/config/files/elephant/calc.toml"
 elephant_desktop_source="$QVOS_PATH/qvcore/config/files/elephant/desktopapplications.toml"
-walker_theme_name="qvos-menu"
-legacy_walker_theme_name="qvos-omarchy-menu"
 walker_theme_source="$menu_source_dir/walker-theme"
 walker_theme_target="$HOME/.config/walker/themes/qvos-menu"
-legacy_walker_theme_target="$HOME/.config/walker/themes/qvos-omarchy-menu"
 walker_subtext_source="$menu_source_dir/walker-subtext.css"
 providers=(
   qvos_background_selector.lua
@@ -85,14 +58,6 @@ providers=(
   qvos_unlocks.lua
   qvos_menu.lua
 )
-retired_providers=(
-  omarchy_background_selector.lua
-  omarchy_themes.lua
-  omarchy_unlocks.lua
-  qvos_omarchy_menu.lua
-)
-# shellcheck disable=SC2016
-legacy_source_line='[[ -f $HOME/.config/omarchy/extensions/qvos-menu.sh ]] && source "$HOME/.config/omarchy/extensions/qvos-menu.sh"'
 walker_config_backed_up=false
 mode=${1:---install}
 
@@ -192,14 +157,11 @@ validate_menu_paths() {
     "$HOME/.config" \
     "$HOME/.config/qvos" \
     "$extension_dir" \
-    "$HOME/.config/omarchy" \
-    "$legacy_extension_dir" \
     "$HOME/.config/elephant" \
     "$provider_menu_dir" \
     "$HOME/.config/walker" \
     "$HOME/.config/walker/themes" \
     "$walker_theme_target" \
-    "$legacy_walker_theme_target" \
     "$HOME/.local" \
     "$HOME/.local/lib" \
     "$HOME/.local/lib/qvos" \
@@ -207,8 +169,7 @@ validate_menu_paths() {
     "$provider_runtime_dir" \
     "$HOME/.local/state" \
     "$HOME/.local/state/qvos" \
-    "$HOME/.local/state/qvos/menu-backups" \
-    "$legacy_backup_root"; do
+    "$HOME/.local/state/qvos/menu-backups"; do
     validate_user_directory "$directory" "qvOS menu" || return
   done
 
@@ -220,199 +181,19 @@ validate_menu_paths() {
   fi
 }
 
-validate_legacy_extension_backups() {
-  local backup
-  local backup_name
-  local backup_target
-  local -a candidates=()
-
-  legacy_extension_backups=()
-  [[ -d $legacy_extension_dir ]] || return 0
-  shopt -s nullglob
-  candidates=(
-    "$legacy_extension_dir"/menu.sh.bak.*
-    "$legacy_extension_dir"/menu.sh.qvos-backup.*
-  )
-  shopt -u nullglob
-
-  for backup in "${candidates[@]}"; do
-    backup_name=${backup##*/}
-    if [[ ! $backup_name =~ ^menu\.sh\.bak\.[0-9]+$ &&
-      ! $backup_name =~ ^menu\.sh\.qvos-backup\.[A-Za-z0-9]+$ ]]; then
-      continue
-    fi
-    [[ -f $backup && ! -L $backup && -O $backup ]] || {
-      echo "Refusing an unsafe historical menu backup: $backup" >&2
-      return 1
-    }
-    backup_target="$legacy_backup_root/$backup_name"
-    [[ ! -e $backup_target && ! -L $backup_target ]] || {
-      echo "A historical menu backup already has a conflicting archive: $backup_target" >&2
-      return 1
-    }
-    legacy_extension_backups+=("$backup")
-  done
-}
-
-archive_legacy_extension_backups() {
-  local backup
-  local backup_name
-
-  validate_legacy_extension_backups
-  ((${#legacy_extension_backups[@]} > 0)) || return 0
-
-  install -d -m 0700 "$legacy_backup_root"
-  for backup in "${legacy_extension_backups[@]}"; do
-    backup_name=${backup##*/}
-    mv -T -- "$backup" "$legacy_backup_root/$backup_name"
-    printf 'Preserved the historical menu backup as %s.\n' \
-      "$legacy_backup_root/$backup_name"
-  done
-}
-
-extension_is_stock() {
-  local candidate=$1
-  local expected_hash
-  local installed_hash
-
-  [[ -f $candidate && ! -L $candidate && -O $candidate ]] || return 1
-  read -r installed_hash _ < <(sha256sum -- "$candidate")
-  for expected_hash in "${legacy_stock_extension_hashes[@]}"; do
-    [[ $installed_hash != "$expected_hash" ]] || return 0
-  done
-  return 1
-}
-
 validate_personal_extension() {
-  local label=$1
-  local path=$2
-
-  [[ ! -e $path && ! -L $path ]] && return
-  [[ -f $path && ! -L $path && -O $path ]] || {
-    echo "Refusing an unsafe $label: $path" >&2
+  [[ ! -e $target_path && ! -L $target_path ]] && return
+  [[ -f $target_path && ! -L $target_path && -O $target_path ]] || {
+    echo "Refusing an unsafe personal qvOS menu extension: $target_path" >&2
     return 1
   }
 }
 
-validate_personal_extension_migration() {
-  validate_personal_extension "personal qvOS menu extension" "$target_path"
-  validate_personal_extension "inherited personal menu extension" \
-    "$legacy_target_path"
-
-  [[ -f $legacy_target_path && -f $target_path ]] || return 0
-  extension_is_stock "$legacy_target_path" && return 0
-  cmp -s "$legacy_target_path" "$target_path" && return 0
-  cmp -s "$personal_extension_source" "$target_path" && return 0
-
-  echo "Both qvOS and inherited personal menu extensions contain custom content; preserve them and reconcile manually." >&2
-  return 1
-}
-
-validate_generated_overlay_cleanup() {
-  local installed_hash
-
-  validate_personal_extension_migration
-  validate_legacy_extension_backups
-
-  [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
-  [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
-    -O $legacy_qvos_target_path ]] || {
-    echo "Refusing an unsafe retired qvOS menu overlay: $legacy_qvos_target_path" >&2
-    return 1
-  }
-
-  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
-  if [[ $installed_hash != "$legacy_qvos_target_hash" ]]; then
-    echo "Preserving a modified retired qvOS menu overlay: $legacy_qvos_target_path" >&2
-  fi
-}
-
-migrate_personal_extension() {
-  if [[ -f $legacy_target_path ]]; then
-    if extension_is_stock "$legacy_target_path" ||
-      { [[ -f $target_path ]] && cmp -s "$legacy_target_path" "$target_path"; }; then
-      unlink -- "$legacy_target_path"
-    elif [[ ! -e $target_path && ! -L $target_path ]]; then
-      mv -T -- "$legacy_target_path" "$target_path"
-    elif cmp -s "$personal_extension_source" "$target_path"; then
-      mv -fT -- "$legacy_target_path" "$target_path"
-    else
-      echo "Could not safely migrate the inherited personal menu extension." >&2
-      return 1
-    fi
-  fi
-
+install_personal_extension() {
+  validate_personal_extension
   if [[ ! -e $target_path && ! -L $target_path ]]; then
     install -m 0644 -- "$personal_extension_source" "$target_path"
   fi
-}
-
-retire_generated_menu_overlay() {
-  local backup_path
-  local installed_hash
-  local temporary_path
-
-  validate_generated_overlay_cleanup
-
-  if [[ -f $target_path ]] && grep -Fqx "$legacy_source_line" "$target_path"; then
-    backup_path=$(mktemp "$target_path.qvos-backup.XXXXXX")
-    cp -a -- "$target_path" "$backup_path"
-    temporary_path=$(mktemp "$extension_dir/.qvos-menu-extension.XXXXXX")
-    if ! awk -v retired="$legacy_source_line" '$0 != retired { print }' \
-      "$target_path" >"$temporary_path"; then
-      rm -f -- "$temporary_path"
-      echo "Could not retire the generated qvOS menu source line." >&2
-      return 1
-    fi
-    chmod --reference="$target_path" "$temporary_path"
-    mv -f -- "$temporary_path" "$target_path"
-  fi
-
-  if [[ -f $legacy_qvos_target_path ]]; then
-    read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
-    if [[ $installed_hash == "$legacy_qvos_target_hash" ]]; then
-      unlink -- "$legacy_qvos_target_path"
-    fi
-  fi
-
-  archive_legacy_extension_backups
-  rmdir -- "$legacy_extension_dir" 2>/dev/null || true
-}
-
-retired_provider_target_allowed() {
-  local provider=$1
-  local target=$2
-
-  case $provider in
-  omarchy_background_selector.lua | omarchy_themes.lua)
-    [[ $target == "$QVOS_PATH/default/elephant/$provider" ||
-      $target == "$HOME/.local/share/omarchy/default/elephant/$provider" ]]
-    ;;
-  omarchy_unlocks.lua | qvos_omarchy_menu.lua)
-    [[ $target == "$provider_runtime_dir/$provider" ]]
-    ;;
-  *) return 1 ;;
-  esac
-}
-
-validate_retired_provider_links() {
-  local provider
-  local provider_link
-  local target
-
-  for provider in "${retired_providers[@]}"; do
-    provider_link="$provider_menu_dir/$provider"
-    [[ -e $provider_link || -L $provider_link ]] || continue
-    [[ -L $provider_link ]] || {
-      echo "Refusing a foreign retired menu provider: $provider_link" >&2
-      return 1
-    }
-    target=$(readlink -- "$provider_link")
-    retired_provider_target_allowed "$provider" "$target" || {
-      echo "Refusing a foreign retired menu provider link: $provider_link" >&2
-      return 1
-    }
-  done
 }
 
 validate_native_provider_links() {
@@ -432,69 +213,72 @@ validate_native_provider_links() {
 
 install_menu_providers() {
   local provider
-  local provider_link
   local runtime_provider
 
   validate_menu_paths
-  validate_retired_provider_links
   validate_native_provider_links
-  rm -rf -- "$provider_runtime_dir"
-  install -d "$provider_runtime_dir" "$provider_menu_dir"
+  install -d "$provider_menu_dir"
 
   for provider in "${providers[@]}"; do
     runtime_provider="$provider_runtime_dir/$provider"
-    install -m 0644 "$provider_source_dir/$provider" "$runtime_provider"
     ln -sfn "$runtime_provider" "$provider_menu_dir/$provider"
-  done
-  for provider in "${retired_providers[@]}"; do
-    provider_link="$provider_menu_dir/$provider"
-    [[ ! -L $provider_link ]] || unlink -- "$provider_link"
   done
 }
 
 install_menu_runtime() {
-  install -D -m 0755 "$font_install_source" "$font_install_runtime"
-  install -D -m 0755 "$terminal_action_source" "$terminal_action_runtime"
-  retire_menu_runtime
-  install -D -m 0644 "$concept_source" "$concept_runtime"
-  install -D -m 0644 "$software_installers_source" "$software_installers_runtime"
-  install -D -m 0644 "$search_intents_source" "$search_intents_runtime"
-  install -D -m 0755 "$elephant_ready_source" "$elephant_ready_runtime"
-  install -D -m 0644 "$walker_ready_source" "$walker_ready_target"
+  local backup=""
+  local parent="$HOME/.local/lib/qvos"
+  local provider
+  local stage
+
+  validate_menu_paths
+  install -d "$parent"
+  stage=$(mktemp -d "$parent/.menu-stage.XXXXXX")
+  if ! install -D -m 0755 "$font_install_source" "$stage/font-install" ||
+    ! install -D -m 0755 "$terminal_action_source" "$stage/terminal-action" ||
+    ! install -D -m 0644 "$concept_source" "$stage/concepts.psv" ||
+    ! install -D -m 0644 "$software_installers_source" \
+      "$stage/software-installers.psv" ||
+    ! install -D -m 0644 "$search_intents_source" "$stage/search-intents.psv" ||
+    ! install -D -m 0755 "$elephant_ready_source" "$stage/wait-for-elephant"; then
+    rm -rf -- "$stage"
+    return 1
+  fi
+  for provider in "${providers[@]}"; do
+    if ! install -D -m 0644 "$provider_source_dir/$provider" \
+      "$stage/elephant/$provider"; then
+      rm -rf -- "$stage"
+      return 1
+    fi
+  done
+  if ! install -D -m 0644 "$walker_ready_source" "$walker_ready_target"; then
+    rm -rf -- "$stage"
+    return 1
+  fi
+
+  if [[ -d $menu_runtime_dir ]]; then
+    backup=$(mktemp -d "$parent/.menu-backup.XXXXXX") || {
+      rm -rf -- "$stage"
+      return 1
+    }
+    if ! rmdir -- "$backup" ||
+      ! mv -T -- "$menu_runtime_dir" "$backup"; then
+      rm -rf -- "$stage" "$backup"
+      return 1
+    fi
+  fi
+  if ! mv -T -- "$stage" "$menu_runtime_dir"; then
+    rm -rf -- "$stage"
+    if [[ -n $backup && -d $backup ]]; then
+      mv -T -- "$backup" "$menu_runtime_dir"
+    fi
+    return 1
+  fi
+  [[ -z $backup ]] || rm -rf -- "$backup"
 
   if qvos_user_manager_is_active; then
     systemctl --user daemon-reload
   fi
-}
-
-retire_menu_runtime_file() {
-  local target=$1
-  local expected_hash=$2
-  local label=$3
-  local installed_hash
-
-  [[ ! -e $target && ! -L $target ]] && return
-  if [[ ! -f $target || -L $target || ! -O $target ]]; then
-    echo "Refusing an unsafe retired $label runtime owner: $target" >&2
-    return 1
-  fi
-  read -r installed_hash _ < <(sha256sum -- "$target")
-  [[ $installed_hash == "$expected_hash" ]] || {
-    echo "Refusing a modified retired $label runtime owner: $target" >&2
-    return 1
-  }
-  unlink -- "$target"
-}
-
-retire_menu_runtime() {
-  retire_menu_runtime_file \
-    "$retired_steam_remove_runtime" \
-    "$retired_steam_remove_hash" \
-    "Steam"
-  retire_menu_runtime_file \
-    "$retired_entities_runtime" \
-    "$retired_entities_hash" \
-    "menu catalog"
 }
 
 ensure_walker_config() {
@@ -537,13 +321,10 @@ install_provider_set() {
   if awk \
     -v start="$provider_set_start" \
     -v finish="$provider_set_end" \
-    -v legacy_start="$legacy_provider_set_start" \
-    -v legacy_finish="$legacy_provider_set_end" \
-    -v header="$provider_set_header" \
-    -v legacy_header="$legacy_provider_set_header" '
-      $0 == start || $0 == legacy_start { managed = 1; next }
-      ($0 == finish || $0 == legacy_finish) && managed { managed = 0; next }
-      !managed && ($0 == header || $0 == legacy_header) { found = 1 }
+    -v header="$provider_set_header" '
+      $0 == start { managed = 1; next }
+      $0 == finish && managed { managed = 0; next }
+      !managed && $0 == header { found = 1 }
       END { exit found ? 0 : 1 }
     ' "$walker_config"; then
     echo "Walker provider set already exists outside the qvOS-managed block: $provider_set_header" >&2
@@ -555,19 +336,11 @@ install_provider_set() {
   temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
   if ! awk \
     -v start="$provider_set_start" \
-    -v finish="$provider_set_end" \
-    -v legacy_start="$legacy_provider_set_start" \
-    -v legacy_finish="$legacy_provider_set_end" '
+    -v finish="$provider_set_end" '
       $0 == start {
         if (skipping) exit 3
         skipping = 1
         expected = finish
-        next
-      }
-      $0 == legacy_start {
-        if (skipping) exit 3
-        skipping = 1
-        expected = legacy_finish
         next
       }
       skipping && $0 == expected { skipping = 0; next }
@@ -583,38 +356,6 @@ install_provider_set() {
     printf '\n'
     cat "$provider_set_source"
   } >>"$temporary_path"
-  chmod --reference="$walker_config" "$temporary_path"
-  mv "$temporary_path" "$walker_config"
-}
-
-walker_config_theme() {
-  sed -n 's/^theme = "\([^"]*\)".*/\1/p' "$walker_config" | head -n 1
-}
-
-reconcile_walker_defaults() {
-  local temporary_path
-
-  temporary_path=$(mktemp "$walker_config.tmp.XXXXXX")
-  awk \
-    -v legacy="theme = \"$legacy_walker_theme_name\"" \
-    -v upstream='theme = "omarchy-default"' \
-    -v new="theme = \"$walker_theme_name\"" '
-      index($0, legacy) == 1 { sub(legacy, new) }
-      index($0, upstream) == 1 { sub(upstream, new) }
-      $0 == "command = \"omarchy-restart-walker\"" {
-        $0 = "command = \"qv-restart-walker\""
-      }
-      $0 == "additional_theme_location = \"~/.local/share/omarchy/default/walker/themes/\"" { next }
-      $0 == "additional_theme_location = \"~/.local/share/qvos/default/walker/themes/\"" { next }
-      { print }
-    ' "$walker_config" >"$temporary_path"
-
-  if cmp -s "$walker_config" "$temporary_path"; then
-    unlink -- "$temporary_path"
-    return
-  fi
-
-  backup_walker_config
   chmod --reference="$walker_config" "$temporary_path"
   mv "$temporary_path" "$walker_config"
 }
@@ -661,21 +402,6 @@ install_menu_theme() {
   fi
 }
 
-cleanup_legacy_menu_theme() {
-  validate_menu_paths
-  [[ $(walker_config_theme) != "$legacy_walker_theme_name" ]] || {
-    echo "Refusing to remove the active legacy qvOS menu theme." >&2
-    return 1
-  }
-  [[ -e $legacy_walker_theme_target || -L $legacy_walker_theme_target ]] ||
-    return 0
-  if menu_theme_matches "$legacy_walker_theme_target"; then
-    rm -rf -- "$legacy_walker_theme_target"
-  else
-    echo "Preserving a modified retired qvOS Walker theme: $legacy_walker_theme_target" >&2
-  fi
-}
-
 reload_active_menu_services() {
   local service
 
@@ -689,17 +415,7 @@ reload_active_menu_services() {
 }
 
 personal_extension_native() {
-  local installed_hash
-
-  [[ -f $target_path && ! -L $target_path && -O $target_path ]] || return 1
-  ! grep -Fqx "$legacy_source_line" "$target_path" || return 1
-  [[ ! -e $legacy_target_path && ! -L $legacy_target_path ]] || return 1
-
-  [[ ! -e $legacy_qvos_target_path && ! -L $legacy_qvos_target_path ]] && return
-  [[ -f $legacy_qvos_target_path && ! -L $legacy_qvos_target_path &&
-    -O $legacy_qvos_target_path ]] || return 1
-  read -r installed_hash _ < <(sha256sum -- "$legacy_qvos_target_path")
-  [[ $installed_hash != "$legacy_qvos_target_hash" ]]
+  [[ -f $target_path && ! -L $target_path && -O $target_path ]]
 }
 
 menu_providers_ready() {
@@ -715,18 +431,6 @@ menu_providers_ready() {
       return 1
     fi
   done
-  for provider in "${retired_providers[@]}"; do
-    [[ ! -e $provider_menu_dir/$provider &&
-      ! -L $provider_menu_dir/$provider ]] || return 1
-  done
-}
-
-walker_config_native() {
-  [[ $(walker_config_theme) != "omarchy-default" &&
-    $(walker_config_theme) != "$legacy_walker_theme_name" ]] &&
-    ! grep -Fqx 'command = "omarchy-restart-walker"' "$walker_config" &&
-    ! grep -Fqx 'additional_theme_location = "~/.local/share/omarchy/default/walker/themes/"' "$walker_config" &&
-    ! grep -Fqx 'additional_theme_location = "~/.local/share/qvos/default/walker/themes/"' "$walker_config"
 }
 
 menu_runtime_ready() {
@@ -734,8 +438,6 @@ menu_runtime_ready() {
     [[ -x $font_install_runtime ]] &&
     cmp -s "$terminal_action_source" "$terminal_action_runtime" &&
     [[ -x $terminal_action_runtime ]] &&
-    [[ ! -e $retired_steam_remove_runtime && ! -L $retired_steam_remove_runtime ]] &&
-    [[ ! -e $retired_entities_runtime && ! -L $retired_entities_runtime ]] &&
     cmp -s "$concept_source" "$concept_runtime" &&
     cmp -s "$software_installers_source" "$software_installers_runtime" &&
     cmp -s "$search_intents_source" "$search_intents_runtime" &&
@@ -771,20 +473,14 @@ menu_theme_matches() {
 }
 
 menu_theme_ready() {
-  menu_theme_matches "$walker_theme_target" || return 1
-  if [[ -e $legacy_walker_theme_target || -L $legacy_walker_theme_target ]] &&
-    menu_theme_matches "$legacy_walker_theme_target"; then
-    return 1
-  fi
-  return 0
+  menu_theme_matches "$walker_theme_target"
 }
 
 case $mode in
 --preflight)
   require_sources
-  validate_generated_overlay_cleanup
   validate_menu_paths
-  validate_retired_provider_links
+  validate_personal_extension
   validate_native_provider_links
   ;;
 --status)
@@ -794,25 +490,20 @@ case $mode in
     menu_providers_ready &&
     menu_runtime_ready &&
     cmp -s <(provider_set_block) "$provider_set_source" &&
-    walker_config_native &&
     menu_theme_ready
   ;;
 --install)
   require_sources
-  validate_generated_overlay_cleanup
   validate_menu_paths
-  validate_retired_provider_links
+  validate_personal_extension
   validate_native_provider_links
   install -d "$extension_dir"
-  migrate_personal_extension
-  retire_generated_menu_overlay
+  install_personal_extension
   ensure_walker_config
   install_menu_runtime
   install_menu_providers
   install_provider_set
   install_menu_theme
-  reconcile_walker_defaults
-  cleanup_legacy_menu_theme
   reload_active_menu_services
   ;;
 *)

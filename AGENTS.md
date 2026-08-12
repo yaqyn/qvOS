@@ -148,7 +148,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/browser/` owns browser policy and the local Copy URL extension;
   inherited browser defaults are retired and no browser owner seeds a Web App
 - `qvcore/menu/` owns every qvOS Elephant provider and the generated Walker
-  menu theme; inherited Elephant and Walker defaults are retired
+  menu theme; inherited Elephant and Walker defaults are retired, generated
+  menu runtime publishes as one exact native inventory, and current install
+  never scans historical menu state
 - `qvcore/config/files/nvim/` owns the minimal official Neovim seed;
   fresh install and explicit config reset copy it directly, while normal
   desktop reconciliation preserves existing Neovim configuration
