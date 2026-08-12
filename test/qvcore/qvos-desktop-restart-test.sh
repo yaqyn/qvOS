@@ -196,6 +196,13 @@ grep -Fqx 'systemctl|--user|restart|app-walker@autostart.service' "$log" ||
 if grep -Fq 'restart|elephant.service' "$log"; then
   fail "disabled Elephant service was restarted"
 fi
+if rg -n 'systemd-run|bash[[:space:]]+-c|declare[[:space:]]+-f' \
+  "$root/qvcore/desktop/restart/walker"; then
+  fail "Walker restart retained a root-to-user shell bridge"
+fi
+grep -Fq 'Walker must be restarted from the active desktop user session.' \
+  "$root/qvcore/desktop/restart/walker" ||
+  fail "Walker restart lacks a root refusal"
 printf 'ok - Walker restart stays in the active user service set\n'
 
 : >"$log"

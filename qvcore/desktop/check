@@ -161,6 +161,13 @@ rg -q '^# qv:summary=' "$root/bin/qv-restart-monitor-watch" ||
 if rg -n '\b(pkill|killall)\b' "$restart_root" --glob '!process-lib'; then
   fail "restart owner bypasses the self-safe process helper"
 fi
+if rg -n 'systemd-run|bash[[:space:]]+-c|declare[[:space:]]+-f' \
+  "$restart_root/walker"; then
+  fail "Walker restart retains a root-to-user shell bridge"
+fi
+grep -Fq 'Walker must be restarted from the active desktop user session.' \
+  "$restart_root/walker" ||
+  fail "Walker restart does not fail closed as root"
 if rg -n 'list-units|app-\*-|legacy_patterns|legacy_pattern' \
   "$restart_root/waybar" \
   "$restart_root/monitor-watch" \

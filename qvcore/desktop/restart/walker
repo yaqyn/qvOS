@@ -1,28 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-restart_services() {
-  if systemctl --user --quiet is-enabled elephant.service; then
-    systemctl --user restart elephant.service
-  fi
-  systemctl --user --quiet is-enabled app-walker@autostart.service || {
-    echo "Unable to restart Walker because its user service is not enabled." >&2
-    return 1
-  }
-  systemctl --user restart app-walker@autostart.service
-}
-
 if ((EUID == 0)); then
-  target_user=${SUDO_USER:-$(stat -c '%U' "$0")}
-  [[ -n $target_user && $target_user != "root" ]] || {
-    echo "Cannot identify the desktop user for Walker." >&2
-    exit 1
-  }
-  target_uid=$(id -u "$target_user")
-  systemd-run --quiet --wait --pipe \
-    --uid="$target_user" \
-    --setenv=XDG_RUNTIME_DIR="/run/user/$target_uid" \
-    bash -c "$(declare -f restart_services); restart_services"
-else
-  restart_services
+  echo "Walker must be restarted from the active desktop user session." >&2
+  exit 1
 fi
+
+if systemctl --user --quiet is-enabled elephant.service; then
+  systemctl --user restart elephant.service
+fi
+systemctl --user --quiet is-enabled app-walker@autostart.service || {
+  echo "Unable to restart Walker because its user service is not enabled." >&2
+  exit 1
+}
+systemctl --user restart app-walker@autostart.service

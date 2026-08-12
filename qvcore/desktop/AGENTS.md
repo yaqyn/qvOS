@@ -57,7 +57,9 @@ pre-release transient-unit convergence is retired; never enumerate random
 inherited UWSM scope or service patterns during a normal restart. Keep process
 names exact, preserve argument boundaries, treat an absent optional process as
 an idempotent success, and propagate failures from the component that must be
-restored.
+restored. Walker restarts act only through the invoking desktop user's manager
+and refuse root execution; never serialize restart logic into a shell command
+or bridge from root into a guessed user session.
 
 Lock accepts only `QVOS_LOCK_ONLY`, validates its bounded policy, starts at most
 one observed Hyprlock instance, locks 1Password only when its exact process and
