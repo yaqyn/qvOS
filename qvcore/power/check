@@ -70,6 +70,19 @@ for route in "${!route_owners[@]}"; do
   done
 done
 
+current_adapter="$root/bin/qv-powerprofiles-current"
+[[ -x $current_adapter && ! -L $current_adapter ]] ||
+  fail "qvOS-only active power-profile adapter"
+# shellcheck disable=SC2016
+grep -Fqx \
+  'exec "$QVOS_PATH/qvcore/power/profiles-current" "$@"' \
+  "$current_adapter" || fail "active power-profile adapter owner"
+rg -q '^# qv:summary=' "$current_adapter" ||
+  fail "active power-profile adapter metadata"
+[[ ! -e $root/bin/omarchy-powerprofiles-current &&
+  ! -L $root/bin/omarchy-powerprofiles-current ]] ||
+  fail "qvOS-only active power profile invents an Omarchy adapter"
+
 [[ -x $root/qvcore/power/system-power ]] || fail "system-power owner mode"
 for owner in event-rule profile-rule root-install unmount-fuse wifi-rule \
   hibernation/available hibernation/install-root hibernation/remove \
@@ -92,7 +105,7 @@ if rg -q 'cat <<EOF|tee .*99-wifi-powersave' \
   "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
   fail "installer duplicates the native Wi-Fi power rule"
 fi
-for helper in profiles-set supply-lib wifi-powersave; do
+for helper in profiles-command profiles-set supply-lib wifi-powersave; do
   grep -Fq "install_system_helper $helper" "$root/qvcore/power/root-install" ||
     fail "root helper installer omits $helper"
 done
@@ -107,6 +120,15 @@ if rg -n '\.local/share/(qvos|omarchy).*(profiles|wifi-powersave)' \
   "$root/qvcore/install/config/wifi-powersave-rules.sh"; then
   fail "installer retains a user-writable root event command"
 fi
+if rg -n '\bpowerprofilesctl\b' \
+  "$root/qvcore/menu" \
+  "$root/qvcore/install/first-run"; then
+  fail "qvOS callers bypass the PATH-safe power-profile owner"
+fi
+# shellcheck disable=SC2016
+grep -Fq 'PATH=/usr/bin:/bin "$qvos_powerprofilesctl_command" "$@"' \
+  "$root/qvcore/power/profiles-command" ||
+  fail "power-profile command does not isolate Python resolution"
 if rg -n 'omarchy-(ac-present|battery-(capacity|present|protection|remaining|remaining-time|status)|hibernation-|powerprofiles-|system-(inhibit-sleep|suspend-if-safe|reboot|shutdown)|toggle-suspend|wifi-powersave)' \
   "$root/qvcore" "$root/qvcore/config/files" \
   --glob '!**/AGENTS.md' --glob '!**/native-paths' \

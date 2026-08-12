@@ -27,7 +27,10 @@ Mains, USB-class, and wireless supplies with a validated `online` value. Test
 fixtures may
 override the power-supply root only with `QVOS_POWER_TESTING=1`. The init and
 list owners delegate to this policy or the system service without duplicating
-selection logic. `wifi-powersave` shares `supply-lib`, accepts only `auto`, `on`,
+selection logic. Every qvOS caller invokes the packaged client through
+`profiles-command`, which fixes `PATH` to the system Python locations without
+rewriting `/usr/bin/powerprofilesctl`; menu and first-run code call only native
+profile owners. `wifi-powersave` shares `supply-lib`, accepts only `auto`, `on`,
 or `off`, and updates validated wireless interfaces with the required `iw`
 base package.
 

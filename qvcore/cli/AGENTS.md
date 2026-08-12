@@ -45,7 +45,10 @@ the update owner's `--check` mode only when the live checkout is in scope.
 List every CLI-domain compatibility path in `native-paths`, sorted and unique.
 Keep every inherited `qv-*` and `omarchy-*` adapter paired with identical
 non-metadata content. Require an explicit `native-only-routes` entry for every
-unpaired qvOS capability, and reject compatibility-only commands or
+unpaired qvOS capability, and keep that structural check inside the native CLI
+regression suite so the full project run cannot miss manifest drift. Reject
+compatibility-only commands or
 `# omarchy:*` metadata. Run
-`qvcore/cli/check`, both CLI suites, the product and upstream-overlay guards,
+`env -u QVOS_PATH qvcore/cli/check`, both CLI suites, the product and
+upstream-overlay guards,
 Bash syntax and ShellCheck for changed shell, then the full qvOS suite.

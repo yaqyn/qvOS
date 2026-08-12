@@ -126,9 +126,9 @@ system_helpers_ready() {
   safe_system_directory "$target_dir" || return 1
   safe_system_directory "$system_root/usr/lib/systemd" || return 1
   safe_system_directory "$sleep_dir" || return 1
-  for helper in supply-lib profiles-set wifi-powersave; do
+  for helper in profiles-command supply-lib profiles-set wifi-powersave; do
     mode=755
-    [[ $helper != "supply-lib" ]] || mode=644
+    [[ $helper != "profiles-command" && $helper != "supply-lib" ]] || mode=644
     [[ -f $target_dir/$helper && ! -L $target_dir/$helper ]] || return 1
     [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$target_dir/$helper") == \
       "$expected_uid:$expected_gid:$mode" ]] || return 1
@@ -152,6 +152,7 @@ ensure_system_directory "$target_dir"
 ensure_system_directory "$system_root/usr/lib/systemd"
 ensure_system_directory "$sleep_dir"
 
+install_system_helper profiles-command 0644
 install_system_helper supply-lib 0644
 install_system_helper profiles-set 0755
 install_system_helper wifi-powersave 0755

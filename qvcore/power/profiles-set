@@ -8,19 +8,22 @@ set -euo pipefail
 action=${1:-autodetect}
 power_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/power/supply-lib
+# shellcheck disable=SC1091
 source "$power_root/supply-lib"
-powerprofilesctl_command=/usr/bin/powerprofilesctl
+# shellcheck source=qvcore/power/profiles-command
+qvos_powerprofilesctl_command=
+# shellcheck disable=SC1091
+source "$power_root/profiles-command"
 awk_command=/usr/bin/awk
 if [[ ${QVOS_POWER_TESTING:-} == "1" ]]; then
-  powerprofilesctl_command=$(command -v powerprofilesctl || true)
   awk_command=$(command -v awk || true)
 fi
-[[ -x $powerprofilesctl_command && -x $awk_command ]] || {
+[[ -x $qvos_powerprofilesctl_command && -x $awk_command ]] || {
   echo "Power Profiles is unavailable." >&2
   exit 1
 }
 
-mapfile -t profiles < <("$powerprofilesctl_command" list | "$awk_command" '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
+mapfile -t profiles < <(qvos_powerprofilesctl list | "$awk_command" '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
   gsub(/^[*[:space:]]+|:$/, "")
   print
 }')
@@ -68,4 +71,4 @@ has_profile "$target" || {
   echo "Required power profile is unavailable: $target" >&2
   exit 1
 }
-exec "$powerprofilesctl_command" set "$target"
+qvos_powerprofilesctl set "$target"

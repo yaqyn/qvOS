@@ -40,6 +40,7 @@ printf 'udevadm|%s\n' "$*" >>"$QVOS_TEST_POWER_EVENT_LOG"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/powerprofilesctl" <<'SCRIPT'
 #!/bin/bash
+printf 'powerprofilesctl|path|%s\n' "$PATH" >>"$QVOS_TEST_POWER_EVENT_LOG"
 case ${1:-} in
 list)
   printf '  power-saver:\n* balanced:\n  performance:\n'
@@ -71,9 +72,9 @@ run_event_owner "$root/qvcore/power/profile-rule" >/dev/null
 run_event_owner "$root/qvcore/power/wifi-rule" >/dev/null
 
 helper_root="$system_root/usr/lib/qvos/power"
-for helper in profiles-set supply-lib wifi-powersave; do
+for helper in profiles-command profiles-set supply-lib wifi-powersave; do
   mode=755
-  [[ $helper != "supply-lib" ]] || mode=644
+  [[ $helper != "profiles-command" && $helper != "supply-lib" ]] || mode=644
   [[ -f $helper_root/$helper && ! -L $helper_root/$helper ]] ||
     fail "root-owned power helper type: $helper"
   [[ $(stat -c '%u:%g:%a' -- "$helper_root/$helper") == \
@@ -178,6 +179,10 @@ PATH="$test_bin:/usr/bin" \
   "$helper_root/profiles-set" autodetect
 grep -Fqx 'powerprofilesctl|set|balanced' "$event_log" ||
   fail "root-owned profile battery policy"
+if grep '^powerprofilesctl|path|' "$event_log" |
+  grep -Fvx 'powerprofilesctl|path|/usr/bin:/bin' >/dev/null; then
+  fail "root power profile event inherited a user Python path"
+fi
 QVOS_POWER_TESTING=1 \
 QVOS_POWER_SUPPLY_ROOT="$power_root" \
 QVOS_POWER_NETWORK_ROOT="$network_root" \

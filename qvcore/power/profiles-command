@@ -1,0 +1,14 @@
+# shellcheck shell=bash
+
+qvos_powerprofilesctl_command=/usr/bin/powerprofilesctl
+if [[ ${QVOS_POWER_TESTING:-} == "1" ]]; then
+  qvos_powerprofilesctl_command=$(command -v powerprofilesctl || true)
+fi
+
+qvos_powerprofilesctl() {
+  [[ -x $qvos_powerprofilesctl_command ]] || {
+    echo "Power Profiles is unavailable." >&2
+    return 127
+  }
+  PATH=/usr/bin:/bin "$qvos_powerprofilesctl_command" "$@"
+}

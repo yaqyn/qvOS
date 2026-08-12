@@ -120,10 +120,16 @@ fi
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/powerprofilesctl" <<'SCRIPT'
 #!/bin/bash
+printf 'powerprofilesctl|path|%s\n' "$PATH" >>"$QVOS_CONTROLS_TEST_LOG"
 case $1 in
 list)
   printf '  power-saver:\n* balanced:\n'
   [[ ${QVOS_POWER_HAS_PERFORMANCE:-1} == "1" ]] && printf '  performance:\n'
+  ;;
+get)
+  [[ ${QVOS_POWER_GET_STATUS:-0} == "0" ]] ||
+    exit "$QVOS_POWER_GET_STATUS"
+  printf '%s\n' "${QVOS_POWER_CURRENT:-balanced}"
   ;;
 set)
   printf 'powerprofilesctl|set|%s\n' "$2" >>"$QVOS_CONTROLS_TEST_LOG"
@@ -318,6 +324,27 @@ if QVOS_POWER_TESTING=1 QVOS_POWER_SUPPLY_ROOT="$power_root" \
   QVOS_CONTROLS_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
     "$root/qvcore/power/profiles-set" impossible; then
   fail "power profile accepted an unavailable target"
+fi
+current_profile=$(QVOS_POWER_TESTING=1 QVOS_CONTROLS_TEST_LOG="$log" \
+  PATH="$test_bin:/usr/bin" "$root/qvcore/power/profiles-current")
+[[ $current_profile == "balanced" ]] || fail "active power profile query"
+if QVOS_POWER_TESTING=1 QVOS_POWER_CURRENT='bad profile' \
+  QVOS_CONTROLS_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/power/profiles-current" >/dev/null 2>&1; then
+  fail "active power profile accepted malformed output"
+fi
+if QVOS_POWER_TESTING=1 QVOS_POWER_GET_STATUS=1 \
+  QVOS_CONTROLS_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
+  "$root/qvcore/power/profiles-current" >/dev/null 2>&1; then
+  fail "active power profile hid a client failure"
+fi
+profile_list=$(QVOS_POWER_TESTING=1 QVOS_CONTROLS_TEST_LOG="$log" \
+  PATH="$test_bin:/usr/bin" "$root/qvcore/power/profiles-list")
+[[ $profile_list == $'performance\nbalanced\npower-saver' ]] ||
+  fail "available power profile query"
+if grep '^powerprofilesctl|path|' "$log" |
+  grep -Fvx 'powerprofilesctl|path|/usr/bin:/bin' >/dev/null; then
+  fail "power profile command inherited a user Python path"
 fi
 printf 'ok - power profiles autodetect AC safely and use explicit fallbacks\n'
 

@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# == 0)) || {
+  echo "Usage: qv powerprofiles current" >&2
+  exit 2
+}
+power_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/power/profiles-command
+# shellcheck disable=SC1091
+source "$power_root/profiles-command"
+
+current=$(qvos_powerprofilesctl get) || {
+  echo "Could not read the active power profile." >&2
+  exit 1
+}
+[[ $current =~ ^[a-zA-Z0-9-]+$ ]] || {
+  echo "Power Profiles returned an invalid active profile." >&2
+  exit 1
+}
+printf '%s\n' "$current"

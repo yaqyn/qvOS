@@ -16,6 +16,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
+QVOS_PATH="$root" "$root/qvcore/cli/check"
+
 qv_help=$("$qv_cli" --help)
 [[ $qv_help == *"qvOS command center"* ]] || fail "native help heading"
 [[ $qv_help == *"qv update"* ]] || fail "native update route"

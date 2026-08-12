@@ -375,6 +375,8 @@ Every qvOS change must leave one traceable lifecycle.
 - Hardware policy that affects boot-time input must use exact supported-device
   evidence, publish through the transactional native owner, and fail before
   writing when its required module inventory is missing or ambiguous.
+- Never patch a package-owned executable to change its interpreter or runtime
+  environment; isolate that environment at the singular qvOS command owner.
 
 ## Zero Duplication
 

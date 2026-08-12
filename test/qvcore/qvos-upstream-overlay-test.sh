@@ -259,6 +259,8 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/fast-shutdown.sh')
         ;;
+      '$OMARCHY_INSTALL/config/fix-powerprofilesctl-shebang.sh')
+        ;;
       '$OMARCHY_INSTALL/config/unmount-fuse.sh')
         ;;
       '$OMARCHY_INSTALL/config/omarchy-ai-skill.sh')

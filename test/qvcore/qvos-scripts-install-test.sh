@@ -494,9 +494,9 @@ cmp -s \
   "$root/qvcore/power/battery-protection-hwdb" \
   "$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/battery-protection-hwdb" ||
   fail "root-owned Battery Protection helper payload"
-for helper in profiles-set supply-lib wifi-powersave; do
+for helper in profiles-command profiles-set supply-lib wifi-powersave; do
   mode=755
-  [[ $helper != "supply-lib" ]] || mode=644
+  [[ $helper != "profiles-command" && $helper != "supply-lib" ]] || mode=644
   target="$QVOS_POWER_SYSTEM_ROOT/usr/lib/qvos/power/$helper"
   cmp -s "$root/qvcore/power/$helper" "$target" ||
     fail "root-owned AC-event helper payload: $helper"

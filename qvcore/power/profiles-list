@@ -5,9 +5,14 @@ set -euo pipefail
   echo "Usage: qv powerprofiles list" >&2
   exit 2
 }
-powerprofilesctl list |
-  awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
+power_root=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=qvcore/power/profiles-command
+# shellcheck disable=SC1091
+source "$power_root/profiles-command"
+
+qvos_powerprofilesctl list |
+  /usr/bin/awk '/^[[:space:]]*[* ]?[[:space:]]*[a-zA-Z0-9-]+:$/ {
     gsub(/^[*[:space:]]+|:$/, "")
     print
   }' |
-  tac
+  /usr/bin/tac

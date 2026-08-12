@@ -284,12 +284,12 @@ show_font_menu() {
 }
 
 show_setup_power_menu() {
-  profile=$(menu "Power Profile" "$(qv-powerprofiles-list)" "" "$(powerprofilesctl get)")
+  profile=$(menu "Power Profile" "$(qv-powerprofiles-list)" "" "$(qv-powerprofiles-current)")
 
   if [[ $profile == "CNCLD" || -z $profile ]]; then
     back_to show_setup_menu
   else
-    powerprofilesctl set "$profile"
+    qv-powerprofiles-set "$profile"
   fi
 }
 

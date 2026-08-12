@@ -89,6 +89,9 @@ pre-release tuning convergence is retired, so fresh installation does not
 inspect or mutate inherited filenames.
 Fresh install never grants wheel-wide passwordless timezone commands; the
 security owner retires that exact predecessor.
+Fresh install never rewrites a package-owned executable to change interpreter
+resolution. Power Profiles keeps its packaged client intact and uses the
+native PATH-safe power command owner instead.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,

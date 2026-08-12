@@ -360,6 +360,13 @@ if rg -n 'arch-mact2|linux-(ptl|t2)|apple-t2|t2fanrd|tiny-dfr|vulkan-asahi|pacma
 fi
 [[ ! -e $root/qvcore/install/config/omarchy-toggles.sh ]] ||
   fail "retired inherited toggle-state stage"
+[[ ! -e $root/qvcore/install/config/fix-powerprofilesctl-shebang.sh &&
+  ! -L $root/qvcore/install/config/fix-powerprofilesctl-shebang.sh ]] ||
+  fail "retired package-executable power-profile patch remains"
+if rg -n '/usr/bin/powerprofilesctl|fix-powerprofilesctl-shebang' \
+  "$root/qvcore/install/config"; then
+  fail "fresh install mutates the package-owned power-profile executable"
+fi
 [[ ! -e $root/qvcore/install/config/nautilus-python ]] ||
   fail "retired Nautilus configuration owner"
 [[ ! -e $root/qvcore/install/config/walker-elephant.sh ]] ||

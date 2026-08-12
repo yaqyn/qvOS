@@ -1,8 +1,8 @@
 if qv-battery-present; then
-  powerprofilesctl set balanced || true
+  qv-powerprofiles-set battery || true
 
   # Enable battery monitoring timer for low battery notifications
   systemctl --user enable --now qvos-battery-monitor.timer
 else
-  powerprofilesctl set performance || true
+  qv-powerprofiles-set ac || true
 fi
