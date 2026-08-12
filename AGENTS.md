@@ -166,6 +166,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   art, the singular system `os-release`, their safe install/migration
   lifecycles, and branding commands; the graphical wordmark and terminal
   composition are intentionally distinct
+- `qvcore/version/` derives rolling identity from the exact installed Git
+  commit through one checkout validator; the inherited root `version` file is
+  retired and snapshots consume the same native owner
 - `qvcore/config/toggles/` owns Lua toggle templates; active toggle state lives
   privately under `~/.local/state/qvos/toggles`, and the one-time reviewed
   `.conf` transition is preserved under private Hyprland state

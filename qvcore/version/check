@@ -3,11 +3,33 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 manifest="$root/qvcore/version/native-paths"
+retired_manifest="$root/qvcore/version/retired-paths"
+upstream_ref=
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
+
+if git -C "$root" show-ref --verify --quiet \
+  refs/remotes/upstream/master 2>/dev/null; then
+  upstream_ref=upstream/master
+fi
+
+mapfile -t retired_paths < <(
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
+)
+[[ $(printf '%s\n' "${retired_paths[@]}" | sort -u) == \
+  $(printf '%s\n' "${retired_paths[@]}") ]] ||
+  fail "retired version paths are not sorted and unique"
+for path in "${retired_paths[@]}"; do
+  [[ ! -e $root/$path && ! -L $root/$path ]] ||
+    fail "retired inherited version path remains: $path"
+  if [[ -n $upstream_ref ]]; then
+    git -C "$root" cat-file -e "$upstream_ref:$path" ||
+      fail "retired version path is not inherited: $path"
+  fi
+done
 
 expected_paths=$'bin/omarchy-version\nbin/omarchy-version-branch\nbin/omarchy-version-channel\nbin/omarchy-version-pkgs'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == "$expected_paths" ]] ||
@@ -15,6 +37,8 @@ expected_paths=$'bin/omarchy-version\nbin/omarchy-version-branch\nbin/omarchy-ve
 
 commands=(version version-branch version-channel version-pkgs)
 owners=(current branch channel packages)
+[[ -f $root/qvcore/version/lib && ! -L $root/qvcore/version/lib ]] ||
+  fail "missing native version checkout validator"
 for index in "${!commands[@]}"; do
   command=${commands[$index]}
   owner=${owners[$index]}
@@ -36,6 +60,14 @@ for index in "${!commands[@]}"; do
     grep -Fqx "exec \"\$QVOS_PATH/qvcore/version/$owner\" \"\$@\"" "$adapter" ||
       fail "version adapter ownership: $command"
   done
+done
+
+for owner in current branch; do
+  # shellcheck disable=SC2016
+  grep -Fqx 'source "$version_root/lib"' "$root/qvcore/version/$owner" ||
+    fail "version owner bypasses the shared checkout validator: $owner"
+  grep -Fq 'qvos_version_commit' "$root/qvcore/version/$owner" ||
+    fail "version owner bypasses shared commit validation: $owner"
 done
 
 for frontend in qv omarchy; do

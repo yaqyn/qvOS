@@ -54,9 +54,10 @@ update from the other owner; when neither proves an update, any probe failure
 fails the aggregate check closed.
 
 `snapshot`, `time-sync`, and `firmware` are native qvOS owners. Snapshot config
-names are validated; time sync verifies the service after restarting it; and
-firmware installation delegates package installation to the native package
-owner. Never invoke these mutations during source-only verification.
+names are validated and descriptions consume the singular commit-derived qvOS
+version owner; time sync verifies the service after restarting it; and firmware
+installation delegates package installation to the native package owner.
+Never invoke these mutations during source-only verification.
 
 `qvcore/migrations/run` is the update pipeline's only migration engine. It reads
 only native numeric owners, serializes runs, keeps private atomic qvOS markers,

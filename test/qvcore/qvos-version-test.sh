@@ -19,21 +19,46 @@ fail() {
 }
 
 mkdir -p "$source_root"
-printf '9.4.2\n' >"$source_root/version"
+git -C "$source_root" init -q -b OS
+printf 'fixture\n' >"$source_root/payload"
+git -C "$source_root" add payload
+git -C "$source_root" \
+  -c user.name=Fixture -c user.email=fixture@example.invalid \
+  commit -qm "Create version fixture"
+source_commit=$(git -C "$source_root" rev-parse HEAD)
+expected_version="rolling-${source_commit:0:12}"
 
-[[ $(QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/current") == "9.4.2" ]] ||
-  fail "installed version parsing"
-branch=$(QVOS_VERSION_SOURCE_ROOT="$root" "$root/qvcore/version/branch")
+[[ $(QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/current") == \
+  "$expected_version" ]] || fail "installed rolling version derivation"
+branch=$(QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/branch")
 [[ $branch == "OS" ]] || fail "source branch reporting"
 
-printf 'invalid version value\n' >"$source_root/version"
-if QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/current" >/dev/null 2>&1; then
-  fail "malformed installed version accepted"
+printf 'untracked\n' >"$source_root/untracked"
+[[ $(QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/current") == \
+  "$expected_version-dirty" ]] || fail "dirty rolling version reporting"
+rm -- "$source_root/untracked"
+
+linked_source="$test_root/linked-source"
+ln -s "$source_root" "$linked_source"
+if QVOS_VERSION_SOURCE_ROOT="$linked_source" \
+  "$root/qvcore/version/current" >/dev/null 2>&1; then
+  fail "symbolic source checkout accepted"
 fi
-rm -- "$source_root/version"
-ln -s "$root/version" "$source_root/version"
-if QVOS_VERSION_SOURCE_ROOT="$source_root" "$root/qvcore/version/current" >/dev/null 2>&1; then
-  fail "symbolic-link installed version accepted"
+mkdir "$source_root/nested"
+if QVOS_VERSION_SOURCE_ROOT="$source_root/nested" \
+  "$root/qvcore/version/current" >/dev/null 2>&1; then
+  fail "nested source checkout accepted"
+fi
+rmdir "$source_root/nested"
+empty_source="$test_root/empty-source"
+git -C "$test_root" init -q -b OS empty-source
+if QVOS_VERSION_SOURCE_ROOT="$empty_source" \
+  "$root/qvcore/version/current" >/dev/null 2>&1; then
+  fail "source checkout without a commit accepted"
+fi
+if QVOS_VERSION_SOURCE_ROOT="$empty_source" \
+  "$root/qvcore/version/branch" >/dev/null 2>&1; then
+  fail "branch accepted a source checkout without a commit"
 fi
 
 cat >"$mirrorlist" <<'EOF'
@@ -90,8 +115,6 @@ for owner in current branch channel packages; do
   fi
 done
 
-rm -- "$source_root/version"
-printf '9.4.2\n' >"$source_root/version"
 native=$(
   QVOS_PATH="$root" QVOS_VERSION_SOURCE_ROOT="$source_root" \
     "$root/bin/qv-version"
@@ -100,7 +123,7 @@ compatible=$(
   QVOS_PATH="$root" QVOS_VERSION_SOURCE_ROOT="$source_root" \
     "$root/bin/omarchy-version"
 )
-[[ $native == "$compatible" && $native == "9.4.2" ]] ||
+[[ $native == "$compatible" && $native == "$expected_version" ]] ||
   fail "version compatibility adapter parity"
 
 "$root/qvcore/version/check"

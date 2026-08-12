@@ -41,7 +41,7 @@ elif [[ $* == *"status --porcelain=v1 --untracked-files=all"* ]]; then
 elif [[ $* == *"config --get remote.origin.url"* ]]; then
   printf '%s\n' "${QVOS_TEST_ORIGIN:-https://github.com/Yaqyn-qvOS/qvOS.git}"
 else
-  exit 2
+  exec /usr/bin/git "$@"
 fi
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/gum" <<'SCRIPT'
@@ -766,13 +766,23 @@ grep -Fqx $'sudo\tfwupdmgr\tupdate' "$action_log" || fail "firmware update"
 
 snapshot_fixture="$test_root/snapshot-fixture"
 install -d "$snapshot_fixture"
-printf '1.0-test\n' >"$snapshot_fixture/version"
+git -C "$snapshot_fixture" init -q -b OS
+printf 'fixture\n' >"$snapshot_fixture/payload"
+git -C "$snapshot_fixture" add payload
+git -C "$snapshot_fixture" \
+  -c user.name=Fixture -c user.email=fixture@example.invalid \
+  commit -qm "Create snapshot fixture"
+snapshot_commit=$(git -C "$snapshot_fixture" rev-parse HEAD)
+snapshot_version="rolling-${snapshot_commit:0:12}"
 : >"$action_log"
-QVOS_PATH="$snapshot_fixture" QVOS_TEST_ACTION_LOG="$action_log" \
+QVOS_PATH="$root" QVOS_VERSION_SOURCE_ROOT="$snapshot_fixture" \
+  QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" "$root/qvcore/update/snapshot" create >/dev/null
-grep -Fqx $'sudo\tsnapper\t-c\troot\tcreate\t-c\tnumber\t-d\tqvOS 1.0-test' "$action_log" ||
+grep -Fqx $'sudo\tsnapper\t-c\troot\tcreate\t-c\tnumber\t-d\tqvOS '"$snapshot_version" \
+  "$action_log" ||
   fail "root snapshot creation"
-grep -Fqx $'sudo\tsnapper\t-c\thome\tcreate\t-c\tnumber\t-d\tqvOS 1.0-test' "$action_log" ||
+grep -Fqx $'sudo\tsnapper\t-c\thome\tcreate\t-c\tnumber\t-d\tqvOS '"$snapshot_version" \
+  "$action_log" ||
   fail "home snapshot creation"
 ! grep -Fq 'invalid name' "$action_log" || fail "invalid snapshot config filtering"
 install -d "$test_root/empty-bin"

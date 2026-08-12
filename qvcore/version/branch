@@ -1,15 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
-source_root=${QVOS_VERSION_SOURCE_ROOT:-${QVOS_PATH:-$HOME/.local/share/qvos}}
+version_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=qvcore/version/lib
+source "$version_root/lib"
+
+requested_root=${QVOS_VERSION_SOURCE_ROOT:-${QVOS_PATH:-$HOME/.local/share/qvos}}
 
 (( $# == 0 )) || {
   echo "Usage: qv version branch" >&2
   exit 2
 }
 
-git -C "$source_root" rev-parse --is-inside-work-tree 2>/dev/null | grep -Fqx true || {
-  echo "qvOS version: installed source is not a Git checkout." >&2
+source_root=$(qvos_version_source_root "$requested_root") || {
+  echo "qvOS version: installed source is not a safe Git checkout." >&2
+  exit 1
+}
+qvos_version_commit "$source_root" >/dev/null || {
+  echo "qvOS version: installed source has no valid commit." >&2
   exit 1
 }
 

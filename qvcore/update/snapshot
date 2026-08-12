@@ -17,11 +17,11 @@ command -v snapper >/dev/null 2>&1 || exit 127
 
 case $operation in
 create)
-  [[ -f $QVOS_PATH/version && ! -L $QVOS_PATH/version ]] || {
-    echo "qvOS snapshot: installed version is unavailable." >&2
+  installed_version=$("$QVOS_PATH/qvcore/version/current") || {
+    echo "qvOS snapshot: installed source identity is unavailable." >&2
     exit 1
   }
-  description="qvOS $(<"$QVOS_PATH/version")"
+  description="qvOS $installed_version"
   echo -e "\e[32mCreate system snapshot\e[0m"
   config_output=$(sudo snapper --csvout list-configs)
   mapfile -t configs < <(

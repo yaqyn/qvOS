@@ -7,15 +7,20 @@ package-channel, package-age, or Fastfetch system-state reporting.
 metadata-bearing `qv-version*` commands; matching `omarchy-version*` names are
 metadata-free compatibility adapters only.
 
-- Read the version and branch from the selected qvOS source checkout. Reject a
-  missing, symbolic-link, or malformed version file rather than presenting
-  untrusted content as product identity.
+- Validate that the selected source is a non-symbolic Git top level through
+  the shared `lib` owner. Report `rolling-<12-character-commit>` from its exact
+  commit and append `-dirty` when tracked or untracked source differs. The
+  inherited root `version` file is retired; qvOS rolling identity requires no
+  manually maintained release number. Reject an unsafe checkout, missing
+  commit, malformed object identity, or unreadable worktree state.
 - Report the configured Omarchy mirror and repository channel truthfully. qvOS
   supports Stable only, but reporting must expose mismatched, unsupported, or
   unknown configuration rather than silently relabeling it.
 - Parse only Pacman's exact `[ALPM] upgraded` records. Missing, empty, or
   malformed history reports `unknown` and remains safe for system-information
   displays.
+- Snapshot descriptions call the native version owner and never read a second
+  version source.
 - Path overrides exist for deterministic fixtures and read-only diagnostics;
   they must never mutate source, Pacman configuration, or logs.
 

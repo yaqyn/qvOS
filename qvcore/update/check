@@ -136,6 +136,11 @@ grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/qvos-update" ||
   fail "guarded wrapper source contract"
 grep -Fq 'qvcore/update/source-check' "$root/qvcore/update/update-source" ||
   fail "source updater source contract"
+grep -Fq 'qvcore/version/current' "$root/qvcore/update/snapshot" ||
+  fail "snapshot bypasses the native version owner"
+if rg -n 'QVOS_PATH/version|<.*version' "$root/qvcore/update/snapshot"; then
+  fail "snapshot retains a second version source"
+fi
 # shellcheck disable=SC2016
 grep -Fq '/source-check" "$source_path"' "$root/qvcore/update/source-available" ||
   fail "availability source contract"

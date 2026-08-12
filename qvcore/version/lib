@@ -1,0 +1,27 @@
+#!/bin/bash
+
+qvos_version_source_root() {
+  local requested=$1
+  local canonical
+  local top_level
+
+  [[ -d $requested && ! -L $requested ]] || return 1
+  canonical=$(realpath -e -- "$requested") || return 1
+  top_level=$(git -C "$canonical" rev-parse --show-toplevel 2>/dev/null) ||
+    return 1
+  top_level=$(realpath -e -- "$top_level") || return 1
+  [[ $canonical == "$top_level" ]] || return 1
+
+  printf '%s\n' "$canonical"
+}
+
+qvos_version_commit() {
+  local source_root=$1
+  local commit
+
+  commit=$(git -C "$source_root" rev-parse --verify 'HEAD^{commit}' 2>/dev/null) ||
+    return 1
+  [[ $commit =~ ^[0-9a-f]{40}$ || $commit =~ ^[0-9a-f]{64}$ ]] || return 1
+
+  printf '%s\n' "$commit"
+}
