@@ -116,6 +116,12 @@ grep -Fq 'qvcore/boot/limine/limine.conf' \
 grep -Fq 'qvcore/boot/snapper-root.conf' \
   "$root/qvcore/boot/install-limine-snapper" ||
   fail "fresh Snapper policy owner"
+grep -Fq 'disable_system_unit snapper-timeline.timer' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "Snapper timeline timer disable"
+grep -Fq 'enable_system_unit snapper-cleanup.timer' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "Snapper cleanup timer enable"
 grep -Fq 'sudo -n /usr/bin/true' "$root/qvcore/boot/install-lib" ||
   fail "ISO boot authorization is noninteractive"
 # shellcheck disable=SC2016

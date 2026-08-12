@@ -445,6 +445,10 @@ grep -Fqx $'snapper\t--no-dbus\t-c\troot\tcreate-config\t/' "$action_log" ||
   fail "empty Snapper inventory root creation"
 grep -Fqx $'btrfs\tquota\tdisable\t/' "$action_log" ||
   fail "Snapper quota performance policy"
+grep -Fqx $'systemctl\tdisable\tsnapper-timeline.timer' "$action_log" ||
+  fail "Snapper timeline timer disable"
+grep -Fqx $'systemctl\tenable\tsnapper-cleanup.timer' "$action_log" ||
+  fail "Snapper cleanup timer enable"
 grep -Fqx $'systemctl\tenable\tlimine-snapper-sync.service' "$action_log" ||
   fail "Limine snapshot service enable"
 grep -Fqx $'efibootmgr\t-b\t0007\t-B' "$action_log" ||

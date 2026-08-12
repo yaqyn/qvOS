@@ -37,6 +37,28 @@ restore_mkinitcpio_hooks() {
   return "$status"
 }
 
+enable_system_unit() {
+  local unit=$1
+
+  if declare -F chrootable_systemctl_enable >/dev/null; then
+    chrootable_systemctl_enable "$unit"
+  elif [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+    sudo systemctl enable "$unit"
+  else
+    sudo systemctl enable --now "$unit"
+  fi
+}
+
+disable_system_unit() {
+  local unit=$1
+
+  if [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
+    sudo systemctl disable "$unit"
+  else
+    sudo systemctl disable --now "$unit"
+  fi
+}
+
 cleanup() {
   local status=$?
 
@@ -381,16 +403,13 @@ install_limine() {
     "$QVOS_PATH/qvcore/boot/snapper-root.conf" \
     "$snapper_config"
 
+  disable_system_unit snapper-timeline.timer
+  enable_system_unit snapper-cleanup.timer
+
   # Full qgroup accounting makes snapshot deletion and package updates slower.
   sudo btrfs quota disable / 2>/dev/null || true
 
-  if declare -F chrootable_systemctl_enable >/dev/null; then
-    chrootable_systemctl_enable limine-snapper-sync.service
-  elif [[ -n ${OMARCHY_CHROOT_INSTALL:-} ]]; then
-    sudo systemctl enable limine-snapper-sync.service
-  else
-    sudo systemctl enable --now limine-snapper-sync.service
-  fi
+  enable_system_unit limine-snapper-sync.service
 
   restore_mkinitcpio_hooks
 
