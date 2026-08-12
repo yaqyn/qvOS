@@ -30,8 +30,10 @@ generated unit immediately. FAT permission masks are fixed for the lifetime of
 the mount: never unmount or pretend to remount the running EFI partition to
 activate them. Report that a reboot is required when the live mount still has
 the prior masks, and restore and reload the prior fstab policy if generation
-fails. Boot owners must use privileged reads for EFI payloads after this
-boundary is active.
+fails. A successful policy change retains its one private recovery file; a
+failed change removes that transaction's backup only after the prior fstab has
+been restored. Boot owners must use privileged reads for EFI payloads after
+this boundary is active.
 During the reviewed ISO chroot, persist the validated fstab policy but do not
 query the live ISO's systemd generator, apply sysctls to its shared kernel, or
 restart its services. The installed system activates those persistent defaults

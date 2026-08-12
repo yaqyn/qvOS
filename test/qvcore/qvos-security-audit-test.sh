@@ -700,6 +700,9 @@ grep -Fq 'desired_options=$(awk' "$boot_mount" ||
 grep -Fq 'restore_prior_policy' "$boot_mount" ||
   fail "EFI policy reload failure restores the prior fstab"
 # shellcheck disable=SC2016
+grep -Fq 'as_root /usr/bin/rm -f -- "$backup_file"' "$boot_mount" ||
+  fail "restored EFI policy does not retain a failed transaction backup"
+# shellcheck disable=SC2016
 grep -Fq '[[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]' "$boot_mount" ||
   fail "ISO chroot defers live mount-unit validation"
 # shellcheck disable=SC2016

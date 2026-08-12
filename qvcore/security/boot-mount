@@ -82,6 +82,8 @@ restore_prior_policy() {
   ((fstab_changed)) || return 0
   as_root /usr/bin/install -o root -g root -m 0644 "$backup_file" "$fstab"
   reload_mount_units || true
+  as_root /usr/bin/rm -f -- "$backup_file"
+  backup_file=""
 }
 
 if [[ -n $system_root && ${QVOS_SECURITY_TESTING:-} != "1" ]]; then
