@@ -36,6 +36,10 @@ delegate each selected operation once through the shared TUI.
   derived from `qvcore/branding/assets/qv-mark-light.svg` on `#d00000`; keep the
   extension free of remote code, unsafe execution primitives, and service URLs.
   Firefox and Zen share the one native `firefox-policies.json` source.
+- `install-chromium-defaults` publishes the minimal validated first-launch
+  appearance preference into Chromium's root-owned directory without following
+  links or replacing foreign state. The installer theme stage delegates to this
+  browser owner and never writes `/usr/lib/chromium` directly.
 - Fresh browser installs and Chromium refresh write only the native Copy URL
   extension path. Do not restore an inherited runtime-root migration to normal
   install, refresh, removal, or update paths.

@@ -32,6 +32,17 @@ done
 [[ -f $root/qvcore/browser/firefox-policies.json &&
   ! -L $root/qvcore/browser/firefox-policies.json ]] ||
   fail "native Firefox policy"
+[[ -x $root/qvcore/browser/install-chromium-defaults ]] ||
+  fail "native Chromium defaults owner mode"
+jq -e '
+  type == "object" and
+  .browser.theme.color_scheme == 0 and
+  .browser.theme.color_scheme2 == 0 and
+  (keys == ["browser"]) and
+  (.browser | keys == ["theme"]) and
+  (.browser.theme | keys == ["color_scheme", "color_scheme2"])
+' "$root/qvcore/browser/chromium-initial-preferences.json" >/dev/null ||
+  fail "native Chromium initial preferences"
 jq -e '
   .manifest_version == 3 and
   .name == "qvOS Copy URL" and
@@ -89,6 +100,14 @@ done
 
 grep -Fq 'qvcore/browser/setup-policy' "$root/qvcore/browser/install" ||
   fail "browser installer bypasses policy ownership"
+# shellcheck disable=SC2016
+grep -Fqx '"$QVOS_PATH/qvcore/browser/install-chromium-defaults"' \
+  "$root/qvcore/install/config/theme.sh" ||
+  fail "fresh Chromium defaults bypass their browser owner"
+if rg -n '/usr/lib/chromium/initial_preferences|sudo[[:space:]]+tee' \
+  "$root/qvcore/install/config/theme.sh"; then
+  fail "installer theme stage writes root-owned Chromium state directly"
+fi
 if rg -n 'migrate-runtime-root|retire-google-oauth' \
   "$root/qvcore/browser/install" \
   "$root/qvcore/browser/refresh-chromium" \

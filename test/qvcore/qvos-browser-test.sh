@@ -29,6 +29,10 @@ install -m 0755 "$root/bin/qv-remove-browser" "$fixture/bin/"
 install -m 0755 "$root/qvcore/browser/install" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/refresh-chromium" "$fixture/qvcore/browser/"
 install -m 0755 "$root/qvcore/browser/remove" "$fixture/qvcore/browser/"
+install -m 0755 "$root/qvcore/browser/install-chromium-defaults" \
+  "$fixture/qvcore/browser/"
+install -m 0644 "$root/qvcore/browser/chromium-initial-preferences.json" \
+  "$fixture/qvcore/browser/"
 install -m 0644 "$root/qvcore/browser/firefox-policies.json" \
   "$fixture/qvcore/browser/firefox-policies.json"
 cp -a "$root/qvcore/browser/extensions" "$fixture/qvcore/browser/"
@@ -94,6 +98,61 @@ run_browser() {
     QVOS_TEST_ACTION_LOG="$action_log" \
     "$@"
 }
+
+run_chromium_defaults() {
+  local system_root=$1
+
+  QVOS_BROWSER_TESTING=1 \
+  QVOS_BROWSER_SYSTEM_ROOT="$system_root" \
+    run_browser "$fixture/qvcore/browser/install-chromium-defaults"
+}
+
+defaults_root="$test_root/defaults-root"
+install -d "$defaults_root/usr/lib/chromium"
+run_chromium_defaults "$defaults_root"
+cmp -s \
+  "$fixture/qvcore/browser/chromium-initial-preferences.json" \
+  "$defaults_root/usr/lib/chromium/initial_preferences" ||
+  fail "native Chromium initial preferences"
+[[ $(stat -c '%a' \
+  "$defaults_root/usr/lib/chromium/initial_preferences") == "644" ]] ||
+  fail "native Chromium initial preference mode"
+defaults_state=$(stat -c '%i|%Y' \
+  "$defaults_root/usr/lib/chromium/initial_preferences")
+run_chromium_defaults "$defaults_root"
+[[ $(stat -c '%i|%Y' \
+  "$defaults_root/usr/lib/chromium/initial_preferences") == \
+  "$defaults_state" ]] || fail "idempotent Chromium initial preferences"
+
+foreign_root="$test_root/foreign-defaults-root"
+install -d "$foreign_root/usr/lib/chromium"
+printf 'administrator preferences\n' \
+  >"$foreign_root/usr/lib/chromium/initial_preferences"
+if run_chromium_defaults "$foreign_root" >/dev/null 2>&1; then
+  fail "foreign Chromium initial preferences were accepted"
+fi
+[[ $(<"$foreign_root/usr/lib/chromium/initial_preferences") == \
+  "administrator preferences" ]] ||
+  fail "foreign Chromium initial preferences were changed"
+
+linked_root="$test_root/linked-defaults-root"
+external_preferences="$test_root/external-preferences"
+install -d "$linked_root/usr/lib/chromium"
+printf 'external preferences\n' >"$external_preferences"
+ln -s "$external_preferences" \
+  "$linked_root/usr/lib/chromium/initial_preferences"
+if run_chromium_defaults "$linked_root" >/dev/null 2>&1; then
+  fail "linked Chromium initial preferences were accepted"
+fi
+[[ $(<"$external_preferences") == "external preferences" ]] ||
+  fail "linked Chromium initial preferences were followed"
+
+unsafe_root="$test_root/unsafe-defaults-root"
+install -d -m 0777 "$unsafe_root" "$unsafe_root/usr" \
+  "$unsafe_root/usr/lib" "$unsafe_root/usr/lib/chromium"
+if run_chromium_defaults "$unsafe_root" >/dev/null 2>&1; then
+  fail "unsafe Chromium system root was accepted"
+fi
 
 chromium_flags="$test_home/.config/chromium-flags.conf"
 printf '%s\n' '--custom-browser-flag' >"$chromium_flags"

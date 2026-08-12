@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+source_file="$QVOS_PATH/qvcore/browser/chromium-initial-preferences.json"
+system_root=${QVOS_BROWSER_SYSTEM_ROOT:-}
+target="$system_root/usr/lib/chromium/initial_preferences"
+expected_uid=0
+expected_gid=0
+active_staging=
+
+fail() {
+  printf 'qvOS Chromium defaults: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+[[ -f $source_file && ! -L $source_file ]] ||
+  fail "the preferences source is unavailable or unsafe"
+/usr/bin/jq -e '
+  type == "object" and
+  .browser.theme.color_scheme == 0 and
+  .browser.theme.color_scheme2 == 0 and
+  (keys == ["browser"]) and
+  (.browser | keys == ["theme"]) and
+  (.browser.theme | keys == ["color_scheme", "color_scheme2"])
+' "$source_file" >/dev/null || fail "the preferences source is invalid"
+
+if [[ -n $system_root ]]; then
+  [[ ${QVOS_BROWSER_TESTING:-} == "1" ]] ||
+    fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" ]] ||
+    fail "the test system root must be canonical and beneath /tmp"
+  [[ -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ ${QVOS_BROWSER_TESTING:-} == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+cleanup() {
+  [[ -z $active_staging ]] ||
+    as_root /usr/bin/rm -f -- "$active_staging" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+parent=${target%/*}
+if ! as_root /usr/bin/test -d "$parent" ||
+  ! as_root /usr/bin/test ! -L "$parent"; then
+  fail "the Chromium installation directory is unavailable or unsafe"
+fi
+parent_identity=$(as_root /usr/bin/stat -c '%u:%g:%a' -- "$parent")
+parent_mode=${parent_identity##*:}
+[[ ${parent_identity%:*} == "$expected_uid:$expected_gid" ]] ||
+  fail "the Chromium installation directory has unsafe ownership"
+(( (8#$parent_mode & 022) == 0 )) ||
+  fail "the Chromium installation directory is writable by other users"
+
+if as_root /usr/bin/test -e "$target" || as_root /usr/bin/test -L "$target"; then
+  if as_root /usr/bin/test -f "$target" &&
+    as_root /usr/bin/test ! -L "$target" &&
+    [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$target") == \
+      "$expected_uid:$expected_gid:644" ]] &&
+    as_root /usr/bin/cmp -s -- "$source_file" "$target"; then
+    exit 0
+  fi
+  fail "preserving an existing non-qvOS Chromium preferences file"
+fi
+
+active_staging=$(as_root /usr/bin/mktemp --tmpdir="$parent" \
+  '.initial_preferences.qvos.XXXXXX') || fail "could not stage preferences"
+as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+  "$source_file" "$active_staging" || fail "could not stage preferences"
+as_root /usr/bin/mv -n -- "$active_staging" "$target" ||
+  fail "could not publish preferences"
+if ! as_root /usr/bin/test -f "$target" ||
+  ! as_root /usr/bin/test ! -L "$target" ||
+  [[ $(as_root /usr/bin/stat -c '%u:%g:%a' -- "$target") != \
+    "$expected_uid:$expected_gid:644" ]] ||
+  ! as_root /usr/bin/cmp -s -- "$source_file" "$target"; then
+  fail "Chromium preferences publication was intercepted"
+fi
+active_staging=
