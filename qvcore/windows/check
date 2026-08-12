@@ -54,6 +54,9 @@ grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/command" ||
   fail "native Windows runtime identity"
 grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/manage" ||
   fail "native Windows install identity"
+grep -Fqx "    printf 'Categories=System;Emulator;\\n'" \
+  "$root/qvcore/windows/manage" ||
+  fail "native Windows desktop category"
 if rg -n 'omarchy-windows-vm|omarchy-windows' \
   "$root/qvcore/windows/command" \
   "$root/qvcore/windows/lib" \

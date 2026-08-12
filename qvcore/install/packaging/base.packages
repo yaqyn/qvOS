@@ -70,9 +70,12 @@ kvantum-qt5
 lazydocker
 lazygit
 less
+libgepub
+libgsf
+libopenraw
+libqalculate
 libsecret
 libyaml
-libqalculate
 localsend
 luarocks
 mako

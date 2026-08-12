@@ -216,6 +216,10 @@ remains an explicit menu action.
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 Keep `rtkit` with the PipeWire desktop runtime so audio processes retain their
 realtime scheduling path instead of silently falling back on every fresh boot.
+Keep Tumbler's `libgepub`, `libgsf`, and `libopenraw` optional libraries with
+the file-manager runtime: Tumbler ships and loads those EPUB, ODF, and RAW
+plugins, so omitting their libraries creates loader faults instead of a slimmer
+working thumbnail service.
 `qvcore/install/packaging/other.packages` is the singular ISO inventory for
 conditional hardware paths that remain verifiably signed.
 It also caches the Limine integration packages and `inotify-tools` required by

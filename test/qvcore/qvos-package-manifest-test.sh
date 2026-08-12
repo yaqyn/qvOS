@@ -52,6 +52,10 @@ grep -Fxq 'yaru-icon-theme' <<<"$base" ||
   fail "Yaru compatibility icons are missing from the base manifest"
 grep -Fxq 'rtkit' <<<"$base" ||
   fail "PipeWire realtime scheduling support is missing from the base manifest"
+for tumbler_library in libgepub libgsf libopenraw; do
+  grep -Fxq "$tumbler_library" <<<"$base" ||
+    fail "Tumbler plugin library is missing from the base manifest: $tumbler_library"
+done
 grep -Fxq 'inotify-tools' <<<"$other" ||
   fail "Limine snapshot monitoring dependency is missing from the ISO inventory"
 

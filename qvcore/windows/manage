@@ -341,7 +341,7 @@ write_desktop_file() {
     printf 'Icon=%s\n' "$icon_file"
     printf 'Terminal=false\n'
     printf 'Type=Application\n'
-    printf 'Categories=System;Virtualization;\n'
+    printf 'Categories=System;Emulator;\n'
   } >"$temporary"
   mv -f -- "$temporary" "$desktop_file"
 }

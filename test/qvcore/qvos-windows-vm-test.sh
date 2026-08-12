@@ -191,6 +191,11 @@ run_windows install --qvos-rollback-check
 run_windows install --qvos-rollback-snapshot "$rollback_state"
 install_output=$(run_windows install)
 run_windows install --qvos-rollback-seal "$rollback_state"
+windows_desktop="$test_home/.local/share/applications/windows-vm.desktop"
+desktop-file-validate "$windows_desktop" ||
+  fail "Windows desktop entry validation"
+grep -Fqx 'Categories=System;Emulator;' "$windows_desktop" ||
+  fail "Windows desktop category"
 run_windows install --qvos-post-success
 [[ $(<"$post_launch_log") == "launched" ]] ||
   fail "Windows verified-install launch owner"
