@@ -9,11 +9,11 @@ Validate repository and ref inputs before privileged work, clone the official
 `OS` branch into same-filesystem staging, verify it, and move it into place.
 The canonical installed checkout is `~/.local/share/qvos`. Preserve exactly one
 relative `~/.local/share/omarchy -> qvos` compatibility link until inherited
-paths are fully retired; reject any other object at either path. Migrate the
-old checkout atomically with `migrate-source-root` and roll back if link
-creation fails.
-Relocate the prior copied runtime tree atomically to `~/.local/lib/qvos` before
-claiming the source root; never merge runtime payloads into the Git checkout.
+paths are fully retired; reject any other object at either path. The permanent
+`source-root` owner validates the native checkout and creates only this missing
+exact link. The completed pre-release checkout and copied-runtime relocation is
+retired; historical layouts are preserved as conflicts, never adopted.
+Never merge runtime payloads into the Git checkout.
 Deploy desktop helpers only from `qvcore/desktop/runtime-paths`; source policy,
 checks, inventories, and source-only owners must never leak into the runtime.
 The desktop owner must resolve and export `QVOS_PATH` once before reading or

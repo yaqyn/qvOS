@@ -27,7 +27,7 @@ if [[ $configured_target != "$target" && $configured_target != "$compat_target" 
   echo "qvOS source reinstall only operates on $target." >&2
   exit 1
 fi
-"$(dirname -- "${BASH_SOURCE[0]}")/migrate-source-root"
+"$(dirname -- "${BASH_SOURCE[0]}")/source-root"
 if [[ ! -d $target || -L $target ]]; then
   echo "qvOS source checkout is missing or unsafe: $target" >&2
   exit 1

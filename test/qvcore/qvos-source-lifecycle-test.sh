@@ -202,58 +202,64 @@ grep -Fq 'source already exists' <<<"$existing_boot_output" ||
 [[ ! -s $sudo_log ]] || fail "existing fresh-install target privileged mutation"
 pass "fresh install validates and stages source without deleting an existing checkout"
 
-migration_home="$test_root/migration-home"
-legacy_source="$migration_home/.local/share/omarchy"
-legacy_runtime="$migration_home/.local/share/qvos"
-install -d "${legacy_source%/*}"
-git clone -q --branch OS "$remote" "$legacy_source"
-install -d "$legacy_runtime/menu"
-printf 'preserved runtime\n' >"$legacy_runtime/menu/marker"
-printf 'preserved dirty source\n' >"$legacy_source/preserved"
-HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
-[[ -d $migration_home/.local/share/qvos &&
-  -f $migration_home/.local/share/qvos/preserved ]] ||
-  fail "legacy source migration preservation"
-[[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
-  fail "legacy source migration compatibility link"
-[[ -f $migration_home/.local/lib/qvos/menu/marker ]] ||
-  fail "legacy runtime migration preservation"
-[[ ! -e $migration_home/.local/share/qvos/menu/marker ]] ||
-  fail "legacy runtime remained inside the canonical source"
-HOME="$migration_home" "$root/qvcore/install/migrate-source-root" >/dev/null
-[[ -L $legacy_source && $(readlink -- "$legacy_source") == "qvos" ]] ||
-  fail "legacy source migration idempotence"
-pass "legacy source and runtime roots migrate atomically to singular ownership"
-
 canonical_home="$test_root/canonical-home"
 canonical_source="$canonical_home/.local/share/qvos"
 install -d "${canonical_source%/*}"
 git clone -q --branch OS "$remote" "$canonical_source"
-HOME="$canonical_home" "$root/qvcore/install/migrate-source-root" >/dev/null
+HOME="$canonical_home" "$root/qvcore/install/source-root" >/dev/null
 [[ -L $canonical_home/.local/share/omarchy &&
   $(readlink -- "$canonical_home/.local/share/omarchy") == "qvos" ]] ||
   fail "canonical source compatibility repair"
+compatibility_inode=$(stat -c %i "$canonical_home/.local/share/omarchy")
+HOME="$canonical_home" "$root/qvcore/install/source-root" >/dev/null
+[[ $(stat -c %i "$canonical_home/.local/share/omarchy") == \
+  "$compatibility_inode" ]] || fail "canonical source compatibility idempotence"
+rm -- "$canonical_home/.local/share/omarchy"
+source_root_pids=()
+for _ in {1..8}; do
+  HOME="$canonical_home" "$root/qvcore/install/source-root" &
+  source_root_pids+=("$!")
+done
+for source_root_pid in "${source_root_pids[@]}"; do
+  wait "$source_root_pid"
+done
+[[ -L $canonical_home/.local/share/omarchy &&
+  $(readlink -- "$canonical_home/.local/share/omarchy") == "qvos" ]] ||
+  fail "concurrent source compatibility reconciliation"
 
 unsafe_home="$test_root/unsafe-home"
 install -d "$unsafe_home/.local/share/qvos"
-if HOME="$unsafe_home" "$root/qvcore/install/migrate-source-root" >/dev/null 2>&1; then
+if HOME="$unsafe_home" "$root/qvcore/install/source-root" >/dev/null 2>&1; then
   fail "unsafe canonical source acceptance"
 fi
 [[ ! -e $unsafe_home/.local/share/omarchy &&
   ! -L $unsafe_home/.local/share/omarchy ]] ||
   fail "unsafe canonical source compatibility mutation"
 
-conflict_home="$test_root/runtime-conflict-home"
-conflict_source="$conflict_home/.local/share/omarchy"
-install -d "$conflict_home/.local/share/qvos" "$conflict_home/.local/lib/qvos"
+conflict_home="$test_root/source-conflict-home"
+conflict_source="$conflict_home/.local/share/qvos"
+install -d "${conflict_source%/*}" "$conflict_home/.local/share/omarchy"
 git clone -q --branch OS "$remote" "$conflict_source"
-if HOME="$conflict_home" "$root/qvcore/install/migrate-source-root" >/dev/null 2>&1; then
-  fail "conflicting runtime roots acceptance"
+printf 'preserve conflict\n' >"$conflict_home/.local/share/omarchy/marker"
+if HOME="$conflict_home" "$root/qvcore/install/source-root" >/dev/null 2>&1; then
+  fail "conflicting compatibility source acceptance"
 fi
-[[ -d $conflict_source/.git && -d $conflict_home/.local/share/qvos &&
-  -d $conflict_home/.local/lib/qvos ]] ||
-  fail "conflicting runtime refusal changed installed state"
-pass "source migration repairs only verified and conflict-free roots"
+[[ -d $conflict_source/.git &&
+  $(<"$conflict_home/.local/share/omarchy/marker") == "preserve conflict" ]] ||
+  fail "conflicting compatibility source was changed"
+
+historical_home="$test_root/historical-home"
+historical_source="$historical_home/.local/share/omarchy"
+install -d "${historical_source%/*}"
+git clone -q --branch OS "$remote" "$historical_source"
+if HOME="$historical_home" "$root/qvcore/install/source-root" >/dev/null 2>&1; then
+  fail "historical source layout adoption"
+fi
+[[ -d $historical_source/.git &&
+  ! -e $historical_home/.local/share/qvos &&
+  ! -L $historical_home/.local/share/qvos ]] ||
+  fail "historical source layout changed"
+pass "source reconciliation creates only the exact missing compatibility link"
 
 config_source="$test_root/config-source"
 config_home="$test_root/config-home"

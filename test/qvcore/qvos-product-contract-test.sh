@@ -56,9 +56,10 @@ if rg -n '\.local/share/qvos/(desktop|direct|menu|power|screensaver|shell|theme|
 fi
 grep -Fq 'mkdir -p "$HOME/.local/lib/qvos"' "$root/qvcore/install/desktop" ||
   fail "native qvOS runtime root"
-grep -Fq 'runtime_root="$lib_root/qvos"' \
-  "$root/qvcore/install/migrate-source-root" ||
-  fail "legacy runtime relocation owner"
+if rg -n '(\.local/lib/qvos|(^|[[:space:]])mv[[:space:]])' \
+  "$root/qvcore/install/source-root"; then
+  fail "source compatibility owner can relocate source or runtime state"
+fi
 pass "source and generated runtime roots are singular and separate"
 
 [[ -f $root/qvcore/install/packaging/base.packages &&

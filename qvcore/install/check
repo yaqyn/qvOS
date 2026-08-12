@@ -11,12 +11,12 @@ fail() {
 }
 
 for owner in \
-  migrate-source-root \
   refresh-applications \
   reinstall \
   reinstall-configs \
   reinstall-packages \
   reinstall-source \
+  source-root \
   system-tuning; do
   [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
 done

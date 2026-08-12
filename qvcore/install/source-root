@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+share_root="$HOME/.local/share"
+canonical_source="$share_root/qvos"
+compatibility_source="$share_root/omarchy"
+
+fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+((EUID != 0)) || fail "qvOS source reconciliation must run as the desktop user, not root."
+[[ $HOME == /* && -d $HOME && ! -L $HOME && -O $HOME ]] ||
+  fail "qvOS source reconciliation requires a safe user home."
+[[ -d $HOME/.local && ! -L $HOME/.local && -O $HOME/.local ]] ||
+  fail "qvOS source reconciliation requires a safe user data directory."
+[[ -d $share_root && ! -L $share_root && -O $share_root ]] ||
+  fail "qvOS source reconciliation requires a safe user share directory."
+[[ -d $canonical_source && ! -L $canonical_source && -O $canonical_source ]] ||
+  fail "The installed qvOS source is missing, linked, or has unexpected ownership."
+[[ -d $canonical_source/.git && ! -L $canonical_source/.git ]] ||
+  fail "The installed qvOS source has no safe Git metadata."
+[[ $(git -C "$canonical_source" branch --show-current 2>/dev/null || true) == "OS" ]] ||
+  fail "The installed qvOS source is not on branch OS."
+
+if [[ -L $compatibility_source ]]; then
+  [[ $(readlink -- "$compatibility_source") == "qvos" ]] ||
+    fail "The inherited source compatibility link is unsafe."
+  exit 0
+fi
+[[ ! -e $compatibility_source ]] ||
+  fail "The inherited source path conflicts with the canonical qvOS source."
+
+if ! ln -s qvos "$compatibility_source" 2>/dev/null; then
+  [[ -L $compatibility_source &&
+    $(readlink -- "$compatibility_source") == "qvos" ]] ||
+    fail "Could not create the inherited source compatibility link."
+fi

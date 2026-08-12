@@ -325,7 +325,9 @@ Every qvOS change must leave one traceable lifecycle.
   singular native config source reconciled after install, refresh, migration,
   and update paths. Installed source
   is `~/.local/share/qvos`; retain only its exact `omarchy -> qvos` compatibility
-  link, and keep runtime payloads under `~/.local/lib/qvos`.
+  link, and keep runtime payloads under `~/.local/lib/qvos`. Permanent source
+  reconciliation creates only that missing exact link; it never adopts or
+  relocates historical source or runtime layouts.
 - New persistent state is feature-owned and private under
   `~/.local/state/qvos`. User-editable qvOS configuration is feature-owned
   under `~/.config/qvos`; completed legacy-branding backups remain private and
