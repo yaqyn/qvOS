@@ -4,9 +4,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root=$(mktemp -d)
 test_home="$test_root/home"
-legacy="$test_home/.config/omarchy/hooks"
 canonical="$test_home/.config/qvos/hooks"
-autostart="$test_home/.config/hypr/autostart.lua"
 events="$test_root/events"
 
 cleanup() {
@@ -23,49 +21,33 @@ run_reconcile() {
   HOME="$test_home" QVOS_PATH="$root" "$root/qvcore/hooks/reconcile" "$@"
 }
 
-install -d "$legacy/font-set.d" "$legacy/post-update.d" "${autostart%/*}"
-install -m 0700 /dev/stdin "$legacy/font-set" <<'SCRIPT'
+install -d "$canonical/font-set.d" "$canonical/post-update.d"
+install -m 0700 /dev/stdin "$canonical/font-set" <<'SCRIPT'
 #!/bin/bash
 printf 'main:%s\n' "$*" >>"$QVOS_HOOK_TEST_LOG"
 SCRIPT
-install -m 0700 /dev/stdin "$legacy/font-set.d/20-second" <<'SCRIPT'
+install -m 0700 /dev/stdin "$canonical/font-set.d/20-second" <<'SCRIPT'
 #!/bin/bash
 printf 'second:%s\n' "$*" >>"$QVOS_HOOK_TEST_LOG"
 SCRIPT
-install -m 0700 /dev/stdin "$legacy/font-set.d/10-first" <<'SCRIPT'
+install -m 0700 /dev/stdin "$canonical/font-set.d/10-first" <<'SCRIPT'
 #!/bin/bash
 printf 'first:%s\n' "$*" >>"$QVOS_HOOK_TEST_LOG"
 SCRIPT
-install -m 0600 /dev/stdin "$legacy/font-set.d/ignored.sample" <<'SCRIPT'
+install -m 0600 /dev/stdin "$canonical/font-set.d/ignored.sample" <<'SCRIPT'
 #!/bin/bash
 exit 99
 SCRIPT
-install -m 0700 /dev/stdin "$legacy/post-update" <<'SCRIPT'
+install -m 0700 /dev/stdin "$canonical/post-update" <<'SCRIPT'
 #!/bin/bash
 printf 'custom-update\n' >>"$QVOS_HOOK_TEST_LOG"
 SCRIPT
-install -m 0644 "$root/qvcore/install/post-update-hook" \
-  "$legacy/post-update.d/qvos-base"
-install -m 0644 "$root/qvcore/direct/post-update-hook" \
-  "$legacy/post-update.d/qvos-direct-tools"
-install -m 0644 "$root/qvcore/waybar/post-update-hook" \
-  "$legacy/post-update.d/qvos-waybar-overrides"
-printf '%s\n' \
-  'qv.autostart("sleep 2 && omarchy-hook post-boot")' \
-  'qv.autostart("qv-first-run")' >"$autostart"
 
 run_reconcile >/dev/null
-[[ -d $canonical && ! -L $canonical && ! -e $legacy ]] ||
-  fail "legacy hook tree was not adopted atomically"
+[[ -d $canonical && ! -L $canonical ]] || fail "native hook root"
 [[ $(stat -c '%a' "$canonical") == "700" ]] || fail "canonical hook root mode"
-for retired in qvos-base qvos-direct-tools qvos-waybar-overrides; do
-  [[ ! -e $canonical/post-update.d/$retired ]] ||
-    fail "former managed hook remains: $retired"
-done
 [[ -x $canonical/font-set && -x $canonical/post-update ]] ||
   fail "custom hooks were not preserved"
-grep -Fqx 'qv.autostart("sleep 2 && qv-hook post-boot")' "$autostart" ||
-  fail "post-boot route was not promoted"
 for sample in \
   battery-low.d/play-warning-sound.sample \
   font-set.d/show-font-notification.sample \
@@ -76,47 +58,7 @@ for sample in \
     fail "native hook sample was not installed: $sample"
 done
 run_reconcile --check >/dev/null
-printf 'ok - legacy custom hooks migrate without retaining qvOS system-job copies\n'
-
-sample_upgrade_home="$test_root/sample-upgrade-home"
-sample_upgrade_root="$sample_upgrade_home/.config/qvos/hooks"
-declare -A historical_samples=(
-  [battery-low.d/play-warning-sound.sample]=battery-low.d/play-warning-sound.sample
-  [font-set.d/show-font-notification.sample]=font-set.d/show-font-notification.sample
-  [post-boot.d/weather.sample]=post-boot.d/weather.sample
-  [post-update.d/show-update-notification.sample]=post-update.d/show-update-notification.sample
-  [theme-set.d/show-theme-notification.sample]=theme-set.d/show-theme-notification.sample
-)
-for sample in "${!historical_samples[@]}"; do
-  install -d "$sample_upgrade_root/${sample%/*}"
-  git -C "$root" show \
-    "a87058b4^:config/omarchy/hooks/${historical_samples[$sample]}" \
-    >"$sample_upgrade_root/$sample"
-  chmod 0600 "$sample_upgrade_root/$sample"
-done
-for old_sample in battery-low font-set post-update theme-set; do
-  git -C "$root" show \
-    "74a3797c:config/omarchy/hooks/$old_sample.sample" \
-    >"$sample_upgrade_root/$old_sample.sample"
-  chmod 0600 "$sample_upgrade_root/$old_sample.sample"
-done
-HOME="$sample_upgrade_home" QVOS_PATH="$root" \
-  "$root/qvcore/hooks/reconcile" >/dev/null
-for sample in "${!historical_samples[@]}"; do
-  cmp -s "$root/qvcore/hooks/defaults/$sample" \
-    "$sample_upgrade_root/$sample" ||
-    fail "historical hook sample upgrade: $sample"
-  [[ $(stat -c '%a' "$sample_upgrade_root/$sample") == "600" ]] ||
-    fail "upgraded hook sample mode: $sample"
-done
-for old_sample in battery-low font-set post-update theme-set; do
-  [[ ! -e $sample_upgrade_root/$old_sample.sample &&
-    ! -L $sample_upgrade_root/$old_sample.sample ]] ||
-    fail "retired top-level hook sample: $old_sample"
-done
-HOME="$sample_upgrade_home" QVOS_PATH="$root" \
-  "$root/qvcore/hooks/reconcile" --check >/dev/null
-printf 'ok - exact historical hook samples converge on native qvOS guidance\n'
+printf 'ok - native custom hooks preserve user automation and seed missing samples\n'
 
 modified_sample_home="$test_root/modified-sample-home"
 modified_sample_root="$modified_sample_home/.config/qvos/hooks"
@@ -134,31 +76,6 @@ grep -Fqx 'custom retired sample' "$modified_sample_root/post-update.sample" ||
 HOME="$modified_sample_home" QVOS_PATH="$root" \
   "$root/qvcore/hooks/reconcile" --check >/dev/null
 printf 'ok - modified hook samples remain user-owned and inert\n'
-
-retired_main_home="$test_root/retired-main-home"
-retired_main="$retired_main_home/.config/qvos/hooks/post-update"
-install -d "${retired_main%/*}"
-install -m 0755 /dev/stdin "$retired_main" <<'SCRIPT'
-#!/bin/bash
-# qvOS created post-update hook
-
-# qvOS reconcile begin
-qvos_reconcile="$HOME/.local/share/qvos/bin/omarchy-qvos-reconcile"
-if [[ -x $qvos_reconcile ]]; then
-  "$qvos_reconcile" --quiet
-elif command -v omarchy-qvos-reconcile >/dev/null 2>&1; then
-  omarchy-qvos-reconcile --quiet
-fi
-# qvOS reconcile end
-SCRIPT
-[[ $(sha256sum "$retired_main" | cut -d ' ' -f 1) == \
-  "51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc" ]] ||
-  fail "retired main hook fixture"
-HOME="$retired_main_home" QVOS_PATH="$root" \
-  "$root/qvcore/hooks/reconcile" >/dev/null
-[[ ! -e $retired_main && ! -L $retired_main ]] ||
-  fail "retired qvOS-created main post-update hook cleanup"
-printf 'ok - exact retired main hook is removed without claiming custom automation\n'
 
 : >"$events"
 HOME="$test_home" QVOS_PATH="$root" QVOS_HOOK_TEST_LOG="$events" \
@@ -207,26 +124,21 @@ fi
 grep -Fqx 'exit 0' "$installed" || fail "hook collision changed existing content"
 printf 'ok - hook installation is private, atomic, idempotent, and collision-safe\n'
 
-dual_home="$test_root/dual-home"
-install -d "$dual_home/.config/qvos/hooks" "$dual_home/.config/omarchy/hooks"
-if HOME="$dual_home" QVOS_PATH="$root" \
-  "$root/qvcore/hooks/reconcile" >/dev/null 2>&1; then
-  fail "ambiguous dual hook roots were merged"
+historical_home="$test_root/historical-home"
+historical_root="$historical_home/.config/omarchy/hooks"
+historical_hook="$historical_root/post-update.d/personal"
+install -d "${historical_hook%/*}"
+printf '%s\n' '# personal historical hook' >"$historical_hook"
+if HOME="$historical_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" --check >/dev/null 2>&1; then
+  fail "historical root satisfied native reconciliation check"
 fi
-[[ -d $dual_home/.config/qvos/hooks && -d $dual_home/.config/omarchy/hooks ]] ||
-  fail "ambiguous roots were changed"
-
-modified_home="$test_root/modified-home"
-modified_legacy="$modified_home/.config/omarchy/hooks"
-install -d "$modified_legacy/post-update.d"
-printf '%s\n' '# user modified' >"$modified_legacy/post-update.d/qvos-base"
-if HOME="$modified_home" QVOS_PATH="$root" \
-  "$root/qvcore/hooks/reconcile" >/dev/null 2>&1; then
-  fail "modified former managed hook was deleted"
-fi
-[[ -f $modified_legacy/post-update.d/qvos-base &&
-  ! -e $modified_home/.config/qvos/hooks ]] ||
-  fail "modified former managed hook was not preserved before migration"
+HOME="$historical_home" QVOS_PATH="$root" \
+  "$root/qvcore/hooks/reconcile" >/dev/null
+grep -Fqx '# personal historical hook' "$historical_hook" ||
+  fail "historical hook root was modified"
+[[ -d $historical_home/.config/qvos/hooks ]] ||
+  fail "native root was not created independently"
 
 link_home="$test_root/link-home"
 install -d "$link_home/.config/qvos"
@@ -236,4 +148,4 @@ if HOME="$link_home" QVOS_PATH="$root" \
   fail "symbolic-link hook root was accepted"
 fi
 [[ ! -e $test_root/unsafe ]] || fail "symbolic-link hook root was followed"
-printf 'ok - reconciliation fails closed on ambiguous, modified, and linked state\n'
+printf 'ok - reconciliation ignores historical roots and rejects linked native state\n'

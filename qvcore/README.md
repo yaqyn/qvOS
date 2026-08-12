@@ -25,7 +25,7 @@ qvcore/
   desktop/     Shared context, web, Hyprland, session, and restart owners.
   direct/      Verified manifest-driven direct software and updates.
   font/        Installed font discovery and transactional configuration.
-  hooks/       Private custom automation, installation, and state migration.
+  hooks/       Private custom automation, installation, and sample seeding.
   install/     Complete native qvOS installation lifecycle.
   menu/        Native qvOS menus, search, Walker, and Elephant integration.
   migrations/  Native ordered migrations and private applied-state ownership.

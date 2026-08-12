@@ -13,117 +13,34 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 source "$QVOS_PATH/qvcore/hooks/lib"
 
 defaults_root="$QVOS_PATH/qvcore/hooks/defaults"
-obsolete_catalog="$QVOS_PATH/qvcore/hooks/obsolete-managed.psv"
-sample_history_catalog="$QVOS_PATH/qvcore/hooks/sample-history.psv"
-autostart="$HOME/.config/hypr/autostart.lua"
-declare -a obsolete_targets=()
-declare -A historical_sample_hashes=()
 
-[[ -d $defaults_root && ! -L $defaults_root &&
-  -f $obsolete_catalog && ! -L $obsolete_catalog &&
-  -f $sample_history_catalog && ! -L $sample_history_catalog ]] || {
+[[ -d $defaults_root && ! -L $defaults_root ]] || {
   qvos_hooks_error "reconciliation source is incomplete"
   exit 1
 }
 
-sample_hash_pattern='^[0-9a-f]{64}( [0-9a-f]{64})*$'
-while IFS='|' read -r relative accepted extra; do
-  [[ -z $relative || $relative == \#* ]] && continue
-  [[ -n $accepted && -z ${extra:-} &&
-    $relative =~ ^[a-z0-9][a-z0-9-]*\.d/[a-z0-9][a-z0-9._-]*\.sample$ &&
-    $relative != *..* && $accepted =~ $sample_hash_pattern &&
-    -f $defaults_root/$relative && ! -L $defaults_root/$relative &&
-    -z ${historical_sample_hashes[$relative]+present} ]] || {
-    qvos_hooks_error "invalid hook-sample history row: $relative"
-    exit 1
-  }
-  historical_sample_hashes[$relative]=$accepted
-done <"$sample_history_catalog"
-
 qvos_hooks_validate_managed_path "$qvos_hooks_root"
-qvos_hooks_validate_managed_path "$qvos_hooks_legacy_root"
-
 canonical_exists=false
-legacy_exists=false
 [[ ! -e $qvos_hooks_root && ! -L $qvos_hooks_root ]] || canonical_exists=true
-[[ ! -e $qvos_hooks_legacy_root && ! -L $qvos_hooks_legacy_root ]] || legacy_exists=true
-if [[ $canonical_exists == "true" && $legacy_exists == "true" ]]; then
-  qvos_hooks_error "both canonical and legacy hook trees exist; preserving both"
-  exit 1
-fi
 if [[ $canonical_exists == "true" ]]; then
   qvos_hooks_validate_tree "$qvos_hooks_root"
 fi
-if [[ $legacy_exists == "true" ]]; then
-  qvos_hooks_validate_tree "$qvos_hooks_legacy_root"
-fi
-
-working_root=$qvos_hooks_root
-[[ $legacy_exists == "false" ]] || working_root=$qvos_hooks_legacy_root
-if [[ -d $working_root ]]; then
-  while IFS='|' read -r relative owner allowed mismatch_policy extra; do
-    [[ -z $relative || $relative == \#* ]] && continue
-    [[ -n $owner && -n $allowed && -z ${extra:-} &&
-      ($mismatch_policy == "fail" || $mismatch_policy == "preserve") &&
-      $relative =~ ^[a-z0-9][a-z0-9._/-]*$ && $relative != *..* &&
-      $owner =~ ^qvcore/[a-z0-9][a-z0-9._/-]*$ && $owner != *..* ]] || {
-      qvos_hooks_error "invalid obsolete-hook catalog row: $relative"
-      exit 1
-    }
-    target="$working_root/$relative"
-    [[ -e $target || -L $target ]] || continue
-    [[ -f $target && ! -L $target && -O $target && -f $QVOS_PATH/$owner ]] || {
-      qvos_hooks_error "unsafe obsolete managed hook: $target"
-      exit 1
-    }
-    target_hash=$(sha256sum -- "$target")
-    target_hash=${target_hash%% *}
-    owner_hash=$(sha256sum -- "$QVOS_PATH/$owner")
-    owner_hash=${owner_hash%% *}
-    if [[ $target_hash != "$owner_hash" && " $allowed " != *" $target_hash "* ]] &&
-      [[ $mismatch_policy == "preserve" ]]; then
-      continue
-    elif [[ $target_hash != "$owner_hash" && " $allowed " != *" $target_hash "* ]]; then
-      qvos_hooks_error "modified former managed hook requires review: $target"
-      exit 1
-    fi
-    obsolete_targets+=("$target")
-  done <"$obsolete_catalog"
-fi
 
 if [[ $mode == "--check" ]]; then
-  [[ $legacy_exists == "false" && $canonical_exists == "true" ]] || {
-    qvos_hooks_error "hook state has not converged on the canonical root"
-    exit 1
-  }
-  ((${#obsolete_targets[@]} == 0)) || {
-    qvos_hooks_error "obsolete managed hook copies remain"
+  [[ $canonical_exists == "true" ]] || {
+    qvos_hooks_error "native hook root is missing"
     exit 1
   }
 else
-  if [[ $legacy_exists == "true" ]]; then
-    parent=$(dirname -- "$qvos_hooks_root")
-    mkdir -p -- "$parent"
-    [[ -d $parent && ! -L $parent && -O $parent ]] || {
-      qvos_hooks_error "unsafe canonical hook parent: $parent"
-      exit 1
-    }
-    mv -T -- "$qvos_hooks_legacy_root" "$qvos_hooks_root"
-    canonical_exists=true
-  elif [[ $canonical_exists == "false" ]]; then
+  if [[ $canonical_exists == "false" ]]; then
     qvos_hooks_prepare_root
     canonical_exists=true
   fi
   chmod 0700 -- "$qvos_hooks_root"
-  for target in "${obsolete_targets[@]}"; do
-    target=${target#"$working_root"}
-    rm -f -- "$qvos_hooks_root$target"
-  done
 fi
 
 qvos_hooks_validate_tree "$qvos_hooks_root"
 while IFS= read -r -d '' sample; do
-  accepted_hashes=""
   relative=${sample#"$defaults_root/"}
   target="$qvos_hooks_root/$relative"
   qvos_hooks_validate_managed_path "$target"
@@ -132,18 +49,6 @@ while IFS= read -r -d '' sample; do
       qvos_hooks_error "unsafe sample destination: $target"
       exit 1
     }
-    if ! cmp -s "$sample" "$target"; then
-      target_hash=$(sha256sum -- "$target")
-      target_hash=${target_hash%% *}
-      accepted_hashes=${historical_sample_hashes[$relative]:-}
-      if [[ " $accepted_hashes " == *" $target_hash "* ]]; then
-        if [[ $mode == "--check" ]]; then
-          qvos_hooks_error "historical qvOS hook sample remains: $target"
-          exit 1
-        fi
-        qvos_hooks_atomic_replace "$sample" "$target" 0600
-      fi
-    fi
   elif [[ $mode == "--check" ]]; then
     qvos_hooks_error "missing qvOS hook sample: $target"
     exit 1
@@ -151,43 +56,4 @@ while IFS= read -r -d '' sample; do
     qvos_hooks_atomic_copy "$sample" "$target" 0600
   fi
 done < <(find -P "$defaults_root" -type f -print0 | LC_ALL=C sort -z)
-
-if [[ -e $autostart || -L $autostart ]]; then
-  [[ -f $autostart && ! -L $autostart && -O $autostart ]] || {
-    qvos_hooks_error "unsafe Hyprland autostart config: $autostart"
-    exit 1
-  }
-  old_line='qv.autostart("sleep 2 && omarchy-hook post-boot")'
-  new_line='qv.autostart("sleep 2 && qv-hook post-boot")'
-  old_count=$(grep -Fxc "$old_line" "$autostart" || true)
-  new_count=$(grep -Fxc "$new_line" "$autostart" || true)
-  ((old_count <= 1 && new_count <= 1)) || {
-    qvos_hooks_error "ambiguous post-boot hook invocation: $autostart"
-    exit 1
-  }
-  if ((old_count == 1)); then
-    ((new_count == 0)) || {
-      qvos_hooks_error "both old and native post-boot hooks are configured"
-      exit 1
-    }
-    [[ $mode != "--check" ]] || {
-      qvos_hooks_error "Hyprland still calls the compatibility hook route"
-      exit 1
-    }
-    temporary=$(mktemp "$(dirname -- "$autostart")/.qvos-hooks.XXXXXX")
-    if ! awk -v old="$old_line" -v new="$new_line" \
-      '$0 == old { print new; next } { print }' "$autostart" >"$temporary" ||
-      ! chmod --reference="$autostart" "$temporary" ||
-      ! mv -T -- "$temporary" "$autostart"; then
-      rm -f -- "$temporary"
-      qvos_hooks_error "could not update the post-boot hook invocation"
-      exit 1
-    fi
-  fi
-fi
-
-[[ ! -e $qvos_hooks_legacy_root && ! -L $qvos_hooks_legacy_root ]] || {
-  qvos_hooks_error "legacy hook root remains"
-  exit 1
-}
 printf 'qvOS hooks are reconciled under %s\n' "$qvos_hooks_root"

@@ -203,8 +203,9 @@ screensaver runtime. Never copy top-level logo assets or write active
 `.config/omarchy/branding` state from an install, reset, or update path.
 Custom hooks are reconciled through `qvcore/hooks/reconcile` during desktop
 installation. Never copy qvOS update jobs into the user-writable hook tree or
-restore the retired delayed Voxtype prompt; optional software remains an
-explicit menu action.
+restore the retired delayed Voxtype prompt. Current reconciliation seeds only
+missing native samples and never scans historical roots; optional software
+remains an explicit menu action.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
 Keep `rtkit` with the PipeWire desktop runtime so audio processes retain their

@@ -21,37 +21,22 @@ expected=$'bin/omarchy-hook\nbin/omarchy-hook-install'
 for owner in lib run install reconcile; do
   [[ -x $root/qvcore/hooks/$owner ]] || fail "hook owner mode: $owner"
 done
-grep -Fq 'mismatch_policy == "preserve"' "$root/qvcore/hooks/reconcile" ||
-  fail "optional obsolete-hook preservation policy"
-grep -Fq 'post-update|qvcore/install/post-update-hook|51fcd03b22bcfe385d321b82af8dd799a074be9b84e85bdb06c3dae26c9d18cc|preserve' \
-  "$root/qvcore/hooks/obsolete-managed.psv" ||
-  fail "retired qvOS main post-update hook inventory"
-for retired_sample_hash in \
-  ea6017681d7e69fa1b354f7c0e47bd0c273849a486b77319be04fba60f4d55ed \
-  36101adbfbca59033d02abb726513dd883946f839ba38c6f50231609e3f92784 \
-  55fdb5753d013f924b8258aad5cde9ed040f58d9df0a85faad6cb6dd70586b70 \
-  85de7c0a6f12ae796663c409ad198d15d20d254a1444db66e0680ab7326f826e; do
-  grep -Fq "$retired_sample_hash" "$root/qvcore/hooks/obsolete-managed.psv" ||
-    fail "retired top-level hook sample inventory: $retired_sample_hash"
+for retired_catalog in obsolete-managed.psv sample-history.psv; do
+  [[ ! -e $root/qvcore/hooks/$retired_catalog &&
+    ! -L $root/qvcore/hooks/$retired_catalog ]] ||
+    fail "retired hook convergence catalog: $retired_catalog"
 done
-for historical_sample_hash in \
-  9623f5534cd52f76a51cfbb4e8a0699a550bf7f0f5f2ff54a1c78534d907fdf1 \
-  d28090fd796b02fa799dcf7160e46ce9fc8d7a17b476ef87639d0b83a347dc37 \
-  fe37567a09046f1e4fcff9a9c74e4a036270cdf6da73dcc5cd3aa617f9a7c2ba \
-  7995adc93a0ac6cd1afcd7ed9ac6d0ff058751ce4df4594aa78855603a613815 \
-  b9d6754d95057bdb2f37595fd2f40055872118cb2f442bdc7b0b900317bac332; do
-  grep -Fq "$historical_sample_hash" "$root/qvcore/hooks/sample-history.psv" ||
-    fail "historical managed hook sample inventory: $historical_sample_hash"
-done
+if rg -n \
+  'qvos_hooks_legacy_root|obsolete-managed|sample-history|historical_sample|qvos_hooks_atomic_replace|\.config/omarchy/hooks|omarchy-hook post-boot' \
+  "$root/qvcore/hooks/lib" "$root/qvcore/hooks/reconcile"; then
+  fail "retired hook convergence engine remains"
+fi
 if rg -n -i 'omarchy' "$root/qvcore/hooks/defaults"; then
   fail "native hook samples teach inherited identity"
 fi
 # shellcheck disable=SC2016
 grep -Fq 'ln -- "$temporary" "$target"' "$root/qvcore/hooks/lib" ||
   fail "hook installation lacks an atomic no-clobber commit"
-# shellcheck disable=SC2016
-grep -Fq 'mv -T -- "$temporary" "$target"' "$root/qvcore/hooks/lib" ||
-  fail "managed hook samples lack atomic replacement"
 for route in hook hook-install; do
   native="$root/bin/qv-$route"
   compatibility="$root/bin/omarchy-$route"
@@ -100,4 +85,4 @@ fi
 [[ ! -e $root/qvcore/install/first-run/install-voxtype.hook ]] ||
   fail "obsolete delayed Voxtype prompt remains"
 
-printf 'ok - qvOS custom hooks have one preservation-safe native owner\n'
+printf 'ok - qvOS custom hooks have one native preservation-safe owner\n'

@@ -167,7 +167,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `qvcore/controls/notification/mako-core.ini` owns shared Mako policy;
   `qvcore/software/voxtype-config.toml` owns the optional Voxtype seed
 - `qvcore/hooks/` owns custom automation under `~/.config/qvos/hooks`; qvOS
-  system jobs execute from their tracked feature owners, never user copies
+  system jobs execute from their tracked feature owners, never user copies;
+  current reconciliation seeds only missing samples and never scans historical
+  hook roots or convergence catalogs
 - `qvcore/desktop/session/` owns native lock, logout, and wake behavior;
   qvOS config and menus call its `qv-system-*` routes, while exact
   `omarchy-system-*` names remain external compatibility adapters only

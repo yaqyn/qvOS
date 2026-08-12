@@ -1,7 +1,7 @@
 # qvOS Hooks Workflow
 
 Read this file completely when changing custom automation hooks, hook
-installation, hook-state migration, or a native hook consumer.
+installation, sample reconciliation, or a native hook consumer.
 
 `qvcore/hooks/` owns custom hooks under `~/.config/qvos/hooks`. Native
 consumers use `qv-hook` and `qv-hook-install`; matching `omarchy-hook*` names
@@ -15,14 +15,12 @@ are metadata-free compatibility adapters only.
   failure, and return failure truthfully after every eligible hook ran.
 - Installation is private, atomic, idempotent for identical content, uses a
   same-directory no-clobber link, and never overwrites an existing hook.
-- `reconcile` atomically adopts one safe legacy Omarchy hook tree only when the
-  canonical tree is absent, installs missing qvOS samples without overwriting
-  custom files, atomically upgrades only exact samples listed in
-  `sample-history.psv`, removes only allowlisted exact historical qvOS-managed
-  hook copies, and rewrites only the exact inherited Lua post-boot invocation.
-  Preserve modified samples as user content. An exact retired qvOS-created main
-  post-update hook may be removed, but a different main hook is personal
-  automation and must be preserved.
+- `reconcile` validates or creates the private native tree and installs only
+  missing current samples. Every existing regular user-owned sample and custom
+  hook is user content and must be preserved. Completed pre-release legacy-root
+  adoption, generated-job cleanup, historical sample upgrades, and autostart
+  rewriting are retired; current reconciliation never scans historical roots
+  or catalogs.
 - qvOS-owned post-update jobs execute directly from their feature owners.
   Never copy system behavior into the user-writable custom hook tree.
 - Native consumers decide whether a custom-hook failure is fatal. Font,
@@ -31,6 +29,6 @@ are metadata-free compatibility adapters only.
 
 Run `qvcore/hooks/check`, Bash syntax and ShellCheck, the hook, first-run,
 update, font, theme, desktop-install, migration, CLI, product, upstream-overlay,
-and full qvOS suites. On an existing installation, run the native migration,
-verify the canonical tree and exact legacy-root removal, then use read-only
-fixture hooks for runtime validation; never trigger personal hooks as a test.
+and full qvOS suites. On an existing installation, use `reconcile --check` and
+read-only fixture hooks for runtime validation; never trigger personal hooks as
+a test.
