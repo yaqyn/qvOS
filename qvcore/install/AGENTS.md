@@ -78,13 +78,15 @@ helpers, and never select a source through inherited environment. Never restore
 the retired top-level `install/` tree or route an install lifecycle through the
 source-root compatibility link.
 
-`qvcore/install/system-tuning` singularly owns the NOFILE, inotify, and
-power-key defaults under native `qvos` files. The power-key policy is an owned
-logind drop-in; never edit systemd's package-owned `logind.conf`. It installs
-tracked sources atomically, applies only the owned sysctl file, preserves exact
-native files, and rejects modified, linked, or unsafe native targets. Fresh
-qvOS does not globally disable USB autosuspend: a device-specific quirk must
-identify an affected device before changing its power behavior. Completed
+`qvcore/install/system-tuning` singularly owns the NOFILE, inotify, network-MTU,
+plocate AC-only, and power-key defaults under native `qvos` files. The power-key
+and plocate policies are owned systemd drop-ins; never edit systemd's
+package-owned configuration. It installs tracked sources atomically, applies
+only owned sysctl files, preserves exact native files, and rejects modified,
+linked, or unsafe native targets. A target-chroot install persists these
+policies without applying sysctls to the builder kernel or reloading its systemd
+manager. Fresh qvOS does not globally disable USB autosuspend: an affected
+device must be identified before changing its power behavior. Completed
 pre-release tuning convergence is retired, so fresh installation does not
 inspect or mutate inherited filenames.
 Fresh install never grants wheel-wide passwordless timezone commands; the

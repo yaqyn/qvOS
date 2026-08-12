@@ -220,10 +220,25 @@ fi
 for tuning_source in \
   qvcore/install/system/nofile.conf \
   qvcore/install/system/file-watchers.conf \
+  qvcore/install/system/network.conf \
+  qvcore/install/system/plocate-ac-only.conf \
   qvcore/install/system/power-key.conf; do
   [[ -f $root/$tuning_source && ! -L $root/$tuning_source ]] ||
     fail "native system-tuning source: $tuning_source"
 done
+for tuning_stage in \
+  'ssh-flakiness.sh|network' \
+  'plocate-ac-only.sh|plocate'; do
+  stage=${tuning_stage%%|*}
+  operation=${tuning_stage#*|}
+  expected_stage="\"\$QVOS_PATH/qvcore/install/system-tuning\" $operation"
+  grep -Fqx "$expected_stage" "$root/qvcore/install/config/$stage" ||
+    fail "system tuning stage bypasses its native owner: $stage"
+done
+if rg -n '99-sysctl\.conf|plocate-updatedb\.service\.d/ac-only\.conf' \
+  "$root/qvcore/install/config"; then
+  fail "fresh install retains generic system tuning targets"
+fi
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_INSTALL/config/power-key.sh"' \
   "$root/qvcore/install/config/run" || fail "native power-key install stage"

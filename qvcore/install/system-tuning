@@ -5,6 +5,7 @@ QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 system_root=${QVOS_INSTALL_SYSTEM_ROOT:-}
 testing=${QVOS_INSTALL_SYSTEM_TESTING:-}
 sysctl_command=${QVOS_INSTALL_SYSCTL:-/usr/bin/sysctl}
+systemctl_command=${QVOS_INSTALL_SYSTEMCTL:-/usr/bin/systemctl}
 expected_uid=0
 expected_gid=0
 installed_created=false
@@ -16,12 +17,17 @@ fail() {
 }
 
 usage() {
-  echo "Usage: qvcore/install/system-tuning <all|file-watchers|nofile|power-key>" >&2
+  echo "Usage: qvcore/install/system-tuning <all|file-watchers|network|nofile|plocate|power-key>" >&2
   exit 2
 }
 
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+
 case ${1:-} in
-all | file-watchers | nofile | power-key) operation=$1 ;;
+all | file-watchers | network | nofile | plocate | power-key) operation=$1 ;;
 *) usage ;;
 esac
 (( $# == 1 )) || usage
@@ -46,6 +52,11 @@ if [[ $sysctl_command != "/usr/bin/sysctl" ]]; then
   [[ $testing == "1" && $sysctl_command == /tmp/* &&
     -f $sysctl_command && -x $sysctl_command && ! -L $sysctl_command ]] ||
     fail "the sysctl override is unavailable or unsafe"
+fi
+if [[ $systemctl_command != "/usr/bin/systemctl" ]]; then
+  [[ $testing == "1" && $systemctl_command == /tmp/* &&
+    -f $systemctl_command && -x $systemctl_command && ! -L $systemctl_command ]] ||
+    fail "the systemctl override is unavailable or unsafe"
 fi
 
 as_root() {
@@ -198,9 +209,49 @@ install_file_watchers() {
   install_managed "$source" "$target" 0644 ||
     fail "could not install the native file-watcher policy"
   target_created=$installed_created
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+    return
+  fi
   if ! as_root "$sysctl_command" -q -p "$target"; then
     [[ $target_created == "false" ]] || remove_created "$source" "$target" 0644
     fail "could not apply the native file-watcher policy"
+  fi
+}
+
+install_network() {
+  local source="$QVOS_PATH/qvcore/install/system/network.conf"
+  local target="$system_root/etc/sysctl.d/90-qvos-network.conf"
+  local target_created=false
+
+  ensure_directory "${target%/*}"
+  install_managed "$source" "$target" 0644 ||
+    fail "could not install the native network policy"
+  target_created=$installed_created
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+    return
+  fi
+  if ! as_root "$sysctl_command" -q -p "$target"; then
+    [[ $target_created == "false" ]] || remove_created "$source" "$target" 0644
+    fail "could not apply the native network policy"
+  fi
+}
+
+install_plocate() {
+  local source="$QVOS_PATH/qvcore/install/system/plocate-ac-only.conf"
+  local target="$system_root/etc/systemd/system/plocate-updatedb.service.d/50-qvos-ac-only.conf"
+  local target_created=false
+
+  ensure_directory "${target%/*}"
+  install_managed "$source" "$target" 0644 ||
+    fail "could not install the native plocate power policy"
+  target_created=$installed_created
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" || $target_created == "false" ]]; then
+    return
+  fi
+  if ! as_root "$systemctl_command" daemon-reload; then
+    remove_created "$source" "$target" 0644
+    as_root "$systemctl_command" daemon-reload >/dev/null 2>&1 || true
+    fail "could not activate the native plocate power policy"
   fi
 }
 
@@ -216,9 +267,13 @@ case $operation in
 all)
   install_nofile
   install_file_watchers
+  install_network
+  install_plocate
   install_power_key
   ;;
 nofile) install_nofile ;;
 file-watchers) install_file_watchers ;;
+network) install_network ;;
+plocate) install_plocate ;;
 power-key) install_power_key ;;
 esac
