@@ -7,8 +7,8 @@ source "$QVOS_PATH/qvcore/boot/install-lib"
 qvos_boot_init
 
 defaults_staging=
-qvos_resume_dropin=false
-qvos_rtc_dropin=false
+limine_dropins=()
+limine_appended_tokens=()
 
 restore_mkinitcpio_hooks() {
   local active
@@ -117,23 +117,27 @@ root_file_matches() {
   sudo cmp -s -- "$source" "$target"
 }
 
-append_limine_dropins() {
-  local output=$1
+load_limine_dropins() {
   local dropin
   local dropin_dir
-  local -a dropins=()
 
   dropin_dir=$(qvos_boot_path /etc/limine-entry-tool.d)
   if sudo test -d "$dropin_dir" && ! sudo test -L "$dropin_dir"; then
-    mapfile -d '' -t dropins < <(
+    mapfile -d '' -t limine_dropins < <(
       sudo find "$dropin_dir" \
         -mindepth 1 -maxdepth 1 -type f -name '*.conf' -print0 |
         sort -z
     )
-    for dropin in "${dropins[@]}"; do
-      qvos_boot_read_file "$dropin" >>"$output"
-    done
   fi
+}
+
+append_limine_dropins() {
+  local output=$1
+  local dropin
+
+  for dropin in "${limine_dropins[@]}"; do
+    qvos_boot_read_file "$dropin" >>"$output"
+  done
 }
 
 validate_qvos_limine_dropins() {
@@ -149,7 +153,6 @@ validate_qvos_limine_dropins() {
       echo "Error: invalid native qvOS Limine resume drop-in: $path" >&2
       return 1
     }
-    qvos_resume_dropin=true
   fi
 
   path=$(qvos_boot_path /etc/limine-entry-tool.d/80-qvos-rtc-alarm.conf)
@@ -161,20 +164,49 @@ validate_qvos_limine_dropins() {
       echo "Error: invalid native qvOS Limine RTC drop-in: $path" >&2
       return 1
     }
-    qvos_rtc_dropin=true
   fi
 }
 
-qvos_limine_dropin_token() {
-  local token=$1
+collect_limine_appended_tokens() {
+  local content
+  local file
+  local line
+  local token
+  local -a tokens=()
+  local -a files=("$QVOS_PATH/qvcore/boot/limine/default.conf")
 
-  if [[ $qvos_resume_dropin == "true" ]] &&
-    { [[ $token =~ ^resume=/dev/[A-Za-z0-9._/+:-]+$ ]] ||
-      [[ $token =~ ^resume_offset=[1-9][0-9]*$ ]]; }; then
-    return 0
-  fi
-  [[ $qvos_rtc_dropin == "true" &&
-    $token == "rtc_cmos.use_acpi_alarm=1" ]]
+  files+=("${limine_dropins[@]}")
+  for file in "${files[@]}"; do
+    if [[ $file == "$QVOS_PATH/qvcore/boot/limine/default.conf" ]]; then
+      content=$(<"$file")
+    else
+      content=$(qvos_boot_read_file "$file")
+    fi
+
+    while IFS= read -r line || [[ -n $line ]]; do
+      [[ $line == 'KERNEL_CMDLINE[default]+="'*'"' ]] || continue
+      line=${line#'KERNEL_CMDLINE[default]+="'}
+      line=${line%'"'}
+      [[ -n $line && $line != *@@CMDLINE@@* ]] || continue
+      validate_limine_cmdline_embedding "$line" || continue
+
+      tokens=()
+      read -r -a tokens <<<"$line"
+      for token in "${tokens[@]}"; do
+        limine_appended_tokens+=("$token")
+      done
+    done <<<"$content"
+  done
+}
+
+limine_token_is_appended() {
+  local candidate=$1
+  local token
+
+  for token in "${limine_appended_tokens[@]}"; do
+    [[ $candidate != "$token" ]] || return 0
+  done
+  return 1
 }
 
 validate_limine_cmdline_embedding() {
@@ -192,7 +224,7 @@ sanitize_limine_cmdline() {
 
   read -r -a tokens <<<"$input"
   for token in "${tokens[@]}"; do
-    qvos_limine_dropin_token "$token" || retained+=("$token")
+    limine_token_is_appended "$token" || retained+=("$token")
   done
 
   local IFS=" "
@@ -267,7 +299,9 @@ install_limine() {
   local -a candidates
   local -a snapper_args=()
 
+  load_limine_dropins
   validate_qvos_limine_dropins
+  collect_limine_appended_tokens
 
   qvos_hooks_content=$'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
   legacy_hooks_content=${qvos_hooks_content%%$'\n'*}

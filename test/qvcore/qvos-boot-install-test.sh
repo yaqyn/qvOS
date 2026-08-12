@@ -109,7 +109,7 @@ pacman)
   if [[ ${QVOS_TEST_PACMAN_ENTRIES:-} == "1" ]]; then
     cmdline=$(
       sed -nE 's/^KERNEL_CMDLINE\[default\]\+="(.*)"$/\1/p' \
-        "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | head -n 1
+        "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | paste -sd ' ' -
     )
     printf '/+qvOS\ncmdline: %s\n' "$cmdline" \
       >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
@@ -135,7 +135,7 @@ snapper)
 limine-update)
   cmdline=$(
     sed -nE 's/^KERNEL_CMDLINE\[default\]\+="(.*)"$/\1/p' \
-      "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | head -n 1
+      "$QVOS_BOOT_TEST_ROOT/etc/default/limine" | paste -sd ' ' -
   )
   printf '/+qvOS\ncmdline: %s\n' "$cmdline" \
     >>"$QVOS_BOOT_TEST_ROOT/boot/limine.conf"
@@ -463,6 +463,20 @@ if grep -q $'^pacman\t-S\t' "$action_log"; then
 fi
 grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
   fail "unchanged Limine reconciliation lost generated entries"
+for token in \
+  'quiet' \
+  'splash' \
+  'loglevel=0' \
+  'systemd.show_status=false' \
+  'rd.udev.log_level=0' \
+  'vt.global_cursor_default=0' \
+  'extra=1' \
+  'resume=/dev/mapper/test' \
+  'resume_offset=123' \
+  'rtc_cmos.use_acpi_alarm=1'; do
+  [[ $(grep -oF "$token" "$system_root/etc/default/limine" | wc -l) == "1" ]] ||
+    fail "idempotent Limine appended token: $token"
+done
 
 printf 'KERNEL_CMDLINE[default]+=" extra=2"\n' \
   >"$system_root/etc/limine-entry-tool.d/10-extra.conf"
@@ -481,9 +495,11 @@ prepare_limine_root \
 : >"$action_log"
 QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 grep -Fqx \
-  'KERNEL_CMDLINE[default]+="root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77 quiet"' \
+  'KERNEL_CMDLINE[default]+="root=UUID=foreign-resume resume=/dev/mapper/admin resume_offset=77"' \
   "$system_root/etc/default/limine" ||
   fail "foreign base resume policy preservation"
+[[ $(grep -oF 'quiet' "$system_root/etc/default/limine" | wc -l) == "1" ]] ||
+  fail "foreign base qvOS appearance deduplication"
 
 system_root="$test_root/limine-interrupted"
 prepare_limine_root "$system_root" 'root=UUID=interrupted quiet'
@@ -503,7 +519,7 @@ install -D -m 0644 /dev/stdin \
 QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 unset QVOS_TEST_SNAPPER_EMPTY_STATUS
 grep -Fqx \
-  'KERNEL_CMDLINE[default]+="root=UUID=interrupted quiet"' \
+  'KERNEL_CMDLINE[default]+="root=UUID=interrupted"' \
   "$system_root/etc/default/limine" ||
   fail "interrupted Limine command-line recovery"
 grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
