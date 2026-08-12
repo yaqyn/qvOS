@@ -12,7 +12,7 @@ fail() {
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
   "bin/omarchy-windows-vm" ]] || fail "native Windows path inventory"
 
-for owner in command launch manage reconcile; do
+for owner in command launch manage; do
   [[ -x $root/qvcore/windows/$owner && ! -L $root/qvcore/windows/$owner ]] ||
     fail "Windows owner mode: $owner"
 done
@@ -54,14 +54,17 @@ grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/command" ||
   fail "native Windows runtime identity"
 grep -Fq 'container_name=qvos-windows' "$root/qvcore/windows/manage" ||
   fail "native Windows install identity"
-grep -Fq 'qvcore/windows/reconcile' "$root/qvcore/install/desktop" ||
-  fail "Windows identity is not reconciled during desktop installation"
-
 if rg -n 'omarchy-windows-vm|omarchy-windows' \
   "$root/qvcore/windows/command" \
+  "$root/qvcore/windows/lib" \
   "$root/qvcore/windows/launch" \
-  "$root/qvcore/windows/manage"; then
+  "$root/qvcore/windows/manage" \
+  "$root/qvcore/install/desktop"; then
   fail "active Windows owner uses a retired identity"
 fi
 
-printf 'ok - qvOS singularly owns the Windows command, container, and migration lifecycle\n'
+[[ ! -e $root/qvcore/windows/reconcile &&
+  ! -L $root/qvcore/windows/reconcile ]] ||
+  fail "pre-release Windows identity migration owner remains"
+
+printf 'ok - qvOS singularly owns the native Windows command and container lifecycle\n'

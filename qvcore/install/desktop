@@ -187,7 +187,6 @@
     qvcore/windows/lib
     qvcore/windows/manage
     qvcore/windows/launch
-    qvcore/windows/reconcile
     qvcore/tmux/qvos-tmux
     qvcore/waybar/clock.sh
     qvcore/waybar/idle-status
@@ -223,8 +222,6 @@
 
   "$QVOS_PATH/qvcore/config/toggle-state"
   "$QVOS_PATH/qvcore/config/user-services"
-
-  "$QVOS_PATH/qvcore/windows/reconcile"
 
   for feature in direct tmux; do
     feature_source="$QVOS_PATH/qvcore/$feature"

@@ -21,10 +21,9 @@ running any feature owner. Native install orchestration never propagates
 `OMARCHY_PATH`; a stale compatibility environment must not select or mix
 payloads from another source checkout.
 Windows owners run from the installed source and have no duplicate runtime tree.
-Desktop reconciliation invokes their absent-safe identity owner so validated
-existing configuration converges on the native command and container without
-recreating or discarding VM state; an unavailable Docker daemon safely defers
-that existing-system migration.
+Their completed pre-release identity migration is retired. Desktop
+reconciliation never scans or rewrites Windows user state, and active owners
+accept only the native command and `qvos-windows` container identity.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
 the final move fails. It never returns qvOS to upstream Omarchy.

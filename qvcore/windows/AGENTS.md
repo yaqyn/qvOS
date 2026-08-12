@@ -38,14 +38,10 @@ configuration, or installed runtime payloads.
   regular paths, and private `0600` credentials. Refuse extensions and
   symlinks rather than trying to interpret arbitrary YAML.
 - `qvcore/windows/lib` singularly owns that Compose parser. Active Compose and
-  Docker state use `qvos-windows`. `qvcore/windows/reconcile` is the only
-  legacy-identity migration owner: validate the full generated profile before
-  Docker, refuse conflicting containers, stage and back up both files, rename
-  an existing exact `omarchy-windows` container without recreating it, publish
-  atomically, and roll back on failure. When Docker cannot be inspected, defer
-  the identity migration without changing either file. Desktop installation
-  invokes this absent-safe reconciliation; no fresh install creates legacy
-  identity.
+  Docker state use only `qvos-windows`; any other container identity fails
+  before Docker is invoked. The completed pre-release identity transition is
+  retired, so desktop installation and normal VM commands never scan, rename,
+  back up, or recreate inherited Windows state.
 - Pass the Windows password to FreeRDP only through `/from-stdin:force`; never
   place it in arguments, output, notifications, or logs.
 - Uninstall defaults to keeping `~/.windows`. Delete it only after the explicit
@@ -57,6 +53,6 @@ configuration, or installed runtime payloads.
 List the promoted command in sorted `native-paths`. Run `qvcore/windows/check`
 and verify the form schema, private file modes, Compose allowlist, credential
 transport, display scaling, absent and installed states, both uninstall scopes,
-interrupted and completed Stop rollback, state-compatible identity migration,
-deferred and conflict paths, preserved shared files, shell checks, CLI and
-upstream-overlay guards, owner contracts, and the full qvOS suite.
+interrupted and completed Stop rollback, rejected foreign identities, preserved
+shared files, shell checks, CLI and upstream-overlay guards, owner contracts,
+and the full qvOS suite.

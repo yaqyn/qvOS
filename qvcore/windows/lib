@@ -80,7 +80,6 @@ qvos_windows_compose_value() {
 # shellcheck disable=SC2154
 qvos_windows_load_compose() {
   local repair_mode=$1
-  local allow_legacy=${2:-false}
   local compose_mode
   local version
   local ram_size
@@ -122,8 +121,7 @@ qvos_windows_load_compose() {
     return 1
   }
   qvos_windows_compose_container=${compose_lines[3]#"$container_prefix"}
-  if [[ $qvos_windows_compose_container != "$container_name" ]] &&
-    [[ $allow_legacy != "true" || $qvos_windows_compose_container != "omarchy-windows" ]]; then
+  if [[ $qvos_windows_compose_container != "$container_name" ]]; then
     echo "Refusing an unrecognized Windows VM container identity." >&2
     return 1
   fi

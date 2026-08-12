@@ -116,7 +116,6 @@ start_if_needed() {
 
 stop_windows() {
   (( $# == 0 )) || fail_usage "stop accepts no options."
-  "$QVOS_PATH/qvcore/windows/reconcile"
   qvos_windows_load_compose true
   require_command docker-compose
   echo "Stopping the Windows VM..."
@@ -128,7 +127,6 @@ status_windows() {
   local status
 
   (( $# == 0 )) || fail_usage "status accepts no options."
-  "$QVOS_PATH/qvcore/windows/reconcile"
   qvos_windows_load_compose false
   require_command docker
   docker info >/dev/null 2>&1 || {
@@ -173,7 +171,6 @@ launch_windows() {
   esac
   (( $# == 0 )) || fail_usage "launch accepts only --keep-alive."
 
-  "$QVOS_PATH/qvcore/windows/reconcile"
   qvos_windows_load_compose true
   require_command docker
   require_command docker-compose
