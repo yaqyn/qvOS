@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euo pipefail
+
+source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source_hash_owner="$source_dir/source-hash"
+go_binary=/usr/lib/go/bin/go
+output=${1:-}
+temporary=""
+
+usage() {
+  echo "Usage: qvcore/tui/build <absolute-output-path> | --check" >&2
+}
+
+cleanup() {
+  [[ -z $temporary || ! -e $temporary ]] || rm -f -- "$temporary"
+}
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+
+toolchain_ready() {
+  local mode_bits
+
+  [[ -f $go_binary && ! -L $go_binary && -x $go_binary &&
+    $(stat -c '%u' "$go_binary") == "0" ]] || return 1
+  mode_bits=$(stat -c '%a' "$go_binary") || return 1
+  (( (8#$mode_bits & 022) == 0 ))
+}
+
+toolchain_ready || {
+  echo "Building qvos-tui requires the base-owned Go toolchain." >&2
+  exit 1
+}
+[[ -x $source_hash_owner && ! -L $source_hash_owner ]] || {
+  echo "The qvOS TUI source-hash owner is unavailable." >&2
+  exit 1
+}
+
+if [[ $output == "--check" ]]; then
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  "$source_hash_owner" "$source_dir" >/dev/null
+  exit 0
+fi
+(( $# == 1 )) && [[ $output == /* ]] || {
+  usage
+  exit 2
+}
+
+output_parent=${output%/*}
+[[ -d $output_parent && ! -L $output_parent && -O $output_parent ]] || {
+  echo "Unsafe qvOS TUI output directory: $output_parent" >&2
+  exit 1
+}
+if [[ -e $output || -L $output ]]; then
+  [[ -f $output && ! -L $output && -O $output ]] || {
+    echo "Refusing unsafe qvOS TUI output: $output" >&2
+    exit 1
+  }
+fi
+
+source_digest=$("$source_hash_owner" "$source_dir")
+temporary=$(mktemp "$output_parent/.qvos-tui.XXXXXX")
+(
+  cd "$source_dir"
+  env \
+    CGO_ENABLED=0 \
+    GO111MODULE=on \
+    GOAMD64=v1 \
+    GOARCH=amd64 \
+    GOENV=off \
+    GOEXPERIMENT= \
+    GOFLAGS= \
+    GOINSECURE= \
+    GONOPROXY= \
+    GONOSUMDB= \
+    GOOS=linux \
+    GOPRIVATE= \
+    GOPROXY=https://proxy.golang.org,direct \
+    GOROOT=/usr/lib/go \
+    GOSUMDB=sum.golang.org \
+    GOTELEMETRY=off \
+    GOTOOLCHAIN=local \
+    GOWORK=off \
+    "$go_binary" build \
+      -buildvcs=false \
+      -trimpath \
+      -ldflags="-s -w -X main.buildSourceHash=$source_digest" \
+      -o "$temporary" \
+      .
+)
+chmod 0755 -- "$temporary"
+[[ $("$temporary" --source-hash 2>/dev/null) == "$source_digest" ]] || {
+  echo "The built qvOS TUI does not match its source." >&2
+  exit 1
+}
+mv -fT -- "$temporary" "$output"
+temporary=""

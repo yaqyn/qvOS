@@ -482,7 +482,9 @@ fi
   fail "release ISO ships a duplicate installer"
 grep -Fq 'unexpected source digest' "$builder" ||
   fail "release ISO does not verify the built TUI"
-grep -Fq -- '-buildvcs=false' "$builder" ||
+grep -Fq '"$qvos_tui_source/build"' "$builder" ||
+  fail "release ISO bypasses the shared TUI build owner"
+grep -Fq -- '-buildvcs=false' "$root/qvcore/tui/build" ||
   fail "release ISO TUI build includes ambient VCS state"
 grep -Fq 'release/iso/source-permissions' "$builder" ||
   fail "release ISO bypasses tracked executable modes"

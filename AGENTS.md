@@ -251,6 +251,11 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - qvOS-managed installed runtime command trees expose only native names;
   retired Omarchy runtime aliases remain absent, and thin source adapters are
   the bounded external compatibility surface
+- `qvcore/tui/` publishes its binary and complete adapter payload as one
+  serialized atomic runtime. The exact source digest validates both managed
+  builds and the root-owned ISO fallback. The signed Arch `go` package is a
+  qvOS base dependency solely so a source update can rebuild a changed TUI;
+  it is not an optional Development-stack dependency
 - desktop application, browser, web-app, and terminal launching belongs to
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;

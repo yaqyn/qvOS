@@ -143,8 +143,10 @@ a thin adapter to this owner.
   `profiledef.sh` entries from the embedded Git tree's tracked `100755` modes;
   never maintain a second executable inventory. Reject an artifact unless the
   embedded worktree is clean with file-mode checking enabled.
-- Build the ISO TUI with the exact digest from `qvcore/tui/source-hash` and verify
-  the embedded binary reports that digest, never `unmanaged`. Disable and
+- Build the ISO TUI only through `qvcore/tui/build`, with the exact digest from
+  `qvcore/tui/source-hash`, and verify the embedded binary reports that digest,
+  never `unmanaged`. Do not duplicate compiler flags or inherit ambient Go
+  configuration in the ISO owner. Disable and
   remove clone reflogs before image assembly so transient builder identity is
   absent; retain the usable `OS` branch, `origin/OS` tracking, canonical public
   update URL, and clean Git worktree. The TUI is the singular installer: an

@@ -89,6 +89,7 @@ pass "qvOS resolves singular native package manifests"
 grep -qx 'chromium' "$base_packages" || fail "Chromium package contract"
 grep -qx 'alacritty' "$base_packages" || fail "Alacritty package contract"
 grep -qx 'neovim' "$base_packages" || fail "Neovim package contract"
+grep -qx 'go' "$base_packages" || fail "qvOS TUI rebuild package contract"
 for official_menu_package in \
   elephant \
   elephant-calc \
@@ -725,19 +726,29 @@ if rg -q "(^|[[:space:]\"'])/archiso(/|[[:space:]\"']|$)|omarchy-iso" \
   "$iso_build" "$iso_builder"; then
   fail "qvOS ISO executes an external distribution builder"
 fi
-grep -Fq -- '-buildvcs=false' "$iso_builder" ||
-  fail "qvOS ISO reproducible TUI build"
+[[ -x $root/qvcore/tui/build ]] || fail "qvOS TUI build owner mode"
+grep -Fq -- '-buildvcs=false' "$root/qvcore/tui/build" ||
+  fail "qvOS reproducible TUI build"
 [[ -x $root/qvcore/tui/source-hash ]] || fail "qvOS TUI source-hash owner mode"
 [[ $("$root/qvcore/tui/source-hash" "$root/qvcore/tui") =~ ^[0-9a-f]{64}$ ]] ||
   fail "qvOS TUI source-hash owner output"
 grep -Fq '"$source_dir/source-hash" "$source_dir"' "$root/qvcore/tui/install" ||
   fail "qvOS TUI installer source-hash ownership"
+grep -Fq 'system_binary_ready' "$root/qvcore/tui/install" ||
+  fail "qvOS TUI root-owned ISO fallback verification"
+grep -Fq 'publication_pending=true' "$root/qvcore/tui/install" ||
+  fail "qvOS TUI atomic runtime publication"
+grep -Fq 'mv --exchange --no-copy -T -- "$stage" "$runtime_dir"' \
+  "$root/qvcore/tui/install" || fail "qvOS TUI atomic directory exchange"
+grep -Fq '"$source_dir/build" "$stage/qvos-tui"' "$root/qvcore/tui/install" ||
+  fail "qvOS TUI installer delegates to its build owner"
 grep -Fq 'qvos_tui_source_hash=$("$qvos_tui_source/source-hash" "$qvos_tui_source")' \
   "$iso_builder" ||
   fail "qvOS ISO TUI source-hash ownership"
-grep -Fq -- '-X main.buildSourceHash=$qvos_tui_source_hash' \
-  "$iso_builder" ||
-  fail "qvOS ISO TUI source provenance"
+grep -Fq '"$qvos_tui_source/build"' "$iso_builder" ||
+  fail "qvOS ISO delegates to the shared TUI build owner"
+grep -Fq -- '-X main.buildSourceHash=$source_digest' \
+  "$root/qvcore/tui/build" || fail "qvOS TUI source provenance"
 grep -Fq 'unexpected source digest' "$iso_builder" ||
   fail "qvOS ISO verifies its built TUI provenance"
 grep -Fq 'safe.directory="$build_cache_dir/airootfs/root/qvos"' \

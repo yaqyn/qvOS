@@ -167,6 +167,7 @@
     qvcore/thunar/share
     qvcore/thunar/transcode
     qvcore/tui/install
+    qvcore/tui/build
     qvcore/tui/launch
     qvcore/tui/owner-resolver
     qvcore/tui/selection-owner

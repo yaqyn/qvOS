@@ -25,8 +25,12 @@ install -d "$test_bin"
 
 # Product wrapper: preflight and confirmation must happen before one delegation.
 live="$test_root/live"
-install -d "$live/qvcore/update"
+install -d "$live/qvcore/tui" "$live/qvcore/update"
 install -m 0755 "$root/qvcore/update/source-check" "$live/qvcore/update/source-check"
+install -m 0755 /dev/stdin "$live/qvcore/tui/build" <<'SCRIPT'
+#!/bin/bash
+[[ ${1:-} == "--check" ]]
+SCRIPT
 install -m 0755 /dev/stdin "$live/qvcore/update/run" <<'SCRIPT'
 #!/bin/bash
 printf 'run\t%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
@@ -136,6 +140,31 @@ set -e
 (( failed_status == 7 )) || fail "update failure propagation"
 ! grep -Fq 'qvOS update is complete.' <<<"$failed_output" ||
   fail "false completion after update failure"
+
+missing_builder_live="$test_root/missing-builder-live"
+cp -a "$live" "$missing_builder_live"
+install -m 0755 /dev/stdin "$missing_builder_live/qvcore/tui/build" <<'SCRIPT'
+#!/bin/bash
+echo "Building qvos-tui requires the base-owned Go toolchain." >&2
+exit 1
+SCRIPT
+: >"$action_log"
+set +e
+missing_builder_output=$(
+  HOME="$test_root/home" \
+    QVOS_PATH="$missing_builder_live" \
+    QVOS_TEST_ACTION_LOG="$action_log" \
+    PATH="$test_bin:/usr/bin" \
+    "$root/qvcore/update/qvos-update" -y 2>&1
+)
+missing_builder_status=$?
+set -e
+(( missing_builder_status == 1 )) || fail "missing TUI builder preflight status"
+grep -Fq 'base-owned Go toolchain' <<<"$missing_builder_output" ||
+  fail "missing TUI builder preflight error"
+grep -Fq 'cannot verify the native TUI build path' <<<"$missing_builder_output" ||
+  fail "missing TUI builder owner error"
+[[ ! -s $action_log ]] || fail "missing TUI builder entered the update engine"
 pass "qvOS preflights, confirms, and delegates exactly once"
 
 # Native and inherited adapters must share the same singular owner.

@@ -289,6 +289,10 @@ missing native samples and never scans historical roots; optional software
 remains an explicit menu action.
 
 `qvcore/install/packaging/base.packages` is the singular installed base manifest.
+Keep the signed Arch `go` package as the native TUI's source-update build
+dependency. It is base-owned because every installation must be able to
+reconcile a changed product interface after a Git fast-forward; do not move it
+into the optional Development stack or silently retain a stale ISO binary.
 Keep `rtkit` with the PipeWire desktop runtime so audio processes retain their
 realtime scheduling path instead of silently falling back on every fresh boot.
 Keep Tumbler's `libgepub`, `libgsf`, and `libopenraw` optional libraries with

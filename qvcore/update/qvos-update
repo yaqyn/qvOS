@@ -29,6 +29,11 @@ preflight() {
     echo "qvOS update cannot find its update engine." >&2
     return 1
   fi
+  if [[ ! -x $QVOS_PATH/qvcore/tui/build ]] ||
+    ! "$QVOS_PATH/qvcore/tui/build" --check; then
+    echo "qvOS update cannot verify the native TUI build path." >&2
+    return 1
+  fi
 }
 
 if [[ $mode == "interactive" ]]; then

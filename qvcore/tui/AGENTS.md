@@ -62,7 +62,10 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   `~/.local/lib/qvos/tui`. Every desktop launch route uses that payload;
   runtime adapters may resolve delegated owners from `QVOS_PATH`, but never
   mix a current binary with presentation or cancellation adapters from the
-  live qvOS checkout.
+  live qvOS checkout. Stage and validate the complete inventory before one
+  serialized same-filesystem directory exchange; a failed build, stale
+  fallback, interrupted publication, or command-link failure must leave a
+  complete valid runtime and roll back when publication validation fails.
 - Owner contracts recursively hash exact repository dependencies referenced
   through the native `QVOS_PATH` root. The compatibility environment is not a
   source authority.
@@ -73,6 +76,16 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
 - `qvcore/tui/source-hash` is the single owner for binary source provenance.
   Every local, live, and ISO build embeds its output in `buildSourceHash`, and
   verification rejects `unmanaged` or any value that differs from that owner.
+  A fresh installed system may execute the root-owned ISO binary only while
+  its exact digest matches and no managed runtime shadows it. Source updates
+  rebuild a changed binary with the base-owned signed Arch Go toolchain and
+  atomically promote the result with its matching adapters.
+- `qvcore/tui/build` is the singular local and ISO compiler owner. Use the
+  root-owned Arch toolchain with a fixed GOROOT, local toolchain selection,
+  disabled ambient Go workspace/config/experiments/flags, portable amd64
+  output, standard public proxy/checksum verification, and the caller's
+  persistent module/build caches. Never duplicate a `go build` command or
+  inherit Mise and shell-specific build or module-trust policy.
 - Keep private installer schema and builder names qvOS/ISO-owned. Omarchy may
   appear only in package-provider ABI, provenance, or qvsync review records;
   never use it as the identity of qvOS Go types or functions.
@@ -80,9 +93,11 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   including Gum before the native installer handoff. Keep that schema and its
   regression test aligned; never make the ISO shell install a presentation
   dependency in a hidden target transaction.
-- `qvcore/tui/install` removes only owner-matching build temporaries older than
-  one hour and older than the managed target. Preserve recent files that may
-  belong to a concurrent build.
+- `qvcore/tui/install` serializes publication with its private user-owned lock
+  and replaces the complete runtime inventory. Never preserve build debris or
+  untracked files inside the published tree; interrupted stages and superseded
+  backups live beside it only for the bounded transaction and are cleaned or
+  restored by the owner.
 
 ## Durable UX Contract
 

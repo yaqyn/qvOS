@@ -37,7 +37,14 @@ adapters, task catalogs, presenters, and success guidance under
 `~/.local/lib/qvos/tui`. Desktop routes execute that checked runtime payload,
 while adapters resolve only their delegated mutation owners from the active
 `QVOS_PATH`. This prevents a current binary from calling stale cancellation or
-presentation adapters in the live qvOS checkout.
+presentation adapters in the live qvOS checkout. The complete inventory is
+staged, source-digest checked, and atomically exchanged under one install lock.
+A fresh install may keep using its matching root-owned ISO binary without a
+duplicate user copy; when source changes, the base-owned Arch Go toolchain
+builds and promotes one matching managed binary with the same transaction.
+`build` owns the reproducible compiler environment for both that path and the
+ISO, so user-level Mise, Go workspace, flags, experiments, and toolchain
+selection cannot change the product binary.
 
 Domain packages under `qvcore/tui/<action>/` provide copy, milestones, preflight,
 verification, and one delegation to the real owner. They do not render screens

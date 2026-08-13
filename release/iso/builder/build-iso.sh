@@ -186,15 +186,8 @@ mkdir -p \
   "$GOMODCACHE" \
   "$GOCACHE" \
   "$build_cache_dir/airootfs/usr/local/bin"
-(
-  cd "$qvos_tui_source"
-  go build \
-    -buildvcs=false \
-    -trimpath \
-    -ldflags="-s -w -X main.buildSourceHash=$qvos_tui_source_hash" \
-    -o "$build_cache_dir/airootfs/usr/local/bin/qvos-tui" \
-    .
-)
+"$qvos_tui_source/build" \
+  "$build_cache_dir/airootfs/usr/local/bin/qvos-tui"
 [[ $("$build_cache_dir/airootfs/usr/local/bin/qvos-tui" --source-hash) == \
   "$qvos_tui_source_hash" ]] || {
   echo "The staged qvOS TUI has an unexpected source digest." >&2

@@ -19,8 +19,6 @@ export QVOS_CONTROLS_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_CONTROLS_DESKTOP_USER
 QVOS_CONTROLS_DESKTOP_USER=$(id -un)
 export XDG_STATE_HOME="$test_root/.local/state"
-export GOCACHE=${GOCACHE:-$(go env GOCACHE)}
-export GOMODCACHE=${GOMODCACHE:-$(go env GOMODCACHE)}
 
 install -d \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc" \
@@ -130,6 +128,11 @@ fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
+
+"$root/qvcore/tui/build" --check ||
+  fail "base-owned Go toolchain is unavailable"
+export GOCACHE=${GOCACHE:-$test_root/go-build-cache}
+export GOMODCACHE=${GOMODCACHE:-$HOME/.cache/go-mod}
 
 if HOME="$test_root/invalid-chroot-home" \
   QVOS_PATH="$root" \
@@ -252,8 +255,10 @@ fi
 for config_name in alacritty.toml foot.ini ghostty.conf; do
   cmp -s \
     "$root/qvcore/screensaver/$config_name" \
-    "$downstream_failure_home/.local/lib/qvos/screensaver/$config_name" ||
+    "$downstream_failure_home/.local/lib/qvos/screensaver/$config_name" || {
+    sed -n '1,160p' "$test_root/downstream-failure.log" >&2
     fail "downstream failure removed the screensaver config: $config_name"
+  }
 done
 for command_name in \
   qvos-launch-screensaver \
@@ -462,8 +467,8 @@ grep -Fq 'Environment=USER_CUSTOM=1' \
   fail "custom Thunar service preservation"
 [[ ! -e $test_root/.local/lib/qvos/tui/.qvos-tui.STALE1 ]] ||
   fail "stale TUI build cleanup"
-[[ -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||
-  fail "recent TUI build preservation"
+[[ ! -e $test_root/.local/lib/qvos/tui/.qvos-tui.ACTIVE ]] ||
+  fail "untracked TUI build residue"
 grep -Fqx 'personal LocalSend extension' \
   "$test_root/.local/share/nautilus-python/extensions/localsend.py" ||
   fail "modified Nautilus extension preservation"
@@ -693,6 +698,94 @@ done < <(find "$root/qvcore/tui/task/presenters" -type f | sort)
 HOME="$test_root" QVOS_PATH="$root" \
   "$root/qvcore/tui/install" --status ||
   fail "qvOS TUI source parity"
+
+no_go_tui_source="$test_root/no-go-tui-source"
+install -d "$no_go_tui_source/qvcore"
+cp -a "$root/qvcore/tui" "$no_go_tui_source/qvcore/tui"
+sed -i \
+  's#^go_binary=/usr/lib/go/bin/go$#go_binary=/qvos-test-missing-go#' \
+  "$no_go_tui_source/qvcore/tui/build"
+rm -- "$test_root/.local/bin/qvos-tui"
+tui_runtime_before=$(
+  find "$test_root/.local/lib/qvos/tui" -type f -printf '%P\0' |
+    sort -z |
+    xargs -0 -I '{}' sha256sum \
+      "$test_root/.local/lib/qvos/tui/{}"
+)
+tui_publish_bin="$test_root/tui-publish-bin"
+install -d "$tui_publish_bin"
+install -m 0755 /dev/stdin "$tui_publish_bin/ln" <<'SCRIPT'
+#!/bin/bash
+exit 1
+SCRIPT
+if HOME="$test_root" QVOS_PATH="$no_go_tui_source" \
+  PATH="$tui_publish_bin:/usr/bin" \
+  "$no_go_tui_source/qvcore/tui/install" --build-if-available \
+  >/dev/null 2>&1; then
+  fail "TUI publication ignored a failed command link"
+fi
+tui_runtime_after=$(
+  find "$test_root/.local/lib/qvos/tui" -type f -printf '%P\0' |
+    sort -z |
+    xargs -0 -I '{}' sha256sum \
+      "$test_root/.local/lib/qvos/tui/{}"
+)
+[[ $tui_runtime_after == "$tui_runtime_before" ]] ||
+  fail "failed TUI command link did not restore the prior runtime"
+[[ ! -e $test_root/.local/bin/qvos-tui &&
+  ! -L $test_root/.local/bin/qvos-tui ]] ||
+  fail "failed TUI command link left a partial link"
+rm -- "$tui_publish_bin/ln"
+HOME="$test_root" QVOS_PATH="$no_go_tui_source" \
+  "$no_go_tui_source/qvcore/tui/install" --build-if-available
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --status ||
+  fail "valid managed TUI could not recover its command link without Go"
+pass "TUI publication atomically rolls back and reuses a valid binary"
+
+mkfifo "$test_root/.local/lib/qvos/tui/.untracked-fifo"
+if HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --status; then
+  fail "TUI status accepted an untracked special file"
+fi
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --build-if-available
+[[ ! -e $test_root/.local/lib/qvos/tui/.untracked-fifo ]] ||
+  fail "TUI reconciliation retained an untracked special file"
+pass "TUI runtime inventory rejects and removes untracked objects"
+
+stale_tui_source="$test_root/stale-tui-source"
+install -d "$stale_tui_source/qvcore"
+cp -a "$root/qvcore/tui" "$stale_tui_source/qvcore/tui"
+printf '\n// qvOS stale-source transaction fixture.\n' \
+  >>"$stale_tui_source/qvcore/tui/main.go"
+sed -i \
+  's#^go_binary=/usr/lib/go/bin/go$#go_binary=/qvos-test-missing-go#' \
+  "$stale_tui_source/qvcore/tui/build"
+tui_runtime_before=$(
+  find "$test_root/.local/lib/qvos/tui" -type f -printf '%P\0' |
+    sort -z |
+    xargs -0 -I '{}' sha256sum \
+      "$test_root/.local/lib/qvos/tui/{}"
+)
+if HOME="$test_root" QVOS_PATH="$stale_tui_source" \
+  "$stale_tui_source/qvcore/tui/install" --build-if-available \
+  >/dev/null 2>&1; then
+  fail "stale TUI source succeeded without its base build dependency"
+fi
+tui_runtime_after=$(
+  find "$test_root/.local/lib/qvos/tui" -type f -printf '%P\0' |
+    sort -z |
+    xargs -0 -I '{}' sha256sum \
+      "$test_root/.local/lib/qvos/tui/{}"
+)
+[[ $tui_runtime_after == "$tui_runtime_before" ]] ||
+  fail "failed TUI build changed the published runtime"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --status ||
+  fail "failed TUI build did not preserve source parity"
+pass "TUI publication is atomic across a missing build dependency"
+
 cancel_test_bin="$test_root/tui-cancel-bin"
 install -d "$cancel_test_bin"
 install -m 0755 /dev/stdin "$cancel_test_bin/pacman" <<'SCRIPT'

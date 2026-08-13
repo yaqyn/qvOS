@@ -3,10 +3,18 @@ set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 source_dir="$QVOS_PATH/qvcore/tui"
-runtime_dir="$HOME/.local/lib/qvos/tui"
+runtime_parent="$HOME/.local/lib/qvos"
+runtime_dir="$runtime_parent/tui"
 target="$runtime_dir/qvos-tui"
-command_link="$HOME/.local/bin/qvos-tui"
+command_parent="$HOME/.local/bin"
+command_link="$command_parent/qvos-tui"
+system_binary=/usr/local/bin/qvos-tui
+lock_file="$runtime_parent/.tui-install.lock"
 mode=${1:---build-if-available}
+stage=""
+backup=""
+publication_pending=false
+link_created=false
 payload_files=(
   launch
   owner-resolver
@@ -43,12 +51,40 @@ usage() {
   echo "Usage: qvcore/tui/install [--build|--build-if-available|--status]" >&2
 }
 
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  [[ -z $stage || ! -d $stage ]] || rm -rf -- "$stage"
+  if [[ $publication_pending == "true" ]]; then
+    if [[ -n $backup && -d $backup && -d $runtime_dir ]]; then
+      if mv --exchange --no-copy -T -- "$backup" "$runtime_dir"; then
+        rm -rf -- "$backup"
+        backup=""
+      else
+        status=1
+      fi
+    else
+      [[ ! -e $runtime_dir && ! -L $runtime_dir ]] || rm -rf -- "$runtime_dir"
+    fi
+    if [[ $link_created == "true" && -L $command_link &&
+      $(readlink -- "$command_link") == "$target" ]]; then
+      rm -f -- "$command_link"
+    fi
+  elif [[ -n $backup && -d $backup ]]; then
+    rm -rf -- "$backup"
+  fi
+  return "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' HUP INT TERM
+
 source_hash() {
   "$source_dir/source-hash" "$source_dir"
 }
 
-installed_hash() {
-  "$target" --source-hash 2>/dev/null
+binary_source_hash() {
+  "$1" --source-hash 2>/dev/null
 }
 
 payload_mode() {
@@ -66,137 +102,268 @@ payload_sources_ready() {
   done
 }
 
+runtime_inventory() {
+  find "$runtime_dir" -type f -printf '%P\n' | LC_ALL=C sort
+}
+
+expected_inventory() {
+  local include_binary=$1
+
+  printf '%s\n' "${payload_files[@]}"
+  [[ $include_binary != "true" ]] || printf 'qvos-tui\n'
+}
+
 payload_ready() {
+  local include_binary=$1
+  local directory
   local relative_path
   local wanted_mode
 
   payload_sources_ready || return 1
+  [[ -d $runtime_dir && ! -L $runtime_dir && -O $runtime_dir ]] || return 1
+  if find "$runtime_dir" -mindepth 1 ! -type f ! -type d -print -quit |
+    grep -q .; then
+    return 1
+  fi
+  if find "$runtime_dir" -mindepth 1 -type d -empty -print -quit | grep -q .; then
+    return 1
+  fi
+  [[ $(runtime_inventory) == \
+    $(expected_inventory "$include_binary" | LC_ALL=C sort) ]] || return 1
+
+  while IFS= read -r -d '' directory; do
+    [[ -O $directory && $(stat -c '%a' "$directory") == "755" ]] || return 1
+  done < <(find "$runtime_dir" -type d -print0)
+
   for relative_path in "${payload_files[@]}"; do
     wanted_mode=$(payload_mode "$relative_path")
-    [[ -f $runtime_dir/$relative_path && ! -L $runtime_dir/$relative_path ]] || return 1
+    [[ -f $runtime_dir/$relative_path && ! -L $runtime_dir/$relative_path &&
+      -O $runtime_dir/$relative_path ]] || return 1
     [[ $(stat -c '%a' "$runtime_dir/$relative_path") == "${wanted_mode#0}" ]] || return 1
     cmp -s "$source_dir/$relative_path" "$runtime_dir/$relative_path" || return 1
   done
 }
 
-deploy_payload() {
+binary_matches_source() {
+  local binary=$1
+  local expected_hash
+  local installed_hash
+
+  [[ -f $binary && ! -L $binary && -x $binary ]] || return 1
+  expected_hash=$(source_hash) || return 1
+  installed_hash=$(binary_source_hash "$binary") || return 1
+  [[ $installed_hash =~ ^[0-9a-f]{64}$ && $installed_hash == "$expected_hash" ]]
+}
+
+managed_binary_ready() {
+  [[ -O $target && $(stat -c '%a' "$target") == "755" ]] || return 1
+  binary_matches_source "$target"
+}
+
+system_binary_ready() {
+  local mode_bits
+
+  [[ -f $system_binary && ! -L $system_binary && -x $system_binary ]] || return 1
+  [[ $(stat -c '%u' "$system_binary") == "0" ]] || return 1
+  mode_bits=$(stat -c '%a' "$system_binary") || return 1
+  (( (8#$mode_bits & 022) == 0 )) || return 1
+  binary_matches_source "$system_binary"
+}
+
+command_link_ready() {
+  [[ -L $command_link && $(readlink -- "$command_link") == "$target" ]]
+}
+
+managed_runtime_ready() {
+  payload_ready true && managed_binary_ready && command_link_ready
+}
+
+system_runtime_ready() {
+  payload_ready false &&
+    [[ ! -e $target && ! -L $target &&
+      ! -e $command_link && ! -L $command_link ]] &&
+    system_binary_ready
+}
+
+status() {
+  managed_runtime_ready || system_runtime_ready
+}
+
+require_safe_directory() {
+  local directory=$1
+
+  [[ -d $directory && ! -L $directory && -O $directory ]] || {
+    echo "Unsafe qvOS TUI directory: $directory" >&2
+    return 1
+  }
+}
+
+prepare_install_paths() {
+  local directory
+
+  [[ $HOME == /* ]] || {
+    echo "qvOS TUI installation requires an absolute HOME." >&2
+    return 1
+  }
+  require_safe_directory "$HOME"
+  for directory in \
+    "$HOME/.local" \
+    "$HOME/.local/lib" \
+    "$runtime_parent" \
+    "$command_parent"; do
+    if [[ -e $directory || -L $directory ]]; then
+      require_safe_directory "$directory"
+    else
+      install -d -- "$directory"
+    fi
+  done
+  [[ ! -L $runtime_dir ]] || {
+    echo "Refusing symbolic-link qvOS TUI runtime: $runtime_dir" >&2
+    return 1
+  }
+  [[ ! -e $runtime_dir || (-d $runtime_dir && -O $runtime_dir) ]] || {
+    echo "Refusing unsafe qvOS TUI runtime: $runtime_dir" >&2
+    return 1
+  }
+  if [[ -e $command_link || -L $command_link ]]; then
+    command_link_ready || {
+      echo "Refusing non-qvOS TUI command path: $command_link" >&2
+      return 1
+    }
+  fi
+
+  if [[ -e $lock_file || -L $lock_file ]]; then
+    [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] || {
+      echo "Refusing unsafe qvOS TUI install lock: $lock_file" >&2
+      return 1
+    }
+  else
+    (set -o noclobber; : >"$lock_file") 2>/dev/null || {
+      [[ -f $lock_file && ! -L $lock_file && -O $lock_file ]] || {
+        echo "Could not create the qvOS TUI install lock." >&2
+        return 1
+      }
+    }
+  fi
+  chmod 0600 -- "$lock_file"
+  exec 9>>"$lock_file"
+  flock -n 9 || {
+    echo "Another qvOS TUI installation is active." >&2
+    return 1
+  }
+}
+
+stage_payload() {
   local relative_path
 
   payload_sources_ready || {
     echo "The qvOS TUI runtime payload is incomplete." >&2
     return 1
   }
-
-  install -d "$runtime_dir"
-  rm -rf -- \
-    "${runtime_dir:?}/action" \
-    "${runtime_dir:?}/bin" \
-    "${runtime_dir:?}/task" \
-    "${runtime_dir:?}/update"
-  rm -f -- \
-    "$runtime_dir/launch" \
-    "$runtime_dir/success-guidance.psv"
-
   for relative_path in "${payload_files[@]}"; do
     install -D \
       -m "$(payload_mode "$relative_path")" \
       "$source_dir/$relative_path" \
-      "$runtime_dir/$relative_path"
+      "$stage/$relative_path"
   done
 }
 
-managed_binary_ready() {
-  local expected_hash
-
-  [[ -x $target && ! -L $target ]] || return 1
-  expected_hash=$(source_hash)
-  [[ $(installed_hash) == "$expected_hash" ]]
+stage_existing_binary() {
+  install -m 0755 -- "$target" "$stage/qvos-tui"
+  binary_matches_source "$stage/qvos-tui"
 }
 
-ensure_link() {
-  install -d "$(dirname -- "$command_link")"
-  ln -sfn "$target" "$command_link"
+stage_built_binary() {
+  "$source_dir/build" "$stage/qvos-tui"
+  binary_matches_source "$stage/qvos-tui" || {
+    echo "The built qvOS TUI does not match its source." >&2
+    return 1
+  }
 }
 
-cleanup_stale_builds() {
-  [[ -f $target && ! -L $target ]] || return 0
-  find "$runtime_dir" \
-    -mindepth 1 \
-    -maxdepth 1 \
-    -type f \
-    -uid "$EUID" \
-    -name '.qvos-tui.??????' \
-    -mmin +60 \
-    ! -newer "$target" \
-    -delete
-}
+publish_stage() {
+  if [[ -d $runtime_dir ]]; then
+    mv --exchange --no-copy -T -- "$stage" "$runtime_dir"
+    backup=$stage
+    stage=""
+  else
+    mv -- "$stage" "$runtime_dir"
+    stage=""
+  fi
+  publication_pending=true
 
-status() {
-  payload_ready || return 1
-
-  if managed_binary_ready; then
-    [[ -L $command_link ]] || return 1
-    [[ $(readlink -- "$command_link") == "$target" ]] || return 1
-    return 0
+  if [[ -f $target ]]; then
+    if [[ ! -e $command_link && ! -L $command_link ]]; then
+      ln -s -- "$target" "$command_link"
+      link_created=true
+    fi
+    command_link_ready || {
+      echo "Could not publish the qvOS TUI command." >&2
+      return 1
+    }
   fi
 
-  # The ISO currently supplies the same binary through /usr/local/bin. Its
-  # source-stamp contract will move here when the ISO flow enters qvcore/tui/iso.
-  [[ ! -e $target && ! -e $command_link && -x /usr/local/bin/qvos-tui ]]
 }
 
-build() {
-  local expected_hash
-  local temporary
+commit_publication() {
+  publication_pending=false
+  if [[ -n $backup ]]; then
+    rm -rf -- "$backup"
+    backup=""
+  fi
+}
 
-  command -v go >/dev/null 2>&1 || {
-    echo "Building qvos-tui requires Go on this development installation." >&2
+install_runtime() {
+  local binary_source=$1
+
+  prepare_install_paths
+  payload_sources_ready || {
+    echo "The qvOS TUI runtime payload is incomplete." >&2
     return 1
   }
 
-  expected_hash=$(source_hash)
-  install -d "$runtime_dir" "$(dirname -- "$command_link")"
-  temporary=$(mktemp "$runtime_dir/.qvos-tui.XXXXXX")
-  trap '[[ ! -e $temporary ]] || rm -f -- "$temporary"' RETURN
+  case $binary_source in
+  managed)
+    managed_binary_ready || return 1
+    ;;
+  system)
+    [[ ! -e $target && ! -L $target &&
+      ! -e $command_link && ! -L $command_link ]] || return 1
+    system_binary_ready || return 1
+    ;;
+  build)
+    ;;
+  *)
+    echo "Invalid qvOS TUI binary source: $binary_source" >&2
+    return 2
+    ;;
+  esac
 
-  (
-    cd "$source_dir"
-    go build \
-      -buildvcs=false \
-      -trimpath \
-      -ldflags="-s -w -X main.buildSourceHash=$expected_hash" \
-      -o "$temporary" \
-      .
-  )
-  chmod 0755 "$temporary"
-  deploy_payload
-  mv -f -- "$temporary" "$target"
-  ensure_link
-  cleanup_stale_builds
-  trap - RETURN
+  stage=$(mktemp -d "$runtime_parent/.tui-stage.XXXXXX")
+  chmod 0755 -- "$stage"
+  stage_payload
+  case $binary_source in
+  managed) stage_existing_binary ;;
+  system) ;;
+  build) stage_built_binary ;;
+  esac
+  publish_stage
+  status
+  commit_publication
 }
 
 case $mode in
 --build)
-  build
+  install_runtime build
   ;;
 --build-if-available)
   if managed_binary_ready; then
-    deploy_payload
-    ensure_link
-    cleanup_stale_builds
-    exit 0
-  fi
-  if command -v go >/dev/null 2>&1; then
-    build
+    install_runtime managed
+  elif [[ ! -e $target && ! -L $target &&
+    ! -e $command_link && ! -L $command_link ]] && system_binary_ready; then
+    install_runtime system
   else
-    deploy_payload
-    if status; then
-      exit 0
-    else
-      echo "qvOS TUI is unavailable or differs from source; the terminal fallback remains usable." >&2
-      exit 1
-    fi
+    install_runtime build
   fi
   ;;
 --status)

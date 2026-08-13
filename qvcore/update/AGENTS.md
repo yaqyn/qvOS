@@ -20,7 +20,10 @@ separate development checkouts and never mutate the installed OS.
 
 `qvcore/update/qvos-update` owns product preflight and presentation, then delegates
 once to `qvcore/update/run`. Its read-only check must reject a dirty or non-OS
-live checkout before authorization. `qv update` is the native public route;
+live checkout before authorization. It also requires the root-owned base Go
+toolchain before source mutation, because an unseen fast-forward may change the
+compiled TUI and post-update reconciliation must never mix that source with an
+older binary or adapter payload. `qv update` is the native public route;
 matching inherited public routes are metadata-free compatibility adapters only,
 while raw internal stage commands are retired.
 
