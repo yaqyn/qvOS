@@ -15,7 +15,8 @@
   ],
   "ext/workspaces": {
     "on-click": "activate",
-    "sort-by-id": true,
+    "sort-by-name": false,
+    "sort-by-coordinates": true,
     "format": "{icon}",
     "format-icons": {
       "default": "",

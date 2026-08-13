@@ -142,7 +142,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `hypr/qv` overlay are retired and must remain absent
 - `qvcore/config/files/waybar/` owns one complete native Waybar config and
   style; its workspace buttons use the protocol-native `ext/workspaces` module
-  over typed persistent Hyprland workspace rules; `default/waybar/` and the
+  over typed persistent Hyprland workspace rules, while one event-driven qvOS
+  runtime owner supplies the protocol's missing occupied and attention
+  presentation without replacing native activation; `default/waybar/` and the
   former merge overlay are retired
 - `qvcore/config/files/` owns XCompose and WirePlumber policy;
   `default/xcompose` and `default/wireplumber/` are retired

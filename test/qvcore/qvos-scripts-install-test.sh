@@ -414,7 +414,7 @@ pass "desktop refresh reconciles enrolled integrations without reinstalling stac
 pass "modified Nautilus extensions and bytecode remain untouched"
 
 waybar_source_inventory="$(find "$root/qvcore/waybar" -maxdepth 1 -type f -printf '%f\n' | sort)"
-[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\nidle-status\ninstall\nnative-paths\nnotification-status\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nretired-paths\nruntime-paths\ntoggle' ]] ||
+[[ $waybar_source_inventory == $'AGENTS.md\ncheck\nclock.sh\nidle-status\ninstall\nnative-paths\nnotification-status\npost-update-hook\nprayer-data.sh\nprayerbar.sh\nrefresh\nretired-paths\nruntime-paths\nsession\ntoggle\nworkspace-state' ]] ||
   fail "focused Waybar feature inventory"
 pass "retired Waybar helpers stay removed"
 
@@ -655,6 +655,9 @@ pass "Bash loads the source-independent qvOS shell overlay"
 
 [[ "$(stat -c '%a' "$test_root/.local/lib/qvos/waybar/prayer-data.sh")" == "644" ]] || fail "data script mode"
 [[ -x $test_root/.local/lib/qvos/waybar/prayerbar.sh ]] || fail "Waybar command mode"
+[[ -x $test_root/.local/lib/qvos/waybar/session &&
+  -x $test_root/.local/lib/qvos/waybar/workspace-state ]] ||
+  fail "Waybar session and workspace-state command modes"
 for source_only_path in \
   AGENTS.md \
   check \

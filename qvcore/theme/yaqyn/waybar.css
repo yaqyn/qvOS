@@ -36,7 +36,11 @@ window#waybar #workspaces button.active {
   opacity: 0.7;
 }
 
-window#waybar #workspaces button.urgent,
+window#waybar #workspaces button.urgent {
+  color: #ffffff;
+  opacity: 0.9;
+}
+
 window#waybar #workspaces button.urgent label {
   color: #ffffff;
   opacity: 1;

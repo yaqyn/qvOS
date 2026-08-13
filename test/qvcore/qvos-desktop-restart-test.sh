@@ -17,6 +17,8 @@ fail() {
 }
 
 install -d "$test_bin"
+install -D -m 0755 /dev/null \
+  "$test_root/.local/lib/qvos/waybar/session"
 install -m 0755 /dev/stdin "$test_bin/pgrep" <<'SCRIPT'
 #!/bin/bash
 exit "${QVOS_PGREP_STATUS:-1}"
@@ -75,7 +77,7 @@ printf 'hyprctl|%s\n' "$*" >>"$QVOS_RESTART_TEST_LOG"
 SCRIPT
 
 run_owner() {
-  QVOS_RESTART_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
+  HOME="$test_root" QVOS_RESTART_TEST_LOG="$log" PATH="$test_bin:/usr/bin" \
     "$root/qvcore/desktop/restart/$1" "${@:2}"
 }
 
@@ -133,10 +135,10 @@ printf 'ok - reload owners tolerate absent optional processes and propagate tool
 : >"$log"
 run_owner waybar
 for _ in {1..20}; do
-  grep -Fq 'uwsm|--|waybar' "$log" && break
+  grep -Fq "uwsm|--|$test_root/.local/lib/qvos/waybar/session" "$log" && break
   sleep 0.05
 done
-grep -Fqx 'uwsm|-u|qvos-waybar.scope|-d|qvOS Waybar|-S|both|--|waybar' "$log" ||
+grep -Fqx "uwsm|-u|qvos-waybar.scope|-d|qvOS Waybar|-S|both|--|$test_root/.local/lib/qvos/waybar/session" "$log" ||
   fail "Waybar relaunch"
 printf 'ok - Waybar restart survives its matching owner basename\n'
 

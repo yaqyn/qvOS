@@ -33,6 +33,8 @@ install -d \
   "$test_bin" \
   "$test_home/.config/waybar" \
   "$test_home/.local/state/qvos/toggles"
+install -D -m 0755 /dev/null \
+  "$test_home/.local/lib/qvos/waybar/session"
 : >"$command_log"
 printf '6000\n' >"$hyprsunset_state"
 
@@ -88,17 +90,21 @@ done
 [[ ${1:-} == "--" ]] || exit 0
 shift
 app=${1:-}
-[[ ${QVOS_TEST_UWSM_FAIL:-} != "$app" ]] || exit 1
-case $app in
+app_name=$(basename -- "$app")
+logical_name=$app_name
+[[ $logical_name != "session" ]] || logical_name=waybar
+[[ ${QVOS_TEST_UWSM_FAIL:-} != "$logical_name" ]] || exit 1
+case $app_name in
 hypridle)
   pid_file=$QVOS_TEST_IDLE_PID_FILE
   ;;
-waybar)
+session)
   pid_file=$QVOS_TEST_WAYBAR_PID_FILE
   ;;
 *) exit 0 ;;
 esac
-"$QVOS_TEST_HELPER_BIN/$app" 30 &
+[[ $app_name != "session" ]] || app_name=waybar
+"$QVOS_TEST_HELPER_BIN/$app_name" 30 &
 printf '%s\n' "$!" >"$pid_file"
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/notify-send" <<'SCRIPT'
@@ -213,11 +219,11 @@ printf 'ok - notification silencing verifies the opposite Mako state\n'
 
 run_owner "$root/qvcore/waybar/toggle"
 for _ in {1..20}; do
-  grep -Fqx 'uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- waybar' \
+  grep -Fqx "uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- $test_home/.local/lib/qvos/waybar/session" \
     "$command_log" && break
   sleep 0.05
 done
-grep -Fqx 'uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- waybar' \
+grep -Fqx "uwsm|-u qvos-waybar.scope -d qvOS Waybar -S both -- $test_home/.local/lib/qvos/waybar/session" \
   "$command_log" ||
   fail "Waybar toggle did not start through its native restart owner"
 

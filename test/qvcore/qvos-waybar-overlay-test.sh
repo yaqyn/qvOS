@@ -53,7 +53,9 @@ jq -e '
   (."modules-left" + ."modules-center" + ."modules-right"
     | index("clock") == null) and
   ."ext/workspaces"."on-click" == "activate" and
-  ."ext/workspaces"."sort-by-id" == true and
+  ."ext/workspaces"."sort-by-coordinates" == true and
+  (."ext/workspaces" | has("sort-by-id") | not) and
+  ."ext/workspaces"."sort-by-name" == false and
   (."ext/workspaces" | has("persistent-workspaces") | not) and
   ."modules-right" == ["group/tray-expander", "network", "pulseaudio", "cpu", "battery"] and
   ."group/tray-expander".modules == ["custom/expand-icon", "bluetooth", "tray"] and
@@ -91,12 +93,14 @@ active_style=$(sed -n \
 grep -Fq '  opacity: 0.7;' <<<"$active_style" ||
   fail "active workspace opacity"
 urgent_style=$(sed -n \
-  '/^window#waybar #workspaces button\.urgent,/,/^}/p' \
+  '/^window#waybar #workspaces button\.urgent {/,/^}/p' \
   "$root/qvcore/theme/yaqyn/waybar.css")
 grep -Fq '  color: #ffffff;' <<<"$urgent_style" ||
   fail "urgent workspace color"
-grep -Fq '  opacity: 1;' <<<"$urgent_style" ||
+grep -Fq '  opacity: 0.9;' <<<"$urgent_style" ||
   fail "urgent workspace opacity"
+grep -Fqx '@import "workspace-state.css";' "$source_style" ||
+  fail "generated workspace state import"
 grep -Fq '#custom-qvos {' "$root/qvcore/theme/yaqyn/waybar.css" ||
   fail "native qvOS menu style"
 grep -Fq '#custom-qvos:hover {' "$root/qvcore/theme/yaqyn/waybar.css" ||
@@ -210,7 +214,8 @@ touch "$runtime_home/.local/lib/qvos/waybar/stale-owner"
 HOME="$runtime_home" QVOS_PATH="$root" "$root/qvcore/waybar/install"
 runtime_inventory=$(find "$runtime_home/.local/lib/qvos/waybar" \
   -type f -printf '%P\n' | sort)
-[[ $runtime_inventory == $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] ||
+[[ $runtime_inventory == \
+  $'clock.sh\nprayer-data.sh\nprayerbar.sh\nsession\nworkspace-state' ]] ||
   fail "minimal Waybar runtime inventory"
 
 unsafe_home="$test_root/unsafe-runtime-home"

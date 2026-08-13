@@ -54,7 +54,9 @@ runtime restart operations. Public `qv-restart-*` commands carry metadata; match
 `omarchy-restart-*` files are metadata-free compatibility adapters only.
 qvOS-owned consumers call the native command or owner, never the compatibility
 name. Waybar and the monitor watcher use stable qvOS UWSM units; their restart
-owners stop their fixed unit and exact process before relaunching. Completed
+owners stop their fixed unit and exact process before relaunching. Waybar's
+fixed scope launches the installed qvOS Waybar session, which supervises Waybar
+and its workspace-state listener as one lifecycle. Completed
 pre-release transient-unit convergence is retired; never enumerate random
 inherited UWSM scope or service patterns during a normal restart. Keep process
 names exact, preserve argument boundaries, treat an absent optional process as

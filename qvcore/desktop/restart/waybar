@@ -3,6 +3,7 @@ set -euo pipefail
 
 # qvos:contract=qvcore/desktop/restart/process-lib
 # qvos:contract=qvcore/desktop/restart/user-unit-lib
+# qvos:contract=qvcore/waybar/session
 restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/restart/process-lib disable=SC1091
 source "$restart_root/process-lib"
@@ -10,6 +11,7 @@ source "$restart_root/process-lib"
 source "$restart_root/user-unit-lib"
 
 fixed_unit="qvos-waybar.scope"
+session="$HOME/.local/lib/qvos/waybar/session"
 
 qvos_user_unit_stop "$fixed_unit"
 qvos_process_stop_exact waybar
@@ -17,9 +19,13 @@ command -v uwsm-app >/dev/null || {
   echo "Cannot restart Waybar: uwsm-app is unavailable." >&2
   exit 1
 }
+[[ -x $session && ! -L $session ]] || {
+  echo "Cannot restart Waybar: the qvOS Waybar session is unavailable." >&2
+  exit 1
+}
 setsid uwsm-app \
   -u "$fixed_unit" \
   -d "qvOS Waybar" \
   -S both \
-  -- waybar >/dev/null 2>&1 &
+  -- "$session" >/dev/null 2>&1 &
 qvos_user_unit_wait_active "$fixed_unit"

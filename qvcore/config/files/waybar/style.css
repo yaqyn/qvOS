@@ -1,4 +1,5 @@
 @import "../qvos/current/theme/waybar.css";
+@import "workspace-state.css";
 
 * {
   background-color: @background;

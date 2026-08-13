@@ -32,10 +32,19 @@ source. Workspace buttons use protocol-native `ext/workspaces`, never the
 Hyprland IPC module: its legacy click dispatcher is incompatible with the Lua
 configuration manager. Persistent workspace ownership belongs to the typed
 Hyprland base, while Waybar only presents and activates protocol workspaces.
-The ext-workspace protocol exposes active, urgent, and hidden state but not
-window occupancy; do not restore dead `.empty` styling or sacrifice working
-activation for the incompatible IPC module. Keep the grayscale visual ladder
-explicit for inactive, hover, active, and urgent states.
+Sort by protocol coordinates so numeric and named workspaces remain stable. The
+ext-workspace protocol exposes active, urgent, and hidden state but not window
+occupancy, and Hyprland does not republish that protocol state for every urgent
+window event. `workspace-state` fills only those missing presentation signals
+from validated Hyprland snapshots and socket events. It writes one generated
+`~/.config/waybar/workspace-state.css`, keeps empty and selected presentation in
+the native theme, marks inactive occupied workspaces at `0.6` opacity, and marks
+attention at `0.9`; the existing empty `0.3`, hover `0.45`, and selected filled
+glyph remain authoritative. Urgency, a surface bell, a new or moved window, or
+an off-workspace title change sets attention; visiting the workspace clears it.
+The generated selectors exclude `.active`, so visible workspaces preserve the
+selected presentation on every monitor. Never restore dead `.empty` styling or
+sacrifice working protocol activation for the incompatible IPC module.
 
 `qv-launch-task` is the native fallback for a classified qvOS task when the
 checked TUI runtime is unavailable. Waybar task actions must use it; never
@@ -44,7 +53,10 @@ restore the retired `omarchy-launch-qvos-task` or
 
 `install` deploys only the files listed in `runtime-paths` to
 `~/.local/lib/qvos/waybar` through an atomic directory replacement. The runtime
-contains only the clock and prayer modules; checks, policy, manifests, refresh
+contains the clock and prayer modules plus the bounded Waybar session and
+workspace-state listener. The stable `qvos-waybar.scope` starts that session so
+the generated state exists before Waybar reads its stylesheet and so the
+listener shares Waybar's exact lifecycle. Checks, policy, manifests, refresh
 owners, hooks, and complete configuration remain in the installed source.
 
 `idle-status` and `notification-status` are source-side presentation owners;

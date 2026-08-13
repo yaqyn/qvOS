@@ -15,7 +15,8 @@ fail() {
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest") == \
   $'bin/omarchy-refresh-waybar\nbin/omarchy-toggle-waybar' ]] || fail "native Waybar inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$runtime_manifest") == \
-  $'clock.sh\nprayer-data.sh\nprayerbar.sh' ]] || fail "Waybar runtime inventory"
+  $'clock.sh\nprayer-data.sh\nprayerbar.sh\nsession\nworkspace-state' ]] ||
+  fail "Waybar runtime inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
   'default/waybar/' ]] || fail "retired Waybar inventory"
 [[ ! -e $root/default/waybar && ! -L $root/default/waybar ]] ||
@@ -28,7 +29,7 @@ for owner in check idle-status install notification-status refresh; do
   [[ -x $root/qvcore/waybar/$owner && ! -L $root/qvcore/waybar/$owner ]] ||
     fail "native Waybar owner: $owner"
 done
-for runtime_path in clock.sh prayer-data.sh prayerbar.sh; do
+for runtime_path in clock.sh prayer-data.sh prayerbar.sh session workspace-state; do
   [[ -f $root/qvcore/waybar/$runtime_path && ! -L $root/qvcore/waybar/$runtime_path ]] ||
     fail "Waybar runtime source: $runtime_path"
 done
@@ -100,7 +101,9 @@ jq -e '
   (."modules-left" + ."modules-center" + ."modules-right"
     | index("hyprland/workspaces") == null) and
   ."ext/workspaces"."on-click" == "activate" and
-  ."ext/workspaces"."sort-by-id" == true and
+  ."ext/workspaces"."sort-by-coordinates" == true and
+  (."ext/workspaces" | has("sort-by-id") | not) and
+  ."ext/workspaces"."sort-by-name" == false and
   (."ext/workspaces" | has("persistent-workspaces") | not) and
   ."modules-right" == ["group/tray-expander", "network", "pulseaudio", "cpu", "battery"] and
   ."group/tray-expander".modules == ["custom/expand-icon", "bluetooth", "tray"] and
@@ -116,6 +119,9 @@ jq -e '
   ."custom/voxtype"."on-click-right" == "qv-voxtype-config" and
   ."custom/voxtype"."on-click" == "qv-voxtype-model"
 ' "$config" >/dev/null || fail "complete native Waybar configuration"
+grep -Fqx '@import "workspace-state.css";' \
+  "$root/qvcore/config/files/waybar/style.css" ||
+  fail "generated workspace state import"
 if rg -n '#workspaces button\.empty' \
   "$root/qvcore/config/files/waybar/style.css" \
   "$root/qvcore/theme/yaqyn/waybar.css"; then
