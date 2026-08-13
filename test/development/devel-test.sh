@@ -29,7 +29,13 @@ install -d \
   "$installed_tools" \
   "$(dirname -- "$thunar_config")"
 cp "$root/development/devel/manage" "$source_root/development/devel/manage"
-cp "$root/development/devel/packages.tsv" "$source_root/development/devel/packages.tsv"
+# Keep the fixture independent from packages installed on the test host. The
+# production manifest deliberately verifies GNU time by its absolute path so a
+# shell keyword cannot satisfy it; the fixture's qv-cmd-present double owns the
+# equivalent command check.
+sed $'s#\t/usr/bin/time$#\ttime#' \
+  "$root/development/devel/packages.tsv" \
+  >"$source_root/development/devel/packages.tsv"
 cp "$root/qvcore/thunar/actions.sh" "$source_root/qvcore/thunar/actions.sh"
 cp "$root/qvcore/thunar/codex" "$source_root/qvcore/thunar/codex"
 printf '<?xml version="1.0" encoding="UTF-8"?><actions/>\n' >"$thunar_config"
@@ -151,5 +157,8 @@ fi
 grep -Fqx $'playwright-cli\tdevel\tPlaywright CLI\tnpm\tplaywright-cli\t@playwright/cli\t-\t-\t-' \
   "$root/qvcore/direct/manifest.tsv" ||
   fail "Devel Playwright CLI ownership"
+grep -Fqx $'pacman\ttime\tGNU time\t/usr/bin/time' \
+  "$root/development/devel/packages.tsv" ||
+  fail "Devel GNU time path verification"
 
 printf 'ok - Devel preserves qvOS Codex while owning its workbench integration\n'
