@@ -32,9 +32,12 @@ the previous one.
 - Run a fresh `qvos-build --prepare-only --rc` with the qvOS ref pinned. Inspect
   the staged native builder, profile, package trust, and source validation
   before the full build.
-- Confirm the free-space preflight reports at least 50 GiB available on the
-  selected release filesystem, then build with downloads explicitly allowed and no reused ISO package cache for
-  the release proof. Record the qvOS input commit, provider channel, container
+- Confirm the free-space preflight reports at least 40 GiB available on the
+  selected release filesystem, then build with downloads explicitly allowed
+  and the persistent package and tool caches enabled. The caches reduce
+  bandwidth only: every reused payload must pass the same signature, checksum,
+  filename, repository, and provenance checks as a fresh download. Record the
+  qvOS input commit, provider channel, container
   image identity, resolved package inventory, artifact name and size, SHA-256,
   selected Node.js LTS release and checksum, build result, and any explicitly
   retained failure-stage path. Set `QVOS_ISO_RELEASE_DIR` to a
@@ -46,8 +49,10 @@ the previous one.
   either success or failure, verify it is owned and removable by the invoking
   user, including package-created read-only directories; a clean build must
   not leave expanded image data in Docker's host filesystem or in `~/.cache`.
-  Preserve the named package and tool download caches for later non-release
-  builds, but do not mount them into the no-cache release proof.
+  Preserve and reuse the named package and tool download caches for release and
+  development builds. Run `--no-cache` only as an explicitly approved
+  diagnostic after stating its expected multi-gigabyte transfer cost; it is not
+  a release-proof requirement.
 - Verify that repository and direct local package signatures are required, the
   offline cache is not group-writable, its package archives, signatures, and
   repository metadata are non-executable, the generated Archinstall

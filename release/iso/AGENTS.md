@@ -100,9 +100,14 @@ a thin adapter to this owner.
   not install inherited cloud bootstrap, mirror discovery, or a parallel DHCP
   client. Its one network owner is systemd-networkd with iwd. Retain SSH
   tooling only for an operator to start explicitly from the recovery shell.
-- Keep release package transfers on bounded HTTP/1.1 curl retries. A no-cache
-  release candidate starts with an empty package cache; retries inside that one
-  build may preserve packages already verified during the same run.
+- Keep release package transfers on bounded HTTP/1.1 curl retries. Full image
+  builds reuse the persistent package and tool caches by default because the
+  development connection is bandwidth-constrained. Cached payloads remain
+  untrusted until the normal signature, checksum, filename, and repository
+  validation succeeds. Use `--no-cache` only for an explicitly approved
+  diagnostic after stating its expected multi-gigabyte transfer cost; never
+  make it a release-proof requirement. Retries preserve packages already
+  verified during the same run.
 - Pull the build-container image for every build and perform a complete
   container `pacman -Syu` before installing tools. Keep package names sorted and
   unique, reject provider-key payload drift, and validate remote checksums and
