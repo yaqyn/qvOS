@@ -165,7 +165,9 @@ is inert and must not invalidate the desktop; an existing malformed toggle must
 still fail visibly instead of being ignored.
 Verify this lifecycle with `qvos-toggle-services-test.sh`, `qvcore/config/check`,
 the first-run and desktop-install suites, `systemd-analyze verify` after live
-alignment, and the full qvOS suite.
+alignment, and the full qvOS suite. A config test that invokes Hyprland must
+provide its own private mode-0700 `XDG_RUNTIME_DIR`; it must not depend on or
+write into the developer login session's runtime directory.
 
 The general pre-public runtime-root rewriter and retired Hyprland overlay
 manifest are removed after the only supported installation converged. Fresh

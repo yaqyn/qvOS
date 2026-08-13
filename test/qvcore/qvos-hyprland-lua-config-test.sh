@@ -5,6 +5,7 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root=$(mktemp -d)
 test_home="$test_root/home"
 verify_log="$test_root/verify.log"
+export XDG_RUNTIME_DIR="$test_root/runtime"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -17,6 +18,7 @@ fail() {
 }
 
 command -v Hyprland >/dev/null 2>&1 || fail "Hyprland is unavailable"
+install -d -m 0700 "$XDG_RUNTIME_DIR"
 install -d \
   "$test_home/.config/hypr" \
   "$test_home/.config/qvos/themes"
