@@ -29,3 +29,12 @@ inspection as an empty command, without emitting a procfs race diagnostic.
 Verify Bash syntax, ShellCheck, adapter ownership,
 refresh failure behavior, and `test/qvcore/qvos-tmux-test.sh`, then run the full
 qvOS suite when shared configuration, desktop restart, or menu contracts move.
+Every Tmux test or diagnostic must remove the inherited `TMUX` environment and
+bind its own validated private `TMUX_TMPDIR` before its first Tmux command.
+Never run `kill-server`, `kill-session`, or another mutating diagnostic against
+an implicit socket from an agent or development shell; the user's live Tmux
+server is outside test scope.
+Tmux replaces control-character format separators under the C locale. Parse
+machine records with printable delimiters whose leading fields have bounded
+syntax, or query one field directly; never use tabs or another control byte in
+`-F` output. The focused test exports `LC_ALL=C` so this contract cannot regress.

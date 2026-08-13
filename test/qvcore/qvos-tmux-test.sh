@@ -9,7 +9,13 @@ export HOME="$test_root/home"
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_STATE_HOME="$HOME/.local/state"
 export TMUX_TMPDIR="$test_root/tmux-sockets"
+export LC_ALL=C
 unset TMUX
+
+[[ $TMUX_TMPDIR == "$test_root"/* && ! -L $test_root && ! -L $TMUX_TMPDIR ]] || {
+  printf 'not ok - unsafe Tmux test socket root\n' >&2
+  exit 1
+}
 
 config_dir="$XDG_CONFIG_HOME/qvos/tmux"
 recipes_file="$config_dir/sessions.json"
@@ -150,6 +156,9 @@ reconcile_tmux_path
 ' <<<"$PATH") == "1" ]] ||
   fail "manager process PATH deduplication"
 tmux new-session -d -s PathTest
+test_socket_path="$(tmux display-message -p '#{socket_path}')"
+[[ $test_socket_path == "$TMUX_TMPDIR"/* ]] ||
+  fail "Tmux test escaped its private socket root"
 tmux set-environment -g PATH "$test_root/stale:$HOME/.local/bin:/usr/bin"
 reconcile_tmux_path
 server_path="$(tmux show-environment -g PATH)"
@@ -341,8 +350,8 @@ tmux rename-window -t "$initial_window" editor
 editor_left="$(tmux display-message -p -t =Custom:editor '#{pane_id}')"
 editor_right="$(tmux split-window -h -p 35 -P -F '#{pane_id}' -t "$editor_left" -c "$project_dir/right")"
 tmux split-window -v -p 40 -t "$editor_right" -c "$project_dir/dev"
-services_record="$(tmux new-window -d -P -F $'#{window_id}\t#{pane_id}' -t =Custom -n services -c "$project_dir/dev")"
-IFS=$'\t' read -r services_window services_top <<<"$services_record"
+services_record="$(tmux new-window -d -P -F '#{window_id}|#{pane_id}' -t =Custom -n services -c "$project_dir/dev")"
+IFS='|' read -r services_window services_top <<<"$services_record"
 services_bottom="$(tmux split-window -v -p 30 -P -F '#{pane_id}' -t "$services_top" -c "$project_dir/ops")"
 
 tmux select-window -t "$services_window"

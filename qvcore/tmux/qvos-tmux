@@ -230,16 +230,7 @@ session_running() {
 }
 
 session_id_for_name() {
-  local wanted="$1"
-  local session_id session_name
-
-  while IFS=$'\t' read -r session_id session_name; do
-    if [[ $session_name == "$wanted" ]]; then
-      printf '%s\n' "$session_id"
-      return 0
-    fi
-  done < <(tmux list-sessions -F $'#{session_id}\t#{session_name}' 2>/dev/null || true)
-  return 1
+  tmux display-message -p -t "=$1" '#{session_id}' 2>/dev/null
 }
 
 normalize_input() {
@@ -346,22 +337,22 @@ create_recipe_session() {
     fi
 
     if ((window_index == 0)); then
-      if ! record="$(tmux new-session -d -P -F $'#{session_id}\t#{window_id}\t#{pane_id}' -s "$name" -n "$window_name" -c "$pane_cwd")"; then
+      if ! record="$(tmux new-session -d -P -F '#{session_id}|#{window_id}|#{pane_id}' -s "$name" -n "$window_name" -c "$pane_cwd")"; then
         notify_error "Could not create $name"
         return 1
       fi
-      IFS=$'\t' read -r session_id window_id pane_id <<<"$record"
+      IFS='|' read -r session_id window_id pane_id <<<"$record"
       if ! tmux set-option -t "$session_id" @qvos-managed 1 >/dev/null; then
         tmux kill-session -t "$session_id" 2>/dev/null || true
         notify_error "Could not initialize $name"
         return 1
       fi
-    elif ! record="$(tmux new-window -d -P -F $'#{window_id}\t#{pane_id}' -t "$session_id" -n "$window_name" -c "$pane_cwd")"; then
+    elif ! record="$(tmux new-window -d -P -F '#{window_id}|#{pane_id}' -t "$session_id" -n "$window_name" -c "$pane_cwd")"; then
       tmux kill-session -t "$session_id" 2>/dev/null || true
       notify_error "Could not initialize $name"
       return 1
     else
-      IFS=$'\t' read -r window_id pane_id <<<"$record"
+      IFS='|' read -r window_id pane_id <<<"$record"
     fi
 
     window_ids+=("$window_id")
@@ -1210,8 +1201,8 @@ open_last_session() {
   fi
 
   name="$({
-    tmux list-sessions -F $'#{session_activity}\t#{session_name}' 2>/dev/null || true
-  } | sort -rn -k1,1 | head -n 1 | cut -f2-)"
+    tmux list-sessions -F '#{session_activity}|#{session_name}' 2>/dev/null || true
+  } | LC_ALL=C sort -t '|' -rn -k1,1 | head -n 1 | cut -d '|' -f2-)"
   if [[ -n $name ]]; then
     write_last_session "$name"
     exec tmux attach-session -t "=$name"
