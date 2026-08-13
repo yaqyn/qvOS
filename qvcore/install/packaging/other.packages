@@ -25,7 +25,6 @@ linux-firmware
 linux-headers
 macbook12-spi-driver-dkms
 nvidia-580xx-dkms
-nvidia-dkms
 nvidia-open-dkms
 nvidia-580xx-utils
 nvidia-utils

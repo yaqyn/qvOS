@@ -54,6 +54,10 @@ The inherited Panther Lake kernel also remains absent: never cache or install
 boot-order override. Keep narrowly detected Panther Lake fixes independent of
 kernel ownership and retire each workaround when the signed Arch kernel makes
 it unnecessary.
+The conditional NVIDIA cache mirrors the hardware selector exactly: current
+GSP hardware uses `nvidia-open-dkms`, while supported legacy hardware uses
+`nvidia-580xx-dkms`. Never retain the replaced `nvidia-dkms` alias beside its
+current provider or mistake that alias for a separately cached driver.
 The general pre-public config and obsolete-state convergence owners are retired
 after the only supported installation reached native state. Fresh installation
 and post-update reconciliation must not scan unrelated user trees or carry
