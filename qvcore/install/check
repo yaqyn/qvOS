@@ -182,6 +182,13 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/configure"' \
 # shellcheck disable=SC2016
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
   "$root/qvcore/install/config/run" || fail "native qvOS toggle-state stage"
+[[ ! -e $root/qvcore/install/config/localdb.sh &&
+  ! -L $root/qvcore/install/config/localdb.sh ]] ||
+  fail "retired eager locate-database installer remains"
+if rg -n 'localdb\.sh|(^|[[:space:]])(sudo[[:space:]]+)?updatedb([[:space:]]|$)' \
+  "$root/qvcore/install/config/run" "$root/qvcore/install/config"; then
+  fail "fresh install eagerly scans the host-wide locate database"
+fi
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/config/seed"' \
   "$root/qvcore/install/config/config.sh" ||

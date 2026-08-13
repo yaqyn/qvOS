@@ -44,9 +44,10 @@ of carrying a permanent removal path.
   metadata-free compatibility adapters to the same owner, never a second
   implementation.
 - Interactive package selection treats ordinary FZF cancellation as a clean
-  no-op, uses arrays rather than `xargs`, and refreshes the locate database only
-  when its owner is installed. Do not hide repository-listing or package-manager
-  failures as cancellation.
+  no-op and uses arrays rather than `xargs`. Package actions never rebuild the
+  host-wide locate database; the package-provided daily timer under qvOS's
+  AC-only policy is its sole lifecycle owner. Do not hide repository-listing or
+  package-manager failures as cancellation.
 - Interactive Pacman and AUR selection source the bounded native
   `sudo-keepalive` helper, start it only after validated selection, and stop its
   exact child on every exit. Never restore a public or inherited keepalive

@@ -196,8 +196,10 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   convergence is not scanned at runtime, while exact inherited mkinitcpio and
   UKI artifacts remain preservation-safe migration input until separately
   verified
-- native NOFILE and inotify tuning use only qvOS filenames; completed
-  pre-release tuning convergence is not a fresh-install or update input
+- native NOFILE and inotify tuning use only qvOS filenames; plocate database
+  generation belongs only to its hardened daily AC-only timer, never fresh
+  install or package mutation; completed pre-release tuning convergence is not
+  a fresh-install or update input
 - XCompose creates one missing native seed and preserves every existing custom
   file; retired source-include rewriting is not an installer input
 - the general pre-public runtime-root config rewriter and obsolete-state

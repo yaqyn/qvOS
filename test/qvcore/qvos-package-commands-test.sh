@@ -130,7 +130,22 @@ SCRIPT
 
 install -m 0755 /dev/stdin "$test_bin/fzf" <<'SCRIPT'
 #!/bin/bash
+if [[ -n ${QVOS_TEST_FZF_SELECTION:-} ]]; then
+  printf '%s\n' "$QVOS_TEST_FZF_SELECTION"
+  exit 0
+fi
 exit 130
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/updatedb" <<'SCRIPT'
+#!/bin/bash
+printf 'updatedb\n' >>"$QVOS_TEST_PACKAGE_LOG"
+exit 99
+SCRIPT
+
+install -m 0755 /dev/stdin "$test_bin/qv-show-done" <<'SCRIPT'
+#!/bin/bash
+printf 'done\n' >>"$QVOS_TEST_PACKAGE_LOG"
 SCRIPT
 
 # shellcheck source=qvcore/packages/sudo-keepalive disable=SC1091
@@ -227,6 +242,15 @@ run_package remove
 (( $(wc -l <"$log") == before_cancel )) ||
   fail "canceled package picker reached a mutation"
 printf 'ok - package picker cancellation is a clean no-op\n'
+
+QVOS_TEST_FZF_SELECTION=alpha run_package install
+grep -Fxq alpha "$state" || fail "package picker did not install its selection"
+QVOS_TEST_FZF_SELECTION=epsilon run_package aur-install
+grep -Fxq epsilon "$state" || fail "AUR picker did not install its selection"
+if grep -Fqx updatedb "$log"; then
+  fail "package picker rebuilt the host-wide locate database"
+fi
+printf 'ok - package pickers leave locate indexing to its daily timer\n'
 
 HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \
   QVOS_TEST_PACKAGE_LOG="$log" PATH="$test_bin:/usr/bin" \

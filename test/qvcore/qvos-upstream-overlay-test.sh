@@ -246,6 +246,8 @@ upstream_config_steps=$(
       case $step in
       '$OMARCHY_INSTALL/config/gpg.sh')
         ;;
+      '$OMARCHY_INSTALL/config/localdb.sh')
+        ;;
       '$OMARCHY_INSTALL/config/timezones.sh')
         ;;
       '$OMARCHY_INSTALL/config/mimetypes.sh')

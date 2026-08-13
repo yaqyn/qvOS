@@ -92,6 +92,9 @@ manager. Fresh qvOS does not globally disable USB autosuspend: an affected
 device must be identified before changing its power behavior. Completed
 pre-release tuning convergence is retired, so fresh installation does not
 inspect or mutate inherited filenames.
+The package-provided daily plocate timer owns database generation after boot.
+Fresh install and package commands never run `updatedb` eagerly: doing so is a
+redundant host-wide scan and can inspect the build host from a target chroot.
 Fresh install never grants wheel-wide passwordless timezone commands; the
 security owner retires that exact predecessor.
 Fresh install never rewrites a package-owned executable to change interpreter

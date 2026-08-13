@@ -77,6 +77,10 @@ for picker in install aur-install; do
     "$root/qvcore/packages/$picker" ||
     fail "package $picker does not bound sudo refresh lifetime"
 done
+if rg -n '(^|[[:space:]])(sudo[[:space:]]+)?updatedb([[:space:]]|$)' \
+  "$root/qvcore/packages" --glob '!AGENTS.md' --glob '!check'; then
+  fail "package mutation eagerly rebuilds the host-wide locate database"
+fi
 retired_manifest="$root/qvcore/packages/retired-paths"
 expected_retired=$'bin/omarchy-sudo-keepalive\nbin/omarchy-update-aur-pkgs\nbin/omarchy-update-keyring\nbin/omarchy-update-orphan-pkgs\nbin/omarchy-update-system-pkgs\ndefault/pacman/'
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
