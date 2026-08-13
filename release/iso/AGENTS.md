@@ -22,7 +22,11 @@ a thin adapter to this owner.
   runtime, settings, meta, or ISO package.
 - Stage the selected qvOS Git ref separately. Mount its native builder, profile,
   and complete source read-only; reject links, special files, weak package
-  policy, or duplicate installers before Docker executes.
+  policy, or duplicate installers before Docker executes. Automatic context
+  discovery derives only from the qvOS checkout that owns the executing
+  builder. Select a different source explicitly with `QVOS_SOURCE_REPO` and
+  `QVOS_SOURCE_REF`; never infer product authority from an ambient source path
+  or the inherited `~/.local/share/omarchy` compatibility path.
 - Create the private build stage on `QVOS_ISO_RELEASE_DIR` so large temporary
   images use the selected artifact filesystem. Before creating it, require a
   user-owned non-linked release directory with at least 40 GiB free for a

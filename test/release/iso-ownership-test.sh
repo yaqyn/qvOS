@@ -42,6 +42,11 @@ if rg -q "QVOS_OMARCHY_ISO|OMARCHY_ISO_REF|patch_omarchy|staged_iso|(^|[[:space:
   "$build" "$builder"; then
   fail "native ISO builder still executes an Omarchy ISO source"
 fi
+if grep -Fq '"$HOME/.local/share/omarchy"' "$build"; then
+  fail "native ISO builder infers product context from the compatibility path"
+fi
+grep -Fq 'git -C "$source_checkout" rev-parse --show-toplevel' "$build" ||
+  fail "native ISO builder context does not derive from its owning checkout"
 grep -Fq '/usr/share/archiso/configs/releng/' "$builder" ||
   fail "native ISO does not use the signed Archiso releng profile"
 grep -Fq -- '--noconfirm -Syu --needed archiso git sudo base-devel jq grub go' \

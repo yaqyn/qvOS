@@ -171,22 +171,12 @@ require_command() {
 }
 
 detect_context_git_root() {
-  local candidate
-  local candidates=(
-    "${QVOS_PATH:-}"
-    "$source_checkout"
-    "$HOME/.local/share/qvos"
-    "$HOME/.local/share/omarchy"
-  )
+  local context_root
 
-  for candidate in "${candidates[@]}"; do
-    if [[ -n $candidate && -d $candidate/.git ]]; then
-      cd -- "$candidate" && pwd
-      return 0
-    fi
-  done
-
-  return 1
+  context_root=$(git -C "$source_checkout" rev-parse --show-toplevel \
+    2>/dev/null) || return 1
+  [[ $context_root == "$source_checkout" ]] || return 1
+  printf '%s\n' "$context_root"
 }
 
 default_qvos_source_repo() {
