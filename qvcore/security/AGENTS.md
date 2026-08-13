@@ -7,6 +7,10 @@ changing a security default, or planning a hardening batch.
 live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
+Lynis remains an explicit operator-installed audit tool, not a qvOS base
+package; the minimal base carries `arch-audit` for native package-vulnerability
+checks. Tests for the absolute privileged Lynis route must remain hermetic on a
+clean system where `/usr/bin/lynis` is correctly absent.
 Lynis does not currently follow qvOS's `ID_LIKE=arch`, so its root helper must
 validate the root-owned native `ID=qvos` identity and package-owned
 `/usr/lib/os-release` `ID=arch` identity, then expose the latter only inside a

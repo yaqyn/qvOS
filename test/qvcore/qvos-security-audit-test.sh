@@ -409,7 +409,8 @@ if unshare --user --map-root-user true >/dev/null 2>&1; then
   namespace_qvos="$namespace_root/qvos-os-release"
   namespace_arch="$namespace_root/arch-os-release"
   namespace_lynis="$namespace_root/lynis"
-  install -d "$namespace_root"
+  namespace_bin="$namespace_root/usr-bin"
+  install -d "$namespace_bin"
   printf '%s\n' 'NAME="qvOS"' 'ID=qvos' 'ID_LIKE=arch' >"$namespace_qvos"
   printf '%s\n' 'NAME="Arch Linux"' 'ID=arch' >"$namespace_arch"
   install -m 0755 /dev/stdin "$namespace_lynis" <<'SCRIPT'
@@ -422,6 +423,11 @@ if grep -Fqx 'ID=qvos' /etc/os-release; then
 fi
 printf 'arch-compatible-audit\n'
 SCRIPT
+  for namespace_command in awk bash cmp grep mount stat; do
+    install -m 0755 "$(command -v "$namespace_command")" \
+      "$namespace_bin/$namespace_command"
+  done
+  install -m 0755 "$namespace_lynis" "$namespace_bin/lynis"
 
   # shellcheck disable=SC2016
   namespace_output=$(
@@ -430,9 +436,9 @@ SCRIPT
         set -euo pipefail
         mount --bind "$1" /etc/os-release
         mount --bind "$2" /usr/lib/os-release
-        mount --bind "$3" /usr/bin/lynis
+        mount --bind "$3" /usr/bin
         exec "$4" --arch-compat-namespace
-      ' _ "$namespace_qvos" "$namespace_arch" "$namespace_lynis" "$root_helper"
+      ' _ "$namespace_qvos" "$namespace_arch" "$namespace_bin" "$root_helper"
   )
   [[ $namespace_output == "arch-compatible-audit" ]] \
     || fail "private Lynis namespace activation"
