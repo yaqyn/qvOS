@@ -14,7 +14,7 @@ expected_native=$'bin/omarchy\nbin/omarchy-cmd-missing\nbin/omarchy-cmd-present\
 mapfile -t native_only_routes < <(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_only_manifest"
 )
-[[ $(printf '%s\n' "${native_only_routes[@]}" | sort -u) == \
+[[ $(printf '%s\n' "${native_only_routes[@]}" | LC_ALL=C sort -u) == \
   $(printf '%s\n' "${native_only_routes[@]}") ]] || {
   echo "Native-only CLI routes are not sorted and unique." >&2
   exit 1

@@ -179,7 +179,7 @@ done <<<"$native_paths"
 remaining_compatibility=$(
   rg --no-filename -o 'omarchy-hw-[a-z0-9-]+' "$root/qvcore" "$root/qvcore/config/files" \
     --glob '!**/hardware/**' --glob '!**/AGENTS.md' \
-    --glob '!**/owner-contracts.psv' | sort -u || true
+    --glob '!**/owner-contracts.psv' | LC_ALL=C sort -u || true
 )
 [[ $remaining_compatibility == "omarchy-hw-recover-internal-monitor" ]] ||
   fail "native qvOS source still calls a hardware compatibility command"

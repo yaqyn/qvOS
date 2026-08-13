@@ -64,7 +64,9 @@ upstream manifest.
 Run `qvcore/branding/check`, `qvcore/config/check`, Bash syntax and ShellCheck,
 the system-identity fixture, branding, Fastfetch/runtime-root, screensaver,
 installer, CLI, menu, release-ISO, migration, and product tests, then the full
-qvOS suite. The branding check enforces upstream
+qvOS suite. Run the installed-source Branding check under the normal desktop
+locale as well as the deterministic test locale; manifest order must never
+inherit user collation. The branding check enforces upstream
 manifests when the development-only `upstream/master` ref is available and
 must remain usable in an installed source checkout without that ref. After live
 alignment, run the migration with fresh privileged authorization, verify the

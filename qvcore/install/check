@@ -98,7 +98,7 @@ for retired_policy in \
 done
 for inventory in "$manifest" "$retired_manifest"; do
   [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
-    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | LC_ALL=C sort -u
   ) ]] || fail "install path inventory is not sorted and unique: $inventory"
 done
 

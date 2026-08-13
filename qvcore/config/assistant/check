@@ -36,7 +36,7 @@ fi
 mapfile -t hashes < <(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$owner/pi-managed-hashes"
 )
-[[ $(printf '%s\n' "${hashes[@]}" | sort -u) == \
+[[ $(printf '%s\n' "${hashes[@]}" | LC_ALL=C sort -u) == \
   $(printf '%s\n' "${hashes[@]}") ]] || fail "managed Pi hash order"
 source_hash=$(sha256sum "$owner/pi-system-theme.ts")
 source_hash=${source_hash%% *}

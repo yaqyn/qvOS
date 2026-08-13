@@ -91,7 +91,7 @@ expected_apps=$'heroic|Heroic Games Launcher|heroic-games-launcher-bin|true\nlut
 actual_apps=$(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
   "$root/qvcore/gaming/apps.psv")
 [[ $actual_apps == "$expected_apps" ]] || fail "gaming app package boundary"
-[[ -z $(cut -d '|' -f 1 <<<"$actual_apps" | sort | uniq -d) ]] ||
+[[ -z $(cut -d '|' -f 1 <<<"$actual_apps" | LC_ALL=C sort | uniq -d) ]] ||
   fail "duplicate gaming app slug"
 if rg -n 'setsid|gtk-launch|launch-(browser|webapp)|/usr/bin/lutris|wine-staging' \
   "$root/qvcore/gaming/app" \
@@ -149,7 +149,7 @@ if rg -n 'legacy_(sleep|delay)|validate_legacy|d604e7c490382956|29e4646cf5dcbeac
 fi
 
 install_packages=$(QVOS_PATH="$root" "$root/qvcore/gaming/retroarch-packages")
-[[ -z $(printf '%s\n' "$install_packages" | sort | uniq -d) ]] ||
+[[ -z $(printf '%s\n' "$install_packages" | LC_ALL=C sort | uniq -d) ]] ||
   fail "RetroArch package inventory is not unique"
 grep -Fqx 'libretro-database-git' <<<"$install_packages" ||
   fail "RetroArch database package coverage"

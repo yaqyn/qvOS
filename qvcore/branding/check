@@ -21,7 +21,7 @@ mapfile -t native_paths < <(
 )
 
 if ((${#native_paths[@]} > 0)); then
-  [[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+  [[ $(printf '%s\n' "${native_paths[@]}" | LC_ALL=C sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
     fail "native branding paths are not sorted and unique"
 fi
 
@@ -39,7 +39,7 @@ done
 mapfile -t retired_paths < <(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
 )
-[[ $(printf '%s\n' "${retired_paths[@]}" | sort -u) == \
+[[ $(printf '%s\n' "${retired_paths[@]}" | LC_ALL=C sort -u) == \
   $(printf '%s\n' "${retired_paths[@]}") ]] ||
   fail "retired branding paths are not sorted and unique"
 for path in "${retired_paths[@]}"; do
@@ -93,7 +93,7 @@ expected_os_release=$'NAME="qvOS"\nPRETTY_NAME="qvOS"\nID=qvos\nID_LIKE=arch\nBU
   fail "missing qvOS terminal art"
 
 expected_assets=$'qv-mark-dark.svg\nqv-mark-light.svg\nqvos-wordmark-dark.svg\nqvos-wordmark-light.svg'
-[[ $(find "$root/qvcore/branding/assets" -maxdepth 1 -type f -printf '%f\n' | sort) == \
+[[ $(find "$root/qvcore/branding/assets" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort) == \
   "$expected_assets" ]] || fail "qvOS vector asset inventory"
 for asset in "$root"/qvcore/branding/assets/*.svg; do
   grep -Fq '<svg ' "$asset" || fail "invalid qvOS vector asset: $asset"

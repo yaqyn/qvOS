@@ -127,7 +127,7 @@ expected_templates=$(
 )
 actual_templates=$(
   find "$root/qvcore/theme/templates" -mindepth 1 -maxdepth 1 \
-    -type f -printf '%f\n' | sort
+    -type f -printf '%f\n' | LC_ALL=C sort
 )
 [[ $actual_templates == "$expected_templates" ]] ||
   fail "native template inventory differs from the reviewed built-ins"
@@ -153,7 +153,7 @@ grep -Fqx "$mako_include" "$root/qvcore/theme/templates/mako.ini.tpl" ||
 
 for inventory in "$native_manifest" "$retired_manifest"; do
   [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory") == $(
-    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | sort -u
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$inventory" | LC_ALL=C sort -u
   ) ]] || fail "theme path inventory is not sorted and unique: $inventory"
 done
 for route in "${!route_owners[@]}"; do

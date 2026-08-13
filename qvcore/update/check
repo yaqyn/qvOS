@@ -11,10 +11,10 @@ fail() {
 }
 
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest" | sort -u
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$native_manifest" | LC_ALL=C sort -u
 ) ]] || fail "native update paths are not sorted and unique"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | LC_ALL=C sort -u
 ) ]] || fail "retired update paths are not sorted and unique"
 
 owners=(

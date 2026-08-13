@@ -19,7 +19,7 @@ fi
 mapfile -t retired_paths < <(
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest"
 )
-[[ $(printf '%s\n' "${retired_paths[@]}" | sort -u) == \
+[[ $(printf '%s\n' "${retired_paths[@]}" | LC_ALL=C sort -u) == \
   $(printf '%s\n' "${retired_paths[@]}") ]] ||
   fail "retired version paths are not sorted and unique"
 for path in "${retired_paths[@]}"; do

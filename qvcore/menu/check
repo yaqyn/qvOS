@@ -133,13 +133,13 @@ grep -Fqx 'exec "$QVOS_PATH/qvcore/share/share" "$@"' \
 
 mapfile -t base_functions < <(
   sed -nE 's/^(function[[:space:]]+)?([[:alnum:]_]+)\(\).*/\2/p' \
-    "$root/qvcore/menu/base" | sort -u
+    "$root/qvcore/menu/base" | LC_ALL=C sort -u
 )
 mapfile -t route_functions < <(
   sed -nE 's/^(function[[:space:]]+)?([[:alnum:]_]+)\(\).*/\2/p' \
-    "$root/qvcore/menu/routes" | sort -u
+    "$root/qvcore/menu/routes" | LC_ALL=C sort -u
 )
-if comm -12 \
+if LC_ALL=C comm -12 \
   <(printf '%s\n' "${base_functions[@]}") \
   <(printf '%s\n' "${route_functions[@]}") | grep -q .; then
   fail "duplicate native menu function ownership"

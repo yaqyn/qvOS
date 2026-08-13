@@ -56,7 +56,7 @@ done
   fail "native package-provider resolver mode"
 expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-rc.conf\npacman-stable.conf\nsigning-key.gpg'
 actual_provider_files=$(
-  find "$provider_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort
+  find "$provider_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort
 )
 [[ $actual_provider_files == "$expected_provider_files" ]] ||
   fail "credited provider source inventory"
@@ -86,7 +86,7 @@ expected_retired=$'bin/omarchy-sudo-keepalive\nbin/omarchy-update-aur-pkgs\nbin/
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == "$expected_retired" ]] ||
   fail "retired package source inventory"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == $(
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | sort -u
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest" | LC_ALL=C sort -u
 ) ]] || fail "retired package paths are not sorted and unique"
 while IFS= read -r retired; do
   [[ -n $retired && $retired != \#* ]] || continue

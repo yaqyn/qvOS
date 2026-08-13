@@ -13,7 +13,7 @@ fail() {
 }
 
 mapfile -t native_paths < <(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$manifest")
-[[ $(printf '%s\n' "${native_paths[@]}" | sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
+[[ $(printf '%s\n' "${native_paths[@]}" | LC_ALL=C sort -u) == $(printf '%s\n' "${native_paths[@]}") ]] ||
   fail "native desktop paths are not sorted and unique"
 
 expected_runtime_paths=$'context/qvos-active-location\ncontext/qvos-launch-editor-here\ncontext/qvos-launch-terminal-here\nhyprland/qvos-runtime-config\nhyprland/qvos-toggle-special-window\nopen\nweb/qvos-localhost-open\nweb/qvos-website-open'
@@ -247,12 +247,12 @@ fi
   fail "native fixed application owner is unavailable"
 expected_application_files=$'Alacritty.desktop\nhidden/avahi-discover.desktop\nhidden/bssh.desktop\nhidden/btop.desktop\nhidden/bvnc.desktop\nhidden/cmake-gui.desktop\nhidden/cups.desktop\nhidden/dropbox.desktop\nhidden/electron34.desktop\nhidden/electron36.desktop\nhidden/electron37.desktop\nhidden/fcitx5-configtool.desktop\nhidden/fcitx5-wayland-launcher.desktop\nhidden/foot-server.desktop\nhidden/footclient.desktop\nhidden/java-java-openjdk.desktop\nhidden/jconsole-java-openjdk.desktop\nhidden/jshell-java-openjdk.desktop\nhidden/kbd-layout-viewer5.desktop\nhidden/kcm_fcitx5.desktop\nhidden/kcm_kaccounts.desktop\nhidden/kvantummanager.desktop\nhidden/limine-snapper-restore.desktop\nhidden/lstopo.desktop\nhidden/org.fcitx.Fcitx5.desktop\nhidden/org.fcitx.fcitx5-config-qt.desktop\nhidden/org.fcitx.fcitx5-migrator.desktop\nhidden/org.fcitx.fcitx5-qt5-gui-wrapper.desktop\nhidden/org.fcitx.fcitx5-qt6-gui-wrapper.desktop\nhidden/qv4l2.desktop\nhidden/qvidcap.desktop\nhidden/uuctl.desktop\nhidden/wiremix.desktop\nhidden/xgps.desktop\nhidden/xgpsspeed.desktop\nicons/imv.png\nimv.desktop\ninstall\nmpv.desktop'
 actual_application_files=$(find "$root/qvcore/desktop/applications" -type f \
-  -printf '%P\n' | sort)
+  -printf '%P\n' | LC_ALL=C sort)
 [[ $actual_application_files == "$expected_application_files" ]] ||
   fail "fixed application source inventory changed"
 expected_applications=$'Alacritty.desktop\nimv.desktop\nmpv.desktop'
 actual_applications=$(find "$root/qvcore/desktop/applications" -maxdepth 1 \
-  -type f -name '*.desktop' -printf '%f\n' | sort)
+  -type f -name '*.desktop' -printf '%f\n' | LC_ALL=C sort)
 [[ $actual_applications == "$expected_applications" ]] ||
   fail "fixed desktop application inventory changed"
 [[ $(find "$root/qvcore/desktop/applications/hidden" -maxdepth 1 \

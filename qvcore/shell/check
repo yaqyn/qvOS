@@ -17,7 +17,7 @@ fail() {
   fail "retired shell inventory"
 
 expected_files=$'bashrc\ncompletions\nenvs\ninit\ninputrc\nrc\nsettings'
-[[ $(find "$files" -maxdepth 1 -type f -printf '%f\n' | sort) == \
+[[ $(find "$files" -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort) == \
   "$expected_files" ]] || fail "native shell file inventory"
 [[ -x $root/qvcore/shell/install && -x $root/qvcore/shell/reset &&
   -x $root/qvcore/shell/seed &&

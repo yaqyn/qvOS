@@ -25,7 +25,7 @@ fail() {
 portable_root="$test_root/portable-source"
 install -d "$portable_root"
 tar --exclude=.git -C "$root" -cf - . | tar -C "$portable_root" -xf -
-"$portable_root/qvcore/branding/check" >/dev/null ||
+LC_ALL=en_US.utf8 "$portable_root/qvcore/branding/check" >/dev/null ||
   fail "installed-source branding check without upstream Git refs"
 
 system_root="$test_root/system"

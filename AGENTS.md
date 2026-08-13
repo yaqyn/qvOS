@@ -383,6 +383,9 @@ Every qvOS change must leave one traceable lifecycle.
 - Trace each feature through its command and adapters to installed config,
   state, hooks, permissions, services, network exposure, and focused tests.
   Verify fresh install, update, removal, and live behavior where applicable.
+- Checks that sort or compare repository manifests and inventories must set
+  `LC_ALL=C` on `sort` and `comm`; never let the desktop account's locale
+  change ownership or release-verification results.
 - Update availability combines the official qvOS source head with a read-only
   check of the configured package repositories. Package security updates must
   remain discoverable when source is current; availability checks may refresh
