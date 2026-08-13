@@ -12,6 +12,7 @@ dev_share_helper="$root/qvcore/security/dev-share-firewall"
 retire_passwordless="$root/qvcore/security/retire-passwordless-sudo"
 auth_owner="$root/qvcore/security/auth"
 auth_policy="$root/qvcore/security/auth-policy"
+login_policy="$root/qvcore/security/login-policy"
 docker_policy="$root/qvcore/security/docker-policy"
 docker_daemon_source="$root/qvcore/security/docker-daemon.json"
 docker_resolved_source="$root/qvcore/security/docker-resolved.conf"
@@ -36,6 +37,7 @@ fail() {
   || fail "security audit runners are executable"
 [[ -x $installer && -x $boot_mount && -f $baseline && -x $dev_share && -x $dev_share_helper &&
   -x $retire_passwordless && -x $auth_owner && -x $auth_policy &&
+  -x $login_policy &&
   -x $docker_policy && -f $docker_daemon_source && -f $docker_resolved_source &&
   -x $debug_owner && -x $debug_adapter && -x $debug_compatibility ]] \
   || fail "security baseline installer is available"
@@ -481,12 +483,22 @@ fi
 [[ ! -e $offline_system_root/etc/sysctl.d/60-qvos-security.conf ]] ||
   fail "ambiguous ISO offline mirror causes partial installation"
 
-install -d "$offline_system_root/etc/pam.d" "$offline_system_root/run"
+install -d \
+  "$offline_system_root/etc/pam.d" \
+  "$offline_system_root/etc/security" \
+  "$offline_system_root/etc/sudoers.d" \
+  "$offline_system_root/run"
 install -m 0644 /dev/stdin "$offline_system_root/etc/pam.d/sudo" <<'PAM'
 auth include system-auth
 account include system-auth
 session include system-auth
 PAM
+install -m 0644 /dev/stdin \
+  "$offline_system_root/etc/security/faillock.conf" <<'FAILLOCK'
+# Package-provided faillock policy.
+# deny = 3
+# unlock_time = 600
+FAILLOCK
 cp "$root/qvcore/packages/provider/omarchy/pacman-rc.conf" \
   "$offline_system_root/etc/pacman.conf"
 QVOS_CHROOT_INSTALL=1 \
@@ -527,6 +539,7 @@ install -d \
   "$security_system_root/etc/docker" \
   "$security_system_root/etc" \
   "$security_system_root/etc/pam.d" \
+  "$security_system_root/etc/security" \
   "$security_system_root/run" \
   "$system_install_tree/cache/test-package/dist" \
   "$system_install_tree/global/node_modules/test-package" \
@@ -536,6 +549,12 @@ auth include system-auth
 account include system-auth
 session include system-auth
 PAM
+install -m 0644 /dev/stdin \
+  "$security_system_root/etc/security/faillock.conf" <<'FAILLOCK'
+# Package-provided faillock policy.
+# deny = 3
+# unlock_time = 600
+FAILLOCK
 install -m 0644 /dev/stdin "$security_system_root/etc/pacman.conf" <<'PACMAN'
 [core]
 SigLevel = Required DatabaseOptional
@@ -606,10 +625,13 @@ managed_security_files=(
   "$security_system_root/etc/docker/daemon.json"
   "$security_system_root/etc/systemd/resolved.conf.d/50-qvos-docker.conf"
   "$security_system_root/etc/fstab"
+  "$security_system_root/etc/security/faillock.conf"
+  "$security_system_root/etc/sudoers.d/50-qvos-password-attempts"
   "$security_system_root/etc/pacman.conf"
   "$security_system_root/etc/sysctl.d/60-qvos-security.conf"
   "$security_system_root/usr/lib/qvos/dev-share-firewall"
   "$security_system_root/usr/lib/qvos/security/auth-policy"
+  "$security_system_root/usr/lib/qvos/security/login-policy"
   "$security_system_root/usr/lib/qvos/retire-passwordless-sudo"
   "$system_install_tree/cache/test-package/dist/program.js"
   "$system_install_tree/global/node_modules/test-package/private.js"
@@ -643,6 +665,22 @@ cmp -s "$root/qvcore/security/auth-policy" "$installed_auth_policy" \
   || fail "authentication policy helper system install"
 [[ $(stat -c '%a' "$installed_auth_policy") == "755" ]] \
   || fail "authentication policy helper mode"
+installed_login_policy="$security_system_root/usr/lib/qvos/security/login-policy"
+cmp -s "$login_policy" "$installed_login_policy" \
+  || fail "login policy helper system install"
+[[ $(stat -c '%a' "$installed_login_policy") == "755" ]] \
+  || fail "login policy helper mode"
+grep -Fqx '# >>> qvOS login policy >>>' \
+  "$security_system_root/etc/security/faillock.conf" ||
+  fail "qvOS faillock policy installation"
+grep -Fqx 'deny = 10' "$security_system_root/etc/security/faillock.conf" ||
+  fail "qvOS faillock attempt threshold"
+grep -Fqx 'unlock_time = 120' \
+  "$security_system_root/etc/security/faillock.conf" ||
+  fail "qvOS faillock recovery threshold"
+grep -Fqx 'Defaults passwd_tries=10' \
+  "$security_system_root/etc/sudoers.d/50-qvos-password-attempts" ||
+  fail "qvOS sudo password-attempt policy"
 [[ $(awk '
   /^\[omarchy\]$/ { in_omarchy = 1; next }
   /^\[/ { in_omarchy = 0 }

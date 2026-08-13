@@ -1,0 +1,253 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+system_root=${QVOS_PRINTING_SYSTEM_ROOT:-}
+testing=${QVOS_PRINTING_TESTING:-}
+systemctl_command=${QVOS_PRINTING_SYSTEMCTL:-/usr/bin/systemctl}
+policy_source="$QVOS_PATH/qvcore/install/system/printing-resolver.conf"
+policy_target="$system_root/etc/systemd/resolved.conf.d/50-qvos-local-discovery.conf"
+expected_uid=0
+expected_gid=0
+policy_staging=
+policy_created=false
+committed=false
+declare -a units=(
+  cups.service
+  cups.socket
+  cups.path
+  cups-browsed.service
+  avahi-daemon.service
+  avahi-daemon.socket
+)
+declare -A enabled_before=()
+declare -A active_before=()
+
+fail() {
+  printf 'qvOS printing policy: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+
+[[ -f $policy_source && ! -L $policy_source ]] ||
+  fail "the resolver policy source is unavailable or unsafe"
+[[ $(<"$policy_source") == $'[Resolve]\nMulticastDNS=no\nLLMNR=no' ]] ||
+  fail "the resolver policy source is invalid"
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" &&
+    -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+if [[ $systemctl_command != "/usr/bin/systemctl" ]]; then
+  [[ $testing == "1" && $systemctl_command == /tmp/* &&
+    -f $systemctl_command && -x $systemctl_command &&
+    ! -L $systemctl_command ]] ||
+    fail "the systemctl override is unavailable or unsafe"
+fi
+
+as_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$@"
+  else
+    /usr/bin/sudo -- "$@"
+  fi
+}
+
+root_exists() {
+  local path=$1
+
+  /usr/bin/test -e "$path" || /usr/bin/test -L "$path"
+}
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  /usr/bin/test -d "$path" || return 1
+  /usr/bin/test ! -L "$path" || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+ensure_directory() {
+  local path=$1
+  local parent
+
+  if root_exists "$path"; then
+    safe_directory "$path" || fail "unsafe policy directory: $path"
+    return
+  fi
+  parent=${path%/*}
+  [[ -n $parent ]] || parent=/
+  ensure_directory "$parent"
+  as_root /usr/bin/install -d -o "$expected_uid" -g "$expected_gid" \
+    -m 0755 -- "$path"
+}
+
+policy_matches() {
+  /usr/bin/test -f "$policy_target" &&
+    /usr/bin/test ! -L "$policy_target" &&
+    [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$policy_target") == \
+      "$expected_uid:$expected_gid:644" ]] &&
+    /usr/bin/cmp -s -- "$policy_source" "$policy_target"
+}
+
+unit_enabled_state() {
+  "$systemctl_command" is-enabled "$1" 2>/dev/null || true
+}
+
+unit_active_state() {
+  if "$systemctl_command" is-active --quiet "$1"; then
+    printf 'active\n'
+  else
+    printf 'inactive\n'
+  fi
+}
+
+policy_is_current() {
+  local unit
+
+  policy_matches || return 1
+  for unit in cups.service cups-browsed.service avahi-daemon.service avahi-daemon.socket; do
+    [[ $(unit_enabled_state "$unit") == "disabled" ]] || return 1
+  done
+  for unit in cups.socket cups.path; do
+    [[ $(unit_enabled_state "$unit") == "enabled" ]] || return 1
+  done
+  if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+    for unit in cups.socket cups.path; do
+      [[ $(unit_active_state "$unit") == "active" ]] || return 1
+    done
+    for unit in cups-browsed.service avahi-daemon.service avahi-daemon.socket; do
+      [[ $(unit_active_state "$unit") == "inactive" ]] || return 1
+    done
+  fi
+}
+
+policy_is_current && exit 0
+
+for unit in "${units[@]}" systemd-resolved.service; do
+  if [[ -n $system_root ]]; then
+    unit_file="$system_root/usr/lib/systemd/system/$unit"
+    [[ -f $unit_file && ! -L $unit_file ]] ||
+      fail "the test unit is unavailable or unsafe: $unit"
+  else
+    /usr/bin/systemctl cat "$unit" >/dev/null 2>&1 ||
+      fail "the required system unit is unavailable: $unit"
+  fi
+done
+
+if root_exists "$policy_target"; then
+  policy_matches || fail "the qvOS resolver policy is modified or unsafe"
+fi
+
+for unit in "${units[@]}"; do
+  enabled_before[$unit]=$(unit_enabled_state "$unit")
+  case ${enabled_before[$unit]} in
+  enabled | disabled) ;;
+  *) fail "preserving unsupported unit enablement for $unit: ${enabled_before[$unit]}" ;;
+  esac
+  active_before[$unit]=$(unit_active_state "$unit")
+done
+
+restore_units() {
+  local unit
+
+  for unit in "${units[@]}"; do
+    if [[ ${enabled_before[$unit]} == "enabled" ]]; then
+      as_root "$systemctl_command" enable "$unit" >/dev/null 2>&1 || true
+    else
+      as_root "$systemctl_command" disable "$unit" >/dev/null 2>&1 || true
+    fi
+  done
+  if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+    for unit in "${units[@]}"; do
+      if [[ ${active_before[$unit]} == "active" ]]; then
+        as_root "$systemctl_command" start "$unit" >/dev/null 2>&1 || true
+      else
+        as_root "$systemctl_command" stop "$unit" >/dev/null 2>&1 || true
+      fi
+    done
+  fi
+}
+
+rollback() {
+  restore_units
+  if [[ $policy_created == "true" ]] && policy_matches; then
+    as_root /usr/bin/rm -f -- "$policy_target" || true
+    if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+      as_root "$systemctl_command" restart systemd-resolved.service \
+        >/dev/null 2>&1 || true
+    fi
+  fi
+}
+
+cleanup() {
+  local status=$?
+
+  trap - EXIT
+  if [[ $committed == "false" ]]; then
+    rollback
+  fi
+  [[ -z $policy_staging ]] ||
+    as_root /usr/bin/rm -f -- "$policy_staging" 2>/dev/null || true
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if ! policy_matches; then
+  ensure_directory "${policy_target%/*}"
+  policy_staging=$(as_root /usr/bin/mktemp --tmpdir="${policy_target%/*}" \
+    '.50-qvos-local-discovery.conf.XXXXXX')
+  as_root /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+    "$policy_source" "$policy_staging"
+  as_root /usr/bin/mv -n -- "$policy_staging" "$policy_target"
+  [[ ! -e $policy_staging ]] ||
+    fail "a qvOS resolver policy appeared during publication"
+  policy_staging=
+  policy_created=true
+fi
+
+as_root "$systemctl_command" disable \
+  cups.service \
+  cups-browsed.service \
+  avahi-daemon.service \
+  avahi-daemon.socket
+as_root "$systemctl_command" enable cups.socket cups.path
+
+if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+  as_root "$systemctl_command" stop \
+    cups-browsed.service \
+    avahi-daemon.service \
+    avahi-daemon.socket \
+    cups.service
+  as_root "$systemctl_command" start cups.socket cups.path
+  if [[ $policy_created == "true" ]]; then
+    as_root "$systemctl_command" restart systemd-resolved.service
+  fi
+fi
+
+policy_is_current || fail "the installed printing policy is incomplete"
+committed=true

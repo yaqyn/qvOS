@@ -83,6 +83,14 @@ into a root shell command and depended on a separately usable root password.
 Authentication lockout recovery belongs to an explicit recovery environment,
 not a normal-session product command.
 
+`login-policy` is the sole qvOS owner of ordinary password-attempt defaults.
+It runs only from its root-owned installed copy, appends one exact marked block
+to the package-provided `faillock.conf`, and installs one `visudo`-validated
+root-owned fragment allowing ten sudo password attempts. Keep package-owned
+PAM stacks unchanged. Refuse active administrator-owned faillock thresholds,
+modified qvOS markers, unsafe paths, or foreign sudoers content; publish both
+files transactionally and preserve their inodes on an idempotent rerun.
+
 Keep `.gitleaksignore` narrow and reviewable. A retired public identifier may
 retain only a commit-pinned historical exception; never keep an unqualified
 current-path exception after its owner is removed, because that can hide a
@@ -130,6 +138,7 @@ ordinary qvOS use meaningfully slower, less compatible, or more restrictive
 without a concrete risk reduction.
 
 Run `bash -n` and ShellCheck on changed shell, then
+`test/qvcore/qvos-login-policy-test.sh` and
 `test/qvcore/qvos-security-audit-test.sh`. Re-run the full qvOS shell suite when
 package policy, install/update wiring, shared security defaults, or root
 instructions change. After baseline changes, verify the installed file and

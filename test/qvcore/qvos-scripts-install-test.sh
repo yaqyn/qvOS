@@ -9,6 +9,11 @@ export QVOS_NETWORK_TESTING=1
 export QVOS_NETWORK_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_SECURITY_TESTING=1
 export QVOS_SECURITY_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_PRINTING_TESTING=1
+export QVOS_PRINTING_SYSTEM_ROOT="$test_root/system-root"
+export QVOS_PRINTING_SYSTEMCTL="$test_root/printing-bin/systemctl"
+export QVOS_PRINTING_TEST_STATE="$test_root/printing-state"
+export QVOS_PRINTING_TEST_LOG="$test_root/printing-actions.log"
 export QVOS_CONTROLS_TESTING=1
 export QVOS_CONTROLS_SYSTEM_ROOT="$test_root/system-root"
 export QVOS_CONTROLS_DESKTOP_USER
@@ -21,12 +26,24 @@ install -d \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc" \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc/docker" \
   "$QVOS_SECURITY_SYSTEM_ROOT/etc/pam.d" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/security" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/sudoers.d" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/systemd/system" \
+  "$QVOS_PRINTING_TEST_STATE/enabled" \
+  "$QVOS_PRINTING_TEST_STATE/active" \
+  "$test_root/printing-bin" \
   "$QVOS_SECURITY_SYSTEM_ROOT/run"
 install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pam.d/sudo" <<'PAM'
 auth include system-auth
 account include system-auth
 session include system-auth
 PAM
+install -m 0644 /dev/stdin \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/security/faillock.conf" <<'FAILLOCK'
+# Package-provided faillock policy.
+# deny = 3
+# unlock_time = 600
+FAILLOCK
 install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/pacman.conf" <<'PACMAN'
 [core]
 SigLevel = Required DatabaseOptional
@@ -46,6 +63,59 @@ DOCKER
 install -m 0644 /dev/stdin "$QVOS_SECURITY_SYSTEM_ROOT/etc/fstab" <<'FSTAB'
 UUID=TEST-BOOT /boot vfat defaults,fmask=0022,dmask=0022 0 2
 FSTAB
+for unit in \
+  cups.service \
+  cups.socket \
+  cups.path \
+  cups-browsed.service \
+  avahi-daemon.service \
+  avahi-daemon.socket \
+  systemd-resolved.service; do
+  install -m 0644 /dev/null \
+    "$QVOS_PRINTING_SYSTEM_ROOT/usr/lib/systemd/system/$unit"
+  printf 'disabled\n' >"$QVOS_PRINTING_TEST_STATE/enabled/$unit"
+  printf 'inactive\n' >"$QVOS_PRINTING_TEST_STATE/active/$unit"
+done
+printf 'enabled\n' >"$QVOS_PRINTING_TEST_STATE/enabled/cups.socket"
+printf 'enabled\n' >"$QVOS_PRINTING_TEST_STATE/enabled/cups.path"
+printf 'active\n' >"$QVOS_PRINTING_TEST_STATE/active/cups.socket"
+printf 'active\n' >"$QVOS_PRINTING_TEST_STATE/active/cups.path"
+printf 'enabled\n' \
+  >"$QVOS_PRINTING_TEST_STATE/enabled/systemd-resolved.service"
+printf 'active\n' \
+  >"$QVOS_PRINTING_TEST_STATE/active/systemd-resolved.service"
+: >"$QVOS_PRINTING_TEST_LOG"
+install -m 0755 /dev/stdin "$QVOS_PRINTING_SYSTEMCTL" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+state=${QVOS_PRINTING_TEST_STATE:?}
+log=${QVOS_PRINTING_TEST_LOG:?}
+action=$1
+shift
+printf '%s|%s\n' "$action" "$*" >>"$log"
+case $action in
+is-enabled) cat "$state/enabled/$1" ;;
+is-active)
+  [[ ${1:-} == "--quiet" ]] && shift
+  [[ $(<"$state/active/$1") == "active" ]]
+  ;;
+enable | disable)
+  value=disabled
+  [[ $action == "enable" ]] && value=enabled
+  for unit in "$@"; do printf '%s\n' "$value" >"$state/enabled/$unit"; done
+  ;;
+start | stop)
+  value=inactive
+  [[ $action == "start" ]] && value=active
+  for unit in "$@"; do printf '%s\n' "$value" >"$state/active/$unit"; done
+  ;;
+restart)
+  for unit in "$@"; do printf 'active\n' >"$state/active/$unit"; done
+  ;;
+*) exit 64 ;;
+esac
+SCRIPT
 
 cleanup() {
   [[ -d $test_root ]] && rm -rf "$test_root"
@@ -547,6 +617,23 @@ cmp -s \
   "$root/qvcore/security/auth-policy" \
   "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/security/auth-policy" ||
   fail "authentication policy root helper payload"
+cmp -s \
+  "$root/qvcore/security/login-policy" \
+  "$QVOS_SECURITY_SYSTEM_ROOT/usr/lib/qvos/security/login-policy" ||
+  fail "login policy root helper payload"
+grep -Fqx 'deny = 10' \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/security/faillock.conf" ||
+  fail "login faillock threshold"
+grep -Fqx 'unlock_time = 120' \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/security/faillock.conf" ||
+  fail "login recovery threshold"
+grep -Fqx 'Defaults passwd_tries=10' \
+  "$QVOS_SECURITY_SYSTEM_ROOT/etc/sudoers.d/50-qvos-password-attempts" ||
+  fail "sudo password-attempt policy"
+cmp -s \
+  "$root/qvcore/install/system/printing-resolver.conf" \
+  "$QVOS_PRINTING_SYSTEM_ROOT/etc/systemd/resolved.conf.d/50-qvos-local-discovery.conf" ||
+  fail "printing resolver policy payload"
 cmp -s \
   "$root/qvcore/network/dns-policy" \
   "$QVOS_NETWORK_SYSTEM_ROOT/usr/lib/qvos/network/dns-policy" ||

@@ -1,0 +1,223 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+export LC_ALL=C
+
+system_root=${QVOS_LOGIN_POLICY_SYSTEM_ROOT:-}
+testing=${QVOS_SECURITY_TESTING:-}
+visudo_command=${QVOS_LOGIN_POLICY_VISUDO:-/usr/bin/visudo}
+expected_uid=0
+expected_gid=0
+faillock_file="$system_root/etc/security/faillock.conf"
+sudoers_dir="$system_root/etc/sudoers.d"
+sudoers_file="$sudoers_dir/50-qvos-password-attempts"
+begin_marker="# >>> qvOS login policy >>>"
+end_marker="# <<< qvOS login policy <<<"
+policy_block=$begin_marker$'\n# Allow typing mistakes without creating a long denial-of-service window.\ndeny = 10\nunlock_time = 120\n'$end_marker
+sudoers_policy="Defaults passwd_tries=10"
+faillock_candidate=
+faillock_original=
+faillock_staging=
+sudoers_candidate=
+sudoers_staging=
+faillock_changed=false
+faillock_published=false
+sudoers_created=false
+committed=false
+
+fail() {
+  printf 'qvOS login policy: %s\n' "$1" >&2
+  exit 1
+}
+
+(( $# == 0 )) || fail "this command accepts no arguments"
+case ${QVOS_CHROOT_INSTALL:-} in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+
+if [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(/usr/bin/realpath -m -- "$system_root")
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" &&
+    -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unavailable or unsafe"
+  root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+  expected_uid=$(/usr/bin/id -u)
+  expected_gid=$(/usr/bin/id -g)
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+elif (( EUID != 0 )); then
+  fail "the installed login policy owner must run as root"
+fi
+
+if [[ $visudo_command != "/usr/bin/visudo" ]]; then
+  [[ $testing == "1" && $visudo_command == /tmp/* &&
+    -f $visudo_command && -x $visudo_command && ! -L $visudo_command ]] ||
+    fail "the visudo override is unavailable or unsafe"
+fi
+
+safe_directory() {
+  local path=$1
+  local mode
+
+  [[ -d $path && ! -L $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' -- "$path") == \
+    "$expected_uid:$expected_gid" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' -- "$path") || return 1
+  (( (8#$mode & 022) == 0 ))
+}
+
+safe_file() {
+  local path=$1
+  local mode=$2
+
+  [[ -f $path && ! -L $path ]] &&
+    [[ $(/usr/bin/stat -c '%u:%g:%a' -- "$path") == \
+      "$expected_uid:$expected_gid:${mode#0}" ]]
+}
+
+rollback() {
+  local restore
+
+  if [[ $sudoers_created == "true" ]] &&
+    safe_file "$sudoers_file" 0440 &&
+    /usr/bin/cmp -s -- "$sudoers_candidate" "$sudoers_file"; then
+    /usr/bin/rm -f -- "$sudoers_file" || true
+  fi
+  if [[ $faillock_published == "true" && -n $faillock_original &&
+    -n $faillock_candidate ]] &&
+    /usr/bin/cmp -s -- "$faillock_candidate" "$faillock_file"; then
+    restore=$(/usr/bin/mktemp --tmpdir="${faillock_file%/*}" \
+      '.faillock.conf.qvos-rollback.XXXXXX') || return
+    if ! /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+      "$faillock_original" "$restore" ||
+      ! /usr/bin/mv -f -- "$restore" "$faillock_file"; then
+      /usr/bin/rm -f -- "$restore"
+    fi
+  fi
+}
+
+cleanup() {
+  local status=$?
+  local temporary
+
+  trap - EXIT
+  if [[ $committed == "false" ]]; then
+    rollback
+  fi
+  for temporary in \
+    "$faillock_candidate" \
+    "$faillock_original" \
+    "$sudoers_candidate"; do
+    [[ -z $temporary ]] || /usr/bin/rm -f -- "$temporary"
+  done
+  for temporary in "$faillock_staging" "$sudoers_staging"; do
+    [[ -z $temporary ]] || /usr/bin/rm -f -- "$temporary" 2>/dev/null || true
+  done
+  exit "$status"
+}
+
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+for directory in "${faillock_file%/*}" "$sudoers_dir"; do
+  safe_directory "$directory" || fail "unsafe policy directory: $directory"
+done
+safe_file "$faillock_file" 0644 ||
+  fail "the PAM faillock configuration is missing or unsafe"
+
+sudoers_candidate=$(/usr/bin/mktemp)
+/usr/bin/printf '%s\n' "$sudoers_policy" >"$sudoers_candidate"
+"$visudo_command" -cf "$sudoers_candidate" >/dev/null ||
+  fail "the qvOS sudoers policy is invalid"
+
+if [[ -e $sudoers_file || -L $sudoers_file ]]; then
+  safe_file "$sudoers_file" 0440 ||
+    fail "the qvOS sudoers policy is modified or unsafe"
+  /usr/bin/cmp -s -- "$sudoers_candidate" "$sudoers_file" ||
+    fail "the qvOS sudoers policy is modified or unsafe"
+fi
+
+begin_count=$(/usr/bin/grep -Fxc -- "$begin_marker" "$faillock_file" || true)
+end_count=$(/usr/bin/grep -Fxc -- "$end_marker" "$faillock_file" || true)
+if (( begin_count == 0 && end_count == 0 )); then
+  if /usr/bin/awk '
+    /^[[:space:]]*(deny|unlock_time)[[:space:]]*=/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$faillock_file"; then
+    fail "preserving an administrator-owned faillock threshold"
+  fi
+  faillock_candidate=$(/usr/bin/mktemp)
+  /usr/bin/cat -- "$faillock_file" >"$faillock_candidate"
+  /usr/bin/printf '\n%s\n' "$policy_block" >>"$faillock_candidate"
+  faillock_changed=true
+elif (( begin_count == 1 && end_count == 1 )); then
+  installed_block=$(/usr/bin/awk \
+    -v begin="$begin_marker" -v end="$end_marker" '
+      $0 == begin { inside = 1 }
+      inside { print }
+      $0 == end && inside { inside = 0; complete++ }
+      END { exit complete == 1 && !inside ? 0 : 1 }
+    ' "$faillock_file") || fail "the qvOS faillock block is malformed"
+  [[ $installed_block == "$policy_block" ]] ||
+    fail "the qvOS faillock policy is modified"
+  if /usr/bin/awk -v begin="$begin_marker" -v end="$end_marker" '
+    $0 == begin { inside = 1; next }
+    $0 == end { inside = 0; next }
+    !inside && /^[[:space:]]*(deny|unlock_time)[[:space:]]*=/ { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' "$faillock_file"; then
+    fail "preserving an administrator-owned faillock threshold"
+  fi
+else
+  fail "the qvOS faillock policy markers are ambiguous"
+fi
+
+if [[ $faillock_changed == "true" ]]; then
+  faillock_original=$(/usr/bin/mktemp)
+  /usr/bin/cp -- "$faillock_file" "$faillock_original"
+  faillock_staging=$(/usr/bin/mktemp --tmpdir="${faillock_file%/*}" \
+    '.faillock.conf.qvos.XXXXXX')
+  /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0644 -- \
+    "$faillock_candidate" "$faillock_staging"
+  if ! safe_file "$faillock_file" 0644 ||
+    ! /usr/bin/cmp -s -- "$faillock_original" "$faillock_file"; then
+    fail "the faillock configuration changed during publication"
+  fi
+  /usr/bin/mv -f -- "$faillock_staging" "$faillock_file"
+  faillock_staging=
+  faillock_published=true
+fi
+
+if [[ ! -e $sudoers_file && ! -L $sudoers_file ]]; then
+  sudoers_staging=$(/usr/bin/mktemp --tmpdir="$sudoers_dir" \
+    '.50-qvos-password-attempts.XXXXXX')
+  /usr/bin/install -o "$expected_uid" -g "$expected_gid" -m 0440 -- \
+    "$sudoers_candidate" "$sudoers_staging"
+  "$visudo_command" -cf "$sudoers_staging" >/dev/null
+  /usr/bin/mv -n -- "$sudoers_staging" "$sudoers_file"
+  [[ ! -e $sudoers_staging ]] ||
+    fail "a qvOS sudoers policy appeared during publication"
+  sudoers_staging=
+  sudoers_created=true
+fi
+
+safe_file "$faillock_file" 0644 || fail "the installed faillock policy is unsafe"
+installed_block=$(/usr/bin/awk -v begin="$begin_marker" -v end="$end_marker" '
+  $0 == begin { inside = 1 }
+  inside { print }
+  $0 == end && inside { inside = 0 }
+' "$faillock_file")
+[[ $installed_block == "$policy_block" ]] ||
+  fail "the installed faillock policy is stale"
+safe_file "$sudoers_file" 0440 || fail "the installed sudoers policy is unsafe"
+/usr/bin/cmp -s -- "$sudoers_candidate" "$sudoers_file" ||
+  fail "the installed sudoers policy is stale"
+"$visudo_command" -cf "$sudoers_file" >/dev/null ||
+  fail "the installed sudoers policy is invalid"
+committed=true

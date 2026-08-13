@@ -61,6 +61,8 @@
     qvcore/direct/tool
     qvcore/direct/update
     qvcore/install/post-update-hook
+    qvcore/install/printing-policy
+    qvcore/install/system/printing-resolver.conf
     qvcore/config/user-systemd-lib
     qvcore/config/assistant/install
     qvcore/config/files/xcompose
@@ -384,6 +386,7 @@
   "$QVOS_PATH/qvcore/tui/install" --build-if-available
   "$QVOS_PATH/qvcore/shell/install"
   "$QVOS_PATH/qvcore/screensaver/install"
+  "$QVOS_PATH/qvcore/install/printing-policy"
   "$QVOS_PATH/qvcore/network/install"
   "$QVOS_PATH/qvcore/power/install"
   "$QVOS_PATH/qvcore/controls/install-root"

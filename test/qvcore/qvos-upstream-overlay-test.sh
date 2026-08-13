@@ -250,6 +250,10 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/timezones.sh')
         ;;
+      '$OMARCHY_INSTALL/config/increase-sudo-tries.sh')
+        ;;
+      '$OMARCHY_INSTALL/config/increase-lockout-limit.sh')
+        ;;
       '$OMARCHY_INSTALL/config/mimetypes.sh')
         ;;
       '$OMARCHY_INSTALL/config/nautilus-python.sh')
@@ -284,6 +288,9 @@ upstream_config_steps=$(
         ;;
       '$OMARCHY_INSTALL/config/hardware/apple/fix-t2.sh')
         ;;
+      '$OMARCHY_INSTALL/config/hardware/printer.sh')
+        printf '%s\n' '$QVOS_PATH/qvcore/install/printing-policy'
+        ;;
       '$OMARCHY_INSTALL/config/hardware/usb-autosuspend.sh')
         ;;
       '$OMARCHY_INSTALL/config/hardware/ignore-power-button.sh')
@@ -308,6 +315,10 @@ native_config_steps=$(
 )
 [[ $native_config_steps == "$upstream_config_steps" ]] ||
   fail "native configuration stage changed reviewed capability order or coverage"
+# shellcheck disable=SC2016
+grep -Fq 'login_policy_source="$QVOS_PATH/qvcore/security/login-policy"' \
+  "$root/qvcore/security/install" ||
+  fail "native security lifecycle omits password-attempt policy ownership"
 [[ ! -e $root/qvcore/install/config/hardware/intel/ptl-kernel.sh ]] ||
   fail "retired Panther Lake kernel replacement remains"
 if rg -n 'linux-ptl|pacman[[:space:]]+-Rdd' \

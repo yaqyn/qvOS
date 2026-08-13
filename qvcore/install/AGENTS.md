@@ -101,6 +101,17 @@ Fresh install never rewrites a package-owned executable to change interpreter
 resolution. Power Profiles keeps its packaged client intact and uses the
 native PATH-safe power command owner instead.
 
+`qvcore/install/printing-policy` singularly owns the base printing service and
+local-discovery defaults. Keep CUPS available on demand through its socket and
+path units without a permanently enabled scheduler. Keep `cups-browsed` and
+Avahi installed for explicit user printer setups but disabled and stopped on a
+fresh base, and disable systemd-resolved mDNS and LLMNR through the exact native
+drop-in. Never edit package-owned `nsswitch.conf`, `cups-browsed.conf`, PAM
+files, or service units. The owner preflights every unit and managed path,
+rolls back a failed activation, persists without touching the build host in a
+target chroot, and reconciles after package updates without prompting when the
+policy is already current.
+
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,
 Framework 16 QMK HID, Intel FRED,
@@ -341,7 +352,8 @@ second convergence mode beside the normal `mise use -g node@lts` selection.
   approval and verify the computed Pacman transaction before mutation; the
   inherited package command is a compatibility adapter, not an owner route.
 
-Run `qvcore/install/check`; the resolver for `base`, `other`, and `all`; package,
+Run `qvcore/install/check`, `test/qvcore/qvos-printing-policy-test.sh`; the
+resolver for `base`, `other`, and `all`; package,
 first-run, source-lifecycle, product, security, and upstream-boundary tests;
 Bash syntax and ShellCheck; and the full qvOS suite. Package-manifest changes
 also require ISO prepare-only verification. Do not run package upgrades during

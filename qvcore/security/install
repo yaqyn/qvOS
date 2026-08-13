@@ -6,12 +6,14 @@ source_file="$QVOS_PATH/qvcore/security/60-qvos-security.conf"
 dev_share_helper_source="$QVOS_PATH/qvcore/security/dev-share-firewall"
 retire_passwordless_source="$QVOS_PATH/qvcore/security/retire-passwordless-sudo"
 auth_policy_source="$QVOS_PATH/qvcore/security/auth-policy"
+login_policy_source="$QVOS_PATH/qvcore/security/login-policy"
 system_root=${QVOS_SECURITY_SYSTEM_ROOT:-}
 target_file="$system_root/etc/sysctl.d/60-qvos-security.conf"
 pacman_config="$system_root/etc/pacman.conf"
 dev_share_helper="$system_root/usr/lib/qvos/dev-share-firewall"
 retire_passwordless_helper="$system_root/usr/lib/qvos/retire-passwordless-sudo"
 auth_policy_helper="$system_root/usr/lib/qvos/security/auth-policy"
+login_policy_helper="$system_root/usr/lib/qvos/security/login-policy"
 system_install_tree="$system_root/usr/install"
 system_owner_uid=0
 system_owner_gid=0
@@ -86,6 +88,10 @@ if [[ ! -x $retire_passwordless_source ]]; then
 fi
 if [[ ! -x $auth_policy_source ]]; then
   echo "Missing qvOS authentication policy owner: $auth_policy_source" >&2
+  exit 1
+fi
+if [[ ! -x $login_policy_source ]]; then
+  echo "Missing qvOS login policy owner: $login_policy_source" >&2
   exit 1
 fi
 if [[ ! -x $QVOS_PATH/qvcore/security/docker-policy ]]; then
@@ -180,6 +186,7 @@ awk '
 
 install_system_file "$retire_passwordless_source" "$retire_passwordless_helper" 0755
 install_system_file "$auth_policy_source" "$auth_policy_helper" 0755
+install_system_file "$login_policy_source" "$login_policy_helper" 0755
 if [[ -n $system_root ]]; then
   QVOS_SECURITY_SYSTEM_ROOT="$system_root" \
     QVOS_SECURITY_TESTING=1 \
@@ -189,6 +196,17 @@ elif ((EUID == 0)); then
 else
   /usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin \
     "$retire_passwordless_helper"
+fi
+
+if [[ -n $system_root ]]; then
+  QVOS_LOGIN_POLICY_SYSTEM_ROOT="$system_root" \
+    QVOS_SECURITY_TESTING=1 \
+    QVOS_LOGIN_POLICY_VISUDO="${QVOS_LOGIN_POLICY_VISUDO:-/usr/bin/visudo}" \
+    "$login_policy_helper"
+elif ((EUID == 0)); then
+  /usr/bin/env -i PATH=/usr/bin:/bin "$login_policy_helper"
+else
+  /usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin "$login_policy_helper"
 fi
 
 for auth_feature in fingerprint fido2; do

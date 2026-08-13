@@ -17,6 +17,7 @@ for owner in \
   reinstall-packages \
   reinstall-source \
   source-root \
+  printing-policy \
   system-tuning; do
   [[ -x $root/qvcore/install/$owner ]] || fail "install owner mode: $owner"
 done
@@ -188,6 +189,26 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/config/toggle-state"' \
 if rg -n 'localdb\.sh|(^|[[:space:]])(sudo[[:space:]]+)?updatedb([[:space:]]|$)' \
   "$root/qvcore/install/config/run" "$root/qvcore/install/config"; then
   fail "fresh install eagerly scans the host-wide locate database"
+fi
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/printing-policy"' \
+  "$root/qvcore/install/config/run" || fail "native printing policy stage"
+# shellcheck disable=SC2016
+grep -Fqx '  "$QVOS_PATH/qvcore/install/printing-policy"' \
+  "$root/qvcore/install/desktop" || fail "printing policy update reconciliation"
+[[ -f $root/qvcore/install/system/printing-resolver.conf &&
+  ! -L $root/qvcore/install/system/printing-resolver.conf ]] ||
+  fail "native printing resolver policy source"
+for retired_policy_leaf in \
+  qvcore/install/config/hardware/printer.sh \
+  qvcore/install/config/increase-lockout-limit.sh \
+  qvcore/install/config/increase-sudo-tries.sh; do
+  [[ ! -e $root/$retired_policy_leaf && ! -L $root/$retired_policy_leaf ]] ||
+    fail "retired direct policy leaf remains: $retired_policy_leaf"
+done
+if rg -n '/etc/(nsswitch\.conf|cups/cups-browsed\.conf|pam\.d/(system-auth|sddm-autologin))|passwd-tries|CreateRemotePrinters' \
+  "$root/qvcore/install/config"; then
+  fail "fresh install directly edits package-owned authentication or printing policy"
 fi
 # shellcheck disable=SC2016
 grep -Fqx '"$QVOS_PATH/qvcore/config/seed"' \

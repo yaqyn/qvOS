@@ -220,6 +220,13 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   at runtime; target-chroot AC-rule installation never reloads or triggers the
   build host's udev manager;
   qvOS carries no global GnuPG resolver policy or forced shutdown timeout
+- `qvcore/security/login-policy` owns the marked faillock threshold and the
+  validated qvOS sudo password-attempt policy; package-owned PAM stacks remain
+  untouched, and foreign authentication thresholds are preserved and refused
+- `qvcore/install/printing-policy` keeps local printing socket/path activated
+  on demand while automatic network-printer discovery, Avahi, mDNS, and LLMNR
+  remain disabled by default; package configuration and foreign printer state
+  remain untouched
 - `qvcore/network/warp-policy` owns the optional WARP daemon privacy boundary;
   its root-owned systemd drop-in keeps vendor state and logs private and stops
   credential-like daemon output from entering the journal without restricting
