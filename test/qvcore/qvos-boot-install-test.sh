@@ -364,7 +364,7 @@ prepare_limine_root() {
 system_root="$test_root/limine-hook"
 prepare_limine_root \
   "$system_root" \
-  'root=UUID=test resume=/dev/mapper/test resume_offset=123 rtc_cmos.use_acpi_alarm=1 foo=a&b pipe=one|two slash=\value escaped=keep\ value'
+  'cryptdevice=UUID=container:root root=/dev/mapper/root resume=/dev/mapper/test resume_offset=123 rtc_cmos.use_acpi_alarm=1 foo=a&b pipe=one|two slash=\value escaped=keep\ value'
 printf 'KERNEL_CMDLINE[default]+=" resume=/dev/mapper/test resume_offset=123"\n' \
   >"$system_root/etc/limine-entry-tool.d/80-qvos-resume.conf"
 printf 'KERNEL_CMDLINE[default]+=" rtc_cmos.use_acpi_alarm=1"\n' \
@@ -378,10 +378,11 @@ install -D -m 0644 /dev/null \
 export QVOS_TEST_PACMAN_ENTRIES=1
 export QVOS_TEST_PACKAGES_MISSING=1
 export QVOS_TEST_SNAPPER_EMPTY_STATUS=1
+export QVOS_BOOT_TEST_ENCRYPTED_ROOT=1
 QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-limine-snapper"
 unset QVOS_TEST_PACKAGES_MISSING QVOS_TEST_PACMAN_ENTRIES \
-  QVOS_TEST_SNAPPER_EMPTY_STATUS
-grep -Fqx 'KERNEL_CMDLINE[default]+="root=UUID=test foo=a&b pipe=one|two slash=\value escaped=keep\ value"' \
+  QVOS_TEST_SNAPPER_EMPTY_STATUS QVOS_BOOT_TEST_ENCRYPTED_ROOT
+grep -Fqx 'KERNEL_CMDLINE[default]+="cryptdevice=UUID=container:root root=/dev/mapper/root foo=a&b pipe=one|two slash=\value escaped=keep\ value"' \
   "$system_root/etc/default/limine" ||
   fail "Limine literal kernel command line rendering"
 for token in \
@@ -570,6 +571,19 @@ for hook in 90-mkinitcpio-install.hook 60-mkinitcpio-remove.hook; do
   [[ -f $system_root/usr/share/libalpm/hooks/$hook ]] ||
     fail "failure-path mkinitcpio hook restoration: $hook"
 done
+
+system_root="$test_root/limine-encrypted-without-selector"
+prepare_limine_root "$system_root" 'root=/dev/mapper/root quiet'
+: >"$action_log"
+export QVOS_BOOT_TEST_ENCRYPTED_ROOT=1
+if QVOS_CHROOT_INSTALL=1 \
+  run_boot "$root/qvcore/boot/install-limine-snapper" >/dev/null 2>&1; then
+  fail "Limine accepted an encrypted mapper root without an unlock selector"
+fi
+unset QVOS_BOOT_TEST_ENCRYPTED_ROOT
+if grep -q '^pacman' "$action_log"; then
+  fail "unbootable encrypted-root input reached package mutation"
+fi
 
 system_root="$test_root/limine-unsafe-cmdline"
 # shellcheck disable=SC2016

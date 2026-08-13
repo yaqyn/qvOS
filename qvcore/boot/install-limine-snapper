@@ -10,6 +10,51 @@ defaults_staging=
 limine_dropins=()
 limine_appended_tokens=()
 
+limine_cmdline_boots() {
+  local input=$1
+  local encrypted_root=$2
+  local root_value=""
+  local token
+  local unlock_selector=false
+  local -a tokens=()
+
+  read -r -a tokens <<<"$input"
+  for token in "${tokens[@]}"; do
+    case $token in
+    root=?*) root_value=${token#root=} ;;
+    cryptdevice=?* | dm-mod.create=?*) unlock_selector=true ;;
+    esac
+  done
+  [[ -n $root_value ]] || return 1
+  ((encrypted_root == 0)) && return 0
+  [[ $unlock_selector == "true" ]] && return 0
+  [[ $root_value != /dev/mapper/* && $root_value != /dev/dm-* ]]
+}
+
+root_on_dm_crypt() {
+  local root_source
+  local root_stack
+
+  root_source=$(findmnt -no SOURCE --nofsroot / 2>/dev/null || true)
+  [[ -n $root_source ]] || return 1
+  root_stack=$(lsblk -nso TYPE "$root_source" 2>/dev/null || true)
+  grep -qx crypt <<<"$root_stack"
+}
+
+detect_encrypted_root() {
+  if [[ -n $QVOS_BOOT_SYSTEM_ROOT ]]; then
+    case ${QVOS_BOOT_TEST_ENCRYPTED_ROOT:-0} in
+    0) return 1 ;;
+    1) return 0 ;;
+    *)
+      echo "Invalid encrypted-root boot fixture signal" >&2
+      return 2
+      ;;
+    esac
+  fi
+  root_on_dm_crypt
+}
+
 restore_mkinitcpio_hooks() {
   local active
   local disabled
@@ -279,8 +324,10 @@ install_limine() {
   local candidate
   local cmdline
   local default_limine
+  local detect_status
   local efi=false
   local efi_output
+  local encrypted_root=0
   local hooks_config
   local limine_header_current=false
   local limine_header_size
@@ -302,6 +349,13 @@ install_limine() {
   load_limine_dropins
   validate_qvos_limine_dropins
   collect_limine_appended_tokens
+
+  if detect_encrypted_root; then
+    encrypted_root=1
+  else
+    detect_status=$?
+    ((detect_status == 1)) || return "$detect_status"
+  fi
 
   qvos_hooks_content=$'HOOKS=(base udev plymouth keyboard autodetect microcode modconf kms keymap consolefont block encrypt filesystems fsck btrfs-overlayfs)\nFILES+=(/etc/vconsole.conf)\n'
   legacy_hooks_content=${qvos_hooks_content%%$'\n'*}
@@ -375,6 +429,10 @@ install_limine() {
   }
   if ! cmdline=$(sanitize_limine_cmdline "$cmdline") || [[ -z $cmdline ]]; then
     echo "Error: Limine kernel command line has no safe base arguments" >&2
+    return 1
+  fi
+  if ! limine_cmdline_boots "$cmdline" "$encrypted_root"; then
+    echo "Error: Limine kernel command line cannot reach the root filesystem" >&2
     return 1
   fi
 

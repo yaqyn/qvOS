@@ -187,6 +187,9 @@ grep -Fq '/etc/mkinitcpio.conf.d/qvos_hooks.conf' \
 grep -Fq 'sanitize_limine_cmdline' \
   "$root/qvcore/boot/install-limine-snapper" ||
   fail "native Limine drop-in command-line ownership"
+grep -Fq 'limine_cmdline_boots' \
+  "$root/qvcore/boot/install-limine-snapper" ||
+  fail "native Limine encrypted-root bootability guard"
 grep -Fq -- '-name "qvos*.efi"' "$root/qvcore/boot/config-direct-boot" ||
   fail "native qvOS direct-boot UKI selection"
 grep -Fq 'qvOS([[:space:]]|$)' "$root/qvcore/boot/config-direct-boot" ||

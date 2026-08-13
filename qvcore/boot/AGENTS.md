@@ -65,7 +65,11 @@ and current drop-ins, then remove their exact token forms from the captured
 base before appending those sources once. Parse token boundaries without
 evaluation, preserve safe escaped foreign arguments, reject shell-expanding or
 structurally ambiguous base input, and validate native resume and RTC drop-ins
-before treating them as policy.
+before treating them as policy. Require one non-empty `root=` argument. When
+the mounted root stack contains dm-crypt, reject a command line whose final
+root target is under `/dev/mapper` or `/dev/dm-*` unless `cryptdevice=` or
+`dm-mod.create=` identifies the volume the busybox initramfs must unlock; fail
+before changing defaults, packages, or UKIs.
 Fresh Archinstall autologin may name `hyprland-uwsm`; the native session owner
 rewrites only that exact generic seed to `qvos` and preserves every custom
 session or theme selection.
