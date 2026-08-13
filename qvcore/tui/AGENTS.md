@@ -80,6 +80,9 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   its exact digest matches and no managed runtime shadows it. Source updates
   rebuild a changed binary with the base-owned signed Arch Go toolchain and
   atomically promote the result with its matching adapters.
+  Tests must accept either exact mode after normal desktop reconciliation and
+  request `--build` explicitly before asserting managed-binary behavior; the
+  development host's `/usr/local/bin/qvos-tui` inventory is not a fixture.
 - `qvcore/tui/build` is the singular local and ISO compiler owner. Use the
   root-owned Arch toolchain with a fixed GOROOT, local toolchain selection,
   disabled ambient Go workspace/config/experiments/flags, portable amd64

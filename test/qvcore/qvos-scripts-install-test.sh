@@ -656,6 +656,12 @@ cmp -s \
   fail "Docker resolver policy payload"
 pass "security baseline protects package trust without restricting desktop capabilities"
 
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --status ||
+  fail "desktop reconciliation did not publish an exact qvOS TUI runtime"
+HOME="$test_root" QVOS_PATH="$root" \
+  "$root/qvcore/tui/install" --build
+
 tui_binary="$test_root/.local/lib/qvos/tui/qvos-tui"
 [[ -x $tui_binary && ! -L $tui_binary ]] ||
   fail "qvOS TUI managed binary"
