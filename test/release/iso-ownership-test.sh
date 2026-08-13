@@ -7,6 +7,7 @@ release_root="$root/release/iso"
 build="$release_root/build"
 builder="$release_root/builder/build-iso.sh"
 cache_recovery="$release_root/builder/cache-recovery"
+space_check="$release_root/space-check"
 profile="$release_root/profile"
 installer="$profile/airootfs/root/.automated_script.sh"
 
@@ -16,7 +17,7 @@ fail() {
 }
 
 [[ ! -e $root/qvcore/iso ]] || fail "ISO implementation remains in qvCORE"
-[[ -x $build && -x $builder && -f $cache_recovery &&
+[[ -x $build && -x $builder && -x $space_check && -f $cache_recovery &&
   ! -L $cache_recovery && -f $profile/profiledef.sh ]] ||
   fail "release-owned native image builder"
 [[ -x $root/qvcore/tui/bin/qvos-build ]] ||
@@ -50,6 +51,21 @@ grep -Fq -- '--pull=always' "$build" ||
   fail "native ISO reuses a stale mutable build container"
 grep -Fq 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' \
   "$build" || fail "native ISO stage bypasses its release filesystem"
+space_line=$(grep -Fn '"$space_check" "$release_dir" "$minimum_free_gib"' "$build" | cut -d: -f1)
+stage_line=$(grep -Fn 'stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")' "$build" | cut -d: -f1)
+if [[ -z $space_line || -z $stage_line ]] || (( space_line >= stage_line )); then
+  fail "native ISO creates scratch before checking release-disk space"
+fi
+mirror_line=$(grep -Fn 'if [[ $arch_mirror != https://* ]]' "$build" | cut -d: -f1)
+if [[ -z $mirror_line ]] || (( mirror_line >= stage_line )); then
+  fail "native ISO creates scratch before validating its mirror input"
+fi
+grep -Fq 'qvOS ISO failed scratch will be removed; reusable download caches are preserved.' \
+  "$build" || fail "native ISO retains ordinary failed build scratch"
+grep -Fq 'retain_failed_stage=true' "$build" ||
+  fail "native ISO lacks an explicit failed-stage debugging mode"
+grep -Fq '(( status != 0 )) && [[ $retain_failed_stage == "true" ]]' "$build" ||
+  fail "native ISO debugging mode does not retain every failed stage"
 grep -Fq -- '-v "$cache_root:/var/cache"' "$build" ||
   fail "native ISO Archiso workspace bypasses its private stage"
 grep -Fq 'using an empty one-shot build cache' "$build" ||
@@ -147,6 +163,20 @@ grep -Fq 'unsafe qvOS tool-cache offline mirror entry' "$builder" ||
 
 cache_test_root=$(mktemp -d)
 trap 'rm -rf -- "$cache_test_root"' EXIT
+"$space_check" "$cache_test_root" 1 >/dev/null 2>&1 ||
+  fail "native ISO free-space owner rejects adequate storage"
+set +e
+space_output=$("$space_check" "$cache_test_root" 1048576 2>&1)
+space_status=$?
+set -e
+(( space_status == 1 )) || fail "native ISO free-space owner accepts inadequate storage"
+grep -Fq 'qvos-build needs at least' <<<"$space_output" ||
+  fail "native ISO free-space owner lacks an actionable failure"
+ln -s "$cache_test_root" "$cache_test_root-linked"
+if "$space_check" "$cache_test_root-linked" 1 >/dev/null 2>&1; then
+  fail "native ISO free-space owner accepts a linked release directory"
+fi
+unlink -- "$cache_test_root-linked"
 test_bin="$cache_test_root/bin"
 package_cache_dir="$cache_test_root/cache"
 cache_quarantine_dir="$cache_test_root/quarantine"
@@ -491,7 +521,7 @@ fi
 grep -Fq '023cd14f2a64bad856e79714f79d8f9f09605727' \
   "$release_root/UPSTREAM.md" || fail "native derivative lacks exact provenance"
 
-expected=$'AGENTS.md\nLICENSE.omarchy-iso\nREADME.md\nUPSTREAM.md\nbuild\nsource-permissions\nsyslinux-splash.png'
+expected=$'AGENTS.md\nLICENSE.omarchy-iso\nREADME.md\nUPSTREAM.md\nbuild\nsource-permissions\nspace-check\nsyslinux-splash.png'
 actual=$(find "$release_root" -maxdepth 1 -type f -printf '%f\n' | sort)
 [[ $actual == "$expected" ]] || fail "release/iso source inventory"
 

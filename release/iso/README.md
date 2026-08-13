@@ -32,13 +32,16 @@ the previous one.
 - Run a fresh `qvos-build --prepare-only --rc` with the qvOS ref pinned. Inspect
   the staged native builder, profile, package trust, and source validation
   before the full build.
-- Build with downloads explicitly allowed and no reused ISO package cache for
+- Confirm the free-space preflight reports at least 50 GiB available on the
+  selected release filesystem, then build with downloads explicitly allowed and no reused ISO package cache for
   the release proof. Record the qvOS input commit, provider channel, container
   image identity, resolved package inventory, artifact name and size, SHA-256,
-  selected Node.js LTS release and checksum, build result, and retained
-  failure-stage path when applicable. Set `QVOS_ISO_RELEASE_DIR` to a
+  selected Node.js LTS release and checksum, build result, and any explicitly
+  retained failure-stage path. Set `QVOS_ISO_RELEASE_DIR` to a
   filesystem with enough capacity for both the temporary image and published
-  artifact; the private stage is deliberately colocated there.
+  artifact; the private stage is deliberately colocated there. Ordinary
+  failures clean expanded scratch and preserve the reusable download caches;
+  use `--retain-failed-stage` only for a deliberate debugging capture.
 - Confirm the full Archiso workspace is mounted from that private stage. After
   either success or failure, verify it is owned and removable by the invoking
   user, including package-created read-only directories; a clean build must

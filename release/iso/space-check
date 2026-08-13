@@ -1,0 +1,44 @@
+#!/bin/bash
+set -euo pipefail
+
+if (( $# != 2 )); then
+  echo "Usage: space-check <build-directory> <minimum-free-gib>" >&2
+  exit 2
+fi
+
+build_directory=$1
+minimum_free_gib=$2
+
+[[ -d $build_directory && ! -L $build_directory && -O $build_directory ]] || {
+  echo "qvos-build requires a user-owned, non-linked release directory." >&2
+  exit 1
+}
+[[ $minimum_free_gib =~ ^[1-9][0-9]*$ ]] || {
+  echo "qvos-build received an invalid free-space requirement." >&2
+  exit 2
+}
+(( minimum_free_gib <= 1048576 )) || {
+  echo "qvos-build received an unsafe free-space requirement." >&2
+  exit 2
+}
+
+available_blocks=$(LC_ALL=C /usr/bin/stat -f -c '%a' -- "$build_directory")
+block_size=$(LC_ALL=C /usr/bin/stat -f -c '%S' -- "$build_directory")
+[[ $available_blocks =~ ^[0-9]+$ && $block_size =~ ^[1-9][0-9]*$ ]] || {
+  echo "qvos-build could not determine available release-disk space." >&2
+  exit 1
+}
+
+gib=$((1024 * 1024 * 1024))
+available_bytes=$((available_blocks * block_size))
+required_bytes=$((minimum_free_gib * gib))
+available_gib=$((available_bytes / gib))
+
+if (( available_bytes < required_bytes )); then
+  printf 'qvos-build needs at least %d GiB free on %s; only %d GiB is available.\n' \
+    "$minimum_free_gib" "$build_directory" "$available_gib" >&2
+  exit 1
+fi
+
+printf 'qvOS ISO preflight: %d GiB free on the release filesystem (minimum %d GiB)\n' \
+  "$available_gib" "$minimum_free_gib"

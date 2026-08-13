@@ -6,10 +6,11 @@ allow_downloads=false
 no_cache=false
 pre_public=false
 prepare_only=false
+retain_failed_stage=false
 provider_channel="${QVOS_PROVIDER_CHANNEL:-stable}"
 
 usage() {
-  echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--pre-public] [--dev|--rc]"
+  echo "Usage: qvos-build [--allow-downloads] [--no-cache] [--prepare-only] [--pre-public] [--retain-failed-stage] [--dev|--rc]"
   echo
   echo "Environment:"
   echo "  QVOS_SOURCE_REPO       qvOS git repository or local git path"
@@ -48,6 +49,9 @@ while (( $# > 0 )); do
     ;;
   --pre-public)
     pre_public=true
+    ;;
+  --retain-failed-stage)
+    retain_failed_stage=true
     ;;
   --dev)
     provider_channel=edge
@@ -88,12 +92,8 @@ fi
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source_checkout=$(cd -- "$script_dir/../.." && pwd)
+space_check="$script_dir/space-check"
 release_dir="${QVOS_ISO_RELEASE_DIR:-$HOME/qvISO}"
-mkdir -p "$release_dir"
-stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")
-preserve_stage=false
-stage_cache=
-stage_cache_needs_release=false
 docker_image="${QVOS_ISO_DOCKER_IMAGE:-archlinux/archlinux:latest}"
 docker_network="${QVOS_DOCKER_NETWORK:-}"
 arch_mirror="${QVOS_ARCH_MIRROR:-}"
@@ -105,6 +105,22 @@ if [[ -n $arch_mirror ]]; then
   fi
   arch_mirror=${arch_mirror%/}
 fi
+
+mkdir -p "$release_dir"
+[[ -x $space_check && -f $space_check && ! -L $space_check ]] || {
+  echo "qvos-build free-space owner is unavailable." >&2
+  exit 1
+}
+minimum_free_gib=1
+if [[ $prepare_only == "false" ]]; then
+  minimum_free_gib=40
+  [[ $no_cache == "false" ]] || minimum_free_gib=50
+fi
+"$space_check" "$release_dir" "$minimum_free_gib"
+stage_root=$(mktemp -d "$release_dir/.qvos-stage.XXXXXX")
+preserve_stage=false
+stage_cache=
+stage_cache_needs_release=false
 
 release_staged_cache() {
   local cache_root=$1
@@ -132,6 +148,9 @@ cleanup() {
     ! release_staged_cache "$stage_cache"; then
     preserve_stage=true
     echo "qvos-build could not release the interrupted build cache." >&2
+  fi
+  if (( status != 0 )) && [[ $retain_failed_stage == "true" ]]; then
+    preserve_stage=true
   fi
   if [[ $preserve_stage == "true" ]]; then
     echo "qvOS ISO failed stage retained: $stage_root" >&2
@@ -460,12 +479,14 @@ validate_native_iso() {
   local boot_config
   local builder="$iso_root/builder/build-iso.sh"
   local cache_recovery="$iso_root/builder/cache-recovery"
+  local staged_space_check="$iso_root/space-check"
   local profile="$iso_root/profile"
   local installer="$profile/airootfs/root/.automated_script.sh"
 
   echo "qvOS ISO progress: validating staged package trust and kernel policy"
   if [[ ! -f $builder || -L $builder || ! -x $builder ||
     ! -f $cache_recovery || -L $cache_recovery ||
+    ! -f $staged_space_check || -L $staged_space_check || ! -x $staged_space_check ||
     ! -d $profile || -L $profile ]]; then
     echo "qvos-build staged an invalid native builder or profile owner." >&2
     return 1
@@ -778,7 +799,9 @@ if [[ $prepare_only == "true" ]]; then
 fi
 
 if ! run_iso_builder "$native_iso" "$staged_qvos" "$stage_out" "$stage_cache"; then
-  preserve_stage=true
+  if [[ $retain_failed_stage == "false" ]]; then
+    echo "qvOS ISO failed scratch will be removed; reusable download caches are preserved." >&2
+  fi
   exit 1
 fi
 publish_release_artifact "$stage_out"

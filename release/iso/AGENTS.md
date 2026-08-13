@@ -24,20 +24,24 @@ a thin adapter to this owner.
   and complete source read-only; reject links, special files, weak package
   policy, or duplicate installers before Docker executes.
 - Create the private build stage on `QVOS_ISO_RELEASE_DIR` so large temporary
-  images use the selected artifact filesystem. Retain that exact hidden stage
-  on failure and remove it after a successful atomic publication.
+  images use the selected artifact filesystem. Before creating it, require a
+  user-owned non-linked release directory with at least 40 GiB free for a
+  cached build, 50 GiB for `--no-cache`, or 1 GiB for prepare-only validation.
+  Ordinary build failures remove expanded scratch while preserving the named
+  download caches; retain the exact hidden stage only when the operator passes
+  `--retain-failed-stage` or an already-built artifact cannot publish safely.
 - Bind the complete Archiso workspace from that private stage into the build
   container so image construction cannot silently fill Docker's host
   filesystem. A `--no-cache` build uses only this empty one-shot workspace;
   normal builds may nest the two named download-cache volumes inside it. Never
   delete or replace those reusable volumes during stage cleanup. Release the
   stage workspace back to the invoking user through a bounded container mount
-  after every build attempt so retained failures remain inspectable and
-  successful stages remain removable, including package-created directories
-  that were deliberately not owner-writable inside the image. Mark ownership
-  as pending before Docker starts and retry that bounded release from the EXIT
-  cleanup path, so interruption cannot strand a root-owned multi-gigabyte
-  workspace. Keep the
+  after every build attempt so explicitly retained failures remain inspectable
+  and ordinary scratch remains removable, including package-created
+  directories that were deliberately not owner-writable inside the image.
+  Mark ownership as pending before Docker starts and retry that bounded release
+  from the EXIT cleanup path, so interruption cannot strand a root-owned
+  multi-gigabyte workspace. Keep the
   randomized stage root private,
   but make its cache mount root searchable inside the container so Pacman's
   unprivileged `DownloadUser` can reach the per-transaction directories it
