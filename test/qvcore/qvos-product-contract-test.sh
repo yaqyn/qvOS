@@ -1202,6 +1202,15 @@ done
 grep -Fqx '  env -u QVOS_PATH -u OMARCHY_PATH bash "$test_file"' \
   "$root/test/qvcore/run.sh" ||
   fail "full test runner can inherit the live source root"
+for installed_test_guard in \
+  'refs/remotes/upstream/master' \
+  'refs/remotes/origin/master' \
+  'rev-parse --is-shallow-repository' \
+  '$HOME/.local/share/qvos' \
+  'qvos-upstream-overlay-test.sh'; do
+  grep -Fq "$installed_test_guard" "$root/test/qvcore/run.sh" ||
+    fail "installed test runner development-only boundary"
+done
 pass "qvOS-owned test entrypoints are executable"
 
 install -d \

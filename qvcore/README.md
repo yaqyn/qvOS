@@ -219,7 +219,11 @@ change Omarchy paths only at the audited compatibility seam:
 - `test/qvcore/run.sh` recursively runs the qvCORE, Services, Development,
   Release, Upstream, Compatibility, and inherited root shell suites after
   clearing ambient source-root overrides so fixtures cannot silently read the
-  live installation.
+  live installation. An exact canonical shallow installed source explicitly
+  skips only the development upstream-overlay comparison when neither upstream
+  ref is embedded; it still runs every applicable suite, reports the skip, and
+  never fetches history. Full and noncanonical development checkouts must carry
+  the tracked upstream ref and run that comparison.
 - `qvcore/theme/yaqyn/` is qvOS's only bundled theme. The renderer reads Yaqyn and
   compatible custom themes only from the user theme directory; users can copy
   Yaqyn, install an Omarchy-format Git theme, or link one from elsewhere.

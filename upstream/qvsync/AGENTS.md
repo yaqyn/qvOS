@@ -62,6 +62,11 @@ replace its judgment.
   a `/tmp` Go build for Go; `test/qvcore/run.sh` for the full shell suite; binding
   checks for qvOS bindings; Hyprland reload and error checks for its config; and
   `git diff --check`.
+- Upstream parity and reviewed capability-order comparisons are development
+  checks. An exact shallow `~/.local/share/qvos` installation must not fetch or
+  embed Omarchy history for them; the suite runner explicitly reports the
+  upstream-overlay test as development-only and continues every other test. A
+  full or noncanonical checkout without a tracked upstream ref still fails.
 - Before runtime checks, back up and apply changed user config, then install
   desktop payloads with
   `QVOS_PATH=$PWD bash -c 'source qvcore/install/desktop'`. Preserve optional
