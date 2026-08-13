@@ -9,6 +9,8 @@ provider_fingerprint="40DFB630FF42BCFFB047046CF0134EE680CAC571"
   exit 2
 }
 
+sudo -v
+
 if "$QVOS_PATH/qvcore/packages/missing" omarchy-keyring ||
   ! sudo pacman-key --list-keys "$provider_fingerprint" &>/dev/null; then
   sudo pacman-key --recv-keys "$provider_fingerprint" \

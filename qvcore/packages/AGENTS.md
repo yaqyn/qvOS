@@ -84,6 +84,8 @@ of carrying a permanent removal path.
   Arch keyrings immediately before the full `pacman -Syu`. Update AUR packages
   only when foreign packages exist and AUR is reachable. Remove all verified
   orphans in one argument-safe transaction and report failures honestly.
+  The keyring stage requests sudo visibly before any quiet privileged probe;
+  never hide an authentication prompt behind redirected key validation.
   Their inherited raw stage commands are retired, not compatibility APIs.
 - `qvcore/packages/update-available` owns the non-mutating package probe used by
   the public update indicator. It synchronizes only a private user-owned cache,

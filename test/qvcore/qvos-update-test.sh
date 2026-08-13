@@ -456,6 +456,11 @@ SCRIPT
 : >"$action_log"
 QVOS_PATH="$keyring_fixture" QVOS_TEST_ACTION_LOG="$action_log" \
   PATH="$test_bin:/usr/bin" "$root/qvcore/packages/update-keyring" >/dev/null
+[[ $(sed -n '1p' "$action_log") == $'sudo\t-v' ]] ||
+  fail "keyring update requested visible authorization first"
+[[ $(sed -n '2p' "$action_log") == \
+  $'sudo\tpacman-key\t--list-keys\t40DFB630FF42BCFFB047046CF0134EE680CAC571' ]] ||
+  fail "keyring update authorization order"
 grep -Fqx $'sudo\tpacman\t-Sy\t--noconfirm\t--\tarchlinux-keyring' "$action_log" ||
   fail "Arch keyring update arguments"
 ! grep -Fq -- '--recv-keys' "$action_log" ||
