@@ -211,9 +211,16 @@ pass "vanished foreground processes degrade without procfs diagnostics"
 
 rm "$temporary_bin/codex"
 install -m 0644 /dev/stdin "$temporary_bin/codex" <<'SCRIPT'
-setTimeout(() => {}, 30000)
+#!/bin/bash
+set -euo pipefail
+
+fifo="${BASH_SOURCE[0]}.fifo"
+exec 9<>"$fifo"
+IFS= read -r <&9
 SCRIPT
-node "$temporary_bin/codex" --yolo &
+mkfifo "$temporary_bin/codex.fifo"
+/bin/bash -c 'exec -a node /bin/bash "$@"' \
+  _ "$temporary_bin/codex" --yolo &
 temporary_command_pid=$!
 for _ in {1..100}; do
   if tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" |

@@ -38,3 +38,6 @@ Tmux replaces control-character format separators under the C locale. Parse
 machine records with printable delimiters whose leading fields have bounded
 syntax, or query one field directly; never use tabs or another control byte in
 `-F` output. The focused test exports `LC_ALL=C` so this contract cannot regress.
+Node.js is a Mise-managed development runtime, not a qvOS base dependency.
+Process-capture tests must synthesize the reviewed Node-shaped argument vector
+with base tools and never require an activated Node channel.
