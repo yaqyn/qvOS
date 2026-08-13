@@ -902,6 +902,7 @@ grep -Fq 'kill -KILL "$QVOS_ISO_PROGRESS_PID"' \
 
 progress_bin="$test_root/progress-bin"
 progress_log="$test_root/progress-owner.log"
+progress_cleanup_stderr="$test_root/progress-cleanup.stderr"
 install -d "$progress_bin"
 install -m 0755 /dev/stdin "$progress_bin/qvos-tui" <<'SCRIPT'
 #!/bin/bash
@@ -935,7 +936,9 @@ SCRIPT
   stop_log_output >/dev/null
   [[ -z ${QVOS_ISO_PROGRESS_PID:-} ]] ||
     fail "target install retained its stopped progress PID"
-)
+) 2>"$progress_cleanup_stderr"
+[[ ! -s $progress_cleanup_stderr ]] ||
+  fail "noninteractive install progress cleanup emitted a terminal warning"
 grep -Fqx -- "--iso-progress --log $test_root/target-install.log --no-input" \
   "$progress_log" ||
   fail "target install progress arguments"

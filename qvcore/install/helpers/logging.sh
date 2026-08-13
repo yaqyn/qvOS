@@ -66,7 +66,9 @@ stop_log_output() {
     fi
     wait "$QVOS_ISO_PROGRESS_PID" 2>/dev/null || true
     unset QVOS_ISO_PROGRESS_PID
-    clear || true
+    if [[ -t 1 && -n ${TERM:-} ]] && command -v clear >/dev/null 2>&1; then
+      clear || true
+    fi
   fi
 }
 

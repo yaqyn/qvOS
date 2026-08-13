@@ -225,8 +225,9 @@ Presentation must prefer inherited terminal descriptors and treat every size
 probe as optional under strict error handling; an ISO target user may inherit
 the live console while being unable to reopen `/dev/tty`. Environment logging
 records identity inputs only as set or empty and never persists their values.
-Clearing an unavailable terminal is cosmetic and must never turn a completed
-installer stage into a failure.
+Clear only an available interactive terminal; noninteractive install, recovery,
+and validation paths must neither warn nor turn a completed installer stage
+into a failure for this cosmetic cleanup.
 
 `qvcore/install/first-run/prepare` creates the native marker only after it
 installs and validates the root-owned helper and exact `apply`/`cleanup`
