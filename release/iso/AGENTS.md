@@ -69,6 +69,21 @@ a thin adapter to this owner.
   source. A build without that flag must prove the pinned commit equals the
   public update branch before staging proceeds. For ISO changes, run fast
   staging and contract checks immediately and report any deferred full build.
+- Use one cache-backed pre-public image as the integration-discovery artifact
+  and keep its disposable installed VM across test cycles with explicit
+  snapshots. A VM-local edit may confirm a diagnosis, but it is disposable:
+  reproduce the repair immediately in its native repository owner, run focused
+  and shared checks there, and deploy that exact repository change back into
+  the diagnostic VM. Record the source revision behind every deployed repair
+  so accumulated VM drift cannot become evidence.
+- Do not rebuild the diagnostic image for ordinary desktop, command,
+  configuration, service, update, removal, or security-policy repairs that can
+  be faithfully deployed and exercised after installation. Rebuild when a
+  changed owner affects live-media boot, the installer before repository
+  deployment, partitioning, boot or early boot, offline package contents,
+  pre-first-boot payload, or another behavior that cannot be reproduced in the
+  installed VM. This saves build time and bandwidth; it never weakens the
+  final clean-install gate.
 - Unflagged image builds use the installed qvOS Stable package channel.
   `--dev` selects Edge and `--rc` selects RC only for those explicit reviewed
   image workflows; never make a development channel the production default.
@@ -205,6 +220,14 @@ a thin adapter to this owner.
   rehearsal passes or the candidate is abandoned. During the freeze, accept
   only upstream compatibility, build or installation blockers, verification
   repairs, and security fixes; every change selects a new candidate commit.
+- Select that final candidate only after the diagnostic VM has no known
+  high-impact issue. Build a new exact artifact from the converged repository,
+  then install it onto an empty disposable disk and repeat the full lifecycle.
+  Diagnostic-image and VM evidence explains discoveries but cannot satisfy a
+  final-candidate gate. A failure in the final rehearsal returns to the native
+  owner, creates a new candidate commit, and requires a new artifact; never
+  patch or bless the prior ISO in place. One diagnostic build plus one final
+  proof build is the normal target, not a limit that permits stale evidence.
 - Never call a candidate releasable from static tests or a successful image
   build alone. Complete the build, embedded-source, clean-install, reboot,
   base-without-optional-integrations, update, and configuration-reconciliation

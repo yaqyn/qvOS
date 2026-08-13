@@ -4,9 +4,32 @@ An ISO is a development artifact until every base gate below has current,
 dated evidence for the same pinned inputs. Keep the evidence beside the
 artifact outside Git; it can contain machine and installation details.
 
+## 0. Diagnostic Convergence
+
+- Before selecting the final candidate, build one cache-backed pre-public
+  diagnostic image and install it in a disposable VM. Preserve explicit VM
+  snapshots at clean lifecycle boundaries and reuse this installation for
+  integration discovery instead of rebuilding after each ordinary repair.
+- A VM-local edit is permitted only as a diagnostic prototype. Once it proves
+  the hypothesis, implement the repair in the singular repository owner, run
+  its focused and shared checks, then deploy that exact repository revision to
+  the diagnostic VM. Record the deployed revision and reject unexplained VM
+  drift. Never treat a hand-modified installed system as product source.
+- Exercise installation, desktop, command, configuration, package, service,
+  update, removal, failure, reboot, and recovery behavior in the same VM until
+  no known high-impact issue remains. Rebuild during this phase only when a
+  repair affects live media, installation before repository deployment,
+  partitioning, boot or early boot, offline package contents, first-boot
+  payload, or behavior that cannot be reproduced faithfully after install.
+- Diagnostic evidence guides fixes but never satisfies the final release gate.
+  After convergence, select the exact final commit and proceed below with a new
+  artifact and an empty target disk. One diagnostic build plus one final proof
+  build is the normal path; correctness may still require another candidate.
+
 ## 1. Freeze And Pin
 
-- Select one full qvOS commit and freeze feature work for that candidate.
+- Select one full qvOS commit after diagnostic convergence and freeze feature
+  work for that candidate.
 - Complete `git qvsync --audit`, resolve every upstream capability decision,
   and verify clean development, tracking, remote, and live source parity.
 - Pin `QVOS_SOURCE_REF` to that qvOS commit. Its native builder and profile are
@@ -21,8 +44,9 @@ artifact outside Git; it can contain machine and installation details.
   lifecycle never gates base readiness; qvCORE itself is the image's mandatory
   qvOS implementation.
 
-Any source change creates a new candidate and invalidates later evidence from
-the previous one.
+After final candidate selection, any source change creates a new candidate and
+invalidates later evidence from the previous one. Earlier diagnostic evidence
+remains useful only for discovery and regression targeting.
 
 ## 2. Verify And Build
 

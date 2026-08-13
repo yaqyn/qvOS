@@ -377,6 +377,16 @@ Every qvOS change must leave one traceable lifecycle.
   `--pre-public` is only for development rehearsal; its unpublished shallow
   source is not releasable and update availability must fail closed unless an
   official fast-forward can be proven.
+- Converge release behavior with one cache-backed diagnostic ISO and a
+  snapshotted disposable VM. Prototype a repair in that VM only to confirm the
+  diagnosis, then immediately implement and verify its singular repository
+  owner and redeploy that exact source change to the same VM. Do not rebuild
+  for ordinary userland or configuration repairs. Rebuild when the change
+  affects live media, installation before repository deployment, boot or early
+  boot, the offline package inventory, first-boot payload, or final artifact
+  proof. After diagnostic convergence, select one exact final candidate, build
+  it from the repository, and repeat the complete empty-disk install and
+  lifecycle proof; a modified diagnostic VM is never release evidence.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.
