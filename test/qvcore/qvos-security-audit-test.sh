@@ -377,8 +377,22 @@ for saved_report in "${saved_reports[@]}"; do
     || fail "private audit report mode"
 done
 
-grep -Fq '/usr/bin/lynis audit system' "$root_helper" \
+grep -Fq 'exec /usr/bin/lynis audit system' "$root_helper" \
   || fail "complete native Lynis audit"
+grep -Fq '/usr/bin/unshare --mount --propagation private' "$root_helper" \
+  || fail "private Lynis operating-system compatibility namespace"
+# shellcheck disable=SC2016
+grep -Fq '/usr/bin/mount --bind "$arch_release" "$qvos_release"' "$root_helper" \
+  || fail "private Arch audit identity"
+grep -Fq "release_line_count 'ID=qvos'" "$root_helper" \
+  || fail "native qvOS audit identity validation"
+grep -Fq "release_line_count 'ID_LIKE=arch'" "$root_helper" \
+  || fail "qvOS Arch-derivative audit validation"
+grep -Fq "release_line_count 'ID=arch'" "$root_helper" \
+  || fail "package-owned Arch base audit identity validation"
+if rg -q '(cp|install|mv|sed -i).*os-release' "$root_helper"; then
+  fail "Lynis audit rewrites the host operating-system identity"
+fi
 grep -Fq '/usr/bin/install -m 0600' "$root_helper" \
   || fail "private report copy"
 grep -Fq 'report_mtime < audit_started' "$root_helper" \
@@ -388,6 +402,42 @@ grep -Fq "'%g' \"\$output_dir\"" "$root_helper" \
 if rg -q '^[[:space:]]*((/usr/bin/)?mv |(sudo )?pacman|omarchy-pkg-(add|remove))' \
   "$runner" "$root_helper"; then
   fail "audit mutates report ownership or packages"
+fi
+
+if unshare --user --map-root-user true >/dev/null 2>&1; then
+  namespace_root="$test_root/lynis-namespace"
+  namespace_qvos="$namespace_root/qvos-os-release"
+  namespace_arch="$namespace_root/arch-os-release"
+  namespace_lynis="$namespace_root/lynis"
+  install -d "$namespace_root"
+  printf '%s\n' 'NAME="qvOS"' 'ID=qvos' 'ID_LIKE=arch' >"$namespace_qvos"
+  printf '%s\n' 'NAME="Arch Linux"' 'ID=arch' >"$namespace_arch"
+  install -m 0755 /dev/stdin "$namespace_lynis" <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+grep -Fqx 'ID=arch' /etc/os-release
+if grep -Fqx 'ID=qvos' /etc/os-release; then
+  exit 1
+fi
+printf 'arch-compatible-audit\n'
+SCRIPT
+
+  # shellcheck disable=SC2016
+  namespace_output=$(
+    unshare --user --map-root-user --mount --propagation private \
+      /bin/bash -c '
+        set -euo pipefail
+        mount --bind "$1" /etc/os-release
+        mount --bind "$2" /usr/lib/os-release
+        mount --bind "$3" /usr/bin/lynis
+        exec "$4" --arch-compat-namespace
+      ' _ "$namespace_qvos" "$namespace_arch" "$namespace_lynis" "$root_helper"
+  )
+  [[ $namespace_output == "arch-compatible-audit" ]] \
+    || fail "private Lynis namespace activation"
+  grep -Fqx 'ID=qvos' "$namespace_qvos" \
+    || fail "private Lynis namespace preserves qvOS identity"
 fi
 
 expected_baseline=$'# Protect named pipes and regular files in all world-writable sticky directories.\nfs.protected_fifos = 2\nfs.protected_regular = 2\n\n# Hide kernel pointers from unprivileged users while preserving root debugging.\nkernel.kptr_restrict = 1'

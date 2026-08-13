@@ -6,14 +6,80 @@ usage() {
     "${0##*/}" >&2
 }
 
+require_root() {
+  if ((EUID != 0)); then
+    printf 'The Lynis audit helper must run as root.\n' >&2
+    exit 1
+  fi
+}
+
+release_file_is_safe() {
+  local mode
+  local path=$1
+
+  [[ -f $path && ! -L $path && -r $path ]] || return 1
+  [[ $(/usr/bin/stat -c '%u:%g' "$path") == "0:0" ]] || return 1
+  mode=$(/usr/bin/stat -c '%a' "$path")
+  [[ $mode =~ ^[0-7]{3,4}$ ]] || return 1
+  (((8#$mode & 8#022) == 0))
+}
+
+release_line_count() {
+  local expected=$1
+  local path=$2
+
+  /usr/bin/awk -v expected="$expected" \
+    '$0 == expected { count++ } END { print count + 0 }' "$path"
+}
+
+run_arch_compatible_lynis() {
+  local arch_release=/usr/lib/os-release
+  local qvos_release=/etc/os-release
+
+  release_file_is_safe "$qvos_release" || {
+    printf 'Unsafe qvOS operating-system identity: %s\n' "$qvos_release" >&2
+    exit 1
+  }
+  release_file_is_safe "$arch_release" || {
+    printf 'Unsafe Arch base identity: %s\n' "$arch_release" >&2
+    exit 1
+  }
+  if [[ $(release_line_count 'ID=qvos' "$qvos_release") != "1" ]] \
+    || [[ $(release_line_count 'ID_LIKE=arch' "$qvos_release") != "1" ]]; then
+    printf 'The installed identity is not a supported qvOS Arch derivative.\n' >&2
+    exit 1
+  fi
+  [[ $(release_line_count 'ID=arch' "$arch_release") == "1" ]] || {
+    printf 'The package-owned base identity is not Arch Linux.\n' >&2
+    exit 1
+  }
+  if [[ ! -x /usr/bin/lynis || ! -x /usr/bin/mount || ! -x /usr/bin/cmp ]]; then
+    printf 'The Arch-compatible Lynis audit tools are unavailable.\n' >&2
+    exit 1
+  fi
+
+  /usr/bin/mount --bind "$arch_release" "$qvos_release"
+  /usr/bin/cmp -s -- "$arch_release" "$qvos_release" || {
+    printf 'Could not activate the private Arch audit identity.\n' >&2
+    exit 1
+  }
+  exec /usr/bin/lynis audit system
+}
+
+if [[ ${1:-} == "--arch-compat-namespace" ]]; then
+  (($# == 1)) || {
+    usage
+    exit 2
+  }
+  require_root
+  run_arch_compatible_lynis
+fi
+
 if (($# != 5)); then
   usage
   exit 2
 fi
-if ((EUID != 0)); then
-  printf 'The Lynis audit helper must run as root.\n' >&2
-  exit 1
-fi
+require_root
 
 owner_uid=$1
 owner_gid=$2
@@ -45,14 +111,24 @@ if [[ $(/usr/bin/dirname -- "$audit_log") != "$output_dir" ]] \
   printf 'Unsafe Lynis report destination.\n' >&2
   exit 1
 fi
-if [[ ! -x /usr/bin/lynis ]]; then
-  printf 'Lynis is unavailable at /usr/bin/lynis.\n' >&2
+if [[ ! -x /usr/bin/lynis || ! -x /usr/bin/unshare || ! -x /usr/bin/readlink ]]; then
+  printf 'Lynis or its private compatibility boundary is unavailable.\n' >&2
   exit 1
 fi
+root_helper=$(/usr/bin/readlink -e -- "${BASH_SOURCE[0]}") || {
+  printf 'Could not resolve the Lynis root helper.\n' >&2
+  exit 1
+}
+[[ -f $root_helper ]] || {
+  printf 'Unsafe Lynis root helper: %s\n' "$root_helper" >&2
+  exit 1
+}
 
 audit_status=0
 audit_started=$(/usr/bin/date '+%s')
-/usr/bin/lynis audit system || audit_status=$?
+printf 'Using the validated qvOS Arch compatibility identity for Lynis.\n'
+/usr/bin/unshare --mount --propagation private \
+  "$root_helper" --arch-compat-namespace || audit_status=$?
 
 if [[ ! -f /var/log/lynis.log || ! -f /var/log/lynis-report.dat ]]; then
   printf 'Lynis did not create its standard reports in /var/log.\n' >&2

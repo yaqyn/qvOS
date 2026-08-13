@@ -7,6 +7,12 @@ changing a security default, or planning a hardening batch.
 live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
+Lynis does not currently follow qvOS's `ID_LIKE=arch`, so its root helper must
+validate the root-owned native `ID=qvos` identity and package-owned
+`/usr/lib/os-release` `ID=arch` identity, then expose the latter only inside a
+private mount namespace for the audit subprocess. Never rewrite, replace, or
+temporarily modify the host's `/etc/os-release`; fail closed when either
+identity is missing, writable, linked, ambiguous, or inconsistent.
 `qvcore/security/debug` owns local system diagnostics. Public `qv-debug`
 metadata and its exact metadata-free Omarchy adapter share that owner. Keep its
 temporary directory and saved files private, bound journal and total output,
