@@ -144,6 +144,10 @@ printf 'ok - Waybar restart survives its matching owner basename\n'
 
 : >"$log"
 run_owner monitor-watch
+for _ in {1..20}; do
+  grep -Fq 'uwsm|-t|service|-u|qvos-monitor-watch.service' "$log" && break
+  sleep 0.05
+done
 grep -Fqx 'uwsm|-t|service|-u|qvos-monitor-watch.service|-d|qvOS monitor watcher|-p|Restart=on-failure|-S|both|--|qv-hyprland-monitor-watch' "$log" ||
   fail "native monitor-watch relaunch"
 printf 'ok - monitor watching uses one restartable qvOS service\n'

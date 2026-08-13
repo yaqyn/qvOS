@@ -88,11 +88,13 @@ route.
 
 `restart/process-lib` owns graceful exact-process termination with a bounded
 forced fallback. Reuse it for restarts and session toggles; never copy a
-TERM/wait/KILL loop. Process-aware tests must replace discovery inside their fixture. They must not
-observe, signal, lock, or otherwise depend on real desktop processes belonging
-to the developer session. Process inspection must tolerate a process
-disappearing between discovery and `/proc` access without leaking a misleading
-error.
+TERM/wait/KILL loop. Process-aware tests must replace discovery inside their
+fixture. They must not observe, signal, lock, or otherwise depend on real
+desktop processes belonging to the developer session. Process inspection must
+tolerate a process disappearing between discovery and `/proc` access without
+leaking a misleading error. A test whose owner deliberately backgrounds a
+relaunch must wait boundedly for its fixture action before asserting the
+recorded command; host scheduling speed is not lifecycle evidence.
 
 Prefer graceful process termination before a bounded forced fallback. User
 services stay in the invoking user's systemd manager. Privileged hardware
