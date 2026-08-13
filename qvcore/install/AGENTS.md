@@ -111,6 +111,10 @@ files, or service units. The owner preflights every unit and managed path,
 rolls back a failed activation, persists without touching the build host in a
 target chroot, and reconciles after package updates without prompting when the
 policy is already current.
+The target chroot has no system manager or caller environment suitable for
+unprivileged `systemctl` discovery: validate packaged unit files directly and
+run enablement queries through the temporary installer sudo boundary. Live
+activity queries use the same root scope.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,

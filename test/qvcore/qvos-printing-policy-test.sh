@@ -175,8 +175,21 @@ for unit in "${units[@]}"; do
   [[ $(<"$state_root/active/$unit") == "inactive" ]] ||
     fail "target chroot changed build-host unit state: $unit"
 done
-if rg -q '^(start|stop|restart)\|' "$action_log"; then
-  fail "target chroot performed a live service action"
+if rg -q '^(is-active|start|stop|restart)\|' "$action_log"; then
+  fail "target chroot queried or changed live service activity"
 fi
+
+# shellcheck disable=SC2016
+root_enabled_query='as_root "$systemctl_command" is-enabled'
+# shellcheck disable=SC2016
+root_active_query='as_root "$systemctl_command" is-active --quiet'
+# shellcheck disable=SC2016
+chroot_unit_inventory='[[ -n $system_root || ${QVOS_CHROOT_INSTALL:-} == "1" ]]'
+grep -Fq "$root_enabled_query" "$owner" ||
+  fail "root-scoped system unit enablement query"
+grep -Fq "$root_active_query" "$owner" ||
+  fail "root-scoped system unit activity query"
+grep -Fq "$chroot_unit_inventory" "$owner" ||
+  fail "target-chroot unit inventory avoids the unavailable system manager"
 
 printf 'ok - qvOS printing is on demand without unsolicited network discovery\n'
