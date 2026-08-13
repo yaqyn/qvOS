@@ -12,6 +12,11 @@ to obtain a custom menu layout.
 Keep the promoted live theme's graphite `#090909` graphical background and
 exact promoted assets together. The installer TUI remains an independent
 exact-black renderer and must clear Plymouth before painting its first frame.
+The installed graphical kernel command line must explicitly initialize
+`console=tty0`; a Limine-started UKI can otherwise reach early Plymouth with
+no primary kernel console and crash before the encrypted-root prompt. Keep the
+console token in the singular native Limine defaults and covered by the boot
+install idempotence test.
 `qvcore/boot/limine/`, `qvcore/boot/sddm/`, and `qvcore/boot/wayland-sessions/` likewise
 own their installed payloads. Do not restore parallel copies under `default/`.
 Public `bin/qv-*` boot routes own command metadata and delegate directly to

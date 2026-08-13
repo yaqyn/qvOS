@@ -173,6 +173,10 @@ if [[ -n $compatibility_path_refs ]]; then
 fi
 grep -Fqx 'CUSTOM_UKI_NAME="qvos"' "$root/qvcore/boot/limine/default.conf" ||
   fail "native qvOS UKI identity"
+grep -Fqx \
+  'KERNEL_CMDLINE[default]+=" quiet splash console=tty0 loglevel=0 systemd.show_status=false rd.udev.log_level=0 vt.global_cursor_default=0"' \
+  "$root/qvcore/boot/limine/default.conf" ||
+  fail "native Plymouth console initialization"
 [[ -f $root/qvcore/boot/plymouth/qvos.plymouth &&
   -f $root/qvcore/boot/plymouth/qvos.script &&
   ! -e $root/qvcore/boot/plymouth/omarchy.plymouth &&

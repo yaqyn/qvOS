@@ -467,6 +467,7 @@ grep -q '^/+qvOS' "$system_root/boot/limine.conf" ||
 for token in \
   'quiet' \
   'splash' \
+  'console=tty0' \
   'loglevel=0' \
   'systemd.show_status=false' \
   'rd.udev.log_level=0' \
