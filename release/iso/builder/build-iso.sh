@@ -142,8 +142,10 @@ install -m 0644 -- "$identity_source" \
 # contract. Keep SSH available for explicit recovery, but do not expose it or
 # run Archiso mirror/cloud discovery automatically on an untrusted network.
 rm -f \
+  "$build_cache_dir/airootfs/etc/systemd/system/choose-mirror.service" \
   "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/choose-mirror.service" \
-  "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/sshd.service"
+  "$build_cache_dir/airootfs/etc/systemd/system/multi-user.target.wants/sshd.service" \
+  "$build_cache_dir/airootfs/usr/local/bin/choose-mirror"
 rm -rf "$build_cache_dir/airootfs/etc/systemd/system/cloud-init.target.wants"
 
 # Persist the validated provider channel for the target installer.

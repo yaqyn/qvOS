@@ -266,6 +266,13 @@ grep -Fq 'multi-user.target.wants/sshd.service' "$builder" ||
   fail "release ISO does not disable automatic remote administration"
 grep -Fq 'multi-user.target.wants/choose-mirror.service' "$builder" ||
   fail "release ISO does not disable inherited mirror discovery"
+grep -Fq 'airootfs/etc/systemd/system/choose-mirror.service' "$builder" ||
+  fail "release ISO retains the inherited mirror-discovery unit"
+grep -Fq 'airootfs/usr/local/bin/choose-mirror' "$builder" ||
+  fail "release ISO retains the inherited mirror-discovery executable"
+if grep -Fq '["/usr/local/bin/choose-mirror"]=' "$profile/profiledef.sh"; then
+  fail "release ISO retains inherited mirror-discovery permissions"
+fi
 grep -Fq 'cloud-init.target.wants' "$builder" ||
   fail "release ISO does not disable inherited cloud bootstrap"
 grep -Fqx 'unused_live_packages=(cloud-init dhcpcd reflector)' "$builder" ||
