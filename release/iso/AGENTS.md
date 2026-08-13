@@ -76,6 +76,14 @@ a thin adapter to this owner.
   and shared checks there, and deploy that exact repository change back into
   the diagnostic VM. Record the source revision behind every deployed repair
   so accumulated VM drift cannot become evidence.
+- Treat installation media and the installed disk as separate lifecycle
+  inputs. Before any installed-system boot or reboot result counts, detach the
+  exact ISO, verify every emulated optical drive reports no inserted medium,
+  and select the target disk as the boot source. If a guest stalls while media
+  is attached, capture its console and kernel evidence, detach only that media,
+  and repeat an ordinary reboot before classifying the behavior as a qvOS
+  regression. A hard reset can recover a disposable VM but is never reboot
+  proof.
 - Do not rebuild the diagnostic image for ordinary desktop, command,
   configuration, service, update, removal, or security-policy repairs that can
   be faithfully deployed and exercised after installation. Rebuild when a
@@ -225,6 +233,10 @@ a thin adapter to this owner.
 - Select that final candidate only after the diagnostic VM has no known
   high-impact issue. Build a new exact artifact from the converged repository,
   then install it onto an empty disposable disk and repeat the full lifecycle.
+  Detach and verify the installation media before the first installed boot,
+  record its boot identity, then require a second ordinary disk-only reboot
+  with a different boot identity and no failed units, blocked kernel workers,
+  or optical-media I/O errors.
   Diagnostic-image and VM evidence explains discoveries but cannot satisfy a
   final-candidate gate. A failure in the final rehearsal returns to the native
   owner, creates a new candidate commit, and requires a new artifact; never

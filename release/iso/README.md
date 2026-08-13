@@ -21,6 +21,12 @@ artifact outside Git; it can contain machine and installation details.
   repair affects live media, installation before repository deployment,
   partitioning, boot or early boot, offline package contents, first-boot
   payload, or behavior that cannot be reproduced faithfully after install.
+- Before counting an installed boot, detach the exact diagnostic ISO, verify
+  every emulated optical drive is empty, and select the installed disk as the
+  boot source. A reset may recover a disposable VM, but it is not reboot
+  evidence. If attached media causes a stall, preserve the console and kernel
+  evidence and repeat an ordinary disk-only reboot before assigning the fault
+  to qvOS.
 - Diagnostic evidence guides fixes but never satisfies the final release gate.
   After convergence, select the exact final commit and proceed below with a new
   artifact and an empty target disk. One diagnostic build plus one final proof
@@ -169,6 +175,10 @@ test storage. Never overwrite this development installation for rehearsal.
 
 - Boot the artifact and complete the normal disk installer from an empty
   target without optional Services or Development integrations.
+- Before the first installed boot, stop any automatic finale action if needed,
+  detach the exact installation ISO, verify every emulated optical drive is
+  empty, and select the installed disk as the boot source. Record the resulting
+  boot identity; a hypervisor reset does not satisfy this gate.
 - Reboot from the installed disk and verify login, networking, audio, graphics,
   storage, the qvOS menu, the shared TUI, and installed source/payload parity.
 - Before updating, install and remove one harmless repository package through
@@ -179,6 +189,9 @@ test storage. Never overwrite this development installation for rehearsal.
   exists. Verify the branch guard, credited package-provider transaction, qvOS
   post-update hooks, configuration reconciliation, reboot handling, and a clean
   second boot.
+- Keep the installation media detached for that second ordinary reboot. Record
+  a different boot identity and verify the current boot has no failed units,
+  blocked kernel workers, or optical-media I/O errors.
 - Confirm no failed system or user units and no private build, installer, or
   development-machine data entered the image or installed source.
 

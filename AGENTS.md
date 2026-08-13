@@ -389,9 +389,13 @@ Every qvOS change must leave one traceable lifecycle.
   for ordinary userland or configuration repairs. Rebuild when the change
   affects live media, installation before repository deployment, boot or early
   boot, the offline package inventory, first-boot payload, or final artifact
-  proof. After diagnostic convergence, select one exact final candidate, build
-  it from the repository, and repeat the complete empty-disk install and
-  lifecycle proof; a modified diagnostic VM is never release evidence.
+  proof. Before any installed-system boot evidence counts, detach the exact
+  installation image, verify every virtual optical drive is empty, and boot
+  from the target disk; a reset with attached media is diagnostic evidence,
+  not reboot proof. After diagnostic convergence, select one exact final
+  candidate, build it from the repository, and repeat the complete empty-disk
+  install and lifecycle proof; a modified diagnostic VM is never release
+  evidence.
 - Use thin, absent-safe adapters only as transition seams that complete a user
   task. qvCORE is mandatory; qvOS must remain complete and healthy with no
   optional Service or Development integration installed.

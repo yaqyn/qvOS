@@ -4,6 +4,8 @@ set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 release_root="$root/release/iso"
+release_contract="$release_root/AGENTS.md"
+release_gate="$release_root/README.md"
 build="$release_root/build"
 builder="$release_root/builder/build-iso.sh"
 cache_recovery="$release_root/builder/cache-recovery"
@@ -31,6 +33,18 @@ grep -Fq 'native qvOS Archiso builder and profile' "$root/qvcore/README.md" ||
 if rg -n 'source-backed Omarchy ISO|stages .*Omarchy ISO' "$root/qvcore/README.md"; then
   fail "qvCORE architecture retains the retired patched ISO model"
 fi
+grep -Fq 'verify every virtual optical drive is empty' "$root/AGENTS.md" ||
+  fail "root release lifecycle permits attached installation media"
+grep -Fq 'verify every emulated optical drive reports no inserted medium' \
+  "$release_contract" ||
+  fail "ISO owner permits attached installation media during reboot proof"
+grep -Fq 'every emulated optical drive is empty' "$release_gate" ||
+  fail "release gate permits attached installation media during installed boot"
+grep -Fq 'A hard reset can recover a disposable VM but is never reboot' \
+  "$release_contract" ||
+  fail "ISO owner accepts a hard reset as reboot proof"
+grep -Fq 'a hypervisor reset does not satisfy this gate' "$release_gate" ||
+  fail "release gate accepts a reset as installed-boot evidence"
 
 for retired in \
   "$release_root/omarchy-iso-qvos-tui.patch" \
