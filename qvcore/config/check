@@ -69,6 +69,9 @@ for source_path in \
 done
 [[ -x $seed && -f $seed_manifest && ! -L $seed_manifest ]] ||
   fail "native config seed owner or manifest"
+if find "$root/qvcore/config/files" -type f -empty -print -quit | grep -q .; then
+  fail "native config contains an empty placeholder source"
+fi
 expected_feature_files=$'autostart/walker.desktop\nelephant/calc.toml\nelephant/desktopapplications.toml\nelephant/symbols.toml\nqvos/extensions/menu.sh\nsystemd/user/app-walker@autostart.service.d/restart.conf\nsystemd/user/qvos-battery-monitor.service\nsystemd/user/qvos-battery-monitor.timer\nsystemd/user/qvos-recover-internal-monitor.service\nsystemd/user/qvos-screensaver.service\nsystemd/user/qvos-swayosd-server.service\nwalker/config.toml\nwireplumber/wireplumber.conf.d/alsa-soft-mixer.conf\nwireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf\nxcompose'
 actual_config_files=$(find "$root/qvcore/config/files" -type f -printf '%P\n' | LC_ALL=C sort)
 declared_config_files=$(

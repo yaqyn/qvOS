@@ -30,7 +30,6 @@ hypr/xdph.conf
 hyprland-preview-share-picker/config.yaml
 imv/config
 kitty/kitty.conf
-lazygit/config.yml
 nvim/init.lua
 obsidian/user-flags.conf
 opencode/opencode.json

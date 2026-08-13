@@ -93,8 +93,10 @@ missing entries under the shared refresh lock. It preflights the full manifest,
 preserves every safe existing user file, rejects unsafe paths, and publishes
 without clobbering a concurrent target. Feature-owned menu, user-service,
 XCompose, and WirePlumber sources stay outside that manifest and are installed
-only by their owner. Fresh qvOS never pre-creates a Chromium profile or copies
-the entire source tree recursively into a user's home.
+only by their owner. Do not seed empty placeholder files; leave an application
+on its own defaults until qvOS owns meaningful policy. Fresh qvOS never
+pre-creates a Chromium profile or copies the entire source tree recursively
+into a user's home.
 The personal menu-extension seed lives at
 `qvcore/config/files/qvos/extensions/menu.sh`; never recreate an installed
 `~/.config/omarchy/extensions/menu.sh` source.
