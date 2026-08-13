@@ -13,9 +13,9 @@ identity.
   operate a parallel package repository or mirror.
 - `qvcore/` is the mandatory native implementation of qvOS. It owns the
   installed product domains and is not an optional software bundle.
-- Optional integrations are classified by purpose. Proton belongs to Services;
-  the workstation formerly named qvDEV is now Devel under Development. qvOS
-  remains complete without either optional integration.
+- Optional integrations are classified by purpose. Proton belongs to Services
+  and Devel belongs to Development. qvOS remains complete without either
+  optional integration.
 
 ```text
 qvcore/       Mandatory installed qvOS implementation.

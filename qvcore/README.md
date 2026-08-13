@@ -46,14 +46,14 @@ qvcore/
   tui/         Shared actions plus installer and progress presentation.
   update/      qvOS update preflight and presentation wrapper.
   version/     Installed source, branch, channel, and package-age reporting.
-  waybar/      qvOS prayer clock modules.
+  waybar/      Waybar lifecycle, native modules, and workspace-state tracking.
   weather/     Bounded weather-provider parsing for Waybar and status.
   windows/     Windows VM configuration, safe removal, and rollback.
 ```
 
 Top-level `services/proton/` owns the optional Proton Service and
-`development/devel/` owns the optional workstation formerly named qvDEV. Each
-exposes only user-facing Install and Uninstall actions and owns its
+`development/devel/` owns the optional Devel workstation. Each exposes only
+user-facing Install and Uninstall actions and owns its
 complete lifecycle independently. There is no qvCORE Software menu or qvCORE
 enrollment state; qvCORE is the operating-system implementation itself.
 
@@ -195,9 +195,9 @@ private, explicitly viewed or uniquely saved, and never uploaded.
 
 `qvcore/thunar/actions.sh` is the preservation-safe owner for qvOS custom actions.
 The base desktop installs its default helpers, including the LocalSend Share
-action for Omarchy's base package, and preserves optional integration payloads
-without reinstalling them. Proton and Devel install and remove their own
-actions.
+action for the base-owned LocalSend package, and preserves optional integration
+payloads without reinstalling them. Proton and Devel install and remove their
+own actions.
 
 ## Native ownership boundary
 
