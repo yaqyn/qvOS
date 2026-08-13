@@ -215,7 +215,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   `default/udev/` is retired
 - `qvcore/power/unmount-fuse` owns the root-installed gvfs sleep hook; completed
   pre-release AC-rule, sleep-hook, and hibernation convergence is not scanned
-  at runtime;
+  at runtime; target-chroot AC-rule installation never reloads or triggers the
+  build host's udev manager;
   qvOS carries no global GnuPG resolver policy or forced shutdown timeout
 - `qvcore/network/warp-policy` owns the optional WARP daemon privacy boundary;
   its root-owned systemd drop-in keeps vendor state and logs private and stops

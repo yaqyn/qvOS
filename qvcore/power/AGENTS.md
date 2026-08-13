@@ -46,6 +46,10 @@ pre-release Omarchy rule convergence is retired and must not return. Both
 policies run in bounded transient services.
 Wi-Fi derives the effective mode from every supported external supply instead
 of trusting a single event's online value.
+A target-chroot install publishes the installed system's helpers and rules but
+never reloads or triggers the build host's udev manager. The profile installer
+likewise defers its initial power-supply trigger until the installed system is
+running.
 
 ## Power telemetry and sleep guards
 

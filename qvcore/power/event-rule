@@ -21,16 +21,27 @@ script_path=$(/usr/bin/readlink -f -- "${BASH_SOURCE[0]}")
 qvos_root=$(cd -- "$(/usr/bin/dirname -- "$script_path")/../.." && pwd)
 system_root=${QVOS_POWER_SYSTEM_ROOT:-}
 testing=${QVOS_POWER_TESTING:-}
+chroot_install=${QVOS_CHROOT_INSTALL:-}
 reload_command=/usr/bin/udevadm
 trigger=false
 temporary=""
 
+case $chroot_install in
+"" | "1") ;;
+*)
+  echo "Invalid qvOS chroot-install signal." >&2
+  exit 2
+  ;;
+esac
 if [[ -n $system_root && $testing != "1" ]]; then
   echo "A custom qvOS power system root is valid only in tests." >&2
   exit 2
 fi
 if [[ $testing == "1" ]]; then
   reload_command=${QVOS_UDEVADM:-}
+fi
+if [[ $chroot_install == "1" ]]; then
+  reload_command=""
 fi
 
 profile_rule_content() {

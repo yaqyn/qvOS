@@ -3,5 +3,7 @@ if qv-battery-present; then
 
   sudo systemctl enable power-profiles-daemon
 
-  sudo udevadm trigger --subsystem-match=power_supply 2>/dev/null
+  if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then
+    sudo udevadm trigger --subsystem-match=power_supply 2>/dev/null
+  fi
 fi

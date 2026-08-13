@@ -71,6 +71,78 @@ run_event_owner() {
 run_event_owner "$root/qvcore/power/profile-rule" >/dev/null
 run_event_owner "$root/qvcore/power/wifi-rule" >/dev/null
 
+chroot_system_root="$test_root/chroot-system"
+chroot_rules_dir="$chroot_system_root/etc/udev/rules.d"
+chroot_profile_rule="$chroot_rules_dir/99-power-profile.rules"
+chroot_wifi_rule="$chroot_rules_dir/99-wifi-powersave.rules"
+install -d "$chroot_rules_dir"
+: >"$event_log"
+for chroot_rule in profile wifi; do
+  QVOS_PATH="$root" \
+  QVOS_CHROOT_INSTALL=1 \
+  QVOS_POWER_TESTING=1 \
+  QVOS_POWER_SYSTEM_ROOT="$chroot_system_root" \
+  QVOS_POWER_PROFILE_RULE="$chroot_profile_rule" \
+  QVOS_POWER_WIFI_RULE="$chroot_wifi_rule" \
+  QVOS_UDEVADM="$test_bin/udevadm" \
+  QVOS_TEST_POWER_EVENT_LOG="$event_log" \
+    "$root/qvcore/power/$chroot_rule-rule" >/dev/null
+done
+[[ -f $chroot_profile_rule && -f $chroot_wifi_rule ]] ||
+  fail "target-chroot AC-event rule publication"
+[[ ! -s $event_log ]] ||
+  fail "target-chroot AC-event owner contacted the build host's udev manager"
+if QVOS_PATH="$root" \
+  QVOS_CHROOT_INSTALL=invalid \
+  QVOS_POWER_TESTING=1 \
+  QVOS_POWER_SYSTEM_ROOT="$test_root/invalid-chroot" \
+  QVOS_UDEVADM="$test_bin/udevadm" \
+  QVOS_TEST_POWER_EVENT_LOG="$event_log" \
+  "$root/qvcore/power/profile-rule" >/dev/null 2>&1; then
+  fail "invalid target-chroot signal was accepted by the AC-event owner"
+fi
+printf 'ok - target-chroot AC-event installation never touches host udev\n'
+
+stage_root="$test_root/stage-root"
+stage_bin="$stage_root/bin"
+stage_log="$test_root/profile-stage.log"
+install -d "$stage_bin" "$stage_root/qvcore/power"
+install -m 0755 /dev/stdin "$stage_bin/qv-battery-present" <<'SCRIPT'
+#!/bin/bash
+exit 0
+SCRIPT
+install -m 0755 /dev/stdin "$stage_bin/sudo" <<'SCRIPT'
+#!/bin/bash
+printf 'sudo|%s\n' "$*" >>"$QVOS_TEST_PROFILE_STAGE_LOG"
+SCRIPT
+install -m 0755 /dev/stdin "$stage_root/qvcore/power/profile-rule" <<'SCRIPT'
+#!/bin/bash
+printf 'profile-rule\n' >>"$QVOS_TEST_PROFILE_STAGE_LOG"
+SCRIPT
+
+run_profile_stage() {
+  QVOS_PATH="$stage_root" \
+  QVOS_TEST_PROFILE_STAGE_LOG="$stage_log" \
+  PATH="$stage_bin:/usr/bin" \
+    bash -c 'source "$1"' _ \
+    "$root/qvcore/install/config/powerprofilesctl-rules.sh"
+}
+
+: >"$stage_log"
+QVOS_CHROOT_INSTALL=1 run_profile_stage
+grep -Fqx 'profile-rule' "$stage_log" ||
+  fail "target-chroot profile stage omitted rule publication"
+grep -Fqx 'sudo|systemctl enable power-profiles-daemon' "$stage_log" ||
+  fail "target-chroot profile stage omitted installed service enablement"
+if grep -Fq 'udevadm' "$stage_log"; then
+  fail "target-chroot profile stage triggered build-host hardware"
+fi
+: >"$stage_log"
+run_profile_stage
+grep -Fqx 'sudo|udevadm trigger --subsystem-match=power_supply' "$stage_log" ||
+  fail "live profile stage omitted initial power-supply activation"
+printf 'ok - profile-stage activation is isolated from target chroots\n'
+
 helper_root="$system_root/usr/lib/qvos/power"
 for helper in profiles-command profiles-set supply-lib wifi-powersave; do
   mode=755

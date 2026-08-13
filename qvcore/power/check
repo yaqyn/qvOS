@@ -97,6 +97,14 @@ grep -Fqx '  "$QVOS_PATH/qvcore/power/profile-rule"' \
 grep -Fqx '  "$QVOS_PATH/qvcore/power/wifi-rule"' \
   "$root/qvcore/install/config/wifi-powersave-rules.sh" ||
   fail "installer does not use the native Wi-Fi power rule owner"
+# shellcheck disable=SC2016
+grep -Fq 'if [[ ${QVOS_CHROOT_INSTALL:-} != "1" ]]; then' \
+  "$root/qvcore/install/config/powerprofilesctl-rules.sh" ||
+  fail "target-chroot profile installation can trigger build-host hardware"
+# shellcheck disable=SC2016
+grep -Fq 'if [[ $chroot_install == "1" ]]; then' \
+  "$root/qvcore/power/event-rule" ||
+  fail "target-chroot AC-event owner can contact the build-host udev manager"
 if rg -q 'cat <<EOF|tee .*99-power-profile' \
   "$root/qvcore/install/config/powerprofilesctl-rules.sh"; then
   fail "installer duplicates the native power-profile rule"
