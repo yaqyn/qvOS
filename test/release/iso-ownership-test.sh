@@ -1,6 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2016
 set -euo pipefail
+export LC_ALL=C
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 release_root="$root/release/iso"

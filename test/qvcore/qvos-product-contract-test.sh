@@ -1,6 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2016,SC2030,SC2031
 set -euo pipefail
+export LC_ALL=C
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 test_root="$(mktemp -d)"
@@ -22,6 +23,14 @@ fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
+
+while IFS= read -r -d '' test_file; do
+  if rg -q '(^|[|;][[:space:]]+)(sort|comm)([[:space:]]|$)' "$test_file" &&
+    ! grep -Fqx 'export LC_ALL=C' "$test_file"; then
+    fail "locale-sensitive test inventory lacks LC_ALL=C: ${test_file#"$root/"}"
+  fi
+done < <(find "$root/test" -type f -name '*-test.sh' -print0)
+pass "test inventories use a deterministic locale"
 
 "$root/qvcore/install/packaging/resolve" base >"$base_packages"
 "$root/qvcore/install/packaging/resolve" other >"$other_packages"
