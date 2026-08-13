@@ -252,6 +252,18 @@ if rg -q 'on-resume\s*=\s*pkill.*org\.(omarchy|qvos)\.screensaver' "$root/qvcore
 fi
 pass "idle config does not race screensaver startup"
 
+grep -Fqx '    on-timeout = pidof hyprlock || systemctl --user start qvos-screensaver.service' \
+  "$root/qvcore/config/files/hypr/hypridle.conf" ||
+  fail "idle config does not isolate screensaver supervision"
+grep -Fqx 'ExecStart=%h/.local/lib/qvos/bin/qvos-launch-screensaver' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service" ||
+  fail "screensaver service bypasses the installed launcher"
+if rg -q '^\[Install\]$' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service"; then
+  fail "on-demand screensaver service is installable"
+fi
+pass "idle launch is isolated from the Hypridle control group"
+
 if rg -q 'cursor:invisible\s+true' "$launcher" "$runner"; then
   fail "screensaver can leak a globally invisible cursor"
 fi

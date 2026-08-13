@@ -170,6 +170,7 @@ for native_unit in \
   qvos-battery-monitor.service \
   qvos-battery-monitor.timer \
   qvos-recover-internal-monitor.service \
+  qvos-screensaver.service \
   qvos-swayosd-server.service; do
   cmp -s \
     "$root/qvcore/config/files/systemd/user/$native_unit" \
@@ -190,6 +191,7 @@ for native_unit in \
   qvos-battery-monitor.service \
   qvos-battery-monitor.timer \
   qvos-recover-internal-monitor.service \
+  qvos-screensaver.service \
   qvos-swayosd-server.service; do
   cmp -s "$root/qvcore/config/files/systemd/user/$native_unit" "$unit_root/$native_unit" ||
     fail "native user service was not deployed exactly: $native_unit"
@@ -295,6 +297,13 @@ grep -Fq 'NoNewPrivileges=yes' \
 grep -Fq 'ConditionPathExists=%h/.local/state/qvos/toggles/' \
   "$root/qvcore/config/files/systemd/user/qvos-recover-internal-monitor.service" ||
   fail "monitor recovery native state condition"
+grep -Fq 'ExecStart=%h/.local/lib/qvos/bin/qvos-launch-screensaver' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service" ||
+  fail "screensaver native user-service owner"
+if rg -q '^\[Install\]$' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service"; then
+  fail "on-demand screensaver service is installable"
+fi
 grep -Fq 'ExecStart=/usr/bin/swayosd-server' \
   "$root/qvcore/config/files/systemd/user/qvos-swayosd-server.service" ||
   fail "SwayOSD native user-service owner"

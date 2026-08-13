@@ -39,6 +39,7 @@ for feature_owned in \
   elephant/calc.toml \
   qvos/extensions/menu.sh \
   systemd/user/qvos-battery-monitor.service \
+  systemd/user/qvos-screensaver.service \
   systemd/user/qvos-swayosd-server.service \
   walker/config.toml \
   wireplumber/wireplumber.conf.d/bluetooth-a2dp-autoconnect.conf \

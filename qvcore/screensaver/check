@@ -94,9 +94,16 @@ if rg -q '^close_screensaver_windows\(\)' "$root/qvcore/screensaver/qvos-screens
   fail "screensaver runner duplicates the shared close owner"
 fi
 # shellcheck disable=SC2016
-grep -Fqx '    on-timeout = pidof hyprlock || ~/.local/lib/qvos/bin/qvos-launch-screensaver' \
+grep -Fqx '    on-timeout = pidof hyprlock || systemctl --user start qvos-screensaver.service' \
   "$root/qvcore/config/files/hypr/hypridle.conf" ||
-  fail "installed idle config bypasses the native runtime owner"
+  fail "installed idle config bypasses isolated screensaver supervision"
+grep -Fqx 'ExecStart=%h/.local/lib/qvos/bin/qvos-launch-screensaver' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service" ||
+  fail "screensaver user service bypasses the installed runtime owner"
+if rg -q '^\[Install\]$' \
+  "$root/qvcore/config/files/systemd/user/qvos-screensaver.service"; then
+  fail "screensaver user service must remain on demand"
+fi
 
 for alias_entry in \
   qv-launch-screensaver:qvos-launch-screensaver \

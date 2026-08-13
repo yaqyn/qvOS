@@ -39,8 +39,10 @@ menus and concepts use `qv-toggle-screensaver`, never its compatibility name.
   runtime bridge, and close every screensaver window when any runner detects
   keyboard or pointer input.
 - Preserve the Hypridle ordering: screensaver first, lock second, then guarded
-  suspend. Do not restore external state from an unsupervised per-monitor
-  runner.
+  suspend. Hypridle starts the static, non-enabled
+  `qvos-screensaver.service`; this isolates the launcher and its cursor cleanup
+  from Hypridle's control group while preserving idempotent starts. Do not
+  restore external state from an unsupervised per-monitor runner.
 - `qvcore/screensaver/install` owns the complete user runtime. Stage each
   replacement before removing stale content. Its Alacritty, Foot, and Ghostty
   profiles live only in `qvcore/screensaver/` and are installed atomically into

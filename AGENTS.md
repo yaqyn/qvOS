@@ -234,7 +234,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - qvOS-managed user units use `qvos-*` names and native `qvcore/` entrypoints;
   one shared probe limits manager access to the active account home, while a
   fresh chroot stages units for first run; retired inherited unit names remain
-  absent
+  absent. Hypridle starts the static `qvos-screensaver.service` on demand so
+  restarting Hypridle cannot interrupt screensaver cleanup; the service is
+  never enabled or kept resident
 - Restartable long-running desktop components use stable `qvos-*` UWSM units
   so a restart stops the complete prior control group before relaunching
 - Waybar and monitor-watch restarts stop only their stable qvOS unit and exact

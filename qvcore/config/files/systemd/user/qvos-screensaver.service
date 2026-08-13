@@ -1,0 +1,16 @@
+[Unit]
+Description=qvOS Screensaver
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/lib/qvos/bin/qvos-launch-screensaver
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=full
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native

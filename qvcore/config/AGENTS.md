@@ -134,9 +134,12 @@ Only manage the user systemd instance when `HOME` is the active account home.
 same home. Fresh chroot and cross-home runs deploy unit files without contacting
 a manager; first run activates them after the real session exists. The test
 override accepts only an executable temporary `systemctl` fixture.
-The native user-service inventory includes SwayOSD, battery monitoring, and
-internal-monitor recovery; feature first-run leaves only enable the installed
-native unit and never rely on the broad config seed. The battery monitor keeps its one-shot notification flag only at
+The native user-service inventory includes SwayOSD, battery monitoring,
+internal-monitor recovery, and the static on-demand screensaver supervisor;
+feature first-run leaves only enable installable native units and never rely on
+the broad config seed. The screensaver supervisor is never enabled: Hypridle
+starts it explicitly so a Hypridle restart cannot kill launcher cleanup. The
+battery monitor keeps its one-shot notification flag only at
 `$XDG_RUNTIME_DIR/qvos-battery-notified`; no inherited runtime flag is read,
 migrated, or removed during normal monitoring.
 
