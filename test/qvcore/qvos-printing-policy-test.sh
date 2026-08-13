@@ -180,16 +180,29 @@ if rg -q '^(is-active|start|stop|restart)\|' "$action_log"; then
 fi
 
 # shellcheck disable=SC2016
-root_enabled_query='as_root "$systemctl_command" is-enabled'
+scoped_enabled_query='query_systemctl is-enabled'
 # shellcheck disable=SC2016
-root_active_query='as_root "$systemctl_command" is-active --quiet'
+scoped_active_query='query_systemctl is-active --quiet'
 # shellcheck disable=SC2016
 chroot_unit_inventory='[[ -n $system_root || ${QVOS_CHROOT_INSTALL:-} == "1" ]]'
-grep -Fq "$root_enabled_query" "$owner" ||
-  fail "root-scoped system unit enablement query"
-grep -Fq "$root_active_query" "$owner" ||
-  fail "root-scoped system unit activity query"
+grep -Fq "$scoped_enabled_query" "$owner" ||
+  fail "scope-aware system unit enablement query"
+grep -Fq "$scoped_active_query" "$owner" ||
+  fail "scope-aware system unit activity query"
 grep -Fq "$chroot_unit_inventory" "$owner" ||
   fail "target-chroot unit inventory avoids the unavailable system manager"
+grep -Fq '/usr/bin/sudo -v || fail "root authorization was not granted"' "$owner" ||
+  fail "visible live authorization"
+grep -Fq '/usr/bin/sudo -n /usr/bin/true ||' "$owner" ||
+  fail "noninteractive target authorization"
+current_line=$(grep -nF 'policy_is_current && exit 0' "$owner" | cut -d: -f1)
+authorize_line=$(grep -nFx 'authorize_root' "$owner" | cut -d: -f1)
+# shellcheck disable=SC2016
+disable_line=$(grep -nF 'as_root "$systemctl_command" disable' "$owner" |
+  awk -F: 'NR == 1 { print $1; exit }')
+[[ -n $current_line && -n $authorize_line && -n $disable_line ]] ||
+  fail "printing authorization order inventory"
+(( current_line < authorize_line && authorize_line < disable_line )) ||
+  fail "printing policy prompts only before required mutations"
 
 printf 'ok - qvOS printing is on demand without unsolicited network discovery\n'

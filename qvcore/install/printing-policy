@@ -70,6 +70,28 @@ as_root() {
   fi
 }
 
+query_systemctl() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    "$systemctl_command" "$@"
+  elif [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+    /usr/bin/sudo -n -- "$systemctl_command" "$@"
+  else
+    "$systemctl_command" "$@"
+  fi
+}
+
+authorize_root() {
+  if [[ -n $system_root ]] || (( EUID == 0 )); then
+    return
+  fi
+  if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+    /usr/bin/sudo -n /usr/bin/true ||
+      fail "the target installer authorization is unavailable"
+  else
+    /usr/bin/sudo -v || fail "root authorization was not granted"
+  fi
+}
+
 root_exists() {
   local path=$1
 
@@ -112,11 +134,11 @@ policy_matches() {
 }
 
 unit_enabled_state() {
-  as_root "$systemctl_command" is-enabled "$1" 2>/dev/null || true
+  query_systemctl is-enabled "$1" 2>/dev/null || true
 }
 
 unit_active_state() {
-  if as_root "$systemctl_command" is-active --quiet "$1"; then
+  if query_systemctl is-active --quiet "$1"; then
     printf 'active\n'
   else
     printf 'inactive\n'
@@ -151,7 +173,7 @@ for unit in "${units[@]}" systemd-resolved.service; do
     [[ -f $unit_file && ! -L $unit_file ]] ||
       fail "the required system unit is unavailable or unsafe: $unit"
   else
-    as_root /usr/bin/systemctl cat "$unit" >/dev/null 2>&1 ||
+    query_systemctl cat "$unit" >/dev/null 2>&1 ||
       fail "the required system unit is unavailable: $unit"
   fi
 done
@@ -172,6 +194,8 @@ for unit in "${units[@]}"; do
     active_before[$unit]=$(unit_active_state "$unit")
   fi
 done
+
+authorize_root
 
 restore_units() {
   local unit

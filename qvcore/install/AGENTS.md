@@ -118,7 +118,10 @@ policy is already current.
 The target chroot has no system manager or caller environment suitable for
 unprivileged `systemctl` discovery: validate packaged unit files directly and
 run enablement queries through the temporary installer sudo boundary. Live
-activity queries use the same root scope.
+read-only unit discovery remains unprivileged so a current policy exits without
+prompting. When live mutation is required, finish read-only preflight first,
+then request sudo visibly before any quiet privileged command; never hide an
+authentication prompt behind redirected validation output.
 
 `qvcore/install/hardware/identity` singularly owns installed hardware policy
 identity. Its ASUS Z13, Apple NVMe, hid_apple, Synaptics PS/2, Surface keyboard,
