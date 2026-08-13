@@ -115,6 +115,7 @@ grep -Fq "\$HOME/.local/state/qvos/config-backups/refresh" "$refresh" ||
   fail "config refresh does not own private recovery state"
 grep -Fq -- '--preflight' "$refresh" ||
   fail "config refresh lacks mutation-free preflight"
+# shellcheck disable=SC2016 # This is an exact source-contract pattern.
 grep -Fq 'validate_optional_directory "$current" "config"' "$refresh" ||
   fail "config refresh does not validate target ancestors"
 if rg -n 'target_file\.bak|\.config/.+\.bak' "$refresh"; then
