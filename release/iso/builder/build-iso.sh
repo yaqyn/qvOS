@@ -142,17 +142,27 @@ install -m 0644 -- "$identity_source" \
 # the native installed-system policy so the image does not duplicate resolver
 # defaults or expose mDNS/LLMNR while attached to an untrusted network.
 resolver_policy_source="$qvos_source/qvcore/install/system/printing-resolver.conf"
-resolver_policy_target="$build_cache_dir/airootfs/etc/systemd/resolved.conf.d/20-qvos-live.conf"
+resolver_policy_dir="$build_cache_dir/airootfs/etc/systemd/resolved.conf.d"
+resolver_upstream_target="$resolver_policy_dir/archiso.conf"
+resolver_policy_target="$resolver_policy_dir/zz-qvos-live.conf"
 [[ -f $resolver_policy_source && ! -L $resolver_policy_source &&
   $(<"$resolver_policy_source") == $'[Resolve]\nMulticastDNS=no\nLLMNR=no' ]] || {
   echo "Missing or unsafe native qvOS resolver policy." >&2
   exit 1
 }
+rm -f -- "$resolver_upstream_target"
 install -Dm0644 -- "$resolver_policy_source" "$resolver_policy_target"
 cmp -s -- "$resolver_policy_source" "$resolver_policy_target" || {
   echo "The staged live resolver policy does not match its qvOS owner." >&2
   exit 1
 }
+if grep -ERin \
+  '^[[:space:]]*(MulticastDNS|LLMNR)[[:space:]]*=[[:space:]]*(1|on|resolve|true|yes)([[:space:]]*(#.*)?)?$' \
+  "$build_cache_dir/airootfs/etc/systemd/resolved.conf" \
+  "$resolver_policy_dir"; then
+  echo "The staged live resolver configuration re-enables local discovery." >&2
+  exit 1
+fi
 
 # The interactive qvOS image has no remote-administration or cloud-bootstrap
 # contract. Keep SSH available for explicit recovery, but do not expose it or

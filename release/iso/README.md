@@ -101,7 +101,9 @@ remains useful only for discovery and regression targeting.
   discovery, or a parallel DHCP client, and does not start SSH. Networking has
   one systemd-networkd/iwd owner and remains client-only until the user
   explicitly starts a recovery service. Confirm systemd-resolved has mDNS and
-  LLMNR disabled and exposes no listener on ports 5353 or 5355.
+  LLMNR disabled, Archiso's enabling resolver drop-in is absent, the native
+  `zz-qvos-live.conf` is the final resolver drop-in, and no listener is exposed
+  on ports 5353 or 5355.
 - Inspect the completed image and prove that its embedded qvOS source equals
   `QVOS_SOURCE_REF`, is on `OS` tracking `origin/OS`, its tracked executable
   modes match Git, and the embedded worktree is clean with

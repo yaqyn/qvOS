@@ -543,8 +543,25 @@ validate_native_iso() {
     echo "qvos-build staged a live image without the native resolver policy." >&2
     return 1
   }
+  # shellcheck disable=SC2016
+  grep -Fq 'resolver_upstream_target="$resolver_policy_dir/archiso.conf"' \
+    "$builder" || {
+    echo "qvos-build staged a builder that retains Archiso resolver discovery." >&2
+    return 1
+  }
+  # shellcheck disable=SC2016
+  grep -Fq 'rm -f -- "$resolver_upstream_target"' "$builder" || {
+    echo "qvos-build staged a builder that does not retire Archiso resolver discovery." >&2
+    return 1
+  }
   grep -Fq \
-    '["/etc/systemd/resolved.conf.d/20-qvos-live.conf"]="0:0:644"' \
+    'The staged live resolver configuration re-enables local discovery.' \
+    "$builder" || {
+    echo "qvos-build staged a builder without a resolver-conflict guard." >&2
+    return 1
+  }
+  grep -Fq \
+    '["/etc/systemd/resolved.conf.d/zz-qvos-live.conf"]="0:0:644"' \
     "$profile/profiledef.sh" || {
     echo "qvos-build staged unsafe live resolver-policy permissions." >&2
     return 1

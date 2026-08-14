@@ -299,12 +299,19 @@ grep -Fq 'Unsupported live-image package remains:' "$builder" ||
   fail "release ISO does not verify unsupported package removal"
 grep -Fq 'qvcore/install/system/printing-resolver.conf' "$builder" ||
   fail "release ISO duplicates or omits the native resolver policy"
-grep -Fq '20-qvos-live.conf' "$builder" ||
+grep -Fq 'zz-qvos-live.conf' "$builder" ||
   fail "release ISO does not stage its resolver privacy boundary"
+grep -Fq 'resolver_upstream_target="$resolver_policy_dir/archiso.conf"' \
+  "$builder" || fail "release ISO retains Archiso resolver discovery"
+grep -Fq 'rm -f -- "$resolver_upstream_target"' "$builder" ||
+  fail "release ISO does not retire Archiso resolver discovery"
 grep -Fq 'cmp -s -- "$resolver_policy_source" "$resolver_policy_target"' \
   "$builder" ||
   fail "release ISO does not verify its staged resolver policy"
-grep -Fq '["/etc/systemd/resolved.conf.d/20-qvos-live.conf"]="0:0:644"' \
+grep -Fq \
+  'The staged live resolver configuration re-enables local discovery.' \
+  "$builder" || fail "release ISO does not reject resolver policy conflicts"
+grep -Fq '["/etc/systemd/resolved.conf.d/zz-qvos-live.conf"]="0:0:644"' \
   "$profile/profiledef.sh" ||
   fail "release ISO resolver policy permissions"
 grep -Fq 'identity_source="$qvos_source/qvcore/branding/os-release"' "$builder" ||

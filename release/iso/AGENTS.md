@@ -127,6 +127,9 @@ a thin adapter to this owner.
   `qvcore/install/system/printing-resolver.conf` in the staged live root so
   systemd-resolved cannot advertise or answer mDNS or LLMNR on an untrusted
   installation network; never duplicate that policy in the ISO source tree.
+  Retire Archiso's enabling resolver drop-in, publish the native policy as the
+  final `zz-qvos-live.conf` drop-in, and fail the build if any remaining main
+  configuration or drop-in re-enables either discovery protocol.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. Full image
   builds reuse the persistent package and tool caches by default because the
   development connection is bandwidth-constrained. Cached payloads remain
