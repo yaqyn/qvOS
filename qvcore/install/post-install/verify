@@ -83,6 +83,18 @@ pacman_lock=$(system_path /var/lib/pacman/db.lck)
 [[ ! -e $pacman_lock && ! -L $pacman_lock ]] ||
   fail "the installed Pacman database remains locked"
 
+if [[ $target_install == "1" ]]; then
+  package_cache=$(system_path /var/cache/pacman/pkg)
+  [[ -d $package_cache && ! -L $package_cache &&
+    $(stat -c '%u:%g:%a' -- "$package_cache") == "0:0:755" ]] ||
+    fail "the installed package cache is missing or unsafe"
+  package_cache_entry=$(
+    /usr/bin/find "$package_cache" -mindepth 1 -maxdepth 1 -print -quit
+  ) || fail "the installed package cache could not be inspected"
+  [[ -z $package_cache_entry ]] ||
+    fail "the installed system retains package archives"
+fi
+
 package_database=$(system_path /var/lib/pacman/local)
 [[ -d $package_database && ! -L $package_database ]] ||
   fail "the installed package database root is missing or unsafe"

@@ -14,9 +14,12 @@ Historical Omarchy and retired qvOS source lines are not active migration input
 and must remain unrecognized.
 `seed` creates the native `.bashrc` only when it is absent. It validates the
 home, source, and any existing target, publishes without clobbering a
-concurrent file, and preserves every existing Bash configuration. The fresh
-installer delegates to this owner before normal shell reconciliation; config
-installation never copies a Bash file directly.
+concurrent file, and preserves every existing Bash configuration. In the exact
+native target-chroot mode, it may also replace an existing `.bashrc` only when
+that file is byte-identical to the safe root-owned `/etc/skel/.bashrc`; this
+closes Archinstall's new-account skeleton seam without guessing at or changing
+user content. The fresh installer delegates to this owner before normal shell
+reconciliation; config installation never copies a Bash file directly.
 `reset` is the explicit destructive counterpart. It preflights without
 mutation, rejects unsafe state or targets, serializes publication, preserves a
 changed `.bashrc` privately, and restores only the native Bash entrypoint. It

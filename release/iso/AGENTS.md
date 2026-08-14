@@ -113,7 +113,10 @@ a thin adapter to this owner.
   Treat the reusable tool cache the same way: its mirror directory must be a
   real directory and its retained offline entry must be the exact expected
   link into the current staged Archiso tree. Reuse that exact link
-  idempotently; never follow, replace, or delete a foreign cache entry.
+  idempotently; never follow, replace, or delete a foreign cache entry. This
+  host-side cache is not installed-system payload: after target integrity
+  verification, the native target-only owner removes the safe duplicate signed
+  archives that Pacman copied into the fresh target cache.
   The live medium and target use signed Arch `linux`; refuse T2 Macs before disk
   selection because qvOS does not operate a signing boundary for their required
   third-party kernel, firmware, audio, fan, Touch Bar, and graphics packages.
@@ -235,14 +238,15 @@ a thin adapter to this owner.
   may fail an otherwise successful install but must not hide an earlier error.
 - Never reboot directly from a successful native installer return. After all
   ISO-only binds are detached, require the exact root-owned completion marker,
-  absence of broad installer authorization and Pacman's lock, and a nonempty
-  root-owned private log. Commit the Btrfs transaction when applicable,
-  synchronize both target root and ESP, byte-compare the installed verifier
-  with its root-owned live-image owner, then run that live owner against the
-  mounted target under the exact reviewed chroot signal so an RC or Edge image
-  can resolve only its matching provider files. Never execute user-owned target
-  source as root. Any failure returns to the live error path; the ISO layer must
-  not duplicate feature-specific validation.
+  absence of broad installer authorization and Pacman's lock, an empty safe
+  installed-system package cache, and a nonempty root-owned private log. Commit
+  the Btrfs transaction when applicable, synchronize both target root and ESP,
+  byte-compare the installed verifier with its root-owned live-image owner,
+  then run that live owner against the mounted target under the exact reviewed
+  chroot signal so an RC or Edge image can resolve only its matching provider
+  files. Never execute user-owned target source as root. Any failure returns to
+  the live error path; the ISO layer must not duplicate feature-specific
+  validation.
 - Keep installer diagnostics local. The live ISO must not stage a diagnostic
   uploader or offer external log upload; users may inspect or explicitly save
   the private install log instead.

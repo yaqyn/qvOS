@@ -1,0 +1,111 @@
+# shellcheck shell=bash
+
+(
+  set -euo pipefail
+  export LC_ALL=C
+
+  system_root=${QVOS_PACKAGE_CACHE_SYSTEM_ROOT:-}
+  testing=${QVOS_PACKAGE_CACHE_TESTING:-}
+  chroot_install=${QVOS_CHROOT_INSTALL:-}
+  expected_uid=0
+  expected_gid=0
+
+  fail() {
+    printf 'qvOS install package cache: %s\n' "$1" >&2
+    exit 1
+  }
+
+  as_root() {
+    if [[ -n $system_root ]] || ((EUID == 0)); then
+      "$@"
+    else
+      /usr/bin/sudo -- "$@"
+    fi
+  }
+
+  (( $# == 0 )) || fail "this stage accepts no arguments"
+  case $chroot_install in
+  "" | 1) ;;
+  *) fail "invalid target-chroot signal" ;;
+  esac
+  case $testing in
+  "" | 1) ;;
+  *) fail "invalid test signal" ;;
+  esac
+
+  if [[ -n $system_root ]]; then
+    [[ $testing == "1" && $chroot_install == "1" ]] ||
+      fail "a custom system root is valid only in target-chroot tests"
+    canonical_root=$(/usr/bin/realpath -e -- "$system_root") ||
+      fail "the test system root is unavailable"
+    [[ $system_root == /tmp/* && $system_root == "$canonical_root" &&
+      -d $system_root && ! -L $system_root && -O $system_root ]] ||
+      fail "the test system root is unsafe"
+    root_mode=$(/usr/bin/stat -c '%a' -- "$system_root")
+    (( (8#$root_mode & 022) == 0 )) ||
+      fail "the test system root is writable by other users"
+    expected_uid=$UID
+    expected_gid=$(/usr/bin/id -g)
+  elif [[ $testing == "1" ]]; then
+    fail "test mode requires a custom system root"
+  fi
+
+  [[ $chroot_install == "1" ]] || exit 0
+
+  cache_dir="$system_root/var/cache/pacman/pkg"
+  if ! as_root /usr/bin/test -d "$cache_dir" ||
+    ! as_root /usr/bin/test ! -L "$cache_dir"; then
+    fail "the target package cache is missing or unsafe"
+  fi
+  cache_identity=$(as_root /usr/bin/stat -c '%u:%g:%a' -- "$cache_dir") ||
+    fail "the target package cache permissions could not be inspected"
+  [[ $cache_identity == "$expected_uid:$expected_gid:755" ]] ||
+    fail "the target package cache has unsafe permissions"
+
+  inventory=$(as_root /usr/bin/find "$cache_dir" \
+    -mindepth 1 -maxdepth 1 -printf '%f\n') ||
+    fail "the target package cache could not be inspected"
+  [[ -n $inventory ]] || exit 0
+  mapfile -t names <<<"$inventory"
+
+  declare -A archives=()
+  declare -A signatures=()
+  declare -a paths=()
+  for name in "${names[@]}"; do
+    [[ $name =~ ^[A-Za-z0-9@._+~:-]+\.pkg\.tar\.zst(\.sig)?$ ]] ||
+      fail "the target package cache contains an unexpected entry"
+    path="$cache_dir/$name"
+    archive_identity=$(as_root /usr/bin/stat -c '%F|%u:%g:%a' -- "$path") ||
+      fail "the target package cache archive could not be inspected"
+    [[ $archive_identity == "regular file|$expected_uid:$expected_gid:644" ]] ||
+      fail "the target package cache contains an unsafe archive"
+    as_root /usr/bin/test -s "$path" ||
+      fail "the target package cache contains an empty archive"
+    paths+=("$path")
+    if [[ $name == *.sig ]]; then
+      signatures[${name%.sig}]=1
+    else
+      archives[$name]=1
+    fi
+  done
+
+  ((${#archives[@]} > 0)) ||
+    fail "the target package cache contains signatures without archives"
+  for archive in "${!archives[@]}"; do
+    [[ -n ${signatures[$archive]:-} ]] ||
+      fail "the target package cache contains an unsigned archive"
+  done
+  for archive in "${!signatures[@]}"; do
+    [[ -n ${archives[$archive]:-} ]] ||
+      fail "the target package cache contains an orphaned signature"
+  done
+
+  as_root /usr/bin/rm -f -- "${paths[@]}"
+  remaining=$(as_root /usr/bin/find "$cache_dir" \
+    -mindepth 1 -maxdepth 1 -print -quit) ||
+    fail "the cleaned target package cache could not be inspected"
+  [[ -z $remaining ]] || fail "the target package cache cleanup is incomplete"
+
+  printf 'Removed %d signed package archives from the installed-system cache.\n' \
+    "${#archives[@]}"
+)

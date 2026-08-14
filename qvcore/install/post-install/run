@@ -4,6 +4,7 @@ run_logged "$QVOS_INSTALL/post-install/pacman.sh"
 run_logged "$QVOS_PATH/qvcore/security/install"
 run_logged "$QVOS_PATH/qvcore/controls/install-root"
 run_logged "$QVOS_PATH/qvcore/install/post-install/verify"
+run_logged "$QVOS_PATH/qvcore/install/post-install/package-cache"
 run_logged "$QVOS_PATH/qvcore/install/post-install/reboot-policy"
 stop_install_log
 "$QVOS_PATH/qvcore/install/post-install/finished"

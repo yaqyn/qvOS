@@ -64,11 +64,62 @@ expected_run=$(
   printf 'run:%s\n' "$test_qvos/qvcore/security/install"
   printf 'run:%s\n' "$test_qvos/qvcore/controls/install-root"
   printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/verify"
+  printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/package-cache"
   printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/reboot-policy"
   printf '%s\n' stop-log finished
 )
 [[ $(<"$event_log") == "$expected_run" ]] ||
   fail "post-install owner order"
+
+package_cache_system="$test_root/package-cache-system"
+package_cache="$package_cache_system/var/cache/pacman/pkg"
+package_cache_owner="$root/qvcore/install/post-install/package-cache"
+install -d -m 0755 "$package_cache"
+
+run_package_cache_owner() {
+  QVOS_CHROOT_INSTALL=1 \
+    QVOS_PACKAGE_CACHE_SYSTEM_ROOT="$package_cache_system" \
+    QVOS_PACKAGE_CACHE_TESTING=1 \
+    bash -c 'owner=$1; set --; source "$owner"' _ "$package_cache_owner"
+}
+
+install -m 0644 /dev/stdin \
+  "$package_cache/example-1.0-1-x86_64.pkg.tar.zst" <<'ARCHIVE'
+signed package archive
+ARCHIVE
+install -m 0644 /dev/stdin \
+  "$package_cache/example-1.0-1-x86_64.pkg.tar.zst.sig" <<'SIGNATURE'
+detached package signature
+SIGNATURE
+run_package_cache_owner >/dev/null
+[[ -z $(find "$package_cache" -mindepth 1 -print -quit) ]] ||
+  fail "fresh target retained signed package archives"
+run_package_cache_owner >/dev/null
+
+for suffix in '' .sig; do
+  printf 'preserve\n' \
+    >"$package_cache/preserve-1.0-1-x86_64.pkg.tar.zst$suffix"
+done
+printf 'foreign\n' >"$package_cache/foreign-entry"
+if run_package_cache_owner >/dev/null 2>&1; then
+  fail "package-cache owner accepted a foreign entry"
+fi
+[[ -f $package_cache/preserve-1.0-1-x86_64.pkg.tar.zst &&
+  -f $package_cache/preserve-1.0-1-x86_64.pkg.tar.zst.sig &&
+  -f $package_cache/foreign-entry ]] ||
+  fail "failed package-cache preflight partially deleted the target cache"
+rm -- "$package_cache/foreign-entry"
+run_package_cache_owner >/dev/null
+
+printf 'unsigned\n' \
+  >"$package_cache/unsigned-1.0-1-x86_64.pkg.tar.zst"
+if run_package_cache_owner >/dev/null 2>&1; then
+  fail "package-cache owner accepted an unsigned archive"
+fi
+[[ -f $package_cache/unsigned-1.0-1-x86_64.pkg.tar.zst ]] ||
+  fail "failed package-cache signature check deleted its evidence"
+rm -- "$package_cache/unsigned-1.0-1-x86_64.pkg.tar.zst"
+printf 'ok - fresh target package-cache cleanup is exact and fail-safe\n'
 
 policy_system_root="$test_root/reboot-policy-system"
 policy_target="$policy_system_root/etc/sudoers.d/99-qvos-installer-reboot"

@@ -27,6 +27,15 @@ run_shell_seed() {
   HOME=$1 QVOS_PATH="$root" "$shell_owner"
 }
 
+run_chroot_shell_seed() {
+  HOME=$1 \
+    QVOS_PATH="$root" \
+    QVOS_CHROOT_INSTALL=1 \
+    QVOS_SHELL_SEED_TESTING=1 \
+    QVOS_SHELL_SEED_SKEL_FILE="$2" \
+    "$shell_owner"
+}
+
 fresh_home="$test_root/fresh-home"
 install -d -m 0700 "$fresh_home"
 run_config_seed "$fresh_home"
@@ -125,6 +134,28 @@ run_shell_seed "$shell_home"
 grep -Fqx 'custom Bash' "$shell_home/.bashrc" ||
   fail "custom Bash seed was overwritten"
 
+stock_skel="$test_root/stock-skel-bashrc"
+stock_home="$test_root/stock-shell-home"
+custom_chroot_home="$test_root/custom-chroot-shell-home"
+install -m 0644 /dev/stdin "$stock_skel" <<'BASHRC'
+# Distribution skeleton Bash configuration
+alias ls='ls --color=auto'
+BASHRC
+install -d -m 0700 "$stock_home" "$custom_chroot_home"
+install -m 0644 -- "$stock_skel" "$stock_home/.bashrc"
+run_chroot_shell_seed "$stock_home" "$stock_skel"
+cmp -s "$root/qvcore/shell/files/bashrc" "$stock_home/.bashrc" ||
+  fail "target chroot did not replace the exact skeleton Bash file"
+stock_inode=$(stat -c '%i' "$stock_home/.bashrc")
+run_chroot_shell_seed "$stock_home" "$stock_skel"
+[[ $(stat -c '%i' "$stock_home/.bashrc") == "$stock_inode" ]] ||
+  fail "target-chroot Bash seed was not idempotent"
+
+printf 'custom target Bash\n' >"$custom_chroot_home/.bashrc"
+run_chroot_shell_seed "$custom_chroot_home" "$stock_skel"
+grep -Fqx 'custom target Bash' "$custom_chroot_home/.bashrc" ||
+  fail "target chroot overwrote a non-skeleton Bash file"
+
 unsafe_shell_home="$test_root/unsafe-shell-home"
 unsafe_shell_outside="$test_root/unsafe-shell-outside"
 install -d -m 0700 "$unsafe_shell_home"
@@ -135,7 +166,7 @@ if run_shell_seed "$unsafe_shell_home" >/dev/null 2>&1; then
 fi
 grep -Fqx 'outside Bash' "$unsafe_shell_outside" ||
   fail "Bash seed followed a linked target"
-printf 'ok - Bash seed is missing-only, concurrent, and link-safe\n'
+printf 'ok - Bash seed owns fresh targets and preserves custom configuration\n'
 
 refresh_home="$test_root/refresh-home"
 install -d -m 0700 "$refresh_home/.config/btop"

@@ -4,6 +4,10 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 source_file="$QVOS_PATH/qvcore/shell/files/bashrc"
 target_file="$HOME/.bashrc"
+chroot_install=${QVOS_CHROOT_INSTALL:-}
+testing=${QVOS_SHELL_SEED_TESTING:-}
+skel_file=/etc/skel/.bashrc
+replace_skeleton=false
 staging=""
 
 fail() {
@@ -17,6 +21,23 @@ cleanup() {
 trap cleanup EXIT
 
 (( $# == 0 )) || fail "this command accepts no arguments"
+case $chroot_install in
+"" | 1) ;;
+*) fail "invalid chroot-install signal" ;;
+esac
+case $testing in
+"" | 1) ;;
+*) fail "invalid test signal" ;;
+esac
+if [[ $testing == "1" ]]; then
+  [[ $chroot_install == "1" ]] ||
+    fail "test mode requires the target-chroot signal"
+  skel_file=${QVOS_SHELL_SEED_SKEL_FILE:-}
+  [[ $skel_file == /tmp/* && -f $skel_file && ! -L $skel_file &&
+    -O $skel_file ]] || fail "unsafe test skeleton Bash file"
+elif [[ -n ${QVOS_SHELL_SEED_SKEL_FILE:-} ]]; then
+  fail "test skeleton override requires test mode"
+fi
 [[ $HOME == /* && -d $HOME && ! -L $HOME && -O $HOME ]] ||
   fail "refusing unsafe home directory"
 home_mode=$(stat -c '%a' -- "$HOME")
@@ -31,12 +52,32 @@ if [[ -e $target_file || -L $target_file ]]; then
   target_mode=$(stat -c '%a' -- "$target_file")
   (( (8#$target_mode & 022) == 0 )) ||
     fail "refusing writable Bash configuration"
-  exit 0
+  [[ $chroot_install == "1" ]] || exit 0
+
+  [[ -f $skel_file && ! -L $skel_file ]] ||
+    fail "missing or unsafe skeleton Bash file"
+  skel_mode=$(stat -c '%a' -- "$skel_file")
+  (( (8#$skel_mode & 022) == 0 )) ||
+    fail "refusing writable skeleton Bash file"
+  if [[ $testing == "1" ]]; then
+    [[ -O $skel_file ]] || fail "test skeleton Bash file has the wrong owner"
+  else
+    [[ $(stat -c '%u:%g' -- "$skel_file") == "0:0" ]] ||
+      fail "skeleton Bash file has the wrong owner"
+  fi
+  cmp -s -- "$target_file" "$skel_file" || exit 0
+  replace_skeleton=true
 fi
 
 staging=$(mktemp "$HOME/.bashrc.qvos.XXXXXX")
 install -m 0644 -- "$source_file" "$staging"
-mv -Tn -- "$staging" "$target_file"
+if [[ $replace_skeleton == "true" ]]; then
+  cmp -s -- "$target_file" "$skel_file" ||
+    fail "skeleton Bash file changed during publication"
+  mv -fT -- "$staging" "$target_file"
+else
+  mv -Tn -- "$staging" "$target_file"
+fi
 if [[ -e $staging || -L $staging ]]; then
   rm -f -- "$staging"
   staging=""

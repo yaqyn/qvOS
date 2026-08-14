@@ -39,7 +39,9 @@ private recovery copies, never recursively copies the config tree or rewrites
 `.bash_profile`, runs the native theme configuration directly, and finishes
 through the shared Hyprland and boot presentation owners. Its Bash source comes
 only from `qvcore/shell/files/bashrc`; the inherited top-level shell defaults
-are retired.
+are retired. In the exact target-chroot boundary, the Bash seed replaces only
+a byte-identical safe `/etc/skel/.bashrc`; every different existing Bash file
+is preserved.
 Resolve package-provider files only through
 `qvcore/packages/provider-files`. Installed and online qvOS use Stable; Edge and
 RC are accepted only inside the reviewed ISO chroot. Provider source requires
@@ -177,7 +179,11 @@ source the entry point through a login shell.
 
 `qvcore/install/post-install/run` singularly owns the ordered post-install stage.
 After package, security, and root-control publication, run the read-only native
-installed-state verifier before granting temporary reboot privilege. It
+installed-state verifier, then remove only the exact safe signed package
+archives duplicated into a fresh target cache before granting temporary reboot
+privilege. Cache cleanup runs only under the exact target-chroot signal,
+preflights the complete root-owned archive/signature inventory before deleting
+anything, is idempotent, and never reaches the reusable ISO-builder cache. It
 requires exact provider files, a complete native SDDM/session handoff, no
 Pacman lock, a readable package database, and no missing or unexpected
 zero-length file reported by Pacman's privileged package integrity scan. The
@@ -188,7 +194,9 @@ uses Pacman's `--sysroot` boundary so it reads the installed configuration and
 database together, then accepts only its exact canonical mount prefix before
 normalizing a reported package path. `--root` is valid only for the isolated
 unprivileged test fixture and must never make a release check inherit the live
-ISO repository or double-prefix a mounted package path.
+ISO repository or double-prefix a mounted package path. The mounted-target pass
+also requires an empty safe package cache so a skipped or partial cleanup cannot
+cross the release handoff.
 Only the two
 Limine-disabled mkinitcpio hooks and CUPS' two documented empty runtime
 databases are exempt. Stop the install log before handing control to

@@ -85,6 +85,10 @@ fi
   fail "base packaging owner mode"
 [[ -x $root/qvcore/install/post-install/finished ]] ||
   fail "post-install presentation owner mode"
+[[ -f $root/qvcore/install/post-install/package-cache &&
+  ! -L $root/qvcore/install/post-install/package-cache &&
+  ! -x $root/qvcore/install/post-install/package-cache ]] ||
+  fail "post-install package-cache owner mode"
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
@@ -508,6 +512,13 @@ grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/reboot-policy"' \
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/verify"' \
   "$root/qvcore/install/post-install/run" ||
   fail "native installed-state verifier wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/package-cache"' \
+  "$root/qvcore/install/post-install/run" ||
+  fail "native target package-cache cleanup wiring"
+grep -Fq 'the installed system retains package archives' \
+  "$root/qvcore/install/post-install/verify" ||
+  fail "release-target verifier accepts cached installation payloads"
 if rg -n 'tee .*sudoers|sudoers.*tee' \
   "$root/qvcore/install/post-install/reboot-policy"; then
   fail "installer reboot policy bypasses validated atomic publication"

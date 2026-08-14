@@ -181,8 +181,10 @@ test storage. Never overwrite this development installation for rehearsal.
 - Before detaching the media, confirm the installer removed its broad temporary
   sudo policy, published the exact root-owned `0600` completion marker,
   persisted a nonempty root-owned `0640` install log, retired the offline
-  Pacman owner and lock, passed native installed-state/package-integrity
-  verification, and crossed the explicit root plus ESP synchronization barrier.
+  Pacman owner and lock, removed the duplicate signed package archives from the
+  installed-system cache while preserving the reusable builder cache, passed
+  native installed-state/package-integrity verification, and crossed the
+  explicit root plus ESP synchronization barrier.
 - Before the first installed boot, stop any automatic finale action if needed,
   detach the exact installation ISO, verify every emulated optical drive is
   empty, and select the installed disk as the boot source. Record the resulting
