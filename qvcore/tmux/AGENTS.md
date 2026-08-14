@@ -40,4 +40,6 @@ syntax, or query one field directly; never use tabs or another control byte in
 `-F` output. The focused test exports `LC_ALL=C` so this contract cannot regress.
 Node.js is a Mise-managed development runtime, not a qvOS base dependency.
 Process-capture tests must synthesize the reviewed Node-shaped argument vector
-with base tools and never require an activated Node channel.
+with base tools and never require an activated Node channel. Wait boundedly for
+the intended `/proc` argument vector and assert that transition before testing
+normalization; the launcher shell is not valid capture evidence.

@@ -192,7 +192,7 @@ ln -s /bin/sleep "$temporary_bin/codex"
 "$temporary_bin/codex" 30 &
 temporary_command_pid=$!
 temporary_executable=""
-for _ in {1..100}; do
+for _ in {1..500}; do
   temporary_executable="$(tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" | head -n 1 || true)"
   [[ $temporary_executable == "$temporary_bin/codex" ]] && break
   sleep 0.01
@@ -222,13 +222,17 @@ mkfifo "$temporary_bin/codex.fifo"
 /bin/bash -c 'exec -a node /bin/bash "$@"' \
   _ "$temporary_bin/codex" --yolo &
 temporary_command_pid=$!
-for _ in {1..100}; do
-  if tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" |
-    grep -Fqx "$temporary_bin/codex"; then
-    break
-  fi
+temporary_executable=""
+for _ in {1..500}; do
+  temporary_executable="$(
+    tr '\0' '\n' 2>/dev/null <"/proc/$temporary_command_pid/cmdline" |
+      grep -Fx "$temporary_bin/codex" || true
+  )"
+  [[ $temporary_executable == "$temporary_bin/codex" ]] && break
   sleep 0.01
 done
+[[ $temporary_executable == "$temporary_bin/codex" ]] ||
+  fail "npm Codex process fixture startup"
 detected_command="$(process_command_line "$temporary_command_pid")"
 kill "$temporary_command_pid"
 wait "$temporary_command_pid" 2>/dev/null || true
