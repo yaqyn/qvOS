@@ -18,6 +18,7 @@ fzf_args=(
   --color 'pointer:green,marker:green'
 )
 
+# shellcheck disable=SC2034 # Passed by name to the shared picker owner.
 source_command=(pacman -Slq)
 set +e
 qvos_package_pick selection source_command "${fzf_args[@]}"
