@@ -29,6 +29,12 @@ done
 grep -Fq 'qvcore/software/voxtype-config.toml' \
   "$root/qvcore/software/voxtype-install" ||
   fail "Voxtype installer bypasses its native configuration seed"
+grep -Fq 'qv-cmd-present voxtype' \
+  "$root/qvcore/software/voxtype-config" ||
+  fail "Voxtype configuration bypasses its package probe"
+grep -Fq 'qvcore/tui/action/launch" dictation' \
+  "$root/qvcore/software/voxtype-config" ||
+  fail "missing Voxtype configuration bypasses the shared Dictation action"
 
 declare -A owner_by_route=(
   [install-dropbox]=qvcore/software/dropbox-install

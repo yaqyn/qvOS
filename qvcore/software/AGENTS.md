@@ -22,6 +22,9 @@ downloads, launches, or reboot handoff.
 - The Voxtype configuration seed lives only at
   `qvcore/software/voxtype-config.toml`; `default/voxtype/` is retired. Never
   install that seed unless the user's exact configuration path is absent.
+  Opening Voxtype configuration delegates an absent installation to the shared
+  state-aware Dictation TUI action; an installed Voxtype opens the preserved
+  user configuration directly.
 - Terminal installation delegates default selection to `qv-default-terminal`,
   copies only a missing approved config and desktop entry, and never writes the
   XDG terminal preference itself. The optional Foot desktop entry lives only at

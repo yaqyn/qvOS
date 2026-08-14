@@ -18,6 +18,7 @@ install -d \
   "$fixture/bin" \
   "$fixture/qvcore/software" \
   "$fixture/qvcore/theme" \
+  "$fixture/qvcore/tui/action" \
   "$test_bin"
 for route in \
   omarchy-install-nordvpn \
@@ -50,6 +51,10 @@ printf 'language = "en"\n' >"$fixture/qvcore/software/voxtype-config.toml"
 install -m 0755 /dev/stdin "$fixture/qvcore/theme/install-vscode" <<'STUB'
 #!/bin/bash
 printf 'install-vscode-theme\n' >>"$QVOS_TEST_ACTION_LOG"
+STUB
+install -m 0755 /dev/stdin "$fixture/qvcore/tui/action/launch" <<'STUB'
+#!/bin/bash
+printf 'tui-action:%s\n' "$*" >>"$QVOS_TEST_ACTION_LOG"
 STUB
 
 install -m 0755 /dev/stdin "$test_bin/qv-pkg-add" <<'STUB'
@@ -207,6 +212,17 @@ grep -Fqx "launch-editor:$config_file" "$action_log" ||
 run_software "$fixture/bin/omarchy-voxtype-config"
 (( $(grep -Fxc "launch-editor:$config_file" "$action_log") == 2 )) ||
   fail "Voxtype compatibility config owner"
+
+: >"$action_log"
+QVOS_TEST_MISSING_COMMANDS=voxtype run_software \
+  "$fixture/bin/qv-voxtype-config"
+QVOS_TEST_MISSING_COMMANDS=voxtype run_software \
+  "$fixture/bin/omarchy-voxtype-config"
+(( $(grep -Fxc 'tui-action:dictation' "$action_log") == 2 )) ||
+  fail "missing Voxtype shared Dictation action"
+if grep -Fq 'launch-editor:' "$action_log"; then
+  fail "missing Voxtype opened an uninstalled configuration"
+fi
 
 : >"$action_log"
 run_software "$fixture/bin/qv-voxtype-model"

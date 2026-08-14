@@ -6,4 +6,9 @@ set -euo pipefail
   exit 2
 }
 
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+if ! qv-cmd-present voxtype; then
+  exec "$QVOS_PATH/qvcore/tui/action/launch" dictation
+fi
+
 exec qv-launch-editor "$HOME/.config/voxtype/config.toml"
