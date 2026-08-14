@@ -1,0 +1,4 @@
+# base=d6cd2d30a65886b61cd80b8cd5b65ff702743042
+# target=7c50d72f40749ad9374c575607c7f0a7e781a097
+# commit|decision|owner|summary|verification
+7c50d72f40749ad9374c575607c7f0a7e781a097|no-impact|qvcore/tui/iso_installer.go|Keep offering deferred provisioning after backing out: qvOS deliberately has one account-bearing encrypted full-disk flow and no deferred-owner branch; its native state machine already preserves bounded backward navigation before the final erase confirmation.|qvcore/tui go test -count=1 ./..., test/release/iso-ownership-test.sh
