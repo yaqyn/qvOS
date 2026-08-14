@@ -8,6 +8,7 @@ test_bin="$test_root/bin"
 setsid_log="$test_root/setsid.log"
 focus_log="$test_root/focus.log"
 rfkill_log="$test_root/rfkill.log"
+uwsm_log="$test_root/uwsm.log"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -66,6 +67,10 @@ install -m 0755 /dev/stdin "$test_bin/rfkill" <<'SCRIPT'
 printf '%s\n' "$@" >"$QVOS_TEST_RFKILL_LOG"
 exit "${QVOS_TEST_RFKILL_STATUS:-0}"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/uwsm" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$@" >"$QVOS_TEST_UWSM_LOG"
+SCRIPT
 for command in \
   bash \
   bluetui \
@@ -77,7 +82,7 @@ for command in \
   firefox \
   impala \
   nvim \
-  uwsm-app \
+  qv-launch-app \
   wiremix \
   xdg-terminal-exec; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
@@ -90,6 +95,7 @@ export PATH="$test_bin:/usr/bin"
 export QVOS_TEST_SETSID_LOG=$setsid_log
 export QVOS_TEST_FOCUS_LOG=$focus_log
 export QVOS_TEST_RFKILL_LOG=$rfkill_log
+export QVOS_TEST_UWSM_LOG=$uwsm_log
 
 declare -A owners=(
   [about]=about
@@ -122,6 +128,16 @@ for route in "${!owners[@]}"; do
   grep -Fqx "bin/omarchy-launch-$route" "$root/qvcore/desktop/native-paths" ||
     fail "launch native-path ownership: $route"
 done
+native_app="$root/bin/qv-launch-app"
+[[ -x $launch_root/app && -x $native_app && ! -e $root/bin/omarchy-launch-app ]] ||
+  fail "qvOS-only application launcher boundary"
+(( $(wc -l <"$native_app") <= 12 )) ||
+  fail "native application-launch adapter contains implementation"
+rg -q '^# qv:summary=' "$native_app" ||
+  fail "native application-launch metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/desktop/launch/app" "$@"' "$native_app" ||
+  fail "native application-launch delegation"
 [[ -f $launch_root/lib && ! -L $launch_root/lib &&
   $(stat -c '%a' "$launch_root/lib") == "644" ]] ||
   fail "launch library mode"
@@ -129,6 +145,11 @@ if rg -n '\beval\b|bash[[:space:]]+-c[[:space:]]+.*\$' "$launch_root"; then
   fail "launch owner shell-parses caller input"
 fi
 pass "desktop launch owners and compatibility adapters are singular"
+
+"$launch_root/app" -u qvos-test.scope -S both -- fixture-command 'argument with spaces'
+assert_args "$uwsm_log" \
+  app -u qvos-test.scope -S both -- fixture-command 'argument with spaces'
+pass "application launch uses the canonical UWSM client with exact arguments"
 
 export QVOS_TEST_CLIENTS_JSON='[{"address":"0xabc","class":"Org.QvOS.Wiremix","title":null}]'
 unlink -- "$setsid_log" 2>/dev/null || true
@@ -159,21 +180,21 @@ pass "invalid compositor data and control-bearing patterns fail before launch"
 export QVOS_TEST_CLIENTS_JSON='[]'
 "$launch_root/tui" btop 'argument with spaces'
 assert_args "$setsid_log" \
-  -- uwsm-app -- xdg-terminal-exec --app-id=org.qvos.btop -e btop 'argument with spaces'
+  -- qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.btop -e btop 'argument with spaces'
 "$launch_root/or-focus-tui" wiremix 'argument with spaces'
 assert_args "$setsid_log" \
-  -- uwsm-app -- xdg-terminal-exec --app-id=org.qvos.wiremix -e wiremix 'argument with spaces'
+  -- qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.wiremix -e wiremix 'argument with spaces'
 pass "terminal launchers use qvOS application IDs and preserve arguments"
 
 export QVOS_TEST_BROWSER_DESKTOP=custom-browser.desktop
 "$launch_root/browser" 'https://example.com/a?b=1'
-assert_args "$setsid_log" -- uwsm-app -- custom-browser.desktop 'https://example.com/a?b=1'
+assert_args "$setsid_log" -- qv-launch-app -- custom-browser.desktop 'https://example.com/a?b=1'
 export QVOS_TEST_BROWSER_DESKTOP=chromium.desktop
 "$launch_root/browser" --private 'https://example.com/private'
-assert_args "$setsid_log" -- uwsm-app -- chromium --incognito 'https://example.com/private'
+assert_args "$setsid_log" -- qv-launch-app -- chromium --incognito 'https://example.com/private'
 export QVOS_TEST_BROWSER_DESKTOP=firefox.desktop
 "$launch_root/browser" --private
-assert_args "$setsid_log" -- uwsm-app -- firefox --private-window
+assert_args "$setsid_log" -- qv-launch-app -- firefox --private-window
 pass "browser launch supports custom entries and exact known private modes"
 
 export QVOS_TEST_BROWSER_DESKTOP=custom-browser.desktop
@@ -191,7 +212,7 @@ pass "unsupported private modes and malformed desktop IDs fail before launch"
 
 export QVOS_TEST_BROWSER_DESKTOP=firefox.desktop
 "$launch_root/webapp" 'https://example.com/app?x=1' '--start-maximized'
-assert_args "$setsid_log" -- uwsm-app -- chromium '--app=https://example.com/app?x=1' '--start-maximized'
+assert_args "$setsid_log" -- qv-launch-app -- chromium '--app=https://example.com/app?x=1' '--start-maximized'
 unlink -- "$setsid_log" 2>/dev/null || true
 set +e
 "$launch_root/webapp" 'javascript:unsafe' >/dev/null 2>&1
@@ -228,9 +249,9 @@ pass "web-app focus reuses validated client matching"
 export QVOS_TEST_CLIENTS_JSON='[]'
 EDITOR=nvim "$launch_root/editor" "$test_root/file with spaces"
 assert_args "$setsid_log" \
-  -- uwsm-app -- xdg-terminal-exec --app-id=org.qvos.nvim -e nvim "$test_root/file with spaces"
+  -- qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.nvim -e nvim "$test_root/file with spaces"
 EDITOR=code "$launch_root/editor" "$test_root/file with spaces"
-assert_args "$setsid_log" -- uwsm-app -- code "$test_root/file with spaces"
+assert_args "$setsid_log" -- qv-launch-app -- code "$test_root/file with spaces"
 pass "default editor launch distinguishes terminal and graphical applications"
 
 QVOS_TEST_RFKILL_STATUS=1 "$launch_root/wifi" >/dev/null 2>"$test_root/wifi.stderr"
@@ -238,12 +259,12 @@ assert_args "$rfkill_log" unblock wifi
 grep -Fq 'opening its controls anyway' "$test_root/wifi.stderr" ||
   fail "Wi-Fi unblock degradation warning"
 assert_args "$setsid_log" \
-  -- uwsm-app -- xdg-terminal-exec --app-id=org.qvos.impala -e impala
+  -- qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.impala -e impala
 "$launch_root/bluetooth" >/dev/null
 assert_args "$rfkill_log" unblock bluetooth
 "$launch_root/audio" >/dev/null
 assert_args "$setsid_log" \
-  -- uwsm-app -- xdg-terminal-exec --app-id=org.qvos.wiremix -e wiremix
+  -- qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.wiremix -e wiremix
 pass "radio and audio controls remain accessible with exact native launchers"
 
 "$launch_root/about" >/dev/null

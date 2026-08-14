@@ -206,7 +206,7 @@ grep -Fq 'Downloading Windows installer' <<<"$session_output" ||
 grep -Fq 'Windows started successfully' <<<"$session_output" ||
   fail "Windows first-launch ready boundary"
 grep -Fqx -- \
-  '--user --collect --quiet --description=qvOS Windows VM session -- uwsm app -- qv-windows-vm launch' \
+  '--user --collect --quiet --description=qvOS Windows VM session -- qv-launch-app -- qv-windows-vm launch' \
   "$session_launch_log" || fail "Windows ready-session handoff"
 [[ $(stat -c '%a' "$test_home/.config/windows/docker-compose.yml") == "600" ]] ||
   fail "Windows Compose credentials are not private"

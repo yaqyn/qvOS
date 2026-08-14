@@ -32,6 +32,7 @@
     qvcore/desktop/hyprland/window-transparency-toggle
     qvcore/desktop/hyprland/workspace-layout-toggle
     qvcore/desktop/launch/about
+    qvcore/desktop/launch/app
     qvcore/desktop/launch/audio
     qvcore/desktop/launch/bluetooth
     qvcore/desktop/launch/browser

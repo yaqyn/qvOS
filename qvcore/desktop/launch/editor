@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/launch/lib
 source "$script_dir/lib"
@@ -16,7 +18,7 @@ nvim | vim | nano | micro | hx | helix | fresh)
   exec "$script_dir/tui" "$editor" "$@"
   ;;
 *)
-  qvos_launch_require setsid uwsm-app
-  exec setsid -- uwsm-app -- "$editor" "$@"
+  qvos_launch_require qv-launch-app setsid
+  exec setsid -- qv-launch-app -- "$editor" "$@"
   ;;
 esac

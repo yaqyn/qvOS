@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/launch/lib
 source "$script_dir/lib"
@@ -12,6 +14,6 @@ source "$script_dir/lib"
 pattern=$1
 shift
 if (($# == 0)); then
-  set -- uwsm-app -- "$pattern"
+  set -- qv-launch-app -- "$pattern"
 fi
 qvos_launch_focus_or_run "$pattern" "$@"

@@ -508,7 +508,7 @@ install -m 0755 /dev/stdin "$test_bin/setsid" <<'SETSID'
 #!/bin/bash
 exec "$@"
 SETSID
-install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'UWSM'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-app" <<'UWSM'
 #!/bin/bash
 printf 'uwsm' >>"$QVOS_TEST_BACKGROUND_RUNTIME_LOG"
 printf '|%s' "$@" >>"$QVOS_TEST_BACKGROUND_RUNTIME_LOG"

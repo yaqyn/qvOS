@@ -98,8 +98,10 @@ Services and Development integrations never change qvOS base readiness.
 - Desktop application, browser, web-app, terminal-app, and focus-or-launch
   behavior is native under `qvcore/desktop/launch/`. It preserves exact
   arguments, validates compositor and browser state, and contains no
-  caller-controlled shell evaluation; matching Omarchy names are compatibility
-  adapters only.
+  caller-controlled shell evaluation. One native `qv-launch-app` owner invokes
+  canonical `uwsm app` for every qvOS application launch; the package-owned fast
+  shell client is not a runtime dependency. Matching inherited Omarchy names are
+  compatibility adapters only, while this qvOS-only boundary has none.
 - Custom Web App creation, inventory, removal, and migration are native under
   `qvcore/desktop/webapp/`. They validate every URL and target, preserve foreign
   desktop entries, and permit no arbitrary Exec payload. Fresh qvOS includes

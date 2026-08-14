@@ -27,7 +27,7 @@ install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 #!/bin/bash
 exec "$@"
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-app" <<'SCRIPT'
 #!/bin/bash
 printf 'uwsm' >>"$QVOS_RESTART_TEST_LOG"
 printf '|%s' "$@" >>"$QVOS_RESTART_TEST_LOG"

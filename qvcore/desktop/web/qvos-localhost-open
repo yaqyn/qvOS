@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 # Open a local development port in browser app mode.
 
 notify_error() {
@@ -56,4 +58,4 @@ else
   exit 1
 fi
 
-exec setsid uwsm-app -- "$browser" "--app=http://localhost:$port"
+exec setsid qv-launch-app -- "$browser" "--app=http://localhost:$port"

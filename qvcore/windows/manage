@@ -3,6 +3,7 @@ set -euo pipefail
 
 # qvos:install-summary=Configure a private Windows VM without starting its download
 # qvos:uninstall-summary=Remove Windows VM configuration while keeping its virtual disk
+# qvos:contract=bin/qv-launch-app
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 source "$QVOS_PATH/qvcore/windows/lib"
@@ -78,7 +79,7 @@ launch_windows() {
     --quiet \
     --description="qvOS Windows VM session" \
     -- \
-    uwsm app -- qv-windows-vm launch
+    qv-launch-app -- qv-windows-vm launch
 }
 
 available_space_gb() {
@@ -337,7 +338,7 @@ write_desktop_file() {
     printf '[Desktop Entry]\n'
     printf 'Name=Windows\n'
     printf 'Comment=Start Windows VM and connect with RDP\n'
-    printf 'Exec=uwsm app -- qv-windows-vm launch\n'
+    printf 'Exec=qv-launch-app -- qv-windows-vm launch\n'
     printf 'Icon=%s\n' "$icon_file"
     printf 'Terminal=false\n'
     printf 'Type=Application\n'

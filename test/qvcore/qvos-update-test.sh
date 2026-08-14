@@ -865,7 +865,7 @@ SCRIPT
 launch_log="$test_root/launch.log"
 QVOS_TEST_LAUNCH_LOG="$launch_log" QVOS_PATH="$root" \
   PATH="$test_bin:/usr/bin" "$root/qvcore/tui/update/launch"
-[[ $(<"$launch_log") == 'uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tui --title=qvOS Update -e qv-update' ]] ||
+[[ $(<"$launch_log") == 'qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.tui --title=qvOS Update -e qv-update' ]] ||
   fail "native TUI update launch"
 
 deferred_output=$(QVOS_UPDATE_DEFER_REBOOT=1 \

@@ -1,5 +1,7 @@
 # shellcheck shell=bash
 
+# qvos:contract=bin/qv-launch-app
+
 qvos_background_link="$HOME/.config/qvos/current/background"
 qvos_desktop_restart_root="$QVOS_PATH/qvcore/desktop/restart"
 # shellcheck source=qvcore/desktop/restart/process-lib
@@ -46,8 +48,8 @@ qvos_background_run() {
   local fixed_unit="qvos-wallpaper.scope"
   local -a wallpaper_args=()
 
-  command -v uwsm-app >/dev/null || {
-    echo "Cannot start the qvOS background: uwsm-app is unavailable." >&2
+  command -v qv-launch-app >/dev/null || {
+    echo "Cannot start the qvOS background: the qvOS application launcher is unavailable." >&2
     return 1
   }
   case $mode in
@@ -73,7 +75,7 @@ qvos_background_run() {
 
   qvos_user_unit_stop "$fixed_unit"
   qvos_process_stop_exact swaybg
-  setsid uwsm-app \
+  setsid qv-launch-app \
     -u "$fixed_unit" \
     -d "qvOS wallpaper" \
     -S both \

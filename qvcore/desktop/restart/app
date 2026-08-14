@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # qvos:contract=qvcore/desktop/restart/process-lib
+# qvos:contract=bin/qv-launch-app
 restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/restart/process-lib
 source "$restart_root/process-lib"
@@ -10,10 +11,10 @@ source "$restart_root/process-lib"
   echo "Usage: qv restart app <application-name> [application-args...]" >&2
   exit 2
 }
-command -v uwsm-app >/dev/null || {
-  echo "Cannot restart $1: uwsm-app is unavailable." >&2
+command -v qv-launch-app >/dev/null || {
+  echo "Cannot restart $1: the qvOS application launcher is unavailable." >&2
   exit 1
 }
 
 qvos_process_signal_exact "$1" TERM
-setsid uwsm-app -- "$@" >/dev/null 2>&1 &
+setsid qv-launch-app -- "$@" >/dev/null 2>&1 &

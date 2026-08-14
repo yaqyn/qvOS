@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 branding_owner="$QVOS_PATH/qvcore/branding/show-logo"
 show_done_owner="$QVOS_PATH/qvcore/presentation/show-done"
@@ -20,7 +22,7 @@ done
 # Preserve every command argument as data. Callers that need a shell must pass
 # bash and its arguments explicitly through a reviewed owner.
 # shellcheck disable=SC2016
-exec setsid uwsm-app -- \
+exec setsid qv-launch-app -- \
   xdg-terminal-exec \
   --app-id=org.qvos.terminal \
   --title=qvOS \

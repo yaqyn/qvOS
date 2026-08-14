@@ -42,7 +42,7 @@ assert_binding 'bindd = SUPER SHIFT CTRL, W, Bluetooth controls, exec, qv-launch
 pass "the W family provides Wifi, Audio, and Bluetooth controls"
 
 assert_binding 'bindd = SUPER, Z, Default browser, exec, qv-launch-browser' "Z default browser binding"
-assert_binding 'bindd = SUPER SHIFT, Z, Dev browser (Chromium), exec, uwsm-app -- chromium' "Chromium dev browser binding"
+assert_binding 'bindd = SUPER SHIFT, Z, Dev browser (Chromium), exec, qv-launch-app -- chromium' "Chromium dev browser binding"
 assert_binding 'bindd = SUPER CTRL, Z, Private default browser, exec, qv-launch-browser --private' "Z private browser binding"
 assert_binding 'bindd = SUPER SHIFT CTRL, Z, Localhost, exec, ~/.local/lib/qvos/desktop/web/qvos-localhost-open' "Localhost binding"
 assert_binding "bindd = SUPER ALT, Z, Zoom in, exec, ~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config config cursor zoom_factor \"\$(hyprctl getoption cursor:zoom_factor -j | jq -r '.float + 1')\"" "relocated zoom binding"
@@ -50,7 +50,7 @@ assert_binding 'bindd = SUPER CTRL ALT, Z, Reset zoom, exec, ~/.local/lib/qvos/d
 assert_binding 'bindd = SUPER SHIFT CTRL ALT, Z, Open website, exec, ~/.local/lib/qvos/desktop/web/qvos-website-open' "prompted website binding"
 pass "the Z family owns browsers, websites, localhost, and zoom"
 
-assert_binding 'bindd = SUPER ALT, E, Obsidian, exec, uwsm-app -- obsidian' "Obsidian binding"
+assert_binding 'bindd = SUPER ALT, E, Obsidian, exec, qv-launch-app -- obsidian' "Obsidian binding"
 grep -qx 'obsidian' <<<"$packages" || fail "Obsidian binding requires the default notes package"
 if grep -qx 'libreoffice-fresh' <<<"$packages"; then
   fail "LibreOffice must stay outside the qvOS base manifest"

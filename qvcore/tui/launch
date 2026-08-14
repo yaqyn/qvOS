@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 if (($# < 2)); then
   echo "Usage: qvcore/tui/launch <title> <command> [args...]" >&2
   exit 2
@@ -10,7 +12,7 @@ export QVOS_TUI_ROOT=${QVOS_TUI_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")
 title=$1
 shift
 
-exec setsid uwsm-app -- \
+exec setsid qv-launch-app -- \
   xdg-terminal-exec \
   --app-id=org.qvos.tui \
   --title="$title" \

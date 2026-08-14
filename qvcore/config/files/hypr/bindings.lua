@@ -22,16 +22,16 @@
 -- X and Return: terminal and tmux.
 
 -- X family.
-qv.bind({ keys = [[SUPER + X]], description = [[Default terminal]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec]] })
-qv.bind({ keys = [[SUPER + SHIFT + X]], description = [[Tmux]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux last]] })
+qv.bind({ keys = [[SUPER + X]], description = [[Default terminal]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec]] })
+qv.bind({ keys = [[SUPER + SHIFT + X]], description = [[Tmux]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux last]] })
 qv.bind({ keys = [[SUPER + CTRL + X]], description = [[Default terminal here]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/context/qvos-launch-terminal-here terminal]] })
-qv.bind({ keys = [[SUPER + SHIFT + CTRL + X]], description = [[Tmux manager]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux manager]] })
+qv.bind({ keys = [[SUPER + SHIFT + CTRL + X]], description = [[Tmux manager]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux manager]] })
 
 -- Return family mirrors X.
-qv.bind({ keys = [[SUPER + RETURN]], description = [[Default terminal]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec]] })
-qv.bind({ keys = [[SUPER + SHIFT + RETURN]], description = [[Tmux]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux last]] })
+qv.bind({ keys = [[SUPER + RETURN]], description = [[Default terminal]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec]] })
+qv.bind({ keys = [[SUPER + SHIFT + RETURN]], description = [[Tmux]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux last]] })
 qv.bind({ keys = [[SUPER + CTRL + RETURN]], description = [[Default terminal here]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/context/qvos-launch-terminal-here terminal]] })
-qv.bind({ keys = [[SUPER + SHIFT + CTRL + RETURN]], description = [[Tmux manager]], dispatcher = [[exec]], argument = [[uwsm-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux manager]] })
+qv.bind({ keys = [[SUPER + SHIFT + CTRL + RETURN]], description = [[Tmux manager]], dispatcher = [[exec]], argument = [[qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.tmux-manager --title="qvOS tmux" ~/.local/lib/qvos/tmux/qvos-tmux manager]] })
 
 -- A: development.
 qv.bind({ keys = [[SUPER + SHIFT + A]], description = [[Codex YOLO]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/context/qvos-launch-terminal-here codex-yolo "$HOME"]] })
@@ -57,11 +57,11 @@ qv.bind({ keys = [[SUPER + SHIFT + CTRL + F]], description = [[Pop window out (f
 qv.bind({ keys = [[SUPER + CTRL + S]], description = [[Move window in or out of special workspace]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/hyprland/qvos-toggle-special-window]] })
 
 -- E: files and editor.
-qv.bind({ keys = [[SUPER + E]], description = [[Thunar]], dispatcher = [[exec]], argument = [[uwsm-app -- ~/.local/lib/qvos/thunar/launch "$HOME"]] })
+qv.bind({ keys = [[SUPER + E]], description = [[Thunar]], dispatcher = [[exec]], argument = [[qv-launch-app -- ~/.local/lib/qvos/thunar/launch "$HOME"]] })
 qv.bind({ keys = [[SUPER + SHIFT + E]], description = [[Default editor]], dispatcher = [[exec]], argument = [[qv-launch-editor]] })
-qv.bind({ keys = [[SUPER + CTRL + E]], description = [[Thunar here]], dispatcher = [[exec]], argument = [[uwsm-app -- ~/.local/lib/qvos/thunar/launch "$(~/.local/lib/qvos/desktop/context/qvos-active-location)"]] })
+qv.bind({ keys = [[SUPER + CTRL + E]], description = [[Thunar here]], dispatcher = [[exec]], argument = [[qv-launch-app -- ~/.local/lib/qvos/thunar/launch "$(~/.local/lib/qvos/desktop/context/qvos-active-location)"]] })
 qv.bind({ keys = [[SUPER + SHIFT + CTRL + E]], description = [[Default editor here]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/context/qvos-launch-editor-here]] })
-qv.bind({ keys = [[SUPER + ALT + E]], description = [[Obsidian]], dispatcher = [[exec]], argument = [[uwsm-app -- obsidian]] })
+qv.bind({ keys = [[SUPER + ALT + E]], description = [[Obsidian]], dispatcher = [[exec]], argument = [[qv-launch-app -- obsidian]] })
 
 -- B: browser.
 qv.bind({ keys = [[SUPER + B]], description = [[Default browser]], dispatcher = [[exec]], argument = [[qv-launch-browser]] })
@@ -69,7 +69,7 @@ qv.bind({ keys = [[SUPER + CTRL + B]], description = [[Private default browser]]
 
 -- Z: browsers, websites, localhost, and zoom.
 qv.bind({ keys = [[SUPER + Z]], description = [[Default browser]], dispatcher = [[exec]], argument = [[qv-launch-browser]] })
-qv.bind({ keys = [[SUPER + SHIFT + Z]], description = [[Dev browser (Chromium)]], dispatcher = [[exec]], argument = [[uwsm-app -- chromium]] })
+qv.bind({ keys = [[SUPER + SHIFT + Z]], description = [[Dev browser (Chromium)]], dispatcher = [[exec]], argument = [[qv-launch-app -- chromium]] })
 qv.bind({ keys = [[SUPER + CTRL + Z]], description = [[Private default browser]], dispatcher = [[exec]], argument = [[qv-launch-browser --private]] })
 qv.bind({ keys = [[SUPER + SHIFT + CTRL + Z]], description = [[Localhost]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/web/qvos-localhost-open]] })
 qv.bind({ keys = [[SUPER + ALT + Z]], description = [[Zoom in]], dispatcher = [[exec]], argument = [[~/.local/lib/qvos/desktop/hyprland/qvos-runtime-config config cursor zoom_factor "$(hyprctl getoption cursor:zoom_factor -j | jq -r '.float + 1')"]] })

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# qvos:contract=bin/qv-launch-app
+
 launch_lib_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/web/url-lib
 source "$launch_lib_dir/../web/url-lib"
@@ -132,7 +134,7 @@ qvos_launch_prepare_webapp() {
   helium.desktop) browser=helium ;;
   *) browser=$(qvos_launch_browser_executable "$desktop_id") || return ;;
   esac
-  qvos_launch_require "$browser" uwsm-app || return
+  qvos_launch_require "$browser" qv-launch-app || return
   # shellcheck disable=SC2034 # returned to the sourcing launch owner
-  qvos_launch_command=(uwsm-app -- "$browser" "--app=$url" "$@")
+  qvos_launch_command=(qv-launch-app -- "$browser" "--app=$url" "$@")
 }

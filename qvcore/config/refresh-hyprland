@@ -9,6 +9,7 @@ export QVOS_PATH
 # qvos:contract=qvcore/config/files/hypr/input.lua
 # qvos:contract=qvcore/config/base/hypr
 # qvos:contract=qvcore/config/keyboard-layout
+# qvos:contract=bin/qv-launch-app
 
 "$QVOS_PATH/qvcore/config/monitor-autodetect" --restore-preflight
 

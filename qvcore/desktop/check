@@ -74,6 +74,28 @@ for helper in "${!helper_owners[@]}"; do
       fail "desktop helper adapter does not delegate directly: $helper"
   done
 done
+app_launcher="$root/qvcore/desktop/launch/app"
+app_adapter="$root/bin/qv-launch-app"
+[[ -x $app_launcher && ! -L $app_launcher && -x $app_adapter && ! -L $app_adapter ]] ||
+  fail "native qvOS application launcher is unavailable or unsafe"
+(( $(wc -l <"$app_adapter") <= 12 )) ||
+  fail "native qvOS application-launch adapter contains implementation"
+rg -q '^# qv:summary=' "$app_adapter" ||
+  fail "native qvOS application-launch adapter lacks metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/desktop/launch/app" "$@"' "$app_adapter" ||
+  fail "native qvOS application-launch adapter does not delegate directly"
+[[ ! -e $root/bin/omarchy-launch-app && ! -L $root/bin/omarchy-launch-app ]] ||
+  fail "qvOS-only application launcher invented an Omarchy adapter"
+if rg -n '\buwsm-app\b' "$root/qvcore" \
+  --glob '!**/AGENTS.md' --glob '!**/check'; then
+  fail "native qvOS source calls the unreaped fast UWSM client"
+fi
+if rg -n '\buwsm[[:space:]]+app\b' "$root/qvcore" \
+  --glob '!**/AGENTS.md' --glob '!**/README.md' --glob '!**/check' \
+  --glob '!**/desktop/launch/app'; then
+  fail "native qvOS source bypasses the singular application launcher"
+fi
 if rg -n 'OMARCHY_LOCK_ONLY' "$root/qvcore/desktop" \
   --glob '!AGENTS.md' --glob '!check'; then
   fail "desktop owner accepts an inherited lock environment"

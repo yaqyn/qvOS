@@ -3,6 +3,7 @@ set -euo pipefail
 
 # qvos:contract=qvcore/desktop/restart/process-lib
 # qvos:contract=qvcore/desktop/restart/user-unit-lib
+# qvos:contract=bin/qv-launch-app
 restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/restart/process-lib disable=SC1091
 source "$restart_root/process-lib"
@@ -15,15 +16,15 @@ fixed_unit="qvos-monitor-watch.service"
   echo "Usage: qv restart monitor-watch" >&2
   exit 2
 }
-command -v uwsm-app >/dev/null || {
-  echo "Cannot restart the monitor watcher: uwsm-app is unavailable." >&2
+command -v qv-launch-app >/dev/null || {
+  echo "Cannot restart the monitor watcher: the qvOS application launcher is unavailable." >&2
   exit 1
 }
 
 qvos_user_unit_stop "$fixed_unit"
 qvos_process_stop_exact monitor-watch
 
-setsid uwsm-app \
+setsid qv-launch-app \
   -t service \
   -u "$fixed_unit" \
   -d "qvOS monitor watcher" \

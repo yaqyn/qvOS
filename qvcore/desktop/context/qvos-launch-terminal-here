@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 # Open a terminal command in the current desktop context.
 
 mode="${1:-terminal}"
@@ -26,18 +28,18 @@ location="$("$script_dir/qvos-active-location" "$@")"
 
 case "$mode" in
 terminal)
-  exec uwsm-app -- xdg-terminal-exec --dir="$location"
+  exec qv-launch-app -- xdg-terminal-exec --dir="$location"
   ;;
 root)
-  exec uwsm-app -- xdg-terminal-exec --dir="$location" sudo -s
+  exec qv-launch-app -- xdg-terminal-exec --dir="$location" sudo -s
   ;;
 codex)
-  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex" --dir="$location" \
+  exec qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex" --dir="$location" \
     env QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
     "$HOME/.local/lib/qvos/bin/qv-system-inhibit-sleep" "$HOME/.local/bin/codex"
   ;;
 codex-yolo)
-  exec uwsm-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex YOLO" --dir="$location" \
+  exec qv-launch-app -- xdg-terminal-exec --app-id=org.qvos.codex --title="Codex YOLO" --dir="$location" \
     env QVOS_SLEEP_INHIBIT_REASON="Codex session is active" \
     "$HOME/.local/lib/qvos/bin/qv-system-inhibit-sleep" "$HOME/.local/bin/codex" --yolo
   ;;

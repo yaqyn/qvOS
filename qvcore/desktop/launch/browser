@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/launch/lib
 source "$script_dir/lib"
@@ -11,7 +13,7 @@ if [[ ${1:-} == "--private" ]]; then
   shift
 fi
 desktop_id=$(qvos_launch_default_browser)
-qvos_launch_require setsid uwsm-app
+qvos_launch_require qv-launch-app setsid
 
 if [[ $private == "true" ]]; then
   browser=$(qvos_launch_browser_executable "$desktop_id") || {
@@ -24,7 +26,7 @@ if [[ $private == "true" ]]; then
   microsoft-edge.desktop) private_flag=--inprivate ;;
   *) private_flag=--incognito ;;
   esac
-  exec setsid -- uwsm-app -- "$browser" "$private_flag" "$@"
+  exec setsid -- qv-launch-app -- "$browser" "$private_flag" "$@"
 fi
 
-exec setsid -- uwsm-app -- "$desktop_id" "$@"
+exec setsid -- qv-launch-app -- "$desktop_id" "$@"

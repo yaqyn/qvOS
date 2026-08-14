@@ -81,7 +81,7 @@ if [[ $* == *'is-active'* ]]; then
 fi
 exit 0
 SCRIPT
-install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-app" <<'SCRIPT'
 #!/bin/bash
 printf 'uwsm|%s\n' "$*" >>"$QVOS_TEST_COMMAND_LOG"
 while (($# > 0)) && [[ $1 != "--" ]]; do

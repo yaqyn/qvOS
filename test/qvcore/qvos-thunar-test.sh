@@ -111,10 +111,10 @@ fi
 pass "Thunar-owned scripts stay in one source domain"
 
 qvos_assert_lua_binding "$bindings" \
-  "bindd = SUPER, E, Thunar, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$HOME\"" ||
+  "bindd = SUPER, E, Thunar, exec, qv-launch-app -- ~/.local/lib/qvos/thunar/launch \"\$HOME\"" ||
   fail "home Thunar binding"
 qvos_assert_lua_binding "$bindings" \
-  "bindd = SUPER CTRL, E, Thunar here, exec, uwsm-app -- ~/.local/lib/qvos/thunar/launch \"\$(~/.local/lib/qvos/desktop/context/qvos-active-location)\"" ||
+  "bindd = SUPER CTRL, E, Thunar here, exec, qv-launch-app -- ~/.local/lib/qvos/thunar/launch \"\$(~/.local/lib/qvos/desktop/context/qvos-active-location)\"" ||
   fail "contextual Thunar binding"
 pass "Thunar keybindings use the organized launch feature"
 

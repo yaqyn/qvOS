@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+(($# > 0)) || {
+  echo "Usage: qv launch app [uwsm-options...] [--] <application> [args...]" >&2
+  exit 2
+}
+command -v uwsm >/dev/null 2>&1 || {
+  echo "qvOS application launch requires uwsm." >&2
+  exit 1
+}
+
+exec uwsm app "$@"

@@ -47,7 +47,7 @@ install -m 0755 /dev/stdin "$test_bin/setsid" <<'SCRIPT'
 exec "$@"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-app" <<'SCRIPT'
 #!/bin/bash
 [[ $1 == "--" ]] && shift
 exec "$@"

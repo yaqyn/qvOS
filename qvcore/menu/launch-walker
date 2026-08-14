@@ -1,12 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 if ! pgrep -u "$UID" -x elephant >/dev/null; then
-  setsid uwsm-app -- elephant >/dev/null 2>&1 &
+  setsid qv-launch-app -- elephant >/dev/null 2>&1 &
 fi
 
 if ! pgrep -u "$UID" -f '(^|/)walker( |$).*--gapplication-service' >/dev/null; then
-  setsid uwsm-app -- env GSK_RENDERER=cairo \
+  setsid qv-launch-app -- env GSK_RENDERER=cairo \
     walker --gapplication-service >/dev/null 2>&1 &
 fi
 

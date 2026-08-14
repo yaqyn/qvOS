@@ -3,10 +3,10 @@
 -- when the graphical session stops.
 qv.autostart("uwsm finalize")
 
-qv.autostart("uwsm-app -- hypridle")
-qv.autostart("uwsm-app -- mako")
+qv.autostart("qv-launch-app -- hypridle")
+qv.autostart("qv-launch-app -- mako")
 qv.autostart("! qv-toggle-enabled waybar-off && qv-restart-waybar")
-qv.autostart("uwsm-app -- fcitx5 --disable notificationitem")
+qv.autostart("qv-launch-app -- fcitx5 --disable notificationitem")
 qv.autostart("qv-theme-bg-restore")
 qv.autostart("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
 qv.autostart("qv-first-run")

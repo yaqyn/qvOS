@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=bin/qv-launch-app
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=qvcore/desktop/launch/lib
 source "$script_dir/lib"
@@ -9,8 +11,8 @@ source "$script_dir/lib"
   echo "Usage: qv launch or focus tui <command> [args...]" >&2
   exit 2
 }
-qvos_launch_require "$1" uwsm-app xdg-terminal-exec
+qvos_launch_require "$1" qv-launch-app xdg-terminal-exec
 app_id=$(qvos_launch_app_id "$1")
 qvos_launch_focus_or_run \
   "$app_id" \
-  uwsm-app -- xdg-terminal-exec --app-id="$app_id" -e "$@"
+  qv-launch-app -- xdg-terminal-exec --app-id="$app_id" -e "$@"

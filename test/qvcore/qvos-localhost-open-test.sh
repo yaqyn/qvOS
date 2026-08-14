@@ -38,7 +38,7 @@ install -m 0755 /dev/stdin "$test_bin/qv-menu-input" <<'SCRIPT'
 printf '%s\n' "${QVOS_TEST_PORT_INPUT:-}"
 SCRIPT
 
-install -m 0755 /dev/stdin "$test_bin/uwsm-app" <<'SCRIPT'
+install -m 0755 /dev/stdin "$test_bin/qv-launch-app" <<'SCRIPT'
 #!/bin/bash
 
 printf '%s\n' "$*" >"$QVOS_TEST_LAUNCH_LOG"

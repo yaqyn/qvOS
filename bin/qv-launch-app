@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# qv:summary=Launch an application in the desktop session
+# qv:args=[uwsm-options...] [--] <application> [args...]
+# qv:hidden=true
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+exec "$QVOS_PATH/qvcore/desktop/launch/app" "$@"
