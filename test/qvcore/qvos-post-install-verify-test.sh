@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,6 +18,24 @@ fail() {
   printf 'not ok - %s\n' "$1" >&2
   exit 1
 }
+
+pacman_argument_block=$(sed -n '/^pacman_args=()$/,/^package_command=/p' "$verify")
+grep -Fqx 'if [[ $target_install == "1" ]]; then' \
+  <<<"$pacman_argument_block" ||
+  fail "release-target verification does not select a guest-system boundary"
+grep -Fqx '  pacman_args+=(--sysroot "$system_root")' \
+  <<<"$pacman_argument_block" ||
+  fail "release-target verification still reads the live Pacman policy"
+grep -Fqx 'elif [[ -n $system_root ]]; then' \
+  <<<"$pacman_argument_block" ||
+  fail "fixture verification does not retain its unprivileged root boundary"
+grep -Fqx '  pacman_args+=(--root "$system_root")' \
+  <<<"$pacman_argument_block" ||
+  fail "fixture verification no longer targets its isolated package database"
+grep -Fq '[[ $path == $system_root/* ]]' "$verify" ||
+  fail "release-target verification accepts paths outside its mounted root"
+grep -Fq 'path=${path#"$system_root"}' "$verify" ||
+  fail "release-target verification double-prefixes mounted package paths"
 
 run_verify() {
   HOME="$test_root/home" \

@@ -183,7 +183,13 @@ Pacman lock, a readable package database, and no missing or unexpected
 zero-length file reported by Pacman's privileged package integrity scan. The
 in-target pass uses only the validated temporary installer authorization; the
 release pass runs the root-owned image verifier against the exact mounted
-target and never executes user-owned target source as root. Only the two
+target and never executes user-owned target source as root. That mounted pass
+uses Pacman's `--sysroot` boundary so it reads the installed configuration and
+database together, then accepts only its exact canonical mount prefix before
+normalizing a reported package path. `--root` is valid only for the isolated
+unprivileged test fixture and must never make a release check inherit the live
+ISO repository or double-prefix a mounted package path.
+Only the two
 Limine-disabled mkinitcpio hooks and CUPS' two documented empty runtime
 databases are exempt. Stop the install log before handing control to
 the finished presentation, and keep both the ISO TUI finale and the non-ISO

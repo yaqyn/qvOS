@@ -145,7 +145,11 @@ cmp -s -- "$desktop_source" "$desktop_target" ||
   fail "the installed qvOS session entry does not match its owner"
 
 pacman_args=()
-[[ -z $system_root ]] || pacman_args+=(--root "$system_root")
+if [[ $target_install == "1" ]]; then
+  pacman_args+=(--sysroot "$system_root")
+elif [[ -n $system_root ]]; then
+  pacman_args+=(--root "$system_root")
+fi
 package_command=(/usr/bin/pacman)
 if [[ $testing == "1" ]]; then
   package_command=(pacman)
@@ -175,6 +179,11 @@ while IFS=' ' read -r package path; do
   installed_mode=
   installed_size=
   [[ $path == /* ]] || continue
+  if [[ $target_install == "1" ]]; then
+    [[ $path == $system_root/* ]] ||
+      fail "Pacman returned an installed path outside the mounted target"
+    path=${path#"$system_root"}
+  fi
   case $path in
   /etc/cups/classes.conf | /etc/cups/printers.conf)
     # CUPS owns these mutable runtime databases and initializes them empty.

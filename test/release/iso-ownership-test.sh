@@ -13,6 +13,7 @@ cache_recovery="$release_root/builder/cache-recovery"
 space_check="$release_root/space-check"
 profile="$release_root/profile"
 installer="$profile/airootfs/root/.automated_script.sh"
+post_install_verifier="$root/qvcore/install/post-install/verify"
 
 fail() {
   printf 'not ok - %s\n' "$1" >&2
@@ -537,6 +538,16 @@ grep -Fq 'qvcore/install/post-install/verify' "$installer" ||
   fail "release ISO bypasses the native installed-state verifier"
 grep -Fq 'QVOS_INSTALL_VERIFY_TARGET=1' "$installer" ||
   fail "release ISO does not verify the synchronized target as root"
+grep -Fq 'pacman_args+=(--sysroot "$system_root")' \
+  "$post_install_verifier" ||
+  fail "release ISO target verification still reads the live Pacman policy"
+grep -Fq '[[ $path == $system_root/* ]]' "$post_install_verifier" ||
+  fail "release ISO target verification accepts paths outside its mount"
+grep -Fq 'path=${path#"$system_root"}' "$post_install_verifier" ||
+  fail "release ISO target verification double-prefixes package paths"
+grep -Fq 'mounted-target verifier without an isolated Pacman path boundary' \
+  "$build" ||
+  fail "release build does not reject a host-configured target verifier"
 finalizer=$(sed -n '/^finalize_qvos_target() {$/,/^}$/p' "$installer")
 grep -Fq 'QVOS_CHROOT_INSTALL=1' <<<"$finalizer" ||
   fail "release ISO final verifier cannot resolve its reviewed provider channel"

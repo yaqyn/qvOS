@@ -383,6 +383,7 @@ stage_qvos_source() {
 validate_qvos_source() {
   local target="$1"
   local missing=false
+  local post_install_verifier="$target/qvcore/install/post-install/verify"
   local source_branch
   local source_fetch
   local source_remote
@@ -403,6 +404,20 @@ validate_qvos_source() {
   fi
   if [[ ! -d $target/qvcore/install ]]; then
     echo "qvos-build staged qvOS source is missing qvcore/install/" >&2
+    missing=true
+  fi
+  # The matcher is the literal staged Bash route, not this validator's root.
+  # shellcheck disable=SC2016
+  if [[ ! -f $post_install_verifier || -L $post_install_verifier ]]; then
+    echo "qvos-build staged qvOS source is missing its installed-state verifier." >&2
+    missing=true
+  elif ! grep -Fq 'pacman_args+=(--sysroot "$system_root")' \
+    "$post_install_verifier" ||
+    ! grep -Fq '[[ $path == $system_root/* ]]' \
+      "$post_install_verifier" ||
+    ! grep -Fq 'path=${path#"$system_root"}' \
+      "$post_install_verifier"; then
+    echo "qvos-build staged a mounted-target verifier without an isolated Pacman path boundary." >&2
     missing=true
   fi
   if [[ ! -d $target/qvcore/boot/login ]]; then
