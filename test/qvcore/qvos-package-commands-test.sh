@@ -244,11 +244,17 @@ fi
 printf 'ok - explicit AUR installation is validated and verified\n'
 
 before_cancel=$(wc -l <"$log")
-run_package install
-run_package aur-install
-run_package remove
+picker_stderr="$test_root/picker.stderr"
+: >"$picker_stderr"
+{
+  run_package install
+  run_package aur-install
+  run_package remove
+} 2>>"$picker_stderr"
 (( $(wc -l <"$log") == before_cancel )) ||
   fail "canceled package picker reached a mutation"
+[[ ! -s $picker_stderr ]] ||
+  fail "canceled package picker emitted diagnostics"
 printf 'ok - package picker cancellation is a clean no-op\n'
 
 QVOS_TEST_FZF_SELECTION=alpha run_package install

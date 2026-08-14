@@ -5,7 +5,7 @@ qvos_package_pick() {
   local source_name=$2
   shift 2
   local -n output=$output_name
-  local -n source_command=$source_name
+  local -n source_argv=$source_name
 
   # shellcheck disable=SC2034 # nameref publishes the selection to the caller
   output=$(
@@ -13,7 +13,7 @@ qvos_package_pick() {
     local -a pipeline_status=()
 
     set +e
-    "${source_command[@]}" | fzf "$@"
+    "${source_argv[@]}" | fzf "$@"
     pipeline_status=("${PIPESTATUS[@]}")
     source_status=${pipeline_status[0]:-125}
     picker_status=${pipeline_status[1]:-125}
