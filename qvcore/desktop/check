@@ -87,6 +87,10 @@ grep -Fqx 'exec "$QVOS_PATH/qvcore/desktop/launch/app" "$@"' "$app_adapter" ||
   fail "native qvOS application-launch adapter does not delegate directly"
 [[ ! -e $root/bin/omarchy-launch-app && ! -L $root/bin/omarchy-launch-app ]] ||
   fail "qvOS-only application launcher invented an Omarchy adapter"
+grep -Fq "xdg-terminal-exec --print-cmd='\\0'" "$app_launcher" ||
+  fail "native qvOS application launcher does not isolate terminal resolution"
+grep -Fq "mapfile -d '' -t terminal_command" "$app_launcher" ||
+  fail "native qvOS application launcher does not preserve terminal arguments"
 if rg -n '\buwsm-app\b' "$root/qvcore" \
   --glob '!**/AGENTS.md' --glob '!**/check'; then
   fail "native qvOS source calls the unreaped fast UWSM client"

@@ -261,8 +261,11 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - desktop application, browser, web-app, and terminal launching belongs to
   `qvcore/desktop/launch`; callers pass exact arguments and never shell strings.
   One qvOS-only `qv-launch-app` route owns canonical `uwsm app` invocation for
-  every native caller; never use the package-owned fast `uwsm-app` shell client
-  or invent an Omarchy adapter for this native boundary.
+  every native caller. It resolves exact `xdg-terminal-exec` requests into
+  NUL-delimited argv before entering the UWSM scope so provider cache workers
+  cannot become terminal children; never patch the provider executable, use
+  the package-owned fast `uwsm-app` shell client, or invent an Omarchy adapter
+  for this native boundary.
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;
   installation and removal preserve foreign files, while fresh qvOS contains
   no preinstalled Web Apps, fixed service URLs, or service protocol handlers.

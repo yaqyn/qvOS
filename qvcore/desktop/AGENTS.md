@@ -20,9 +20,14 @@ focus-or-launch behavior. Native launchers preserve argv boundaries, use fixed
 substring window matching against fully validated Hyprland JSON, generate
 `org.qvos.*` application IDs, and never parse a caller command with `eval` or a
 shell. `qv-launch-app` is the singular native UWSM application boundary and
-executes the canonical `uwsm app` client. Every native caller uses that route;
-never call the fast `uwsm-app` shell client, patch its package-owned executable,
-or duplicate UWSM option handling in another owner. Normal custom browser
+executes the canonical `uwsm app` client. Before entering the UWSM application
+scope, it resolves an exact `xdg-terminal-exec` request through the owner's
+NUL-delimited print interface and launches the resulting argv directly. This
+keeps the provider's asynchronous cache writer outside the terminal process,
+preserves empty and whitespace-bearing arguments, and avoids patching a
+package-owned executable. Every native caller uses that route; never call the
+fast `uwsm-app` shell client or duplicate UWSM option handling in another owner.
+Normal custom browser
 desktop entries remain launchable; private mode and app-window mode require an
 explicitly supported browser executable. Treat
 radio unblock failure as a warning and still open its accessible controls.

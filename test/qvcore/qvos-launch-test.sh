@@ -9,6 +9,7 @@ setsid_log="$test_root/setsid.log"
 focus_log="$test_root/focus.log"
 rfkill_log="$test_root/rfkill.log"
 uwsm_log="$test_root/uwsm.log"
+xdg_terminal_log="$test_root/xdg-terminal.log"
 
 cleanup() {
   [[ ! -d $test_root ]] || rm -rf -- "$test_root"
@@ -71,6 +72,20 @@ install -m 0755 /dev/stdin "$test_bin/uwsm" <<'SCRIPT'
 #!/bin/bash
 printf '%s\n' "$@" >"$QVOS_TEST_UWSM_LOG"
 SCRIPT
+install -m 0755 /dev/stdin "$test_bin/xdg-terminal-exec" <<'SCRIPT'
+#!/bin/bash
+printf '%s\n' "$@" >"$QVOS_TEST_XDG_TERMINAL_LOG"
+case ${QVOS_TEST_XDG_TERMINAL_CASE:-normal} in
+normal)
+  printf 'alacritty\0--class=org.qvos.test\0-e\0fixture-command\0argument with spaces'
+  ;;
+empty-final)
+  printf 'alacritty\0-e\0printf\0'
+  ;;
+failure) exit 1 ;;
+*) exit 64 ;;
+esac
+SCRIPT
 for command in \
   bash \
   bluetui \
@@ -83,8 +98,7 @@ for command in \
   impala \
   nvim \
   qv-launch-app \
-  wiremix \
-  xdg-terminal-exec; do
+  wiremix; do
   install -m 0755 /dev/stdin "$test_bin/$command" <<'SCRIPT'
 #!/bin/bash
 exit 0
@@ -96,6 +110,7 @@ export QVOS_TEST_SETSID_LOG=$setsid_log
 export QVOS_TEST_FOCUS_LOG=$focus_log
 export QVOS_TEST_RFKILL_LOG=$rfkill_log
 export QVOS_TEST_UWSM_LOG=$uwsm_log
+export QVOS_TEST_XDG_TERMINAL_LOG=$xdg_terminal_log
 
 declare -A owners=(
   [about]=about
@@ -150,6 +165,31 @@ pass "desktop launch owners and compatibility adapters are singular"
 assert_args "$uwsm_log" \
   app -u qvos-test.scope -S both -- fixture-command 'argument with spaces'
 pass "application launch uses the canonical UWSM client with exact arguments"
+
+"$launch_root/app" -u qvos-terminal.scope -- xdg-terminal-exec \
+  --app-id=org.qvos.requested -e requested-command 'requested argument'
+assert_args "$xdg_terminal_log" \
+  '--print-cmd=\0' --app-id=org.qvos.requested -e requested-command \
+  'requested argument'
+assert_args "$uwsm_log" \
+  app -u qvos-terminal.scope -- alacritty --class=org.qvos.test -e \
+  fixture-command 'argument with spaces'
+pass "default terminal resolution completes before the UWSM application scope"
+
+QVOS_TEST_XDG_TERMINAL_CASE=empty-final \
+  "$launch_root/app" -- xdg-terminal-exec -e printf ''
+assert_args "$uwsm_log" app -- alacritty -e printf ''
+pass "default terminal resolution preserves a trailing empty argument"
+
+unlink -- "$uwsm_log"
+set +e
+QVOS_TEST_XDG_TERMINAL_CASE=failure \
+  "$launch_root/app" -- xdg-terminal-exec >/dev/null 2>&1
+terminal_failure_status=$?
+set -e
+((terminal_failure_status == 1)) || fail "terminal resolver failure status"
+[[ ! -e $uwsm_log ]] || fail "failed terminal resolution reached UWSM"
+pass "default terminal resolution fails closed before application launch"
 
 export QVOS_TEST_CLIENTS_JSON='[{"address":"0xabc","class":"Org.QvOS.Wiremix","title":null}]'
 unlink -- "$setsid_log" 2>/dev/null || true

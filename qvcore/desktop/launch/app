@@ -10,4 +10,45 @@ command -v uwsm >/dev/null 2>&1 || {
   exit 1
 }
 
-exec uwsm app "$@"
+launch_args=("$@")
+terminal_index=-1
+
+if [[ ${launch_args[0]} == "xdg-terminal-exec" ]]; then
+  terminal_index=0
+else
+  for index in "${!launch_args[@]}"; do
+    if [[ ${launch_args[$index]} == "--" &&
+      ${launch_args[$((index + 1))]:-} == "xdg-terminal-exec" ]]; then
+      terminal_index=$((index + 1))
+      break
+    fi
+  done
+fi
+
+if ((terminal_index >= 0)); then
+  command -v xdg-terminal-exec >/dev/null 2>&1 || {
+    echo "qvOS application launch requires xdg-terminal-exec." >&2
+    exit 1
+  }
+
+  terminal_request=("${launch_args[@]:terminal_index + 1}")
+  terminal_command=()
+  exec {resolver_fd}< <(
+    xdg-terminal-exec --print-cmd='\0' "${terminal_request[@]}" &&
+      printf '\0'
+  )
+  resolver_pid=$!
+  mapfile -d '' -t terminal_command <&"$resolver_fd"
+  exec {resolver_fd}<&-
+  if ! wait "$resolver_pid" || ((${#terminal_command[@]} == 0)); then
+    echo "qvOS application launch could not resolve the default terminal." >&2
+    exit 1
+  fi
+
+  launch_args=(
+    "${launch_args[@]:0:terminal_index}"
+    "${terminal_command[@]}"
+  )
+fi
+
+exec uwsm app "${launch_args[@]}"
