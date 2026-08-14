@@ -299,6 +299,9 @@ set -e
   fail "qvOS debug cancellation cleanup"
 grep -Fq '104b2ad73595de52a2f92f0bb17160385bae0579' "$runner" \
   || fail "LinUtil source provenance"
+if rg -q 'sudo[[:space:]]+-n[[:space:]]+true' "$runner" "$dev_share"; then
+  fail "interactive security owner probes sudo by creating an authentication failure"
+fi
 
 install -d "$test_bin"
 install -m 0755 /dev/stdin "$test_bin/lynis" <<'SCRIPT'

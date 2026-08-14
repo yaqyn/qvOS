@@ -319,7 +319,7 @@ for port in "${ports[@]}"; do
   }
 done
 
-if "$sudo_command" -n true >/dev/null 2>&1; then
+if [[ -t 0 ]]; then
   escalation=("$sudo_command")
 elif [[ -x $pkexec_command && -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; then
   escalation=("$pkexec_command")

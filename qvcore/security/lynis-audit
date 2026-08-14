@@ -59,7 +59,7 @@ escalation=()
 
 if ((EUID == 0)); then
   :
-elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+elif command -v sudo >/dev/null 2>&1 && [[ -t 0 ]]; then
   escalation=(sudo)
 elif command -v pkexec >/dev/null 2>&1 \
   && [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; then

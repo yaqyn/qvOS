@@ -7,6 +7,12 @@ changing a security default, or planning a hardening batch.
 live Lynis output and saves private report copies under
 `${XDG_STATE_HOME:-$HOME/.local/state}/qvos/security/lynis/`. Reports contain
 system inventory: never commit, upload, or quote private contents.
+Choose sudo for an interactive terminal, PolicyKit for a graphical nonterminal
+caller, and the available fallback otherwise. Never probe `sudo -n true` merely
+to select an escalation frontend: a rejected probe creates a misleading
+authentication failure in the system journal. Apply the same rule to LAN
+preview authorization; ISO chroot fail-closed checks and an already-authorized
+bounded package keepalive remain intentional noninteractive uses.
 Lynis remains an explicit operator-installed audit tool, not a qvOS base
 package; the minimal base carries `arch-audit` for native package-vulnerability
 checks. Tests for the absolute privileged Lynis route must remain hermetic on a
