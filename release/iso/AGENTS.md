@@ -129,7 +129,10 @@ a thin adapter to this owner.
   installation network; never duplicate that policy in the ISO source tree.
   Retire Archiso's enabling resolver drop-in, publish the native policy as the
   final `zz-qvos-live.conf` drop-in, and fail the build if any remaining main
-  configuration or drop-in re-enables either discovery protocol.
+  configuration or drop-in re-enables either discovery protocol. Validate this
+  once in the staged profile and again in Archiso's fully assembled live root;
+  an absent pre-package main configuration is valid, but inspection errors are
+  not.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. Full image
   builds reuse the persistent package and tool caches by default because the
   development connection is bandwidth-constrained. Cached payloads remain

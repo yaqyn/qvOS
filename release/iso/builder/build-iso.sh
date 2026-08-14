@@ -27,6 +27,58 @@ configure_pacman_transport() {
   sed -i "/^\[options\]/a $xfer_command" "$config"
 }
 
+validate_live_resolver_policy() {
+  local root="$1"
+  local policy_dir="$root/etc/systemd/resolved.conf.d"
+  local upstream_policy="$policy_dir/archiso.conf"
+  local native_policy="$policy_dir/zz-qvos-live.conf"
+  local candidate
+  local grep_status
+  local -a config_inputs=("$policy_dir")
+
+  [[ -d $policy_dir && ! -L $policy_dir ]] || {
+    echo "The staged live resolver directory is unsafe or missing." >&2
+    return 1
+  }
+  [[ ! -e $upstream_policy && ! -L $upstream_policy ]] || {
+    echo "The staged live root retains Archiso resolver discovery." >&2
+    return 1
+  }
+  [[ -f $native_policy && ! -L $native_policy ]] || {
+    echo "The staged live root is missing its native resolver policy." >&2
+    return 1
+  }
+  cmp -s -- "$resolver_policy_source" "$native_policy" || {
+    echo "The staged live resolver policy does not match its qvOS owner." >&2
+    return 1
+  }
+
+  for candidate in \
+    "$root/etc/systemd/resolved.conf" \
+    "$root/usr/lib/systemd/resolved.conf"; do
+    if [[ -e $candidate || -L $candidate ]]; then
+      [[ -f $candidate ]] || {
+        echo "The staged live resolver configuration is unsafe: $candidate" >&2
+        return 1
+      }
+      config_inputs+=("$candidate")
+    fi
+  done
+
+  if grep -ERin \
+    '^[[:space:]]*(MulticastDNS|LLMNR)[[:space:]]*=[[:space:]]*(1|on|resolve|true|yes)([[:space:]]*(#.*)?)?$' \
+    "${config_inputs[@]}"; then
+    echo "The staged live resolver configuration re-enables local discovery." >&2
+    return 1
+  else
+    grep_status=$?
+  fi
+  (( grep_status == 1 )) || {
+    echo "Could not inspect the staged live resolver configuration." >&2
+    return 1
+  }
+}
+
 # Note that these are packages installed to the Arch container used to build the ISO.
 pacman-key --init
 if [[ -n ${QVOS_ARCH_MIRROR:-} ]]; then
@@ -152,17 +204,7 @@ resolver_policy_target="$resolver_policy_dir/zz-qvos-live.conf"
 }
 rm -f -- "$resolver_upstream_target"
 install -Dm0644 -- "$resolver_policy_source" "$resolver_policy_target"
-cmp -s -- "$resolver_policy_source" "$resolver_policy_target" || {
-  echo "The staged live resolver policy does not match its qvOS owner." >&2
-  exit 1
-}
-if grep -ERin \
-  '^[[:space:]]*(MulticastDNS|LLMNR)[[:space:]]*=[[:space:]]*(1|on|resolve|true|yes)([[:space:]]*(#.*)?)?$' \
-  "$build_cache_dir/airootfs/etc/systemd/resolved.conf" \
-  "$resolver_policy_dir"; then
-  echo "The staged live resolver configuration re-enables local discovery." >&2
-  exit 1
-fi
+validate_live_resolver_policy "$build_cache_dir/airootfs"
 
 # The interactive qvOS image has no remote-administration or cloud-bootstrap
 # contract. Keep SSH available for explicit recovery, but do not expose it or
@@ -426,6 +468,7 @@ echo "qvOS ISO progress: creating ISO image"
   "/root/qvos" \
   >>"$build_cache_dir/profiledef.sh"
 mkarchiso -v -w "$build_cache_dir/work/" -o "/out/" "$build_cache_dir/"
+validate_live_resolver_policy "$build_cache_dir/work/x86_64/airootfs"
 
 # Fix ownership of output files to match host user
 if [[ -n ${HOST_UID:-} && -n ${HOST_GID:-} ]]; then

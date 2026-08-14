@@ -305,12 +305,18 @@ grep -Fq 'resolver_upstream_target="$resolver_policy_dir/archiso.conf"' \
   "$builder" || fail "release ISO retains Archiso resolver discovery"
 grep -Fq 'rm -f -- "$resolver_upstream_target"' "$builder" ||
   fail "release ISO does not retire Archiso resolver discovery"
-grep -Fq 'cmp -s -- "$resolver_policy_source" "$resolver_policy_target"' \
+grep -Fq 'cmp -s -- "$resolver_policy_source" "$native_policy"' \
   "$builder" ||
   fail "release ISO does not verify its staged resolver policy"
 grep -Fq \
   'The staged live resolver configuration re-enables local discovery.' \
   "$builder" || fail "release ISO does not reject resolver policy conflicts"
+grep -Fq \
+  'validate_live_resolver_policy "$build_cache_dir/airootfs"' \
+  "$builder" || fail "release ISO does not inspect its staged resolver policy"
+grep -Fq \
+  'validate_live_resolver_policy "$build_cache_dir/work/x86_64/airootfs"' \
+  "$builder" || fail "release ISO does not inspect its assembled resolver policy"
 grep -Fq '["/etc/systemd/resolved.conf.d/zz-qvos-live.conf"]="0:0:644"' \
   "$profile/profiledef.sh" ||
   fail "release ISO resolver policy permissions"

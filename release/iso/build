@@ -560,6 +560,13 @@ validate_native_iso() {
     echo "qvos-build staged a builder without a resolver-conflict guard." >&2
     return 1
   }
+  # shellcheck disable=SC2016
+  grep -Fq \
+    'validate_live_resolver_policy "$build_cache_dir/work/x86_64/airootfs"' \
+    "$builder" || {
+    echo "qvos-build staged a builder that does not inspect the assembled live root." >&2
+    return 1
+  }
   grep -Fq \
     '["/etc/systemd/resolved.conf.d/zz-qvos-live.conf"]="0:0:644"' \
     "$profile/profiledef.sh" || {
