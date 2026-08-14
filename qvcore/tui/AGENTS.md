@@ -89,9 +89,9 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   output, standard public proxy/checksum verification, and the caller's
   persistent module/build caches. Never duplicate a `go build` command or
   inherit Mise and shell-specific build or module-trust policy.
-- Keep private installer schema and builder names qvOS/ISO-owned. Omarchy may
-  appear only in package-provider ABI, provenance, or qvsync review records;
-  never use it as the identity of qvOS Go types or functions.
+- Keep private installer schema and builder names qvOS/ISO-owned. Permit
+  external names only in package-provider ABI, provenance, or qvsync review
+  records; never use one as the identity of qvOS Go types or functions.
 - The generated Archinstall package set owns the minimal target bootstrap,
   including Gum before the native installer handoff. Keep that schema and its
   regression test aligned; never make the ISO shell install a presentation
@@ -341,7 +341,7 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   `Later`, defaults to `Later`, and invokes the existing reboot owner only
   after an explicit choice. qvOS Update must defer inherited kernel,
   Hyprland, and state-file reboot prompts to this stage while preserving
-  native Omarchy updater behavior outside the qvOS TUI.
+  retained updater behavior outside the qvOS TUI.
 - Route a non-Software script through the same `--action` presentation only
   from its fixed task-catalog row. Never accept an arbitrary command from a
   menu or environment variable, and never treat a native catalog row as

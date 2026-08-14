@@ -40,7 +40,7 @@ artifact outside Git; it can contain machine and installation details.
   and verify clean development, tracking, remote, and live source parity.
 - Pin `QVOS_SOURCE_REF` to that qvOS commit. Its native builder and profile are
   the only executable ISO inputs. Complete both qvsync review ledgers and record
-  the exact reviewed Omarchy and Omarchy ISO baselines without making either
+  the exact reviewed product and ISO upstream baselines without making either
   upstream an executable build dependency.
 - Use `--pre-public` only for development rehearsal before that commit is the
   public `OS` head. The builder must reject an unflagged image when its pinned

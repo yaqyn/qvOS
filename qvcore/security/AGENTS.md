@@ -24,8 +24,8 @@ private mount namespace for the audit subprocess. Never rewrite, replace, or
 temporarily modify the host's `/etc/os-release`; fail closed when either
 identity is missing, writable, linked, ambiguous, or inconsistent.
 `qvcore/security/debug` owns local system diagnostics. Public `qv-debug`
-metadata and its exact metadata-free Omarchy adapter share that owner. Keep its
-temporary directory and saved files private, bound journal and total output,
+metadata and its exact metadata-free compatibility adapter share that owner.
+Keep its temporary directory and saved files private, bound journal and total output,
 remove terminal control bytes, label non-repository packages truthfully as
 foreign, report installed rather than available package versions, and never
 upload. Kernel logs require sudo unless the user explicitly chooses
@@ -58,8 +58,8 @@ on first boot; live-system reconciliation keeps immediate reload and rollback.
 regular files under `/usr/install`. System package code must not remain
 writable by unprivileged users, and the reconciliation must run after package
 updates without following symlinks or changing files outside that tree.
-The same installer requires trusted signatures for packages from the Omarchy
-repository while leaving its unsigned database optional. Reject ambiguous
+The same installer requires trusted signatures for packages from `[omarchy]`
+while leaving its unsigned database optional. Reject ambiguous
 repository configuration instead of weakening global policy or changing other
 repositories. During an ISO chroot install, defer only the exact temporary
 signed `[offline]` mirror contract at
@@ -113,7 +113,7 @@ current-path exception after its owner is removed, because that can hide a
 future secret at the reused path.
 
 Fingerprint and FIDO2 remain explicit optional capabilities. Their public `qv`
-adapters delegate to `auth`; matching Omarchy adapters are metadata-free ABI
+adapters delegate to `auth`; matching compatibility adapters are metadata-free ABI
 only. `auth-policy` is installed root-owned under `/usr/lib/qvos/security/` and
 is the sole owner of marked PAM blocks, private FIDO2 credentials, and root
 intent under `/var/lib/qvos/security/auth`. Never edit package-managed PAM files
@@ -124,7 +124,7 @@ qvOS blocks, serialize, publish atomically, and roll back as one transaction.
 The security installer reconciles enabled intent after package updates.
 
 `qv-dev-share` is the only metadata-bearing LAN-preview adapter. The former
-`omarchy-qvos-dev-share` qvOS-in-Omarchy namespace is retired and must remain
+The mixed `omarchy-qvos-dev-share` namespace is retired and must remain
 absent; `omarchy-dev-share` is its metadata-free matching compatibility
 adapter, and the compatibility CLI frontend still discovers the native route
 through the shared command engine.

@@ -29,7 +29,7 @@ reconciliation never scans or rewrites Windows user state, and active owners
 accept only the native command and `qvos-windows` container identity.
 Source reinstall may replace only the same installed commit, must preserve the
 complete previous checkout in a uniquely named backup, and must roll back if
-the final move fails. It never returns qvOS to upstream Omarchy.
+the final move fails. It never changes the installed distribution identity.
 
 Resolve and validate the complete native package manifest before changing
 mirrors or invoking Pacman. A config reset preflights every base, menu,
@@ -79,7 +79,7 @@ is retired; fresh qvOS carries only the system defaults.
 Fresh install marks only the current supported numeric owners from
 `qvcore/migrations/` through `qvcore/migrations/run --mark-current`; an empty
 compacted baseline is valid. It never executes existing-system migrations or
-reads or records a retired Omarchy marker tree. This seeding runs before the
+reads or records a retired external marker tree. This seeding runs before the
 installed account has a login session and must not require `/run/user/$UID`.
 
 The complete installer implementation lives under `qvcore/install/`, with
@@ -276,7 +276,7 @@ narrow privilege policy only after all required user-session work succeeds.
 Never grant passwordless access to general system, firewall, package, or file
 commands for first run. Keep notifications non-fatal after successful cleanup.
 The tracked Hyprland autostart source invokes only the native `qv-first-run`
-route; the Omarchy route is a metadata-free compatibility adapter.
+route; `omarchy-first-run` is a metadata-free compatibility adapter.
 The active marker and private lock live only under `.local/state/qvos/install`;
 the retired inherited marker is not scanned or migrated.
 The native GNOME and icon owners replace the inherited GNOME theme rather than

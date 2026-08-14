@@ -51,7 +51,7 @@ a thin adapter to this owner.
   unprivileged `DownloadUser` can reach the per-transaction directories it
   owns; never disable Pacman's download sandbox to work around host modes.
 - Mount that exact staged source read-only at `/qvos`, embed it at `/root/qvos`,
-  and resolve package-provider files from it before the first Omarchy package.
+  and resolve package-provider files from it before the first provider package.
   Never let the builder fetch a replacement product source or keep retired
   `/root/omarchy` or `/var/cache/omarchy` internal paths.
 - Validate the embedded qvOS installer at `qvcore/install/` and login leaves at
@@ -183,7 +183,7 @@ a thin adapter to this owner.
   Plymouth uses the canonical promoted live theme from
   `qvcore/boot/plymouth` with its graphite `#090909` graphical background and
   exact promoted assets under the native `qvos` theme identity; never stage the
-  inherited Omarchy Plymouth payload or select its retired theme name.
+  inherited Plymouth payload or select its retired theme name.
   Replace the inherited Arch Syslinux splash from
   `release/iso/syslinux-splash.png`, and verify every rendered boot/install pixel.
 - Preserve the boot setup, progress, and finale contract in `qvcore/tui/AGENTS.md`;

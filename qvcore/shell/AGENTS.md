@@ -10,7 +10,7 @@ lines in an existing `.bashrc`. Preserve every unrelated user line, reject
 linked or foreign paths, preserve a changed existing file privately under
 `~/.local/state/qvos/shell-backups`, publish atomically, and never place
 recovery files beside `.bashrc`. Do not rewrite exact runtime or Bash content.
-Historical Omarchy and retired qvOS source lines are not active migration input
+Historical compatibility and retired qvOS source lines are not active migration input
 and must remain unrecognized.
 `seed` creates the native `.bashrc` only when it is absent. It validates the
 home, source, and any existing target, publishes without clobbering a

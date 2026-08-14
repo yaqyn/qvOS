@@ -50,9 +50,6 @@ replace its judgment.
 
 ## Verification And Publication
 
-- Set repository identity to `Abdulrahman M. Yaqyn <commit@yaqyn.dev>`. Use the
-  GitHub noreply fallback only for an unpublished commit rejected by email
-  privacy, as defined by the root contract.
 - Pushes fail closed through normal Git transport. Never mutate a GitHub ref
   through the API as a push fallback: it can bypass remote policy such as
   GH007. Diagnose the rejection, then use only the authorized unpublished

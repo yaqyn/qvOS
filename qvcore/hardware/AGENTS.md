@@ -17,7 +17,7 @@ applies a `psmouse` option to an I2C-only device. Apple SPI and Lenovo Yoga
 detectors require the exact vendor and supported model family rather than an
 unbounded product-name substring. The Surface SAM detector likewise accepts
 only the documented Laptop, Book 3, and Laptop Studio models whose keyboard is
-routed through the Surface Aggregator Module. None invents an Omarchy adapter.
+routed through the Surface Aggregator Module. None invents a compatibility adapter.
 
 Validate action arity before probing. Treat caller-provided DMI matches as
 bounded fixed strings, terminate option parsing, and suppress expected errors

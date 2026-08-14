@@ -42,7 +42,7 @@ reconciliation never prompts for sudo when the root helpers are already current.
 `wifi-rule` select only their fixed policy. Install into an absent path or accept
 only the exact native qvOS payload; preserve and reject every different file.
 Restore a newly installed rule when reload or activation fails. Completed
-pre-release Omarchy rule convergence is retired and must not return. Both
+pre-release compatibility-rule convergence is retired and must not return. Both
 policies run in bounded transient services.
 Wi-Fi derives the effective mode from every supported external supply instead
 of trusting a single event's online value.
@@ -78,7 +78,7 @@ the shared config probe. A fresh chroot leaves activation to first run.
 `qvcore/power/hibernation/` singularly owns support detection, the Btrfs swap
 file, fstab entry, mkinitcpio resume hook, Limine drop-ins, and the keyboard
 backlight sleep helper. Public `qv-hibernation-*` commands own metadata; their
-Omarchy names are metadata-free compatibility adapters. Fresh install invokes
+matching compatibility names are metadata-free adapters. Fresh install invokes
 the native setup owner directly before Limine performs its one rebuild.
 
 Keep confirmation and reboot choice unprivileged. Install and verify the
@@ -96,7 +96,7 @@ linked, foreign-owned, or writable file that is present.
 Removal may delete `/swap/swapfile` and its subvolume only after explicit user
 confirmation, exact ownership checks, successful boot-policy removal and
 rebuild, and proof that the subvolume contains no unrelated data. Completed
-pre-release Omarchy resume and sleep convergence is retired. The transaction
+pre-release compatibility resume and sleep convergence is retired. The transaction
 validates, snapshots, installs, and removes only its native qvOS files;
 unrelated historical names are not runtime inputs. Fixture roots and tool
 overrides require `QVOS_HIBERNATION_TESTING=1` and caller-owned paths beneath

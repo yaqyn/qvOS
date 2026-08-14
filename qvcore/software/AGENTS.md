@@ -34,7 +34,7 @@ downloads, launches, or reboot handoff.
   `qvos` theme name; its `hx` alias belongs to the qvOS shell overlay, not the
   installer. Its package-free reconciliation mode creates only missing native
   configuration and preserves every existing file; desktop updates invoke it
-  only when Helix is installed. Historical Omarchy seed and link convergence
+  only when Helix is installed. Historical compatibility seed and link convergence
   is retired. Zed installs only
   `zed`, delegates its generated local theme to
   `qvcore/theme/set-zed`, preserves existing settings, and never restores the

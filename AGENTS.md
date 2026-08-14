@@ -11,12 +11,14 @@
 
 # Command Architecture
 
-`qv` is the product CLI and `qvcore/cli/qv` is its command engine. `omarchy` is
-only a compatibility frontend over the same native catalog. The engine discovers
+`qv` is the product CLI and `qvcore/cli/qv` is its command engine. The exact
+`omarchy` frontend is compatibility ABI over the same native catalog. The
+engine discovers
 and dispatches only metadata-bearing `bin/qv-*` routes. Every promoted inherited
 command has one `qvcore/` owner and one metadata-free matching
 `bin/omarchy-*` direct compatibility adapter. A qvOS-only capability never
-invents an Omarchy binary, and an Omarchy-only binary is never a qvOS command.
+adds a compatibility binary, and a compatibility-only binary is never a qvOS
+command.
 Never add mutation logic, state ownership, or product branding to `bin/`.
 
 Native CLI benchmarking and metadata documentation live under `qvcore/cli/`.
@@ -55,7 +57,7 @@ providers, and Waybar actions always call the native route.
 
 The CLI reads only `# qv:*` metadata from native adapters. `# omarchy:*` metadata
 is invalid and ignored; compatibility adapters carry no metadata. Metadata is
-scanned only from the first 80 lines, and qvOS help never exposes Omarchy product
+scanned only from the first 80 lines, and qvOS help exposes only qvOS product
 identity.
 
 Supported metadata keys:
@@ -132,7 +134,7 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   enter a recursive fresh-install copy
 - `qvcore/config/files/qvos/extensions/menu.sh` owns the personal menu-extension
   seed; active overrides live only under `~/.config/qvos/extensions/`, while the
-  inherited Omarchy path is validated migration input and is never seeded
+  exact compatibility path is validated migration input and is never seeded
 - `qvcore/config/base/hypr/` owns the typed Lua runtime helpers and source-side
   session, environment, appearance, persistent workspaces, and window defaults;
   session autostart finalizes only UWSM's bounded compositor-variable allowlist
@@ -154,7 +156,7 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   inherited terminal-specific screensaver defaults are retired
 - `qvcore/shell/` owns the native Bash defaults and source-independent alias
   payload; permanent reconciliation recognizes only exact current qvOS source
-  lines and never scans historical Omarchy or retired qvOS shell layouts;
+  lines and never scans historical compatibility or retired qvOS shell layouts;
   a fresh target chroot replaces only the exact package-owned skeleton
   `.bashrc`, while every different existing Bash file remains user-owned;
   changed Bash recovery values live privately under
@@ -171,7 +173,7 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   desktop reconciliation preserves existing Neovim configuration
 - `qvcore/config/files/fastfetch/config.jsonc` is the singular Fastfetch
   source and reads private terminal art from `~/.config/qvos/branding`; never
-  restore a second config layer or active Omarchy branding state
+  restore a second config layer or active compatibility branding state
 - the inherited top-level `default/` source tree is fully retired and must
   remain absent; native defaults live with their qvCORE domain owners
 - `qvcore/branding/` owns the qvOS vector masters, the user-approved terminal
@@ -251,7 +253,8 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - Waybar and monitor-watch restarts stop only their stable qvOS unit and exact
   process; completed transient-unit convergence is not a runtime scan
 - qvOS-managed installed runtime command trees expose only native names;
-  retired Omarchy runtime aliases remain absent, and thin source adapters are
+  retired compatibility runtime aliases remain absent, and thin source
+  adapters are
   the bounded external compatibility surface
 - `qvcore/tui/` publishes its binary and complete adapter payload as one
   serialized atomic runtime. The exact source digest validates both managed
@@ -264,13 +267,13 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
   every native caller. It resolves exact `xdg-terminal-exec` requests into
   NUL-delimited argv before entering the UWSM scope so provider cache workers
   cannot become terminal children; never patch the provider executable, use
-  the package-owned fast `uwsm-app` shell client, or invent an Omarchy adapter
+  the package-owned fast `uwsm-app` shell client, or invent a compatibility adapter
   for this native boundary.
 - custom Web App desktop entries belong to `qvcore/desktop/webapp`;
   installation and removal preserve foreign files, while fresh qvOS contains
   no preinstalled Web Apps, fixed service URLs, or service protocol handlers.
   Permanent inventory accepts only marked native qvOS launchers and treats
-  historical Omarchy launch entries as foreign user data
+  historical compatibility launch entries as foreign user data
 - update and restart markers live privately under
   `~/.local/state/qvos/update`; arbitrary persistent state is not a CLI feature
 - `qvcore/packages/provider/omarchy/` owns the credited Omarchy mirror and
@@ -287,8 +290,9 @@ Exceptions are allowed for bootstrap, preflight, migration, and package-helper s
 - `~/.config/qvos` owns active theme state; matching `~/.config/omarchy`
   theme paths are exact interoperability links only; current owners never
   adopt historical theme directories
-- Active Omarchy config compatibility roots contain only reviewed relative
-  links; current owners never scan or move historical compatibility state
+- Active compatibility roots under `~/.config/omarchy` contain only reviewed
+  relative links; current owners never scan or move historical compatibility
+  state
 - btop, Mako, and an installed Helix consume the native current-theme tree;
   Helix reconciliation creates only missing native state and preserves custom
   application configuration
@@ -327,14 +331,14 @@ current migrations without executing them through its exact native owner. When
 the supported upgrade floor advances, delete migrations that every supported
 installation has completed; the runner removes only their exact safe empty
 qvOS markers. Pre-release transition migrations must be retired before the
-first public baseline, and the runner never reads inherited Omarchy state.
+first public baseline, and the runner never reads external migration state.
 
 Create migrations with `qv dev add migration`. Numeric migration files are
 `0644`, have no shebang, start with a concise `echo`, use `$QVOS_PATH`, and are
 idempotent so an interrupted unmarked run can safely retry. Prefer existing
 command and package helpers, but direct package-manager or config work is
 allowed when it is the migration's reviewed purpose. Never add a skip path or
-restore Omarchy migration state as an active dependency.
+restore external migration state as an active dependency.
 # Repository Contract
 
 This entire file is qvOS-owned and must describe the current repository, not a
@@ -354,10 +358,11 @@ Every qvOS change must leave one traceable lifecycle.
 - After each verified local commit, align and verify this live installation
   from the development repository. Do not run the interactive updater or
   package upgrades unless the task requires them.
-- Treat qvOS as an independent downstream distribution and Omarchy as a
-  read-only code upstream, never product authority. qvOS owns product and
-  package selection; Omarchy provides only the credited Stable mirror,
-  repository, and signing keyring boundary described in `qvcore/packages/`.
+- qvOS is an independent downstream distribution and the sole product
+  authority. Reviewed upstreams are never product authority. qvOS owns product
+  and package selection; the credited Omarchy provider supplies only the
+  Stable mirror, repository, and signing keyring boundary described in
+  `qvcore/packages/`.
   Select official application packages from that repository; never make an
   `omarchy-*` application or meta-package part of the qvOS product surface.
 - During the native transition, keep each inherited implementation byte-for-byte
@@ -445,8 +450,8 @@ the owner and two consumers, and leave no equivalent implementation behind.
 
 ## Main qvsync Workflow
 
-`qvsync` is the read-only upstream intake loop for independent Omarchy product
-and Omarchy ISO histories. It never merges, cherry-picks, moves product
+`qvsync` is the read-only intake loop for the configured product and ISO
+upstream histories. It never merges, cherry-picks, moves product
 branches, makes upstream executable build input, or publishes refs.
 
 1. Start with `git qvsync --audit`. Read every commit and diff in both reported
@@ -467,7 +472,7 @@ branches, makes upstream executable build input, or publishes refs.
 6. Never merge or cherry-pick an upstream commit into qvOS. Port reviewed code
    deliberately, update owners and guards, and verify affected fresh install,
    update, removal, live, and cleanup paths.
-7. Record Omarchy product commits in
+7. Record product-upstream commits in
    `upstream/qvsync/upstream-reviews/<target-sha>.psv` and ISO commits in
    `upstream/qvsync/iso-upstream-reviews/<target-sha>.psv`. Use the matching
    `--record-reviewed-upstream` or `--record-reviewed-iso-upstream` option only
@@ -509,7 +514,7 @@ Root-started sessions must read every matching route completely before editing:
 - Drive discovery, selection, and LUKS key lifecycle: `qvcore/storage/AGENTS.md`
 - Commit and qvsync command mechanics: `upstream/qvsync/AGENTS.md`
 - Native migration execution and state cleanup: `qvcore/migrations/AGENTS.md`
-- Retained Omarchy command and state compatibility: `compat/omarchy/AGENTS.md`
+- Compatibility command and state boundary: `compat/omarchy/AGENTS.md`
 
 ## Future Workflow Instructions
 

@@ -1,11 +1,11 @@
 # qvOS Package Provider Workflow
 
 Read this file completely when changing Pacman repository configuration,
-package signatures, Omarchy keyring handling, package channels, package
+package signatures, the credited provider keyring, package channels, package
 manifests, or qvsync package-infrastructure monitoring.
 
 qvOS owns package selection, compatibility, update orchestration, and health
-checks. Omarchy remains the credited provider of the Stable Arch mirror, the
+checks. The credited Omarchy provider supplies the Stable Arch mirror, the
 `[omarchy]` curated package repository, and `omarchy-keyring`. Preserve those
 truthful names and the published signing fingerprint; never introduce or imply
 a qvOS mirror, binary repository, build farm, CDN, or package-signing key.
@@ -19,7 +19,7 @@ one pre-release handoff to official packages is complete and its transition
 code is retired; prevent those bundles from entering fresh manifests instead
 of carrying a permanent removal path.
 
-- Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
+- Installed qvOS uses the provider's Stable channel. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may
   move a user to them. The installer may consume its selected image channel
   only until package installation finishes; final policy publication and
@@ -64,10 +64,11 @@ of carrying a permanent removal path.
   metadata; `omarchy-refresh-pacman` is a metadata-free compatibility adapter.
 - Package signatures from `[omarchy]` are required while its unsigned database
   remains optional. Provider source and `qvcore/security/install` agree on that
-  policy; never create a weak bootstrap interval or weaken global Arch trust or
-  another repository to make Omarchy work.
+  policy; never create a weak bootstrap interval, weaken global Arch or another
+  repository's trust policy, or add an unsafe repository to compensate for
+  provider packages.
 - The release builder resolves those same provider files before its first
-  Omarchy package, retains every detached package signature in the offline
+  provider package, retains every detached package signature in the offline
   mirror, and uses `Required DatabaseOptional` for that mirror. Never accept
   `TrustAll`, `SigLevel = Never`, an unsigned hardware repository, or an
   unsigned cached package in a qvOS image. The ISO builder retains the exact

@@ -42,7 +42,7 @@ nor password needs public permissions.
 
 `development/environments/` owns the optional language and framework
 installers. Its manifest is the single supported inventory; public `qv`
-commands and metadata-free Omarchy adapters delegate to one manager.
+commands and metadata-free compatibility adapters delegate to one manager.
 
 - Record enrollment only after every declared component verifies. Keep exact
   private markers and the shared qvOS-created component registry under

@@ -4,7 +4,7 @@ Read this file completely when adding migrations, changing update migration
 execution, seeding a fresh install, or cleaning inherited migration state.
 
 `qvcore/migrations/` is the only migration source. Historical top-level
-Omarchy migrations are retired: fresh qvOS installs already contain their
+Retired compatibility migrations never run: fresh qvOS installs already contain their
 selected outcomes, and updates must never replay them. `qvcore/migrations/run`
 executes numeric migration files in order, serializes runs, records private
 atomic markers under `~/.local/state/qvos/migrations`, and fails closed without
@@ -20,7 +20,7 @@ the first public baseline, and whenever the supported upgrade floor advances,
 remove transition files already completed by every supported installation and
 prove their outcomes through fresh-install owners. The runner then deletes only
 matching safe, empty, account-owned qvOS markers whose source no longer exists;
-it never reads, adopts, or cleans an Omarchy migration-state tree. An empty
+it never reads, adopts, or cleans an external migration-state tree. An empty
 numeric source set is a valid compacted baseline and still retains the runner
 for future public upgrades.
 
@@ -28,7 +28,7 @@ Fresh installation calls `run --mark-current` only through the exact
 `QVOS_INSTALL` owner so current existing-system migrations are recorded without
 being executed. Reject links, foreign ownership, unexpected entries, nonempty
 markers, and conflicting state before mutation. Native migration names stay
-numeric; historical Omarchy markers are outside this owner's state and cannot
+numeric; historical external markers are outside this owner's state and cannot
 suppress a native migration.
 
 Use `qv dev add migration` to create a numeric `0644` source. Migration files

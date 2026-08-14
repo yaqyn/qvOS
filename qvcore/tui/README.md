@@ -202,7 +202,7 @@ the current state's navigation, confirmation, editing, exit, retry, log, and
 interruption keys.
 The production hub lists only complete working actions. Each row has a stable
 action key, so navigation coordinates never define behavior. Future actions
-must delegate to their real qvOS or Omarchy owner.
+must delegate to their real qvOS or retained compatibility owner.
 
 `v` toggles the composed qvOS log panel. On boot installation progress, `v`
 replaces the loading rail with one simple frameless, title-free log view; `v`
@@ -418,7 +418,7 @@ The boot installer keeps one TUI lifecycle:
    guarded exit decision shows only `Resume` followed by `Shutdown`, defaults
    safely to Resume, and keeps its repeated Ctrl+C/Z shutdown shortcut hidden.
 2. `--iso-progress` remains active across both the Arch installation and the
-   target-root Omarchy/qvOS installation while reading their shared log. It has
+   target-root qvOS installation while reading their shared log. It has
    no model, advances only from observed milestones, and shows only a loading
    message, percentage, shared thin animated rail, and centered dim estimate
    with `? Help`. V replaces progress with one simple frameless log view and
@@ -433,7 +433,7 @@ The boot installer keeps one TUI lifecycle:
    immediately. The finale has no second log or terminal lifecycle.
 
 The native qvOS Archiso builder and profile live under `../../release/iso/`.
-`qvos-build` delegates to that singular release owner. Omarchy ISO is read-only
+`qvos-build` delegates to that singular release owner. The ISO upstream is read-only
 qvsync review input; it is never cloned, patched, mounted, or executed by an
 image build.
 

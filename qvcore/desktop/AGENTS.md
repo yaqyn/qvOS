@@ -40,7 +40,7 @@ generic website keybinding and the on-demand installer.
 Never overwrite an existing desktop entry, accept an arbitrary Exec string,
 fetch an icon without explicit input, or remove a desktop file or icon without
 proving its bounded native qvOS Web App marker and launch route. Historical
-Omarchy launch entries are foreign user data and remain untouched. Keep
+Historical compatibility launch entries are foreign user data and remain untouched. Keep
 compatibility adapters thin and metadata-free.
 `qvcore/desktop/applications/` singularly owns the fixed base desktop entries,
 intentional package-menu suppressors, and the imv icon. Its installer validates

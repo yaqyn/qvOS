@@ -6,7 +6,7 @@ surface.
 
 `qvcore/transcode/media` and `qvcore/transcode/ascii` are the only conversion
 owners. Public commands are `qv-transcode` and `qv-transcode-ascii`; matching
-Omarchy names are metadata-free compatibility adapters only.
+`omarchy-transcode*` names are metadata-free compatibility adapters only.
 
 - Validate every option, input, format, resolution, dimension, and output
   before invoking ImageMagick or FFmpeg. Preserve paths as exact arguments.

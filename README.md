@@ -1,16 +1,8 @@
 # qvOS
 
-qvOS is an independent, focused Arch distribution. Omarchy is its read-only
-code upstream and credited package-infrastructure provider, not its product
-identity.
+qvOS is a focused Arch distribution with a native desktop, installer, update
+lifecycle, security policy, and release process.
 
-- qvOS decides its branding, product composition, defaults, exposed
-  capabilities, installation, update policy, and release behavior.
-- Useful Omarchy capability is reviewed and ported into native qvOS owners;
-  upstream commits are never merged automatically into qvOS.
-- qvOS owns package selection and safe update integration while Omarchy supplies
-  the stable Arch mirror, curated repository, and signing keyring. qvOS does not
-  operate a parallel package repository or mirror.
 - `qvcore/` is the mandatory native implementation of qvOS. It owns the
   installed product domains and is not an optional software bundle.
 - Optional integrations are classified by purpose. Proton belongs to Services
@@ -33,3 +25,11 @@ link to that canonical checkout. Generated and checked runtime payloads live
 separately under `~/.local/lib/qvos` so the Git source stays clean.
 
 See [`qvcore/README.md`](qvcore/README.md) for the ownership map and lifecycle.
+
+## Provenance and infrastructure
+
+qvOS reviews selected work from [Omarchy](https://github.com/basecamp/omarchy)
+through its read-only qvsync workflow and uses Omarchy's credited signed Stable
+package infrastructure. qvOS owns package selection, integration, defaults,
+installation, updates, and releases; upstream commits are reviewed and ported
+deliberately rather than merged into the product.

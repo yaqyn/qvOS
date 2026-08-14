@@ -44,7 +44,7 @@ owner with `--no-rebuild`, so the later Limine package step remains the only
 fresh-install UKI rebuild. Hibernation must accept a safely absent
 `/etc/default/limine`; the later Limine owner singularly creates that file.
 The hibernation transaction owns only native qvOS resume and sleep artifacts;
-its completed pre-release Omarchy convergence is retired and must not return as
+its completed pre-release compatibility convergence is retired and must not return as
 a boot input.
 Active Plymouth, SDDM, session, mkinitcpio, and UKI
 identifiers use `qvos`. Completed pre-release theme, selector, login, and

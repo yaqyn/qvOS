@@ -1,6 +1,6 @@
 # qvOS Menu Workflow
 
-Read this file completely when changing `qvcore/menu/`, Omarchy menu extensions,
+Read this file completely when changing `qvcore/menu/`, compatibility menu extensions,
 Walker or Elephant integration, menu search, or qvOS menu routes.
 
 ## Product contract
@@ -32,7 +32,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   lack a paired lifecycle owner. Show selectors as `Browse` and delegate
   directly to their inherited list; never invent an Uninstall owner from a
   package name.
-- Package concept actions call only the native `qv-pkg-*` selectors. Omarchy
+- Package concept actions call only the native `qv-pkg-*` selectors. Provider
   package command names remain compatibility ABI and never appear in active
   menu catalogs or providers.
 - Web App creation and removal are the native exception to that inherited
@@ -107,7 +107,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   `routes` exactly once, then loads the user-owned
   `~/.config/qvos/extensions/menu.sh` file last so personal overrides remain
   possible. Keep every built-in function in exactly one of
-  `base` or `routes`; neither module may call an Omarchy command route. The
+  `base` or `routes`; neither module may call a compatibility command route. The
   metadata-bearing `qv-menu` adapter is native and `omarchy-menu` delegates only.
 - `qvcore/menu/install` seeds the native personal extension only when it is
   absent. Preserve every existing regular user-owned native extension byte for
@@ -133,7 +133,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   different checkout.
 - `qvcore/menu/{menu,launch-walker,file,input,select,keybindings}` owns native
   Walker helpers. `qv-launch-walker` and `qv-menu-*` are the public commands;
-  matching Omarchy names are metadata-free compatibility adapters. Validate
+  matching compatibility names are metadata-free adapters. Validate
   prompts, choices, search directories, formats, monitor data, and arguments
   before handing them to Walker. Active qvOS config and owners use only the
   native routes.
@@ -141,7 +141,7 @@ Walker or Elephant integration, menu search, or qvOS menu routes.
   Walker, and Elephant config. Preflight every menu source and every refresh
   target before the first backup, restore through `qvcore/config/refresh`, then
   reconcile the menu once. Its internal preflight mode is mutation-free. The
-  native command is `qv-refresh-walker`; its Omarchy name is compatibility
+  native command is `qv-refresh-walker`; `omarchy-refresh-walker` is compatibility
   only. Fresh install receives startup files from `qvcore/config/files/` and
   never creates a Pacman hook that executes a user-writable checkout. qvOS
   update-log analysis records a private Walker restart marker after Walker or

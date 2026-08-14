@@ -26,7 +26,7 @@ delegate each selected operation once through the shared TUI.
   Restore Chromium through `qv-default-browser` before removing the active
   optional browser; do not duplicate XDG association mutation here.
 - Store qvOS-owned Wayland environment under the `qvos-` filename. Retired
-  Omarchy environment files are not an active qvOS lifecycle dependency.
+  Retired compatibility environment files are not an active qvOS lifecycle dependency.
 - Never embed or redistribute a third party's OAuth application credentials.
   The inherited Chromium Account installer and its one-time retirement engine
   are absent. Chromium refresh installs only the sanitized native qvOS flags

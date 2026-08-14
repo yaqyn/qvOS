@@ -5,16 +5,16 @@ route metadata, compatibility dispatch, or user-facing command help.
 
 `qvcore/cli/qv` is the single command-discovery and dispatch engine. `bin/qv`
 is the primary qvOS entry point; `bin/omarchy` is a thin compatibility adapter
-for inherited commands and upstream tooling. Both adapters invoke the same
-engine and command directory without duplicating route behavior. Every public
+for external callers. Both adapters invoke the same engine and command directory
+without duplicating route behavior. Every public
 adapter resolves source only through `QVOS_PATH`; an inherited command name
 never grants `OMARCHY_PATH` source authority.
 
 Native commands use a `qv-*` route with `# qv:*` metadata. The engine prefers
 that native route for both frontends and never scans, registers, or dispatches
-an `omarchy-*` file. Matching Omarchy names are metadata-free direct-command
-compatibility adapters only. `native-only-routes` is the sorted, explicit
-inventory of qvOS capabilities that never had an installed Omarchy binary;
+an `omarchy-*` file. Matching compatibility names are metadata-free
+direct-command adapters only. `native-only-routes` is the sorted, explicit
+inventory of qvOS capabilities that never had an installed compatibility binary;
 those routes must not invent one. Every retained command domain is promoted:
 never keep two implementations or two active metadata records for the same route.
 Native `qv` output, routes, examples, errors, and suggestions use `qv`; the
@@ -32,8 +32,8 @@ tested desktop-context resolver.
 Benchmark only static native `qv` surfaces, bound repeats before arithmetic,
 and never depend on user configuration or execute a mutation. Metadata help and
 JSON describe the current `qv:*` schema and native filename-derived routes;
-the Omarchy frontend translates the shared catalog only at its compatibility
-boundary. Public `qv-dev-*` adapters carry metadata and exact
+the compatibility frontend translates the shared catalog only at its boundary.
+Public `qv-dev-*` adapters carry metadata and exact
 `omarchy-dev-*` names are metadata-free compatibility only.
 
 `qv update` must resolve only to `qv-update`, which delegates to the

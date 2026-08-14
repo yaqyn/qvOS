@@ -4,11 +4,10 @@ qvCORE is the mandatory native implementation of qvOS. qvOS is the complete
 repository, distribution, and user-facing product; qvCORE owns its installed
 product domains and is never presented as optional software.
 
-Omarchy remains a read-only upstream. Keep an inherited implementation intact
-until its domain is promoted, then port only selected capability into one qvOS
-owner and remove the inherited implementation, overlay, adapter, and fallback
-together. The end state has one native owner, not an upstream system plus an
-active overlay.
+Each installed capability has one qvOS owner. Reviewed upstream work may inform
+that owner, but never creates a second active implementation. When a domain is
+promoted, remove every superseded implementation, overlay, adapter, and
+fallback together.
 
 Current product layout:
 
@@ -18,7 +17,7 @@ qvcore/
   branding/    qvOS vectors, approved terminal art, and private customization.
   browser/     Secure browser policy ownership.
   capture/     Private screenshots, OCR, and recoverable screen recording.
-  cli/         Native qv command engine and Omarchy compatibility frontend.
+  cli/         Native qv command engine and compatibility frontend.
   config/      Singular installed config sources and reconciliation.
   controls/    Audio, brightness, notification, and session OSD controls.
   defaults/    Browser, editor, and terminal default ownership.
@@ -30,7 +29,7 @@ qvcore/
   menu/        Native qvOS menus, search, Walker, and Elephant integration.
   migrations/  Native ordered migrations and private applied-state ownership.
   network/     qvOS DNS policy and optional private WARP routing.
-  packages/    Omarchy package-provider boundary and Stable configuration.
+  packages/    Signed package-provider boundary and Stable configuration.
   power/       Telemetry, root-owned AC events, sleep guards, and battery policy.
   presentation/ qvOS terminal presentation and failure handling.
   reminder/    Private transient desktop reminders and legacy cleanup.
@@ -60,9 +59,9 @@ enrollment state; qvCORE is the operating-system implementation itself.
 ## Product lifecycle
 
 qvOS has one supported base: a solid, gaming-ready Arch system whose package
-selection and compatibility policy are curated by qvOS. Omarchy supplies the
-credited Stable Arch mirror, curated package repository, and signing keyring;
-qvOS does not rebuild, resign, relabel, or mirror that package infrastructure.
+selection and compatibility policy are curated by qvOS. It consumes the
+credited Omarchy Stable mirror, package repository, and signing keyring without
+rebuilding, resigning, relabeling, or mirroring that infrastructure.
 Native `qv-pkg-*` commands own validated Pacman and explicit AUR operations;
 matching `omarchy-pkg-*` names are direct compatibility adapters only.
 The base keeps Codex through the signed configured repositories plus software
@@ -76,14 +75,15 @@ Services and Development integrations never change qvOS base readiness.
 - `qv update` confirms the operation and verifies a clean branch
   `OS`, then delegates once to the qvOS update pipeline. qvOS owns a bounded,
   official-origin, fast-forward-only source update; the preserved pipeline owns
-  snapshots, complete package updates from Omarchy Stable, migrations, orphan
-  cleanup, log analysis, and restarts. After Pacman/AUR, one direct-tool hook
+  snapshots, complete package updates from the configured Stable provider,
+  migrations, orphan cleanup, log analysis, and restarts. After Pacman/AUR,
+  one direct-tool hook
   updates only
   already-installed manifest entries belonging to Devel and Proton. It never
   restores missing tools, enrolls integrations, authenticates
   accounts, changes integrations, or changes networking.
-- `qv` is the primary user-facing command. `omarchy` remains a compatibility
-  frontend for inherited scripts and upstream tooling; both use the one native
+- `qv` is the primary user-facing command. `omarchy` is the compatibility
+  frontend for external callers; both use the one native
   qvOS command engine.
 - CLI benchmarking and command-metadata documentation are native, bounded,
   read-only `qvcore/cli/` tools and describe qvOS routes exclusively.
@@ -94,13 +94,13 @@ Services and Development integrations never change qvOS base readiness.
   direct compatibility adapters for inherited consumers and external callers.
 - Hyprland window, workspace, scaling, and monitor-recovery controls are native
   under `qvcore/desktop/hyprland/`. They validate compositor state before
-  mutation; matching Omarchy names remain direct compatibility only.
+  mutation; matching compatibility names remain direct adapters only.
 - Desktop application, browser, web-app, terminal-app, and focus-or-launch
   behavior is native under `qvcore/desktop/launch/`. It preserves exact
   arguments, validates compositor and browser state, and contains no
   caller-controlled shell evaluation. One native `qv-launch-app` owner invokes
   canonical `uwsm app` for every qvOS application launch; the package-owned fast
-  shell client is not a runtime dependency. Matching inherited Omarchy names are
+  shell client is not a runtime dependency. Matching inherited names are
   compatibility adapters only, while this qvOS-only boundary has none.
 - Custom Web App creation, inventory, removal, and migration are native under
   `qvcore/desktop/webapp/`. They validate every URL and target, preserve foreign
@@ -113,7 +113,7 @@ Services and Development integrations never change qvOS base readiness.
 - Custom automation is native under `qvcore/hooks/` and private under
   `~/.config/qvos/hooks`. qvOS runs system update jobs directly from their
   tracked feature owners; the custom tree contains only user automation and
-  disabled samples. Exact Omarchy hook commands are compatibility adapters.
+  disabled samples. Exact `omarchy-hook*` commands are compatibility adapters.
 - Proton appears under Services and Devel appears under Development. Each row
   is Install when unenrolled and Uninstall when enrolled. Install converges
   only missing pieces, configures and verifies the integration, then records
@@ -152,14 +152,14 @@ Services and Development integrations never change qvOS base readiness.
   actions; removing the active font restores JetBrains Mono first.
   ISO Build delegates to the native qvOS Archiso builder and profile under
   `release/iso/`, embedding the exact pinned qvOS source and singular TUI
-  installer. Omarchy ISO is a separately audited, read-only qvsync reference,
-  never executable build input. The native image uses one signed provider
+  installer. The ISO upstream is a separately audited, read-only qvsync
+  reference, never executable build input. The native image uses one signed provider
   policy for online resolution and the offline mirror, boots the standard Arch
   kernel, and refuses T2 Macs whose required third-party stack is not available
   through that verifiable boundary.
 
-Returning to upstream Omarchy is not an in-place qvOS lifecycle. It requires a
-separate documented installation rather than a source, branch, or config reset.
+Changing distributions requires a separate documented installation; a source,
+branch, or configuration reset never replaces qvOS.
 
 ## Internal namespace boundary
 
@@ -206,7 +206,7 @@ own actions.
 All active base domains live in `qvcore/`. If qvsync identifies a future
 upstream capability that qvOS does not yet own, keep that upstream
 implementation untouched until the complete domain is deliberately promoted;
-change Omarchy paths only at the audited compatibility seam:
+change compatibility paths only at their audited seam:
 
 - `bin/` owns CLI routes and menu handoffs.
 - `qvcore/config/files/` owns every installed user-config source;

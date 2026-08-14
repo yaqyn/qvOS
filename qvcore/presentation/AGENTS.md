@@ -5,7 +5,7 @@ presentation, completion or failure screens, or their window identity.
 
 `qvcore/presentation/` owns the complete terminal result flow. Public native
 commands are `qv-launch-floating-terminal-with-presentation`, `qv-show-done`,
-and `qv-show-failed`; matching Omarchy names are metadata-free compatibility
+and `qv-show-failed`; matching `omarchy-*` names are metadata-free compatibility
 adapters only.
 
 Its window identity is owned once in

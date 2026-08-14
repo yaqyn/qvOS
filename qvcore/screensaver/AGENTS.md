@@ -7,7 +7,7 @@ or exit behavior, cursor handling, or its Hypridle interaction.
 global compositor state. `qvos-screensaver` owns one terminal animation and
 input detection. It reads only the bounded, user-owned
 `~/.config/qvos/branding/screensaver.txt` file installed and migrated by the
-Branding owner; never restore active Omarchy branding state.
+Branding owner; never restore active compatibility branding state.
 
 Public `qv-launch-screensaver` and `qv-screensaver` commands carry metadata;
 matching `omarchy-*` commands are metadata-free source compatibility adapters.

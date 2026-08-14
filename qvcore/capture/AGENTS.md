@@ -6,7 +6,7 @@ indicator.
 
 `qvcore/capture/` is the only Capture implementation owner. Public commands
 are `qv-capture-screenshot`, `qv-capture-screenrecording`, and
-`qv-capture-text-extraction`; matching Omarchy names are metadata-free
+`qv-capture-text-extraction`; matching compatibility names are metadata-free
 compatibility adapters only. Hyprland, menus, Elephant, and Waybar use native
 qv routes.
 

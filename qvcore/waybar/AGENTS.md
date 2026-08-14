@@ -7,7 +7,7 @@ runtime modules, refresh lifecycle, task routes, or post-update reconciliation.
 The inherited `default/waybar/` tree and former base-plus-overlay merge are
 retired. Weather, idle, notification, Capture, update, menu, Voxtype, network,
 prayer, and clock modules call one explicit qvOS owner each. Never restore an
-Omarchy-named module, command, source path, or second configuration overlay.
+compatibility-named module, command, source path, or second configuration overlay.
 
 `qvcore/waybar/refresh` validates the complete config and style before mutation,
 then restores both through the shared atomic config owner. `qv-refresh-waybar`
@@ -49,7 +49,7 @@ sacrifice working protocol activation for the incompatible IPC module.
 `qv-launch-task` is the native fallback for a classified qvOS task when the
 checked TUI runtime is unavailable. Waybar task actions must use it; never
 restore the retired `omarchy-launch-qvos-task` or
-`omarchy-qvos-refresh-waybar` qvOS-in-Omarchy namespaces.
+`omarchy-qvos-refresh-waybar` mixed namespaces.
 
 `install` deploys only the files listed in `runtime-paths` to
 `~/.local/lib/qvos/waybar` through an atomic directory replacement. The runtime

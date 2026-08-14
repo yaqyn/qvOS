@@ -67,7 +67,7 @@ checks without creating state, so multi-file owners can fail before their first
 mutation. Missing-target publication never clobbers a concurrent writer.
 
 `qvcore/config/refresh-hyprland` is the single complete Hyprland restore owner.
-Its native command carries metadata and its matching Omarchy command is a
+Its native command carries metadata and its matching compatibility command is a
 metadata-free compatibility adapter. The owner preflights the monitor
 destination, restores every Hyprland default through the shared transaction
 from the singular `qvcore/config/files/hypr/` installed source. The restored

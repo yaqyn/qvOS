@@ -5,8 +5,8 @@ the interactive LUKS passphrase lifecycle under `qvcore/storage/`.
 
 `info` owns bounded drive presentation, `select` owns interactive selection,
 and `password` owns LUKS-device discovery and delegates exactly one key change.
-Native `qv-drive-*` commands own metadata; their Omarchy names are metadata-free
-compatibility adapters. Keep command implementations out of `bin/`.
+Native `qv-drive-*` commands own metadata; exact `omarchy-drive-*` names are
+metadata-free compatibility adapters. Keep command implementations out of `bin/`.
 
 Canonicalize production device paths beneath `/dev`, require a real block
 device recognized by `lsblk`, reject control characters and traversal, and
