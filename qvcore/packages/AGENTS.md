@@ -21,7 +21,9 @@ of carrying a permanent removal path.
 
 - Installed qvOS uses Omarchy Stable. Edge and RC configuration may exist only
   for reviewed ISO-builder compatibility; no installed channel switcher may
-  move a user to them.
+  move a user to them. The installer may consume its selected image channel
+  only until package installation finishes; final policy publication and
+  installed-state verification always resolve Stable explicitly.
 - Package availability in the credited repository does not make an alternate
   kernel qvOS-owned. Fresh and release inventories retain the signed standard
   Arch `linux` kernel and exclude `linux-ptl`, its headers, and hardware boot

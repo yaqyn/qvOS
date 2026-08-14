@@ -151,6 +151,18 @@ for installer_stage in \
     fail "installer interpolates an inherited provider path"
   fi
 done
+for stable_owner in \
+  "$root/qvcore/install/post-install/pacman.sh" \
+  "$root/qvcore/install/post-install/verify"; do
+  # This intentionally matches the literal runtime source expression.
+  # shellcheck disable=SC2016
+  grep -Fq '"$QVOS_PATH/qvcore/packages/provider-files" stable' \
+    "$stable_owner" ||
+    fail "installed package policy is not pinned to Stable: ${stable_owner#"$root/"}"
+  if rg -n 'QVOS_PROVIDER_CHANNEL' "$stable_owner"; then
+    fail "installed package policy inherits the ISO channel: ${stable_owner#"$root/"}"
+  fi
+done
 
 for frontend in qv omarchy; do
   "$root/bin/$frontend" commands --json | jq -e --arg route "$frontend pkg add" '

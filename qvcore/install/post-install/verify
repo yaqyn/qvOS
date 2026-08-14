@@ -59,9 +59,8 @@ require_nonempty_file() {
 [[ -n ${USER:-} && $USER =~ ^[[:alnum:]_.@-]+$ ]] ||
   fail "cannot validate the installed desktop account"
 
-provider_channel=${QVOS_PROVIDER_CHANNEL:-stable}
 provider_output=$(
-  "$QVOS_PATH/qvcore/packages/provider-files" "$provider_channel"
+  "$QVOS_PATH/qvcore/packages/provider-files" stable
 ) || fail "could not resolve the installed package-provider policy"
 mapfile -t provider_files <<<"$provider_output"
 (( ${#provider_files[@]} == 2 )) ||

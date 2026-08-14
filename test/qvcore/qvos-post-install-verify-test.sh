@@ -41,7 +41,7 @@ run_verify() {
   HOME="$test_root/home" \
     USER="$test_user" \
     QVOS_PATH="$root" \
-    QVOS_PROVIDER_CHANNEL=stable \
+    QVOS_PROVIDER_CHANNEL=rc \
     QVOS_INSTALL_VERIFY_ROOT="$system_root" \
     QVOS_INSTALL_VERIFY_TESTING=1 \
     QVOS_INSTALL_VERIFY_TARGET="${QVOS_INSTALL_VERIFY_TARGET:-}" \

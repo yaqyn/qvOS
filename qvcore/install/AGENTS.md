@@ -45,7 +45,10 @@ is preserved.
 Resolve package-provider files only through
 `qvcore/packages/provider-files`. Installed and online qvOS use Stable; Edge and
 RC are accepted only inside the reviewed ISO chroot. Provider source requires
-signed Omarchy packages before the first repository synchronization.
+signed Omarchy packages before the first repository synchronization. The ISO
+channel is installation input only: the final post-install owner must replace
+it with Stable before security and installed-state verification run, and the
+verifier must ignore the inherited build-channel environment.
 Fresh install uses the signed standard Arch `linux` kernel. Never append an
 unsigned hardware repository after provider validation. T2 Macs require an
 unsigned third-party package set that qvOS does not manage, so both native and

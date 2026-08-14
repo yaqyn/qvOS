@@ -1,7 +1,8 @@
+# shellcheck shell=bash
+
 # Configure pacman
-provider_channel=${QVOS_PROVIDER_CHANNEL:-stable}
 provider_output=$(
-  "$QVOS_PATH/qvcore/packages/provider-files" "$provider_channel"
+  "$QVOS_PATH/qvcore/packages/provider-files" stable
 ) || return
 mapfile -t provider_files <<<"$provider_output"
 (( ${#provider_files[@]} == 2 )) || {
