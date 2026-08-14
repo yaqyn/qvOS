@@ -297,6 +297,16 @@ grep -Fq 'sed -i "/^${package}$/d" "$build_cache_dir/packages.x86_64"' \
   "$builder" || fail "release ISO does not prune unsupported releng packages"
 grep -Fq 'Unsupported live-image package remains:' "$builder" ||
   fail "release ISO does not verify unsupported package removal"
+grep -Fq 'qvcore/install/system/printing-resolver.conf' "$builder" ||
+  fail "release ISO duplicates or omits the native resolver policy"
+grep -Fq '20-qvos-live.conf' "$builder" ||
+  fail "release ISO does not stage its resolver privacy boundary"
+grep -Fq 'cmp -s -- "$resolver_policy_source" "$resolver_policy_target"' \
+  "$builder" ||
+  fail "release ISO does not verify its staged resolver policy"
+grep -Fq '["/etc/systemd/resolved.conf.d/20-qvos-live.conf"]="0:0:644"' \
+  "$profile/profiledef.sh" ||
+  fail "release ISO resolver policy permissions"
 grep -Fq 'identity_source="$qvos_source/qvcore/branding/os-release"' "$builder" ||
   fail "release ISO duplicates or omits the native qvOS system identity"
 grep -Fq '["/etc/os-release"]="0:0:644"' "$profile/profiledef.sh" ||

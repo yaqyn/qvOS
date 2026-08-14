@@ -24,6 +24,7 @@ airootfs_image_tool_options=(
 bootstrap_tarball_compression=('zstd' '-c' '-T0' '--auto-threads=logical' '--long' '-19')
 file_permissions=(
   ["/etc/os-release"]="0:0:644"
+  ["/etc/systemd/resolved.conf.d/20-qvos-live.conf"]="0:0:644"
   ["/etc/shadow"]="0:0:400"
   ["/root"]="0:0:750"
   ["/root/.automated_script.sh"]="0:0:755"

@@ -538,6 +538,17 @@ validate_native_iso() {
     echo "qvos-build staged Plymouth outside the native qvOS theme path." >&2
     return 1
   }
+  grep -Fq \
+    'qvcore/install/system/printing-resolver.conf' "$builder" || {
+    echo "qvos-build staged a live image without the native resolver policy." >&2
+    return 1
+  }
+  grep -Fq \
+    '["/etc/systemd/resolved.conf.d/20-qvos-live.conf"]="0:0:644"' \
+    "$profile/profiledef.sh" || {
+    echo "qvos-build staged unsafe live resolver-policy permissions." >&2
+    return 1
+  }
   grep -Fqx 'Theme=qvos' \
     "$profile/airootfs/etc/plymouth/plymouthd.conf" || {
     echo "qvos-build staged a non-native Plymouth theme selection." >&2

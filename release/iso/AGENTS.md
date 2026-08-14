@@ -123,6 +123,10 @@ a thin adapter to this owner.
   not install inherited cloud bootstrap, mirror discovery, or a parallel DHCP
   client. Its one network owner is systemd-networkd with iwd. Retain SSH
   tooling only for an operator to start explicitly from the recovery shell.
+  Reuse the exact native resolver policy from
+  `qvcore/install/system/printing-resolver.conf` in the staged live root so
+  systemd-resolved cannot advertise or answer mDNS or LLMNR on an untrusted
+  installation network; never duplicate that policy in the ISO source tree.
 - Keep release package transfers on bounded HTTP/1.1 curl retries. Full image
   builds reuse the persistent package and tool caches by default because the
   development connection is bandwidth-constrained. Cached payloads remain

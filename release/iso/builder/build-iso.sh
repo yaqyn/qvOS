@@ -138,6 +138,22 @@ rm -f -- "$build_cache_dir/airootfs/etc/os-release"
 install -m 0644 -- "$identity_source" \
   "$build_cache_dir/airootfs/etc/os-release"
 
+# The installer is a network client, not a local-discovery responder. Reuse
+# the native installed-system policy so the image does not duplicate resolver
+# defaults or expose mDNS/LLMNR while attached to an untrusted network.
+resolver_policy_source="$qvos_source/qvcore/install/system/printing-resolver.conf"
+resolver_policy_target="$build_cache_dir/airootfs/etc/systemd/resolved.conf.d/20-qvos-live.conf"
+[[ -f $resolver_policy_source && ! -L $resolver_policy_source &&
+  $(<"$resolver_policy_source") == $'[Resolve]\nMulticastDNS=no\nLLMNR=no' ]] || {
+  echo "Missing or unsafe native qvOS resolver policy." >&2
+  exit 1
+}
+install -Dm0644 -- "$resolver_policy_source" "$resolver_policy_target"
+cmp -s -- "$resolver_policy_source" "$resolver_policy_target" || {
+  echo "The staged live resolver policy does not match its qvOS owner." >&2
+  exit 1
+}
+
 # The interactive qvOS image has no remote-administration or cloud-bootstrap
 # contract. Keep SSH available for explicit recovery, but do not expose it or
 # run Archiso mirror/cloud discovery automatically on an untrusted network.
