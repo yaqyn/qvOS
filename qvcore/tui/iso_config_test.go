@@ -89,6 +89,14 @@ func TestWriteISOInstallerFilesMatchesContract(t *testing.T) {
 	if device.Device != cfg.Disk || !device.Wipe {
 		t.Fatalf("device modification = %#v", device)
 	}
+	if len(device.Partitions) != 2 {
+		t.Fatalf("partitions = %#v, want one ESP and one root partition", device.Partitions)
+	}
+	for _, partition := range device.Partitions {
+		if partition.DevPath != nil {
+			t.Fatalf("partition predicts a device path: %#v", partition)
+		}
+	}
 	if configuration.DiskConfig.DiskEncryption == nil {
 		t.Fatalf("disk encryption was not written")
 	}

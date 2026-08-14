@@ -96,6 +96,12 @@ such as `qvcore/menu/AGENTS.md` or `release/iso/AGENTS.md`.
   including Gum before the native installer handoff. Keep that schema and its
   regression test aligned; never make the ISO shell install a presentation
   dependency in a hidden target transaction.
+- The boot installer supports only encrypted whole-disk replacement. Its
+  Archinstall schema wipes one selected disk and declares exactly one ESP and
+  one Btrfs partition without precomputed device paths; Archinstall owns the
+  partition numbers it actually creates. Never predict partition nodes or add
+  an alongside/preservation layout without a separately reviewed storage
+  lifecycle and gap-numbering regression proof.
 - `qvcore/tui/install` serializes publication with its private user-owned lock
   and replaces the complete runtime inventory. Never preserve build debris or
   untracked files inside the published tree; interrupted stages and superseded

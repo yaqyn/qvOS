@@ -1,0 +1,4 @@
+# base=7c50d72f40749ad9374c575607c7f0a7e781a097
+# target=7d3b01eae9772cfc73e2d70d9bb07a88e669666e
+# commit|decision|owner|summary|verification
+7d3b01eae9772cfc73e2d70d9bb07a88e669666e|combine|qvcore/tui/iso_config.go|Read back partition numbers instead of predicting them when preserving an existing disk layout: qvOS has no prediction path because it deliberately performs encrypted whole-disk replacement through one declarative Archinstall layout; retain that simpler architecture and add a regression guard requiring one wiped device, exactly two partitions, and no precomputed device paths.|qvcore/tui go test -count=1 ./..., qvcore/tui go vet ./..., test/release/iso-ownership-test.sh, test/upstream/qvsync-test.sh
