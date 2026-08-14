@@ -375,8 +375,9 @@ Every qvOS change must leave one traceable lifecycle.
 - A fresh ISO target may reboot only after the native post-install verifier
   confirms package-provider, SDDM/session, Pacman-lock, package-database, and
   present, nonzero package-payload integrity; the target-only cache owner then
-  removes the validated duplicate signed install archives without touching the
-  reusable builder cache. The finished owner must publish its exact root-owned
+  removes the validated duplicate signed install archives in one bounded
+  privileged operation without touching the reusable builder cache. The
+  finished owner must publish its exact root-owned
   completion marker, remove broad installer authorization, and synchronize the
   target before the finale. After ISO-only binds are removed, the release owner
   persists a nonempty private log, synchronizes root and ESP, verifies the

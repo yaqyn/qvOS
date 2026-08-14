@@ -183,7 +183,8 @@ installed-state verifier, then remove only the exact safe signed package
 archives duplicated into a fresh target cache before granting temporary reboot
 privilege. Cache cleanup runs only under the exact target-chroot signal,
 preflights the complete root-owned archive/signature inventory before deleting
-anything, is idempotent, and never reaches the reusable ISO-builder cache. It
+anything without privilege, performs one bounded privileged deletion, is
+idempotent, and never reaches the reusable ISO-builder cache. It
 requires exact provider files, a complete native SDDM/session handoff, no
 Pacman lock, a readable package database, and no missing or unexpected
 zero-length file reported by Pacman's privileged package integrity scan. The

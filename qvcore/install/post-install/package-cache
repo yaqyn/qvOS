@@ -15,11 +15,11 @@
     exit 1
   }
 
-  as_root() {
+  remove_as_root() {
     if [[ -n $system_root ]] || ((EUID == 0)); then
-      "$@"
+      /usr/bin/rm -f -- "$@"
     else
-      /usr/bin/sudo -- "$@"
+      /usr/bin/sudo -- /usr/bin/rm -f -- "$@"
     fi
   }
 
@@ -53,16 +53,15 @@
   [[ $chroot_install == "1" ]] || exit 0
 
   cache_dir="$system_root/var/cache/pacman/pkg"
-  if ! as_root /usr/bin/test -d "$cache_dir" ||
-    ! as_root /usr/bin/test ! -L "$cache_dir"; then
+  if [[ ! -d $cache_dir || -L $cache_dir ]]; then
     fail "the target package cache is missing or unsafe"
   fi
-  cache_identity=$(as_root /usr/bin/stat -c '%u:%g:%a' -- "$cache_dir") ||
+  cache_identity=$(/usr/bin/stat -c '%u:%g:%a' -- "$cache_dir") ||
     fail "the target package cache permissions could not be inspected"
   [[ $cache_identity == "$expected_uid:$expected_gid:755" ]] ||
     fail "the target package cache has unsafe permissions"
 
-  inventory=$(as_root /usr/bin/find "$cache_dir" \
+  inventory=$(/usr/bin/find "$cache_dir" \
     -mindepth 1 -maxdepth 1 -printf '%f\n') ||
     fail "the target package cache could not be inspected"
   [[ -n $inventory ]] || exit 0
@@ -75,11 +74,11 @@
     [[ $name =~ ^[A-Za-z0-9@._+~:-]+\.pkg\.tar\.zst(\.sig)?$ ]] ||
       fail "the target package cache contains an unexpected entry"
     path="$cache_dir/$name"
-    archive_identity=$(as_root /usr/bin/stat -c '%F|%u:%g:%a' -- "$path") ||
+    archive_identity=$(/usr/bin/stat -c '%F|%u:%g:%a' -- "$path") ||
       fail "the target package cache archive could not be inspected"
     [[ $archive_identity == "regular file|$expected_uid:$expected_gid:644" ]] ||
       fail "the target package cache contains an unsafe archive"
-    as_root /usr/bin/test -s "$path" ||
+    [[ -s $path ]] ||
       fail "the target package cache contains an empty archive"
     paths+=("$path")
     if [[ $name == *.sig ]]; then
@@ -100,8 +99,8 @@
       fail "the target package cache contains an orphaned signature"
   done
 
-  as_root /usr/bin/rm -f -- "${paths[@]}"
-  remaining=$(as_root /usr/bin/find "$cache_dir" \
+  remove_as_root "${paths[@]}"
+  remaining=$(/usr/bin/find "$cache_dir" \
     -mindepth 1 -maxdepth 1 -print -quit) ||
     fail "the cleaned target package cache could not be inspected"
   [[ -z $remaining ]] || fail "the target package cache cleanup is incomplete"

@@ -89,6 +89,9 @@ fi
   ! -L $root/qvcore/install/post-install/package-cache &&
   ! -x $root/qvcore/install/post-install/package-cache ]] ||
   fail "post-install package-cache owner mode"
+[[ $(grep -Fc '/usr/bin/sudo -- /usr/bin/rm -f -- "$@"' \
+  "$root/qvcore/install/post-install/package-cache") == 1 ]] ||
+  fail "target package-cache cleanup has more than one privilege boundary"
 
 [[ ! -e $root/install && ! -L $root/install ]] ||
   fail "inherited install tree remains"
