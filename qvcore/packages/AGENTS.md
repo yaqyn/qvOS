@@ -52,6 +52,9 @@ of carrying a permanent removal path.
   `sudo-keepalive` helper, start it only after validated selection, and stop its
   exact child on every exit. Never restore a public or inherited keepalive
   command or let a package picker leave a credential-refresh process behind.
+  Package pickers use the shared `picker-lib`: preserve the picker status,
+  accept a listing producer's SIGPIPE only after a successful selection, and
+  propagate every other Pacman or Yay listing failure.
 - `qvcore/packages/configure` owns an explicit reset to Stable. It backs up the
   current Pacman files, installs the credited provider configuration, invokes
   the existing security owner before synchronizing packages, and restores both

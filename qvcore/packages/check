@@ -67,6 +67,19 @@ while IFS= read -r provider_file; do
 done < <(find "$provider_dir" -mindepth 1 -maxdepth 1 -print)
 sudo_keepalive="$root/qvcore/packages/sudo-keepalive"
 [[ -x $sudo_keepalive ]] || fail "native package sudo refresh owner mode"
+picker_lib="$root/qvcore/packages/picker-lib"
+[[ -f $picker_lib && ! -L $picker_lib && $(stat -c '%a' "$picker_lib") == "644" ]] ||
+  fail "native package picker library mode"
+for picker in install aur-install remove; do
+  # These intentionally match literal source expressions.
+  # shellcheck disable=SC2016
+  grep -Fq 'source "$QVOS_PATH/qvcore/packages/picker-lib"' \
+    "$root/qvcore/packages/$picker" ||
+    fail "package $picker does not source the shared picker owner"
+  grep -Fqx '# qvos:contract=qvcore/packages/picker-lib' \
+    "$root/qvcore/packages/$picker" ||
+    fail "package $picker does not contract the shared picker owner"
+done
 for picker in install aur-install; do
   # This intentionally matches the literal runtime source expression.
   # shellcheck disable=SC2016

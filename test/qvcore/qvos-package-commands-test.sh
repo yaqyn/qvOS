@@ -76,7 +76,11 @@ case ${1:-} in
   done
   ;;
 -Slq)
+  [[ ${QVOS_TEST_LIST_STATUS:-0} == "0" ]] || exit "$QVOS_TEST_LIST_STATUS"
   printf 'alpha\nbeta\n'
+  for ((index = 0; index < 20000; index++)); do
+    printf 'package-%05d\n' "$index"
+  done
   ;;
 *) exit 2 ;;
 esac
@@ -119,7 +123,11 @@ case ${1:-} in
   sort -u -o "$QVOS_TEST_PACKAGE_STATE" "$QVOS_TEST_PACKAGE_STATE"
   ;;
 -Slqa)
+  [[ ${QVOS_TEST_LIST_STATUS:-0} == "0" ]] || exit "$QVOS_TEST_LIST_STATUS"
   printf 'delta\nepsilon\n'
+  for ((index = 0; index < 20000; index++)); do
+    printf 'aur-package-%05d\n' "$index"
+  done
   ;;
 -Qqe)
   cat "$QVOS_TEST_PACKAGE_STATE"
@@ -247,9 +255,21 @@ QVOS_TEST_FZF_SELECTION=alpha run_package install
 grep -Fxq alpha "$state" || fail "package picker did not install its selection"
 QVOS_TEST_FZF_SELECTION=epsilon run_package aur-install
 grep -Fxq epsilon "$state" || fail "AUR picker did not install its selection"
+before_list_failure=$(wc -l <"$log")
+if QVOS_TEST_LIST_STATUS=42 QVOS_TEST_FZF_SELECTION=alpha \
+  run_package install >/dev/null 2>&1; then
+  fail "package picker hid a failed Pacman inventory"
+fi
+if QVOS_TEST_LIST_STATUS=43 QVOS_TEST_FZF_SELECTION=epsilon \
+  run_package aur-install >/dev/null 2>&1; then
+  fail "AUR picker hid a failed Yay inventory"
+fi
+(( $(wc -l <"$log") == before_list_failure )) ||
+  fail "failed package inventory reached a mutation"
 if grep -Fqx updatedb "$log"; then
   fail "package picker rebuilt the host-wide locate database"
 fi
+printf 'ok - package pickers handle SIGPIPE without hiding inventory failures\n'
 printf 'ok - package pickers leave locate indexing to its daily timer\n'
 
 HOME="$home" QVOS_PATH="$root" QVOS_TEST_PACKAGE_STATE="$state" \

@@ -2,6 +2,9 @@
 set -euo pipefail
 
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+# qvos:contract=qvcore/packages/picker-lib
+# shellcheck source=qvcore/packages/picker-lib
+source "$QVOS_PATH/qvcore/packages/picker-lib"
 
 fzf_args=(
   --multi
@@ -17,8 +20,9 @@ fzf_args=(
   --color 'pointer:green,marker:green'
 )
 
+source_command=(yay -Slqa)
 set +e
-selection=$(yay -Slqa | fzf "${fzf_args[@]}")
+qvos_package_pick selection source_command "${fzf_args[@]}"
 selection_status=$?
 set -e
 case $selection_status in
