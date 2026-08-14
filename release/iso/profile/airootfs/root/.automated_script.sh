@@ -258,7 +258,7 @@ validate_qvos_target_handoff_files() {
   local completion_source
   local completion_target
   local install_log
-  local policy
+  local policy="$target_root/etc/sudoers.d/99-qvos-installer"
 
   [[ -d $target_root && ! -L $target_root ]] || {
     echo "The installed qvOS target root is missing or unsafe." >&2
@@ -292,14 +292,10 @@ validate_qvos_target_handoff_files() {
     return 1
   }
 
-  for policy in 99-qvos-installer 99-omarchy-installer; do
-    [[ ! -e $target_root/etc/sudoers.d/$policy &&
-      ! -L $target_root/etc/sudoers.d/$policy ]] || {
-      printf 'The installed system retains temporary authorization: %s\n' \
-        "$policy" >&2
-      return 1
-    }
-  done
+  [[ ! -e $policy && ! -L $policy ]] || {
+    echo "The installed system retains temporary qvOS authorization." >&2
+    return 1
+  }
   [[ ! -e $target_root/var/lib/pacman/db.lck &&
     ! -L $target_root/var/lib/pacman/db.lck ]] || {
     echo "The installed Pacman database remains locked." >&2
