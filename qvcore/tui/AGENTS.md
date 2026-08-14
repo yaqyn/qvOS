@@ -533,10 +533,12 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
 4. Preserve exit `0` for success, `130` for user cancellation, and nonzero for
    failures. Never render success after an owner failure.
 5. Run `qvcore/tui/owner-contracts --check`; if it reports drift, review the owner
-   before deliberately refreshing the manifest. Then run `gofmt`,
-   `go test -count=1 ./...`, Bash syntax and ShellCheck for shell adapters,
-   focused action/menu tests, and `test/qvcore/run.sh` when shared contracts or
-   lifecycle wiring changes.
+   before deliberately refreshing the manifest. Then run `gofmt`; invoke the
+   root-owned Arch toolchain with ambient Mise roots removed using
+   `env -u GOROOT -u GOBIN GOTOOLCHAIN=local GOWORK=off /usr/lib/go/bin/go`,
+   then run `test -count=1 ./...` and `vet ./...`; run Bash syntax and ShellCheck
+   for shell adapters, focused action/menu tests, and `test/qvcore/run.sh` when
+   shared contracts or lifecycle wiring changes.
 6. Build and install the live binary through `qvcore/tui/install`, apply affected
    launch/config owners, verify the semantic model and responsive log/result
    states, then capture and inspect a fullscreen screenshot with
