@@ -490,6 +490,13 @@ fi
 [[ -x $root/qvcore/install/post-install/reboot-policy &&
   ! -e $root/qvcore/install/post-install/allow-reboot.sh ]] ||
   fail "singular native installer reboot policy owner"
+[[ -f $root/qvcore/install/post-install/verify &&
+  ! -L $root/qvcore/install/post-install/verify &&
+  ! -x $root/qvcore/install/post-install/verify &&
+  -f $root/qvcore/install/post-install/completion-marker &&
+  -s $root/qvcore/install/post-install/completion-marker &&
+  ! -L $root/qvcore/install/post-install/completion-marker ]] ||
+  fail "native installed-state and completion-marker owners"
 grep -Fq '/etc/sudoers.d/99-qvos-installer-reboot' \
   "$root/qvcore/install/post-install/reboot-policy" ||
   fail "native installer reboot policy identity"
@@ -497,6 +504,10 @@ grep -Fq '/etc/sudoers.d/99-qvos-installer-reboot' \
 grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/reboot-policy"' \
   "$root/qvcore/install/post-install/run" ||
   fail "native installer reboot policy wiring"
+# shellcheck disable=SC2016
+grep -Fqx 'run_logged "$QVOS_PATH/qvcore/install/post-install/verify"' \
+  "$root/qvcore/install/post-install/run" ||
+  fail "native installed-state verifier wiring"
 if rg -n 'tee .*sudoers|sudoers.*tee' \
   "$root/qvcore/install/post-install/reboot-policy"; then
   fail "installer reboot policy bypasses validated atomic publication"

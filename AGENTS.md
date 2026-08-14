@@ -367,6 +367,13 @@ Every qvOS change must leave one traceable lifecycle.
   link, and keep runtime payloads under `~/.local/lib/qvos`. Permanent source
   reconciliation creates only that missing exact link; it never adopts or
   relocates historical source or runtime layouts.
+- A fresh ISO target may reboot only after the native post-install verifier
+  confirms package-provider, SDDM/session, Pacman-lock, package-database, and
+  present, nonzero package-payload integrity; the finished owner must publish
+  its exact root-owned completion marker, remove broad installer authorization,
+  and synchronize the target before the finale. After ISO-only binds are
+  removed, the release owner persists a nonempty private log, synchronizes root
+  and ESP, validates the handoff again, and only then reboots.
 - New persistent state is feature-owned and private under
   `~/.local/state/qvos`. User-editable qvOS configuration is feature-owned
   under `~/.config/qvos`; completed legacy-branding backups remain private and

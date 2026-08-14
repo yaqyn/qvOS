@@ -76,8 +76,12 @@ root target is under `/dev/mapper` or `/dev/dm-*` unless `cryptdevice=` or
 `dm-mod.create=` identifies the volume the busybox initramfs must unlock; fail
 before changing defaults, packages, or UKIs.
 Fresh Archinstall autologin may name `hyprland-uwsm`; the native session owner
-rewrites only that exact generic seed to `qvos` and preserves every custom
-session or theme selection.
+rewrites only that exact generic seed to `qvos`. During the exact target-chroot
+install, an empty regular Archinstall autologin fragment is likewise an
+incomplete seed and is replaced with the native account and session; live
+reconciliation preserves an intentional empty or custom file. Every root-owned
+boot payload publication byte-compares its installed target before reporting
+success, so a truncated write fails the owner instead of reaching reboot.
 
 The Limine install owner must read private `/boot` content through explicit
 sudo, render the inherited kernel command line without shell or sed

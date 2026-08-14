@@ -63,6 +63,7 @@ expected_run=$(
   printf 'run:%s\n' "$test_install/post-install/pacman.sh"
   printf 'run:%s\n' "$test_qvos/qvcore/security/install"
   printf 'run:%s\n' "$test_qvos/qvcore/controls/install-root"
+  printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/verify"
   printf 'run:%s\n' "$test_qvos/qvcore/install/post-install/reboot-policy"
   printf '%s\n' stop-log finished
 )
@@ -122,18 +123,26 @@ printf 'ok - installer reboot privilege is validated, atomic, and idempotent\n'
 install -m 0755 \
   "$root/qvcore/install/post-install/finished" \
   "$test_qvos/qvcore/install/post-install/finished"
+install -m 0644 \
+  "$root/qvcore/install/post-install/completion-marker" \
+  "$test_qvos/qvcore/install/post-install/completion-marker"
 
 install -m 0755 /dev/stdin "$test_bin/qvos-tui" <<'SCRIPT'
 #!/bin/bash
 printf 'tui:%s:%s\n' "${QVOS_TUI_FULLSCREEN:-}" "$*" >>"$QVOS_TEST_EVENT_LOG"
+if [[ ${QVOS_TEST_REQUIRE_SECURE_COMPLETION:-} == "1" ]]; then
+  [[ ! -e $QVOS_TEST_SUDOERS_ROOT/99-qvos-installer &&
+    ! -e $QVOS_TEST_SUDOERS_ROOT/99-omarchy-installer ]] || exit 99
+  cmp -s -- "$QVOS_TEST_COMPLETION_SOURCE" \
+    "$QVOS_TEST_COMPLETION_MARKER" || exit 98
+fi
 SCRIPT
 install -m 0755 /dev/stdin "$test_bin/sudo" <<'SCRIPT'
 #!/bin/bash
 printf 'sudo:%s\n' "$*" >>"$QVOS_TEST_EVENT_LOG"
-
-if [[ ${QVOS_TEST_REQUIRE_ACTIVE_POLICY:-} == "1" &&
+if [[ ${QVOS_TEST_ENFORCE_INSTALLER_POLICY:-} == "1" &&
   ! -f $QVOS_TEST_SUDOERS_ROOT/99-qvos-installer ]]; then
-  exit 99
+  exit 97
 fi
 
 map_policy() {
@@ -145,19 +154,45 @@ map_policy() {
 
 case ${1:-} in
 test)
-  mapped=$(map_policy "${3:-}") || exit 1
-  test "$2" "$mapped"
+  if mapped=$(map_policy "${3:-}"); then
+    test "$2" "$mapped"
+  else
+    exec /usr/bin/test "${@:2}"
+  fi
   ;;
 cat)
-  mapped=$(map_policy "${3:-}") || exit 1
-  cat -- "$mapped"
+  if mapped=$(map_policy "${3:-}"); then
+    cat -- "$mapped"
+  else
+    exec /usr/bin/cat "${@:2}"
+  fi
   ;;
 rm)
-  for path in "${@:4}"; do
-    mapped=$(map_policy "$path") || exit 1
-    rm -f -- "$mapped"
+  args=()
+  for path in "${@:2}"; do
+    if mapped=$(map_policy "$path"); then
+      args+=("$mapped")
+    else
+      args+=("$path")
+    fi
   done
+  exec /usr/bin/rm "${args[@]}"
   ;;
+cmp) exec /usr/bin/cmp "${@:2}" ;;
+install)
+  args=()
+  shift
+  while (($#)); do
+    case $1 in
+    -o | -g) shift 2 ;;
+    *) args+=("$1"); shift ;;
+    esac
+  done
+  exec /usr/bin/install "${args[@]}"
+  ;;
+mktemp) exec /usr/bin/mktemp "${@:2}" ;;
+mv) exec /usr/bin/mv "${@:2}" ;;
+stat) exec /usr/bin/stat "${@:2}" ;;
 *) exit 0 ;;
 esac
 SCRIPT
@@ -184,8 +219,11 @@ run_finished() {
     QVOS_PATH="$test_qvos" \
     QVOS_INSTALL_LOG_FILE="$test_root/install.log" \
     QVOS_INSTALL_COMPLETION_MARKER="$completion_marker" \
+    QVOS_TEST_COMPLETION_MARKER="$completion_marker" \
+    QVOS_TEST_COMPLETION_SOURCE="$test_qvos/qvcore/install/post-install/completion-marker" \
     QVOS_TEST_EVENT_LOG="$event_log" \
-    QVOS_TEST_REQUIRE_ACTIVE_POLICY="${QVOS_TEST_REQUIRE_ACTIVE_POLICY:-}" \
+    QVOS_TEST_ENFORCE_INSTALLER_POLICY="${QVOS_TEST_ENFORCE_INSTALLER_POLICY:-}" \
+    QVOS_TEST_REQUIRE_SECURE_COMPLETION="${QVOS_TEST_REQUIRE_SECURE_COMPLETION:-}" \
     QVOS_TEST_SUDOERS_ROOT="$sudoers_root" \
     USER="$(id -un)" \
     PATH="$test_bin:/usr/bin" \
@@ -201,14 +239,34 @@ for policy in 99-qvos-installer 99-omarchy-installer; do
     >"$sudoers_root/$policy"
 done
 : >"$event_log"
-QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
+QVOS_TEST_REQUIRE_SECURE_COMPLETION=1 \
+QVOS_TEST_ENFORCE_INSTALLER_POLICY=1 \
 QVOS_CHROOT_INSTALL=1 \
 QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null
 [[ -f $completion_marker ]] || fail "ISO completion marker"
+cmp -s \
+  "$test_qvos/qvcore/install/post-install/completion-marker" \
+  "$completion_marker" || fail "ISO completion marker content"
+[[ $(stat -c '%a' "$completion_marker") == "600" ]] ||
+  fail "ISO completion marker mode"
 [[ ! -e $sudoers_root/99-qvos-installer &&
   ! -e $sudoers_root/99-omarchy-installer ]] ||
   fail "ISO temporary installer policy cleanup"
+
+rm -f -- "$completion_marker"
+printf '%s\n' \
+  'root ALL=(ALL:ALL) NOPASSWD: ALL' \
+  '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' \
+  "$(id -un) ALL=(ALL:ALL) NOPASSWD: ALL" \
+  >"$sudoers_root/99-qvos-installer"
+if QVOS_CHROOT_INSTALL=1 \
+  QVOS_TUI_BIN="$test_bin/missing-qvos-tui" \
+  run_finished >/dev/null 2>&1; then
+  fail "ISO completion accepted a missing mandatory interface"
+fi
+[[ ! -e $completion_marker && -f $sudoers_root/99-qvos-installer ]] ||
+  fail "missing ISO interface changed completion or authorization state"
 grep -Fqx 'tui:1:--iso-finished' "$event_log" ||
   fail "ISO finished TUI"
 if grep -Fq 'gum:' "$event_log"; then
@@ -241,14 +299,19 @@ grep -Fqx 'sudo:reboot' "$event_log" ||
 QVOS_CHROOT_INSTALL=1 \
 QVOS_TEST_GUM_STATUS=0 \
   run_finished >/dev/null
-[[ -f $completion_marker ]] || fail "fallback chroot completion marker"
+[[ -f $completion_marker ]] || fail "PATH-discovered chroot completion marker"
 if grep -Fq 'sudo:reboot' "$event_log"; then
-  fail "fallback chroot completion rebooted inside the target"
+  fail "PATH-discovered chroot completion rebooted inside the target"
 fi
 
 rm -f -- "$completion_marker"
 symlink_target="$test_root/symlink-target"
 ln -s "$symlink_target" "$completion_marker"
+printf '%s\n' \
+  'root ALL=(ALL:ALL) NOPASSWD: ALL' \
+  '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' \
+  "$(id -un) ALL=(ALL:ALL) NOPASSWD: ALL" \
+  >"$sudoers_root/99-qvos-installer"
 if QVOS_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null 2>&1; then
@@ -256,6 +319,8 @@ if QVOS_CHROOT_INSTALL=1 \
 fi
 [[ ! -e $symlink_target ]] ||
   fail "ISO completion followed a symbolic-link marker"
+[[ -f $sudoers_root/99-qvos-installer ]] ||
+  fail "unsafe ISO completion revoked installer authorization"
 
 rm -f -- "$completion_marker"
 for policy in 99-qvos-installer 99-omarchy-installer; do
@@ -266,7 +331,7 @@ for policy in 99-qvos-installer 99-omarchy-installer; do
     >"$sudoers_root/$policy"
 done
 printf 'modified legacy policy\n' >"$sudoers_root/99-omarchy-installer"
-if QVOS_TEST_REQUIRE_ACTIVE_POLICY=1 \
+if QVOS_TEST_ENFORCE_INSTALLER_POLICY=1 \
   QVOS_CHROOT_INSTALL=1 \
   QVOS_TUI_BIN="$test_bin/qvos-tui" \
   run_finished >/dev/null 2>&1; then
@@ -275,6 +340,10 @@ fi
 [[ -f $sudoers_root/99-qvos-installer &&
   $(<"$sudoers_root/99-omarchy-installer") == "modified legacy policy" ]] ||
   fail "installer policy validation partially revoked authorization"
+cmp -s \
+  "$test_qvos/qvcore/install/post-install/completion-marker" \
+  "$completion_marker" ||
+  fail "failed installer cleanup did not retain its exact completion evidence"
 
 rm -f -- "$completion_marker" "$sudoers_root/99-omarchy-installer"
 printf 'modified\n' >"$sudoers_root/99-qvos-installer"
@@ -283,8 +352,11 @@ if QVOS_CHROOT_INSTALL=1 \
   run_finished >/dev/null 2>&1; then
   fail "modified ISO installer policy was accepted"
 fi
-[[ ! -e $completion_marker &&
-  $(<"$sudoers_root/99-qvos-installer") == "modified" ]] ||
-  fail "modified ISO installer policy did not fail closed"
+if [[ $(<"$sudoers_root/99-qvos-installer") != "modified" ]] ||
+  ! cmp -s \
+    "$test_qvos/qvcore/install/post-install/completion-marker" \
+    "$completion_marker"; then
+  fail "modified ISO policy did not preserve authorization and exact evidence"
+fi
 
 printf 'ok - qvOS singularly owns post-install order and both finished paths\n'

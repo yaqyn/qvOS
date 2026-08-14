@@ -1,0 +1,208 @@
+# shellcheck shell=bash
+set -euo pipefail
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+system_root=${QVOS_INSTALL_VERIFY_ROOT:-}
+testing=${QVOS_INSTALL_VERIFY_TESTING:-}
+target_install=${QVOS_INSTALL_VERIFY_TARGET:-}
+
+fail() {
+  printf 'qvOS installed-state verification: %s\n' "$1" >&2
+  exit 1
+}
+
+case $target_install in
+"" | 1) ;;
+*) fail "invalid target-install verification signal" ;;
+esac
+
+if [[ $target_install == "1" ]]; then
+  ((EUID == 0)) &&
+    [[ -z $testing && $system_root == "/mnt" &&
+      -d $system_root && ! -L $system_root ]] ||
+    fail "the release target verification boundary is unsafe"
+  canonical_root=$(realpath -e -- "$system_root") ||
+    fail "the release target root is unavailable"
+  [[ $canonical_root == "/mnt" ]] ||
+    fail "the release target root is not canonical"
+  findmnt -rn -M "$system_root" >/dev/null ||
+    fail "the release target root is not mounted"
+elif [[ -n $system_root ]]; then
+  [[ $testing == "1" ]] || fail "a custom system root is valid only in tests"
+  canonical_root=$(realpath -e -- "$system_root") ||
+    fail "the test system root is unavailable"
+  [[ $system_root == /tmp/* && $system_root == "$canonical_root" &&
+    -d $system_root && ! -L $system_root && -O $system_root ]] ||
+    fail "the test system root is unsafe"
+  root_mode=$(stat -c '%a' -- "$system_root") ||
+    fail "the test system root mode is unavailable"
+  (( (8#$root_mode & 022) == 0 )) ||
+    fail "the test system root is writable by other users"
+elif [[ $testing == "1" ]]; then
+  fail "test mode requires a custom system root"
+fi
+
+system_path() {
+  local path=$1
+
+  [[ $path == /* ]] || fail "refusing a relative installed path"
+  printf '%s%s\n' "$system_root" "$path"
+}
+
+require_nonempty_file() {
+  local path=$1
+
+  [[ -f $path && ! -L $path && -s $path ]] ||
+    fail "missing, linked, or empty installed file: ${path#"$system_root"}"
+}
+
+[[ -n ${USER:-} && $USER =~ ^[[:alnum:]_.@-]+$ ]] ||
+  fail "cannot validate the installed desktop account"
+
+provider_channel=${QVOS_PROVIDER_CHANNEL:-stable}
+provider_output=$(
+  "$QVOS_PATH/qvcore/packages/provider-files" "$provider_channel"
+) || fail "could not resolve the installed package-provider policy"
+mapfile -t provider_files <<<"$provider_output"
+(( ${#provider_files[@]} == 2 )) ||
+  fail "the installed package-provider inventory is incomplete"
+
+pacman_config=$(system_path /etc/pacman.conf)
+mirrorlist=$(system_path /etc/pacman.d/mirrorlist)
+require_nonempty_file "$pacman_config"
+require_nonempty_file "$mirrorlist"
+cmp -s -- "${provider_files[0]}" "$pacman_config" ||
+  fail "the installed Pacman policy does not match its qvOS owner"
+cmp -s -- "${provider_files[1]}" "$mirrorlist" ||
+  fail "the installed mirror policy does not match its qvOS owner"
+if grep -Fqx '[offline]' "$pacman_config"; then
+  fail "the installed Pacman policy still selects the temporary offline mirror"
+fi
+
+pacman_lock=$(system_path /var/lib/pacman/db.lck)
+[[ ! -e $pacman_lock && ! -L $pacman_lock ]] ||
+  fail "the installed Pacman database remains locked"
+
+package_database=$(system_path /var/lib/pacman/local)
+[[ -d $package_database && ! -L $package_database ]] ||
+  fail "the installed package database root is missing or unsafe"
+shopt -s nullglob
+package_records=("$package_database"/*)
+shopt -u nullglob
+(( ${#package_records[@]} > 0 )) ||
+  fail "the installed package database is empty"
+package_record_count=0
+package_version_seen=false
+for package_record in "${package_records[@]}"; do
+  if [[ ${package_record##*/} == "ALPM_DB_VERSION" ]]; then
+    require_nonempty_file "$package_record"
+    grep -Eq '^[0-9]+$' "$package_record" ||
+      fail "the installed package database version is invalid"
+    package_version_seen=true
+    continue
+  fi
+  [[ -d $package_record && ! -L $package_record ]] ||
+    fail "the installed package database contains an unsafe record"
+  ((package_record_count += 1))
+  require_nonempty_file "$package_record/desc"
+  require_nonempty_file "$package_record/mtree"
+  [[ -f $package_record/files && ! -L $package_record/files ]] ||
+    fail "the installed package file inventory is missing or unsafe"
+done
+[[ $package_version_seen == "true" ]] ||
+  fail "the installed package database version is missing"
+((package_record_count > 0)) ||
+  fail "the installed package database has no package records"
+
+sddm_theme=$(system_path /etc/sddm.conf.d/qvos.conf)
+sddm_wayland=$(system_path /etc/sddm.conf.d/10-wayland.conf)
+sddm_autologin=$(system_path /etc/sddm.conf.d/autologin.conf)
+for target in "$sddm_theme" "$sddm_wayland" "$sddm_autologin"; do
+  require_nonempty_file "$target"
+done
+grep -Fqx 'Current=qvos' "$sddm_theme" ||
+  fail "the installed SDDM theme is not qvOS"
+grep -Fqx 'DisplayServer=wayland' "$sddm_wayland" ||
+  fail "the installed SDDM display server is not Wayland"
+grep -Fqx "User=$USER" "$sddm_autologin" ||
+  fail "the installed SDDM account is incorrect"
+grep -Fqx 'Session=qvos' "$sddm_autologin" ||
+  fail "the installed SDDM session is not qvOS"
+
+session_source="$QVOS_PATH/qvcore/boot/session-start"
+session_target=$(system_path /usr/local/bin/qvos-session)
+desktop_source="$QVOS_PATH/qvcore/boot/wayland-sessions/qvos.desktop"
+desktop_target=$(system_path /usr/local/share/wayland-sessions/qvos.desktop)
+for source_file in "$session_source" "$desktop_source"; do
+  require_nonempty_file "$source_file"
+done
+for target in "$session_target" "$desktop_target"; do
+  require_nonempty_file "$target"
+done
+cmp -s -- "$session_source" "$session_target" ||
+  fail "the installed qvOS session launcher does not match its owner"
+cmp -s -- "$desktop_source" "$desktop_target" ||
+  fail "the installed qvOS session entry does not match its owner"
+
+pacman_args=()
+[[ -z $system_root ]] || pacman_args+=(--root "$system_root")
+package_command=(/usr/bin/pacman)
+if [[ $testing == "1" ]]; then
+  package_command=(pacman)
+elif ((EUID != 0)); then
+  package_command=(/usr/bin/sudo /usr/bin/pacman)
+fi
+set +e
+package_output=$("${package_command[@]}" "${pacman_args[@]}" -Qkkq 2>&1)
+package_status=$?
+set -e
+(( package_status == 0 || package_status == 1 )) ||
+  fail "Pacman could not inspect the installed package inventory"
+if grep -Eq '^error:' <<<"$package_output"; then
+  fail "the installed package database is unreadable or corrupt"
+fi
+if [[ -z $package_output ]]; then
+  ((package_status == 0)) ||
+    fail "Pacman reported package drift without a readable inventory"
+else
+  while IFS= read -r package_line; do
+    [[ $package_line =~ ^[^[:space:]]+[[:space:]]/ ]] ||
+      fail "Pacman returned an unexpected package-integrity result"
+  done <<<"$package_output"
+fi
+
+while IFS=' ' read -r package path; do
+  installed_mode=
+  installed_size=
+  [[ $path == /* ]] || continue
+  case $path in
+  /etc/cups/classes.conf | /etc/cups/printers.conf)
+    # CUPS owns these mutable runtime databases and initializes them empty.
+    continue
+    ;;
+  /usr/share/libalpm/hooks/60-mkinitcpio-remove.hook | \
+    /usr/share/libalpm/hooks/90-mkinitcpio-install.hook)
+    # The native Limine owner deliberately disables these package hooks while
+    # its own hook owns the singular UKI rebuild transaction.
+    continue
+    ;;
+  esac
+  installed_path=$(system_path "$path")
+  if [[ $testing == "1" || $EUID == 0 ]]; then
+    installed_metadata=$(stat -c '%f %s' -- "$installed_path" 2>/dev/null) ||
+      installed_metadata=
+  else
+    installed_metadata=$(sudo stat -c '%f %s' -- "$installed_path" 2>/dev/null) ||
+      installed_metadata=
+  fi
+  if [[ -z $installed_metadata ]]; then
+    fail "package $package has a missing installed file: $path"
+  fi
+  read -r installed_mode installed_size <<<"$installed_metadata"
+  [[ $installed_mode =~ ^[0-9a-f]+$ && $installed_size =~ ^[0-9]+$ ]] ||
+    fail "package $package has unreadable installed metadata: $path"
+  if (( (16#$installed_mode & 0170000) == 0100000 &&
+    installed_size == 0 )); then
+    fail "package $package has a truncated installed file: $path"
+  fi
+done <<<"$package_output"

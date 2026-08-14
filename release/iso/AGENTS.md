@@ -223,6 +223,15 @@ a thin adapter to this owner.
   every exit, restore changed CPU governors, stop package prefetch, and persist
   the private install log only after its bind is detached. A cleanup failure
   may fail an otherwise successful install but must not hide an earlier error.
+- Never reboot directly from a successful native installer return. After all
+  ISO-only binds are detached, require the exact root-owned completion marker,
+  absence of broad installer authorization and Pacman's lock, and a nonempty
+  root-owned private log. Commit the Btrfs transaction when applicable,
+  synchronize both target root and ESP, byte-compare the installed verifier
+  with its root-owned live-image owner, then run that live owner against the
+  mounted target. Never execute user-owned target source as root. Any failure
+  returns to the live error path; the ISO layer must not duplicate
+  feature-specific validation.
 - Keep installer diagnostics local. The live ISO must not stage a diagnostic
   uploader or offer external log upload; users may inspect or explicitly save
   the private install log instead.

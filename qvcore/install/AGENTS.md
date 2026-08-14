@@ -162,20 +162,34 @@ Installer-owned runtime identity is qvOS-native: use
 `QVOS_CHROOT_INSTALL=1` is the only native target-chroot signal; reject every
 other non-empty value before invoking a stage. The ISO passes the credited
 mirror channel and user metadata only through qvOS names; never accept
-inherited environment names inside the installer. The finished owner removes the native temporary policy and its
-exact legacy predecessor without extending either into persistent state. It
-validates every candidate before one final removal so an unsafe predecessor or
-interrupted cleanup cannot revoke the active installer authorization halfway.
+inherited environment names inside the installer. The finished owner validates
+its tracked completion-marker source and every temporary policy before
+mutation, atomically publishes the exact root-owned `0600` marker while the
+validated installer authorization remains active, removes the native policy
+and its exact legacy predecessor in one final privileged operation, and
+synchronizes mounted filesystems before any timed finale can return. An unsafe
+marker or predecessor fails before authorization is revoked; neither policy
+becomes persistent state.
 The ISO gives Archinstall ownership of Gum as the target-side presentation
 bootstrap, then executes the tracked native `install.sh` directly under the
 installed account. Do not add a hidden pre-installer Pacman transaction or
 source the entry point through a login shell.
 
 `qvcore/install/post-install/run` singularly owns the ordered post-install stage.
-Stop the install log before handing control to the finished presentation, and
-keep both the ISO TUI finale and the non-ISO fallback in the qvOS finished
-owner. Never restore inherited post-install orchestration or presentation as a
-fallback. Its temporary reboot privilege is installed through the singular
+After package, security, and root-control publication, run the read-only native
+installed-state verifier before granting temporary reboot privilege. It
+requires exact provider files, a complete native SDDM/session handoff, no
+Pacman lock, a readable package database, and no missing or unexpected
+zero-length file reported by Pacman's privileged package integrity scan. The
+in-target pass uses only the validated temporary installer authorization; the
+release pass runs the root-owned image verifier against the exact mounted
+target and never executes user-owned target source as root. Only the two
+Limine-disabled mkinitcpio hooks and CUPS' two documented empty runtime
+databases are exempt. Stop the install log before handing control to
+the finished presentation, and keep both the ISO TUI finale and the non-ISO
+fallback in the qvOS finished owner. Never restore inherited post-install
+orchestration or presentation as a fallback. Its temporary reboot privilege is
+installed through the singular
 `post-install/reboot-policy` owner. Validate the desktop account and complete
 sudoers payload with `visudo`, preserve every modified or unsafe target, and
 publish one root-owned policy atomically; never restore a direct sourced

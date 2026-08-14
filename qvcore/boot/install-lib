@@ -95,7 +95,11 @@ qvos_boot_install_file() {
     return 1
   }
   qvos_boot_refuse_symlink "$target" || return 1
-  sudo install -D -m "$mode" -- "$source" "$target"
+  sudo install -D -m "$mode" -- "$source" "$target" || return 1
+  sudo cmp -s -- "$source" "$target" || {
+    echo "Installed qvOS boot payload did not verify: $target" >&2
+    return 1
+  }
 }
 
 qvos_boot_install_text() {

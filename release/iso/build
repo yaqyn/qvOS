@@ -593,6 +593,29 @@ validate_native_iso() {
     echo "qvos-build staged an installer that accepts unreadable repositories." >&2
     return 1
   }
+  grep -Fq 'finalize_qvos_target' "$installer" || {
+    echo "qvos-build staged an installer without a durable target handoff." >&2
+    return 1
+  }
+  grep -Fq '/usr/bin/sync -f /mnt' "$installer" || {
+    echo "qvos-build staged an installer that may reboot an unsynchronized target." >&2
+    return 1
+  }
+  grep -Fq 'qvcore/install/post-install/verify' "$installer" || {
+    echo "qvos-build staged an installer that bypasses installed-state verification." >&2
+    return 1
+  }
+  grep -Fq 'QVOS_INSTALL_VERIFY_TARGET=1' "$installer" || {
+    echo "qvos-build staged an installer without privileged target verification." >&2
+    return 1
+  }
+  # The search must match the literal target-variable reference in the staged
+  # installer; expansion here would inspect the builder's unrelated state.
+  # shellcheck disable=SC2016
+  if grep -Fq 'chroot_bash "$target_verifier"' "$installer"; then
+    echo "qvos-build staged an installer that root-executes target-owned source." >&2
+    return 1
+  fi
   grep -Fqx '  retire_qvos_target_offline_database' "$installer" || {
     echo "qvos-build staged an installer that retains its temporary database." >&2
     return 1

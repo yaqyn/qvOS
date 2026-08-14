@@ -4,6 +4,7 @@ set -euo pipefail
 QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
 install_log=${QVOS_INSTALL_LOG_FILE:-/var/log/qvos-install.log}
 completion_marker=${QVOS_INSTALL_COMPLETION_MARKER:-/var/tmp/qvos-install-completed}
+completion_marker_source="$QVOS_PATH/qvcore/install/post-install/completion-marker"
 tui="${QVOS_TUI_BIN:-}"
 if [[ -z $tui ]]; then
   tui=$(command -v qvos-tui || true)
@@ -46,25 +47,84 @@ remove_installer_sudoers() {
     sudo rm -f -- "${policies[@]}" &>/dev/null
 }
 
+completion_marker_exists() {
+  sudo test -e "$completion_marker" || sudo test -L "$completion_marker"
+}
+
+completion_marker_matches() {
+  sudo test -f "$completion_marker" || return 1
+  sudo test ! -L "$completion_marker" || return 1
+  [[ $(sudo stat -c '%a' -- "$completion_marker") == "600" ]] || return 1
+  sudo cmp -s -- "$completion_marker_source" "$completion_marker" || return 1
+
+  if [[ $completion_marker == "/var/tmp/qvos-install-completed" ]]; then
+    [[ $(sudo stat -c '%u:%g' -- "$completion_marker") == "0:0" ]] ||
+      return 1
+  fi
+}
+
+preflight_completion_marker() {
+  local marker_directory=${completion_marker%/*}
+
+  [[ $completion_marker == /* &&
+    -f $completion_marker_source && ! -L $completion_marker_source &&
+    -s $completion_marker_source ]] || {
+    printf 'qvOS install: unsafe completion marker source: %s\n' \
+      "$completion_marker_source" >&2
+    return 1
+  }
+  [[ -d $marker_directory && ! -L $marker_directory ]] || {
+    printf 'qvOS install: unsafe completion marker directory: %s\n' \
+      "$marker_directory" >&2
+    return 1
+  }
+  completion_marker_exists || return 0
+  completion_marker_matches || {
+    printf 'qvOS install: modified or unsafe completion marker: %s\n' \
+      "$completion_marker" >&2
+    return 1
+  }
+}
+
 echo_in_style() {
   printf '%s\n' "$1" |
     tte --canvas-width 0 --anchor-text c --frame-rate 640 print
 }
 
 mark_install_complete() {
-  if [[ -L $completion_marker ]] ||
-    [[ -e $completion_marker && ! -f $completion_marker ]]; then
-    printf 'qvOS install: unsafe completion marker: %s\n' \
-      "$completion_marker" >&2
+  local marker_directory=${completion_marker%/*}
+  local staging
+
+  preflight_completion_marker || return 1
+  completion_marker_exists && return 0
+
+  staging=$(sudo mktemp "$marker_directory/.qvos-install-completed.XXXXXX") ||
+    return 1
+  [[ $staging == "$marker_directory/.qvos-install-completed."* ]] || {
+    echo "qvOS install: unexpected completion-marker staging path" >&2
+    return 1
+  }
+  if ! sudo install -o root -g root -m 0600 -- \
+    "$completion_marker_source" "$staging" ||
+    ! sudo cmp -s -- "$completion_marker_source" "$staging" ||
+    ! sudo mv -f -- "$staging" "$completion_marker"; then
+    sudo rm -f -- "$staging" 2>/dev/null || true
     return 1
   fi
-  : >"$completion_marker"
+  completion_marker_matches
 }
 
-if [[ ${QVOS_CHROOT_INSTALL:-} == "1" && -n $tui && -x $tui ]]; then
-  QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
-  remove_installer_sudoers
+chroot_install=false
+if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+  chroot_install=true
+  [[ -n $tui && -x $tui ]] || {
+    echo "qvOS install: the required ISO completion interface is unavailable" >&2
+    exit 1
+  }
   mark_install_complete
+  remove_installer_sudoers
+  /usr/bin/sync
+  QVOS_TUI_FULLSCREEN=1 "$tui" --iso-finished
   exit 0
 fi
 
@@ -94,7 +154,7 @@ else
   echo_in_style "Finished installing"
 fi
 
-remove_installer_sudoers
+[[ $chroot_install == "true" ]] || remove_installer_sudoers
 
 if ! gum confirm \
   --padding "0 0 0 $((${PADDING_LEFT:-0} + 32))" \
@@ -107,8 +167,4 @@ if ! gum confirm \
 fi
 
 clear
-if [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
-  mark_install_complete
-else
-  sudo reboot 2>/dev/null
-fi
+[[ $chroot_install == "true" ]] || sudo reboot 2>/dev/null

@@ -251,6 +251,114 @@ install_qvos() {
   validate_qvos_target_databases
 }
 
+validate_qvos_target_handoff_files() {
+  local target_root=${1:-/mnt}
+  local expected_uid=${2:-0}
+  local expected_gid=${3:-0}
+  local completion_source
+  local completion_target
+  local install_log
+  local policy
+
+  [[ -d $target_root && ! -L $target_root ]] || {
+    echo "The installed qvOS target root is missing or unsafe." >&2
+    return 1
+  }
+  [[ -n ${QVOS_USER:-} && $QVOS_USER =~ ^[[:alnum:]_.@-]+$ ]] || {
+    echo "The installed qvOS account is invalid." >&2
+    return 1
+  }
+  completion_source="$target_root/home/$QVOS_USER/.local/share/qvos/qvcore/install/post-install/completion-marker"
+  completion_target="$target_root/var/tmp/qvos-install-completed"
+  install_log="$target_root/var/log/qvos-install.log"
+
+  [[ -f $completion_source && ! -L $completion_source &&
+    -s $completion_source ]] || {
+    echo "The installed qvOS completion-marker owner is missing or unsafe." >&2
+    return 1
+  }
+  [[ -f $completion_target && ! -L $completion_target &&
+    -s $completion_target ]] || {
+    echo "qvOS installation returned without a safe completion marker." >&2
+    return 1
+  }
+  [[ $(stat -c '%u:%g:%a' -- "$completion_target") == \
+    "$expected_uid:$expected_gid:600" ]] || {
+    echo "The qvOS completion marker has unsafe ownership or permissions." >&2
+    return 1
+  }
+  cmp -s -- "$completion_source" "$completion_target" || {
+    echo "The qvOS completion marker does not match its native owner." >&2
+    return 1
+  }
+
+  for policy in 99-qvos-installer 99-omarchy-installer; do
+    [[ ! -e $target_root/etc/sudoers.d/$policy &&
+      ! -L $target_root/etc/sudoers.d/$policy ]] || {
+      printf 'The installed system retains temporary authorization: %s\n' \
+        "$policy" >&2
+      return 1
+    }
+  done
+  [[ ! -e $target_root/var/lib/pacman/db.lck &&
+    ! -L $target_root/var/lib/pacman/db.lck ]] || {
+    echo "The installed Pacman database remains locked." >&2
+    return 1
+  }
+  [[ -f $install_log && ! -L $install_log && -s $install_log ]] || {
+    echo "The installed qvOS log is missing, linked, or empty." >&2
+    return 1
+  }
+  [[ $(stat -c '%u:%g:%a' -- "$install_log") == \
+    "$expected_uid:$expected_gid:640" ]] || {
+    echo "The installed qvOS log has unsafe ownership or permissions." >&2
+    return 1
+  }
+}
+
+sync_qvos_target() {
+  local root_fstype
+
+  root_fstype=$(findmnt -rn -M /mnt -o FSTYPE) || {
+    echo "Could not identify the installed qvOS root filesystem." >&2
+    return 1
+  }
+  if [[ $root_fstype == "btrfs" ]]; then
+    btrfs filesystem sync /mnt
+  fi
+  /usr/bin/sync -f /mnt
+  /usr/bin/sync -f /mnt/boot
+}
+
+finalize_qvos_target() {
+  local live_verifier="$QVOS_PATH/qvcore/install/post-install/verify"
+  local target_verifier="/mnt/home/$QVOS_USER/.local/share/qvos/qvcore/install/post-install/verify"
+
+  [[ -f $live_verifier && ! -L $live_verifier &&
+    -f $target_verifier && ! -L $target_verifier ]] || {
+    echo "The installed qvOS verifier is missing or unsafe." >&2
+    return 1
+  }
+  cmp -s -- "$live_verifier" "$target_verifier" || {
+    echo "The installed qvOS verifier does not match the image owner." >&2
+    return 1
+  }
+  sync_qvos_target
+  validate_qvos_target_handoff_files /mnt 0 0
+
+  # Re-run the root-owned image verifier against the synchronized target. Do
+  # not execute a user-owned target script as root; the ISO layer owns only the
+  # handoff and never duplicates feature checks.
+  # Used by the sourced native error owner.
+  # shellcheck disable=SC2034
+  CURRENT_SCRIPT=$live_verifier
+  QVOS_INSTALL_VERIFY_ROOT=/mnt \
+    QVOS_INSTALL_VERIFY_TARGET=1 \
+    USER="$QVOS_USER" \
+    /bin/bash "$live_verifier"
+  unset CURRENT_SCRIPT
+}
+
 # Set the qvOS black, grayscale, and red color scheme for the terminal
 set_qvos_console_colors() {
   if [[ $(tty) == "/dev/tty"* ]]; then
@@ -551,5 +659,6 @@ if [[ $(tty) == "/dev/tty1" ]]; then
   install_arch
   install_qvos
   cleanup_qvos_target_mounts
+  finalize_qvos_target
   reboot
 fi

@@ -20,7 +20,14 @@ id -u "$USER" >/dev/null 2>&1 || {
 "$QVOS_PATH/qvcore/boot/install-sddm-wayland"
 
 autologin_config=$(qvos_boot_path /etc/sddm.conf.d/autologin.conf)
+seed_autologin=false
 if ! qvos_boot_root_exists "$autologin_config"; then
+  seed_autologin=true
+elif [[ ${QVOS_CHROOT_INSTALL:-} == "1" ]]; then
+  qvos_boot_require_regular "$autologin_config"
+  [[ -n $(qvos_boot_read_file "$autologin_config") ]] || seed_autologin=true
+fi
+if [[ $seed_autologin == "true" ]]; then
   printf -v autologin_content \
     '[Autologin]\nUser=%s\nSession=qvos\n' \
     "$USER"

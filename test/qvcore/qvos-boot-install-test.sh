@@ -28,6 +28,7 @@ run_boot() {
     QVOS_TEST_SUDO_AUTH_LOG="$sudo_auth_log" \
     QVOS_TEST_PACKAGES_INSTALLED_MARKER="$package_installed_marker" \
     QVOS_TEST_SWAP_FAILURE_MARKER="$swap_failure_marker" \
+    QVOS_TEST_TRUNCATE_BOOT_TARGET="${QVOS_TEST_TRUNCATE_BOOT_TARGET:-}" \
     QVOS_PATH="$root" \
     OMARCHY_PATH="$test_root/stale-source" \
     USER="$test_user" \
@@ -56,6 +57,14 @@ if [[ ${QVOS_TEST_FAIL_THEME_SWAP:-} == "1" && $1 == "mv" &&
   ! -e $QVOS_TEST_SWAP_FAILURE_MARKER ]]; then
   : >"$QVOS_TEST_SWAP_FAILURE_MARKER"
   exit 1
+fi
+if [[ -n ${QVOS_TEST_TRUNCATE_BOOT_TARGET:-} && $1 == "install" ]]; then
+  "$@"
+  target=${!#}
+  if [[ $target == "$QVOS_TEST_TRUNCATE_BOOT_TARGET" ]]; then
+    : >"$target"
+  fi
+  exit 0
 fi
 exec "$@"
 SCRIPT
@@ -258,6 +267,27 @@ grep -Fqx 'Current=qvos' "$system_root/etc/sddm.conf.d/qvos.conf" ||
   fail "SDDM keyring PAM cleanup"
 grep -Fqx $'systemctl\tenable\tsddm.service' "$action_log" ||
   fail "SDDM service enable"
+
+: >"$system_root/etc/sddm.conf.d/autologin.conf"
+run_boot "$root/qvcore/boot/install-sddm"
+[[ ! -s $system_root/etc/sddm.conf.d/autologin.conf ]] ||
+  fail "live SDDM reconciliation replaced an intentional empty config"
+QVOS_CHROOT_INSTALL=1 run_boot "$root/qvcore/boot/install-sddm"
+grep -Fqx "User=$test_user" \
+  "$system_root/etc/sddm.conf.d/autologin.conf" ||
+  fail "fresh SDDM install did not repair Archinstall's empty config"
+grep -Fqx 'Session=qvos' \
+  "$system_root/etc/sddm.conf.d/autologin.conf" ||
+  fail "fresh SDDM empty-config repair did not select qvOS"
+
+if QVOS_TEST_TRUNCATE_BOOT_TARGET="$system_root/etc/sddm.conf.d/10-wayland.conf" \
+  run_boot "$root/qvcore/boot/install-sddm-wayland" >/dev/null 2>&1; then
+  fail "boot publication accepted a truncated installed payload"
+fi
+run_boot "$root/qvcore/boot/install-sddm-wayland"
+grep -Fqx 'DisplayServer=wayland' \
+  "$system_root/etc/sddm.conf.d/10-wayland.conf" ||
+  fail "boot publication did not recover after a verified failure"
 
 session_home="$test_root/session-home"
 session_bin="$test_root/session-bin"

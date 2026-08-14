@@ -464,6 +464,52 @@ set -e
 [[ $(<"$outside_database") == "outside" ]] ||
   fail "release ISO wrote through a target database link"
 
+handoff_root="$cache_test_root/handoff-target"
+handoff_source="$handoff_root/home/tester/.local/share/qvos/qvcore/install/post-install/completion-marker"
+handoff_marker="$handoff_root/var/tmp/qvos-install-completed"
+handoff_log="$handoff_root/var/log/qvos-install.log"
+mkdir -p \
+  "${handoff_source%/*}" \
+  "${handoff_marker%/*}" \
+  "${handoff_log%/*}" \
+  "$handoff_root/etc/sudoers.d" \
+  "$handoff_root/var/lib/pacman"
+install -m 0644 \
+  "$root/qvcore/install/post-install/completion-marker" \
+  "$handoff_source"
+install -m 0600 "$handoff_source" "$handoff_marker"
+printf 'complete qvOS install log\n' >"$handoff_log"
+chmod 0640 "$handoff_log"
+validate_handoff_fixture() {
+  QVOS_USER=tester bash -Eeuo pipefail -c '
+    source "$1"
+    validate_qvos_target_handoff_files "$2" "$3" "$4"
+  ' _ "$installer" "$handoff_root" "$(id -u)" "$(id -g)"
+}
+
+validate_handoff_fixture ||
+  fail "release ISO rejects a complete target handoff"
+
+: >"$handoff_log"
+if validate_handoff_fixture >/dev/null 2>&1; then
+  fail "release ISO accepts an empty persisted install log"
+fi
+printf 'complete qvOS install log\n' >"$handoff_log"
+chmod 0640 "$handoff_log"
+
+printf 'temporary authorization\n' \
+  >"$handoff_root/etc/sudoers.d/99-qvos-installer"
+if validate_handoff_fixture >/dev/null 2>&1; then
+  fail "release ISO accepts retained installer authorization"
+fi
+rm -- "$handoff_root/etc/sudoers.d/99-qvos-installer"
+
+: >"$handoff_marker"
+if validate_handoff_fixture >/dev/null 2>&1; then
+  fail "release ISO accepts a truncated completion marker"
+fi
+install -m 0600 "$handoff_source" "$handoff_marker"
+
 grep -Fq 'qvos_target_mounts+=("$target")' "$installer" ||
   fail "release ISO does not record target bind mounts immediately"
 grep -Fq 'cleanup_qvos_target_mounts' "$installer" ||
@@ -483,6 +529,17 @@ grep -Fq 'seed_qvos_target_databases' "$installer" ||
   fail "release ISO leaves a fresh target without repository databases"
 grep -Fq 'validate_qvos_target_databases' "$installer" ||
   fail "release ISO accepts unreadable target repository databases"
+grep -Fq 'finalize_qvos_target' "$installer" ||
+  fail "release ISO bypasses its durable target handoff"
+grep -Fq '/usr/bin/sync -f /mnt' "$installer" ||
+  fail "release ISO reboots without synchronizing the installed root"
+grep -Fq 'qvcore/install/post-install/verify' "$installer" ||
+  fail "release ISO bypasses the native installed-state verifier"
+grep -Fq 'QVOS_INSTALL_VERIFY_TARGET=1' "$installer" ||
+  fail "release ISO does not verify the synchronized target as root"
+if grep -Fq 'chroot_bash "$target_verifier"' "$installer"; then
+  fail "release ISO executes a user-owned target verifier as root"
+fi
 grep -Fqx '  retire_qvos_target_offline_database' "$installer" ||
   fail "release ISO retains its temporary database after provider handoff"
 if grep -Fq 'arch-chroot /mnt pacman -Sy --noconfirm' "$installer"; then
@@ -492,6 +549,13 @@ grep -Fq 'boot_fstype == "vfat"' "$installer" ||
   fail "release ISO does not validate the remounted target ESP"
 if rg -n 'fmask=0022|dmask=0022|chmod .*[/]boot' "$installer"; then
   fail "release ISO weakens the target ESP for unprivileged finalization"
+fi
+cleanup_line=$(grep -Fn '  cleanup_qvos_target_mounts' "$installer" | tail -n 1 | cut -d: -f1)
+finalize_line=$(grep -Fn '  finalize_qvos_target' "$installer" | tail -n 1 | cut -d: -f1)
+reboot_line=$(grep -Fn '  reboot' "$installer" | tail -n 1 | cut -d: -f1)
+if [[ -z $cleanup_line || -z $finalize_line || -z $reboot_line ]] ||
+  (( cleanup_line >= finalize_line || finalize_line >= reboot_line )); then
+  fail "release ISO target finalization order"
 fi
 [[ ! -e $profile/airootfs/root/configurator ]] ||
   fail "release ISO ships a duplicate installer"
