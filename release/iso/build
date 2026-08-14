@@ -469,6 +469,7 @@ validate_native_iso() {
   local boot_config
   local builder="$iso_root/builder/build-iso.sh"
   local cache_recovery="$iso_root/builder/cache-recovery"
+  local finalizer
   local staged_space_check="$iso_root/space-check"
   local profile="$iso_root/profile"
   local installer="$profile/airootfs/root/.automated_script.sh"
@@ -607,6 +608,11 @@ validate_native_iso() {
   }
   grep -Fq 'QVOS_INSTALL_VERIFY_TARGET=1' "$installer" || {
     echo "qvos-build staged an installer without privileged target verification." >&2
+    return 1
+  }
+  finalizer=$(sed -n '/^finalize_qvos_target() {$/,/^}$/p' "$installer")
+  grep -Fq 'QVOS_CHROOT_INSTALL=1' <<<"$finalizer" || {
+    echo "qvos-build staged a final verifier outside its reviewed ISO context." >&2
     return 1
   }
   # The search must match the literal target-variable reference in the staged

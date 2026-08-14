@@ -229,9 +229,10 @@ a thin adapter to this owner.
   root-owned private log. Commit the Btrfs transaction when applicable,
   synchronize both target root and ESP, byte-compare the installed verifier
   with its root-owned live-image owner, then run that live owner against the
-  mounted target. Never execute user-owned target source as root. Any failure
-  returns to the live error path; the ISO layer must not duplicate
-  feature-specific validation.
+  mounted target under the exact reviewed chroot signal so an RC or Edge image
+  can resolve only its matching provider files. Never execute user-owned target
+  source as root. Any failure returns to the live error path; the ISO layer must
+  not duplicate feature-specific validation.
 - Keep installer diagnostics local. The live ISO must not stage a diagnostic
   uploader or offer external log upload; users may inspect or explicitly save
   the private install log instead.

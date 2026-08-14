@@ -348,7 +348,8 @@ finalize_qvos_target() {
   # Used by the sourced native error owner.
   # shellcheck disable=SC2034
   CURRENT_SCRIPT=$live_verifier
-  QVOS_INSTALL_VERIFY_ROOT=/mnt \
+  QVOS_CHROOT_INSTALL=1 \
+    QVOS_INSTALL_VERIFY_ROOT=/mnt \
     QVOS_INSTALL_VERIFY_TARGET=1 \
     USER="$QVOS_USER" \
     /bin/bash "$live_verifier"
