@@ -49,12 +49,13 @@ security updates remain visible even when qvOS source is current.
 `source-available` compares the installed commit with the official remote OS
 head using bounded network time. Equal and provably locally-ahead source are
 current. When the remote SHA differs, fetch it into one process-private ref,
-delete that ref on exit, and offer an update only when the installed commit is
-its ancestor. Fail closed on divergent or unpublished shallow history because
-the fast-forward-only updater cannot reconcile it. Tags are not the release or
-availability authority. One failed probe must not conceal a positively proven
-update from the other owner; when neither proves an update, any probe failure
-fails the aggregate check closed.
+disable the configured remote refmap so no permanent tracking ref can move,
+delete the private ref on exit, and offer an update only when the installed
+commit is its ancestor. Fail closed on divergent or unpublished shallow
+history because the fast-forward-only updater cannot reconcile it. Tags are
+not the release or availability authority. One failed probe must not conceal a
+positively proven update from the other owner; when neither proves an update,
+any probe failure fails the aggregate check closed.
 
 `snapshot`, `time-sync`, and `firmware` are native qvOS owners. Snapshot config
 names are validated and descriptions consume the singular commit-derived qvOS

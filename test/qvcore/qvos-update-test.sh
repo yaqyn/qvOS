@@ -658,6 +658,8 @@ unlink -- "$availability_work/untracked"
 
 printf 'local\n' >>"$availability_work/version"
 git -C "$availability_work" commit -qam local
+git -C "$availability_work" update-ref refs/remotes/origin/OS HEAD
+tracking_before=$(git -C "$availability_work" rev-parse refs/remotes/origin/OS)
 set +e
 ahead_output=$(env "${availability_git_env[@]}" QVOS_PATH="$availability_work" \
   "$root/qvcore/update/source-available")
@@ -665,6 +667,9 @@ ahead_status=$?
 set -e
 (( ahead_status == 1 )) || fail "local-ahead availability status"
 grep -Fq 'locally ahead' <<<"$ahead_output" || fail "local-ahead availability output"
+tracking_after=$(git -C "$availability_work" rev-parse refs/remotes/origin/OS)
+[[ $tracking_after == "$tracking_before" ]] ||
+  fail "source availability moved the configured remote-tracking ref"
 
 git clone -q --no-local --depth 1 --branch OS \
   "$availability_work" "$availability_unpublished"

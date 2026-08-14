@@ -119,7 +119,7 @@ grep -Fq 'qvcore/update/source-available' \
   "$root/qvcore/update/update-available" || fail "source availability aggregation"
 grep -Fq 'ls-remote --heads origin refs/heads/OS' \
   "$root/qvcore/update/source-available" || fail "official OS availability check"
-grep -Fq 'fetch --force --no-tags --no-write-fetch-head' \
+grep -Fq 'fetch --refmap= --force --no-tags --no-write-fetch-head' \
   "$root/qvcore/update/source-available" || fail "fast-forward availability fetch"
 # shellcheck disable=SC2016
 grep -Fq 'update-ref -d "$remote_check_ref"' \

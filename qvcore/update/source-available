@@ -56,7 +56,7 @@ if ! timeout --foreground 30 \
   git -C "$source_path" \
   -c http.lowSpeedLimit=1024 \
   -c http.lowSpeedTime=10 \
-  fetch --force --no-tags --no-write-fetch-head \
+  fetch --refmap= --force --no-tags --no-write-fetch-head \
   origin "+refs/heads/OS:$remote_check_ref" >/dev/null 2>&1; then
   echo "qvOS update check: could not fetch the official OS branch." >&2
   exit 2
