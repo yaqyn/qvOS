@@ -43,7 +43,7 @@ if [[ $* == *"branch --show-current"* ]]; then
 elif [[ $* == *"status --porcelain=v1 --untracked-files=all"* ]]; then
   printf '%s' "${QVOS_TEST_SOURCE_STATUS:-}"
 elif [[ $* == *"config --get remote.origin.url"* ]]; then
-  printf '%s\n' "${QVOS_TEST_ORIGIN:-https://github.com/Yaqyn-qvOS/qvOS.git}"
+  printf '%s\n' "${QVOS_TEST_ORIGIN:-https://github.com/yaqyn/qvOS.git}"
 else
   exec /usr/bin/git "$@"
 fi
@@ -66,7 +66,7 @@ run_wrapper() {
     QVOS_TEST_ACTION_LOG="$action_log" \
     QVOS_TEST_BRANCH="${QVOS_TEST_BRANCH:-OS}" \
     QVOS_TEST_CONFIRM_STATUS="${QVOS_TEST_CONFIRM_STATUS:-0}" \
-    QVOS_TEST_ORIGIN="${QVOS_TEST_ORIGIN:-https://github.com/Yaqyn-qvOS/qvOS.git}" \
+    QVOS_TEST_ORIGIN="${QVOS_TEST_ORIGIN:-https://github.com/yaqyn/qvOS.git}" \
     QVOS_TEST_RUN_STATUS="${QVOS_TEST_RUN_STATUS:-0}" \
     QVOS_TEST_SOURCE_STATUS="${QVOS_TEST_SOURCE_STATUS:-}" \
     QVOS_TUI_BINARY="${QVOS_TEST_TUI_BINARY:-}" \
@@ -123,7 +123,7 @@ set -e
 (( wrong_origin_status == 1 )) || fail "unofficial source origin status"
 grep -Fq 'requires the official origin' <<<"$wrong_origin_output" ||
   fail "unofficial source origin message"
-QVOS_TEST_ORIGIN=https://github.com/Yaqyn-qvOS/qvOS.git
+QVOS_TEST_ORIGIN=https://github.com/yaqyn/qvOS.git
 
 set +e
 invalid_output=$(run_wrapper --bad 2>&1)
@@ -628,12 +628,12 @@ git -C "$availability_work" commit -qm initial
 git clone -q --bare "$availability_work" "$availability_remote"
 git -C "$availability_work" remote add origin "$availability_remote"
 git -C "$availability_work" remote set-url origin \
-  https://github.com/Yaqyn-qvOS/qvOS.git
+  https://github.com/yaqyn/qvOS.git
 availability_git_env=(
   GIT_ALLOW_PROTOCOL=file
   GIT_CONFIG_COUNT=1
   "GIT_CONFIG_KEY_0=url.file://$availability_remote.insteadOf"
-  GIT_CONFIG_VALUE_0=https://github.com/Yaqyn-qvOS/qvOS.git
+  GIT_CONFIG_VALUE_0=https://github.com/yaqyn/qvOS.git
 )
 
 set +e
@@ -674,7 +674,7 @@ tracking_after=$(git -C "$availability_work" rev-parse refs/remotes/origin/OS)
 git clone -q --no-local --depth 1 --branch OS \
   "$availability_work" "$availability_unpublished"
 git -C "$availability_unpublished" remote set-url origin \
-  https://github.com/Yaqyn-qvOS/qvOS.git
+  https://github.com/yaqyn/qvOS.git
 set +e
 unpublished_output=$(env "${availability_git_env[@]}" \
   QVOS_PATH="$availability_unpublished" \
@@ -703,7 +703,7 @@ grep -Fq 'not fast-forward compatible with official OS' \
 git clone -q --no-local --depth 1 --branch OS \
   "$availability_remote" "$availability_behind"
 git -C "$availability_behind" remote set-url origin \
-  https://github.com/Yaqyn-qvOS/qvOS.git
+  https://github.com/yaqyn/qvOS.git
 printf 'remote again\n' >>"$availability_peer/version"
 git -C "$availability_peer" commit -qam 'remote again'
 git -C "$availability_peer" push -q origin OS

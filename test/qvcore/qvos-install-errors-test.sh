@@ -133,7 +133,7 @@ grep -Fq 'line-18' <<<"$CASE_OUTPUT" ||
 if grep -Fq 'line-17' <<<"$CASE_OUTPUT"; then
   fail "small-terminal log tail overflow"
 fi
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/issues' <<<"$CASE_OUTPUT" ||
+grep -Fq 'https://github.com/yaqyn/qvOS/issues' <<<"$CASE_OUTPUT" ||
   fail "qvOS installer support route"
 if grep -Eqi 'discord|upload log|QR code' <<<"$CASE_OUTPUT"; then
   fail "retired upstream support or log upload"

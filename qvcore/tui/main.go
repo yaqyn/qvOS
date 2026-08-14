@@ -21,8 +21,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
-	updateflow "github.com/Yaqyn-qvOS/qvOS/update"
+	actionflow "github.com/yaqyn/qvOS/action"
+	updateflow "github.com/yaqyn/qvOS/update"
 )
 
 // -- palette --

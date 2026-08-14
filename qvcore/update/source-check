@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-official_https="https://github.com/Yaqyn-qvOS/qvOS.git"
-official_ssh="git@github.com:Yaqyn-qvOS/qvOS.git"
-official_ssh_url="ssh://git@github.com/Yaqyn-qvOS/qvOS.git"
+official_https="https://github.com/yaqyn/qvOS.git"
+official_ssh="git@github.com:yaqyn/qvOS.git"
+official_ssh_url="ssh://git@github.com/yaqyn/qvOS.git"
 
 (( $# == 1 )) || {
   echo "Usage: qvcore/update/source-check <source-path>" >&2

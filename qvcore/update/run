@@ -70,7 +70,7 @@ failure_message() {
 
   printf '\n\033[0;31mqvOS update stopped after an error.\n' >&2
   printf 'Review %s, correct the reported cause, and retry.\n' "$update_log" >&2
-  printf 'Report qvOS issues at https://github.com/Yaqyn-qvOS/qvOS/issues\033[0m\n' >&2
+  printf 'Report qvOS issues at https://github.com/yaqyn/qvOS/issues\033[0m\n' >&2
   exit "$status"
 }
 trap failure_message ERR

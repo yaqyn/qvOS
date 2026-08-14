@@ -85,7 +85,7 @@ aur_install_and_launch() {
 show_learn_menu() {
   case $(menu "Learn" "  Keybindings\n  qvOS Source\n  Hyprland\n󰣇  Arch\n  Neovim\n󱆃  Bash") in
   *Keybindings*) qv-menu-keybindings ;;
-  *"qvOS Source"*) qv-launch-webapp "https://github.com/Yaqyn-qvOS/qvOS" ;;
+  *"qvOS Source"*) qv-launch-webapp "https://github.com/yaqyn/qvOS" ;;
   *Hyprland*) qv-launch-webapp "https://wiki.hypr.land/" ;;
   *Arch*) qv-launch-webapp "https://wiki.archlinux.org/title/Main_page" ;;
   *Bash*) qv-launch-webapp "https://devhints.io/bash" ;;

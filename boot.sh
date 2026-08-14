@@ -18,10 +18,10 @@ echo -e "\n$ansi_art\n"
 
 # Validate the requested source before any privileged package or mirror change.
 QVOS_REF="${QVOS_REF:-OS}"
-QVOS_REPO="${QVOS_REPO:-Yaqyn-qvOS/qvOS}"
+QVOS_REPO="${QVOS_REPO:-yaqyn/qvOS}"
 QVOS_TARGET="$HOME/.local/share/qvos"
 QVOS_COMPAT_TARGET="$HOME/.local/share/omarchy"
-if [[ $QVOS_REPO != "Yaqyn-qvOS/qvOS" ]]; then
+if [[ $QVOS_REPO != "yaqyn/qvOS" ]]; then
   echo "qvOS installation requires the official repository." >&2
   exit 2
 fi

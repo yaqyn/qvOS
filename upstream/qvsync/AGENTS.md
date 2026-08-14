@@ -50,7 +50,7 @@ replace its judgment.
 
 ## Verification And Publication
 
-- Set repository identity to `Abdulrahman M. Yaqyn <Yaqyn@pm.me>`. Use the
+- Set repository identity to `Abdulrahman M. Yaqyn <commit@yaqyn.dev>`. Use the
   GitHub noreply fallback only for an unpublished commit rejected by email
   privacy, as defined by the root contract.
 - Pushes fail closed through normal Git transport. Never mutate a GitHub ref

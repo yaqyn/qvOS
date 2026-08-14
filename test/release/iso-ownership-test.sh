@@ -634,7 +634,7 @@ grep -Fq 'uncompressed@subpathname(var/cache/qvos/mirror/offline)' \
   "$profile/profiledef.sh" || fail "release ISO package recompression policy"
 grep -Fq 'iso_name="qvos"' "$profile/profiledef.sh" ||
   fail "release ISO artifact identity"
-grep -Fq 'iso_publisher="qvOS <https://github.com/Yaqyn-qvOS/qvOS>"' \
+grep -Fq 'iso_publisher="qvOS <https://github.com/yaqyn/qvOS>"' \
   "$profile/profiledef.sh" || fail "release ISO publisher identity"
 boot_entry_count=$(rg -n \
   '^[[:space:]]*(options|linux|APPEND)[[:space:]].*archisobasedir=' \

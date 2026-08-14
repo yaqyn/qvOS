@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
+	actionflow "github.com/yaqyn/qvOS/action"
 )
 
 func TestSharedProgressScreenKeepsEveryDomainReadableWhenCompact(t *testing.T) {

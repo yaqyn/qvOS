@@ -99,7 +99,7 @@ show_error_screen() {
   gum style "This command halted with exit code $exit_code:"
   show_failed_script_or_command "$failed_command"
   echo
-  gum style "Report qvOS issues at https://github.com/Yaqyn-qvOS/qvOS/issues"
+  gum style "Report qvOS issues at https://github.com/yaqyn/qvOS/issues"
 }
 
 catch_errors() {

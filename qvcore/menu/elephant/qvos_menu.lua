@@ -533,7 +533,7 @@ function GetEntries(query)
   add_concepts(entries)
 
   -- Learn.
-  add(entries, "", "qvOS Source", "More · Learn", { "docs", "help", "github" }, "qv-launch-webapp https://github.com/Yaqyn-qvOS/qvOS")
+  add(entries, "", "qvOS Source", "More · Learn", { "docs", "help", "github" }, "qv-launch-webapp https://github.com/yaqyn/qvOS")
   add(entries, "", "Hyprland Wiki", "More · Learn", { "docs", "help" }, "qv-launch-webapp https://wiki.hypr.land/")
   add(entries, "󰣇", "Arch Wiki", "More · Learn", { "docs", "help" }, "qv-launch-webapp https://wiki.archlinux.org/title/Main_page")
   add(entries, "", "Neovim Keymaps", "More · Learn", { "lazyvim", "vim", "docs" }, "qv-launch-webapp https://www.lazyvim.org/keymaps")

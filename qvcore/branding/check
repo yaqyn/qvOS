@@ -85,7 +85,7 @@ done
 for owner in about install refresh-fastfetch screensaver show-logo system-identity; do
   [[ -x $root/qvcore/branding/$owner ]] || fail "branding owner mode: $owner"
 done
-expected_os_release=$'NAME="qvOS"\nPRETTY_NAME="qvOS"\nID=qvos\nID_LIKE=arch\nBUILD_ID=rolling\nANSI_COLOR="1;37"\nHOME_URL="https://github.com/Yaqyn-qvOS/qvOS"\nDOCUMENTATION_URL="https://github.com/Yaqyn-qvOS/qvOS#readme"\nSUPPORT_URL="https://github.com/Yaqyn-qvOS/qvOS/issues"\nBUG_REPORT_URL="https://github.com/Yaqyn-qvOS/qvOS/issues"'
+expected_os_release=$'NAME="qvOS"\nPRETTY_NAME="qvOS"\nID=qvos\nID_LIKE=arch\nBUILD_ID=rolling\nANSI_COLOR="1;37"\nHOME_URL="https://github.com/yaqyn/qvOS"\nDOCUMENTATION_URL="https://github.com/yaqyn/qvOS#readme"\nSUPPORT_URL="https://github.com/yaqyn/qvOS/issues"\nBUG_REPORT_URL="https://github.com/yaqyn/qvOS/issues"'
 [[ $(<"$root/qvcore/branding/os-release") == "$expected_os_release" ]] ||
   fail "native qvOS system identity source"
 [[ -f $root/qvcore/branding/terminal-art.txt &&
@@ -209,7 +209,7 @@ grep -Fqx 'blank_issues_enabled: true' \
 grep -Fqx 'QVOS_REF="${QVOS_REF:-OS}"' "$root/boot.sh" ||
   fail "online installer does not default to the qvOS product branch"
 # shellcheck disable=SC2016
-grep -Fqx 'QVOS_REPO="${QVOS_REPO:-Yaqyn-qvOS/qvOS}"' \
+grep -Fqx 'QVOS_REPO="${QVOS_REPO:-yaqyn/qvOS}"' \
   "$root/boot.sh" ||
   fail "online installer does not default to the qvOS repository"
 

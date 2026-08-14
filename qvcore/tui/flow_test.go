@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
+	actionflow "github.com/yaqyn/qvOS/action"
 )
 
 func TestFlowRequirementsCentralizeDomainCapabilities(t *testing.T) {

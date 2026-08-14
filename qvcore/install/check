@@ -572,7 +572,7 @@ if rg -n 'basecamp/omarchy|branch master|rm -rf .*local/share/omarchy' \
   "$root/bin/omarchy-reinstall-git" "$root/qvcore/install/reinstall-source" "$root/boot.sh"; then
   fail "destructive or inherited qvOS source installation remains"
 fi
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS.git' \
+grep -Fq 'https://github.com/yaqyn/qvOS.git' \
   "$root/qvcore/install/reinstall-source" || fail "official reinstall source"
 # shellcheck disable=SC2016
 grep -Fq 'target="$HOME/.local/share/qvos"' \

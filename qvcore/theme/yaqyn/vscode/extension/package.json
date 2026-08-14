@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Yaqyn-qvOS/qvOS.git",
+    "url": "https://github.com/yaqyn/qvOS.git",
     "directory": "qvcore/theme/yaqyn/vscode/extension"
   },
   "engines": {

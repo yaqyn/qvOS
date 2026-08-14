@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	actionflow "github.com/Yaqyn-qvOS/qvOS/action"
+	actionflow "github.com/yaqyn/qvOS/action"
 )
 
 func TestUpdateControlsStayVisibleAtTheDefaultSideSize(t *testing.T) {

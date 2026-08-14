@@ -59,7 +59,7 @@ git_env=(
   GIT_ALLOW_PROTOCOL=file
   GIT_CONFIG_COUNT=1
   "GIT_CONFIG_KEY_0=url.file://$remote.insteadOf"
-  GIT_CONFIG_VALUE_0=https://github.com/Yaqyn-qvOS/qvOS.git
+  GIT_CONFIG_VALUE_0=https://github.com/yaqyn/qvOS.git
 )
 
 reinstall_home="$test_root/reinstall-home"
@@ -115,7 +115,7 @@ install -d "${update_source%/*}"
 git clone -q --branch OS "$remote" "$update_source"
 ln -s qvos "$update_home/.local/share/omarchy"
 git -C "$update_source" remote set-url origin \
-  https://github.com/Yaqyn-qvOS/qvOS.git
+  https://github.com/yaqyn/qvOS.git
 printf 'three\n' >"$project/version"
 git -C "$project" add version
 git -C "$project" \

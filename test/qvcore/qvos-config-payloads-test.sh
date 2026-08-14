@@ -56,7 +56,7 @@ git_leaf="$root/qvcore/install/config/git.sh"
 HOME="$test_home" \
   XDG_CONFIG_HOME="$test_home/.config" \
   QVOS_USER_NAME='Abdulrahman M. Yaqyn' \
-  QVOS_USER_EMAIL='Yaqyn@pm.me' \
+  QVOS_USER_EMAIL='person@example.test' \
   OMARCHY_USER_NAME='Retired Name' \
   OMARCHY_USER_EMAIL='retired@example.invalid' \
   bash -c 'set -euo pipefail; source "$1"' _ "$git_leaf"
@@ -64,7 +64,7 @@ HOME="$test_home" \
   git config --global user.name) == "Abdulrahman M. Yaqyn" ]] ||
   fail "native Git user name input"
 [[ $(HOME="$test_home" XDG_CONFIG_HOME="$test_home/.config" \
-  git config --global user.email) == "Yaqyn@pm.me" ]] ||
+  git config --global user.email) == "person@example.test" ]] ||
   fail "native Git user email input"
 
 legacy_git_home="$test_root/legacy-git-home"

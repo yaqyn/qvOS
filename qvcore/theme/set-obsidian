@@ -29,7 +29,7 @@ while read -r vault_path; do
   "minAppVersion": "0.16.0",
   "description": "Automatically syncs with your current qvOS theme colors and fonts",
   "author": "qvOS",
-  "authorUrl": "https://github.com/Yaqyn-qvOS/qvOS"
+  "authorUrl": "https://github.com/yaqyn/qvOS"
 }
 EOF
 

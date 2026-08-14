@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-official_repo="https://github.com/Yaqyn-qvOS/qvOS.git"
+official_repo="https://github.com/yaqyn/qvOS.git"
 target="$HOME/.local/share/qvos"
 compat_target="$HOME/.local/share/omarchy"
 target_parent=${target%/*}

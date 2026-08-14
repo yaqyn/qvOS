@@ -466,7 +466,7 @@ grep -Fq 'show_software_menu gaming' <<<"$install_gaming_override" ||
 grep -Fq 'show_software_menu gaming' <<<"$remove_gaming_override" ||
   fail "Steam removal bypasses Omarchy's owner"
 grep -Fq '  qvOS Source' "$root/qvcore/menu/base" || fail "qvOS learning entry"
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS' "$root/qvcore/menu/base" ||
+grep -Fq 'https://github.com/yaqyn/qvOS' "$root/qvcore/menu/base" ||
   fail "qvOS learning destination"
 if rg -q 'actionRepair|qvos-repair|QVOS_REPAIR|Repair qvOS' \
   "$root/qvcore/tui"; then
@@ -876,7 +876,7 @@ grep -Fq 'MENU LABEL qvOS install medium (x86_64, BIOS)' \
 for qvos_profile_contract in \
   'iso_name="qvos"' \
   'iso_label="QVOS_' \
-  'iso_publisher="qvOS <https://github.com/Yaqyn-qvOS/qvOS>"' \
+  'iso_publisher="qvOS <https://github.com/yaqyn/qvOS>"' \
   'iso_application="qvOS Installer"'; do
   grep -Fq "$qvos_profile_contract" "$iso_profile/profiledef.sh" ||
     fail "qvOS ISO profile branding: $qvos_profile_contract"
@@ -1056,7 +1056,7 @@ qvos_source_repo="$iso_source_fixture"
 # shellcheck disable=SC2034
 qvos_source_ref="$iso_source_commit"
 # shellcheck disable=SC2034
-qvos_update_repo="https://example.invalid/Yaqyn-qvOS/qvOS.git"
+qvos_update_repo="https://example.invalid/yaqyn/qvOS.git"
 # shellcheck disable=SC2034
 pre_public=true
 stage_qvos_source "$iso_source_stage" >/dev/null 2>&1
@@ -1459,7 +1459,7 @@ grep -Fq 'sudo chmod 0640 "$QVOS_INSTALL_LOG_FILE"' \
   fail "qvOS installer error owner mode"
 grep -Fq '"qvOS installation stopped!"' \
   "$root/qvcore/install/helpers/errors" || fail "qvOS installer error title"
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS/issues' \
+grep -Fq 'https://github.com/yaqyn/qvOS/issues' \
   "$root/qvcore/install/helpers/errors" || fail "qvOS installer support route"
 [[ ! -e $root/qvcore/install/helpers/error-title ]] ||
   fail "duplicate installer error title"
@@ -1521,9 +1521,10 @@ cmp -s \
   "$root/qvcore/theme/yaqyn/vscode/extension/package.json" ||
   fail "Yaqyn VS Code package source drift"
 vsix_metadata=$(unzip -p "$vsix" extension.vsixmanifest)
-grep -Fq 'https://github.com/Yaqyn-qvOS/qvOS.git' <<<"$vsix_metadata" ||
+grep -Fq 'https://github.com/yaqyn/qvOS.git' <<<"$vsix_metadata" ||
   fail "Yaqyn VS Code package repository"
-if grep -Fq 'github.com/yaqyn/qv' <<<"$vsix_metadata"; then
+if grep -Eiq 'github\.com/(Yaqyn-qvOS/qvOS|yaqyn/qv([.]git)?([#"<]|$))' \
+  <<<"$vsix_metadata"; then
   fail "Yaqyn VS Code package stale repository"
 fi
 pass "the bundled VS Code theme is Yaqyn end to end"
