@@ -350,8 +350,8 @@ if rg -q 'release/iso/(upstream-ref|omarchy-iso-qvos-tui\.patch)|QVOS_OMARCHY_IS
 fi
 grep -Fq 'complete its software reconciliation' "$root/upstream/qvsync/AGENTS.md" ||
   fail "qvsync software reconciliation route"
-grep -Fq 'independent downstream distribution' "$root/AGENTS.md" ||
-  fail "root downstream product contract"
+grep -Fq 'standalone Arch Linux distribution' "$root/AGENTS.md" ||
+  fail "root standalone product contract"
 grep -Fq 'never product authority' "$root/AGENTS.md" ||
   fail "root upstream authority boundary"
 grep -Fq 'Never move them out' "$root/AGENTS.md" ||
@@ -379,4 +379,4 @@ qvos_policy_bytes=$(
   fail "root qvOS contract grew beyond 110 lines"
 ((qvos_policy_bytes <= 7000)) ||
   fail "root qvOS contract grew beyond 7000 bytes"
-pass "root keeps downstream intake policy while conditional workflows stay local"
+pass "root keeps standalone product policy while conditional workflows stay local"

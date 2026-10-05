@@ -358,7 +358,7 @@ Every qvOS change must leave one traceable lifecycle.
 - After each verified local commit, align and verify this live installation
   from the development repository. Do not run the interactive updater or
   package upgrades unless the task requires them.
-- qvOS is an independent downstream distribution and the sole product
+- qvOS is a standalone Arch Linux distribution and the sole product
   authority. Reviewed upstreams are never product authority. qvOS owns product
   and package selection; the credited Omarchy provider supplies only the
   Stable mirror, repository, and signing keyring boundary described in
@@ -524,7 +524,7 @@ Root-started sessions must read every matching route completely before editing:
   contract, and add its root route in the same change so future work inherits
   the reusable learning without bloating this file.
 - Do not document simple or one-off work or duplicate an existing workflow.
-  Keep the permanent operating model, downstream and ownership boundaries, main
+  Keep the permanent operating model, product and ownership boundaries, main
   qvsync workflow, and repository-wide invariants here. Never move them out
   merely to reduce root size.
 - Keep every workflow concise: trigger and scope, source of truth, ordered

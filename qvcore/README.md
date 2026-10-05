@@ -1,8 +1,8 @@
 # qvCORE
 
 qvCORE is the mandatory native implementation of qvOS. qvOS is the complete
-repository, distribution, and user-facing product; qvCORE owns its installed
-product domains and is never presented as optional software.
+standalone repository, distribution, and user-facing product; qvCORE owns its
+installed product domains and is never presented as optional software.
 
 Each installed capability has one qvOS owner. Reviewed upstream work may inform
 that owner, but never creates a second active implementation. When a domain is

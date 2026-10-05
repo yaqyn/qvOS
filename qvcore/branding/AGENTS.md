@@ -4,9 +4,10 @@ Read this file completely when changing visible qvOS identity, vector assets,
 terminal art, About or screensaver customization, installer logos, session
 labels, terminal titles, or branding-state migration.
 
-`qvcore/branding/` owns product identity. Public copy presents qvOS directly;
-upstream attribution, exact external compatibility ABI, and historical
-migration evidence stay in their dedicated technical contexts.
+`qvcore/branding/` owns product identity. Public copy presents qvOS as a
+standalone Arch Linux distribution. Upstream attribution, exact external
+compatibility ABI, and historical migration evidence stay in their dedicated
+technical contexts.
 Repository issue forms, native command examples, bundled configuration samples,
 and qvOS-owned comments are public identity surfaces. They use qvOS names and
 native `qv` routes; do not send users to upstream support or compatibility

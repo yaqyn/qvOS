@@ -1,7 +1,7 @@
 # qvOS
 
-qvOS is a focused Arch distribution with a native desktop, installer, update
-lifecycle, security policy, and release process.
+qvOS is a standalone Arch Linux distribution with a native desktop, installer,
+update lifecycle, security policy, and release process.
 
 - `qvcore/` is the mandatory native implementation of qvOS. It owns the
   installed product domains and is not an optional software bundle.
