@@ -1,26 +1,8 @@
 [
   {
-    "file": "steam.svg",
-    "source": "https://store.steampowered.com/public/shared/images/header/logo_steam.svg",
-    "sha256": "19d0f67899a61b13d43ad1c810ba2d8d619b48ec00caba3b888fe6a285ce6cde",
-    "retrieved": "2026-10-05"
-  },
-  {
-    "file": "hyprland.png",
-    "source": "https://raw.githubusercontent.com/hyprwm/hyprland-website/main/src/lib/images/logos/HyprlandLogo.png",
-    "sha256": "8c32c51963bb6d2c72b1d64303ffc6cff607b42e30d693263b41e87fa61b9721",
-    "retrieved": "2026-10-05"
-  },
-  {
     "file": "git.png",
     "source": "https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png",
     "sha256": "3585b2ebe81259786804764bdf0777d34c1f40264f9826f8835ffd1063be4959",
-    "retrieved": "2026-10-05"
-  },
-  {
-    "file": "proton-proton.svg",
-    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/proton/proton-text-b2c-light.svg",
-    "sha256": "122d92ae7883c791981f67a7d6b551cdde7b98556b3de196420180ce6efdd0f3",
     "retrieved": "2026-10-05"
   }
 ]

@@ -6,24 +6,21 @@ that do not support an actual comparison. Link detailed lifecycle requirements
 to their native owners. Distinguish base capabilities, optional integrations,
 and confirmed release availability.
 
-Keep the red-icon section headings and pixel-gradient section bars. The approved
+Keep the red-icon section headings, main cover, actual bundled wallpaper, and
+user-supplied gaming artwork. Do not restore section image bars. The approved
 card set is Git, Snapshots, Security, Devel, Power, Thunar, Windows VM, Capture,
 Media, and Web Apps. Place these beneath the corresponding mentions in compact
-wrapping rows. Do not restore the other small company or product card rows.
-The Gaming bar uses only the Steam symbol, without its wordmark. The Tools bar
-uses the generic tools icon, never LocalSend branding. Keep user-supplied
-in-game pictures separate from launcher logos;
-never replace them with generated gameplay or controller product shots.
+wrapping rows. Do not restore the other small company or product card rows or
+replace user-supplied gaming pictures with generated gameplay or product shots.
 
-Use the Yaqyn red/grayscale palette for the artwork; preserve vendor logo colors
-and shapes. Branding's vector masters remain the product authority. Preserve
-original vendor assets in `logos/` with retrieval URLs and hashes in
-`logos/sources.json`. Verify SVGs contain no scripts or external resources.
-Generic feature illustrations are not company logos; make that clear in alt
-text and provenance. Proton media-kit assets link back to https://proton.me.
+Use the Yaqyn red/grayscale palette for the artwork. Branding's vector masters
+remain the product authority. Preserve vendor assets in `logos/` with retrieval
+URLs and hashes in `logos/sources.json`. Verify SVGs contain no scripts or
+external resources. Generic feature illustrations are not company logos;
+make that clear in alt text and provenance.
 
 `pixel_art.py` is the singular gradient and pixel-type owner. `render-cover.py`
-renders the cover; `render-sections.py` renders the PNG section bars and cards.
+renders the cover; `render-cards.py` renders the approved PNG cards.
 Both use Python standard-library code and rsvg-convert; GIF export also uses
 FFmpeg. Keep the cover logo stationary and its animation slow. Avoid texture,
 decorative geometry, flashing, and slogans. Keep `cover.svg` as the static

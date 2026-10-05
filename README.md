@@ -10,8 +10,6 @@ workflow.
 
 ## <img src="docs/readme/icons/start.svg" width="24" height="24" alt=""> Get qvOS
 
-![Start section](docs/readme/sections/start.png)
-
 ```sh
 curl -fsSL qvos.yaqyn.dev | sh
 ```
@@ -25,16 +23,12 @@ the installation and lifecycle checks.
 
 ## <img src="docs/readme/icons/desktop.svg" width="24" height="24" alt=""> Desktop
 
-![Desktop section](docs/readme/sections/desktop.png)
-
 - **Hyprland** — Wayland window management and keyboard controls.
 - **Waybar** — workspaces and system status.
 - **Walker + Elephant** — application launching and search.
 - Native controls for monitors, audio, brightness, power, lock, and idle behavior.
 
 ## <img src="docs/readme/icons/wallpaper.svg" width="24" height="24" alt=""> Wallpaper & appearance
-
-![Wallpaper section](docs/readme/sections/wallpaper.png)
 
 ![The bundled qvOS wallpaper: official white wordmark on solid charcoal](qvcore/theme/yaqyn/preview.png)
 
@@ -45,8 +39,6 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 ## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
 
-![Gaming section](docs/readme/sections/gaming-symbol.png)
-
 ![Gaming artwork supplied for qvOS, showing a red-lit industrial game scene](docs/readme/gaming-scene.png)
 
 A gaming runtime is part of the base system. Choose the launchers you want:
@@ -55,8 +47,6 @@ Native installation flows select graphics support for detected hardware where
 applicable.
 
 ## <img src="docs/readme/icons/tools.svg" width="24" height="24" alt=""> Tools
-
-![Tools section](docs/readme/sections/tools-wrench.png)
 
 - Screenshots, screen recording, region OCR, and clipboard color picking.
 - Picture, video, and terminal-art conversion.
@@ -82,8 +72,6 @@ qv menu keybindings
 
 ## <img src="docs/readme/icons/recovery.svg" width="24" height="24" alt=""> System & recovery
 
-![Recovery section](docs/readme/sections/recovery.png)
-
 - **Encrypted Btrfs** installation and the signed standard Arch kernel.
 - **Snapper + Limine** snapshots and boot recovery.
 - qvOS source updates, signed package updates, and restart guidance.
@@ -99,8 +87,6 @@ qv menu keybindings
 
 ## <img src="docs/readme/icons/extensions.svg" width="24" height="24" alt=""> Optional integrations
 
-![Extensions section](docs/readme/sections/extensions.png)
-
 **Services · [Proton](https://proton.me)** — Pass, Drive, Mail Bridge, and VPN tools.
 
 **Development · Devel** — compilers, build tools, debuggers, profilers, and
@@ -114,8 +100,6 @@ Both have independent installation and removal workflows. The base system
 remains complete without them.
 
 ## <img src="docs/readme/icons/build.svg" width="24" height="24" alt=""> Build & install
-
-![Build section](docs/readme/sections/build.png)
 
 Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
 **40 GiB free space**, and an Internet connection ready. Images are saved to
@@ -132,8 +116,6 @@ installing it are separate steps. T2 Macs are currently unsupported.
 
 ## <img src="docs/readme/icons/developer.svg" width="24" height="24" alt=""> Developer
 
-![Developer section](docs/readme/sections/developer.png)
-
 **Abdulrahman M. Yaqyn** works across Linux system development and interface
 design. qvOS brings that work together, from desktop presentation and terminal
 tools to installation, maintenance, and recovery.
@@ -141,8 +123,6 @@ tools to installation, maintenance, and recovery.
 Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.dev)**.
 
 ## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Project
-
-![Project section](docs/readme/sections/project.png)
 
 [qvCORE architecture](qvcore/README.md) · [Source](https://github.com/yaqyn/qvOS) · [MIT license](LICENSE)
 
