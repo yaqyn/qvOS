@@ -1,0 +1,2 @@
+# Preserve downloaded vendor SVG bytes, including original line-end spacing.
+logos/*.svg whitespace=-blank-at-eol

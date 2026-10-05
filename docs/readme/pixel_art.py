@@ -60,5 +60,3 @@ def pixel_label(text, x, y, scale, color="#e6e6e6", spacing=1):
           rectangles.append(f'<rect x="{x + (index * (5 + spacing) + column) * scale}" '
                             f'y="{y + row * scale}" width="{scale}" height="{scale}"/>')
   return f'<g fill="{color}" shape-rendering="crispEdges">' + ''.join(rectangles) + '</g>'
-
-
