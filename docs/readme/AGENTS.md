@@ -9,7 +9,10 @@ and confirmed release availability.
 Keep the red-icon section headings and pixel-gradient section bars. The approved
 card set is Git, Snapshots, Security, Devel, Power, Thunar, Windows VM, Capture,
 Media, and Web Apps. Place these beneath the corresponding mentions in compact
-wrapping rows. Do not restore the other small company or product card rows. Keep user-supplied in-game pictures separate from launcher logos;
+wrapping rows. Do not restore the other small company or product card rows.
+The Gaming bar uses only the Steam symbol, without its wordmark. The Tools bar
+uses the generic tools icon, never LocalSend branding. Keep user-supplied
+in-game pictures separate from launcher logos;
 never replace them with generated gameplay or controller product shots.
 
 Use the Yaqyn red/grayscale palette for the artwork; preserve vendor logo colors

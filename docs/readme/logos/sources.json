@@ -12,12 +12,6 @@
     "retrieved": "2026-10-05"
   },
   {
-    "file": "localsend.png",
-    "source": "https://raw.githubusercontent.com/localsend/localsend/main/app/assets/img/logo-256.png",
-    "sha256": "d2e8192cdcb02d5615eed91ecc3e9fe9c4289a3d2a4d7adecb9037d8f015fe33",
-    "retrieved": "2026-10-05"
-  },
-  {
     "file": "git.png",
     "source": "https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png",
     "sha256": "3585b2ebe81259786804764bdf0777d34c1f40264f9826f8835ffd1063be4959",

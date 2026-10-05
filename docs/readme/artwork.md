@@ -6,6 +6,8 @@
 - `cover.svg`: its static rendition, including the canonical source hash.
 - `sections/*.png`: ten 1280 × 128 section bars with a representative logo or
   feature illustration and pixel lettering. All match the cover's gradient.
+  Gaming uses the first three canonical Steam vector paths (the symbol only,
+  without lettering); Tools uses the native generic tools icon.
 - `cards/*.png`: the approved ten pictures — Git, Snapshots, Security, Devel,
   Power, Thunar, Windows VM, Capture, Media, and Web Apps.
 - `icons/*.svg`: red section-heading icons and the illustrations used inside

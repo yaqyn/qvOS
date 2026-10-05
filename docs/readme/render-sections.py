@@ -5,6 +5,7 @@ import html
 from pathlib import Path
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
 
 from pixel_art import pixel_gradient, pixel_label
 
@@ -14,7 +15,7 @@ SECTIONS = [
   ('desktop', 'DESKTOP', 'logos/hyprland.png'),
   ('wallpaper', 'WALLPAPER & APPEARANCE', 'icons/wallpaper.svg'),
   ('gaming', 'GAMING', 'logos/steam.svg'),
-  ('tools', 'TOOLS', 'logos/localsend.png'),
+  ('tools', 'TOOLS', 'icons/tools.svg'),
   ('recovery', 'SYSTEM & RECOVERY', 'icons/recovery.svg'),
   ('extensions', 'OPTIONAL INTEGRATIONS', 'logos/proton-proton.svg'),
   ('build', 'BUILD & INSTALL', 'logos/git.png'),
@@ -38,7 +39,17 @@ CARDS = [
 def picture(source, x, y, width, height):
   path = OWNER / source
   mime = 'image/svg+xml' if path.suffix == '.svg' else 'image/png'
-  data = base64.b64encode(path.read_bytes()).decode()
+  payload = path.read_bytes()
+  if path.name == 'steam.svg':
+    # The first three canonical paths form the symbol; later paths are lettering.
+    root = ET.fromstring(payload)
+    paths = [element for element in root.iter() if element.tag.endswith('path')]
+    assert len(paths) >= 3, 'Steam symbol paths are required'
+    symbol = ET.Element('svg', {'xmlns': 'http://www.w3.org/2000/svg',
+                               'viewBox': '0 0 89 89', 'width': '89', 'height': '89'})
+    symbol.extend(paths[:3])
+    payload = ET.tostring(symbol)
+  data = base64.b64encode(payload).decode()
   return f'<image x="{x}" y="{y}" width="{width}" height="{height}" href="data:{mime};base64,{data}"/>'
 
 
