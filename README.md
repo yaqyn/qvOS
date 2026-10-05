@@ -1,4 +1,4 @@
-![qvOS brand cover](docs/readme/cover.svg)
+![qvOS System — animated red and grayscale pixel gradient](docs/readme/cover.gif)
 
 # qvOS
 
