@@ -8,7 +8,7 @@ Developed by [Abdulrahman M. Yaqyn](https://yaqyn.dev), qvOS combines a
 keyboard-first desktop with its own installer, command system, and recovery
 workflow.
 
-## Get qvOS
+## <img src="docs/readme/icons/start.svg" width="24" height="24" alt=""> Get qvOS
 
 ![Start section](docs/readme/sections/start.png)
 
@@ -23,7 +23,7 @@ create an ISO, or explore **About → Developer / Project**. Requires `curl`,
 **ISO Download is not available yet.** It will be enabled when a release passes
 the installation and lifecycle checks.
 
-## Desktop
+## <img src="docs/readme/icons/desktop.svg" width="24" height="24" alt=""> Desktop
 
 ![Desktop section](docs/readme/sections/desktop.png)
 
@@ -32,14 +32,7 @@ the installation and lifecycle checks.
 - **Walker + Elephant** — application launching and search.
 - Native controls for monitors, audio, brightness, power, lock, and idle behavior.
 
-<p>
-  <img src="docs/readme/cards/hyprland.png" width="128" height="85" alt="Hyprland">
-  <img src="docs/readme/cards/waybar.png" width="128" height="85" alt="Waybar — panel illustration">
-  <img src="docs/readme/cards/walker.png" width="128" height="85" alt="Walker — launcher illustration">
-  <img src="docs/readme/cards/elephant.png" width="128" height="85" alt="Elephant — provider illustration">
-</p>
-
-## Wallpaper & appearance
+## <img src="docs/readme/icons/wallpaper.svg" width="24" height="24" alt=""> Wallpaper & appearance
 
 ![Wallpaper section](docs/readme/sections/wallpaper.png)
 
@@ -50,7 +43,7 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 [Explore the bundled Yaqyn theme](qvcore/theme/yaqyn/).
 
-## Gaming
+## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
 
 ![Gaming section](docs/readme/sections/gaming.png)
 
@@ -59,16 +52,7 @@ A gaming runtime is part of the base system. Choose the launchers you want:
 Native installation flows select graphics support for detected hardware where
 applicable.
 
-<p>
-  <img src="docs/readme/cards/steam.png" width="128" height="85" alt="Steam">
-  <img src="docs/readme/cards/heroic.png" width="128" height="85" alt="Heroic">
-  <img src="docs/readme/cards/lutris.png" width="128" height="85" alt="Lutris">
-  <img src="docs/readme/cards/moonlight.png" width="128" height="85" alt="Moonlight">
-  <img src="docs/readme/cards/retroarch.png" width="128" height="85" alt="Retroarch">
-  <img src="docs/readme/cards/minecraft.png" width="128" height="85" alt="Minecraft — voxel illustration">
-</p>
-
-## Tools
+## <img src="docs/readme/icons/tools.svg" width="24" height="24" alt=""> Tools
 
 ![Tools section](docs/readme/sections/tools.png)
 
@@ -81,9 +65,7 @@ applicable.
 <p>
   <img src="docs/readme/cards/capture.png" width="128" height="85" alt="Capture">
   <img src="docs/readme/cards/media.png" width="128" height="85" alt="Media">
-  <img src="docs/readme/cards/localsend.png" width="128" height="85" alt="LocalSend">
   <img src="docs/readme/cards/thunar.png" width="128" height="85" alt="Thunar — file-manager illustration">
-  <img src="docs/readme/cards/reminders.png" width="128" height="85" alt="Reminders and weather">
   <img src="docs/readme/cards/webapps.png" width="128" height="85" alt="Web Apps">
   <img src="docs/readme/cards/windows.png" width="128" height="85" alt="Windows VM — desktop illustration">
 </p>
@@ -96,7 +78,7 @@ qv menu
 qv menu keybindings
 ```
 
-## System & recovery
+## <img src="docs/readme/icons/recovery.svg" width="24" height="24" alt=""> System & recovery
 
 ![Recovery section](docs/readme/sections/recovery.png)
 
@@ -108,24 +90,16 @@ qv menu keybindings
 - Optional FIDO2, fingerprint, DNS, and Cloudflare WARP setup.
 
 <p>
-  <img src="docs/readme/cards/arch.png" width="128" height="85" alt="Arch Linux">
   <img src="docs/readme/cards/snapshots.png" width="128" height="85" alt="Snapshots and recovery">
   <img src="docs/readme/cards/security.png" width="128" height="85" alt="Security">
   <img src="docs/readme/cards/power.png" width="128" height="85" alt="Battery and power">
 </p>
 
-## Optional integrations
+## <img src="docs/readme/icons/extensions.svg" width="24" height="24" alt=""> Optional integrations
 
 ![Extensions section](docs/readme/sections/extensions.png)
 
 **Services · [Proton](https://proton.me)** — Pass, Drive, Mail Bridge, and VPN tools.
-
-<p>
-  <img src="docs/readme/cards/pass.png" width="128" height="85" alt="Proton Pass">
-  <img src="docs/readme/cards/drive.png" width="128" height="85" alt="Proton Drive">
-  <img src="docs/readme/cards/mail.png" width="128" height="85" alt="Proton Mail Bridge">
-  <img src="docs/readme/cards/vpn.png" width="128" height="85" alt="Proton VPN">
-</p>
 
 **Development · Devel** — compilers, build tools, debuggers, profilers, and
 language tooling.
@@ -137,7 +111,7 @@ language tooling.
 Both have independent installation and removal workflows. The base system
 remains complete without them.
 
-## Build & install
+## <img src="docs/readme/icons/build.svg" width="24" height="24" alt=""> Build & install
 
 ![Build section](docs/readme/sections/build.png)
 
@@ -147,7 +121,6 @@ Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
 
 <p>
   <img src="docs/readme/cards/git.png" width="128" height="85" alt="Git">
-  <img src="docs/readme/cards/docker.png" width="128" height="85" alt="Docker">
 </p>
 
 Boot the image to enter **Region → Account → Drive**. Building an ISO and
@@ -155,7 +128,7 @@ installing it are separate steps. T2 Macs are currently unsupported.
 
 [Build and release requirements](release/iso/README.md) · [Launcher documentation](release/launcher/README.md)
 
-## Developer
+## <img src="docs/readme/icons/developer.svg" width="24" height="24" alt=""> Developer
 
 ![Developer section](docs/readme/sections/developer.png)
 
@@ -165,7 +138,7 @@ tools to installation, maintenance, and recovery.
 
 Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.dev)**.
 
-## Project
+## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Project
 
 ![Project section](docs/readme/sections/project.png)
 

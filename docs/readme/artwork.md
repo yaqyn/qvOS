@@ -6,18 +6,17 @@
 - `cover.svg`: its static rendition, including the canonical source hash.
 - `sections/*.png`: ten 1280 × 128 section bars with a representative logo or
   feature illustration and pixel lettering. All match the cover's gradient.
-- `cards/*.png`: compact software and feature pictures placed beneath mentions
-  in the README. Natural vendor colors are preserved against qvOS backgrounds.
-- `icons/*.svg`: source illustrations used inside section bars and feature cards;
-  section headings themselves use plain text.
+- `cards/*.png`: the approved ten pictures — Git, Snapshots, Security, Devel,
+  Power, Thunar, Windows VM, Capture, Media, and Web Apps.
+- `icons/*.svg`: red section-heading icons and the illustrations used inside
+  section bars and feature cards.
 - `logos/`: original vendor assets. Their retrieval URLs and SHA-256 hashes live
   in [sources.json](logos/sources.json). Vendor marks retain their owners'
   respective rights; they are not qvOS-authored logos.
 - Proton assets come from the [Proton media kit](https://proton.me/media/kit).
   The README links to Proton as required by the kit's published usage guidance.
-- Waybar, Walker, Elephant, Thunar, Windows VM, and generic capabilities use
-  illustrative symbols rather than invented vendor logos. Minecraft's voxel
-  cube is an illustration, not an official logo or a gameplay screenshot.
+- Thunar, Windows VM, and generic capabilities use illustrative symbols
+  rather than invented vendor logos.
 - Wallpaper references `qvcore/theme/yaqyn/preview.png` directly.
 - Actual in-game pictures remain user-supplied; no generated gameplay or
   controller product photo is published.

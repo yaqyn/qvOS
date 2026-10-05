@@ -6,10 +6,10 @@ that do not support an actual comparison. Link detailed lifecycle requirements
 to their native owners. Distinguish base capabilities, optional integrations,
 and confirmed release availability.
 
-Use plain section headings without standalone icons. Every section starts with a short
-pixel-gradient picture bar. Place software logos or relevant feature pictures
-beneath the corresponding mentions. Prefer compact wrapping image rows over
-wide tables. Keep user-supplied in-game pictures separate from launcher logos;
+Keep the red-icon section headings and pixel-gradient section bars. The approved
+card set is Git, Snapshots, Security, Devel, Power, Thunar, Windows VM, Capture,
+Media, and Web Apps. Place these beneath the corresponding mentions in compact
+wrapping rows. Do not restore the other small company or product card rows. Keep user-supplied in-game pictures separate from launcher logos;
 never replace them with generated gameplay or controller product shots.
 
 Use the Yaqyn red/grayscale palette for the artwork; preserve vendor logo colors

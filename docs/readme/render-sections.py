@@ -22,34 +22,16 @@ SECTIONS = [
   ('project', 'PROJECT', 'icons/project.svg'),
 ]
 CARDS = [
-  ('hyprland', 'HYPRLAND', 'logos/hyprland.png'),
-  ('waybar', 'WAYBAR', 'icons/desktop.svg'),
-  ('walker', 'WALKER', 'icons/start.svg'),
-  ('elephant', 'ELEPHANT', 'icons/project.svg'),
-  ('steam', 'STEAM', 'logos/steam.svg'),
-  ('heroic', 'HEROIC', 'logos/heroic.svg'),
-  ('lutris', 'LUTRIS', 'logos/lutris.png'),
-  ('moonlight', 'MOONLIGHT', 'logos/moonlight.svg'),
-  ('retroarch', 'RETROARCH', 'logos/retroarch.svg'),
-  ('minecraft', 'MINECRAFT', 'icons/voxel.svg'),
   ('capture', 'CAPTURE', 'icons/wallpaper.svg'),
   ('media', 'MEDIA', 'icons/gaming.svg'),
-  ('localsend', 'LOCALSEND', 'logos/localsend.png'),
   ('thunar', 'THUNAR', 'icons/folder.svg'),
-  ('reminders', 'REMINDERS', 'icons/recovery.svg'),
   ('webapps', 'WEB APPS', 'icons/desktop.svg'),
-  ('arch', 'ARCH LINUX', 'logos/arch.svg'),
   ('snapshots', 'SNAPSHOTS', 'icons/recovery.svg'),
   ('security', 'SECURITY', 'icons/shield.svg'),
   ('power', 'POWER', 'icons/battery.svg'),
   ('windows', 'WINDOWS VM', 'icons/desktop.svg'),
-  ('pass', 'PASS', 'logos/proton-pass.svg'),
-  ('drive', 'DRIVE', 'logos/proton-drive.svg'),
-  ('mail', 'MAIL BRIDGE', 'logos/proton-mail.svg'),
-  ('vpn', 'VPN', 'logos/proton-vpn.svg'),
   ('devel', 'DEVEL', 'icons/code.svg'),
   ('git', 'GIT', 'logos/git.png'),
-  ('docker', 'DOCKER', 'logos/docker.svg'),
 ]
 
 
@@ -57,9 +39,7 @@ def picture(source, x, y, width, height):
   path = OWNER / source
   mime = 'image/svg+xml' if path.suffix == '.svg' else 'image/png'
   data = base64.b64encode(path.read_bytes()).decode()
-  backdrop = (f'<rect x="{x}" y="{y}" width="{width}" height="{height}" fill="#e6e6e6"/>'
-              if path.name == "retroarch.svg" else "")
-  return backdrop + f'<image x="{x}" y="{y}" width="{width}" height="{height}" href="data:{mime};base64,{data}"/>'
+  return f'<image x="{x}" y="{y}" width="{width}" height="{height}" href="data:{mime};base64,{data}"/>'
 
 
 def svg(title, width, height, contents):
