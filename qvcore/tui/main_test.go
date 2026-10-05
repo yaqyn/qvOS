@@ -18,8 +18,8 @@ import (
 )
 
 func TestHubCatalogContainsOnlyRealStableActions(t *testing.T) {
-	if len(sections) != 1 {
-		t.Fatalf("hub section count = %d, want 1", len(sections))
+	if len(sections) != 2 {
+		t.Fatalf("hub section count = %d, want 2", len(sections))
 	}
 	if sections[0].name != "SYSTEM" {
 		t.Fatalf("hub section = %q, want SYSTEM", sections[0].name)
@@ -27,8 +27,8 @@ func TestHubCatalogContainsOnlyRealStableActions(t *testing.T) {
 
 	got := sections[0].items
 	want := []item{
-		{id: "00", title: "UPDATE", desc: "Sync qvOS", action: hubActionUpdate},
-		{id: "01", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
+		{id: "00", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
+		{id: "01", title: "DOWNLOAD", desc: "Latest verified ISO", action: hubActionDownload},
 	}
 
 	if len(got) != len(want) {
@@ -1178,7 +1178,7 @@ func TestISOBuilderStopConfirmationUsesBuildCopy(t *testing.T) {
 }
 
 func TestUpdateSkipsDuplicateConfirmationAndBeginsWithPreflight(t *testing.T) {
-	m, command := (model{tab: 0, cursor: 0}).activateMenuItem()
+	m, command := (model{}).beginRootAction(actionUpdate, false)
 	if command == nil || !m.loading || m.startConfirm || !m.startImmediately {
 		t.Fatal("Update retained a duplicate Begin confirmation")
 	}
@@ -1201,7 +1201,7 @@ func TestUpdateSkipsDuplicateConfirmationAndBeginsWithPreflight(t *testing.T) {
 
 func TestISOBuilderRequiresTheUnprivilegedMutationConfirmation(t *testing.T) {
 	m, command := (model{
-		width: 120, height: 42, fullscreen: true, tab: 0, cursor: 1,
+		width: 120, height: 42, fullscreen: true, tab: 0, cursor: 0,
 	}).activateMenuItem()
 	if command != nil || !m.startConfirm || m.startImmediately ||
 		m.action != actionBuild {

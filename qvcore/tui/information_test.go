@@ -290,3 +290,34 @@ func TestInformationScreenCentersAlignedFieldsAsOneBlock(t *testing.T) {
 		)
 	}
 }
+
+func TestPublicHubParagraphLayoutIsReadableAndOptIn(t *testing.T) {
+	paragraphs := []string{
+		"A longer paragraph wraps naturally within its reading column and keeps every continuation aligned with the first word.",
+		"A short second paragraph.",
+	}
+	for _, width := range []int{18, 38, 56} {
+		lines := formatInformationLinesWithLayout("Developer", paragraphs, width, false, true)
+		gap := false
+		for _, line := range lines {
+			plain := stripANSI(line)
+			if strings.TrimSpace(plain) == "" {
+				gap = true
+				continue
+			}
+			if strings.HasPrefix(plain, " ") {
+				t.Fatalf("public paragraph is centered at width %d: %q", width, plain)
+			}
+			if lipgloss.Width(line) > width {
+				t.Fatalf("paragraph exceeds width %d: %q", width, plain)
+			}
+		}
+		if !gap {
+			t.Fatal("public paragraphs lack a blank row between them")
+		}
+		legacy := formatInformationLines("System", []string{"Short system information."}, width, false)
+		if width > 25 && !strings.HasPrefix(stripANSI(legacy[0]), " ") {
+			t.Fatal("public layout changed default system information alignment")
+		}
+	}
+}

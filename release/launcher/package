@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+owner_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(cd -- "$owner_dir/../.." && pwd)
+[[ -z $(git -C "$repo_root" status --porcelain -- qvcore/tui release/launcher) ]] || {
+  echo "Commit the verified launcher and TUI source before packaging a public release." >&2
+  exit 1
+}
+stage=$(mktemp -d "${TMPDIR:-/tmp}/qvos-launcher-package.XXXXXXXX")
+trap 'rm -rf -- "$stage"' EXIT
+"$repo_root/qvcore/tui/build" "$stage/qvos-tui"
+install -m 0700 "$owner_dir/build" "$stage/build"
+source_hash=$("$stage/qvos-tui" --source-hash)
+source_commit=$(git -C "$repo_root" rev-parse HEAD)
+archive="payload.tar.gz"
+assets="$owner_dir/worker/public"
+mkdir -p "$assets/downloads"
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
+  -czf "$stage/$archive" -C "$stage" qvos-tui build
+archive_hash=$(sha256sum "$stage/$archive" | cut -d ' ' -f 1)
+archive="qvos-launcher-linux-amd64-$archive_hash.tar.gz.bin"
+mv -- "$stage/payload.tar.gz" "$stage/$archive"
+install -m 0644 "$stage/$archive" "$assets/downloads/$archive"
+python3 - "$owner_dir" "$archive" "$archive_hash" "$source_hash" "$source_commit" <<'PY'
+import json
+import pathlib
+import sys
+
+owner, archive, checksum, digest, commit = sys.argv[1:]
+root = pathlib.Path(owner)
+text = (root / "bootstrap.sh").read_text()
+for key, value in {"ORIGIN": "https://qvos.yaqyn.dev", "ARCHIVE": archive,
+                   "ARCHIVE_SHA256": checksum, "SOURCE_HASH": digest}.items():
+  text = text.replace("@" + key + "@", value)
+(root / "worker/public/launcher.sh").write_text(text)
+release = {"platform": "linux-amd64", "sourceCommit": commit,
+           "sourceHash": digest, "archive": archive, "sha256": checksum}
+(root / "worker/src/release.json").write_text(json.dumps(release, indent=2) + "\n")
+PY
+printf 'Packaged %s\nSHA-256 %s\n' "$archive" "$archive_hash"

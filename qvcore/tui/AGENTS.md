@@ -290,8 +290,22 @@ passwords never enter arguments, logs, catalogs, or process-wide values.
   `qvcore/tui/owner-contracts --write` and review the exact manifest diff.
   Retired top-level `applications/` and `config/` roots are not valid contract
   sources; reference their singular native qvcore owner.
-- About will present `Abdulrahman M. Yaqyn`, website, contact, and guides.
-  Keep those values in its future owner contract rather than duplicating them.
+- The public curl distribution is owned by `release/launcher/`; it packages
+  this same compiled TUI and delegates Build to the existing ISO owner.
+- `hub/` owns About creator/project copy and Download availability. The default
+  hub has System (00 Build, 01 Download) and About (00 Developer, 01 Project). Reuse
+  the shared information flow for static pages; never launch a child or add
+  transaction screens. Download reports unavailable until a working-confirmed
+  ISO link is supplied. Keep Update available through its dedicated mode.
+  Add contact and guide links only when supplied, never infer them.
+  System uses the glowing CORE, About navigation uses three rings, and
+  Developer/Project information uses one ring. This hub-specific navigation
+  role does not change installed-system action roles.
+  Hub information opts into left-aligned prose with a blank row between
+  paragraphs and a maximum 56-cell reading column. Keep wrapping, scrolling,
+  title, and controls in the shared renderer. Other system information keeps
+  its existing centered composition. Reset the hub layout flag on every action
+  transition so it cannot leak into installed-system flows.
 - Keep the production hub catalog limited to working actions. Give every row a
   stable action key and route activation by that key, never by tab or cursor
   coordinates. Add a section only with its first complete vertical slice.

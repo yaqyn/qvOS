@@ -1,1 +1,4 @@
 qvcore/tui/qvos-tui
+
+# Cloudflare CLI local account/build state
+.cloudflare/

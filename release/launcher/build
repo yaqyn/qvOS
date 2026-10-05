@@ -1,0 +1,33 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+for tool in git docker sha256sum; do
+  command -v "$tool" >/dev/null || {
+    echo "Building qvOS requires $tool. Install it and try again." >&2
+    exit 1
+  }
+done
+docker info >/dev/null 2>&1 || {
+  echo "Docker must be running and accessible to your account before building qvOS." >&2
+  exit 1
+}
+source_dir=$(mktemp -d "${TMPDIR:-/tmp}/qvos-build-source.XXXXXXXX")
+trap 'rm -rf -- "$source_dir"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+echo "Fetching the official qvOS source..."
+git -c core.hooksPath=/dev/null clone --depth 1 --single-branch --no-tags \
+  --branch OS https://github.com/yaqyn/qvOS.git "$source_dir/source"
+source_root="$source_dir/source"
+source_hash=$("$source_root/qvcore/tui/source-hash")
+[[ $source_hash == "${QVOS_LAUNCHER_SOURCE_HASH:-}" ]] || {
+  echo "The public interface has changed. Relaunch qvOS to build with the matching source." >&2
+  exit 1
+}
+export QVOS_PATH="$source_root"
+export QVOS_SOURCE_REPO="$source_root"
+export QVOS_SOURCE_REF
+QVOS_SOURCE_REF=$(git -C "$source_root" rev-parse HEAD)
+export QVOS_UPDATE_REPO=https://github.com/yaqyn/qvOS.git
+"$source_root/release/iso/build" "$@"

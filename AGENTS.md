@@ -506,6 +506,7 @@ Root-started sessions must read every matching route completely before editing:
 - Bash defaults, aliases, completion, and existing-user reconciliation: `qvcore/shell/AGENTS.md`
 - Tmux session and configuration lifecycle: `qvcore/tmux/AGENTS.md`
 - ISO construction and release images: `release/iso/AGENTS.md`
+- Public compiled TUI distribution and Cloudflare launcher: `release/launcher/AGENTS.md`
 - qvOS configuration, assistant integration, and Thunar reconciliation:
   `qvcore/config/AGENTS.md`, `qvcore/config/assistant/AGENTS.md`,
   `qvcore/thunar/AGENTS.md`

@@ -9,14 +9,15 @@ import (
 )
 
 type informationScreen struct {
-	Title       string
-	Lines       []string
-	Empty       string
-	Error       bool
-	Width       int
-	VisibleRows int
-	Scroll      int
-	Hints       []tuiHint
+	Title           string
+	Lines           []string
+	Empty           string
+	Error           bool
+	Width           int
+	VisibleRows     int
+	Scroll          int
+	Hints           []tuiHint
+	ParagraphLayout bool
 }
 
 type informationEntry struct {
@@ -49,6 +50,9 @@ type informationSection struct {
 func renderInformationScreen(screen informationScreen) string {
 	width := max(1, screen.Width)
 	contentWidth := max(1, width-2)
+	if screen.ParagraphLayout {
+		contentWidth = min(56, contentWidth)
+	}
 	if screen.Error {
 		message := screen.Empty
 		if len(screen.Lines) > 0 {
@@ -60,18 +64,20 @@ func renderInformationScreen(screen informationScreen) string {
 			Hints:   screen.Hints,
 		})
 	}
-	sourceLines := formatInformationLines(
+	sourceLines := formatInformationLinesWithLayout(
 		screen.Title,
 		screen.Lines,
 		contentWidth,
 		screen.Error,
+		screen.ParagraphLayout,
 	)
 	if len(sourceLines) == 0 {
-		sourceLines = formatInformationLines(
+		sourceLines = formatInformationLinesWithLayout(
 			screen.Title,
 			[]string{screen.Empty},
 			contentWidth,
 			screen.Error,
+			screen.ParagraphLayout,
 		)
 	}
 	lines, _ := visibleTUILogLines(
@@ -110,6 +116,10 @@ func formatInformationLines(
 	width int,
 	isError bool,
 ) []string {
+	return formatInformationLinesWithLayout(title, lines, width, isError, false)
+}
+
+func formatInformationLinesWithLayout(title string, lines []string, width int, isError, paragraphLayout bool) []string {
 	width = max(1, width)
 	if isError {
 		return styleWrappedInformation(lines, width, sRed)
@@ -202,6 +212,9 @@ func formatInformationLines(
 				})
 			}
 		case entry.Raw != "":
+			if paragraphLayout && len(formatted) > 0 && formatted[len(formatted)-1].Kind != informationLineBlank {
+				formatted = append(formatted, informationLine{Kind: informationLineBlank})
+			}
 			for _, line := range styleWrappedInformation(
 				[]string{entry.Raw},
 				width,
@@ -223,7 +236,7 @@ func formatInformationLines(
 		formatted[len(formatted)-1].Kind == informationLineBlank {
 		formatted = formatted[:len(formatted)-1]
 	}
-	return centerInformationGroups(formatted, width)
+	return centerInformationGroups(formatted, width, paragraphLayout)
 }
 
 func informationSectionCounts(lines []string) map[string]int {
@@ -254,7 +267,7 @@ func parseInformationSection(line string) (informationSection, bool) {
 	return informationSection{Name: name, Number: number}, true
 }
 
-func centerInformationGroups(lines []informationLine, width int) []string {
+func centerInformationGroups(lines []informationLine, width int, paragraphLayout bool) []string {
 	gridWidth := 1
 	for _, line := range lines {
 		if line.Kind == informationLineField {
@@ -275,9 +288,13 @@ func centerInformationGroups(lines []informationLine, width int) []string {
 				gridStyle.Render(line.Text),
 			))
 		default:
+			alignment := lipgloss.Center
+			if paragraphLayout && line.Kind == informationLineProse {
+				alignment = lipgloss.Left
+			}
 			centered = append(centered, lipgloss.PlaceHorizontal(
 				width,
-				lipgloss.Center,
+				alignment,
 				line.Text,
 			))
 		}

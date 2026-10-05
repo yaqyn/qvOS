@@ -22,6 +22,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	actionflow "github.com/yaqyn/qvOS/action"
+	hubflow "github.com/yaqyn/qvOS/hub"
 	updateflow "github.com/yaqyn/qvOS/update"
 )
 
@@ -87,8 +88,11 @@ func initialTUICommand(commands ...tea.Cmd) tea.Cmd {
 type hubAction string
 
 const (
-	hubActionUpdate hubAction = "qvos.update"
-	hubActionBuild  hubAction = "qvos.iso.build"
+	hubActionUpdate       hubAction = "qvos.update"
+	hubActionBuild        hubAction = "qvos.iso.build"
+	hubActionDownload     hubAction = "qvos.iso.download"
+	hubActionAboutMe      hubAction = "qvos.about.creator"
+	hubActionAboutProject hubAction = "qvos.about.project"
 )
 
 type item struct {
@@ -98,6 +102,7 @@ type item struct {
 
 type section struct {
 	name  string
+	role  modelRole
 	items []item
 }
 
@@ -105,10 +110,14 @@ var sections = []section{
 	{
 		name: "SYSTEM",
 		items: []item{
-			{id: "00", title: "UPDATE", desc: "Sync qvOS", action: hubActionUpdate},
-			{id: "01", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
+			{id: "00", title: "BUILD", desc: "Build qvOS ISO", action: hubActionBuild},
+			{id: "01", title: "DOWNLOAD", desc: "Latest verified ISO", action: hubActionDownload},
 		},
 	},
+	{name: "ABOUT", role: modelThreeRings, items: []item{
+		{id: "00", title: "DEVELOPER", desc: "Abdulrahman M. Yaqyn", action: hubActionAboutMe},
+		{id: "01", title: "PROJECT", desc: "About qvOS", action: hubActionAboutProject},
+	}},
 }
 
 func validateHubCatalog(catalog []section) error {
@@ -142,7 +151,7 @@ func validateHubCatalog(catalog []section) error {
 			}
 			seenIDs[entry.id] = struct{}{}
 			switch entry.action {
-			case hubActionUpdate, hubActionBuild:
+			case hubActionUpdate, hubActionBuild, hubActionDownload, hubActionAboutMe, hubActionAboutProject:
 			default:
 				return fmt.Errorf("qvOS hub action is unsupported: %s", entry.action)
 			}
@@ -355,6 +364,7 @@ type model struct {
 	width, height     int
 	fullscreen        bool
 	loading           bool
+	hubInformation    bool
 	action            actionMode
 	loadStart         int
 	scriptRunning     bool
@@ -503,10 +513,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tick()
 	case tea.WindowSizeMsg:
+		atInformationStart := m.hubInformation && m.informationAtStart()
 		m.width, m.height = msg.Width, msg.Height
+		if atInformationStart {
+			m.scrollInformationToStart()
+		}
 		return m, detectFullscreenCmd()
 	case fullscreenStateMsg:
+		atInformationStart := m.hubInformation && m.informationAtStart()
 		m.fullscreen = msg.fullscreen
+		if atInformationStart {
+			m.scrollInformationToStart()
+		}
 
 	case startImmediateActionMsg:
 		if !m.startImmediately || !isScriptAction(m.action) {
@@ -989,6 +1007,9 @@ func (m model) renderActiveIcon() string {
 func (m model) activeModelRole() modelRole {
 	if m.loading && isScriptAction(m.action) {
 		return requirementsForAction(m.action).Model
+	}
+	if m.tab >= 0 && m.tab < len(sections) {
+		return sections[m.tab].role
 	}
 	return modelCore
 }
@@ -1610,6 +1631,17 @@ func (m model) activateMenuItem() (model, tea.Cmd) {
 		return m.beginRootAction(actionUpdate, false)
 	case hubActionBuild:
 		return m.beginRootAction(actionBuild, false)
+	case hubActionDownload, hubActionAboutMe, hubActionAboutProject:
+		page := hubflow.Information(string(sections[m.tab].items[m.cursor].action))
+		currentActionSpec = actionflow.Spec{Title: page.Title, Rings: 1, Information: true}
+		m.resetRootActionState(actionGeneric, "")
+		m.dedicatedAction = false
+		m.scriptDone = true
+		m.scriptLogLines = page.Lines
+		m.hubInformation = true
+		lines, visibleRows := m.informationLines()
+		m.logScroll = max(0, len(lines)-visibleRows)
+		return m, nil
 	default:
 		return m, nil
 	}
@@ -1689,6 +1721,7 @@ func startImmediateActionCmd() tea.Cmd {
 func (m *model) resetRootActionState(action actionMode, script string) {
 	clearRunes(m.sudoPassword)
 	m.loading = true
+	m.hubInformation = false
 	m.action = action
 	m.loadStart = m.frame
 	m.scriptRunning = false
@@ -3183,15 +3216,26 @@ func (m model) renderInformationFor(mode layoutMode) string {
 
 	visibleRows := max(3, actionLogPanelHeight(mode, m.height))
 	return renderInformationScreen(informationScreen{
-		Title:       currentActionSpec.Title,
-		Lines:       lines,
-		Empty:       empty,
-		Error:       isError,
-		Width:       canvasW,
-		VisibleRows: visibleRows,
-		Scroll:      m.logScroll,
-		Hints:       m.rootPersistentHints(),
+		Title:           currentActionSpec.Title,
+		Lines:           lines,
+		Empty:           empty,
+		Error:           isError,
+		Width:           canvasW,
+		VisibleRows:     visibleRows,
+		Scroll:          m.logScroll,
+		Hints:           m.rootPersistentHints(),
+		ParagraphLayout: m.hubInformation,
 	})
+}
+
+func (m model) informationAtStart() bool {
+	lines, visibleRows := m.informationLines()
+	return m.logScroll >= max(0, len(lines)-visibleRows)
+}
+
+func (m *model) scrollInformationToStart() {
+	lines, visibleRows := m.informationLines()
+	m.logScroll = max(0, len(lines)-visibleRows)
 }
 
 func (m model) informationLines() ([]string, int) {
@@ -3205,16 +3249,20 @@ func (m model) informationLines() ([]string, int) {
 		}
 	}
 	contentWidth := max(1, width-2)
+	if m.hubInformation {
+		contentWidth = min(56, contentWidth)
+	}
 	visibleRows := max(3, actionLogPanelHeight(mode, m.height))
 	lines := m.scriptLogLines
 	if m.scriptErr != nil {
 		lines = []string{errorMessage(m.scriptErr)}
 	}
-	return formatInformationLines(
+	return formatInformationLinesWithLayout(
 		currentActionSpec.Title,
 		lines,
 		contentWidth,
 		m.scriptErr != nil,
+		m.hubInformation,
 	), visibleRows
 }
 

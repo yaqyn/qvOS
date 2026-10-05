@@ -4,7 +4,7 @@ This directory owns the qvOS terminal interface, its ISO installer surfaces,
 and the ISO build entry point. The Go program is one visual shell with these
 modes:
 
-- default: qvOS Update and ISO Build
+- default: System (00 Build, 01 Download) and About (00 Developer, 01 Project)
 - `--prototype`: safe fake script, sudo, application, and boot sessions
 - `--update`: qvOS Update preflight, authorization, progress, logs, and result
 - `--action`: classified Software or fixed-task presentation; mutations use
@@ -276,8 +276,14 @@ payload file.
 System owners outside the repository are explicitly classified in
 `external-owners.psv`.
 
-The future About owner will present `Abdulrahman M. Yaqyn`, website, contact,
-and guides without scattering those values through shared rendering code.
+`hub/` owns creator, project, and release-availability copy. These read-only
+pages reuse the shared information flow, including scrolling, Help, and Return.
+System keeps the glowing CORE; About navigation shows three rings, and its
+Developer/Project pages show one ring.
+Public hub paragraphs use a bounded, left-aligned reading column and blank
+rows between paragraphs; other system information retains its centered layout.
+Download truthfully reports unavailable until a working-confirmed ISO link is
+supplied; it never fabricates a release. Update remains available via `--update`.
 
 ## Software actions
 

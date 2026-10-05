@@ -995,10 +995,12 @@ func TestLogSwitchCueFitsEveryResponsiveShape(t *testing.T) {
 }
 
 func TestProductionHubShowsOnlyWorkingActions(t *testing.T) {
-	content := stripANSI((model{width: 140, height: 31}).View().Content)
-	for _, label := range []string{"UPDATE", "BUILD"} {
-		if !strings.Contains(content, label) {
-			t.Fatalf("production hub lost %s: %q", label, content)
+	for tab, section := range sections {
+		content := stripANSI((model{tab: tab, width: 140, height: 31}).View().Content)
+		for _, entry := range section.items {
+			if !strings.Contains(content, entry.title) {
+				t.Fatalf("production hub lost %s: %q", entry.title, content)
+			}
 		}
 	}
 }
