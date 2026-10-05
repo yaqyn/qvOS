@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="520" viewBox="0 0 1440 520" role="img" aria-labelledby="title desc">
+<title id="title">qvOS — A deliberate desktop. A complete system.</title>
+<desc id="desc">The official qvOS wordmark on a charcoal background with red rings. Standalone Arch Linux. Keyboard first. Native by design.</desc>
+<!-- Documentation composition; wordmark paths derived from qvcore/branding/assets/qvos-wordmark-light.svg. Source SHA-256: e176eeb1e9fe51c5bad2c728805ae559ee4a8ed614ef9fac5bd8a482ce046a81 -->
+<rect width="1440" height="520" fill="#080808"/>
+<path d="M0 0H1440" stroke="#d00000" stroke-width="8"/>
+<g fill="none" stroke-width="1">
+<circle cx="1260" cy="245" r="155" stroke="#292929"/>
+<circle cx="1260" cy="245" r="195" stroke="#242424"/>
+<circle cx="1260" cy="245" r="235" stroke="#5f0000"/>
+<path d="M70 432H1370" stroke="#292929"/>
+</g>
+<svg x="70" y="90" width="470" height="166" viewBox="0 740 2000 707"><path fill="#ffffff" d="m266.1 1266.3q-69.7 0-127.7-32.1-57.8-32.6-92.4-91.4-33.4-60.7-33.4-142.7 0-82 33.4-141.1 34.6-60.4 92.4-92.4 58-33.4 127.7-33.4 70 0 115.1 28.7 46.6 28.1 68.6 87.6 23.5 58.1 23.5 150.6 0 90.9-24.5 150.3-23.6 58.4-70.4 87.6-45.5 28.3-112.3 28.3zm38.1-143.9q30.6 0 54.2-13.9 25.1-14.6 39-41.9 15.2-27.8 15.2-66.5 0-39.6-15.2-66.8-13.9-27.7-39-41-23.6-15.1-54.2-15.1-30.6 0-55.3 15.1-24 13.3-39.1 41-14 27.2-14 66.8 0 38.7 14 66.5 15.1 27.3 39.1 41.9 24.7 13.9 55.3 13.9zm286.1 320.3h-180.9v-271.6l9.5-170.7-0.8-170.7v-88.2h172.2z"/><path fill="#ffffff" d="m991.8 1258h-187.1l-212.4-516.5h186l169.4 432h-93.4l178.1-432h172.1z"/><path fill="#ffffff" d="m1375.2 1245.8q-71.3 0-127.6-32.4-55.6-32.3-88.6-89.5-32-57.6-32-130.8 0-74.2 32-130.1 33.2-57.2 88.6-89.5 56.2-32.4 127.6-32.4 71.4 0 127.6 32.4 56.4 32.3 87.6 89.5 33 55.8 33 130.1 0 73.4-32 130.8-32.1 57.2-88.6 89.5-56.3 32.4-127.6 32.4zm0-42.5q57.5 0 102.8-26.1 45.4-26.9 71.5-74.2 26-48 26-109.9 0-62.8-26-109.1-26.1-48-71.5-73.4-45.3-27-102.6-27-57.3 0-103 27-44.5 25.4-71.5 73.4-26 46.3-26 109.1 0 61.9 26 109.9 27 47.3 71.5 74.2 45.6 26.1 102.8 26.1z"/><path fill="#ffffff" d="m1791.3 1245.8q-61.2 0-115.8-18.1-53.7-18.4-83.2-46l22.2-37.8q28.9 24.5 76.2 42.9 47.9 17.1 103.2 17.1 78 0 112-25.7 34.6-25.7 34.6-67.6 0-30.8-18.4-47.6-17.1-18.4-46.7-27.6-29.2-9.6-64.7-15.3-35.3-6.3-71.4-13.3-34.6-8.6-64.8-22.9-28.6-14.2-46.7-39-17.4-25.4-17.4-67.3 0-38.1 20.3-68.9 21.9-30.8 63.8-48.5 41.9-19.1 104.4-19.1 47.3 0 93.7 13.3 47.9 13.1 77.4 35.3l-22.2 37.8q-31.4-23.2-70.5-33.1-38.7-11.4-78.7-11.4-72.7 0-106.9 26.7-33.4 26.6-33.4 66.3 0 32.1 17.2 50.8 18.4 18.1 47.6 28.6 29.5 9.5 64.7 16.2 35.6 5.4 70.5 13.3 35.2 7.6 63.8 21.9 30.2 13.3 47.6 38.1 18.1 23.8 18.1 64.7 0 40.7-22.9 71.5-22.2 30.7-66.6 48.5-42.9 16.2-107 16.2z"/></svg>
+<g font-family="DejaVu Sans,Arial,sans-serif">
+<text x="74" y="318" fill="#e6e6e6" font-size="29">A deliberate desktop. A complete system.</text>
+<text x="74" y="365" fill="#a0a0a0" font-size="18">STANDALONE ARCH LINUX · KEYBOARD FIRST · NATIVE BY DESIGN</text>
+<text x="74" y="478" fill="#a0a0a0" font-size="16" letter-spacing="2">DESIGNED &amp; DEVELOPED BY ABDULRAHMAN M. YAQYN</text>
+<text x="1260" y="251" text-anchor="middle" fill="#d00000" font-family="monospace" font-size="17">qvCORE</text>
+</g>
+</svg>
