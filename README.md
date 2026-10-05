@@ -10,6 +10,8 @@ workflow.
 
 ## <img src="docs/readme/icons/start.svg" width="24" height="24" alt=""> Get qvOS
 
+![Start section](docs/readme/sections/start.png)
+
 ```sh
 curl -fsSL qvos.yaqyn.dev | sh
 ```
@@ -23,12 +25,23 @@ the installation and lifecycle checks.
 
 ## <img src="docs/readme/icons/desktop.svg" width="24" height="24" alt=""> Desktop
 
+![Desktop section](docs/readme/sections/desktop.png)
+
 - **Hyprland** — Wayland window management and keyboard controls.
 - **Waybar** — workspaces and system status.
 - **Walker + Elephant** — application launching and search.
 - Native controls for monitors, audio, brightness, power, lock, and idle behavior.
 
+<p>
+  <img src="docs/readme/cards/hyprland.png" width="128" height="85" alt="Hyprland">
+  <img src="docs/readme/cards/waybar.png" width="128" height="85" alt="Waybar — panel illustration">
+  <img src="docs/readme/cards/walker.png" width="128" height="85" alt="Walker — launcher illustration">
+  <img src="docs/readme/cards/elephant.png" width="128" height="85" alt="Elephant — provider illustration">
+</p>
+
 ## <img src="docs/readme/icons/wallpaper.svg" width="24" height="24" alt=""> Wallpaper & appearance
+
+![Wallpaper section](docs/readme/sections/wallpaper.png)
 
 ![The bundled qvOS wallpaper: official white wordmark on solid charcoal](qvcore/theme/yaqyn/preview.png)
 
@@ -39,18 +52,41 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 ## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
 
+![Gaming section](docs/readme/sections/gaming.png)
+
 A gaming runtime is part of the base system. Choose the launchers you want:
 **Steam · Heroic · Lutris · Moonlight · RetroArch · Minecraft**.
 Native installation flows select graphics support for detected hardware where
 applicable.
 
+<p>
+  <img src="docs/readme/cards/steam.png" width="128" height="85" alt="Steam">
+  <img src="docs/readme/cards/heroic.png" width="128" height="85" alt="Heroic">
+  <img src="docs/readme/cards/lutris.png" width="128" height="85" alt="Lutris">
+  <img src="docs/readme/cards/moonlight.png" width="128" height="85" alt="Moonlight">
+  <img src="docs/readme/cards/retroarch.png" width="128" height="85" alt="Retroarch">
+  <img src="docs/readme/cards/minecraft.png" width="128" height="85" alt="Minecraft — voxel illustration">
+</p>
+
 ## <img src="docs/readme/icons/tools.svg" width="24" height="24" alt=""> Tools
+
+![Tools section](docs/readme/sections/tools.png)
 
 - Screenshots, screen recording, region OCR, and clipboard color picking.
 - Picture, video, and terminal-art conversion.
 - File and clipboard sharing with LocalSend; Thunar desktop actions.
 - Reminders, weather, and user-created Web Apps.
 - Optional browsers, editors, terminals, VPN tools, and a managed Windows VM.
+
+<p>
+  <img src="docs/readme/cards/capture.png" width="128" height="85" alt="Capture">
+  <img src="docs/readme/cards/media.png" width="128" height="85" alt="Media">
+  <img src="docs/readme/cards/localsend.png" width="128" height="85" alt="LocalSend">
+  <img src="docs/readme/cards/thunar.png" width="128" height="85" alt="Thunar — file-manager illustration">
+  <img src="docs/readme/cards/reminders.png" width="128" height="85" alt="Reminders and weather">
+  <img src="docs/readme/cards/webapps.png" width="128" height="85" alt="Web Apps">
+  <img src="docs/readme/cards/windows.png" width="128" height="85" alt="Windows VM — desktop illustration">
+</p>
 
 Explore the native commands on an installed system:
 
@@ -62,6 +98,8 @@ qv menu keybindings
 
 ## <img src="docs/readme/icons/recovery.svg" width="24" height="24" alt=""> System & recovery
 
+![Recovery section](docs/readme/sections/recovery.png)
+
 - **Encrypted Btrfs** installation and the signed standard Arch kernel.
 - **Snapper + Limine** snapshots and boot recovery.
 - qvOS source updates, signed package updates, and restart guidance.
@@ -69,21 +107,48 @@ qv menu keybindings
 - Battery charge protection and hibernation on supported hardware.
 - Optional FIDO2, fingerprint, DNS, and Cloudflare WARP setup.
 
+<p>
+  <img src="docs/readme/cards/arch.png" width="128" height="85" alt="Arch Linux">
+  <img src="docs/readme/cards/snapshots.png" width="128" height="85" alt="Snapshots and recovery">
+  <img src="docs/readme/cards/security.png" width="128" height="85" alt="Security">
+  <img src="docs/readme/cards/power.png" width="128" height="85" alt="Battery and power">
+</p>
+
 ## <img src="docs/readme/icons/extensions.svg" width="24" height="24" alt=""> Optional integrations
 
-**Services · Proton** — Pass, Drive, Mail Bridge, and VPN tools.
+![Extensions section](docs/readme/sections/extensions.png)
+
+**Services · [Proton](https://proton.me)** — Pass, Drive, Mail Bridge, and VPN tools.
+
+<p>
+  <img src="docs/readme/cards/pass.png" width="128" height="85" alt="Proton Pass">
+  <img src="docs/readme/cards/drive.png" width="128" height="85" alt="Proton Drive">
+  <img src="docs/readme/cards/mail.png" width="128" height="85" alt="Proton Mail Bridge">
+  <img src="docs/readme/cards/vpn.png" width="128" height="85" alt="Proton VPN">
+</p>
 
 **Development · Devel** — compilers, build tools, debuggers, profilers, and
 language tooling.
+
+<p>
+  <img src="docs/readme/cards/devel.png" width="128" height="85" alt="Devel — development illustration">
+</p>
 
 Both have independent installation and removal workflows. The base system
 remains complete without them.
 
 ## <img src="docs/readme/icons/build.svg" width="24" height="24" alt=""> Build & install
 
+![Build section](docs/readme/sections/build.png)
+
 Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
 **40 GiB free space**, and an Internet connection ready. Images are saved to
 **`~/qvISO`** by default; verified download caches are reused.
+
+<p>
+  <img src="docs/readme/cards/git.png" width="128" height="85" alt="Git">
+  <img src="docs/readme/cards/docker.png" width="128" height="85" alt="Docker">
+</p>
 
 Boot the image to enter **Region → Account → Drive**. Building an ISO and
 installing it are separate steps. T2 Macs are currently unsupported.
@@ -92,6 +157,8 @@ installing it are separate steps. T2 Macs are currently unsupported.
 
 ## <img src="docs/readme/icons/developer.svg" width="24" height="24" alt=""> Developer
 
+![Developer section](docs/readme/sections/developer.png)
+
 **Abdulrahman M. Yaqyn** works across Linux system development and interface
 design. qvOS brings that work together, from desktop presentation and terminal
 tools to installation, maintenance, and recovery.
@@ -99,6 +166,8 @@ tools to installation, maintenance, and recovery.
 Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.dev)**.
 
 ## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Project
+
+![Project section](docs/readme/sections/project.png)
 
 [qvCORE architecture](qvcore/README.md) · [Source](https://github.com/yaqyn/qvOS) · [MIT license](LICENSE)
 

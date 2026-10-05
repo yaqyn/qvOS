@@ -2,19 +2,32 @@
 
 - `cover.gif`: a 1280 × 448, 32-frame, 5.12-second looping system brand cover.
   The canonical white qvOS wordmark stays still above a pixel-lettered SYSTEM
-  label; a simple dark red-to-grayscale pixel gradient moves gently behind it.
-- `cover.svg`: the static rendition. The canonical wordmark source path and
-  SHA-256 are recorded inside the SVG.
-- `render-cover.py`: the singular cover generator. Run
-  `python docs/readme/render-cover.py` with `rsvg-convert` and FFmpeg installed.
-  It uses no downloaded fonts, random textures, or image-generation service.
-- `icons/*.svg`: ten sharp, local outline icons on a transparent background,
-  with a shared 24-unit canvas, 1.7-unit stroke, and `#d00000` accent.
-- Wallpaper: the README references `qvcore/theme/yaqyn/preview.png` directly.
-  This is the actual bundled wallpaper, not a generated desktop preview.
-- Gaming: reserved for user-supplied in-game pictures. No controller product
-  image, generated scene, or placeholder is published.
+  label while a dark red-to-grayscale pixel gradient moves gently behind it.
+- `cover.svg`: its static rendition, including the canonical source hash.
+- `sections/*.png`: ten 1280 × 128 section bars with a representative logo or
+  feature illustration and pixel lettering. All match the cover's gradient.
+- `cards/*.png`: compact software and feature pictures placed beneath mentions
+  in the README. Natural vendor colors are preserved against qvOS backgrounds.
+- `icons/*.svg`: the red section-heading icons and generic feature illustrations.
+- `logos/`: original vendor assets. Their retrieval URLs and SHA-256 hashes live
+  in [sources.json](logos/sources.json). Vendor marks retain their owners'
+  respective rights; they are not qvOS-authored logos.
+- Proton assets come from the [Proton media kit](https://proton.me/media/kit).
+  The README links to Proton as required by the kit's published usage guidance.
+- Waybar, Walker, Elephant, Thunar, Windows VM, and generic capabilities use
+  illustrative symbols rather than invented vendor logos. Minecraft's voxel
+  cube is an illustration, not an official logo or a gameplay screenshot.
+- Wallpaper references `qvcore/theme/yaqyn/preview.png` directly.
+- Actual in-game pictures remain user-supplied; no generated gameplay or
+  controller product photo is published.
 
-Documentation compositions do not replace Branding's vector masters or change
-the installed theme. Keep section imagery relevant to its subject and retain
-source provenance for subsequently supplied pictures.
+`pixel_art.py` owns shared gradient and typography. To reproduce the artwork:
+
+```sh
+python docs/readme/render-cover.py
+python docs/readme/render-sections.py
+```
+
+These commands use the Python standard library, rsvg-convert, and FFmpeg.
+They require no image-generation service or downloaded font. Vendor sources
+are already local; rendering does not fetch network assets.

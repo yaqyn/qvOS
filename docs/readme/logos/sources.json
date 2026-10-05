@@ -1,0 +1,92 @@
+[
+  {
+    "file": "steam.svg",
+    "source": "https://store.steampowered.com/public/shared/images/header/logo_steam.svg",
+    "sha256": "19d0f67899a61b13d43ad1c810ba2d8d619b48ec00caba3b888fe6a285ce6cde",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "hyprland.png",
+    "source": "https://raw.githubusercontent.com/hyprwm/hyprland-website/main/src/lib/images/logos/HyprlandLogo.png",
+    "sha256": "8c32c51963bb6d2c72b1d64303ffc6cff607b42e30d693263b41e87fa61b9721",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "heroic.svg",
+    "source": "https://raw.githubusercontent.com/Heroic-Games-Launcher/HeroicGamesLauncher/main/src/frontend/assets/heroic-icon.svg",
+    "sha256": "717865139e87a37bdbedf6afed1e6f7eba2eb93806c536f444afac0f24607ca5",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "lutris.png",
+    "source": "https://raw.githubusercontent.com/lutris/lutris/master/share/icons/hicolor/128x128/apps/net.lutris.Lutris.png",
+    "sha256": "dec417605b0f2137ad51745caf55a47c8342576b8bba5d87dd3fb563bb5e9fef",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "moonlight.svg",
+    "source": "https://raw.githubusercontent.com/moonlight-stream/moonlight-qt/master/app/res/moonlight.svg",
+    "sha256": "6fd0ee4fe5b4aad5abaa5d5c9acb9f7d1bda0abadfe9d1582115de9b4ba16aa2",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "retroarch.svg",
+    "source": "https://raw.githubusercontent.com/libretro/RetroArch/master/media/retroarch-vector_invader-only.svg",
+    "sha256": "f2a489c7c61833b1db1561c27ce4a2d4e8385db9b4f4b0d4d314b0771a79a634",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "localsend.png",
+    "source": "https://raw.githubusercontent.com/localsend/localsend/main/app/assets/img/logo-256.png",
+    "sha256": "d2e8192cdcb02d5615eed91ecc3e9fe9c4289a3d2a4d7adecb9037d8f015fe33",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "git.png",
+    "source": "https://git-scm.com/images/logos/downloads/Git-Icon-1788C.png",
+    "sha256": "3585b2ebe81259786804764bdf0777d34c1f40264f9826f8835ffd1063be4959",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "docker.svg",
+    "source": "https://www.docker.com/app/uploads/2023/08/logo-guide-logos-1.svg",
+    "sha256": "9321b58d571da4f84df986da4406a1e2a01617320b14b79dee63235c14591511",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "arch.svg",
+    "source": "https://raw.githubusercontent.com/hyprwm/hyprland-website/main/src/lib/images/logos/arch.svg",
+    "sha256": "91426dcfd8142fdb67e787680052b53a9d110842cc7ed642cbc163d33e336268",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "proton-proton.svg",
+    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/proton/proton-text-b2c-light.svg",
+    "sha256": "122d92ae7883c791981f67a7d6b551cdde7b98556b3de196420180ce6efdd0f3",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "proton-pass.svg",
+    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/pass/pass-badge.svg",
+    "sha256": "1882d9c1cf33c32caa4dc8c26b3c029398e843d9436d1acf7982bca0a5db9b8d",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "proton-drive.svg",
+    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/drive/drive-badge.svg",
+    "sha256": "c7ecfb6d0b25d92fcfb1ff92f3fc4b8dc2fff8b27329145f7d9df6e6abad7b8a",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "proton-mail.svg",
+    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/mail/mail-badge.svg",
+    "sha256": "a57cd810a02dc8902dce4e718f43b416ca676d736fbc4c46b889be2a420935c7",
+    "retrieved": "2026-10-05"
+  },
+  {
+    "file": "proton-vpn.svg",
+    "source": "https://pmecdn.protonweb.com/image-transformation/?s=c&image=image/upload/v1776940263/static/logos/vpn/vpn-badge.svg",
+    "sha256": "66b1db4df4e00707c7e87df9b56e1ffdf7b376fa1eafae1f3c238ebc31d00994",
+    "retrieved": "2026-10-05"
+  }
+]
