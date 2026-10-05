@@ -6,6 +6,9 @@ import sys
 import urllib.error
 import urllib.request
 
+opener = urllib.request.build_opener()
+opener.addheaders = [("User-Agent", "qvos-launcher-check/1.0")]
+urllib.request.install_opener(opener)
 base = sys.argv[1].rstrip("/")
 release = json.load(urllib.request.urlopen(base + "/health", timeout=30))
 response = urllib.request.urlopen(base + "/", timeout=30)
