@@ -129,6 +129,16 @@ grep -Fqx '"$QVOS_PATH/qvcore/boot/sync-theme" plymouth' \
   "$root/qvcore/boot/install-plymouth" || fail "fresh Plymouth owner"
 grep -Fq 'plymouth-set-default-theme qvos' \
   "$root/qvcore/boot/sync-theme" || fail "native Plymouth selector owner"
+[[ -f $root/qvcore/boot/logo.png && ! -L $root/qvcore/boot/logo.png ]] ||
+  fail "shared boot logo owner"
+for theme in plymouth sddm; do
+  [[ ! -e $root/qvcore/boot/$theme/logo.png &&
+    ! -L $root/qvcore/boot/$theme/logo.png ]] ||
+    fail "$theme duplicates the shared boot logo"
+done
+# shellcheck disable=SC2016
+grep -Fq '"$logo_source" "$staging/logo.png"' \
+  "$root/qvcore/boot/sync-theme" || fail "shared boot logo publication"
 if rg -q 'mkinitcpio' "$root/qvcore/boot/install-plymouth"; then
   fail "fresh Plymouth stage performs a redundant image rebuild"
 fi

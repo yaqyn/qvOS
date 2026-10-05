@@ -1,4 +1,5 @@
 # qvOS capabilities that never exposed an inherited Omarchy binary ABI.
+capture-color
 hw-apple-spi-keyboard
 hw-intel-wifi7-eht
 hw-lenovo-yoga-pro7

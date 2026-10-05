@@ -213,6 +213,7 @@ if rg -n 'omarchy-restart-' \
   --glob '!**/AGENTS.md' \
   --glob '!**/README.md' \
   --glob '!**/native-paths' \
+  --glob '!**/retired-paths' \
   --glob '!**/owner-contracts.psv' \
   --glob '!**/desktop/check' \
   --glob '!**/menu/check' \
@@ -265,8 +266,8 @@ fi
   ! -L $root/qvcore/desktop/webapp/migrate ]] ||
   fail "pre-release Web App migration owner remains"
 [[ $(sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "$retired_manifest") == \
-  $'applications/\nbin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
-  fail "retired Web App handler inventory is incomplete"
+  $'applications/\nbin/omarchy-restart-opencode\nbin/omarchy-webapp-handler-hey\nbin/omarchy-webapp-handler-zoom' ]] ||
+  fail "retired desktop inventory is incomplete"
 [[ ! -e $root/applications && ! -L $root/applications ]] ||
   fail "retired inherited application payload remains"
 [[ -x $root/qvcore/desktop/applications/install ]] ||

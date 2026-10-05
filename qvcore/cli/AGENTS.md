@@ -41,6 +41,8 @@ guarded qvOS update owner. Never expose the inherited raw updater or its
 implementation subcommands as native `qv update` routes. Do not run an update
 or package upgrade while testing CLI dispatch; use help, metadata checks, and
 the update owner's `--check` mode only when the live checkout is in scope.
+Read-only dispatch tests must provide private feature fixtures for required
+configuration instead of depending on an installed developer desktop.
 
 List every CLI-domain compatibility path in `native-paths`, sorted and unique.
 Keep every inherited `qv-*` and `omarchy-*` adapter paired with identical

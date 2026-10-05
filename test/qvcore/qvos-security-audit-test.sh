@@ -558,7 +558,7 @@ install -m 0644 /dev/stdin \
 # deny = 3
 # unlock_time = 600
 FAILLOCK
-cp "$root/qvcore/packages/provider/omarchy/pacman-rc.conf" \
+cp "$root/qvcore/packages/provider/omarchy/pacman-edge.conf" \
   "$offline_system_root/etc/pacman.conf"
 QVOS_CHROOT_INSTALL=1 \
   QVOS_SECURITY_TESTING=1 \

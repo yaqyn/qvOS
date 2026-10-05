@@ -182,7 +182,8 @@ a thin adapter to this owner.
   with neutral grayscale; only the installer TUI uses sparse qvOS red accents.
   Plymouth uses the canonical promoted live theme from
   `qvcore/boot/plymouth` with its graphite `#090909` graphical background and
-  exact promoted assets under the native `qvos` theme identity; never stage the
+  the singular `qvcore/boot/logo.png` raster master under the native `qvos`
+  theme identity; never stage the
   inherited Plymouth payload or select its retired theme name.
   Replace the inherited Arch Syslinux splash from
   `release/iso/syslinux-splash.png`, and verify every rendered boot/install pixel.

@@ -835,6 +835,9 @@ fi
 grep -Fq 'root/qvos/qvcore/boot/plymouth/' \
   "$iso_builder" ||
   fail "qvOS ISO live Plymouth owner"
+grep -Fq 'root/qvos/qvcore/boot/logo.png' \
+  "$iso_builder" ||
+  fail "qvOS ISO shared boot logo owner"
 grep -Fq 'root/qvos/release/iso/syslinux-splash.png' \
   "$iso_builder" ||
   fail "qvOS ISO Syslinux splash owner"
@@ -1464,6 +1467,10 @@ grep -Fq 'https://github.com/yaqyn/qvOS/issues' \
 [[ ! -e $root/qvcore/install/helpers/error-title ]] ||
   fail "duplicate installer error title"
 grep -qx 'Name=Yaqyn' "$root/qvcore/boot/plymouth/qvos.plymouth" || fail "Plymouth theme identity"
+[[ -f $root/qvcore/boot/logo.png &&
+  ! -e $root/qvcore/boot/plymouth/logo.png &&
+  ! -e $root/qvcore/boot/sddm/logo.png ]] ||
+  fail "singular shared boot logo source"
 grep -qx 'ConsoleLogBackgroundColor=0x1a1b26' \
   "$root/qvcore/boot/plymouth/qvos.plymouth" ||
   fail "Plymouth promoted live console background"

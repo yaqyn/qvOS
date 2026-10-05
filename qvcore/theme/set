@@ -143,7 +143,6 @@ if [[ $skip_session == "0" ]]; then
   run_integration "terminals" qv-restart-terminal
   run_integration "Hyprland" qv-restart-hyprctl
   run_integration "btop" qv-restart-btop
-  run_integration "OpenCode" qv-restart-opencode
   run_integration "Mako" qv-restart-mako
   run_integration "Helix" qv-restart-helix
 fi

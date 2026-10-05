@@ -7,6 +7,7 @@ if (($# != 1)); then
 fi
 
 channel=$1
+config_channel=$channel
 # These are literal Pacman template variables, expanded by Pacman after install.
 # shellcheck disable=SC2016
 case $channel in
@@ -23,6 +24,8 @@ edge | rc)
     expected_mirror='https://mirror.omarchy.org/$repo/os/$arch'
   else
     expected_mirror='https://rc-mirror.omarchy.org/$repo/os/$arch'
+    # RC changes the Arch mirror only; its package repository is Edge.
+    config_channel=edge
   fi
   expected_repository='https://pkgs.omarchy.org/edge/$arch'
   ;;
@@ -33,7 +36,7 @@ edge | rc)
 esac
 
 source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/provider/omarchy"
-pacman_config="$source_dir/pacman-$channel.conf"
+pacman_config="$source_dir/pacman-$config_channel.conf"
 mirrorlist="$source_dir/mirrorlist-$channel"
 
 for source_file in "$pacman_config" "$mirrorlist"; do

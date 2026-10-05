@@ -1,4 +1,5 @@
-# Inherited service-specific Web App handlers retired by qvOS.
+# Inherited desktop capabilities retired by qvOS.
 applications/
+bin/omarchy-restart-opencode
 bin/omarchy-webapp-handler-hey
 bin/omarchy-webapp-handler-zoom

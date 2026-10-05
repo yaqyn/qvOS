@@ -32,7 +32,6 @@ imv/config
 kitty/kitty.conf
 nvim/init.lua
 obsidian/user-flags.conf
-opencode/opencode.json
 qvos/themed/alacritty.toml.tpl.sample
 starship.toml
 swayosd/config.toml
@@ -45,4 +44,3 @@ waybar/style.css
 wiremix/wiremix.toml
 xdg-terminals.list
 xfce4/xfconf/xfce-perchannel-xml/thunar.xml
-xournalpp/settings.xml

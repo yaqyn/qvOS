@@ -184,6 +184,10 @@ for source_file in "$root/qvcore/boot/plymouth/"*; do
     "$system_root/usr/share/plymouth/themes/qvos/${source_file##*/}" ||
     fail "Plymouth payload sync: ${source_file##*/}"
 done
+cmp -s \
+  "$root/qvcore/boot/logo.png" \
+  "$system_root/usr/share/plymouth/themes/qvos/logo.png" ||
+  fail "Plymouth shared logo sync"
 if grep -Eq '^(limine-mkinitcpio|mkinitcpio)' "$action_log"; then
   fail "fresh Plymouth install rebuilt boot images early"
 fi
@@ -263,6 +267,10 @@ grep -Fqx 'Session=qvos' \
   fail "SDDM native session"
 grep -Fqx 'Current=qvos' "$system_root/etc/sddm.conf.d/qvos.conf" ||
   fail "SDDM native theme selection"
+cmp -s \
+  "$root/qvcore/boot/logo.png" \
+  "$system_root/usr/share/sddm/themes/qvos/logo.png" ||
+  fail "SDDM shared logo sync"
 [[ $(<"$system_root/etc/pam.d/sddm") == 'auth optional pam_unix.so' ]] ||
   fail "SDDM keyring PAM cleanup"
 grep -Fqx $'systemctl\tenable\tsddm.service' "$action_log" ||

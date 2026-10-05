@@ -123,9 +123,9 @@ grep -Fq 'Expected upstream push URL: DISABLED' <<<"$output" ||
 [[ ! -e $repo/.git/qvsync.lock ]] || fail "recovered qvsync lock cleanup"
 pass "stale lock recovery retains the upstream write guard"
 
-git init --bare -q "$origin_bare"
-git init --bare -q "$upstream_bare"
-git init --bare -q "$iso_upstream_bare"
+git init --bare -q --initial-branch=OS "$origin_bare"
+git init --bare -q --initial-branch=master "$upstream_bare"
+git init --bare -q --initial-branch=quattro "$iso_upstream_bare"
 git -C "$repo" remote add origin "$origin_bare"
 git -C "$repo" remote set-url upstream "$upstream_bare"
 git -C "$repo" remote set-url --push upstream DISABLED

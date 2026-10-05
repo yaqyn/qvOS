@@ -51,12 +51,12 @@ validate_manifest() {
 }
 
 load_tool() {
-	local wanted=$1
-	local extra
+  local wanted=$1
+  local extra
 
-	while IFS=$'\t' read -r \
-		tool_id \
-		_ \
+  while IFS=$'\t' read -r \
+    tool_id \
+    _ \
     tool_label \
     tool_method \
     tool_commands \

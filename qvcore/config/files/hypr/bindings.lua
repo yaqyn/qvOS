@@ -280,7 +280,7 @@ qv.bind({ keys = [[switch:off:Lid Switch]], dispatcher = [[exec]], argument = [[
 -- Capture and conversion.
 qv.bind({ keys = [[PRINT]], description = [[Screenshot]], dispatcher = [[exec]], argument = [[qv-capture-screenshot]] })
 qv.bind({ keys = [[ALT + PRINT]], description = [[Screenrecording]], dispatcher = [[exec]], argument = [[qv-menu screenrecord]] })
-qv.bind({ keys = [[SUPER + PRINT]], description = [[Color picker]], dispatcher = [[exec]], argument = [[pkill hyprpicker || hyprpicker -a]] })
+qv.bind({ keys = [[SUPER + PRINT]], description = [[Color picker]], dispatcher = [[exec]], argument = [[qv-capture-color]] })
 qv.bind({ keys = [[SUPER + CTRL + PRINT]], description = [[Extract text (OCR) from screenshot]], dispatcher = [[exec]], argument = [[qv-capture-text-extraction]] })
 qv.bind({ keys = [[SUPER + CTRL + PERIOD]], description = [[Transcode]], dispatcher = [[exec]], argument = [[qv-transcode]] })
 

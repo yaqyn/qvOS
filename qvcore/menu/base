@@ -50,38 +50,6 @@ open_in_editor() {
   qv-launch-editor "$1"
 }
 
-install() {
-  # shellcheck disable=SC2016
-  present_terminal \
-    bash -c 'printf "Installing %s...\n" "$1"; qv-pkg-add "$2"' \
-    qvos-menu "$1" "$2"
-}
-
-install_and_launch() {
-  # shellcheck disable=SC2016
-  present_terminal \
-    bash -c 'printf "Installing %s...\n" "$1"; qv-pkg-add "$2" && setsid gtk-launch "$3"' \
-    qvos-menu "$1" "$2" "$3"
-}
-
-install_terminal() {
-  present_terminal qv-install-terminal "$1"
-}
-
-aur_install() {
-  # shellcheck disable=SC2016
-  present_terminal \
-    bash -c 'printf "Installing %s from AUR...\n" "$1"; qv-pkg-aur-add "$2"' \
-    qvos-menu "$1" "$2"
-}
-
-aur_install_and_launch() {
-  # shellcheck disable=SC2016
-  present_terminal \
-    bash -c 'printf "Installing %s from AUR...\n" "$1"; qv-pkg-aur-add "$2" && setsid gtk-launch "$3"' \
-    qvos-menu "$1" "$2" "$3"
-}
-
 show_learn_menu() {
   case $(menu "Learn" "  Keybindings\n  qvOS Source\n  Hyprland\n󰣇  Arch\n  Neovim\n󱆃  Bash") in
   *Keybindings*) qv-menu-keybindings ;;
@@ -134,7 +102,7 @@ show_capture_menu() {
   *Screenshot*) qv-capture-screenshot ;;
   *Screenrecord*) show_screenrecord_menu ;;
   *Text*) qv-capture-text-extraction ;;
-  *Color*) pkill hyprpicker || hyprpicker -a ;;
+  *Color*) qv-capture-color ;;
   *) back_to show_trigger_menu ;;
   esac
 }

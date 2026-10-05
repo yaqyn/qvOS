@@ -28,7 +28,6 @@ bin/omarchy-restart-hyprctl
 bin/omarchy-restart-hypridle
 bin/omarchy-restart-hyprsunset
 bin/omarchy-restart-mako
-bin/omarchy-restart-opencode
 bin/omarchy-restart-pipewire
 bin/omarchy-restart-swayosd
 bin/omarchy-restart-terminal

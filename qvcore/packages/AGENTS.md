@@ -31,7 +31,9 @@ of carrying a permanent removal path.
 - Credited provider files live under `qvcore/packages/provider/omarchy/` and
   require signed packages at source. `qvcore/packages/provider-files` is the
   only channel resolver; it accepts Edge or RC only in the reviewed ISO chroot
-  and never interpolates unchecked environment input into a source path.
+  and never interpolates unchecked environment input into a source path. RC
+  uses its own Arch mirror with the shared Edge package-repository config;
+  keep one config until the provider publishes different repository policy.
 - `qvcore/install/packaging/` owns the singular qvOS package manifests and
   resolver. Package presence never implies qvOS, Service, or Development
   ownership. Keep provider-branded applications out of both manifests and

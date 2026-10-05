@@ -192,6 +192,19 @@ printf '%q ' "$@" >>"$MOCK_LOG/pkill"
 printf '\n' >>"$MOCK_LOG/pkill"
 exit 1
 SCRIPT
+cat >"$test_bin/systemctl" <<'SCRIPT'
+#!/bin/bash
+printf '%q ' "$@" >>"$MOCK_LOG/systemctl"
+printf '\n' >>"$MOCK_LOG/systemctl"
+if [[ $* == "--user is-active --quiet qvos-color-picker.service" ]]; then
+  [[ ${MOCK_COLOR_ACTIVE:-0} == "1" ]]
+fi
+SCRIPT
+cat >"$test_bin/systemd-run" <<'SCRIPT'
+#!/bin/bash
+printf '%q ' "$@" >>"$MOCK_LOG/systemd-run"
+printf '\n' >>"$MOCK_LOG/systemd-run"
+SCRIPT
 cat >"$test_bin/mpv" <<'SCRIPT'
 #!/bin/bash
 printf '%q\n' "$*" >>"$MOCK_LOG/mpv"
@@ -199,10 +212,21 @@ SCRIPT
 chmod 0755 "$test_bin"/*
 
 screenshot="$root/qvcore/capture/screenshot"
+color="$root/qvcore/capture/color"
 ocr="$root/qvcore/capture/ocr"
 screenrecord="$root/qvcore/capture/screenrecord"
 indicator="$root/qvcore/capture/status"
 state="$XDG_RUNTIME_DIR/qvos-capture/screenrecord.state"
+
+MOCK_COLOR_ACTIVE=1 "$color"
+grep -Fq -- '--user stop qvos-color-picker.service' "$test_log/systemctl" ||
+  fail "active Color Picker stop"
+MOCK_COLOR_ACTIVE=0 "$color"
+grep -Fq -- '--unit=qvos-color-picker.service' "$test_log/systemd-run" ||
+  fail "named Color Picker launch"
+grep -Fq -- 'hyprpicker -a' "$test_log/systemd-run" ||
+  fail "Color Picker arguments"
+pass "Color Picker toggles only its exact transient user service"
 
 output=$($screenshot fullscreen save)
 saved=${output#Saved screenshot: }

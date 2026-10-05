@@ -5,10 +5,10 @@ selection behavior, capture output, recording state, or the Waybar recording
 indicator.
 
 `qvcore/capture/` is the only Capture implementation owner. Public commands
-are `qv-capture-screenshot`, `qv-capture-screenrecording`, and
-`qv-capture-text-extraction`; matching compatibility names are metadata-free
-compatibility adapters only. Hyprland, menus, Elephant, and Waybar use native
-qv routes.
+are `qv-capture-screenshot`, `qv-capture-screenrecording`,
+`qv-capture-text-extraction`, and the qvOS-only `qv-capture-color`; matching
+inherited compatibility names are metadata-free adapters only. Hyprland,
+menus, Elephant, and Waybar use native qv routes.
 
 - Keep picker and recording state private under
   `${XDG_RUNTIME_DIR}/qvos-capture`. Serialize picker and recorder actions,
@@ -16,6 +16,9 @@ qv routes.
   process-start token recorded by qvOS. Never use broad `pkill` or shared
   `/tmp` state. Treat a process disappearing during `/proc` inspection as a
   normal no-match and suppress only that race's procfs diagnostic.
+- Color Picker uses the exact transient `qvos-color-picker.service`; a second
+  invocation stops that unit and never searches for or signals foreign picker
+  processes. Keep its three desktop callers as routes to this one owner.
 - Freeze the screen until a selection has been captured, return cancellation
   as 130, support negative monitor coordinates and transformed outputs, and
   use the focused monitor for fullscreen capture. Refuse a powered-off focused

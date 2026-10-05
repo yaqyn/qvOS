@@ -151,7 +151,6 @@ for command in \
   qv-restart-helix \
   qv-restart-hyprctl \
   qv-restart-mako \
-  qv-restart-opencode \
   qv-restart-swayosd \
   qv-restart-terminal \
   qv-restart-waybar \
@@ -159,7 +158,6 @@ for command in \
   omarchy-restart-helix \
   omarchy-restart-hyprctl \
   omarchy-restart-mako \
-  omarchy-restart-opencode \
   omarchy-restart-swayosd \
   omarchy-restart-terminal \
   omarchy-restart-waybar; do

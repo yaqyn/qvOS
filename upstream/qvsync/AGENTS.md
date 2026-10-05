@@ -50,6 +50,8 @@ replace its judgment.
 
 ## Verification And Publication
 
+- Git test fixtures declare each remote's initial branch explicitly; never
+  inherit the developer's `init.defaultBranch` setting.
 - Pushes fail closed through normal Git transport. Never mutate a GitHub ref
   through the API as a push fallback: it can bypass remote policy such as
   GH007. Diagnose the rejection, then use only the authorized unpublished

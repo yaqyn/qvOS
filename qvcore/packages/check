@@ -54,7 +54,7 @@ for owner in update-aur update-available update-keyring remove-orphans update-sy
 done
 [[ -x $root/qvcore/packages/provider-files ]] ||
   fail "native package-provider resolver mode"
-expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-rc.conf\npacman-stable.conf\nsigning-key.gpg'
+expected_provider_files=$'mirrorlist-edge\nmirrorlist-rc\nmirrorlist-stable\npacman-edge.conf\npacman-stable.conf\nsigning-key.gpg'
 actual_provider_files=$(
   find "$provider_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort
 )
@@ -207,7 +207,9 @@ declare -A expected_repositories=(
   [stable]="https://pkgs.omarchy.org/stable/\$arch"
 )
 for channel in edge rc stable; do
-  config="$provider_dir/pacman-$channel.conf"
+  config_channel=$channel
+  [[ $channel != "rc" ]] || config_channel=edge
+  config="$provider_dir/pacman-$config_channel.conf"
   mirror="$provider_dir/mirrorlist-$channel"
   [[ $(grep -Fxc '[omarchy]' "$config") == 1 ]] ||
     fail "expected one credited Omarchy repository: $channel"
@@ -249,8 +251,10 @@ for channel in edge rc; do
     QVOS_CHROOT_INSTALL=1 \
       "$root/qvcore/packages/provider-files" "$channel"
   )
+  config_channel=$channel
+  [[ $channel != "rc" ]] || config_channel=edge
   [[ ${iso_files[*]} == \
-    "$provider_dir/pacman-$channel.conf $provider_dir/mirrorlist-$channel" ]] ||
+    "$provider_dir/pacman-$config_channel.conf $provider_dir/mirrorlist-$channel" ]] ||
     fail "ISO provider resolution: $channel"
 done
 if rg -n '^\[qvos\]$|pkgs\.qvos|mirror\.qvos' \

@@ -125,7 +125,6 @@ printf 'ok - application restart is bounded and argument-safe\n'
 : >"$log"
 run_owner btop
 run_owner helix
-run_owner opencode
 run_owner mako
 run_owner hyprctl
 grep -Fqx 'makoctl|reload' "$log" || fail "Mako reload"

@@ -127,10 +127,6 @@ show_settings_area_menu() {
   back_to show_settings_menu
 }
 
-show_settings_software_menu() {
-  show_software_menu
-}
-
 show_software_menu() {
   local group=${1:-}
   local view="software"

@@ -38,6 +38,29 @@ done
 for owner in lib status; do
   [[ -x $root/qvcore/capture/$owner ]] || fail "Capture owner mode: $owner"
 done
+color_owner="$root/qvcore/capture/color"
+color_adapter="$root/bin/qv-capture-color"
+[[ -x $color_owner && -x $color_adapter ]] ||
+  fail "native Color Picker owner or adapter mode"
+(( $(wc -l <"$color_adapter") <= 12 )) ||
+  fail "native Color Picker adapter contains implementation"
+grep -Fq '# qv:summary=' "$color_adapter" ||
+  fail "native Color Picker metadata"
+# shellcheck disable=SC2016
+grep -Fqx 'exec "$QVOS_PATH/qvcore/capture/color" "$@"' "$color_adapter" ||
+  fail "native Color Picker adapter owner"
+grep -Fq 'unit=qvos-color-picker.service' "$color_owner" ||
+  fail "exact Color Picker process owner"
+for consumer in \
+  "$root/qvcore/menu/base" \
+  "$root/qvcore/config/files/hypr/bindings.lua" \
+  "$root/qvcore/menu/elephant/qvos_menu.lua"; do
+  grep -Fq 'qv-capture-color' "$consumer" ||
+    fail "native Color Picker consumer: ${consumer#"$root/"}"
+  if rg -n 'pkill[[:space:]].*hyprpicker|hyprpicker[[:space:]]+-a' "$consumer"; then
+    fail "Color Picker consumer duplicates process ownership"
+  fi
+done
 
 if rg -n 'omarchy-capture-(screenrecording|screenshot|text-extraction)' \
   "$root/qvcore/menu/base" \
@@ -92,7 +115,8 @@ for frontend in qv omarchy; do
   for route in \
     'capture screenshot|qv-capture-screenshot' \
     'capture screenrecording|qv-capture-screenrecording' \
-    'capture ocr|qv-capture-text-extraction'; do
+    'capture ocr|qv-capture-text-extraction' \
+    'capture color|qv-capture-color'; do
     name=${route%%|*}
     binary=${route#*|}
     "$root/bin/$frontend" commands --json | jq -e \

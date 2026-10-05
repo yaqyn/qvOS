@@ -1,9 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-# qvos:contract=qvcore/desktop/restart/process-lib
-restart_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=qvcore/desktop/restart/process-lib
-source "$restart_root/process-lib"
-
-qvos_process_signal_exact opencode USR2

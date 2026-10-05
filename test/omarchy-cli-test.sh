@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 CLI="$ROOT/bin/omarchy"
-TMPDIR=""
+TMPDIR=$(mktemp -d)
 
 export PATH="$ROOT/bin:$PATH"
 
@@ -191,7 +191,10 @@ pass "safe dispatch works for theme current"
 "$CLI" font list >/dev/null
 pass "safe dispatch works for font list"
 
-"$CLI" font current >/dev/null
+install -d "$TMPDIR/font-config/waybar"
+install -m 0644 "$ROOT/qvcore/config/files/waybar/style.css" \
+  "$TMPDIR/font-config/waybar/style.css"
+QVOS_FONT_CONFIG_ROOT="$TMPDIR/font-config" "$CLI" font current >/dev/null
 pass "safe dispatch works for font current"
 
 for binary in \
@@ -226,7 +229,6 @@ while IFS= read -r binary_path; do
 done < <(find "$ROOT/bin" -maxdepth 1 -type f -executable -name 'omarchy-*' | sort)
 pass "every command has one slim metadata owner"
 
-TMPDIR=$(mktemp -d)
 ln -s "$CLI" "$TMPDIR/omarchy"
 
 {

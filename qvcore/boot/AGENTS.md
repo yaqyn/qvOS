@@ -8,9 +8,14 @@ generated qvOS, kernel, snapshot, and EFI entries remain owned by
 `limine-entry-tool` and `limine-snapper-sync`; never rewrite or duplicate them
 to obtain a custom menu layout.
 
-`qvcore/boot/plymouth/` is the single installed-system and ISO Plymouth source.
+`qvcore/boot/plymouth/` owns the installed-system and ISO Plymouth payload,
+while `qvcore/boot/logo.png` is the single raster logo master shared with SDDM.
+The atomic theme owner publishes that master as `logo.png` in both installed
+themes; never restore per-theme source copies.
+Declare the shared logo as an explicit TUI owner-contract dependency in
+`sync-theme` so refresh provenance includes the dynamically selected payload.
 Keep the promoted live theme's graphite `#090909` graphical background and
-exact promoted assets together. The installer TUI remains an independent
+exact assets together. The installer TUI remains an independent
 exact-black renderer and must clear Plymouth before painting its first frame.
 The installed graphical kernel command line must explicitly initialize
 `console=tty0`; a Limine-started UKI can otherwise reach early Plymouth with

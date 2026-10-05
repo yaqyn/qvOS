@@ -265,6 +265,8 @@ mkdir -p \
 # Copy the native qvOS Plymouth theme to the ISO.
 mkdir -p "$build_cache_dir/airootfs/usr/share/plymouth/themes/qvos"
 cp -r "$build_cache_dir/airootfs/root/qvos/qvcore/boot/plymouth/"* "$build_cache_dir/airootfs/usr/share/plymouth/themes/qvos/"
+cp "$build_cache_dir/airootfs/root/qvos/qvcore/boot/logo.png" \
+  "$build_cache_dir/airootfs/usr/share/plymouth/themes/qvos/logo.png"
 
 # Replace inherited Arch artwork with the qvOS grayscale BIOS boot splash.
 cp "$build_cache_dir/airootfs/root/qvos/release/iso/syslinux-splash.png" \

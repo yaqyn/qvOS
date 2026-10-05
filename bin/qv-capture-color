@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# qv:summary=Pick a color and copy it to the clipboard
+# qv:group=capture
+# qv:name=color
+# qv:examples=qv capture color
+
+QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
+exec "$QVOS_PATH/qvcore/capture/color" "$@"

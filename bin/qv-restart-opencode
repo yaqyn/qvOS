@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# qv:summary=Reload running OpenCode configuration
-
-QVOS_PATH=${QVOS_PATH:-$HOME/.local/share/qvos}
-exec "$QVOS_PATH/qvcore/desktop/restart/opencode" "$@"

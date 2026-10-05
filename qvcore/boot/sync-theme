@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+# qvos:contract=qvcore/boot/logo.png
+
 QVOS_PATH=${QVOS_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 # shellcheck source=qvcore/boot/install-lib disable=SC1091
 source "$QVOS_PATH/qvcore/boot/install-lib"
@@ -64,6 +66,12 @@ sddm)
 *) usage ;;
 esac
 
+logo_source="$QVOS_PATH/qvcore/boot/logo.png"
+[[ -f $logo_source && ! -L $logo_source ]] || {
+  echo "qvOS boot logo source is unavailable: $logo_source" >&2
+  exit 1
+}
+
 [[ -d $source_dir && ! -L $source_dir ]] || {
   echo "qvOS boot theme source is unavailable: $source_dir" >&2
   exit 1
@@ -72,6 +80,10 @@ if [[ -n $(find "$source_dir" -mindepth 1 -maxdepth 1 ! -type f -print -quit) ]]
   echo "qvOS boot theme contains an unsupported entry" >&2
   exit 1
 fi
+[[ ! -e $source_dir/logo.png && ! -L $source_dir/logo.png ]] || {
+  echo "qvOS boot theme duplicates the shared logo: $source_dir/logo.png" >&2
+  exit 1
+}
 
 mapfile -d '' -t payloads < <(
   find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print0 | sort -z
@@ -92,6 +104,8 @@ staging=$(sudo mktemp -d "$parent/.qvos-$1.XXXXXX")
 for source_file in "${payloads[@]}"; do
   sudo install -m 0644 -- "$source_file" "$staging/${source_file##*/}"
 done
+# Both themes need the logo at runtime, but the repository keeps one master.
+sudo install -m 0644 -- "$logo_source" "$staging/logo.png"
 sudo chmod 0755 "$staging"
 
 if qvos_boot_root_exists "$target"; then

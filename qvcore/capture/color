@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+unit=qvos-color-picker.service
+
+if (($# != 0)); then
+  echo "Usage: qv capture color" >&2
+  exit 2
+fi
+for command in hyprpicker systemctl systemd-run; do
+  qv-cmd-missing "$command" || continue
+  echo "Color Picker requires $command." >&2
+  exit 1
+done
+
+# A fixed user unit makes a second invocation cancel only qvOS's picker.
+if systemctl --user is-active --quiet "$unit"; then
+  systemctl --user stop "$unit"
+else
+  systemd-run --user --quiet --collect \
+    --unit="$unit" \
+    --service-type=exec \
+    --description="qvOS Color Picker" \
+    -- hyprpicker -a
+fi
