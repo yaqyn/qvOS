@@ -45,7 +45,7 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 ## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
 
-![Gaming section](docs/readme/sections/gaming.png)
+![Gaming section](docs/readme/sections/gaming-symbol.png)
 
 ![Gaming artwork supplied for qvOS, showing a red-lit industrial game scene](docs/readme/gaming-scene.png)
 

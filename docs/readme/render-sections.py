@@ -14,7 +14,7 @@ SECTIONS = [
   ('start', 'GET QVOS', 'icons/start.svg'),
   ('desktop', 'DESKTOP', 'logos/hyprland.png'),
   ('wallpaper', 'WALLPAPER & APPEARANCE', 'icons/wallpaper.svg'),
-  ('gaming', 'GAMING', 'logos/steam.svg'),
+  ('gaming-symbol', 'GAMING', 'logos/steam.svg'),
   ('tools', 'TOOLS', 'icons/tools.svg'),
   ('recovery', 'SYSTEM & RECOVERY', 'icons/recovery.svg'),
   ('extensions', 'OPTIONAL INTEGRATIONS', 'logos/proton-proton.svg'),
