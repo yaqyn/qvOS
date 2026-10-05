@@ -8,7 +8,8 @@
   feature illustration and pixel lettering. All match the cover's gradient.
 - `cards/*.png`: compact software and feature pictures placed beneath mentions
   in the README. Natural vendor colors are preserved against qvOS backgrounds.
-- `icons/*.svg`: the red section-heading icons and generic feature illustrations.
+- `icons/*.svg`: source illustrations used inside section bars and feature cards;
+  section headings themselves use plain text.
 - `logos/`: original vendor assets. Their retrieval URLs and SHA-256 hashes live
   in [sources.json](logos/sources.json). Vendor marks retain their owners'
   respective rights; they are not qvOS-authored logos.

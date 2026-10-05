@@ -8,7 +8,7 @@ Developed by [Abdulrahman M. Yaqyn](https://yaqyn.dev), qvOS combines a
 keyboard-first desktop with its own installer, command system, and recovery
 workflow.
 
-## <img src="docs/readme/icons/start.svg" width="24" height="24" alt=""> Get qvOS
+## Get qvOS
 
 ![Start section](docs/readme/sections/start.png)
 
@@ -23,7 +23,7 @@ create an ISO, or explore **About → Developer / Project**. Requires `curl`,
 **ISO Download is not available yet.** It will be enabled when a release passes
 the installation and lifecycle checks.
 
-## <img src="docs/readme/icons/desktop.svg" width="24" height="24" alt=""> Desktop
+## Desktop
 
 ![Desktop section](docs/readme/sections/desktop.png)
 
@@ -39,7 +39,7 @@ the installation and lifecycle checks.
   <img src="docs/readme/cards/elephant.png" width="128" height="85" alt="Elephant — provider illustration">
 </p>
 
-## <img src="docs/readme/icons/wallpaper.svg" width="24" height="24" alt=""> Wallpaper & appearance
+## Wallpaper & appearance
 
 ![Wallpaper section](docs/readme/sections/wallpaper.png)
 
@@ -50,7 +50,7 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 [Explore the bundled Yaqyn theme](qvcore/theme/yaqyn/).
 
-## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
+## Gaming
 
 ![Gaming section](docs/readme/sections/gaming.png)
 
@@ -68,7 +68,7 @@ applicable.
   <img src="docs/readme/cards/minecraft.png" width="128" height="85" alt="Minecraft — voxel illustration">
 </p>
 
-## <img src="docs/readme/icons/tools.svg" width="24" height="24" alt=""> Tools
+## Tools
 
 ![Tools section](docs/readme/sections/tools.png)
 
@@ -96,7 +96,7 @@ qv menu
 qv menu keybindings
 ```
 
-## <img src="docs/readme/icons/recovery.svg" width="24" height="24" alt=""> System & recovery
+## System & recovery
 
 ![Recovery section](docs/readme/sections/recovery.png)
 
@@ -114,7 +114,7 @@ qv menu keybindings
   <img src="docs/readme/cards/power.png" width="128" height="85" alt="Battery and power">
 </p>
 
-## <img src="docs/readme/icons/extensions.svg" width="24" height="24" alt=""> Optional integrations
+## Optional integrations
 
 ![Extensions section](docs/readme/sections/extensions.png)
 
@@ -137,7 +137,7 @@ language tooling.
 Both have independent installation and removal workflows. The base system
 remains complete without them.
 
-## <img src="docs/readme/icons/build.svg" width="24" height="24" alt=""> Build & install
+## Build & install
 
 ![Build section](docs/readme/sections/build.png)
 
@@ -155,7 +155,7 @@ installing it are separate steps. T2 Macs are currently unsupported.
 
 [Build and release requirements](release/iso/README.md) · [Launcher documentation](release/launcher/README.md)
 
-## <img src="docs/readme/icons/developer.svg" width="24" height="24" alt=""> Developer
+## Developer
 
 ![Developer section](docs/readme/sections/developer.png)
 
@@ -165,7 +165,7 @@ tools to installation, maintenance, and recovery.
 
 Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.dev)**.
 
-## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Project
+## Project
 
 ![Project section](docs/readme/sections/project.png)
 

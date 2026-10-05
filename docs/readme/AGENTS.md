@@ -6,7 +6,7 @@ that do not support an actual comparison. Link detailed lifecycle requirements
 to their native owners. Distinguish base capabilities, optional integrations,
 and confirmed release availability.
 
-Keep the existing red-icon section headings. Every section starts with a short
+Use plain section headings without standalone icons. Every section starts with a short
 pixel-gradient picture bar. Place software logos or relevant feature pictures
 beneath the corresponding mentions. Prefer compact wrapping image rows over
 wide tables. Keep user-supplied in-game pictures separate from launcher logos;
