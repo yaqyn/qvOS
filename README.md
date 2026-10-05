@@ -56,7 +56,7 @@ applicable.
 
 ## <img src="docs/readme/icons/tools.svg" width="24" height="24" alt=""> Tools
 
-![Tools section](docs/readme/sections/tools.png)
+![Tools section](docs/readme/sections/tools-wrench.png)
 
 - Screenshots, screen recording, region OCR, and clipboard color picking.
 - Picture, video, and terminal-art conversion.

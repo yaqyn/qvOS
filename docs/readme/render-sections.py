@@ -15,7 +15,7 @@ SECTIONS = [
   ('desktop', 'DESKTOP', 'logos/hyprland.png'),
   ('wallpaper', 'WALLPAPER & APPEARANCE', 'icons/wallpaper.svg'),
   ('gaming-symbol', 'GAMING', 'logos/steam.svg'),
-  ('tools', 'TOOLS', 'icons/tools.svg'),
+  ('tools-wrench', 'TOOLS', 'icons/tools.svg'),
   ('recovery', 'SYSTEM & RECOVERY', 'icons/recovery.svg'),
   ('extensions', 'OPTIONAL INTEGRATIONS', 'logos/proton-proton.svg'),
   ('build', 'BUILD & INSTALL', 'logos/git.png'),
