@@ -18,8 +18,10 @@
 - Thunar, Windows VM, and generic capabilities use illustrative symbols
   rather than invented vendor logos.
 - Wallpaper references `qvcore/theme/yaqyn/preview.png` directly.
-- Actual in-game pictures remain user-supplied; no generated gameplay or
-  controller product photo is published.
+- `gaming-scene.png`: user-supplied gaming artwork added on 2026-10-05,
+  retained byte-for-byte as provided. It illustrates the Gaming section and
+  is not a claim of measured qvOS game performance.
+  SHA-256: `cc49acc01a77b337f182c61f3f61d1d6d7664c72249888ee2c853f97288c9f07`.
 
 `pixel_art.py` owns shared gradient and typography. To reproduce the artwork:
 

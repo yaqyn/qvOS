@@ -47,6 +47,8 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 ![Gaming section](docs/readme/sections/gaming.png)
 
+![Gaming artwork supplied for qvOS, showing a red-lit industrial game scene](docs/readme/gaming-scene.png)
+
 A gaming runtime is part of the base system. Choose the launchers you want:
 **Steam · Heroic · Lutris · Moonlight · RetroArch · Minecraft**.
 Native installation flows select graphics support for detected hardware where
