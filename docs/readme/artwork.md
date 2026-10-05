@@ -15,11 +15,19 @@
   rather than invented vendor logos.
 - Wallpaper references `qvcore/theme/yaqyn/preview.png` directly.
 - `gaming-scene.png`: user-supplied gaming artwork added on 2026-10-05,
-  retained byte-for-byte as provided. It illustrates the Gaming section and
-  is not a claim of measured qvOS game performance.
+  retained byte-for-byte as the original source. The source contains 448
+  transparent bottom rows. This artwork is not a claim of measured qvOS game
+  performance.
   SHA-256: `cc49acc01a77b337f182c61f3f61d1d6d7664c72249888ee2c853f97288c9f07`.
 
-`pixel_art.py` owns shared gradient and typography. To reproduce the artwork:
+- `gaming-scene-cropped.png`: the displayed 2172 × 724 framing rendition,
+  edited with the built-in image tool to remove the empty bottom padding.
+  The rendition is resampled; the original source remains available above.
+  SHA-256: `75990da95fdcc44950eb314a08902992e9b7dce64f09d047db2e60924383db7e`.
+  Editing brief: retain the entire visible red industrial scene, remove its
+  transparent bottom padding, and add no text, borders, or new game content.
+
+`pixel_art.py` owns shared gradient and typography. To reproduce the cover and cards:
 
 ```sh
 python docs/readme/render-cover.py

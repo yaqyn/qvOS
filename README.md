@@ -39,7 +39,7 @@ applications. Change wallpapers, select fonts, or install compatible user themes
 
 ## <img src="docs/readme/icons/gaming.svg" width="24" height="24" alt=""> Gaming
 
-![Gaming artwork supplied for qvOS, showing a red-lit industrial game scene](docs/readme/gaming-scene.png)
+![Gaming artwork supplied for qvOS, showing a red-lit industrial game scene](docs/readme/gaming-scene-cropped.png)
 
 A gaming runtime is part of the base system. Choose the launchers you want:
 **Steam · Heroic · Lutris · Moonlight · RetroArch · Minecraft**.
