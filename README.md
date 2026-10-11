@@ -17,7 +17,7 @@ workflow.
 
 ## <img src="docs/readme/icons/installation.svg" width="24" height="24" alt=""> Installation
 
-Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
+To build an ISO using the launcher below, have **Git**, an accessible **Docker daemon**,
 **40 GiB free space**, and an Internet connection ready. Images are saved to
 **`~/qvISO`** by default; verified download caches are reused.
 
@@ -32,16 +32,17 @@ installing it are separate steps. T2 Macs are currently unsupported.
 
 ## <img src="docs/readme/icons/launch.svg" width="24" height="24" alt=""> Quick start
 
+**ISO Download is not available yet.** It will be enabled when a release passes
+the installation and lifecycle checks.
+
+The launcher requires Linux x86_64, an interactive terminal, `curl`, `tar`, and `sha256sum`.
+
 ```sh
 curl -fsSL qvos.yaqyn.dev | sh
 ```
 
 Opens the **compiled terminal launcher** on Linux x86_64. Choose **Build** to
-create an ISO, or explore **About → Developer / Project**. Requires `curl`,
-`tar`, and `sha256sum`; the download is checksum-verified.
-
-**ISO Download is not available yet.** It will be enabled when a release passes
-the installation and lifecycle checks.
+create an ISO, or explore **About → Developer / Project**. The download is checksum-verified.
 
 ## <img src="docs/readme/icons/desktop.svg" width="24" height="24" alt=""> Desktop
 
@@ -127,7 +128,7 @@ remains complete without them.
 design. qvOS brings that work together, from desktop presentation and terminal
 tools to installation, maintenance, and recovery.
 
-Explore his projects and portfolio at **[the portfolio](https://yaqyn.github.io/folio-static-site/)**.
+[Explore Abdulrahman’s projects and portfolio](https://yaqyn.github.io/folio-static-site/).
 
 ## <img src="docs/readme/icons/license.svg" width="24" height="24" alt=""> Project and license
 
