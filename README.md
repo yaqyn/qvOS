@@ -2,9 +2,9 @@
 
 # qvOS
 
-**Standalone Arch Linux. Hyprland desktop. Native system tools.**
+> **Standalone Arch Linux. Hyprland desktop. Native system tools.**
 
-Developed by [Abdulrahman M. Yaqyn](https://yaqyn.dev), qvOS combines a
+Developed by [Abdulrahman M. Yaqyn](https://yaqyn.github.io/folio-static-site/), qvOS combines a
 keyboard-first desktop with its own installer, command system, and recovery
 workflow.
 
@@ -120,7 +120,7 @@ installing it are separate steps. T2 Macs are currently unsupported.
 design. qvOS brings that work together, from desktop presentation and terminal
 tools to installation, maintenance, and recovery.
 
-Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.dev)**.
+Explore his projects and portfolio at **[yaqyn.dev](https://yaqyn.github.io/folio-static-site/)**.
 
 ## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Project
 
