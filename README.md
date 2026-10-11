@@ -8,6 +8,28 @@ Developed by [Abdulrahman M. Yaqyn](https://yaqyn.github.io/folio-static-site/),
 keyboard-first desktop with its own installer, command system, and recovery
 workflow.
 
+## <img src="docs/readme/icons/features.svg" width="24" height="24" alt=""> Features
+
+- Keyboard-first Hyprland desktop on Arch Linux.
+- Native launcher, installer, and system commands.
+- Wallpaper, appearance, and gaming workflows.
+- System tools, updates, and recovery guidance.
+
+## <img src="docs/readme/icons/installation.svg" width="24" height="24" alt=""> Installation
+
+Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
+**40 GiB free space**, and an Internet connection ready. Images are saved to
+**`~/qvISO`** by default; verified download caches are reused.
+
+<p>
+  <img src="docs/readme/cards/git.png" width="128" height="85" alt="Git">
+</p>
+
+Boot the image to enter **Region → Account → Drive**. Building an ISO and
+installing it are separate steps. T2 Macs are currently unsupported.
+
+[Build and release requirements](release/iso/README.md) · [Launcher documentation](release/launcher/README.md)
+
 ## <img src="docs/readme/icons/launch.svg" width="24" height="24" alt=""> Quick start
 
 ```sh
@@ -98,21 +120,6 @@ language tooling.
 
 Both have independent installation and removal workflows. The base system
 remains complete without them.
-
-## <img src="docs/readme/icons/installation.svg" width="24" height="24" alt=""> Installation
-
-Select **Build** in the launcher. Have **Git**, an accessible **Docker daemon**,
-**40 GiB free space**, and an Internet connection ready. Images are saved to
-**`~/qvISO`** by default; verified download caches are reused.
-
-<p>
-  <img src="docs/readme/cards/git.png" width="128" height="85" alt="Git">
-</p>
-
-Boot the image to enter **Region → Account → Drive**. Building an ISO and
-installing it are separate steps. T2 Macs are currently unsupported.
-
-[Build and release requirements](release/iso/README.md) · [Launcher documentation](release/launcher/README.md)
 
 ## <img src="docs/readme/icons/owner.svg" width="24" height="24" alt=""> Maintainer
 
