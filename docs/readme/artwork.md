@@ -14,16 +14,18 @@
 - Thunar, Windows VM, and generic capabilities use illustrative symbols
   rather than invented vendor logos.
 - Wallpaper references `qvcore/theme/yaqyn/preview.png` directly.
-- `gaming-scene.png`: user-supplied gaming artwork added on 2026-10-05,
-  retained byte-for-byte as the original source. The source contains 448
+- `gaming-scene.webp`: user-supplied gaming artwork added on 2026-10-05,
+  converted to lossless WebP with its original pixels preserved. The source contains 448
   transparent bottom rows. This artwork is not a claim of measured qvOS game
   performance.
-  SHA-256: `cc49acc01a77b337f182c61f3f61d1d6d7664c72249888ee2c853f97288c9f07`.
+  Original PNG SHA-256: `cc49acc01a77b337f182c61f3f61d1d6d7664c72249888ee2c853f97288c9f07`.
+  WebP SHA-256: `c19eaac02bc46a36108a733d63f05417f9f6757c04212009786510eba4a10b08`.
 
-- `gaming-scene-cropped.png`: the displayed 2172 × 724 framing rendition,
+- `gaming-scene-cropped.webp`: the displayed 2172 × 724 framing rendition,
   edited with the built-in image tool to remove the empty bottom padding.
   The rendition is resampled; the original source remains available above.
-  SHA-256: `75990da95fdcc44950eb314a08902992e9b7dce64f09d047db2e60924383db7e`.
+  Original PNG SHA-256: `75990da95fdcc44950eb314a08902992e9b7dce64f09d047db2e60924383db7e`.
+  WebP SHA-256: `9874518b0a76a148326997ea9a05f6174410de444a16202da0e10d34ea6b4eee`.
   Editing brief: retain the entire visible red industrial scene, remove its
   transparent bottom padding, and add no text, borders, or new game content.
 
