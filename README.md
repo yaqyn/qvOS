@@ -6,9 +6,7 @@
 
 Developed by [Abdulrahman M. Yaqyn](https://yaqyn.github.io/folio-static-site/), qvOS combines a
 keyboard-first desktop with its own installer, command system, and recovery
-workflow. Its package foundation uses Omarchy's signed Stable repositories,
-distributed through Cloudflare, to prioritize stability. qvOS maintains its own
-desktop, tools, installer, and release lifecycle.
+workflow.
 
 ## <img src="docs/readme/icons/features.svg" width="24" height="24" alt=""> Features
 
@@ -136,7 +134,9 @@ tools to installation, maintenance, and recovery.
 
 [qvCORE architecture](qvcore/README.md) · [Source](https://github.com/yaqyn/qvOS) · [MIT license](LICENSE)
 
-qvOS owns its product, defaults, integration, and releases. It uses
-[Omarchy](https://github.com/basecamp/omarchy)'s Cloudflare-distributed, signed
-Stable package repositories and reviews selected capabilities for native ports.
+qvOS owns its product, defaults, integration, and releases.
 Third-party components retain their respective licenses and copyright notices.
+
+Its package foundation uses [Omarchy](https://github.com/basecamp/omarchy)'s signed
+Stable repositories, distributed through Cloudflare, to prioritize stability.
+Selected capabilities are reviewed from Omarchy for native ports.
